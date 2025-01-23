@@ -39,7 +39,22 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## Get Started
 
-// TODO (b/391498707): add steps to run the KHI
+### environment
+This tool requires following environment:
+- Go 1.21.*
+- Node.js environment 18.19.*
+
+### tool installation
+If you haven't installed these tools, install them first.
+- Angular CLI (`npm install -g @angular/cli`)
+- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install
+
+### run KHI
+1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud). e.g. `gcloud auth login` if you use your user account credentials.
+1. Download or clone this repository. e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
+1. Run `cd ./web && npm install` from the project root
+1. Run `make build-web KHI_FRONTEND_STATIC_FILE_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root. Backend app will run on `localhost:8080` by default
+1. Run `make watch-web` from the project root. Frontend app will run on `http://localhost:4200` by default
 
 ## Examples
 
