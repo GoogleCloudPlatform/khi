@@ -1,0 +1,2 @@
+'@type': type.googleapis.com/google.container.v1alpha1.DeleteClusterRequest
+name: projects/project-id/locations/us-central1-a/clusters/gke-basic-1

@@ -1,0 +1,71 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="container">
+  <div class="request-message-container">
+    <p class="request-message">KHI backend server requested your action</p>
+  </div>
+  <div class="popup-body">
+    <p class="popup-body-title">{{ formRequest.title }}</p>
+    <p class="popup-body-description">{{ formRequest.description }}</p>
+    <div class="popup-body-input">
+      <ng-container
+        *ngIf="formRequest.type === 'text'"
+        [ngTemplateOutlet]="textInput"
+      ></ng-container>
+      <ng-container
+        *ngIf="formRequest.type === 'popup_redirect'"
+        [ngTemplateOutlet]="popupRedirect"
+      >
+      </ng-container>
+      <!--Add other types here-->
+    </div>
+    <p class="validation-error">{{ validationError | async }}</p>
+    <div class="popup-body-footer">
+      <button
+        class="submit-button"
+        mat-flat-button
+        color="primary"
+        [disabled]="(isValid | async) === false"
+        (click)="onSubmit()"
+        *ngIf="nextButtonText !== ''"
+      >
+        {{ nextButtonText }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<ng-template #textInput>
+  <textarea
+    class="input-text-type-textarea"
+    matInput
+    [placeholder]="formRequest.placeholder"
+    cdkTextareaAutosize
+    cdkAutosizeMinRows="5"
+    cdkAutosizeMaxRows="14"
+    (input)="onTextAreaUpdate($event)"
+  ></textarea>
+</ng-template>
+
+<ng-template #popupRedirect>
+  <div class="popup-redirect-type-container">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <p class="open-popup-again-paragraph">
+      <a (click)="openRedirectPopup()">Open the popup again</a>
+    </p>
+  </div>
+</ng-template>

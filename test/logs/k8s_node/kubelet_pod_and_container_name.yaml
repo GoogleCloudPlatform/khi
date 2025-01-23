@@ -1,0 +1,46 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: n65fdogr5241a1z4
+jsonPayload:
+  _BOOT_ID: a1ac0b1141674ec4ac6b2dfc2c1baa33
+  _CAP_EFFECTIVE: 1ffffffffff
+  _COMM: kubelet
+  _EXE: /home/kubernetes/bin/kubelet
+  _GID: "0"
+  _HOSTNAME: gke-sample-cluster-default-abcdefgh-abcd
+  _MACHINE_ID: eb6795018239eaf31d263466747b976e
+  _PID: "1675"
+  _RUNTIME_SCOPE: system
+  _STREAM_ID: 10b19c83aa564e13b381831d4f95cc10
+  _SYSTEMD_CGROUP: /system.slice/kubelet.service
+  _SYSTEMD_INVOCATION_ID: c248bf9604554eeab3846201226961c7
+  _SYSTEMD_SLICE: system.slice
+  _SYSTEMD_UNIT: kubelet.service
+  _TRANSPORT: stdout
+  _UID: "0"
+  MESSAGE: I1119 22:48:13.914655 1675 kuberuntime_container.go:808] "Killing container with a grace period" pod="kube-system/kube-dns-58f547fd74-swzzt" podUID="34a3f9e5-4363-47a9-8bd9-3b37c60d107b" containerName="sidecar" containerID="containerd://5e0d5f0eab7a1ee243894fe769d690840243de4d53f5cb139094c395d8186881" gracePeriod=30
+  PRIORITY: "6"
+  SYSLOG_FACILITY: "3"
+  SYSLOG_IDENTIFIER: kubelet
+logName: projects/sample-project/logs/kubelet
+receiveTimestamp: "2024-01-01T01:00:00Z"
+resource:
+  labels:
+    cluster_name: sample-cluster
+    location: us-central1-a
+    node_name: gke-sample-cluster-default-abcdefgh-abcd
+    project_id: sample-project
+  type: k8s_node
+timestamp: "2024-01-01T01:00:00Z"

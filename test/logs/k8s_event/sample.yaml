@@ -1,0 +1,66 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: 1h0dswnf2ms3tx
+jsonPayload:
+    apiVersion: v1
+    eventTime: null
+    involvedObject:
+        kind: Node
+        name: gke-gke-basic-1-default-5e5b794d-89xl
+        uid: gke-gke-basic-1-default-5e5b794d-89xl
+    kind: Event
+    lastTimestamp: "2024-09-13T01:49:49Z"
+    message: Fri Sep 13 01:49:48 UTC 2024 - **     Node ready and registered. **
+    metadata:
+        creationTimestamp: "2024-09-13T01:49:49Z"
+        managedFields:
+            - apiVersion: v1
+              fieldsType: FieldsV1
+              fieldsV1:
+                f:count: {}
+                f:firstTimestamp: {}
+                f:involvedObject: {}
+                f:lastTimestamp: {}
+                f:message: {}
+                f:reason: {}
+                f:source:
+                    f:component: {}
+                    f:host: {}
+                f:type: {}
+              manager: node-problem-detector
+              operation: Update
+              time: "2024-09-13T01:49:49Z"
+        name: gke-gke-basic-1-default-5e5b794d-89xl.17f4aaa67ca0df44
+        namespace: default
+        resourceVersion: "946"
+        uid: 9766ec7f-c9fe-448d-a552-c84426c0e1ad
+    reason: NodeRegistrationCheckerDidNotRunChecks
+    reportingComponent: ""
+    reportingInstance: ""
+    source:
+        component: node-registration-checker-monitor
+        host: gke-gke-basic-1-default-5e5b794d-89xl
+    type: Warning
+logName: projects/project-id/logs/events
+receiveTimestamp: "2024-09-13T01:49:54.249610519Z"
+resource:
+    labels:
+        cluster_name: gke-basic-1
+        location: us-central1-a
+        node_name: gke-gke-basic-1-default-5e5b794d-89xl
+        project_id: project-id
+    type: k8s_node
+severity: WARNING
+timestamp: "2024-09-13T01:49:49Z"

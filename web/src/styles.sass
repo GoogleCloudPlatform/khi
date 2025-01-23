@@ -1,0 +1,75 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat
+@import '@angular/cdk/overlay-prebuilt.css'
+@import 'ngx-diff/styles/default-theme'
+
+// Global CSS reset
+html,body,p,h1,h2,h3
+    margin: 0
+    padding: 0
+    font-family: Roboto,Helvetica Neue Light,Helvetica Neue,Helvetica,Arial,Lucida Grande,sans-serif
+
+html,body
+    overscroll-behavior: none
+    height: 100%
+    width: 100%
+    max-width: 100%
+    max-height: 100%
+
+td.hljs-ln-code
+    padding: 0 0 0 10px!important
+.hljs-ln-numbers
+    text-align: center
+    color: #ccc
+    border-right: 1px solid #999
+    vertical-align: top
+    padding-right: 5px !important
+    user-select: none
+.hljs-ln-code
+    padding-left: 10px
+
+.hljs-ln-numbers
+    line-height: 20px
+
+code
+    white-space: pre-wrap
+    overflow: auto
+
+.cdk-overlay-pane
+    z-index: 5000
+.cdk-overlay-container
+    z-index: 5000
+
+.button-with-icon-and-label
+    .mat-button-wrapper
+        display: grid
+        grid-template-areas: "icon label"
+        gap: 5px
+        align-items: center
+        justify-content: center
+        mat-icon
+            font-size: 16px
+            width: 16px
+            height: 16px
+        p
+            margin: 0
+
+.startup-modalbox > mat-dialog-container 
+  background-color: transparent !important
+  .mat-mdc-dialog-surface
+    border-radius: 20px !important

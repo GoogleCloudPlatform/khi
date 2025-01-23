@@ -1,0 +1,68 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat
+$TOOLBAR_BACKGROUND: mat.get-color-from-palette(mat.$indigo-palette,100)
+
+.diff
+    flex: 1
+    display: grid
+    grid-template-areas: "toolbar" "warning" "diffbody"
+    grid-template-rows: auto auto 1fr
+    overflow: auto
+    .diff-inner
+        grid: "diffbody"
+        overflow: auto
+    .diff-warning
+        grid: "warning"
+        background-color: rgb(255,255,200)
+        font-weight: bold
+        color: rgb(255,150,10)
+        p
+            margin: 3px 0 3px 10px
+    .copy-diffbody-button
+        display: inline-block
+        margin: 2px
+        padding: 1px 10px
+        mat-icon
+            position: relative
+            top: 2px
+        .label
+            position: relative
+            bottom: 2px
+        &:hover
+            cursor: pointer
+            background-color: lightgray
+.toolbar
+    display: flex
+    justify-content: flex-end
+    column-gap: 1px
+    border-top: 1px solid rgba(0,0,0,0.3)
+    border-bottom: 1px solid rgba(0,0,0,0.3)
+    box-sizing: border-box
+    background-color: $TOOLBAR_BACKGROUND
+
+.empty-message
+    font-weight: 600
+    color:  mat.get-color-from-palette(mat.$gray-palette,700)
+    text-align: center
+    margin: 20px
+
+:host
+    display: flex
+    flex-direction: column
+    overflow: hidden
+    height: 100%

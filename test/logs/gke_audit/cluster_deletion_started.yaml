@@ -1,0 +1,69 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: 1hv8p4dd9ilh
+logName: projects/project-id/logs/cloudaudit.googleapis.com%2Factivity
+operation:
+    first: true
+    id: operation-1726199159930-7409b104-8654-4667-b477-4ce504d09bea
+    producer: container.googleapis.com
+protoPayload:
+    '@type': type.googleapis.com/google.cloud.audit.AuditLog
+    authenticationInfo:
+        principalEmail: user@example.com
+        principalSubject: user@example.com
+        serviceAccountDelegationInfo:
+            - principalSubject: serviceAccount:example@example.com
+    authorizationInfo:
+        - granted: true
+          permission: container.clusters.delete
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/clusters/gke-basic-1
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/clusters/gke-basic-1
+            service: container.googleapis.com
+            type: container.googleapis.com/Cluster
+    methodName: google.container.v1.ClusterManager.DeleteCluster
+    policyViolationInfo:
+        orgPolicyViolationInfo: {}
+    request:
+        '@type': type.googleapis.com/google.container.v1alpha1.DeleteClusterRequest
+        name: projects/project-id/locations/us-central1-a/clusters/gke-basic-1
+    requestMetadata:
+        callerIp: 127.0.0.1
+        callerSuppliedUserAgent: google-api-go-client/0.5 Terraform/1.7.5 (+https://www.terraform.io) Terraform-Plugin-SDK/2.31.0 terraform-provider-google/5.22.0,gzip(gfe)
+        destinationAttributes: {}
+        requestAttributes: {}
+    resourceLocation:
+        currentLocations:
+            - us-central1-a
+    resourceName: projects/project-id/zones/us-central1-a/clusters/gke-basic-1
+    response:
+        '@type': type.googleapis.com/google.container.v1alpha1.Operation
+        name: operation-1726199159930-7409b104-8654-4667-b477-4ce504d09bea
+        operationType: DELETE_CLUSTER
+        selfLink: https://container.googleapis.com/v1alpha1/projects/project-number/zones/us-central1-a/operations/operation-1726199159930-7409b104-8654-4667-b477-4ce504d09bea
+        startTime: "2025-01-01T00:00:00.000000000Z"
+        status: RUNNING
+        targetLink: https://container.googleapis.com/v1alpha1/projects/project-number/zones/us-central1-a/clusters/gke-basic-1
+    serviceName: container.googleapis.com
+receiveTimestamp: "2025-01-01T00:00:00.000000000Z"
+resource:
+    labels:
+        cluster_name: gke-basic-1
+        location: us-central1-a
+        project_id: project-id
+    type: gke_cluster
+severity: NOTICE
+timestamp: "2025-01-01T00:00:00.000000000Z"

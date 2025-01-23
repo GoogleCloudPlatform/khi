@@ -1,0 +1,284 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="background">
+  <div class="title">
+    <div class="center-image">
+      <img class="khi-logo" src="assets/icons/khi.png" />
+    </div>
+    <div class="title-header">
+      <h1 class="title-header-app-name">
+        <p class="app-name-k8s">Kubernetes</p>
+        <p>History Inspector</p>
+      </h1>
+      <p class="catch-phrase">
+        Make logs related to Kubernetes <br />easier, faster and well analyzed
+      </p>
+      <p class="version">v {{ ("NG_APP_VERSION" | env) || "Dev" }}</p>
+    </div>
+  </div>
+  <div class="body">
+    <div class="body-header">
+      <h2 class="welcome-message">What logs you want to visualize?</h2>
+      <div
+        *ngIf="!isViewerMode && (serverStat | async); let serverStat"
+        class="mem-usage"
+        matTooltip="Memory usage on KHI server. Be careful not to cause OOM with querying big time range"
+      >
+        <mat-icon>memory</mat-icon>
+        <p>
+          {{
+            (serverStat.totalMemoryAvailable / 1024 / 1024 / 1024).toFixed(2)
+          }}
+          GB
+        </p>
+      </div>
+    </div>
+    <div class="task-group flex-expand">
+      <div class="task-group-header task-group-inspect">
+        <mat-icon>frame_inspect</mat-icon>
+        <p class="group-title">Inspect</p>
+      </div>
+      <div class="task-group-body">
+        <div class="task-group-body-inner">
+          <div class="horizontal-2col-container">
+            <div class="inspect-left">
+              <div class="button-group">
+                <button
+                  [disabled]="isViewerMode"
+                  class="task-button main"
+                  (click)="openNewInspectionDialog()"
+                  [ngClass]="{ disabled: isViewerMode }"
+                  [matTooltip]="
+                    isViewerMode
+                      ? 'This page is hosted as readonly mode. This operation is prohibited.'
+                      : ''
+                  "
+                >
+                  <div class="icon-container"><mat-icon>search</mat-icon></div>
+                  <div class="task-title"><p>New inspection</p></div>
+                  <div class="task-description">
+                    <p>
+                      Gather logs related to a cluster automatically with auto
+                      generated query
+                    </p>
+                  </div>
+                </button>
+                <button class="task-button" (click)="openKhiFile()">
+                  <div class="icon-container">
+                    <mat-icon>file_open</mat-icon>
+                  </div>
+                  <div class="task-title">
+                    <p>Open .khi file</p>
+                  </div>
+                  <div class="task-description">
+                    <p>Open .khi file exported before.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+            <div class="inspect-right">
+              <div class="inspection-list">
+                <div
+                  class="inspection-list-inner"
+                  *ngIf="{
+                    tasks: taskListViewModel | async,
+                  } as listViewChildModel"
+                >
+                  <ng-container *ngIf="!isViewerMode; else viewerMode">
+                    <ng-container
+                      *ngIf="listViewChildModel.tasks !== null; else loading"
+                    >
+                      <ng-container
+                        *ngIf="
+                          listViewChildModel.tasks.length > 0;
+                          else emptyTaskList
+                        "
+                      >
+                        <div
+                          *ngFor="
+                            let task of listViewChildModel.tasks;
+                            trackBy: taskCollectionTrack
+                          "
+                          class="inspection-task"
+                        >
+                          <div class="inspection-task-status-indicator"></div>
+                          <p class="task-title">{{ task.label }}</p>
+                          <p class="task-phase">
+                            <span
+                              class="task-phase-inner"
+                              [ngClass]="task.phase"
+                              >{{ task.phase }}</span
+                            >
+                          </p>
+                          <div class="progress-container">
+                            <p
+                              class="progress-header"
+                              *ngIf="task.progresses.length > 0"
+                            >
+                              {{ task.progresses.length }} concurrent sub tasks
+                              are running ({{
+                                task.totalProgress.percentageLabel
+                              }}):
+                            </p>
+                            <div
+                              class="progress-element"
+                              *ngFor="
+                                let progress of task.progresses;
+                                trackBy: progressCollectionTrack
+                              "
+                            >
+                              <div class="progress-label">
+                                <p class="progress-label-inner">
+                                  {{ progress.label }}({{
+                                    progress.percentageLabel
+                                  }}%) {{ progress.message }}
+                                </p>
+                              </div>
+                              <div
+                                class="progress-bar"
+                                [style.width.%]="progress.percentage"
+                              ></div>
+                            </div>
+                          </div>
+                          <div class="error-container">
+                            <p class="error" *ngFor="let err of task.errors">
+                              <a
+                                [href]="err.link"
+                                class="error-link"
+                                target="_blank"
+                              >
+                                <span>{{ err.message }}</span
+                                ><mat-icon class="error-link-icon"
+                                  >open_in_new</mat-icon
+                                ></a
+                              >
+                            </p>
+                          </div>
+                          <div class="task-commands">
+                            <button
+                              class="open-button"
+                              *ngIf="task.phase === 'DONE'"
+                              mat-raised-button
+                              color="primary"
+                              (click)="openTaskResult(task.id)"
+                            >
+                              <mat-icon>frame_inspect</mat-icon>
+                              Open
+                            </button>
+                            <div class="icon-buttons">
+                              <button
+                                *ngIf="
+                                  task.phase === 'DONE' ||
+                                  task.phase === 'ERROR'
+                                "
+                                mat-icon-button
+                                matTooltip="Show task metadata"
+                                (click)="showMetadata(task.id)"
+                              >
+                                <mat-icon>database</mat-icon>
+                              </button>
+                              <button
+                                color="accent"
+                                *ngIf="task.phase === 'RUNNING'"
+                                mat-icon-button
+                                matTooltip="Cancel task"
+                                (click)="cancelTask(task.id)"
+                              >
+                                <mat-icon>cancel</mat-icon>
+                              </button>
+                              <button
+                                *ngIf="task.phase === 'DONE'"
+                                mat-icon-button
+                                matTooltip="Export inspection data"
+                                [disabled]="task.downloading | async"
+                                (click)="downloadInspectionData(task.id)"
+                              >
+                                <mat-icon
+                                  *ngIf="
+                                    task.downloading | async;
+                                    else downloading
+                                  "
+                                  >downloading</mat-icon
+                                >
+                                <ng-template #downloading>
+                                  <mat-icon>download</mat-icon>
+                                </ng-template>
+                              </button>
+                            </div>
+                          </div>
+                          <p class="task-time">
+                            Started: {{ task.inspectionTimeLabel }}
+                          </p>
+                        </div>
+                      </ng-container>
+                    </ng-container>
+                    <ng-template #emptyTaskList>
+                      <div class="task-list-empty">
+                        <p class="task-list-empty-message-main">
+                          No inspections started
+                        </p>
+                        <p class="task-list-empty-message-sub">
+                          Start a new inspection or open .khi file
+                        </p>
+                      </div>
+                    </ng-template>
+                  </ng-container>
+                  <ng-template #viewerMode>
+                    <div class="task-list-empty">
+                      <p class="task-list-empty-message-main">
+                        KHI running as viewer mode
+                      </p>
+                      <p class="task-list-empty-message-sub">
+                        Please run KHI by your own when you want to newly query
+                        logs of a clsuter
+                      </p>
+                    </div>
+                  </ng-template>
+                  <ng-template #loading>
+                    <div class="task-list-loading">
+                      <p>Loading task list...</p>
+                    </div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="task-group">
+      <div class="task-group-header task-group-help">
+        <mat-icon>developer_guide</mat-icon>
+        <p class="group-title">Learning</p>
+      </div>
+      <div class="task-group-body">
+        <div class="task-group-body-inner">
+          <div class="horizontal-2col-container">
+            <p class="link-list-elem">
+              <mat-icon class="link-icon">help</mat-icon
+              ><a [href]="documentUrl">Open help document</a>
+            </p>
+            <p class="link-list-elem">
+              <mat-icon class="link-icon">bug_report</mat-icon
+              ><a [href]="bugReportUrl" target="_blank">Report a bug/FR</a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

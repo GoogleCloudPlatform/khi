@@ -1,0 +1,339 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2024-01-01T09:36:03Z"
+  generateName: container-watcher-
+  labels:
+    container-watcher-unique-id: f487b5de
+    controller-revision-hash: 7b7f77657b
+    k8s-app: container-watcher
+    pod-template-generation: "1"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:generateName: {}
+        f:labels:
+          .: {}
+          f:container-watcher-unique-id: {}
+          f:controller-revision-hash: {}
+          f:k8s-app: {}
+          f:pod-template-generation: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"30d01f13-a512-49d3-b106-208ea70e552b"}: {}
+      f:spec:
+        f:affinity:
+          .: {}
+          f:nodeAffinity:
+            .: {}
+            f:requiredDuringSchedulingIgnoredDuringExecution: {}
+        f:containers:
+          k:{"name":"container-watcher"}:
+            .: {}
+            f:args: {}
+            f:command: {}
+            f:env:
+              .: {}
+              k:{"name":"CONTAINER_WATCHER_CPU_LIMIT"}:
+                .: {}
+                f:name: {}
+                f:valueFrom:
+                  .: {}
+                  f:resourceFieldRef: {}
+              k:{"name":"CONTAINER_WATCHER_CPU_REQUEST"}:
+                .: {}
+                f:name: {}
+                f:valueFrom:
+                  .: {}
+                  f:resourceFieldRef: {}
+              k:{"name":"CONTAINER_WATCHER_MEMORY_LIMIT"}:
+                .: {}
+                f:name: {}
+                f:valueFrom:
+                  .: {}
+                  f:resourceFieldRef: {}
+              k:{"name":"CONTAINER_WATCHER_MEMORY_REQUEST"}:
+                .: {}
+                f:name: {}
+                f:valueFrom:
+                  .: {}
+                  f:resourceFieldRef: {}
+            f:image: {}
+            f:imagePullPolicy: {}
+            f:name: {}
+            f:readinessProbe:
+              .: {}
+              f:exec:
+                .: {}
+                f:command: {}
+              f:failureThreshold: {}
+              f:initialDelaySeconds: {}
+              f:periodSeconds: {}
+              f:successThreshold: {}
+              f:timeoutSeconds: {}
+            f:resources:
+              .: {}
+              f:limits:
+                .: {}
+                f:cpu: {}
+                f:memory: {}
+              f:requests:
+                .: {}
+                f:cpu: {}
+                f:memory: {}
+            f:securityContext:
+              .: {}
+              f:privileged: {}
+            f:terminationMessagePath: {}
+            f:terminationMessagePolicy: {}
+            f:volumeMounts:
+              .: {}
+              k:{"mountPath":"/etc/container-watcher/secrets"}:
+                .: {}
+                f:mountPath: {}
+                f:name: {}
+                f:readOnly: {}
+              k:{"mountPath":"/host/"}:
+                .: {}
+                f:mountPath: {}
+                f:mountPropagation: {}
+                f:name: {}
+        f:dnsPolicy: {}
+        f:enableServiceLinks: {}
+        f:hostNetwork: {}
+        f:hostPID: {}
+        f:nodeSelector: {}
+        f:restartPolicy: {}
+        f:schedulerName: {}
+        f:securityContext: {}
+        f:serviceAccount: {}
+        f:serviceAccountName: {}
+        f:terminationGracePeriodSeconds: {}
+        f:tolerations: {}
+        f:volumes:
+          .: {}
+          k:{"name":"host-mount"}:
+            .: {}
+            f:hostPath:
+              .: {}
+              f:path: {}
+              f:type: {}
+            f:name: {}
+          k:{"name":"token-mount"}:
+            .: {}
+            f:name: {}
+            f:secret:
+              .: {}
+              f:defaultMode: {}
+              f:secretName: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2024-01-01T09:36:03Z"
+  name: container-watcher-s667m
+  namespace: kube-system
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: DaemonSet
+    name: container-watcher
+    uid: 30d01f13-a512-49d3-b106-208ea70e552b
+  resourceVersion: "1582"
+  uid: 7899f560-3d56-4831-a381-2691c28ea3e5
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchFields:
+          - key: metadata.name
+            operator: In
+            values:
+            - gke-khi-test-super-l-super-long-nodep-980dad3b-r4hx
+  containers:
+  - args:
+    - --backend_server=asia-northeast1-containerthreatdetection.googleapis.com:443
+    - --deployment_id=f487b5de
+    - --enabled_features=testing
+    command:
+    - /usr/bin/watcher
+    env:
+    - name: CONTAINER_WATCHER_CPU_REQUEST
+      valueFrom:
+        resourceFieldRef:
+          containerName: container-watcher
+          divisor: "0"
+          resource: requests.cpu
+    - name: CONTAINER_WATCHER_CPU_LIMIT
+      valueFrom:
+        resourceFieldRef:
+          containerName: container-watcher
+          divisor: "0"
+          resource: limits.cpu
+    - name: CONTAINER_WATCHER_MEMORY_REQUEST
+      valueFrom:
+        resourceFieldRef:
+          containerName: container-watcher
+          divisor: "0"
+          resource: requests.memory
+    - name: CONTAINER_WATCHER_MEMORY_LIMIT
+      valueFrom:
+        resourceFieldRef:
+          containerName: container-watcher
+          divisor: "0"
+          resource: limits.memory
+    image: gke.gcr.io/watcher-daemonset:ktd_release.watcher_20231129_RC00
+    imagePullPolicy: Always
+    name: container-watcher
+    readinessProbe:
+      exec:
+        command:
+        - /usr/bin/watcher
+        - -check_ready
+      failureThreshold: 3
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 5
+    resources:
+      limits:
+        cpu: 125m
+        memory: 300Mi
+      requests:
+        cpu: 25m
+        memory: 50Mi
+    securityContext:
+      privileged: true
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /host/
+      mountPropagation: HostToContainer
+      name: host-mount
+    - mountPath: /etc/container-watcher/secrets
+      name: token-mount
+      readOnly: true
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-x4p7j
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  hostNetwork: true
+  hostPID: true
+  nodeSelector:
+    kubernetes.io/os: linux
+  preemptionPolicy: PreemptLowerPriority
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: container-watcher-pod-reader
+  serviceAccountName: container-watcher-pod-reader
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    operator: Exists
+  - effect: NoSchedule
+    operator: Exists
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+  - effect: NoSchedule
+    key: node.kubernetes.io/disk-pressure
+    operator: Exists
+  - effect: NoSchedule
+    key: node.kubernetes.io/memory-pressure
+    operator: Exists
+  - effect: NoSchedule
+    key: node.kubernetes.io/pid-pressure
+    operator: Exists
+  - effect: NoSchedule
+    key: node.kubernetes.io/unschedulable
+    operator: Exists
+  - effect: NoSchedule
+    key: node.kubernetes.io/network-unavailable
+    operator: Exists
+  volumes:
+  - hostPath:
+      path: /
+      type: ""
+    name: host-mount
+  - name: token-mount
+    secret:
+      defaultMode: 420
+      secretName: container-watcher-token
+  - name: kube-api-access-x4p7j
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace
+status:
+  phase: Running
+  qosClass: Burstable
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2024-01-01T09:36:03Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2024-01-01T09:36:15Z"
+    message: null
+    reason: null
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2024-01-01T09:36:15Z"
+    message: null
+    reason: null
+    status: "True"
+    type: ContainersReady
+  - type: PodScheduled
+  containerStatuses:
+  - containerID: containerd://dde969e4b7bffe248248d049815776a7cfe61037a5626e8c24b84e4a5f22e5c0
+    image: gke.gcr.io/watcher-daemonset:ktd_release.watcher_20231129_RC00
+    imageID: gke.gcr.io/watcher-daemonset@sha256:8e94fadd8e23a681189932c7ee305b18a529ecba7f208523494350812e9f0b59
+    lastState: {}
+    name: container-watcher
+    ready: true
+    restartCount: 0
+    started: true
+    state:
+      running:
+        startedAt: "2024-01-01T09:36:08Z"
+  hostIP: 10.146.0.99
+  podIP: 10.146.0.99
+  podIPs:
+  - ip: 10.146.0.99
+  startTime: "2024-01-01T09:36:03Z"

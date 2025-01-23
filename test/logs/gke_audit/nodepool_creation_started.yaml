@@ -1,0 +1,87 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: 19ifmfxdyc4o
+logName: projects/your-project-id/logs/cloudaudit.googleapis.com%2Factivity
+operation:
+    first: true
+    id: operation-1726191716103-f4072772-f902-453d-8776-b69047cebae6
+    producer: container.googleapis.com
+protoPayload:
+    '@type': type.googleapis.com/google.cloud.audit.AuditLog
+    authenticationInfo:
+        principalEmail: user@example.com
+        principalSubject: serviceAccount:user@example.com
+        serviceAccountDelegationInfo:
+            - principalSubject: serviceAccount:your-project-id.svc.id.goog[composer-2-6-5-airflow-2-7-3-a86c53dd/default]
+    authorizationInfo:
+        - granted: true
+          permission: container.clusters.update
+          permissionType: ADMIN_WRITE
+          resource: projects/your-project-id/zones/us-central1-a/clusters/gke-basic-1
+          resourceAttributes:
+            name: projects/your-project-id/zones/us-central1-a/clusters/gke-basic-1
+            service: container.googleapis.com
+            type: container.googleapis.com/Cluster
+    methodName: google.container.v1.ClusterManager.CreateNodePool
+    policyViolationInfo:
+        orgPolicyViolationInfo: {}
+    request:
+        '@type': type.googleapis.com/google.container.v1alpha1.CreateNodePoolRequest
+        nodePool:
+            config:
+                loggingConfig: {}
+                machineType: e2-standard-8
+                oauthScopes:
+                    - https://www.googleapis.com/auth/cloud-platform
+            initialNodeCount: 3
+            locations:
+                - us-central1-a
+            management:
+                autoRepair: true
+            name: default
+            networkConfig: {}
+            upgradeSettings:
+                maxSurge: 1
+                strategy: SURGE
+            version: 1.29.6
+        parent: projects/your-project-id/locations/us-central1-a/clusters/gke-basic-1
+    requestMetadata:
+        callerIp: 127.0.0.1
+        callerSuppliedUserAgent: google-api-go-client/0.5 Terraform/1.7.5 (+https://www.terraform.io) Terraform-Plugin-SDK/2.31.0 terraform-provider-google/5.22.0,gzip(gfe)
+        destinationAttributes: {}
+        requestAttributes: {}
+    resourceLocation:
+        currentLocations:
+            - us-central1-a
+    resourceName: projects/your-project-id/zones/us-central1-a/clusters/gke-basic-1/nodePools/default
+    response:
+        '@type': type.googleapis.com/google.container.v1alpha1.Operation
+        name: operation-1726191716103-f4072772-f902-453d-8776-b69047cebae6
+        operationType: CREATE_NODE_POOL
+        selfLink: https://container.googleapis.com/v1alpha1/projects/1234567890/zones/us-central1-a/operations/operation-1726191716103-f4072772-f902-453d-8776-b69047cebae6
+        startTime: "2024-09-13T01:41:56.103625653Z"
+        status: PENDING
+        targetLink: https://container.googleapis.com/v1alpha1/projects/1234567890/zones/us-central1-a/clusters/gke-basic-1/nodePools/default
+    serviceName: container.googleapis.com
+receiveTimestamp: "2024-09-13T01:41:56.732947707Z"
+resource:
+    labels:
+        cluster_name: gke-basic-1
+        location: us-central1-a
+        nodepool_name: default
+        project_id: your-project-id
+    type: gke_nodepool
+severity: NOTICE
+timestamp: "2025-01-01T00:00:00Z"

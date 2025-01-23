@@ -1,0 +1,58 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="wrapper">
+  <khi-header></khi-header>
+  <div class="main-view-wrapper">
+    <div class="timeline">
+      <khi-timeline [resizer]="resizer"></khi-timeline>
+    </div>
+    <khi-side-pane
+      paneTitle="Logs"
+      [resizeCalculator]="resizer"
+      areaNameInResizer="log-view"
+      icon="segment"
+      *ngIf="showLogPane | async"
+    >
+      <khi-log-view></khi-log-view>
+    </khi-side-pane>
+    <khi-side-pane
+      paneTitle="History"
+      icon="history"
+      areaNameInResizer="history-view"
+      [resizeCalculator]="resizer"
+      *ngIf="showHistoryPane | async"
+    >
+      <khi-diff-view></khi-diff-view>
+    </khi-side-pane>
+    <div class="sidebar">
+      <button
+        class="pane-toggle"
+        [ngClass]="{ active: showLogPane | async }"
+        (click)="togglePane('log')"
+      >
+        <mat-icon class="icon">segment</mat-icon>
+      </button>
+      <button
+        class="pane-toggle"
+        [ngClass]="{ active: showHistoryPane | async }"
+        (click)="togglePane('history')"
+      >
+        <mat-icon class="icon">history</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

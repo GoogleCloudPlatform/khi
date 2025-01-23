@@ -1,0 +1,281 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="wrapper" *ngIf="viewModel | async; let vm">
+  <div
+    class="timeline-root-container"
+    [style.--explorer-pane-width.px]="explorerWidth | async"
+    *ngIf="$filteredLog | async; let filteredLogIndices"
+    [ngClass]="{
+      'scaling-mode': isInScaleMode | async,
+    }"
+    khiCaptureShiftKey
+    (shiftStatusChange)="onShiftStatusChange($event)"
+  >
+    <div
+      class="timeruler-view"
+      (wheel)="_onScrollRulerView($event)"
+      (mousedown)="_timelineDragStart()"
+    >
+      <p class="scale-time-tip">
+        <span class="scale-time-tip-inner">Scroll to scale time</span>
+      </p>
+    </div>
+    <!--Background of the timeline chart-->
+    <!--Pointer events are disabled in thier children.-->
+    <div class="timeline-background">
+      <div class="background-wrap" #canvasParent>
+        <canvas class="fill-background" #background></canvas>
+      </div>
+    </div>
+    <div class="summary-view"></div>
+    <div class="chart-scroll" #scrollViewport (wheel)="onChartScroll($event)">
+      <div class="sticky-header">
+        <div
+          *ngFor="let timeline of vm.stickyTimelines"
+          (click)="onTimelineHeaderClick(timeline.data)"
+          (mouseover)="onTimelineHeaderMouseOver(timeline.data)"
+          [ngClass]="[
+            'tl-header',
+            'tl-header-' + timeline.layerName,
+            vm.selectedTimelineResourcePath === timeline.resourcePath
+              ? 'selected'
+              : '',
+            vm.highlightedTimelineResourcePath === timeline.resourcePath
+              ? 'highlight'
+              : '',
+            vm.highlightedChildrenOfSelectedTimelineResourcePath.has(
+              timeline.resourcePath
+            )
+              ? 'children-of-selected'
+              : '',
+          ]"
+        >
+          <p [matTooltip]="timeline.label">
+            <span
+              *ngIf="timeline.relationshipMetadata.visible"
+              [ngClass]="[
+                'relationship-label',
+                timeline.relationshipMetadata.label,
+              ]"
+              [matTooltip]="timeline.relationshipMetadata.label"
+              >{{ timeline.relationshipMetadata.label }}</span
+            >
+            <span class="main-label">{{ timeline.label }}</span>
+            <span class="sub-label" *ngIf="timeline.subLabel !== ''"
+              >({{ timeline.subLabel }})</span
+            >
+          </p>
+        </div>
+      </div>
+      <div
+        class="chart-timeline-wrapper"
+        [style.transform]="'translateY(' + (wrapperYOffset | async) + 'px)'"
+        [style.height.px]="wrapperYHeight | async"
+      >
+        <!--Timeline headers-->
+        <div class="scrollable-layout-wrapper">
+          <div class="explorer-area">
+            <div
+              *ngFor="
+                let timeline of vm.scrollableTimelines;
+                trackBy: timelineTrackBy
+              "
+              (click)="onTimelineHeaderClick(timeline.data)"
+              (mouseover)="onTimelineHeaderMouseOver(timeline.data)"
+              [ngClass]="[
+                'tl-header',
+                'tl-header-' + timeline.layerName,
+                vm.selectedTimelineResourcePath === timeline.resourcePath
+                  ? 'selected'
+                  : '',
+                vm.highlightedTimelineResourcePath === timeline.resourcePath
+                  ? 'highlight'
+                  : '',
+                vm.highlightedChildrenOfSelectedTimelineResourcePath.has(
+                  timeline.resourcePath
+                )
+                  ? 'children-of-selected'
+                  : '',
+              ]"
+            >
+              <p [matTooltip]="timeline.label">
+                <span
+                  *ngIf="timeline.relationshipMetadata.visible"
+                  [ngClass]="[
+                    'relationship-label',
+                    timeline.relationshipMetadata.label,
+                  ]"
+                  [matTooltip]="timeline.relationshipMetadata.hint"
+                  >{{ timeline.relationshipMetadata.label }}</span
+                >
+                <span class="main-label">{{ timeline.label }}</span>
+                <span class="sub-label" *ngIf="timeline.subLabel !== ''"
+                  >({{ timeline.subLabel }})</span
+                >
+              </p>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <!--Timeline chart body-->
+          <div class="chart-area" #chartArea>
+            <div
+              id="timeline-chart-div-wrapper"
+              #timelineChartCanvasWrapper
+              tabindex="0"
+              (mousedown)="_timelineDragStart()"
+              (wheel)="_onScrollTimeline($event)"
+              (mousemove)="onTimelineMouseMove($event)"
+              (keydown)="onKeyDownOverCanvas($event)"
+            ></div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="expander"
+        [style.height.px]="totalScrollableHeight | async"
+      ></div>
+    </div>
+    <div class="chart-body-shadow" *ngIf="filteredLogIndices.size !== 0"></div>
+    <div class="resizer" (mousedown)="_resizeStart()"></div>
+    <div class="timeline-float-anchor">
+      <khi-timeline-navigator></khi-timeline-navigator>
+    </div>
+  </div>
+  <div class="log-detail-hover-anchor">
+    <div class="log-detail-hover-relative">
+      <div
+        *ngIf="hoverViewState | async; let hoverState"
+        class="log-detail-hover"
+        [style.display]="hoverState.visible ? 'flex' : 'none'"
+        [style.left.px]="hoverState.leftLocation"
+        [style.top.px]="hoverState.topLocation"
+        [style.max-height.px]="hoverState.height"
+      >
+        <p class="log-detail-count" [ngPlural]="hoverState.logs.length">
+          <ng-template ngPluralCase="0"></ng-template>
+          <ng-template ngPluralCase="1"
+            >{{ hoverState.logs.length }}
+            logs at
+            {{
+              (hoverState.beginTime + hoverState.endTime) / 2 | tsflong | async
+            }}</ng-template
+          >
+          <ng-template ngPluralCase="other"
+            >{{ hoverState.logs.length
+            }}<ng-container *ngIf="hoverState.omitted">+</ng-container> logs
+            between {{ hoverState.beginTime | tsflong | async }} and
+            {{ hoverState.endTime | tsflong | async }}</ng-template
+          >
+        </p>
+        <p class="log-detail-resourcepath">
+          <span class="parent-path">
+            {{ hoverState.readableResourcePathUntilParent }} >
+          </span>
+          <span
+            class="hover-resource-relationship"
+            *ngIf="
+              hoverState.resourceRelationshipMetadata !== null &&
+              hoverState.resourceRelationshipMetadata.label
+            "
+            [ngClass]="[hoverState.resourceRelationshipMetadata.label]"
+            >{{ hoverState.resourceRelationshipMetadata.label }}</span
+          >
+          <span class="resource-name">
+            {{ hoverState.resourceName }}
+          </span>
+        </p>
+        <div
+          class="log-detail-row"
+          *ngFor="let highlightLog of hoverState.logs; let i = index"
+        >
+          <div
+            *ngIf="
+              highlightLog && highlightLog.logIndex !== -1;
+              else hoverNoLog
+            "
+          >
+            <div class="log-detail-properties">
+              <p class="property ts">
+                <span class="label"></span
+                ><span class="ts-inner">{{
+                  highlightLog.time | tsf | async
+                }}</span>
+              </p>
+              <p class="property logtype">
+                Source:
+                <span
+                  [ngClass]="[highlightLog.logTypeCss]"
+                  class="logtype-inner"
+                  >{{ highlightLog.logTypeCss }}</span
+                >
+              </p>
+              <p
+                class="property revisionstate"
+                *ngIf="highlightLog.revisionPair; let revisionPair"
+              >
+                Status:
+                <ng-container
+                  *ngIf="
+                    revisionPair.previous === null ||
+                      revisionPair.previous.revisionStateCssSelector ===
+                        revisionPair.current.revisionStateCssSelector;
+                    else revisionChange
+                  "
+                >
+                  <span
+                    class="revisionstate-inner"
+                    [ngClass]="revisionPair.current.revisionStateCssSelector"
+                    >{{ revisionPair.current.revisionStateLabel }}</span
+                  >
+                </ng-container>
+                <ng-template #revisionChange>
+                  <span
+                    class="revisionstate-inner"
+                    [ngClass]="revisionPair.previous!.revisionStateCssSelector"
+                    >{{ revisionPair.previous!.revisionStateLabel }}</span
+                  >
+                  ⏩
+                  <span
+                    class="revisionstate-inner"
+                    [ngClass]="revisionPair.current.revisionStateCssSelector"
+                    >{{ revisionPair.current.revisionStateLabel }}</span
+                  >
+                </ng-template>
+              </p>
+            </div>
+            <p class="message">
+              <span>{{ highlightLog.message }}</span>
+            </p>
+          </div>
+          <ng-template #hoverNoLog>
+            <div class="warn">
+              <p class="emp">
+                <span> <mat-icon>lightbulb</mat-icon> Tips:</span> Only the
+                resource existence is inferred during the yellow period
+              </p>
+              <p class="message">
+                KHI knows there was something during the yellow period. The
+                existence was inferred from other logs, but no detail is
+                available.
+              </p>
+            </div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

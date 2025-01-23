@@ -1,0 +1,19 @@
+'@type': type.googleapis.com/google.container.v1alpha1.CreateNodePoolRequest
+nodePool:
+  config:
+    loggingConfig: {}
+    machineType: e2-standard-8
+    oauthScopes:
+    - https://www.googleapis.com/auth/cloud-platform
+  initialNodeCount: 3
+  locations:
+  - us-central1-a
+  management:
+    autoRepair: true
+  name: default
+  networkConfig: {}
+  upgradeSettings:
+    maxSurge: 1
+    strategy: SURGE
+  version: 1.29.6
+parent: projects/your-project-id/locations/us-central1-a/clusters/gke-basic-1

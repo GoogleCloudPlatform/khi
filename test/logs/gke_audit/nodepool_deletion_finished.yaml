@@ -1,0 +1,44 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: s0v4w1e1lw8h
+logName: projects/project-id/logs/cloudaudit.googleapis.com%2Factivity
+operation:
+    id: operation-1726191433631-f35aa16e-345f-4a0f-8091-ec613f0635c2
+    last: true
+    producer: container.googleapis.com
+protoPayload:
+    '@type': type.googleapis.com/google.cloud.audit.AuditLog
+    metadata:
+        operationType: DELETE_NODE_POOL
+        requestID: "0x892626320f80e5a2"
+    methodName: google.container.v1.ClusterManager.DeleteNodePool
+    policyViolationInfo:
+        orgPolicyViolationInfo: {}
+    resourceLocation:
+        currentLocations:
+            - us-central1-a
+    resourceName: projects/project-id/zones/us-central1-a/clusters/gke-basic-1/nodePools/default-pool
+    serviceName: container.googleapis.com
+    status: {}
+receiveTimestamp: "2024-09-13T01:41:47.882633011Z"
+resource:
+    labels:
+        cluster_name: gke-basic-1
+        location: us-central1-a
+        nodepool_name: default-pool
+        project_id: project-id
+    type: gke_nodepool
+severity: NOTICE
+timestamp: "2025-01-01T00:00:00Z"

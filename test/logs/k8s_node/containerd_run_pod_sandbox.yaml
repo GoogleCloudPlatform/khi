@@ -1,0 +1,47 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: 1xcq1ejxb9pu1wsu
+jsonPayload:
+  _BOOT_ID: a1ac0b1141674ec4ac6b2dfc2c1baa33
+  _CAP_EFFECTIVE: 1ffffffffff
+  _CMDLINE: /usr/bin/containerd
+  _COMM: containerd
+  _EXE: /usr/bin/containerd
+  _GID: "0"
+  _HOSTNAME: gke-sample-cluster-default-abcdefgh-abcd
+  _MACHINE_ID: eb6795018239eaf31d263466747b976e
+  _PID: "1489"
+  _RUNTIME_SCOPE: system
+  _STREAM_ID: ef8ac8edbe3d4a82aadb53f94d81dd21
+  _SYSTEMD_CGROUP: /system.slice/containerd.service
+  _SYSTEMD_INVOCATION_ID: 5d6c1d96f4b940cf956b7cffb4f25b25
+  _SYSTEMD_SLICE: system.slice
+  _SYSTEMD_UNIT: containerd.service
+  _TRANSPORT: stdout
+  _UID: "0"
+  MESSAGE: time="2024-01-01T01:00:00Z" level=info msg="RunPodSandbox for &PodSandboxMetadata{Name:kube-dns-58f547fd74-swzzt,Uid:34a3f9e5-4363-47a9-8bd9-3b37c60d107b,Namespace:kube-system,Attempt:0,} returns sandbox id \"e4b03e280958b847e92e22b7a1570bdf63cb35432514b9a8f12f4b9adfe49714\""
+  PRIORITY: "6"
+  SYSLOG_FACILITY: "3"
+  SYSLOG_IDENTIFIER: containerd
+logName: projects/sample-project/logs/container-runtime
+receiveTimestamp: "2024-01-01T01:00:00Z"
+resource:
+  labels:
+    cluster_name: sample-cluster
+    location: us-central1-a
+    node_name: gke-sample-cluster-default-abcdefgh-abcd
+    project_id: sample-project
+  type: k8s_node
+timestamp: "2024-01-01T01:00:00Z"

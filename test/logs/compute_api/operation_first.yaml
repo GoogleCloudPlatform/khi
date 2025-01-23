@@ -1,0 +1,214 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: -1my2hie4lhes
+labels:
+    compute.googleapis.com/root_trigger_id: 823a3eb4-b051-4bc8-a042-11ab30b98f8b
+logName: projects/project-id/logs/cloudaudit.googleapis.com%2Factivity
+operation:
+    first: true
+    id: operation-1726191739294-621f6556f5492-0777bde4-78d02b5a
+    producer: compute.googleapis.com
+protoPayload:
+    '@type': type.googleapis.com/google.cloud.audit.AuditLog
+    authenticationInfo:
+        principalEmail: serviceaccount@project-id.iam.gserviceaccount.com
+    authorizationInfo:
+        - granted: true
+          permission: compute.instances.create
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.instances
+        - granted: true
+          permission: compute.disks.create
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/disks/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/disks/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.disks
+        - granted: true
+          permission: compute.disks.setLabels
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/disks/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/disks/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.disks
+        - granted: true
+          permission: compute.subnetworks.use
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
+          resourceAttributes:
+            name: projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
+            service: compute
+            type: compute.subnetworks
+        - granted: true
+          permission: compute.subnetworks.useExternalIp
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
+          resourceAttributes:
+            name: projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
+            service: compute
+            type: compute.subnetworks
+        - granted: true
+          permission: compute.instances.setMetadata
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.instances
+        - granted: true
+          permission: compute.instances.setTags
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.instances
+        - granted: true
+          permission: compute.instances.setLabels
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.instances
+        - granted: true
+          permission: compute.instances.setServiceAccount
+          permissionType: ADMIN_WRITE
+          resource: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+          resourceAttributes:
+            name: projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+            service: compute
+            type: compute.instances
+    metadata:
+        usedResources:
+            attachedDisks:
+                - isBootDisk: true
+                  sourceImage: https://www.googleapis.com/compute/v1/projects/project-number/global/images/gke-1296-gke1326000-cos-109-17800-218-69-c-pre
+                  sourceImageId: "6149965280551207428"
+    methodName: v1.compute.instances.insert
+    request:
+        '@type': type.googleapis.com/compute.instances.insert
+        disks:
+            - autoDelete: true
+              boot: true
+              deviceName: persistent-disk-0
+              initializeParams:
+                diskSizeGb: "100"
+                diskType: projects/project-number/zones/us-central1-a/diskTypes/pd-balanced
+                guestOsFeatures:
+                    - type: UEFI_COMPATIBLE
+                labels:
+                    - key: goog-gke-cluster-id-base32
+                      value: j36svzpvgnhsdmmro2njkhjderq75mzq63feennunqg5tju7nbma
+                    - key: goog-gke-node
+                      value: ""
+                    - key: goog-gke-volume
+                      value: ""
+                    - key: goog-k8s-cluster-location
+                      value: us-central1-a
+                    - key: goog-k8s-cluster-name
+                      value: gke-basic-1
+                    - key: goog-k8s-node-pool-name
+                      value: default
+                onUpdateAction: RECREATE_DISK_IF_SOURCE_CHANGED
+                sourceImage: https://www.googleapis.com/compute/v1/projects/gke-node-images/global/images/gke-1296-gke1326000-cos-109-17800-218-69-c-pre
+              mode: READ_WRITE
+              type: PERSISTENT
+        labels:
+            - key: goog-gke-cluster-id-base32
+              value: j36svzpvgnhsdmmro2njkhjderq75mzq63feennunqg5tju7nbma
+            - key: goog-gke-node
+              value: ""
+            - key: goog-k8s-cluster-location
+              value: us-central1-a
+            - key: goog-k8s-cluster-name
+              value: gke-basic-1
+            - key: goog-k8s-node-pool-name
+              value: default
+        machineType: projects/project-number/zones/us-central1-a/machineTypes/e2-standard-8
+        name: gke-gke-basic-1-default-5e5b794d-2m33
+        networkInterfaces:
+            - accessConfigs:
+                - name: external-nat
+                  networkTier: PREMIUM
+                  type: ONE_TO_ONE_NAT
+              aliasIpRanges:
+                - ipCidrRange: /24
+                  subnetworkRangeName: gke-gke-basic-1-pods-4efd2ae5
+              name: nic0
+              network: https://www.googleapis.com/compute/v1/projects/project-id/global/networks/gke-basic-1-vpc
+              stackType: IPV4_ONLY
+              subnetwork: https://www.googleapis.com/compute/v1/projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
+        networkPerformanceConfig:
+            totalEgressBandwidthTier: DEFAULT
+        requestId: 1cb27ecf-1d4a-30a3-afe9-35d1a538bcbd
+        scheduling:
+            automaticRestart: true
+            onHostMaintenance: MIGRATE
+            preemptible: false
+            provisioningModel: STANDARD
+        serviceAccounts:
+            - email: default
+              scopes:
+                - https://www.googleapis.com/auth/cloud-platform
+        shieldedInstanceConfig:
+            enableIntegrityMonitoring: true
+            enableSecureBoot: false
+            enableVtpm: true
+        tags:
+            tags:
+                - gke-gke-basic-1-4efd2ae5-node
+    requestMetadata:
+        callerSuppliedUserAgent: GCE Managed Instance Group for GKE
+        destinationAttributes: {}
+        requestAttributes:
+            auth: {}
+            time: "2024-09-13T01:42:20.455639Z"
+    resourceLocation:
+        currentLocations:
+            - us-central1-a
+    resourceName: projects/project-number/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+    response:
+        '@type': type.googleapis.com/operation
+        clientOperationId: 1cb27ecf-1d4a-30a3-afe9-35d1a538bcbd
+        id: "3676522717484295827"
+        insertTime: "2024-09-12T18:42:20.276-07:00"
+        name: operation-1726191739294-621f6556f5492-0777bde4-78d02b5a
+        operationType: insert
+        progress: "0"
+        selfLink: https://www.googleapis.com/compute/v1/projects/project-id/zones/us-central1-a/operations/operation-1726191739294-621f6556f5492-0777bde4-78d02b5a
+        selfLinkWithId: https://www.googleapis.com/compute/v1/projects/project-id/zones/us-central1-a/operations/3676522717484295827
+        startTime: "2024-09-12T18:42:20.276-07:00"
+        status: RUNNING
+        targetId: "8430746489873901204"
+        targetLink: https://www.googleapis.com/compute/v1/projects/project-id/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+        user: serviceaccount@project-id.iam.gserviceaccount.com
+        zone: https://www.googleapis.com/compute/v1/projects/project-id/zones/us-central1-a
+    serviceName: compute.googleapis.com
+receiveTimestamp: "2024-09-13T01:42:20.661474363Z"
+resource:
+    labels:
+        instance_id: "8430746489873901204"
+        project_id: project-id
+        zone: us-central1-a
+    type: gce_instance
+severity: NOTICE
+timestamp: "2024-01-01T01:00:00Z"

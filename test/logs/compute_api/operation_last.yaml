@@ -1,0 +1,42 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: oz63e3dd8ps
+labels:
+    compute.googleapis.com/root_trigger_id: 823a3eb4-b051-4bc8-a042-11ab30b98f8b
+logName: projects/project-id/logs/cloudaudit.googleapis.com%2Factivity
+operation:
+    id: operation-1726191739294-621f6556f5492-0777bde4-78d02b5a
+    last: true
+    producer: compute.googleapis.com
+protoPayload:
+    '@type': type.googleapis.com/google.cloud.audit.AuditLog
+    authenticationInfo:
+        principalEmail: serviceaccount@project-id.iam.gserviceaccount.com
+    methodName: v1.compute.instances.insert
+    request:
+        '@type': type.googleapis.com/compute.instances.insert
+    requestMetadata:
+        callerSuppliedUserAgent: GCE Managed Instance Group for GKE
+    resourceName: projects/project-number/zones/us-central1-a/instances/gke-gke-basic-1-default-5e5b794d-2m33
+    serviceName: compute.googleapis.com
+receiveTimestamp: "2024-09-13T01:42:26.894786172Z"
+resource:
+    labels:
+        instance_id: "8430746489873901204"
+        project_id: project-id
+        zone: us-central1-a
+    type: gce_instance
+severity: NOTICE
+timestamp: "2024-01-01T01:05:00Z"

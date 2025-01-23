@@ -1,0 +1,81 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat
+
+$ICON_SIZE : 18px
+$FONT_SIZE: 12px
+$LABEL_WIDTH: 100px
+$LABEL_BACKGROUND: mat.get-color-from-palette(mat.$indigo-palette,600)
+$BACKGROUND: mat.get-color-from-palette(mat.$indigo-palette,100)
+$LABEL_COLOR: white
+$VALUE_COLOR: black
+$COPY_BUTTON_SIZE: 15px
+.container
+    display: flex
+    flex-wrap: wrap
+    column-gap: 3px
+    background-color: $BACKGROUND
+    color: $LABEL_COLOR
+    line-height: 1.7
+    .icon
+        width: $FONT_SIZE
+        height: $FONT_SIZE
+        font-size: $FONT_SIZE
+    .label
+        user-select: none
+        font-weight: 600
+        font-size: $FONT_SIZE
+        margin: 0.5px 0 0.5px 0
+        width: $LABEL_WIDTH
+        background-color: $LABEL_BACKGROUND
+        .icon
+            margin: 3px 3px -3px 1px
+
+    .copy-icon-container
+        display: none
+        background: rgba(255,255,255,0.9)
+        position: absolute
+        border-radius: calc($ICON_SIZE / 2)
+        padding: 3px
+        margin-left: -25px
+        &:before
+            content: ""
+            position: absolute
+            top: 50%
+            left: 100%
+            margin-top: -5px
+            border: 5px solid transparent
+            border-left: 5px solid rgba(255,255,255,0.9)
+
+    .value
+        color: $VALUE_COLOR
+        font-size: $FONT_SIZE
+        flex: 1
+        margin: 0
+        line-height: 1.7
+        white-space: nowrap
+        text-overflow: ellipsis
+        overflow: hidden
+        &:hover
+            text-decoration: underline
+            cursor: pointer
+            .copy-icon-container
+                display: flex
+                justify-content: center
+                align-items: center
+                width: $COPY_BUTTON_SIZE
+                height: $COPY_BUTTON_SIZE

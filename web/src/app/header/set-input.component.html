@@ -1,0 +1,99 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="container">
+  <mat-form-field appearance="fill">
+    <mat-label>{{ label }}</mat-label>
+    <mat-chip-grid #chipList class="chip-grid">
+      <mat-chip-row
+        *ngFor="let item of selectedItems"
+        (removed)="removeItem(item)"
+      >
+        {{ item }}
+        <button
+          matChipTrailingIcon
+          class="chip-button only"
+          (click)="selectOnly(item)"
+        >
+          <mat-icon
+            class="chip-button-icon only"
+            [matTooltip]="'Select only ' + item"
+            >check_circle</mat-icon
+          >
+        </button>
+        <button
+          matChipTrailingIcon
+          class="chip-button remove"
+          (click)="removeItem(item)"
+        >
+          <mat-icon
+            class="chip-button-icon remove"
+            [matTooltip]="'Unselect ' + item"
+            >cancel</mat-icon
+          >
+        </button>
+      </mat-chip-row>
+      <input
+        placeholder="Type here to add {{ label }}..."
+        #inputElement
+        [formControl]="inputCtrl"
+        [matAutocomplete]="auto"
+        [matChipInputFor]="chipList"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+        (matChipInputTokenEnd)="addItem($event)"
+      />
+    </mat-chip-grid>
+    <mat-autocomplete
+      #auto="matAutocomplete"
+      (optionSelected)="selected($event)"
+    >
+      <mat-option
+        *ngFor="let item of $textFieldCandidates | async"
+        [value]="item"
+      >
+        {{ item }}
+      </mat-option>
+    </mat-autocomplete>
+  </mat-form-field>
+  <div class="buttons">
+    <button
+      class="add-all-button"
+      mat-stroked-button
+      color="primary"
+      [disabled]="selectedItems.size === choices.size"
+      (click)="addAll()"
+    >
+      <mat-icon>add_circle</mat-icon>Add all
+    </button>
+    <button
+      class="remove-all-button"
+      mat-stroked-button
+      color="warn"
+      [disabled]="selectedItems.size === 0"
+      (click)="removeAll()"
+    >
+      <mat-icon>remove_circle</mat-icon>Remove all
+    </button>
+    <button
+      class="close-button"
+      mat-flat-button
+      color="primary"
+      (click)="onClose()"
+    >
+      Close
+    </button>
+  </div>
+</div>

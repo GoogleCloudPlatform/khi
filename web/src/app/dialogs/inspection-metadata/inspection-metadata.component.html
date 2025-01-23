@@ -1,0 +1,64 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div>
+  <!--Header-->
+  <mat-card *ngIf="data.header; let header">
+    <mat-card-header>
+      <mat-card-title>{{ header.inspectionType }}</mat-card-title>
+    </mat-card-header>
+  </mat-card>
+
+  <mat-card *ngIf="data.query; let queries">
+    <mat-card-header>
+      <mat-card-title>Query</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <mat-card *ngFor="let query of queries">
+        <mat-card-header>
+          <mat-card-title>{{ query.name }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <pre>{{ query.query }}</pre>
+        </mat-card-content>
+      </mat-card>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card *ngIf="data.log; let logs">
+    <mat-card-header>
+      <mat-card-title>Logs</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <mat-card *ngFor="let log of logs">
+        <mat-card-header>
+          <mat-card-title>{{ log.name }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <pre class="limit-pre-max-height">{{ log.log }}</pre>
+        </mat-card-content>
+      </mat-card>
+    </mat-card-content>
+  </mat-card>
+  <mat-card *ngIf="data.plan; let plan">
+    <mat-card-header>
+      <mat-card-title>Plan</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <pre class="limit-pre-max-height">{{ plan.taskGraph }}</pre>
+    </mat-card-content>
+  </mat-card>
+</div>

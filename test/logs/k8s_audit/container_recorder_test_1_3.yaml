@@ -1,0 +1,86 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: 7bf65423-5d85-43a0-aaf7-30a2ce7475df
+labels:
+  authorization.k8s.io/decision: allow
+  authorization.k8s.io/reason: ""
+logName: projects/sample-project/logs/cloudaudit.googleapis.com%2Factivity
+operation:
+  first: true
+  id: 7bf65423-5d85-43a0-aaf7-30a2ce7475df
+  last: true
+  producer: k8s.io
+protoPayload:
+  '@type': type.googleapis.com/google.cloud.audit.AuditLog
+  authenticationInfo:
+    principalEmail: system:node:gke-sample-cluster-default-abcdefgh-abcd
+  authorizationInfo:
+    - granted: true
+      permission: io.k8s.core.v1.pods.status.patch
+      resource: core/v1/namespaces/1-2-deployment-update/pods/nginx-deployment-surge-8655b4b8c5-xf5f4/status
+  methodName: io.k8s.core.v1.pods.status.patch
+  request:
+    '@type': k8s.io/Patch
+    metadata:
+      uid: c0b4e00d-da76-4255-9a02-670d5b74aa3a
+    status:
+      $setElementOrder/conditions:
+        - type: Initialized
+        - type: Ready
+        - type: ContainersReady
+        - type: PodScheduled
+      conditions:
+        - message: 'containers with unready status: [late-startup]'
+          type: Ready
+        - message: 'containers with unready status: [late-startup]'
+          type: ContainersReady
+      containerStatuses:
+        - containerID: containerd://a0d5e6840fd995139f7d1b81c59c190bd6668997d0ea917ed49bac8e74ed2312
+          image: registry.k8s.io/busybox:latest
+          imageID: sha256:36a4dca0fe6fb2a5133dc11a6c8907a97aea122613fa3e98be033959a0821a1f
+          lastState: {}
+          name: late-startup
+          ready: false
+          restartCount: 0
+          started: true
+          state:
+            running:
+              startedAt: "2024-01-01T01:00:00Z"
+        - containerID: containerd://5043bea481844f45aa284f214ef5fed1bf71eae0fc83f6633c293db765b3ed1d
+          image: docker.io/library/nginx:1.14.2
+          imageID: docker.io/library/nginx@sha256:f7988fb6c02e0ce69257d9bd9cf37ae20a60f1df7563c3a2a6abe24160306b8d
+          lastState: {}
+          name: nginx
+          ready: true
+          restartCount: "0"
+          started: true
+          state:
+            running:
+              startedAt: "2024-01-01T01:00:00Z"
+  requestMetadata:
+    callerIp: 10.146.0.7
+    callerSuppliedUserAgent: kubelet/v1.28.14 (linux/amd64) kubernetes/a4ef1a6
+  resourceName: core/v1/namespaces/1-2-deployment-update/pods/nginx-deployment-surge-8655b4b8c5-xf5f4/status
+  serviceName: k8s.io
+  status:
+    code: 0
+receiveTimestamp: "2024-01-01T01:00:00Z"
+resource:
+  labels:
+    cluster_name: sample-cluster
+    location: us-central1-a
+    project_id: sample-project
+  type: k8s_cluster
+timestamp: "2024-01-01T01:00:00Z"

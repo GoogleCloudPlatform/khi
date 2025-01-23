@@ -1,0 +1,104 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat
+
+$foreground: white
+$background: mat.get-color-from-palette(mat.$indigo-palette,500)
+
+$menu-width: 135px
+
+:host
+    background-color: $background
+    display: flex
+    user-select: none
+
+.title
+    margin: 0 0 0 20px
+    color: $foreground
+    font-size: 14px
+    font-weight: 600
+
+.version
+    color: $foreground
+    border: 1.5px solid $foreground
+    box-sizing: border-box
+    margin: auto 10px
+    padding: 3px 5px
+    border-radius: 4px
+
+.viewer-mode
+    display: flex
+    justify-content: center
+    align-items: center
+    background-color: mat.get-color-from-palette(mat.$yellow-palette,900)
+    color: $foreground
+    border-radius: 4px
+    margin: auto 10px
+    padding: 3px 5px
+    .icon
+        margin: 0 5px 0 0
+
+.page-info
+    display: flex
+    justify-content: center
+    align-items: center
+    background-color: mat.get-color-from-palette(mat.$indigo-palette,100)
+    color: mat.get-color-from-palette(mat.$indigo-palette,800)
+    border-radius: 4px
+    margin: auto 10px
+    padding: 3px 5px
+    .icon
+        margin: 0 5px 0 0
+
+.session-info
+    display: flex
+    justify-content: center
+    align-items: center
+    background-color: mat.get-color-from-palette(mat.$indigo-palette,100)
+    color: mat.get-color-from-palette(mat.$indigo-palette,800)
+    border-radius: 4px
+    margin: auto 10px
+    padding: 3px 5px
+    .session-info-label
+        display: flex
+        justify-content: center
+        align-items: center
+        margin: 0
+        color: mat.get-color-from-palette(mat.$indigo-palette,800)
+    .icon
+        margin: 0 5px 0 0
+    .session-count
+        background-color: mat.get-color-from-palette(mat.$indigo-palette,800)
+        color: white
+        border-radius: 8px
+        padding: 0 4px
+        margin: 0 0 0 10px
+
+
+.mat-menu-group.mdc-button
+    color: $foreground
+    background-color: $background
+    &:hover
+        background-color: mat.get-color-from-palette(mat.$indigo-palette,400)
+
+.menu-groups
+    flex: 1
+    margin: 0 20px
+
+.connection-error
+    color: mat.get-color-from-palette(mat.$red-palette,400)
+    font-weight: 800

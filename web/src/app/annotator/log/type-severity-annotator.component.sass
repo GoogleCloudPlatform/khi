@@ -1,0 +1,68 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '../../generated' as gen
+@use '@angular/material' as mat
+
+$FONT_SIZE: 12px
+$LABEL_BACKGROUND: mat.get-color-from-palette(mat.$indigo-palette,600)
+$BACKGROUND: mat.get-color-from-palette(mat.$indigo-palette,100)
+$LABEL_COLOR: white
+$LABEL_WIDTH: 100px
+mat-icon
+    width: $FONT_SIZE
+    height: $FONT_SIZE
+    font-size: $FONT_SIZE
+    margin: 3px 3px -3px 1px
+.container
+    color: $LABEL_COLOR
+    background-color: $BACKGROUND
+    display: flex
+    flex-wrap: wrap
+    column-gap: 10px
+    .label
+        display: inline-block
+        width: $LABEL_WIDTH
+        white-space: nowrap
+        font-weight: bold
+        margin-right: 10px
+        font-size: $FONT_SIZE
+        background-color: $LABEL_BACKGROUND
+    .value
+        text-align: center
+    p
+        margin: 0
+        white-space: nowrap
+        overflow: hidden
+        text-overflow: ellipsis
+        min-width: 200px
+.log-type
+    flex: 1
+    .value
+        @include gen.log-type-shape-colors-for-all
+        color: white
+        padding: 0px 8px
+        border-radius: 8px
+        font-size: $FONT_SIZE
+
+.log-severity
+    flex: 1
+    .value
+        @include gen.log-severity-colors-for-all
+        color: white
+        padding: 0px 8px
+        border-radius: 8px
+        font-size: $FONT_SIZE

@@ -1,0 +1,68 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<khi-title pageName="Diff view"></khi-title>
+<div>
+  <ng-container *ngFor="let annotator of timelineAnnotators | async">
+    <ng-container
+      *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+    ></ng-container>
+  </ng-container>
+</div>
+<div *ngIf="(timeline | async) === null; else diffInside">
+  <p class="empty-message">No resource selected</p>
+</div>
+<ng-template #diffInside>
+  <ng-container *ngIf="changePair | async; let pair">
+    <div class="diff">
+      <ng-container>
+        <div class="toolbar">
+          <ng-container
+            *ngFor="let annotator of changePairToolAnnotators | async"
+          >
+            <ng-container
+              *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+            ></ng-container>
+          </ng-container>
+        </div>
+        <ng-container *ngFor="let annotator of changePairAnnotators | async">
+          <ng-container
+            *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+          ></ng-container>
+        </ng-container>
+        <div class="diff-inner">
+          <ngx-side-by-side-diff
+            class="ngx-diff-light-theme"
+            *ngIf="
+              pair.previous && pair.previous.resourceContent;
+              else previousEmptyInlineDiff
+            "
+            [before]="pair.previous.resourceContent"
+            [after]="pair.current.resourceContent"
+          >
+          </ngx-side-by-side-diff>
+          <ng-template #previousEmptyInlineDiff>
+            <ngx-side-by-side-diff
+              class="ngx-diff-light-theme"
+              before=""
+              [after]="pair.current.resourceContent"
+            ></ngx-side-by-side-diff>
+          </ng-template>
+        </div>
+      </ng-container>
+    </div>
+  </ng-container>
+</ng-template>

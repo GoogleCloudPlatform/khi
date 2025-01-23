@@ -1,0 +1,53 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat
+@use '../color-palette.sass' as cp
+
+$size:25px
+
+$normal-background: mat.get-color-from-palette(cp.$khi-selectable-button-palette,'lighter')
+$normal-text: mat.get-color-from-palette(cp.$khi-selectable-button-palette,'lighter-contrast')
+$selected-background: mat.get-color-from-palette(cp.$khi-selectable-button-palette,'darker')
+$selected-text: mat.get-color-from-palette(cp.$khi-selectable-button-palette,'darker-contrast')
+$disabled-background: mat.get-color-from-palette(cp.$khi-disabled-palette,'darker')
+$disabled-text: mat.get-color-from-palette(cp.$khi-disabled-palette,'darker-contrast')
+
+:host
+    height: $size
+.container
+    all: unset
+    display: block
+    width: $size
+    height: $size
+    &:hover
+        cursor: pointer
+        background-color: darker($normal-background,5%)
+    background-color: $normal-background
+    color: $normal-text
+    &.selected
+        background-color: $selected-background
+        color: $selected-text
+        &:hover
+            background-color: lighten($selected-background,5%)
+    &.disabled
+        background-color: $disabled-background
+        color: $disabled-text
+        &:hover
+            cursor: default
+            background-color: $disabled-background
+            color: $disabled-text
+

@@ -1,0 +1,14 @@
+.vscode
+data
+result.json
+__debug_bin*
+dist
+
+go-cover.html
+go-cover.output
+.DS_Store
+.envrc
+*.khi
+.terraform/
+
+oss

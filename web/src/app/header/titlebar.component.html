@@ -1,0 +1,67 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<h1 class="title">Kubernetes History Inspector</h1>
+<p class="version">v {{ ("NG_APP_VERSION" | env) || "Dev" }}</p>
+<p class="viewer-mode" *ngIf="'NG_APP_VIEWER_MODE' | env">
+  <mat-icon class="icon">visibility</mat-icon>
+  <span>viewer mode</span>
+</p>
+<p class="page-info">
+  <mat-icon class="icon">tab</mat-icon>
+  <span>{{ pageName }}</span>
+</p>
+
+<div class="menu-groups">
+  <ng-content></ng-content>
+</div>
+
+<button
+  mat-button
+  class="session-info"
+  color="menu-group"
+  [style.backgroundColor]="
+    (sessionId | async) || 0 | rainbow: 100 : '100%' : '70%'
+  "
+  [matMenuTriggerFor]="sessionMenu"
+  [disabled]="(mainPageConenctionEstablished | async) === false"
+>
+  <p
+    class="session-info-label"
+    *ngIf="mainPageConenctionEstablished | async; else mainPageDisconnected"
+  >
+    <mat-icon class="icon">sync_alt</mat-icon>
+    <span>Session {{ (sessionId | async) || 0 }}</span>
+    <span class="session-count">
+      <mat-icon class="icon">tab</mat-icon>
+      <span>{{ (sessionPages | async)?.length || 0 }}</span>
+    </span>
+  </p>
+</button>
+<ng-template #mainPageDisconnected>
+  <mat-icon class="icon connection-error">sync_problem</mat-icon>
+  <span class="connection-error">Lost window connection</span>
+</ng-template>
+<mat-menu #sessionMenu="matMenu">
+  <button
+    mat-menu-item
+    *ngFor="let page of sessionPages | async"
+    [disabled]="true"
+  >
+    <mat-icon>tab</mat-icon>
+    <span>{{ page.pageType }}</span>
+  </button>
+</mat-menu>

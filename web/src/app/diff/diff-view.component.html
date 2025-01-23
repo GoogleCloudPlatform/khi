@@ -1,0 +1,168 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="container">
+  <ng-container *ngIf="diffViewViewModel | async; let diffViewModelValue">
+    <div class="diff-timeline-annotators">
+      <ng-container *ngFor="let annotator of timelineAnnotators | async">
+        <ng-container
+          *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+        ></ng-container>
+      </ng-container>
+    </div>
+    <table
+      class="revision-list-wrap"
+      [style.--revision-pane-height.px]="revisionPaneHeight | async"
+      tabindex="0"
+      (keydown)="keyDown($event)"
+    >
+      <div
+        class="all-columns"
+        *ngIf="
+          diffViewModelValue.selectedTimeline === null;
+          else revisionListInside
+        "
+      ></div>
+      <ng-template #revisionListInside>
+        <cdk-virtual-scroll-viewport class="revision-list">
+          <ng-container
+            *cdkVirtualFor="
+              let revision of diffViewModelValue.selectedTimeline!.revisions;
+              let i = index
+            "
+            class="revision-element"
+          >
+            <ng-container *ngIf="revision.logIndex !== -1">
+              <ng-container *ngIf="$logs | async; let logs">
+                <ng-container *ngIf="logs[revision.logIndex]; let log">
+                  <tr
+                    class="revision-row"
+                    [class.selected]="
+                      diffViewModelValue.selectedLogIndex === revision.logIndex
+                    "
+                    [class.highlight]="
+                      diffViewModelValue.highlightedLogIndex.has(
+                        revision.logIndex
+                      )
+                    "
+                  >
+                    <td
+                      class="index"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
+                    >
+                      {{ i }}
+                    </td>
+                    <td
+                      class="ts"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
+                    >
+                      {{ revision.startAt | tsf | async }}
+                    </td>
+                    <td
+                      class="operation"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
+                    >
+                      <span
+                        class="operation-span"
+                        [ngClass]="revision.verbCSSClass"
+                      >
+                        {{ revision.verbLabel }}
+                      </span>
+                    </td>
+                    <td
+                      class="author"
+                      *ngIf="revision.requestor | parsePrincipal; let author"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
+                    >
+                      <span>by</span>
+                      <span
+                        class="author-type"
+                        [ngClass]="author.type | lowercase"
+                        >{{ author.type }}</span
+                      >
+                      <span class="author-name">{{ author.short }}</span>
+                    </td>
+                  </tr>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+        </cdk-virtual-scroll-viewport>
+      </ng-template>
+    </table>
+    <div class="revision-resizer" (mousedown)="_resizeStart()"></div>
+    <div *ngIf="(timeline | async) === null; else diffInside">
+      <p class="empty-message">No resource selected</p>
+    </div>
+    <ng-template #diffInside>
+      <div class="diff" *ngIf="diffViewModelValue.currentRevision !== null">
+        <div class="toolbar">
+          <ng-container
+            *ngFor="let annotator of changePairToolAnnotators | async"
+          >
+            <ng-container
+              *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+            ></ng-container>
+          </ng-container>
+        </div>
+        <ng-container *ngFor="let annotator of changePairAnnotators | async">
+          <ng-container
+            *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+          ></ng-container>
+        </ng-container>
+        <div class="diff-inner">
+          <ng-container
+            *ngIf="
+              diffViewModelValue.previousRevision !== null;
+              else previousEmptyInlineDiff
+            "
+          >
+            <ng-container
+              *ngIf="
+                diffViewModelValue.currentRevision.resourceContent !==
+                  diffViewModelValue.previousRevision.resourceContent;
+                else noChangesMade
+              "
+            >
+              <ngx-unified-diff
+                class="ngx-diff-light-theme"
+                [before]="diffViewModelValue.previousRevision.resourceContent"
+                [after]="diffViewModelValue.currentRevision.resourceContent"
+              >
+              </ngx-unified-diff>
+            </ng-container>
+            <ng-template #noChangesMade>
+              <pre
+                class="log-body-container"
+              ><code [highlight]="diffViewModelValue.currentRevision.resourceContent" language="yaml" lineNumbers></code></pre>
+            </ng-template>
+          </ng-container>
+          <ng-template #previousEmptyInlineDiff>
+            <ngx-unified-diff
+              class="ngx-diff-light-theme"
+              before=""
+              [after]="diffViewModelValue.currentRevision.resourceContent"
+            ></ngx-unified-diff>
+          </ng-template>
+        </div>
+      </div>
+    </ng-template>
+  </ng-container>
+</div>

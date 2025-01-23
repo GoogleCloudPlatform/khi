@@ -1,0 +1,51 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat
+
+$OUTER_MARGIN: 4px
+$BASE_COLOR: mat.get-color-from-palette(mat.$gray-palette,800)
+$LABEL_COLOR: white
+$DEFAULT_OPACITY: 0.95
+
+$LAYER_ICON_SIZE: 14px
+.container
+    pointer-events: all
+    position: absolute
+    bottom: $OUTER_MARGIN
+    right: $OUTER_MARGIN
+    min-width: 300px
+    opacity: $DEFAULT_OPACITY
+    background-color: $BASE_COLOR
+    color: $LABEL_COLOR
+    border: 1px solid $BASE_COLOR
+    &:hover
+        opacity: 1
+
+.layer-title
+    display: flex
+    padding: 0px 5px
+    column-gap: 5px
+    align-items: center
+    .layer-icon
+        width: $LAYER_ICON_SIZE
+        height: $LAYER_ICON_SIZE
+        font-size: $LAYER_ICON_SIZE
+    .layer-label
+        margin: 0px
+
+.layer-bottom
+    border-bottom: 1px solid black

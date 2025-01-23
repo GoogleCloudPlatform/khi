@@ -1,0 +1,253 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<mat-dialog-content>
+  <h2 mat-dialog-title>New inspection</h2>
+  <mat-stepper
+    [linear]="true"
+    #stepper
+    (selectedIndexChange)="selectedStepChange($event)"
+  >
+    <!--Step1 : Select the inspection types-->
+    <mat-step [completed]="(currentInspectionType | async) !== null">
+      <div class="step1-scroll-wrapper">
+        <form>
+          <ng-template matStepLabel>
+            <span *ngIf="currentInspectionType | async; else nonSelected"
+              >Type: {{ (currentInspectionType | async)!.name }}</span
+            >
+            <ng-template #nonSelected>Select the inspection target</ng-template>
+          </ng-template>
+          <div class="inspection-type-spacer"></div>
+          <ng-container
+            *ngIf="inspectionTypes | async; else loading; let types"
+          >
+            <mat-card
+              *ngFor="let inspectionType of types.types"
+              class="inspection-type"
+              (click)="setInspectionType(inspectionType)"
+            >
+              <mat-card-header>
+                <mat-card-title>{{ inspectionType.name }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="inspection-type-icon">
+                  <img [src]="inspectionType.icon" />
+                </div>
+                <div
+                  class="inspection-type-description"
+                  [innerHTML]="inspectionType.description | breakline"
+                ></div>
+              </mat-card-content>
+            </mat-card>
+          </ng-container>
+          <ng-template #loading>
+            <p>Loading list of inspection types...</p>
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          </ng-template>
+        </form>
+      </div>
+    </mat-step>
+    <!--Step2 : Select enabled features-->
+    <mat-step>
+      <ng-template matStepLabel>Select what you want to query</ng-template>
+      <div class="features-page">
+        <div class="features-wrapper">
+          <mat-card
+            *ngFor="let feature of currentTaskFeatures | async"
+            (click)="toggleFeature(feature.id)"
+            [ngClass]="{ selected: feature.enabled }"
+          >
+            <span *ngIf="feature.enabled" class="selected-icon">
+              <mat-icon>check_circle</mat-icon>
+            </span>
+            <mat-card-header>
+              <mat-card-title>{{ feature.label }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content [innerHTML]="feature.description | breakline">
+            </mat-card-content>
+          </mat-card>
+        </div>
+        <div
+          class="features-footer"
+          *ngIf="currentEnabledFeatures | async; let features"
+        >
+          <p *ngIf="features.size === 0" class="errmsg-no-selected-feature">
+            Select at least a feature
+          </p>
+          <button
+            [disabled]="features.size === 0"
+            mat-flat-button
+            color="primary"
+            matStepperNext
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+    <!--Step3 : Input parameters-->
+    <mat-step>
+      <ng-template matStepLabel>Input parameters</ng-template>
+      <div class="parameter-view">
+        <ng-container
+          *ngIf="formViewModel | async; else waitForDryrun; let formViewModel"
+        >
+          <div class="parameters-view-wrap">
+            <div class="parameters-content">
+              <form
+                [formGroup]="formViewModel.formGroup"
+                class="allow-vertical-scroll"
+              >
+                <div
+                  *ngFor="
+                    let field of formViewModel.metadata.form;
+                    trackBy: fieldCollectionTrack
+                  "
+                  class="field-wrapper"
+                >
+                  <p class="field-label">{{ field.label }}</p>
+                  <p
+                    class="field-description"
+                    *ngIf="field.description !== ''"
+                    [innerHTML]="field.description | breakline"
+                  ></p>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="field-text-type-form-field"
+                  >
+                    <mat-label>{{ field.label }}</mat-label>
+                    <input
+                      class="field-text-type-input"
+                      matInput
+                      type="text"
+                      [placeholder]="field.default"
+                      [formControlName]="field.id"
+                      [matAutocomplete]="auto"
+                    />
+                    <mat-autocomplete
+                      autoActiveFirstOption
+                      #auto="matAutocomplete"
+                    >
+                      <mat-option
+                        *ngFor="let option of field.suggestions"
+                        [value]="option"
+                      >
+                        {{ option }}
+                      </mat-option>
+                    </mat-autocomplete>
+                  </mat-form-field>
+                  <p
+                    class="field-validation-error"
+                    *ngIf="field.validationError !== ''"
+                  >
+                    {{ field.validationError }}
+                  </p>
+                  <div
+                    *ngIf="field.hint && field.hintType === 'warning'"
+                    class="field-hint-wrapper warning"
+                  >
+                    <mat-icon>warning</mat-icon>
+                    <p
+                      class="field-hint-text"
+                      [innerHTML]="field.hint | breakline"
+                    ></p>
+                  </div>
+                  <div
+                    *ngIf="field.hint && field.hintType === 'info'"
+                    class="field-hint-wrapper info"
+                  >
+                    <mat-icon>info</mat-icon>
+                    <p
+                      class="field-hint-text"
+                      [innerHTML]="field.hint | breakline"
+                    ></p>
+                  </div>
+                </div>
+              </form>
+              <div
+                class="parameters-metadata-view"
+                class="allow-vertical-scroll"
+              >
+                <mat-card
+                  class="query-section-card"
+                  *ngIf="formViewModel.metadata.query; let queries"
+                >
+                  <mat-card-header>
+                    <mat-card-title>Query</mat-card-title>
+                  </mat-card-header>
+                  <mat-card-content>
+                    <mat-card *ngFor="let query of queries" class="query-card">
+                      <mat-card-header>
+                        <mat-card-title>{{ query.name }}</mat-card-title>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <pre class="query-section-query-pre">{{
+                          query.query
+                        }}</pre>
+                      </mat-card-content>
+                    </mat-card>
+                  </mat-card-content>
+                </mat-card>
+                <mat-card *ngIf="formViewModel.metadata.plan; let plan">
+                  <mat-card-header>
+                    <mat-card-title>Inspection plan</mat-card-title>
+                  </mat-card-header>
+                  <mat-card-content>
+                    <p>
+                      Copy the following task execution plan and visualize it
+                      with graphviz.
+                    </p>
+                    <pre class="task-graph-pre">
+                        {{ plan.taskGraph }}
+                      </pre
+                    >
+                  </mat-card-content>
+                </mat-card>
+              </div>
+            </div>
+            <div class="parameters-footer">
+              <p
+                *ngIf="formViewModel.errorCount !== 0"
+                class="errmsg-parameters-error"
+              >
+                Fix the validation errors on the input parameters:
+                {{ formViewModel.errorCount }} /
+                {{ formViewModel.fieldCount }}
+              </p>
+              <button
+                [disabled]="formViewModel.errorCount !== 0"
+                mat-raised-button
+                color="primary"
+                (click)="run()"
+              >
+                Run
+              </button>
+            </div>
+          </div>
+        </ng-container>
+        <!--Progressbars shown during waiting for the form data observable-->
+        <ng-template #waitForDryrun>
+          <div class="loading-form-info">
+            <p>Waiting for loading form data</p>
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          </div>
+        </ng-template>
+      </div>
+    </mat-step>
+  </mat-stepper>
+</mat-dialog-content>

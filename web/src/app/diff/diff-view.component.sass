@@ -1,0 +1,178 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '../common' as common
+@use '@angular/material' as mat
+@use '../generated' as gen
+$TOOLBAR_BACKGROUND: mat.get-color-from-palette(mat.$indigo-palette,100)
+
+$principal-user: #E53935
+
+
+.container
+    display: grid
+    grid-template-rows: auto auto 5px auto 1fr
+    height: 100%
+
+mat-toolbar
+    grid-row: 1
+    max-height: 20px
+    font-size: small
+    user-select: none
+    display: flex
+    padding: 0 5px
+    .left
+        flex: 1
+    .title
+        margin: 0
+
+.revision-resizer
+    height: 5px
+    background-color: lightgray
+    box-shadow: 0 1px 1px 1px rgba(0,0,0,0.3)
+    z-index: 2000
+    &:hover
+        background-color: gray
+        cursor: row-resize
+.revision-list-wrap
+    height: max(100px,var(--revision-pane-height))
+    overflow-y: scroll
+    overflow-x: hidden
+    border-spacing: 0px
+    border-collapse: collapse
+.revision-list
+    // Force showing scrollbar
+    &::-webkit-scrollbar
+        -webkit-appearance: none
+        width: 7px
+        &:horizontal
+            height: 7px
+    &::-webkit-scrollbar-thumb
+        border-radius: 4px
+        background-color: #3f51b5
+        box-shadow: 0 0 1px rgba(255,255,255,.5)
+    height: 100%
+    .revision-row
+        border-bottom: 1px solid black
+        width: 100%
+        &:hover
+            cursor: pointer
+    .highlight
+        background-color: rgba(63,81,181,0.3)
+    .selected
+        background-color: #07080c66
+    .index
+        background-color: #333
+        &.highlight
+            background-color: #444
+        &.selected
+            background-color: #555
+            font-weight: 800
+        color: white
+        text-align: center
+        padding: 0 3px
+    .ts
+        padding: 0 3px
+        color: rgba(63,81,181,1)
+    .author
+        padding: 0 3px
+        text-overflow: ellipsis
+        white-space: nowrap
+        overflow: hidden
+        width: 100%
+        .author-type
+            &.user
+                background-color: $principal-user
+            background-color: black
+            color: white
+            border-radius: 5px
+            padding: 0 5px
+            margin: 5px
+    .operation
+        padding: 0 3px
+        text-align: center
+.operation-span
+    text-transform: capitalize
+    font-weight: 800
+    padding: 0 7px
+    border-radius: 2px
+    @include gen.verb-type-colors-for-all
+
+.diff
+    display: grid
+    grid-template-areas: "toolbar" "warning" "diffbody"
+    grid-template-rows: auto auto 1fr
+    overflow: auto
+    
+    .diff-inner
+        grid: "diffbody"
+        overflow: auto
+        &::-webkit-scrollbar
+            -webkit-appearance: none
+            width: 7px
+            &:horizontal
+                height: 7px
+        &::-webkit-scrollbar-thumb
+            border-radius: 4px
+            background-color: #3f51b5
+            box-shadow: 0 0 1px rgba(255,255,255,.5)
+    .diff-warning
+        grid: "warning"
+        background-color: rgb(255,255,200)
+        font-weight: bold
+        color: rgb(255,150,10)
+        p
+            margin: 3px 0 3px 10px
+    .copy-diffbody-button
+        display: inline-block
+        margin: 2px
+        padding: 1px 10px
+        mat-icon
+            position: relative
+            top: 2px
+        .label
+            position: relative
+            bottom: 2px
+        &:hover
+            cursor: pointer
+            background-color: lightgray
+
+.toolbar
+    grid: "toolbar"
+    display: flex
+    justify-content: flex-end
+    column-gap: 1px
+    border-top: 1px solid rgba(0,0,0,0.3)
+    border-bottom: 1px solid rgba(0,0,0,0.3)
+    box-sizing: border-box
+    background-color: $TOOLBAR_BACKGROUND
+
+.copy-button
+    appearance: none
+    border: none
+    border-radius: 4px
+    &:hover
+        background-color: rgba(0,0,0,0.1)
+        cursor: pointer
+
+.empty-message
+    font-weight: 600
+    color:  mat.get-color-from-palette(mat.$gray-palette,700)
+    text-align: center
+    margin: 20px
+
+.diff-timeline-annotators
+    border-bottom: 1px solid black

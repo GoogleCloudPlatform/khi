@@ -1,0 +1,29 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+insertId: "5940"
+labels:
+  compute.googleapis.com/resource_name: gke-sample-cluster-default-abcdefgh-abcd
+  is_text_escaped: "true"
+logName: projects/sample-project/logs/serialconsole.googleapis.com%2Fserial_port_1_output
+receiveTimestamp: "2024-01-01T01:00:00Z"
+resource:
+  labels:
+    instance_id: "123456789012"
+    project_id: sample-project
+    zone: us-central1-a
+  type: gce_instance
+severity: INFO
+textPayload: '[\x1b[0;32m OK \x1b[0m] Stopped \x1b[0;1;39mgetty@tty1.service\x1b[0m.\r\n'
+timestamp: "2024-01-01T01:00:00Z"
