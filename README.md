@@ -53,7 +53,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud).  
   e.g. `gcloud auth login` if you use your user account credentials.
 1. Run `make build-web && KHI_FRONTEND_STATIC_FILE_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root.   
-  Backend app will run on `localhost:8080` by defaults
+  Backend app will run on `localhost:8080` by default
 1. Run `make watch-web` from the project root.   
   Frontend app will run on `http://localhost:4200` by default
 
