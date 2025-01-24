@@ -30,8 +30,8 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 - [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
 - [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
-- [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) (Anthos on AWS)
-- [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture) (Anthos on Azure)
+- [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
+- [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
 - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal) (GKE on Baremtal, Anthos on Baremetal)
 - GDCV for VMWare (GKE on VMWare, Anthos on VMWare)
 
@@ -52,10 +52,8 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 ### Run KHI
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
   e.g. `gcloud auth login` if you use your user account credentials
-1. Run `make build-web && KHI_FRONTEND_STATIC_FILE_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
-  Backend app will run on `localhost:8080` by default
-1. Run `make watch-web` from the project root   
-  Frontend app will run on `http://localhost:4200` by default
+1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
+  Open `localhost:8080` and start working with KHI! 
 
 ## Examples
 
