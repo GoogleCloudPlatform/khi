@@ -28,33 +28,34 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## Supported Products
 
-- Google Kubernetes Engine
-- Cloud Composer
-- GKE on AWS (Anthos on AWS)
-- GKE on Azure (Anthos on Azure)
-- GDCV for Baremetal (GKE on Baremtal, Anthos on Baremetal)
+- [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
+- [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
+- [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) (Anthos on AWS)
+- [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture) (Anthos on Azure)
+- [GDCV for Baremetal](https://cloud.google.com/anthos/clusters/docs/bare-metal/1.16/concepts/about-bare-metal) (GKE on Baremtal, Anthos on Baremetal)
 - GDCV for VMWare (GKE on VMWare, Anthos on VMWare)
-
-// TODO (b/391498707): add link to each products page
 
 ## Get Started
 
-### environment
-This tool requires following environment:
+### Prerequisites
 - Go 1.21.*
 - Node.js environment 18.19.*
+- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 
-### tool installation
-If you haven't installed these tools, install them first.
-- Angular CLI (`npm install -g @angular/cli`)
-- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install
-
-### run KHI
-1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud). e.g. `gcloud auth login` if you use your user account credentials.
-1. Download or clone this repository. e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
+### Initialization (one-time setup)
+1. Download or clone this repository.   
+  e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
+1. Move to the project root.   
+  e.g. `cd khi`
 1. Run `cd ./web && npm install` from the project root
-1. Run `make build-web KHI_FRONTEND_STATIC_FILE_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root. Backend app will run on `localhost:8080` by default
-1. Run `make watch-web` from the project root. Frontend app will run on `http://localhost:4200` by default
+
+### Run KHI
+1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud).  
+  e.g. `gcloud auth login` if you use your user account credentials.
+1. Run `make build-web && KHI_FRONTEND_STATIC_FILE_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root.   
+  Backend app will run on `localhost:8080` by defaults
+1. Run `make watch-web` from the project root.   
+  Frontend app will run on `http://localhost:4200` by default
 
 ## Examples
 
