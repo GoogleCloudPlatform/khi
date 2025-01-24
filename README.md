@@ -4,9 +4,7 @@ Kubernetes History Inspector (KHI) is a rich visualization tool for Kubernetes c
 KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
 This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
 
-![Demo Image](./image/demo.gif)
-
-// TODO (b/391498707): replace link with Github domain once hosted
+![Demo Image](https://github.com/GoogleCloudPlatform/khi/blob/main/image/demo.gif)
 
 ## KHI features and characteristics
 
@@ -30,18 +28,32 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## Supported Products
 
-- Google Kubernetes Engine
-- Cloud Composer
-- GKE on AWS (Anthos on AWS)
-- GKE on Azure (Anthos on Azure)
-- GDCV for Baremetal (GKE on Baremtal, Anthos on Baremetal)
-- GDCV for VMWare (GKE on VMWare, Anthos on VMWare)
-
-// TODO (b/391498707): add link to each products page
+- [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
+- [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
+- [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
+- [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
+- [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
+- GDCV for VMWare
 
 ## Get Started
 
-// TODO (b/391498707): add steps to run the KHI
+### Prerequisites
+- Go 1.21.*
+- Node.js environment 18.19.*
+- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
+
+### Initialization (one-time setup)
+1. Download or clone this repository   
+  e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
+1. Move to the project root   
+  e.g. `cd khi`
+1. Run `cd ./web && npm install` from the project root
+
+### Run KHI
+1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
+  e.g. `gcloud auth login` if you use your user account credentials
+1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
+  Open `localhost:8080` and start working with KHI! 
 
 ## Examples
 
