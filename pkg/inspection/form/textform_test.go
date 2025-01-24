@@ -18,10 +18,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	form_metadata "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

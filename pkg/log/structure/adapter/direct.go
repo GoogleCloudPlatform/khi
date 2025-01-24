@@ -15,9 +15,9 @@
 package adapter
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 )
 
 // DirectAdapter implements ReaderDataAdapter to pass StructureData directly into the Reader.

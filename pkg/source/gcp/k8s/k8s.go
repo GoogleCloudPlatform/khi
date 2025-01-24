@@ -17,8 +17,8 @@ package k8s
 import (
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 func ParseKubernetesOperation(resourceName string, methodName string) *model.KubernetesObjectOperation {

@@ -1,4 +1,4 @@
-module github.com/GoogleCloudPlatform/kubernetes-history-inspector
+module github.com/GoogleCloudPlatform/khi
 
 go 1.21
 

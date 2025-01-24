@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 )
 
 type mockHttpClientForPageClient struct {

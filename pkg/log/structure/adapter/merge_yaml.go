@@ -15,10 +15,10 @@
 package adapter
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/merger"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 )
 
 // MergeYamlAdapter implements ReaderDataAdapter to get the Reader of a merged Yaml from 2 yaml strings.

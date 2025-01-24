@@ -20,7 +20,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
 )
 
 type testOnMemoryCacheItemStorageProvider struct {

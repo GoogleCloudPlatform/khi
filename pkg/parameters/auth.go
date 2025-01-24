@@ -17,7 +17,7 @@ package parameters
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/flag"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )

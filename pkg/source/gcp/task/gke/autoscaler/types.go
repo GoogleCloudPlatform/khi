@@ -17,7 +17,7 @@ package autoscaler
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
 )
 
 type decision struct {

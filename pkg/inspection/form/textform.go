@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	form_metadata "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // TextFormValidator is a function to check if the given value is valid or not.

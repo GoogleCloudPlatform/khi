@@ -14,7 +14,7 @@
 
 package resourcepath
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+import "github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 
 func ControlplaneComponent(cluster string, component string) ResourcePath {
 	if cluster == "" {

@@ -17,7 +17,7 @@ package aws
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 )
 
 var InspectionTypeId = "gcp-gke-on-aws"

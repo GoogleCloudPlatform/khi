@@ -17,9 +17,9 @@ package testtask
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 func RunSingleTask[T any](target task.Definition, mode int, opts ...TestRunTaskParameterOpt) (T, error) {

@@ -23,14 +23,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/worker"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/adapter"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parser/yaml/yamlutil"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/api"
-	gcp_log "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
+	"github.com/GoogleCloudPlatform/khi/pkg/parser/yaml/yamlutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
+	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
 
 type ParallelQueryWorker struct {

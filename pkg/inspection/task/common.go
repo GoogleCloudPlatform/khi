@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 type InspectionRequest struct {

@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history/resourceinfo/resourcelease"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	v1 "k8s.io/api/core/v1"
 )
 

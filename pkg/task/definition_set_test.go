@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/exp/slices"

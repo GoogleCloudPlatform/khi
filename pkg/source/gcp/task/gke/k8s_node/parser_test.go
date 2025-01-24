@@ -18,12 +18,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/ioconfig"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history/resourceinfo/resourcelease"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history/resourcepath"
-	log_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/log"
-	parser_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
+	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 
 	"github.com/google/go-cmp/cmp"
 )

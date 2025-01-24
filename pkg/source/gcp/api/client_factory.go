@@ -15,9 +15,9 @@
 package api
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/api/accesstoken"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 )
 
 type GCPClientFactory struct {

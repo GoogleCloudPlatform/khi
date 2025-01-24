@@ -20,15 +20,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/grouper"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/progress"
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task/gke/k8s_audit/rtype"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task/gke/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/rtype"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var Task = inspection_task.NewInspectionProcessor(k8saudittask.TimelineGroupingTaskID, []string{

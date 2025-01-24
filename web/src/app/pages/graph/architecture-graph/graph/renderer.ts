@@ -44,7 +44,7 @@ import { PathPipe } from './base/path';
 import { generatePodOwnerRow } from './components/pod-owner';
 
 export class GraphRenderer {
-  private static TITLE_DESCRIPTION = `Provided by Kubernetes History Inspector(${process.env['NG_APP_VERSION']}). Check go/khi for more details.`;
+  private static TITLE_DESCRIPTION = `Provided by Kubernetes History Inspector(${process.env['NG_APP_VERSION']}).`;
 
   private static TITLE_WARNING = `This graph only contains the resource observed in the query duration specified. The other resources may exist during the time when the resource were not touched at all.`;
 

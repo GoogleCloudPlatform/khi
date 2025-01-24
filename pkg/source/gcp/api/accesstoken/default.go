@@ -15,9 +15,9 @@
 package accesstoken
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
 var MinWaitTimeOnRetriableError = 5

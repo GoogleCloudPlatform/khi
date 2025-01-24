@@ -20,7 +20,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 var reset = "\033[0m"

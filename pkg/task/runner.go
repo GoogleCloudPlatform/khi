@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"golang.org/x/sync/errgroup"
 )
 

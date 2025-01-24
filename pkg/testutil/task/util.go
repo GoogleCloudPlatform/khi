@@ -17,7 +17,7 @@ package task_test
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // Deprecated. Use testtask package instead.

@@ -17,10 +17,10 @@ package task
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
-	common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // ReaderFactoryGeneratorTask generates the instance of Reader factory to be used in later task.

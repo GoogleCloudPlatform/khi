@@ -17,7 +17,7 @@ package plan
 import (
 	"testing"
 
-	metadata_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/metadata"
+	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 )
 
 func TestConformance(t *testing.T) {

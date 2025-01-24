@@ -17,8 +17,8 @@ package grouper
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	log_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 )
 
 func TestAllDependentLogGrouper(t *testing.T) {

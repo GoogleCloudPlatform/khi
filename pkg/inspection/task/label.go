@@ -14,7 +14,7 @@
 
 package task
 
-import common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+import common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 
 const (
 	InspectionTaskPrefix                 = common_task.KHISystemPrefix + "inspection/"

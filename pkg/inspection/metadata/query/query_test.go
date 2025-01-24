@@ -17,7 +17,7 @@ package query
 import (
 	"testing"
 
-	metadata_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/metadata"
+	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 	"github.com/google/go-cmp/cmp"
 )
 

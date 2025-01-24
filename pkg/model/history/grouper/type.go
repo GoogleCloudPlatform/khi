@@ -15,8 +15,8 @@
 package grouper
 
 import (
-	common_grouper "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/grouper"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
+	common_grouper "github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
 
 type LogGrouper = common_grouper.Grouper[*log.LogEntity, string]

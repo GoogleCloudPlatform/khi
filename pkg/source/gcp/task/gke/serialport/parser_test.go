@@ -17,9 +17,9 @@ package serialport
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/parserutil"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history/resourcepath"
-	parser_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 	"github.com/google/go-cmp/cmp"
 )
 

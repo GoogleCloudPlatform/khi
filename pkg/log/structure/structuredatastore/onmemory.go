@@ -14,7 +14,7 @@
 
 package structuredatastore
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredata"
+import "github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
 
 type OnMemoryStructureDataStoreRef struct {
 	store *OnMemoryStructureDataStore

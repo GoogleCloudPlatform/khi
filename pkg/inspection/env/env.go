@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 const EnvironmentVariableKeyLabel = task.KHISystemPrefix + "/labels/environment-variable-key"

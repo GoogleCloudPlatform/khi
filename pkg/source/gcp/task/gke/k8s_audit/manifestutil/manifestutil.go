@@ -20,9 +20,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 type DeletionStatus = int

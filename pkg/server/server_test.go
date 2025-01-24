@@ -26,21 +26,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/form"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/ioconfig"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/logger"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/progress"
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/popup"
-	gcp_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil"
-	task_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/popup"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 type testPopupForm struct{}

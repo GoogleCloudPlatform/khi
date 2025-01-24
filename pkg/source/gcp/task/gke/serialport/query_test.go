@@ -19,9 +19,9 @@ import (
 	"math/rand"
 	"testing"
 
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 
-	gcp_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/gcp"
+	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
 

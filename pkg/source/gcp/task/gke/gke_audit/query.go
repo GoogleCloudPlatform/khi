@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/query"
-	gcp_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 func GenerateGKEAuditQuery(projectName string, clusterName string) string {

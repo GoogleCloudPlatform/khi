@@ -14,7 +14,7 @@
 
 package metadata
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+import "github.com/GoogleCloudPlatform/khi/pkg/task"
 
 // TODO: avoid circular dependency and use namespace in the flag name
 const LabelKeyIncludedInRunResultFlag = "metadata/include-in-run-result"

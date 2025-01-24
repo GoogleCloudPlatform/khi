@@ -19,10 +19,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/adapter"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 )
 
 func logFromYaml(yaml string) (*log.LogEntity, error) {

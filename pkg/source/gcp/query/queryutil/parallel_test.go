@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 )
 
 func TestDivideTimeSegments(t *testing.T) {

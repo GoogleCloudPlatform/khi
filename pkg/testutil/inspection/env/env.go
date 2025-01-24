@@ -17,9 +17,9 @@ package env_test
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/env"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
-	task_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/env"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
 )
 
 // MockedEnvironmentVariableProducer creates a mocked producer task from the EnvironmentVariableProducer.

@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/api"
-	gcp_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var AutocompleteClusterNames = task.NewCachedProcessor(gcp_task.AutocompleteClusterNamesTaskID+"#anthos-on-vmware", []string{

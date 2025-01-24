@@ -22,15 +22,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/form"
-	form_metadata "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/progress"
-	common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/query/queryutil"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
+	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 const FormBasePriority = 100000

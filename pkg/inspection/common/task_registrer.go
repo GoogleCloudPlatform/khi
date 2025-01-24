@@ -15,9 +15,9 @@
 package common
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/ioconfig"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 )
 
 func PrepareInspectionServer(rootServer *inspection.InspectionTaskServer) error {

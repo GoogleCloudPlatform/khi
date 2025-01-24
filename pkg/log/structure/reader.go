@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

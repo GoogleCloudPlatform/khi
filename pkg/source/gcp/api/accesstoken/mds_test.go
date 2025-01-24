@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
 )
 

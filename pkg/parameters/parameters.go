@@ -17,7 +17,7 @@ package parameters
 import (
 	"errors"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/flag"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
 // ParameterStore parses subset of parameters given to KHI program.

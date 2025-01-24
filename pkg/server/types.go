@@ -15,7 +15,7 @@
 package server
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 )
 
 type SerializedMetadata = map[string]any

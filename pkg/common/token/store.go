@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var ErrNoNewTokenResolved = errors.New("no new token resolved")

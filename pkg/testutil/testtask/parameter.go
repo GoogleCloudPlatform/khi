@@ -14,7 +14,7 @@
 
 package testtask
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+import "github.com/GoogleCloudPlatform/khi/pkg/task"
 
 // TestRunTaskParameterOpt is type used for the Functional Option Pattern on RunSingleTask
 type TestRunTaskParameterOpt interface {

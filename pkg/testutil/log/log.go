@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/adapter"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
-	gcp_log "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
 
 type mockLogFieldExtractor struct {

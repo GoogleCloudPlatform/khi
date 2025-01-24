@@ -17,9 +17,9 @@ package log
 import (
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parser/k8s"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/parser/k8s"
 )
 
 // LogEntity corresponds to a log record.

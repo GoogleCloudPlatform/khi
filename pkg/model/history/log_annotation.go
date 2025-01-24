@@ -14,7 +14,7 @@
 
 package history
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/binarychunk"
+import "github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
 
 type LogAnnotation interface {
 	Priority() int

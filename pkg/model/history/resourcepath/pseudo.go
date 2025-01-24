@@ -17,7 +17,7 @@ package resourcepath
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 func Cluster(name string) ResourcePath {

@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/google/go-cmp/cmp"
 )
 

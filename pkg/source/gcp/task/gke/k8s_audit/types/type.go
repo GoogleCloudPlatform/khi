@@ -15,10 +15,10 @@
 package types
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task/gke/k8s_audit/rtype"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/rtype"
 )
 
 // ResourceSpecificParserInput is a type passed to ResourceSpecificParser from the prestep parser.

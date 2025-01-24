@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"golang.org/x/exp/slices"
 )
 

@@ -24,12 +24,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/popup"
-	common_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/popup"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"

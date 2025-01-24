@@ -21,10 +21,10 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var ErrParserNoMatchingWithLog = errors.New("Parser didn't match with the given log")

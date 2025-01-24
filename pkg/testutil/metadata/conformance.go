@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
 func ConformanceMetadataTypeTest(t *testing.T, m metadata.Metadata) {

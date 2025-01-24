@@ -17,7 +17,7 @@ package log
 import (
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 // CommonLogFieldExtractor extracts information being available for all log entries(e.g timestamp)..etc

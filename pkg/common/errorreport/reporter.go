@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"cloud.google.com/go/errorreporting"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/constants"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
 	"google.golang.org/api/option"
 )
 

@@ -20,8 +20,8 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/inspectiondata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 type PrepareInspectionServerFunc = func(inspectionServer *InspectionTaskServer) error

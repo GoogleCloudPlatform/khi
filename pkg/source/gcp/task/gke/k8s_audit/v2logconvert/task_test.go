@@ -17,14 +17,14 @@ package v2logconvert
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/ioconfig"
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history"
-	gcp_log "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/log"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/testlog"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/testtask"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 )
 
 func TestLogFillerTask(t *testing.T) {

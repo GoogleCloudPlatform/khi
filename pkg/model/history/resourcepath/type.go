@@ -14,7 +14,7 @@
 
 package resourcepath
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+import "github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 
 // ResourcePath contains the path representing location of a timeline in the history.
 type ResourcePath struct {

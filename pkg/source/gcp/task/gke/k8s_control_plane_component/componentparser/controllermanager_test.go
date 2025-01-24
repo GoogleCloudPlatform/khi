@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	log_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/log"
+	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/google/go-cmp/cmp"
 )
 
