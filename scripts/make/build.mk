@@ -3,7 +3,7 @@
 
 .PHONY=watch-web
 watch-web: prepare-frontend
-	cd web && NG_APP_BACKEND_URL_PREFIX="http://localhost:8080" ng serve -c dev
+	cd web && NG_APP_BACKEND_URL_PREFIX="http://localhost:8080" npx ng serve -c dev
 
 
 .PHONY=build-web
