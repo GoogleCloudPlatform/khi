@@ -32,7 +32,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
 - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) (Anthos on AWS)
 - [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture) (Anthos on Azure)
-- [GDCV for Baremetal](https://cloud.google.com/anthos/clusters/docs/bare-metal/1.16/concepts/about-bare-metal) (GKE on Baremtal, Anthos on Baremetal)
+- [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal) (GKE on Baremtal, Anthos on Baremetal)
 - GDCV for VMWare (GKE on VMWare, Anthos on VMWare)
 
 ## Get Started
