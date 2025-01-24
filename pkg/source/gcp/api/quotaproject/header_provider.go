@@ -17,7 +17,7 @@ package quotaproject
 import (
 	"net/http"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 )
 
 // GCPQuotaProjectHeaderProvider is an implementation of HTTPHeaderProvider for setting quota project.

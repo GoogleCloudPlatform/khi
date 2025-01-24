@@ -19,8 +19,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/constants"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/flag"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 )
 
 var Common *CommonParameters = &CommonParameters{}

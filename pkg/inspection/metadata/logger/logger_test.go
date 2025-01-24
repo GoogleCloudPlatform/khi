@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/logger"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
-	metadata_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 )
 
 func TestConformance(t *testing.T) {

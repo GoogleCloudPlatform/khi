@@ -17,7 +17,7 @@ package index
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 )
 
 // BaseTagGenerator generates the <base> tag on index.html.

@@ -21,9 +21,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/popup"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 )

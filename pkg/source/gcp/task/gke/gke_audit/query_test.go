@@ -17,7 +17,7 @@ package gke_audit
 import (
 	"testing"
 
-	gcp_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/gcp"
+	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
 func TestGenerateGKEAuditQuery(t *testing.T) {

@@ -17,8 +17,8 @@ package composer_task
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model"
-	log_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/stretchr/testify/assert"
 )
 

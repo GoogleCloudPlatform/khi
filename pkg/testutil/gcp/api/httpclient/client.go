@@ -18,7 +18,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 )
 
 type HttpClientSpyResponse[T any] struct {

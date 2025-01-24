@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
 )
 
 type GCloudCommandAccessTokenResolver struct {

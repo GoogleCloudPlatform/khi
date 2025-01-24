@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"testing"
 
-	gcp_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {

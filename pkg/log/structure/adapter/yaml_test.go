@@ -17,7 +17,7 @@ package adapter
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 )
 
 func TestYamlAdapter(t *testing.T) {

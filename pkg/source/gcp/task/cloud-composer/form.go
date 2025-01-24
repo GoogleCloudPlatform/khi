@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/form"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/api"
-	gcp_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var AutocompleteComposerEnvironmentNamesTaskID = gcp_task.GCPPrefix + "autocomplete/composer-environment-names"

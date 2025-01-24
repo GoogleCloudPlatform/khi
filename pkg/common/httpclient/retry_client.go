@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
 )
 
 type RetryHttpClient struct {

@@ -14,7 +14,7 @@
 
 package structure
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+import "github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 
 // ReaderFactory instanciate the instance of Reader.
 type ReaderFactory struct {

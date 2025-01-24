@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 )
 
 const MAXIMUM_STRUCTURE_DEPTH = 100

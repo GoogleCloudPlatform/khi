@@ -17,8 +17,8 @@ package index
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 )
 
 func TestBaseTagGenerator(t *testing.T) {

@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
 )
 
 // Resource identifier itself couldn't be found

@@ -17,7 +17,7 @@ package k8s
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/schema"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/schema"
 	"github.com/google/go-cmp/cmp"
 )
 

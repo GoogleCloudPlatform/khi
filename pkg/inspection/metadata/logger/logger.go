@@ -20,11 +20,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/logger"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 var LoggerMetadataKey = "log"

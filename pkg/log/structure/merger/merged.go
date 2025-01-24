@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredata"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
 )
 
 type arrayMergeResultElementReference struct {

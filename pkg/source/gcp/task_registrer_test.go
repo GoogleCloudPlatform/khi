@@ -17,9 +17,9 @@ package gcp
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/common"
-	inspection_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
 )
 
 func testPrepareInspectionServer(inspectionServer *inspection.InspectionTaskServer) error {

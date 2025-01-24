@@ -15,7 +15,7 @@
 package k8saudittask
 
 import (
-	gcp_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/task"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
 const K8sAuditQueryTaskID = gcp_task.GCPPrefix + "query/k8s_audit"

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parser/yaml/yamlutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/parser/yaml/yamlutil"
 	"gopkg.in/yaml.v3"
 )
 

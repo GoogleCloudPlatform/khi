@@ -21,7 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 )
 
 func TestFromResourceTypeReflection(t *testing.T) {

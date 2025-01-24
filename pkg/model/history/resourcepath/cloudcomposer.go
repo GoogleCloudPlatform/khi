@@ -15,7 +15,7 @@
 package resourcepath
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model"
 )
 
 // composer#taskinstance#DAGID#RUNID#TASKID-MAPINDEX

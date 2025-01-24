@@ -17,8 +17,8 @@ package common
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection"
-	inspection_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
 )
 
 func TestInspectionTasksAreResolvable(t *testing.T) {

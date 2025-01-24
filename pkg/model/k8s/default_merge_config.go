@@ -18,8 +18,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/merger"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/k8s/configsource"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s/configsource"
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"

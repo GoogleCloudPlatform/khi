@@ -18,7 +18,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 )
 
 func TestMain(m *testing.M) {

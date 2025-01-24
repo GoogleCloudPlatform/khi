@@ -17,7 +17,7 @@ package api_test
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/api"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
 
 type MockApiClient struct {

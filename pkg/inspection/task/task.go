@@ -17,8 +17,8 @@ package task
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 type InspectionProcessorFunc = func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error)

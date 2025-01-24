@@ -17,8 +17,8 @@ package k8s_event
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history/resourcepath"
-	parser_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 )
 
 func TestK8sEventParser_ParseSampleLog(t *testing.T) {

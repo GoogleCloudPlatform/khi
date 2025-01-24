@@ -22,8 +22,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 )
 
 const MAXIMUM_CHUNK_SIZE = 1024 * 1024 * 500

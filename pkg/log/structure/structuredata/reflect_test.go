@@ -17,7 +17,7 @@ package structuredata
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	corev1 "k8s.io/api/core/v1"
 )
 

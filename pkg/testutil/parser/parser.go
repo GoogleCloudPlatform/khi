@@ -17,11 +17,11 @@ package parser_test
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/history"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parser"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil"
-	log_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
+	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 )
 
 // ParseFromYamlLogFile returns the parsed ChangeSet from the yaml log file at the given path with specified parser.

@@ -17,7 +17,7 @@ package worker
 import (
 	"sync"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/errorreport"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 )
 
 // Pool enables running a goroutine with max parallel count limit.

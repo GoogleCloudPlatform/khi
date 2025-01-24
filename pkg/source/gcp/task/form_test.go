@@ -19,18 +19,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/form"
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parameters"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/query/queryutil"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	form_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/form"
-	task_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/testtask"
+	form_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/form"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 )
 
 var testClusterNamePrefix = task_test.MockProcessorTaskFromTaskID(ClusterNamePrefixTaskID, "")

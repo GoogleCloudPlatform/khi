@@ -15,7 +15,7 @@
 package structure
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 )
 
 // ReaderDataAdapter convert a type to a structuredata.StructureData with storing the data in the StructureDataStore instanciated from StuctureDataFactory.

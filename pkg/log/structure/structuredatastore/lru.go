@@ -18,9 +18,9 @@ import (
 	"crypto/md5"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/cache"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
 )
 
 type LRUStructureDataStoreRef struct {

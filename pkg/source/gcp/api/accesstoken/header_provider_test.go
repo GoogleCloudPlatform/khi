@@ -18,7 +18,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
 )
 
 func TestGCPAccessTokenHeaderProvider(t *testing.T) {

@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 )
 
 type MergeConfigRegistry struct {

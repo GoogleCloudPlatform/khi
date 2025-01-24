@@ -17,8 +17,8 @@ package progress
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	metadata_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 )
 
 func newProgressforConformanceTest() metadata.Metadata {

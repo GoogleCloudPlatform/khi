@@ -18,7 +18,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/schema"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/schema"
 )
 
 var KLogSeverityFieldAlias = "@severity"

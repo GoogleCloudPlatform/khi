@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	task_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/task"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
 )
 
 func TestTestIOConfigCanFindTheRoot(t *testing.T) {

@@ -17,8 +17,8 @@ package history
 import (
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/binarychunk"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 // The entire inspection data.

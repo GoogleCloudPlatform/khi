@@ -17,7 +17,7 @@ package network_api
 import (
 	"testing"
 
-	gcp_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/gcp"
+	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
 func TestGenerateGenerateGCPNetworkAPIQueryIsValid(t *testing.T) {

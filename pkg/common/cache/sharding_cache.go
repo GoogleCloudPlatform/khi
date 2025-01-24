@@ -14,7 +14,7 @@
 
 package cache
 
-import "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common"
+import "github.com/GoogleCloudPlatform/khi/pkg/common"
 
 type StorageProviderGenerator = func() CacheItemStorageProvider
 

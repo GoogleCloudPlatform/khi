@@ -21,8 +21,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/httpclient"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
 )
 
 type MDSResponse struct {

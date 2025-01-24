@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/source/gcp/query/queryutil"
-	gcp_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/gcp"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
 func TestGenerateK8sControlPlaneQuery(t *testing.T) {

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/server/index"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/index"
 )
 
 var IndexReplacePlaceholder = `<!--INJECT GENERATED CODE HERE FROM BACKEND-->`

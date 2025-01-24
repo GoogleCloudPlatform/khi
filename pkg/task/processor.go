@@ -17,7 +17,7 @@ package task
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 type ProcessorFunc = func(ctx context.Context, taskMode int, v *VariableSet) (any, error)

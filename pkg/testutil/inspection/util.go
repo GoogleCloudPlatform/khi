@@ -15,13 +15,13 @@
 package inspection_test
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/inspectiondata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/metadata/header"
-	inspection_task "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/task"
-	task_test "github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/testutil/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
 )
 
 // DryRunInspectionTaskGraph executes the task graph just with provided dependency tasks with several variables given in default local runner

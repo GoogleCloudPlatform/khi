@@ -15,9 +15,9 @@
 package adapter
 
 import (
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/log/structure/structuredatastore"
-	"github.com/GoogleCloudPlatform/kubernetes-history-inspector/pkg/parser/yaml/yamlutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+	"github.com/GoogleCloudPlatform/khi/pkg/parser/yaml/yamlutil"
 )
 
 type AnyAdapter struct {
