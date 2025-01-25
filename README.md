@@ -35,7 +35,20 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
 - GDCV for VMWare
 
-## Get Started
+## Get Started(Run with Cloud Shell)
+
+1. Open [Cloud Shell](https://shell.cloud.google.com)
+1. Run `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest`
+1. Click the link `http://localhost:8080` link on the terminal and start working with KHI!
+
+If you want to run KHI with the other environment where the metadata server is not available,
+you can pass the access token via the program argument.
+
+```
+$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
+```
+
+## Get Started(Run from source)
 
 ### Prerequisites
 - Go 1.21.*
