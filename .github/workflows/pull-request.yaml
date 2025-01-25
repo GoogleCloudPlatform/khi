@@ -1,0 +1,135 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PR Tests
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: './go.mod'
+
+    # - name: Authenticate to Google Cloud
+    #   uses: google-github-actions/auth@v2
+    #   with:
+    #     workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+    #     project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    - name: Install gcloud CLI and get token
+      uses: google-github-actions/setup-gcloud@v2
+
+    # - name: Get gcloud token
+    #   id: gcloud-token
+    #   run: |
+    #     echo "#!/bin/bash\necho \"$(gcloud auth print-access-token)\"" > /usr/bin/gcloud
+    #     chmod +x /usr/bin/gcloud
+
+    - name: Backend Test
+      run: |
+        mkdir dist
+        # A placeholder frontend code read from backend test
+        echo "" > ./dist/index.html
+        make coverage-go
+
+    - name: Backend Format and Lint Check
+      run: |
+        make check-format-go
+        make lint-go
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: './.node-version'
+
+    - name: Set up Go # Go dependency is needed for `make prepare-frontend`
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: './go.mod'
+
+    - name: Install jq
+      run: sudo apt-get update && sudo apt-get install -y jq
+
+    - name: npm install
+      working-directory: ./web
+      run: npm ci
+
+    - name: Generate frontend codes
+      run: make prepare-frontend
+
+    - name: Install Chrome for Angular Test
+      uses: browser-actions/setup-chrome@v1
+      with:
+        chrome-version: stable
+
+    - name: Angular Test
+      run: make coverage-web
+
+    - name: Frontend Format and Lint Check
+      run: |
+        make check-format-web
+        make lint-web
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    strategy:
+      matrix:
+        configuration: [prod, dev]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: './.node-version'
+
+    - name: Set up Go # Go dependency is needed for `make prepare-frontend`
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: './go.mod'
+
+    - name: npm install
+      working-directory: ./web
+      run: npm ci
+
+    - name: Generate frontend codes
+      run: make prepare-frontend
+
+    - name: Build web
+      working-directory: ./web
+      run: npx ng build --configuration ${{ matrix.configuration }}
