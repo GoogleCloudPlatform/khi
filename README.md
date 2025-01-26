@@ -54,6 +54,10 @@ $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -
 - Go 1.21.*
 - Node.js environment 18.19.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
+- Latest Google Chrome
+
+We only test KHI with the latest Google Chrome. 
+KHI may work with the other browser, but we will not support even if it won't work with the other browser.
 
 ### Initialization (one-time setup)
 1. Download or clone this repository   
@@ -68,9 +72,38 @@ $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -
 1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
   Open `localhost:8080` and start working with KHI! 
 
-## Examples
+## User Guide
 
-// TODO (b/391498707): add examples usage with screenshots
+### Gather logs with KHI
+
+1. Click the `New Inspection` button.
+1. Select the cluster type that you want to inspect.
+1. Select log types to gather.
+1. Fill form parameters.
+1. Wait the task to be done for a while.
+1. Click the `Open` button and go to the step 2.
+
+b/391498707: Add more details with illustrations
+
+### Understanding inspection view
+
+![User guide timeline screens](./image/guide-timeline-screen.png)
+
+![User guide timeline diagram](./image/guide-timeline-diagram.png)
+
+![User guide timeline revisions](./image/guide-timelines-revisions.png)
+
+![User guide timeline events](./image/guide-timelines-events.png)
+
+![User guide timeline selection](./image/guide-timeline-selection.png)
+
+![User guide log-view](./image/guide-log-view.png)
+
+![User guide history-view](./image/guide-history-view.png)
+
+![User guide filtering](./image/guide-filtering.png)
+
+![User guide topology-view](./image/guide-topology-view.png)
 
 ## Contribute
 
