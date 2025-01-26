@@ -133,3 +133,33 @@ jobs:
     - name: Build web
       working-directory: ./web
       run: npx ng build --configuration ${{ matrix.configuration }}
+  
+  license-header-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: './go.mod'
+      
+      - name: Install addlicense package
+        run: go install github.com/google/addlicense@latest
+      
+      - name: Run addlicense
+        id: license_header_check
+        run: addlicense  -c "Google LLC" -l apache -v -check .
+      
+      - name: run if license_header_check failed
+        if: failure() && steps.license_header_check.outcome == 'failure'
+        env:
+          PULL_REQUEST: ${{ github.event.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "License header check failed.\nConsider running \`make add-license-headers\`.\n(Please check ./scripts/make/codegen.mk for more details.)" > /tmp/comment_body
+          gh pr comment "${PULL_REQUEST}" -F /tmp/comment_body
