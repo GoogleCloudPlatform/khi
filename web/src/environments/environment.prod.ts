@@ -20,7 +20,7 @@ export const environment = {
   production: true,
   viewerMode: false,
   bugReportUrl: '',
-  documentUrl: '',
+  documentUrl: 'https://github.com/GoogleCloudPlatform/khi',
   pluginModules: [PublicKHIExtension],
   options: {} as Record<string, unknown>,
 };
