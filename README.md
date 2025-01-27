@@ -39,7 +39,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 1. Open [Cloud Shell](https://shell.cloud.google.com)
 1. Run `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest`
-1. Click the link `http://localhost:8080` link on the terminal and start working with KHI!
+1. Click the link `http://localhost:8080` on the terminal and start working with KHI!
 
 If you want to run KHI with the other environment where the metadata server is not available,
 you can pass the access token via the program argument.
