@@ -36,14 +36,24 @@ jobs:
     steps:
 
       - name: Log in to the Container registry
-        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # 3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #4.4.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af #4.1.0
+        with:
+          node-version-file: './.node-version'
+
+      - name: Set up Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 #5.3.0
+        with:
+          go-version-file: './go.mod'
 
       - name: Get Version from VERSION file
         id: get_version
@@ -51,28 +61,21 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 #5.6.1
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=raw,value=${{ steps.get_version.outputs.VERSION }}
             type=semver,pattern={{version}},value=${{ steps.get_version.outputs.VERSION }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+          labels: |
+            org.opencontainers.image.title=Kubernetes History Inspector
+            org.opencontainers.image.description=An interactive log visualizer for Kubernetes
+            org.opencontainers.image.version=${{ steps.get_version.outputs.VERSION }}
 
       - name: npm install
-        run: |
-          cd ./web
-          npm ci
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
+        working-directory: ./web
+        run: npm ci
 
       - name: Generate frontend codes
         run: |
@@ -84,7 +87,7 @@ jobs:
 
       - name: Build and push Docker image
         id: push
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 #6.13.0
         with:
           context: .
           push: true
@@ -92,7 +95,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 #2.2.0
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
