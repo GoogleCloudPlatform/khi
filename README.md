@@ -41,12 +41,13 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 1. Run `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest`
 1. Click the link `http://localhost:8080` on the terminal and start working with KHI!
 
-If you want to run KHI with the other environment where the metadata server is not available,
-you can pass the access token via the program argument.
-
-```
-$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
-```
+> [!TIP]
+> If you want to run KHI with the other environment where the metadata server is not available,
+> you can pass the access token via the program argument.
+>
+>```
+>$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
+>```
 
 ## Get Started (Run from source)
 
@@ -59,8 +60,10 @@ $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - Latest Google Chrome
 
-We only test KHI with the latest Google Chrome. 
-KHI may work with the other browser, but we will not support even if it won't work with the other browser.
+
+> [!IMPORTANT]
+> We only test KHI with the latest Google Chrome. 
+> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
 
 ### Initialization (one-time setup)
 1. Download or clone this repository   
@@ -79,31 +82,7 @@ KHI may work with the other browser, but we will not support even if it won't wo
 
 ## User Guide
 
-### Understanding views for opening your visualization
-
-![User guide: start screen](./image/guide-start-screen.png)
-
-![User guide: query logs](./image/guide-query.png)
-
-### Understanding inspection view
-
-![User guide timeline screens](./image/guide-timeline-screen.png)
-
-![User guide timeline diagram](./image/guide-timeline-diagram.png)
-
-![User guide timeline revisions](./image/guide-timelines-revisions.png)
-
-![User guide timeline events](./image/guide-timelines-events.png)
-
-![User guide timeline selection](./image/guide-timeline-selection.png)
-
-![User guide log-view](./image/guide-log-view.png)
-
-![User guide history-view](./image/guide-history-view.png)
-
-![User guide filtering](./image/guide-filtering.png)
-
-![User guide topology-view](./image/guide-topology-view.png)
+Please check our [User Guide](./docs/user-guide.md).
 
 ## Contribute
 
