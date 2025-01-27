@@ -49,10 +49,11 @@ you can pass the access token via the program argument.
 ```
 $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
 ```
-<details>
-<summary>Get Started (Run from source)</summary>
 
 ## Get Started (Run from source)
+
+<details>
+<summary>Get Started (Run from source)</summary>
 
 ### Prerequisites
 - Go 1.21.*
