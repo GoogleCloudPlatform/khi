@@ -1,8 +1,6 @@
 # Kubernetes History Inspector
 
-![Header 1](./image/header-1.png)
-
-![Header 2](./image/header-2.png)
+![Header](./image/header.png)
 
 Kubernetes History Inspector (KHI) is a rich visualization tool for Kubernetes clusters on Google Cloud (e.g GKE, GKE on AWS/Azure, GDCV, etc).
 KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
