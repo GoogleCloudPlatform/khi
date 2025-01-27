@@ -19,7 +19,7 @@ import { PublicKHIExtension } from 'src/app/extensions/public/module';
 export const environment = {
   production: true,
   viewerMode: false,
-  bugReportUrl: '',
+  bugReportUrl: 'https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue',
   documentUrl: 'https://github.com/GoogleCloudPlatform/khi',
   pluginModules: [PublicKHIExtension],
   options: {} as Record<string, unknown>,
