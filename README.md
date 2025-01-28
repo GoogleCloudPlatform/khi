@@ -59,7 +59,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 > you can pass the access token via the program argument.
 >
 >```
->$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
+>$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -access-token=`gcloud auth print-access-token`
 >```
 
 ## Get Started (Run from source)

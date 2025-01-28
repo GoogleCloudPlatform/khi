@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.23 as builder
+FROM golang:1.23 AS builder
 
 ENV ROOT=/go/src/app
 RUN mkdir /built
@@ -32,6 +32,8 @@ COPY --from=builder /built /go/src/app
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV GOMEMLIMIT=10000MiB
+ENV KHI_FRONTEND_ASSET_FOLDER=/go/src/app/web
+ENV HOST=0.0.0.0
+
 EXPOSE 8080
-ENTRYPOINT [ "/go/src/app/khi" ]
-CMD ["--host=0.0.0.0","--temporary-folder=/","--data-destination-folder=/","--frontend-asset-folder=/go/src/app/web"]
+ENTRYPOINT ["/go/src/app/khi","--temporary-folder=/","--data-destination-folder=/"]
