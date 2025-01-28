@@ -16,6 +16,7 @@ package cache
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 
@@ -97,7 +98,7 @@ func (c *BasicCacheImpl[T]) SetAsync(key string, value []byte) {
 		defer c.lock.Unlock()
 		data, err := c.conveter.Deserialize(value)
 		if err != nil {
-			slog.Error("failed to store cache data", err)
+			slog.Error(fmt.Sprintf("failed to store cache data: %v", err))
 			return
 		}
 		if _, contained := c.cache[key]; contained {
@@ -113,7 +114,7 @@ func (c *BasicCacheImpl[T]) SetAsync(key string, value []byte) {
 		c.cache[key] = data
 		err = c.storage.Set(key, value)
 		if err != nil {
-			slog.Error("failed to store cache data", err)
+			slog.Error(fmt.Sprintf("failed to store cache data: %v", err))
 		}
 	}()
 }
