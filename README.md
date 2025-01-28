@@ -2,13 +2,12 @@
 
 ![Header](./image/header.png)
 
-Kubernetes History Inspector (KHI) is a rich visualization tool for Kubernetes clusters on Google Cloud (e.g GKE, GKE on AWS/Azure, GDCV, etc).
-KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
+Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
 This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
 
 ## KHI features and characteristics
 
-- **No Prior Setup Required:** KHI uses your existing Cloud Logging logs, so you don't need to install anything extra. This makes setup easier and saves you time. Furthermore, you can use KHI to troubleshoot even past issues as long as logs are still available in Cloud Logging.
+- **No Prior Setup Required:** KHI uses your existing logs, so you don't need to install anything extra. This makes setup easier and saves you time. Furthermore, you can use KHI to troubleshoot even past issues as long as logs are still available in your logging backend.
 
 - **Effortless log collection:** KHI significantly simplifies the process of collecting and visualizing Kubernetes-related logs. Instead of writing complex queries, users can leverage an interactive GUI. By setting the target cluster type, log types, and parameters such as time range and cluster name, KHI automatically generates the necessary queries and collects the logs for visualization.
 
@@ -26,14 +25,28 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ![Feature: resource diagram](./image/feature-diagram.png)
 
-## Supported Products
+## Supported environments
 
-- [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
-- [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
-- [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
-- [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
-- [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
-- GDCV for VMWare
+### Cluster environment
+
+- Google Cloud
+  - [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
+  - [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
+  - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
+  - [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
+  - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
+  - GDCV for VMWare
+
+- OSS
+  - kube-apiserver audit logs as JSONlines (Coming soon)
+
+### Logging backend
+
+- Google Cloud
+  - Cloud Logging (For all clusters on Google Cloud)
+
+- Other
+  - Log file upload (Coming soon)
 
 ## Get Started (Run with Cloud Shell)
 
