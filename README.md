@@ -62,10 +62,6 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 >$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
 >```
 
-> [!IMPORTANT]
-> We only test KHI with the latest Google Chrome. 
-> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
-
 ## Get Started (Run from source)
 
 <details>
@@ -95,6 +91,10 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 ## User Guide
 
 Please check our [user guide](./docs/user-guide.md).
+
+> [!IMPORTANT]
+> We only test KHI with the latest Google Chrome. 
+> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
 
 ## Contribute
 
