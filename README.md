@@ -1,6 +1,8 @@
 # Kubernetes History Inspector
 
-![Header](./image/header.png)
+Language: English | [日本語](./README.ja.md)
+
+![Header](./image/en/header.png)
 
 Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
 This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
@@ -11,7 +13,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 - **Effortless log collection:** KHI significantly simplifies the process of collecting and visualizing Kubernetes-related logs. Instead of writing complex queries, users can leverage an interactive GUI. By setting the target cluster type, log types, and parameters such as time range and cluster name, KHI automatically generates the necessary queries and collects the logs for visualization.
 
-![Feature: quick and easy steps to gather logs](./image/feature-query.png)
+![Feature: quick and easy steps to gather logs](./image/en/feature-query.png)
 
 - **Comprehensive Visualization with Interactive Timelines:** KHI transforms vast quantities of logs into an interactive and comprehensive timeline view.
   - **Resource History Visualization:** KHI displays the status of resources on a timeline. It also parses audit logs and displays the resource manifest at a specific point in time, highlighting differences.
@@ -19,11 +21,11 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
   - **Timeline Comparison of Logs Across Resources:** The timeline view allows users to compare logs across resources in the time dimension, making it easy to identify relationships and dependencies.
   - **Powerful Interactive Filters:** KHI intentionally loads a massive amount of logs into memory. This enables users to interactively filter logs and quickly pinpoint the information they need within the large dataset.
 
-![Feature: timeline view](./image/feature-timeline.png)
+![Feature: timeline view](./image/en/feature-timeline.png)
 
 - **Cluster Resource Topology Diagrams (Early alpha feature):** KHI can generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the configuration and topology of your cluster during an incident or for auditing purposes.
 
-![Feature: resource diagram](./image/feature-diagram.png)
+![Feature: resource diagram](./image/en/feature-diagram.png)
 
 ## Supported environments
 
@@ -48,7 +50,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - Other
   - Log file upload (Coming soon)
 
-## Get Started (Run with Cloud Shell)
+## Get Started (Run from a docker image)
 
 1. Open [Cloud Shell](https://shell.cloud.google.com)
 1. Run `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest`
@@ -73,11 +75,6 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - Latest Google Chrome
 
-
-> [!IMPORTANT]
-> We only test KHI with the latest Google Chrome. 
-> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
-
 ### Initialization (one-time setup)
 1. Download or clone this repository   
   e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
@@ -95,7 +92,11 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## User Guide
 
-Please check our [User Guide](./docs/user-guide.md).
+Please check our [user guide](./docs/user-guide.md).
+
+> [!IMPORTANT]
+> We only test KHI with the latest Google Chrome. 
+> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
 
 ## Contribute
 
@@ -103,4 +104,4 @@ If you'd like to contribute to the project, please read our [Contributing guide]
 
 ## Disclaimer
 
-Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, please file a Github issue on this repository and we are happy to check them on best-effort basis.
+Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, please [file a Github issue on this repository](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue) and we are happy to check them on best-effort basis.
