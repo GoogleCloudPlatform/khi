@@ -93,6 +93,9 @@ containerid: ""
 started: false
 allocatedresources: {}
 resources: null
+volumemounts: []
+user: null
+allocatedresourcesstatus: []
 `,
 						},
 					},
@@ -121,6 +124,9 @@ containerid: ""
 started: false
 allocatedresources: {}
 resources: null
+volumemounts: []
+user: null
+allocatedresourcesstatus: []
 `,
 						},
 					},
@@ -157,6 +163,9 @@ containerid: containerd://a0d5e6840fd995139f7d1b81c59c190bd6668997d0ea917ed49bac
 started: true
 allocatedresources: {}
 resources: null
+volumemounts: []
+user: null
+allocatedresourcesstatus: []
 `,
 						}},
 					&testchangeset.HasRevision{
@@ -183,6 +192,9 @@ containerid: containerd://5043bea481844f45aa284f214ef5fed1bf71eae0fc83f6633c293d
 started: true
 allocatedresources: {}
 resources: null
+volumemounts: []
+user: null
+allocatedresourcesstatus: []
 `,
 						},
 					},

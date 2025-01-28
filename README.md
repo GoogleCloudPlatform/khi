@@ -38,7 +38,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 ## Get Started
 
 ### Prerequisites
-- Go 1.21.*
+- Go 1.23.*
 - Node.js environment 18.19.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 
