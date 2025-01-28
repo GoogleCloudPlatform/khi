@@ -48,7 +48,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - Other
   - Log file upload (Coming soon)
 
-## Get Started (Run with Cloud Shell)
+## Get Started (Run from a docker image)
 
 1. Open [Cloud Shell](https://shell.cloud.google.com)
 1. Run `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest`
@@ -62,6 +62,10 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 >$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
 >```
 
+> [!IMPORTANT]
+> We only test KHI with the latest Google Chrome. 
+> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
+
 ## Get Started (Run from source)
 
 <details>
@@ -72,11 +76,6 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - Node.js environment 18.19.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - Latest Google Chrome
-
-
-> [!IMPORTANT]
-> We only test KHI with the latest Google Chrome. 
-> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
 
 ### Initialization (one-time setup)
 1. Download or clone this repository   
@@ -95,7 +94,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## User Guide
 
-Please check our [User Guide](./docs/user-guide.md).
+Please check our [user guide](./docs/user-guide.md).
 
 ## Contribute
 
@@ -103,4 +102,4 @@ If you'd like to contribute to the project, please read our [Contributing guide]
 
 ## Disclaimer
 
-Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, please file a Github issue on this repository and we are happy to check them on best-effort basis.
+Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, please [file a Github issue on this repository](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue) and we are happy to check them on best-effort basis.
