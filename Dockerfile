@@ -33,5 +33,5 @@ COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV GOMEMLIMIT=10000MiB
 EXPOSE 8080
-ENTRYPOINT [ "/go/src/app/khi" ]
-CMD ["--host=0.0.0.0","--temporary-folder=/","--data-destination-folder=/","--frontend-asset-folder=/go/src/app/web"]
+ENTRYPOINT ["/go/src/app/khi","--temporary-folder=/","--data-destination-folder=/","--frontend-asset-folder=/go/src/app/web"]
+CMD ["--host=0.0.0.0"]
