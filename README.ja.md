@@ -15,7 +15,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 ![機能: ログ収集のための迅速かつ簡単なステップ](./docs/ja/images/feature-query.png)
 
-- **インタラクティブなタイムラインによるク包括的なクラスタの可視化:** さまざまなログを用いて、クラスタ上で発生した事象を包括的に可視化します。
+- **インタラクティブなタイムラインによる包括的なクラスタの可視化:** さまざまなログを用いて、クラスタ上で発生した事象を包括的に可視化します。
   - **リソース履歴の可視化:** リソースの状態をタイムライン上に表示します。また、監査ログを解析し変更履歴を確認できます。
   - **複数のリソースタイプにわたる複数のログタイプの可視化:** 関連リソース間のさまざまな種類のログを関連付け、全体像を提供します。
   - **リソース間のログのタイムライン比較:** タイムラインビューでは、リソース間のログを時間軸で比較できるため、関係性と依存関係を容易に特定できます。
@@ -68,7 +68,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 > メタデータサーバーが利用できない他の環境でKHIを実行する場合は、プログラム引数でアクセストークンを渡します。
 >
 > ```
-> $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
+> $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -access-token=`gcloud auth print-access-token`
 > ```
 
 ### ソースから実行
