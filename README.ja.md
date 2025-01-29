@@ -82,9 +82,6 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - Google Chrome (最新版)
 
-> [!IMPORTANT]
-> 動作環境以外でのご利用、または動作環境下でもブラウザの設定によっては正しく動作しない場合がございます。
-
 #### 環境構築
 1. このリポジトリをダウンロードまたはクローンします。  
   例: `git clone https://github.com/GoogleCloudPlatform/khi.git`
