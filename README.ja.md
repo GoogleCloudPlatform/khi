@@ -2,7 +2,7 @@
 
 Language: [English](./README.md) | 日本語
 
-![ヘッダー](./image/ja/header.png)
+![ヘッダー](./docs/ja/images/header.png)
 
 Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視化ツールです。
 大量のログをインタラクティブなタイムラインビューなどで可視化し、Kubernetesクラスタ内の複数のコンポーネントにまたがる複雑な問題のトラブルシューティングを強力にサポートします。
@@ -13,7 +13,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 - **圧倒的に簡単なログ収集:** KHIは、Kubernetes関連ログの収集を大幅に簡素化します。複雑なログフィルタを記述せず、インタラクティブなGUIを利用してクエリを生成・実行できます。
 
-![機能: ログ収集のための迅速かつ簡単なステップ](./image/ja/feature-query.png)
+![機能: ログ収集のための迅速かつ簡単なステップ](./docs/ja/images/feature-query.png)
 
 - **インタラクティブなタイムラインによるク包括的なクラスタの可視化:** さまざまなログを用いて、クラスタ上で発生した事象を包括的に可視化します。
   - **リソース履歴の可視化:** リソースの状態をタイムライン上に表示します。また、監査ログを解析し変更履歴を確認できます。
@@ -21,11 +21,11 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
   - **リソース間のログのタイムライン比較:** タイムラインビューでは、リソース間のログを時間軸で比較できるため、関係性と依存関係を容易に特定できます。
   - **強力なインタラクティブフィルター:** KHI は意図的に大量のログをメモリにロードします。これにより、ユーザーはインタラクティブにログをフィルタリングし、大規模なデータセット内から必要な情報を迅速に特定できます。
 
-![機能: タイムラインビュー](./image/ja/feature-timeline.png)
+![機能: タイムラインビュー](./docs/ja/images/feature-timeline.png)
 
 - **リソースの関連性の可視化 (アルファ機能):** 特定の時点での Kubernetes クラスタのリソースの状態とそれらの関係を示す図を生成できます。これにより、インシデント発生時のクラスタにおけるリソース同士の関連性を把握できます。
 
-![機能: リソース図](./image/ja/feature-diagram.png)
+![機能: リソース図](./docs/ja/images/feature-diagram.png)
 
 ## システム要件
 
@@ -37,7 +37,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
   - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture)
   - [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
   - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
-  - GDCV for VMWare
+  - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - その他環境
   - （近日公開予定）JSONlines形式のkube-apiserver監査ログ

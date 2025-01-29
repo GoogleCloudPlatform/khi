@@ -2,7 +2,7 @@
 
 Language: English | [日本語](./README.ja.md)
 
-![Header](./image/en/header.png)
+![Header](./docs/en/images/header.png)
 
 Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
 This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
@@ -13,7 +13,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 - **Effortless log collection:** KHI significantly simplifies the process of collecting and visualizing Kubernetes-related logs. Instead of writing complex queries, users can leverage an interactive GUI. By setting the target cluster type, log types, and parameters such as time range and cluster name, KHI automatically generates the necessary queries and collects the logs for visualization.
 
-![Feature: quick and easy steps to gather logs](./image/en/feature-query.png)
+![Feature: quick and easy steps to gather logs](./docs/en/images/feature-query.png)
 
 - **Comprehensive Visualization with Interactive Timelines:** KHI transforms vast quantities of logs into an interactive and comprehensive timeline view.
   - **Resource History Visualization:** KHI displays the status of resources on a timeline. It also parses audit logs and displays the resource manifest at a specific point in time, highlighting differences.
@@ -21,11 +21,11 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
   - **Timeline Comparison of Logs Across Resources:** The timeline view allows users to compare logs across resources in the time dimension, making it easy to identify relationships and dependencies.
   - **Powerful Interactive Filters:** KHI intentionally loads a massive amount of logs into memory. This enables users to interactively filter logs and quickly pinpoint the information they need within the large dataset.
 
-![Feature: timeline view](./image/en/feature-timeline.png)
+![Feature: timeline view](./docs/en/images/feature-timeline.png)
 
 - **Cluster Resource Topology Diagrams (Early alpha feature):** KHI can generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the configuration and topology of your cluster during an incident or for auditing purposes.
 
-![Feature: resource diagram](./image/en/feature-diagram.png)
+![Feature: resource diagram](./docs/en/images/feature-diagram.png)
 
 ## Supported environments
 
@@ -37,7 +37,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
   - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
   - [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
   - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
-  - GDCV for VMWare
+  - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - OSS
   - kube-apiserver audit logs as JSONlines (Coming soon)
