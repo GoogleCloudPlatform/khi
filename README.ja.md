@@ -7,7 +7,7 @@ Language: [English](./README.md) | 日本語
 Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視化ツールです。
 大量のログをインタラクティブなタイムラインビューなどで可視化し、Kubernetesクラスタ内の複数のコンポーネントにまたがる複雑な問題のトラブルシューティングを強力にサポートします。
 
-## KHI の機能と特徴
+## 機能と特徴
 
 - **事前設定不要:** クラスタ内のエージェントなどの事前導入を必要とせず、既存のログから可視化を提供します。さらに、ログがログバックエンド上に保持されている限り、過去の問題のトラブルシューティングにも活用できます。
 
@@ -17,19 +17,19 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 - **インタラクティブなタイムラインによるク包括的なクラスタの可視化:** さまざまなログを用いて、クラスタ上で発生した事象を包括的に可視化します。
   - **リソース履歴の可視化:** リソースの状態をタイムライン上に表示します。また、監査ログを解析し変更履歴を確認できます。
-  - **複数のリソースタイプにわたる複数のログタイプの可視化:** KHI は、関連リソース間のさまざまなタイプのログを関連付け、全体像を提供します。
-  - **リソース間のログのタイムライン比較:** タイムラインビューでは、ユーザーはリソース間のログを時間軸で比較できるため、関係性と依存関係を容易に特定できます。
+  - **複数のリソースタイプにわたる複数のログタイプの可視化:** 関連リソース間のさまざまな種類のログを関連付け、全体像を提供します。
+  - **リソース間のログのタイムライン比較:** タイムラインビューでは、リソース間のログを時間軸で比較できるため、関係性と依存関係を容易に特定できます。
   - **強力なインタラクティブフィルター:** KHI は意図的に大量のログをメモリにロードします。これにより、ユーザーはインタラクティブにログをフィルタリングし、大規模なデータセット内から必要な情報を迅速に特定できます。
 
 ![機能: タイムラインビュー](./image/ja/feature-timeline.png)
 
-- **リソースの関連性の可視化 (アルファ機能):** KHI は、特定の時点での Kubernetes クラスタのリソースの状態とそれらの関係を示す図を生成できます。これは、インシデント中のクラスタ中のリソース同士の関連性を把握することを可能にします。
+- **リソースの関連性の可視化 (アルファ機能):** 特定の時点での Kubernetes クラスタのリソースの状態とそれらの関係を示す図を生成できます。これにより、インシデント発生時のクラスタにおけるリソース同士の関連性を把握できます。
 
 ![機能: リソース図](./image/ja/feature-diagram.png)
 
-## サポート環境
+## システム要件
 
-### クラスタ
+### Kubernetesクラスタ
 
 - Google Cloud
   - [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
@@ -39,53 +39,64 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
   - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
   - GDCV for VMWare
 
-- OSS
-  - kube-apiserver 監査ログ (JSONlines 形式) (近日公開予定)
+- その他環境
+  - （近日公開予定）JSONlines形式のkube-apiserver監査ログ
 
 ### ログバックエンド
 
 - Google Cloud
-  - Cloud Logging (Google Cloud 上のすべてのクラスタ)
+  - Cloud Logging（Google Cloud上のすべてのクラスタ）
 
-- その他
-  - ファイルによるログアップロード (近日公開予定)
+- その他環境
+  - （近日公開予定）ファイルによるログアップロード
 
-## 動かしてみる (Dockerイメージから実行)
+## 実行方法
+### Dockerイメージから実行
+#### 動作環境
+- Google Chrome（最新版）
+
+> [!IMPORTANT]
+> 動作環境以外でのご利用、または動作環境下でもブラウザの設定によっては正しく動作しない場合がございます。
+
+#### KHIの実行
 
 1. [Cloud Shell](https://shell.cloud.google.com) を開きます。
 2. `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest` を実行します。
 3. ターミナル上のリンク `http://localhost:8080` をクリックして、KHI の使用を開始してください！
 
 > [!TIP]
-> メタデータサーバーが利用できない他の環境で KHI を実行する場合は、プログラム引数でアクセストークンを渡すことができます。
+> メタデータサーバーが利用できない他の環境でKHIを実行する場合は、プログラム引数でアクセストークンを渡します。
 >
->```
->$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
->```
+> ```
+> $ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
+> ```
 
-## 動かしてみる (ソースから実行)
+### ソースから実行
 
 <details>
 <summary>動かしてみる (ソースから実行)</summary>
 
-### 前提条件
+#### 動作環境
 - Go 1.23.*
-- Node.js 環境 18.19.*
+- Node.js環境 18.19.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
-- 最新の Google Chrome
+- Google Chrome (最新版)
 
-### 開発環境のセットアップ (1 回限りの設定)
+> [!IMPORTANT]
+> 動作環境以外でのご利用、または動作環境下でもブラウザの設定によっては正しく動作しない場合がございます。
+
+#### 環境構築
 1. このリポジトリをダウンロードまたはクローンします。  
   例: `git clone https://github.com/GoogleCloudPlatform/khi.git`
 2. プロジェクトルートに移動します。  
   例: `cd khi`
 3. プロジェクトルートから `cd ./web && npm install` を実行します。
 
-### KHI の実行
+#### KHIの実行
 1. [`gcloud` で認証します。](https://cloud.google.com/docs/authentication/gcloud)  
   例: ユーザーアカウントの認証情報を使用する場合は、`gcloud auth login` を実行します。
 2. プロジェクトルートから `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` を実行します。  
-  `localhost:8080` を開き、KHI の使用を開始してください！
+  `localhost:8080` を開き、KHIの使用を開始してください！
 
 </details>
 
@@ -93,14 +104,10 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 [ユーザーガイド](./docs/ja/user-guide.md) をご確認ください。
 
-> [!IMPORTANT]
-> KHI は最新の Google Chrome でのみテストしています。
-> 他のブラウザでも動作する可能性がありますが、他のブラウザで動作しない場合でもサポートしません。
+## 貢献
 
-## コントリビュート
-
-プロジェクトに貢献したい場合は、[コントリビューティングガイド](./docs/contributing.md) をお読みください。
+プロジェクトへの貢献をご希望の場合は、[コントリビューティングガイド](./docs/contributing.md) をお読みください。
 
 ## 免責事項
 
-このツールは、公式にサポートされている Google Cloud 製品ではありません。問題を見つけたり、機能のリクエストがある場合は、[本レポジトリ上のIssueを作成して報告してください](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue)。ベストエフォートではありますが確認し、対応いたします。
+KHIはGoogle Cloudの公式製品ではございません。不具合のご報告や機能に関するご要望がございましたら、お手数ですが当リポジトリの[Github issues](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue)にご登録ください。可能な範囲で対応させていただきます。
