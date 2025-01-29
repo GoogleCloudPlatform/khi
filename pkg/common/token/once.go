@@ -16,6 +16,7 @@ package token
 
 import (
 	"context"
+	"time"
 )
 
 // OnceTokenResolver resolves the token from somewhere only onetime. This is mainly used for resolving token from CLI arguments or environment variables.
@@ -39,7 +40,7 @@ func (e *OnceTokenResolver) Resolve(ctx context.Context) (*Token, error) {
 		token := e.resolver()
 		if token != "" {
 			e.tokenResolved = true
-			return New(token), nil
+			return NewWithExpiry(token, time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)), nil
 		}
 	}
 	if e.tokenResolved {
