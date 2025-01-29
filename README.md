@@ -50,7 +50,19 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - Other
   - Log file upload (Coming soon)
 
-## Get Started (Run from a docker image)
+## Getting started
+
+### Run from a docker image
+
+#### Supported environment
+
+- Latest Google Chrome
+
+> [!IMPORTANT]
+> We only test KHI with the latest Google Chrome. 
+> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
+
+#### Run KHI
 
 1. Open [Cloud Shell](https://shell.cloud.google.com)
 1. Run `docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest`
@@ -64,25 +76,24 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 >$ docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -host 0.0.0.0 -access-token=`gcloud auth print-access-token`
 >```
 
-## Get Started (Run from source)
+### Run from source code
 
 <details>
 <summary>Get Started (Run from source)</summary>
 
-### Prerequisites
+#### Prerequisites
 - Go 1.23.*
 - Node.js environment 18.19.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
-- Latest Google Chrome
 
-### Initialization (one-time setup)
+#### Initialization (one-time setup)
 1. Download or clone this repository   
   e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
 1. Move to the project root   
   e.g. `cd khi`
 1. Run `cd ./web && npm install` from the project root
 
-### Run KHI
+#### Run KHI
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
   e.g. `gcloud auth login` if you use your user account credentials
 1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
@@ -93,10 +104,6 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 ## User Guide
 
 Please check our [user guide](./docs/user-guide.md).
-
-> [!IMPORTANT]
-> We only test KHI with the latest Google Chrome. 
-> KHI may work with the other browser, but we will not support even if it won't work with the other browser.
 
 ## Contribute
 
