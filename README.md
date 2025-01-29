@@ -29,7 +29,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## Supported environments
 
-### Cluster environment
+### Kubernetes cluster
 
 - Google Cloud
   - [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
@@ -39,7 +39,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
   - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
-- OSS
+- Other
   - kube-apiserver audit logs as JSONlines (Coming soon)
 
 ### Logging backend
