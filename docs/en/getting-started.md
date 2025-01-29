@@ -113,6 +113,16 @@ When a rollout is performed on the Deployment, the Deployment Controller creates
 
 ![](./images/gettingstarted-rollout.png)
 
+Finally, let's take a look at the Pod lifecycle. Click one of the first created Pods (should be 3) in the Pod resource. The view for the clicked Pod is displayed in the right tray.
+
+![](./images/gettingstarted-views.png)
+
+In Log View, logs related to the selected resource are displayed. For example, in this case, logs are aggregated that the Node that could be assigned was not found after the Pod was created, and then it was assigned to the Node after a while and started and deleted.
+
+History View displays the change history of the selected resource. For example, in this case, it shows that `replicaset-controller` first created this Pod and then deleted it, and then the Node actually deleted it.
+
+By using KHI, you can automate the task of visualizing when, where, who, and what operations were performed on Kubernetes resources in chronological order.
+
 ### **Key Points of Quick Touch**
 
 * By using KHI, you can understand how operations such as scaling out/in, and rolling out a Deployment affect the state of Pods and ReplicaSets.
