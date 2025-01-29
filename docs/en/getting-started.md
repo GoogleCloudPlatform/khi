@@ -82,7 +82,7 @@ Now, stop the timer and record the current time. Note the time difference betwee
 Kubernetes audit logs about these changes have been recorded in Cloud Logging. Let's use KHI to see how Kubernetes has operated in the past. KHI is available as a container image, so you can start it with Docker (or podman).
 
 ```bash
-docker run -p 8080:8080 ghcr.io/googlecloudplatform/khi:latest -access-token=`gcloud auth print-access-token`
+docker run -p 8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
 ```
 
 This command starts KHI, and the Web UI is available on port 8080. Access `http://localhost:8080` in your web browser to display the KHI Web UI.
