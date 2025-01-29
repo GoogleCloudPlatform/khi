@@ -102,7 +102,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 ## ユーザーガイド
 
-[ユーザーガイド](./docs/ja/user-guide.md) をご確認ください。
+[ユーザーガイド](./docs/ja/user-guide.md)と[Getting Started](./docs/en/getting-started.md) をご確認ください。
 
 ## 貢献
 
