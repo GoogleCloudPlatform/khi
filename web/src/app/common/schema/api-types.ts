@@ -33,7 +33,7 @@ import {
  * Representing a config of this frontend. A returned value type for GET /api/v2/config.
  */
 export interface GetConfigResponse {
-  // ViewerMode is a flag indicating if the server is the viewer mode and not accepting creating a new inspection request.~
+  // ViewerMode is a flag indicating if the server is the viewer mode and not accepting creating a new inspection request.
   viewerMode: boolean;
 }
 
