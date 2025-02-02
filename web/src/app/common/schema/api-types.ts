@@ -30,6 +30,14 @@ import {
 } from './metadata-types';
 
 /**
+ * Representing a config of this frontend. A returned value type for GET /api/v2/config.
+ */
+export interface GetConfigResponse {
+  // ViewerMode is a flag indicating if the server is the viewer mode and not accepting creating a new inspection request.~
+  viewerMode: boolean;
+}
+
+/**
  * Representing a type of inspection. This usually represents a cluster type(e.g GKE, Cloud Composer ...etc).
  */
 export interface InspectionType {

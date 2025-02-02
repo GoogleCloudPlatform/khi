@@ -91,7 +91,7 @@ export class StartupDialogComponent {
    */
   static UI_TIME_REFRESH_INTERVAL = 1000;
 
-  isViewerMode = environment.viewerMode;
+  isViewerMode = this.backendAPI.getConfig().pipe(map((v) => v.viewerMode));
 
   bugReportUrl = environment.bugReportUrl;
 

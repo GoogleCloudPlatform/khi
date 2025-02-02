@@ -18,7 +18,6 @@ import { PublicKHIExtension } from 'src/app/extensions/public/module';
 
 export const environment = {
   production: false,
-  viewerMode: false,
   // apiBaseUrl is rewritten on development mode.
   // We expect developers runs frontend code with Angular server served on localhost:4200, but the backend API should run with localhost:8080.
   apiBaseUrl: 'http://localhost:8080',

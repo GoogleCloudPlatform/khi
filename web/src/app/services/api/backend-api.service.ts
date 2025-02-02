@@ -29,6 +29,7 @@ import {
   PopupAnswerValidationResult,
   PopupFormRequest,
   InspectionMetadataOfRunResult,
+  GetConfigResponse,
 } from '../../common/schema/api-types';
 import {
   HttpClient,
@@ -48,6 +49,7 @@ import {
   map,
   mergeMap,
   of,
+  retry,
   shareReplay,
   switchMap,
   takeWhile,
@@ -78,12 +80,22 @@ export class BackendAPIImpl implements BackendAPI {
    */
   private readonly baseUrl: string;
 
+  private readonly getConfigObservable: Observable<GetConfigResponse>;
+
   constructor(
     private http: HttpClient,
     private readonly viewState: ViewStateService,
   ) {
     const urlPrefix = environment.apiBaseUrl;
     this.baseUrl = urlPrefix + BackendAPIImpl.getServerBasePath();
+
+    const getConfigUrl = this.baseUrl + '/api/v2/config';
+    this.getConfigObservable = this.http
+      .get<GetConfigResponse>(getConfigUrl)
+      .pipe(
+        retry(),
+        shareReplay(1), // the config is cached at the first time of the loading.
+      );
   }
 
   /**
@@ -97,6 +109,13 @@ export class BackendAPIImpl implements BackendAPI {
       content = content.substring(0, content.length - 1);
     }
     return content ?? '';
+  }
+
+  /**
+   * Get configuration of this frontend from the server.
+   */
+  public getConfig(): Observable<GetConfigResponse> {
+    return this.getConfigObservable;
   }
 
   public getInspectionTypes() {

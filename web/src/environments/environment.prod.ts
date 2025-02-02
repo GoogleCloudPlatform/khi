@@ -18,7 +18,6 @@ import { PublicKHIExtension } from 'src/app/extensions/public/module';
 
 export const environment = {
   production: true,
-  viewerMode: false,
   // For production builds, backend API origin is always matching with the one serving frontend.
   apiBaseUrl: '',
   bugReportUrl:

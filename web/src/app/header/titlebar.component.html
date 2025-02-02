@@ -16,11 +16,10 @@
 
 <h1 class="title">Kubernetes History Inspector</h1>
 <p class="version">{{ version }}</p>
-<!--TODO: Read viewer mode status from the config API. https://github.com/GoogleCloudPlatform/khi/issues/46 -->
-<!-- <p class="viewer-mode" *ngIf="'NG_APP_VIEWER_MODE' | env">
+<p class="viewer-mode" *ngIf="isViewerMode | async">
   <mat-icon class="icon">visibility</mat-icon>
   <span>viewer mode</span>
-</p> -->
+</p>
 <p class="page-info">
   <mat-icon class="icon">tab</mat-icon>
   <span>{{ pageName }}</span>

@@ -34,7 +34,10 @@
     <div class="body-header">
       <h2 class="welcome-message">What logs you want to visualize?</h2>
       <div
-        *ngIf="!isViewerMode && (serverStat | async); let serverStat"
+        *ngIf="
+          (isViewerMode | async) === false && (serverStat | async);
+          let serverStat
+        "
         class="mem-usage"
         matTooltip="Memory usage on KHI server. Be careful not to cause OOM with querying big time range"
       >
@@ -58,12 +61,12 @@
             <div class="inspect-left">
               <div class="button-group">
                 <button
-                  [disabled]="isViewerMode"
+                  [disabled]="isViewerMode | async"
                   class="task-button main"
                   (click)="openNewInspectionDialog()"
-                  [ngClass]="{ disabled: isViewerMode }"
+                  [ngClass]="{ disabled: isViewerMode | async }"
                   [matTooltip]="
-                    isViewerMode
+                    (isViewerMode | async)
                       ? 'This page is hosted as readonly mode. This operation is prohibited.'
                       : ''
                   "
@@ -98,7 +101,9 @@
                     tasks: taskListViewModel | async,
                   } as listViewChildModel"
                 >
-                  <ng-container *ngIf="!isViewerMode; else viewerMode">
+                  <ng-container
+                    *ngIf="(isViewerMode | async) === false; else viewerMode"
+                  >
                     <ng-container
                       *ngIf="listViewChildModel.tasks !== null; else loading"
                     >
