@@ -22,6 +22,9 @@ import {
   WindowConnectorService,
 } from '../services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from '../services/frame-connection/window-connection-provider.service';
+import { GetConfigResponse } from '../common/schema/api-types';
+import { of } from 'rxjs';
+import { BACKEND_API } from '../services/api/backend-api-interface';
 
 describe('TitlebarComponent', () => {
   let component: TitleBarComponent;
@@ -34,6 +37,16 @@ describe('TitlebarComponent', () => {
         {
           provide: WINDOW_CONNECTION_PROVIDER,
           useValue: new InMemoryWindowConnectionProvider(),
+        },
+        {
+          provide: BACKEND_API,
+          useValue: {
+            getConfig: () => {
+              return of<GetConfigResponse>({
+                viewerMode: false,
+              });
+            },
+          },
         },
       ],
     }).compileComponents();

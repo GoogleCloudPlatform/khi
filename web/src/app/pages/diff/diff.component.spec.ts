@@ -35,6 +35,9 @@ import {
 } from 'src/app/annotator/change-pair-tool/default';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from 'src/app/annotator/change-pair/resolver';
 import { getDefaultChangePairAnnotatorResolver } from 'src/app/annotator/change-pair/default';
+import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
+import { GetConfigResponse } from 'src/app/common/schema/api-types';
+import { of } from 'rxjs';
 
 describe('DiffComponent', () => {
   let component: DiffComponent;
@@ -63,6 +66,16 @@ describe('DiffComponent', () => {
         {
           provide: CHANGE_PAIR_ANNOTATOR_RESOLVER,
           useValue: getDefaultChangePairAnnotatorResolver(),
+        },
+        {
+          provide: BACKEND_API,
+          useValue: {
+            getConfig: () => {
+              return of<GetConfigResponse>({
+                viewerMode: false,
+              });
+            },
+          },
         },
         DiffPageDataSource,
       ],

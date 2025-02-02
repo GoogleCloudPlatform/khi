@@ -22,9 +22,12 @@ import { InspectionDataLoaderService } from 'src/app/services/data-loader.servic
 import { ProgressDialogService } from 'src/app/services/progress/progress-dialog.service';
 import { BACKEND_CONNECTION } from 'src/app/services/api/backend-connection.service';
 import { BackendConnectionService } from 'src/app/services/api/backend-connection-interface';
-import { ReplaySubject, Subject } from 'rxjs';
+import { of, ReplaySubject, Subject } from 'rxjs';
 import { By } from '@angular/platform-browser';
-import { GetInspectionTasksResponse } from 'src/app/common/schema/api-types';
+import {
+  GetConfigResponse,
+  GetInspectionTasksResponse,
+} from 'src/app/common/schema/api-types';
 import {
   EXTENSION_STORE,
   ExtensionStore,
@@ -41,7 +44,7 @@ describe('StartupDialogComponent', () => {
       ['tasks'],
     );
     backendConnectionSpy.tasks.and.returnValue(taskListSubject);
-    await TestBed.configureTestingModule({
+    TestBed.configureTestingModule({
       providers: [
         ...ProgressDialogService.providers(),
         {
@@ -50,7 +53,13 @@ describe('StartupDialogComponent', () => {
         },
         {
           provide: BACKEND_API,
-          useValue: {},
+          useValue: {
+            getConfig: () => {
+              return of<GetConfigResponse>({
+                viewerMode: false,
+              });
+            },
+          },
         },
         {
           provide: BACKEND_CONNECTION,

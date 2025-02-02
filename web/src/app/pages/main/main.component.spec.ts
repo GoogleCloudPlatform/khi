@@ -37,6 +37,9 @@ import {
 } from 'src/app/services/timeline-filter.service';
 import { InspectionDataStoreService } from 'src/app/services/inspection-data-store.service';
 import { ViewStateService } from 'src/app/services/view-state.service';
+import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
+import { of } from 'rxjs';
+import { GetConfigResponse } from 'src/app/common/schema/api-types';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
@@ -55,6 +58,16 @@ describe('AppComponent', () => {
         {
           provide: POPUP_MANAGER,
           useValue: new MockPopupManager(),
+        },
+        {
+          provide: BACKEND_API,
+          useValue: {
+            getConfig: () => {
+              return of<GetConfigResponse>({
+                viewerMode: false,
+              });
+            },
+          },
         },
         {
           provide: DEFAULT_TIMELINE_FILTER,
