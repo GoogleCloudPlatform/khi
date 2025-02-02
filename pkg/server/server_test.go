@@ -33,7 +33,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
@@ -72,6 +74,7 @@ type testScenarioStep struct {
 	BodyValidator    func(t *testing.T, body string, stat map[string]string)
 	RequestGenerator func(t *testing.T, stat map[string]string) any
 	WaitAfter        time.Duration
+	Before           func()
 	After            func(stat map[string]string)
 }
 
@@ -230,13 +233,13 @@ func TestApiResponses(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	config := ServerConfig{
+	serverConfig := ServerConfig{
 		ViewerMode:       false,
 		StaticFolderPath: "../../dist",
 		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 		ServerBasePath:   "/foo",
 	}
-	engine := CreateKHIServer(inspectionServer, &config)
+	engine := CreateKHIServer(inspectionServer, &serverConfig)
 
 	// Perform requests with following oinvalidrder and verify if responses are matching with the expected values.
 	scenarioSteps := []testScenarioStep{
@@ -657,6 +660,18 @@ func TestApiResponses(t *testing.T) {
 			RequestPath:   "/foo/api/v2/popup",
 			BodyValidator: bodyCompareWithStringExpectedValue(""),
 		},
+		{
+			// 040
+			ExpectedCode:  200,
+			RequestMethod: "GET",
+			RequestPath:   "/foo/api/v2/config",
+			Before: func() {
+				parameters.Server.ViewerMode = testutil.P(true)
+			},
+			BodyValidator: bodyCompareWithStruct(&config.GetConfigResponse{
+				ViewerMode: true,
+			}),
+		},
 	}
 
 	stat := map[string]string{}
@@ -676,6 +691,9 @@ func TestApiResponses(t *testing.T) {
 			TASK_COUNT := 3
 			for i := 0; i < TASK_COUNT; i++ {
 				path = strings.ReplaceAll(path, fmt.Sprintf("<task-%d>", i+1), stat[fmt.Sprintf("task-%d", i+1)])
+			}
+			if step.Before != nil {
+				step.Before()
 			}
 			req, _ := http.NewRequest(step.RequestMethod, path, requestReader)
 			engine.ServeHTTP(recorder, req)
