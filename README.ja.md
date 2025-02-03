@@ -102,6 +102,10 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 </details>
 
+> [!IMPORTANT]
+> KHIのポートをインターネット向けに公開しないでください。
+> KHI自身は認証、認可の機能を提供しておらず、ローカルユーザからのみアクセスされることが想定されています。
+
 ### 権限設定
 
 #### Google Cloud

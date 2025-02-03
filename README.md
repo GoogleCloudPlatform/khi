@@ -106,6 +106,10 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
 
 </details>
 
+> [!IMPORTANT]
+> Do not expose KHI port on the internet.
+> KHI itself is not providing any authentication or authorization features and KHI is intended to be accessed from its local user.
+
 ### Authentication settings
 
 #### Google Cloud
