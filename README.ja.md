@@ -61,14 +61,14 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 #### KHIの実行
 
 1. [Cloud Shell](https://shell.cloud.google.com) を開きます。
-2. `docker run -p 8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest` を実行します。
+2. `docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest` を実行します。
 3. ターミナル上のリンク `http://localhost:8080` をクリックして、KHI の使用を開始してください！
 
 > [!TIP]
 > メタデータサーバーが利用できない他の環境でKHIを実行する場合は、プログラム引数でアクセストークンを渡します。
 >
 > ```
-> $ docker run -p 8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
+> $ docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
 > ```
 
 > [!NOTE]

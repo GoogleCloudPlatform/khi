@@ -65,7 +65,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 #### Run KHI
 
 1. Open [Cloud Shell](https://shell.cloud.google.com)
-1. Run `docker run -p 8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest`
+1. Run `docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest`
 1. Click the link `http://localhost:8080` on the terminal and start working with KHI!
 
 > [!TIP]
@@ -73,7 +73,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 > you can pass the access token via the program argument.
 >
 >```
->$ docker run -p 8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
+>$ docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
 >```
 
 > [!NOTE]
