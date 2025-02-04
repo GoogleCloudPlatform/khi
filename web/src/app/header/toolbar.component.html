@@ -25,7 +25,7 @@
             color="primary"
             cdkOverlayOrigin
             #openKindFilter="cdkOverlayOrigin"
-            (click)="onOpenKindFilter()"
+            (click)="setPopupState('KIND_FILTER_OPEN')"
             matTooltip="Kinds"
           >
             <mat-icon class="filter-button-icon">workspaces</mat-icon
@@ -40,14 +40,16 @@
           <ng-template
             cdkConnectedOverlay
             [cdkConnectedOverlayOrigin]="openKindFilter"
-            [cdkConnectedOverlayOpen]="kindFilterOpen"
+            [cdkConnectedOverlayOpen]="popupStatus === 'KIND_FILTER_OPEN'"
+            [cdkConnectedOverlayHasBackdrop]="true"
+            (backdropClick)="setPopupState('NONE_OPEN')"
           >
             <khi-header-set-input
               label="Kinds"
               [choices]="(kinds$ | async)!"
               [selectedItems]="(includedKinds$ | async)!"
               (selectedItemsChange)="onKindFilterCommit($event)"
-              (closeButtonClicked)="onCloseFilters()"
+              (closeButtonClicked)="setPopupState('NONE_OPEN')"
             >
             </khi-header-set-input>
           </ng-template>
@@ -57,7 +59,7 @@
             color="primary"
             cdkOverlayOrigin
             #openNamespaceFilter="cdkOverlayOrigin"
-            (click)="onOpenNamespaceFilter()"
+            (click)="setPopupState('NAMESPACE_FILTER_OPEN')"
             matTooltip="Namespaces"
           >
             <mat-icon class="filter-button-icon">folder</mat-icon
@@ -72,14 +74,16 @@
           <ng-template
             cdkConnectedOverlay
             [cdkConnectedOverlayOrigin]="openNamespaceFilter"
-            [cdkConnectedOverlayOpen]="namespaceFilterOpen"
+            [cdkConnectedOverlayOpen]="popupStatus === 'NAMESPACE_FILTER_OPEN'"
+            [cdkConnectedOverlayHasBackdrop]="true"
+            (backdropClick)="setPopupState('NONE_OPEN')"
           >
             <khi-header-set-input
               label="Namespaces"
               [choices]="(namespaces$ | async)!"
               [selectedItems]="(includedNamespaces$ | async)!"
               (selectedItemsChange)="onNamespaceFilterCommit($event)"
-              (closeButtonClicked)="onCloseFilters()"
+              (closeButtonClicked)="setPopupState('NONE_OPEN')"
             ></khi-header-set-input>
           </ng-template>
           <!--Subresource relationship filter-->
@@ -88,7 +92,7 @@
             color="primary"
             cdkOverlayOrigin
             #openSubresourceRelationshipFilter="cdkOverlayOrigin"
-            (click)="onOpenSubresourceRelationshipFilter()"
+            (click)="setPopupState('SUBRESOURCE_FILTER_OPEN')"
             matTooltip="Subresources"
           >
             <mat-icon class="filter-button-icon">page_info</mat-icon
@@ -103,7 +107,11 @@
           <ng-template
             cdkConnectedOverlay
             [cdkConnectedOverlayOrigin]="openSubresourceRelationshipFilter"
-            [cdkConnectedOverlayOpen]="subresourceFilterOpen"
+            [cdkConnectedOverlayOpen]="
+              popupStatus === 'SUBRESOURCE_FILTER_OPEN'
+            "
+            [cdkConnectedOverlayHasBackdrop]="true"
+            (backdropClick)="setPopupState('NONE_OPEN')"
           >
             <khi-header-set-input
               label="Subresources"
@@ -112,7 +120,7 @@
               (selectedItemsChange)="
                 onSubresourceRelationshipFilterCommit($event)
               "
-              (closeButtonClicked)="onCloseFilters()"
+              (closeButtonClicked)="setPopupState('NONE_OPEN')"
             ></khi-header-set-input>
           </ng-template>
           <!--Regex resource name filter-->

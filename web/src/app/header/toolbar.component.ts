@@ -43,6 +43,15 @@ import { RegexInputComponent } from './regex-input.component';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
 
+/**
+ * ToolbarPopupStatus represents which popup of the toolbar is open.
+ */
+type ToolbarPopupStatus =
+  | 'NONE_OPEN'
+  | 'KIND_FILTER_OPEN'
+  | 'NAMESPACE_FILTER_OPEN'
+  | 'SUBRESOURCE_FILTER_OPEN';
+
 @Component({
   selector: 'khi-header-toolbar',
   templateUrl: './toolbar.component.html',
@@ -102,8 +111,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     );
   logTypes = new Set(generated.logTypes);
 
-  logTypeFilterOpen = false;
-
   logFilter$ = new BehaviorSubject<string>('');
 
   logOrTimelineNotSelected = combineLatest([
@@ -111,9 +118,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.selectionManager.selectedTimeline,
   ]).pipe(map(([l, t]) => l == null || t == null));
 
-  kindFilterOpen = false;
-  namespaceFilterOpen = false;
-  subresourceFilterOpen = false;
+  popupStatus: ToolbarPopupStatus = 'NONE_OPEN';
 
   constructor(
     private selectionManager: SelectionManagerService,
@@ -142,32 +147,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.viewStateService.setTimezoneShift(value);
   }
 
-  onOpenKindFilter() {
-    this.kindFilterOpen = true;
-    this.namespaceFilterOpen = false;
-    this.logTypeFilterOpen = false;
-    this.subresourceFilterOpen = false;
-  }
-
-  onOpenNamespaceFilter() {
-    this.kindFilterOpen = false;
-    this.namespaceFilterOpen = true;
-    this.logTypeFilterOpen = false;
-    this.subresourceFilterOpen = false;
-  }
-
-  onOpenSubresourceRelationshipFilter() {
-    this.kindFilterOpen = false;
-    this.namespaceFilterOpen = false;
-    this.logTypeFilterOpen = false;
-    this.subresourceFilterOpen = true;
-  }
-
-  onCloseFilters() {
-    this.kindFilterOpen = false;
-    this.namespaceFilterOpen = false;
-    this.logTypeFilterOpen = false;
-    this.subresourceFilterOpen = false;
+  setPopupState(state: ToolbarPopupStatus) {
+    // Set the state to NONE_OPEN when the toolbarPopup is already with the state.
+    this.popupStatus = state === this.popupStatus ? 'NONE_OPEN' : state;
   }
 
   onKindFilterCommit(kinds: Set<string>) {
@@ -198,12 +180,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   onLogFilterChange(filter: string) {
     this.logFilter$.next(filter);
-  }
-
-  openLogTypeFilter() {
-    this.logTypeFilterOpen = true;
-    this.kindFilterOpen = false;
-    this.namespaceFilterOpen = false;
   }
 
   onToggleHideSubresourcesWithoutMatchingLogs() {
