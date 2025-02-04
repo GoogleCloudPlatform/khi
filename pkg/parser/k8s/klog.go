@@ -23,6 +23,22 @@ import (
 
 var KLogSeverityFieldAlias = "@severity"
 
+// severityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
+var severityStringNotation = map[string]schema.KHILogSeverity{
+	"INFO":    schema.SeverityInfo,
+	"info":    schema.SeverityInfo,
+	"WARN":    schema.SeverityWarn,
+	"warn":    schema.SeverityWarn,
+	"WARNING": schema.SeverityWarn,
+	"warning": schema.SeverityWarn,
+	"ERROR":   schema.SeverityError,
+	"error":   schema.SeverityError,
+	"ERR":     schema.SeverityError,
+	"err":     schema.SeverityError,
+	"FATAL":   schema.SeverityFatal,
+	"fatal":   schema.SeverityFatal,
+}
+
 // https://github.com/kubernetes/klog/blob/v2.80.1/klog.go#L626-L645
 // TODO: We need to handle time field in later, but ignore it for now because times can be obtained from the other source.
 type klogHeader struct {
@@ -150,8 +166,12 @@ func ExtractKLogField(klogBody string, field string) (string, error) {
 		if header != nil {
 			return header.Severity, nil
 		}
-		if severity, hasLevel := fields["level"]; hasLevel {
-			return strings.ToUpper(severity), nil
+		if severityInStr, hasLevel := fields["level"]; hasLevel {
+			if khiSeverity, isKnownSeverity := severityStringNotation[severityInStr]; isKnownSeverity {
+				return string(khiSeverity), nil
+			} else {
+				return "", nil
+			}
 		}
 		return schema.SeverityUnknown, nil
 	} else if field == "" {

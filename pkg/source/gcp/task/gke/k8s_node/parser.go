@@ -22,6 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/log/schema"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
@@ -518,13 +519,13 @@ func toReadableContainerName(namespace string, name string, container string) st
 
 func parseSeverity(severity string) enum.Severity {
 	switch severity {
-	case "info":
+	case schema.SeverityInfo:
 		return enum.SeverityInfo
-	case "warning":
+	case schema.SeverityWarn:
 		return enum.SeverityWarning
-	case "error":
+	case schema.SeverityError:
 		return enum.SeverityError
-	case "fatal":
+	case schema.SeverityFatal:
 		return enum.SeverityFatal
 	default:
 		return enum.SeverityUnknown
