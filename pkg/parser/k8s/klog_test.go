@@ -17,7 +17,7 @@ package k8s
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/schema"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -29,7 +29,7 @@ func TestParseKLogHeader(t *testing.T) {
 		{
 			InputLog: `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
 			Expected: &klogHeader{
-				Severity: schema.SeverityInfo,
+				Severity: enum.SeverityInfo,
 				Message:  `"Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
 			},
 		},
@@ -146,10 +146,6 @@ func TestExtractKLogField(t *testing.T) {
 					Field:    "non-existing-field",
 					Expected: "",
 				},
-				{
-					Field:    KLogSeverityFieldAlias,
-					Expected: "INFO",
-				},
 			},
 		},
 		{
@@ -158,9 +154,6 @@ func TestExtractKLogField(t *testing.T) {
 				{
 					Field:    "",
 					Expected: `FLAG: --container-runtime-endpoint="unix:///run/containerd/containerd.sock"`,
-				}, {
-					Field:    KLogSeverityFieldAlias,
-					Expected: "INFO",
 				},
 			},
 		},
@@ -200,10 +193,6 @@ func TestExtractKLogField(t *testing.T) {
 					Field:    "fieldWithoutQuotes",
 					Expected: "qux1234",
 				},
-				{
-					Field:    KLogSeverityFieldAlias,
-					Expected: "INFO",
-				},
 			},
 		},
 	}
@@ -220,6 +209,48 @@ func TestExtractKLogField(t *testing.T) {
 						t.Errorf("Result is not matching with the expected outcome.\n%s", diff)
 					}
 				})
+			}
+		})
+	}
+}
+
+func TestExtractKLogSeverity(t *testing.T) {
+	testCases := []struct {
+		name         string
+		log          string
+		wantSeverity enum.Severity
+	}{
+		{
+			name:         "extract severity from header",
+			log:          `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			wantSeverity: enum.SeverityInfo,
+		},
+		{
+			name:         "prioritize severity from fields rather than header",
+			log:          `I0930 00:01:02.500000    1992 prober.go:116] "Main message" level="warning" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			wantSeverity: enum.SeverityWarning,
+		},
+		{
+			name:         "extract severity from level field",
+			log:          `time="2024-01-09T23:18:46.683566491Z" level=info msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
+			wantSeverity: enum.SeverityInfo,
+		},
+		{
+			name:         "extract severity from severity field",
+			log:          `time="2024-01-09T23:18:46.683566491Z" severity=warning msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
+			wantSeverity: enum.SeverityWarning,
+		},
+		{
+			name:         "return unknown when severity is not found",
+			log:          `"Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			wantSeverity: enum.SeverityUnknown,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotSeverity := ExractKLogSeverity(tc.log)
+			if diff := cmp.Diff(tc.wantSeverity, gotSeverity); diff != "" {
+				t.Errorf("ExractKLogSeverity() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

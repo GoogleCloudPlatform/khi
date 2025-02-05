@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/schema"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
@@ -100,10 +99,14 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 		return err
 	}
 	cs.RecordLogSummary(summary)
-	severity, err := l.KLogField(k8s.KLogSeverityFieldAlias)
+
+	severity := enum.SeverityUnknown
+	mainMessage, err := l.MainMessage()
 	if err == nil {
-		cs.RecordLogSeverity(parseSeverity(severity))
+		severity = k8s.ExractKLogSeverity(mainMessage)
 	}
+
+	cs.RecordLogSeverity(severity)
 
 	supportsLifetimeParse := false
 	syslogIdentifier := p.GetSyslogIdentifier(l)
@@ -515,21 +518,6 @@ func toReadablePodSandboxName(namespace string, name string) string {
 
 func toReadableContainerName(namespace string, name string, container string) string {
 	return fmt.Sprintf("%s in %s/%s", container, namespace, name)
-}
-
-func parseSeverity(severity string) enum.Severity {
-	switch severity {
-	case schema.SeverityInfo:
-		return enum.SeverityInfo
-	case schema.SeverityWarn:
-		return enum.SeverityWarning
-	case schema.SeverityError:
-		return enum.SeverityError
-	case schema.SeverityFatal:
-		return enum.SeverityFatal
-	default:
-		return enum.SeverityUnknown
-	}
 }
 
 var _ parser.Parser = (*k8sNodeParser)(nil)
