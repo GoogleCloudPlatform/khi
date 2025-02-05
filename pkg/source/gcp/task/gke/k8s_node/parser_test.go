@@ -53,7 +53,7 @@ func TestParseSummary(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			l := log_test.MustLogEntity(tc.input)
-			summary, err := parseSummary(l)
+			summary, err := parseDefaultSummary(l)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -179,48 +179,6 @@ func TestReadGoStructFromString(t *testing.T) {
 	}
 }
 
-func TestSafeParseContainerId(t *testing.T) {
-	testCases := []struct {
-		Name     string
-		Input    string
-		Expected string
-	}{
-		{
-			Name:     "standard container id",
-			Input:    "4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240",
-			Expected: "4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240",
-		},
-		{
-			Name:     "with containerd scheme",
-			Input:    "containerd://4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240",
-			Expected: "4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240",
-		},
-		{
-			Name:     "json like text",
-			Input:    "{Type:containerd ID:4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240}",
-			Expected: "4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240",
-		},
-		{
-			Name:     "json like text with double quotes",
-			Input:    "{\"Type\":\"containerd\",\"ID\":\"26f7b5144c6b7edfd132852e6bfdcdcb5cbd5881cfb0512f8dd1b5b3d33c31de\"}",
-			Expected: "26f7b5144c6b7edfd132852e6bfdcdcb5cbd5881cfb0512f8dd1b5b3d33c31de",
-		},
-		{
-			Name:     "json like text changed order",
-			Input:    "{ID:4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240 Type:containerd}",
-			Expected: "4f376313b00249b84d4783cefc3e88fa59ac0362209937bcc2cdedfb97724240",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			actual := safeParseContainerId(tc.Input)
-			if diff := cmp.Diff(tc.Expected, actual); diff != "" {
-				t.Errorf("the parsed container id is not matching with the expected value\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestReadNextQuotedString(t *testing.T) {
 	testCases := []struct {
 		Name     string
@@ -257,41 +215,6 @@ func TestReadNextQuotedString(t *testing.T) {
 		})
 	}
 }
-
-func TestRewroteContainerId(t *testing.T) {
-	testCases := []struct {
-		Name            string
-		Id              string
-		ReadableName    string
-		OriginalMessage string
-		ExpectedMessage string
-	}{
-		{
-			Name:            "with full length of Id",
-			OriginalMessage: "CreateContainer within sandbox \"8ff41ed8b310695c2223a702261c94d33675e1ac03442b2dc73b06ed11478f32\" for container &ContainerMetadata{Name:repeat-ready,Attempt:0,}",
-			ExpectedMessage: "CreateContainer within sandbox \"8ff41ed...(1-1-probes/repeat-ready)\" for container &ContainerMetadata{Name:repeat-ready,Attempt:0,}",
-			ReadableName:    "1-1-probes/repeat-ready",
-			Id:              "8ff41ed8b310695c2223a702261c94d33675e1ac03442b2dc73b06ed11478f32",
-		},
-		{
-			Name:            "without Id",
-			OriginalMessage: "CreateContainer within sandbox \"8ff41ed8b310695c2223a702261c94d33675e1ac03442b2dc73b06ed11478f32\" for container &ContainerMetadata{Name:repeat-ready,Attempt:0,}",
-			ExpectedMessage: "CreateContainer within sandbox \"8ff41ed8b310695c2223a702261c94d33675e1ac03442b2dc73b06ed11478f32\" for container &ContainerMetadata{Name:repeat-ready,Attempt:0,}",
-			ReadableName:    "",
-			Id:              "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			msg := rewriteIdWithReadableName(tc.Id, tc.ReadableName, tc.OriginalMessage)
-			if msg != tc.ExpectedMessage {
-				t.Errorf("expected:%s\nactual:%s", tc.ExpectedMessage, msg)
-			}
-		})
-	}
-}
-
 func TestGetSyslogIdentifier(t *testing.T) {
 	testCases := []struct {
 		Name                     string
