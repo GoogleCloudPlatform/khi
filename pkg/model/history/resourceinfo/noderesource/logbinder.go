@@ -1,3 +1,17 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package noderesource
 
 import (
@@ -29,14 +43,14 @@ func (n *LogBinder) AddResourceBinding(nodeName string, ra ResourceBinding) {
 	n.nodeLogBinders[nodeName].AddResourceBinding(ra)
 }
 
-// GetAssociatedResources returns
-func (n *LogBinder) GetAssociatedResources(nodeName string, logBody string) []ResourceBinding {
+// GetBoundResourcesForLogBody returns the array of ResourceBinding bound to the given log on the node.
+func (n *LogBinder) GetBoundResourcesForLogBody(nodeName string, logBody string) []ResourceBinding {
 	n.nodeLogBinderMutex.RLock()
 	defer n.nodeLogBinderMutex.RUnlock()
 	if _, ok := n.nodeLogBinders[nodeName]; !ok {
 		return []ResourceBinding{}
 	}
-	return n.nodeLogBinders[nodeName].GetAssociatedResources(logBody)
+	return n.nodeLogBinders[nodeName].GetBoundResourcesForLogBody(logBody)
 }
 
 type nodeLogBinder struct {
@@ -51,8 +65,8 @@ func newNodeLogBinder() *nodeLogBinder {
 	}
 }
 
-// GetAssociatedResources returns the array of ResourceBinding bound to the given log.
-func (n *nodeLogBinder) GetAssociatedResources(logBody string) []ResourceBinding {
+// GetBoundResourcesForLogBody returns the array of ResourceBinding bound to the given log.
+func (n *nodeLogBinder) GetBoundResourcesForLogBody(logBody string) []ResourceBinding {
 	n.nodeResourceBindingsMutex.RLock()
 	defer n.nodeResourceBindingsMutex.RUnlock()
 

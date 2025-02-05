@@ -247,7 +247,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 		cs.RecordEvent(resourcepath.Node(klognode))
 	}
 
-	resourceBindings := builder.ClusterResource.NodeResourceLogBinder.GetAssociatedResources(nodeName, mainMessage)
+	resourceBindings := builder.ClusterResource.NodeResourceLogBinder.GetBoundResourcesForLogBody(nodeName, mainMessage)
 	for _, rb := range resourceBindings {
 		cs.RecordEvent(rb.GetResourcePath())
 		summary = rb.RewriteLogSummary(summary)
@@ -328,11 +328,11 @@ func (*k8sNodeParser) handleContainerdSandboxLogs(ctx context.Context, l *log.Lo
 		if err != nil {
 			return err
 		}
-		if podSandbox.PodSandboxId != "" {
+		if podSandbox.PodSandboxID != "" {
 			builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, noderesource.NewPodResourceBinding(
-				podSandbox.PodSandboxId,
-				podSandbox.PodName,
+				podSandbox.PodSandboxID,
 				podSandbox.PodNamespace,
+				podSandbox.PodName,
 			))
 		}
 		return nil
@@ -344,27 +344,27 @@ func (*k8sNodeParser) handleContainerdSandboxLogs(ctx context.Context, l *log.Lo
 		if err != nil {
 			return err
 		}
-		if container.ContainerId == "" {
+		if container.ContainerID == "" {
 			slog.DebugContext(ctx, fmt.Sprintf("container ID is empty string for container %s. This is ignored because it would be kube-proxy container.", container.ContainerName), logger.LogKind("empty-container-id"))
 			return nil
 		}
 		if container.ContainerName == "" {
-			slog.WarnContext(ctx, fmt.Sprintf("container name is empty for pod sandbox id %s", container.PodSandboxId), logger.LogKind("empty-container-name"))
+			slog.WarnContext(ctx, fmt.Sprintf("container name is empty for pod sandbox id %s", container.PodSandboxID), logger.LogKind("empty-container-name"))
 			return nil
 		}
-		bindingsForPodSandboxId := builder.ClusterResource.NodeResourceLogBinder.GetAssociatedResources(nodeName, container.PodSandboxId)
-		if len(bindingsForPodSandboxId) == 0 {
-			slog.DebugContext(ctx, fmt.Sprintf("pod sandbox %s was not found. It would be created before the log query start time", container.PodSandboxId), logger.LogKind("pod-sandbox-not-found"))
+		bindingsForPodSandboxID := builder.ClusterResource.NodeResourceLogBinder.GetBoundResourcesForLogBody(nodeName, container.PodSandboxID)
+		if len(bindingsForPodSandboxID) == 0 {
+			slog.DebugContext(ctx, fmt.Sprintf("pod sandbox %s was not found. It would be created before the log query start time", container.PodSandboxID), logger.LogKind("pod-sandbox-not-found"))
 			return nil
 		}
-		if len(bindingsForPodSandboxId) > 1 {
-			return fmt.Errorf("multiple pod sandboxes were found associated to pod sandbox id %s. This is unexpected behavior. Please check the log", container.PodSandboxId)
+		if len(bindingsForPodSandboxID) > 1 {
+			return fmt.Errorf("multiple pod sandboxes were found associated to pod sandbox id %s. This is unexpected behavior. Please check the log", container.PodSandboxID)
 		}
-		podResourceBinding, casted := bindingsForPodSandboxId[0].(*noderesource.PodResourceBinding)
+		podResourceBinding, casted := bindingsForPodSandboxID[0].(*noderesource.PodResourceBinding)
 		if !casted {
-			return fmt.Errorf("pod sandbox ID %s is not associated with a PodResourceBinding reference. %v was given", container.PodSandboxId, bindingsForPodSandboxId[0])
+			return fmt.Errorf("pod sandbox ID %s is not associated with a PodResourceBinding reference. %v was given", container.PodSandboxID, bindingsForPodSandboxID[0])
 		}
-		containerResourceBinding := podResourceBinding.NewContainerResourceBinding(container.ContainerId, container.ContainerName)
+		containerResourceBinding := podResourceBinding.NewContainerResourceBinding(container.ContainerID, container.ContainerName)
 		builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, containerResourceBinding)
 		return nil
 	}
@@ -374,51 +374,51 @@ func (*k8sNodeParser) handleContainerdSandboxLogs(ctx context.Context, l *log.Lo
 type runPodSandboxLog struct {
 	PodName      string
 	PodNamespace string
-	PodSandboxId string
+	PodSandboxID string
 }
 
 func parseRunPodSandboxLog(msg string) (*runPodSandboxLog, error) {
 	// RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"
 	fields := readGoStructFromString(msg, "PodSandboxMetadata")
-	sandboxId := ""
+	sandboxID := ""
 	splitted := strings.Split(msg, "returns sandbox id")
 	if len(splitted) >= 2 {
-		sandboxId = readNextQuotedString(splitted[1])
+		sandboxID = readNextQuotedString(splitted[1])
 	}
 	if fields["Name"] != "" && fields["Namespace"] != "" {
 		return &runPodSandboxLog{
 			PodName:      fields["Name"],
 			PodNamespace: fields["Namespace"],
-			PodSandboxId: sandboxId,
+			PodSandboxID: sandboxID,
 		}, nil
 	}
 	return nil, fmt.Errorf("not matched. igoreing")
 }
 
 type createContainerLog struct {
-	ContainerId   string
+	ContainerID   string
 	ContainerName string
-	PodSandboxId  string
+	PodSandboxID  string
 }
 
 func parseCreateContainerLog(msg string) (*createContainerLog, error) {
 	fields := readGoStructFromString(msg, "ContainerMetadata")
-	sandboxId := ""
+	sandboxID := ""
 	splitted := strings.Split(msg, "within sandbox")
 	if len(splitted) < 2 {
 		return nil, fmt.Errorf("failed to read the sandbox Id from container starting log")
 	}
-	sandboxId = readNextQuotedString(splitted[1])
-	containerId := ""
+	sandboxID = readNextQuotedString(splitted[1])
+	containerID := ""
 	splitted = strings.Split(msg, "returns container id")
 	if len(splitted) >= 2 {
-		containerId = readNextQuotedString(splitted[1])
+		containerID = readNextQuotedString(splitted[1])
 	}
 	if fields["Name"] != "" {
 		return &createContainerLog{
-			PodSandboxId:  sandboxId,
+			PodSandboxID:  sandboxID,
 			ContainerName: fields["Name"],
-			ContainerId:   containerId,
+			ContainerID:   containerID,
 		}, nil
 	}
 	return nil, fmt.Errorf("not matched. ignoreing")
