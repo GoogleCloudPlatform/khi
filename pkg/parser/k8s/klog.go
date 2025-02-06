@@ -35,6 +35,7 @@ var severityStringNotation = map[string]enum.Severity{
 	"err":     enum.SeverityError,
 	"FATAL":   enum.SeverityFatal,
 	"fatal":   enum.SeverityFatal,
+	"panic":   enum.SeverityFatal,
 }
 
 var severityKlogFieldNames = []string{"level", "severity"}
