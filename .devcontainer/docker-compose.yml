@@ -1,0 +1,50 @@
+services:
+  dev-env:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UBUNTU_VERSION: "22.04"
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+        USERNAME: ${USER:-developer}
+        # Read Go and Node version
+        GO_VERSION: ${GO_VERSION}
+        NODE_VERSION: ${NODE_VERSION}
+      # Add build caching
+      cache_from:
+        - ubuntu:${UBUNTU_VERSION}
+    network_mode: host
+
+    volumes:
+      # Project files
+      - ../:/workspace:cached
+      # Cache directories
+      - go-cache:/home/${USER:-developer}/.cache/go-build
+      - go-mod-cache:/go/pkg/mod
+      # Development configurations
+      - ~/.ssh:/home/${USER:-developer}/.ssh:cached
+      - ~/.gnupg:/home/${USER:-developer}/.gnupg:cached
+      # Container runtime
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    environment:
+      # Go configuration
+      - GOPATH=/go
+      - GOMODCACHE=/go/pkg/mod
+      - GOCACHE=/home/${USER:-developer}/.cache/go-build
+      # Node configuration
+      - NODE_ENV=development
+      # Path configuration
+      - PATH=/usr/local/go/bin:/go/bin:/usr/local/node/bin:${PATH}
+      # Build optimizations
+      - DOCKER_BUILDKIT=1
+
+    security_opt:
+      - seccomp=unconfined
+    cap_add:
+      - SYS_PTRACE
+    command: sleep infinity
+
+volumes:
+  go-cache:
+  go-mod-cache:

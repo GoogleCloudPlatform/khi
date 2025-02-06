@@ -1,0 +1,83 @@
+ARG UBUNTU_VERSION
+FROM ubuntu:${UBUNTU_VERSION}
+
+# Arguments
+ARG USER_UID
+ARG USER_GID
+ARG USERNAME
+ARG GO_VERSION
+ARG NODE_VERSION
+
+# Install system packages
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    gnupg \
+    jq \
+    lsb-release \
+    make \
+    python3-pip \
+    software-properties-common \
+    sudo \
+    unzip \
+    wget \
+    # Dependencies for golangci-lint
+    gcc \
+    g++ \
+    libc6-dev \
+    linux-libc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install development tools
+RUN set -ex \
+    # Install Go
+    && curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar -C /usr/local -xzf - \
+    # Install Node.js
+    && curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash - \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && npm install -g npm@latest \
+    # Install gcloud CLI
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update && apt-get install -y google-cloud-sdk \
+    # Install kubectl
+    && curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+    && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
+    && rm kubectl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID --shell /bin/bash --create-home $USERNAME \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# Setup workspace and cache directories
+RUN mkdir -p /workspace \
+    && mkdir -p /home/${USERNAME}/.cache/go-build \
+    && mkdir -p /go/pkg/mod \
+    && chown -R ${USERNAME}:${USERNAME} /workspace \
+    && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.cache \
+    && chown -R ${USERNAME}:${USERNAME} /go
+
+# Configure npm for non-root global installs
+USER $USERNAME
+RUN mkdir -p ~/.npm-global \
+    && npm config set prefix "/home/${USERNAME}/.npm-global"
+
+# Environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV GOPATH=/go
+ENV PATH=/usr/local/go/bin:/go/bin:/home/${USERNAME}/.npm-global/bin:$PATH
+
+WORKDIR /workspace
+
+# Copy and setup .bashrc
+COPY --chown=${USERNAME}:${USERNAME} .bashrc /home/${USERNAME}/.bashrc
+
+RUN echo "\nexport PATH=/usr/local/go/bin:/go/bin:/home/${USERNAME}/.npm-global/bin:\$PATH" >> /home/${USERNAME}/.bashrc
