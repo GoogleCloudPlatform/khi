@@ -1,4 +1,18 @@
 #!/bin/bash
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -e
 
 log() {
@@ -14,12 +28,18 @@ setup_go() {
     fi
     go mod verify
     go install golang.org/x/tools/cmd/goimports@latest
+    go install github.com/google/addlicense@latest
     log "Go setup complete"
 }
 
 # Setup Web environment
 setup_web() {
     log "Setting up Web environment..."
+
+    # Install Angular CLI globally
+    log "Installing Angular CLI..."
+    npm install -g @angular/cli
+
     cd web || { log "Web directory not found"; return 1; }
 
     # Install project dependencies
@@ -31,13 +51,6 @@ setup_web() {
         log "Retry $i: npm install failed, retrying..."
         sleep 5
     done
-
-    # Install Angular CLI only if not already installed
-    if ! command -v ng &>/dev/null; then
-        npm install -g --prefix ~/.npm-global @angular/cli || {
-            log "Failed to install Angular CLI globally"
-        }
-    fi
 
     cd ..
     log "Web setup complete"
