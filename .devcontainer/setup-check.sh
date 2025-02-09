@@ -131,13 +131,21 @@ export_versions() {
     SCRIPT_PATH=$(cd "$(dirname "$0")" && pwd)
     PROJECT_ROOT=$(cd "${SCRIPT_PATH}/.." && pwd)
     ENV_FILE="${SCRIPT_PATH}/.env"
+
+    # Initialize .env file with user information
+    {
+        # User configuration
+        echo "USERNAME=$(id -un)"
+        echo "USER_UID=$(id -u)"
+        echo "USER_GID=$(id -g)"
+    } > "${ENV_FILE}"
     
     # Get Go version and hash
     if [ -f "${PROJECT_ROOT}/go.mod" ]; then
         GO_VERSION=$(grep -E "^go [0-9]+\.[0-9]+\.[0-9]+" "${PROJECT_ROOT}/go.mod" | cut -d" " -f2)
         GO_SHA256=$(verify_hash "${GO_VERSION}" "go")
         log "OK" "Go version: ${GO_VERSION}"
-        write_version_to_env "GO" "${GO_VERSION}" "${GO_SHA256}" "${ENV_FILE}" ">"
+        write_version_to_env "GO" "${GO_VERSION}" "${GO_SHA256}" "${ENV_FILE}"
     else
         log "ERROR" "go.mod not found at ${PROJECT_ROOT}/go.mod"
         exit 1

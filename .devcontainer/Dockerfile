@@ -90,10 +90,19 @@ RUN set -ex \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID --shell /bin/bash --create-home $USERNAME \
-    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME
+RUN if getent group ${USER_GID} ; then \
+        # If GID exists, find next available GID starting from 1000
+        NEW_GID=1000 \
+        && while getent group $NEW_GID > /dev/null; do NEW_GID=$((NEW_GID + 1)); done \
+        && groupadd --gid $NEW_GID ${USERNAME} \
+        && useradd -l --uid ${USER_UID:-1000} --gid $NEW_GID --shell /bin/bash --create-home ${USERNAME}; \
+    else \
+        # Use specified GID if it doesn't exist
+        groupadd --gid ${USER_GID:-1000} ${USERNAME} \
+        && useradd -l --uid ${USER_UID:-1000} --gid ${USER_GID:-1000} --shell /bin/bash --create-home ${USERNAME}; \
+    fi \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} \
+    && chmod 0440 /etc/sudoers.d/${USERNAME}
 
 # Setup workspace and cache directories
 RUN mkdir -p /workspace \

@@ -12,5 +12,9 @@
         "setup-dev": "bash .devcontainer/setup-dev.sh"
     },
 
-    "remoteUser": "${localEnv:USER:-developer}"
+    "remoteUser": "${localEnv:USERNAME}",
+
+    "updateRemoteUserUID": true,
+
+    "overrideCommand": false
 }

@@ -32,27 +32,26 @@ services:
       args:
         <<: *build-args
         UBUNTU_VERSION: "22.04"
-        USER_UID: ${USER_UID:-1000}
-        USER_GID: ${USER_GID:-1000}
-        USERNAME: ${USER:-developer}
+        USER_UID: ${USER_UID}
+        USER_GID: ${USER_GID}
+        USERNAME: ${USERNAME}
     network_mode: host
-
     volumes:
       # Project files
       - ../:/workspace:cached
       # Cache directories
-      - go-cache:/home/${USER:-developer}/.cache/go-build
+      - go-cache:/home/${USERNAME}/.cache/go-build
       - go-mod-cache:/go/pkg/mod
       # Development configurations
-      - ~/.ssh:/home/${USER:-developer}/.ssh:cached
-      - ~/.gnupg:/home/${USER:-developer}/.gnupg:cached
+      - ~/.ssh:/home/${USERNAME}/.ssh:cached
+      - ~/.gnupg:/home/${USERNAME}/.gnupg:cached
       # Container runtime
       - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
     environment:
       # Go configuration
       - GOPATH=/go
       - GOMODCACHE=/go/pkg/mod
-      - GOCACHE=/home/${USER:-developer}/.cache/go-build
+      - GOCACHE=/home/${USERNAME}/.cache/go-build
       # Node configuration
       - NODE_ENV=development
       # Path configuration
