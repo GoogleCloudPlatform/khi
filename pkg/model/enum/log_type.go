@@ -35,7 +35,7 @@ const (
 	logTypeUnusedEnd
 )
 
-const MaxLogTypeEnumNumber = logTypeUnusedEnd
+const EnumLogTypeCount = int(logTypeUnusedEnd)
 
 type LogTypeFrontendMetadata struct {
 	// EnumKeyName is the name of this enum value. Must match with the enum key.

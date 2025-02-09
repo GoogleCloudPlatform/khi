@@ -18,7 +18,7 @@ type LogTypeDocumentElement struct {
 
 func GetLogTypeDocumentModel() LogTypeDocumentModel {
 	logTypes := []LogTypeDocumentElement{}
-	for i := 1; i < int(enum.MaxLogTypeEnumNumber); i++ {
+	for i := 1; i < enum.EnumLogTypeCount; i++ {
 		logType := enum.LogTypes[enum.LogType(i)]
 		logTypes = append(logTypes, LogTypeDocumentElement{
 			ID:        logType.EnumKeyName,

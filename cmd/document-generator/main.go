@@ -48,6 +48,10 @@ func main() {
 	fatal(err, "failed to generate inspection type document")
 
 	logTypeDocumentModel := model.GetLogTypeDocumentModel()
-	err = generator.GenerateDocument("./docs/en/log-types.md", "log-types-template", logTypeDocumentModel, false)
+	err = generator.GenerateDocument("./docs/en/log-types.md", "log-type-template", logTypeDocumentModel, false)
 	fatal(err, "failed to generate log type document")
+
+	relationshipDocumentModel := model.GetRelationshipDocumentModel()
+	err = generator.GenerateDocument("./docs/en/relationships.md", "relationship-template", relationshipDocumentModel, false)
+	fatal(err, "failed to generate relationship document")
 }
