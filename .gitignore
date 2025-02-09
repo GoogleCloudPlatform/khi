@@ -7,5 +7,7 @@ go-cover.html
 go-cover.output
 .DS_Store
 .envrc
+# Dev container environment
+.devcontainer/.env
 *.khi
 .terraform/
