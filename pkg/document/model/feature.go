@@ -21,6 +21,7 @@ type FeatureDocumentElement struct {
 	Description string
 
 	Queries []FeatureDependentQueryElement
+	Forms   []FeatureDependentFormElement
 }
 
 type FeatureDependentQueryElement struct {
@@ -31,6 +32,12 @@ type FeatureDependentQueryElement struct {
 	SampleQuery      string
 }
 
+type FeatureDependentFormElement struct {
+	ID          string
+	Label       string
+	Description string
+}
+
 func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
 	result := FeatureDocumentModel{}
 	features := taskServer.RootTaskSet.FilteredSubset(inspection_task.LabelKeyInspectionFeatureFlag, taskfilter.HasTrue, false)
@@ -38,15 +45,10 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 		queryElements := []FeatureDependentQueryElement{}
 
 		// Get query related tasks required by this feature.
-		resolveSource, err := task.NewSet([]task.Definition{feature})
+		queryTasks, err := getDependentQueryTasks(taskServer, feature)
 		if err != nil {
 			return nil, err
 		}
-		resolved, err := resolveSource.ResolveTask(taskServer.RootTaskSet)
-		if err != nil {
-			return nil, err
-		}
-		queryTasks := resolved.FilteredSubset(label.TaskLabelKeyIsQueryTask, taskfilter.HasTrue, false).GetAll()
 		for _, queryTask := range queryTasks {
 			logTypeKey := enum.LogType(queryTask.Labels().GetOrDefault(label.TaskLabelKeyQueryTaskTargetLogType, enum.LogTypeUnknown).(enum.LogType))
 			logType := enum.LogTypes[logTypeKey]
@@ -55,7 +57,20 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 				LogType:          logTypeKey,
 				LogTypeLabel:     logType.Label,
 				LogTypeColorCode: strings.TrimLeft(logType.LabelBackgroundColor, "#"),
-				SampleQuery:      queryTask.Labels().GetOrDefault(label.TaskLabelKeyQueryTaskSampleQuery, "").(string),
+				SampleQuery:      strings.TrimRight(queryTask.Labels().GetOrDefault(label.TaskLabelKeyQueryTaskSampleQuery, "").(string), "\n"),
+			})
+		}
+
+		formElements := []FeatureDependentFormElement{}
+		formTasks, err := getDependentFormTasks(taskServer, feature)
+		if err != nil {
+			return nil, err
+		}
+		for _, formTask := range formTasks {
+			formElements = append(formElements, FeatureDependentFormElement{
+				ID:          formTask.ID().String(),
+				Label:       formTask.Labels().GetOrDefault(label.TaskLabelKeyFormFieldLabel, "").(string),
+				Description: formTask.Labels().GetOrDefault(label.TaskLabelKeyFormFieldDescription, "").(string),
 			})
 		}
 
@@ -64,8 +79,33 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 			Name:        feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
 			Description: feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
 			Queries:     queryElements,
+			Forms:       formElements,
 		})
 
 	}
 	return &result, nil
+}
+
+func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, featureTask task.Definition) ([]task.Definition, error) {
+	resolveSource, err := task.NewSet([]task.Definition{featureTask})
+	if err != nil {
+		return nil, err
+	}
+	resolved, err := resolveSource.ResolveTask(taskServer.RootTaskSet)
+	if err != nil {
+		return nil, err
+	}
+	return resolved.FilteredSubset(label.TaskLabelKeyIsQueryTask, taskfilter.HasTrue, false).GetAll(), nil
+}
+
+func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureTask task.Definition) ([]task.Definition, error) {
+	resolveSource, err := task.NewSet([]task.Definition{featureTask})
+	if err != nil {
+		return nil, err
+	}
+	resolved, err := resolveSource.ResolveTask(taskServer.RootTaskSet)
+	if err != nil {
+		return nil, err
+	}
+	return resolved.FilteredSubset(label.TaskLabelKeyIsFormTask, taskfilter.HasTrue, false).GetAll(), nil
 }

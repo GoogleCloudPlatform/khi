@@ -20,6 +20,7 @@ import (
 
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -245,5 +246,8 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 			}
 		}
 		return convertedValue, nil
-	}, labelOpts...)
+	}, append(labelOpts, label.NewFormTaskLabelOpt(
+		b.label,
+		b.description,
+	))...)
 }

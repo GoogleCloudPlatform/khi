@@ -5,8 +5,26 @@ Visualize Kubernetes audit logs in GKE.
 This parser reveals how these resources are created,updated or deleted. 
 
 <!-- END GENERATED PART: feature-element-header-k8s_audit -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_audit -->
+### Parameters
+
+
+* **Kind** : 
+
+* **Namespaces** : 
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-k8s_audit -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_audit -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-k8s_audit -->
@@ -21,7 +39,6 @@ resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 -- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-k8s_audit -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_event -->
@@ -31,8 +48,24 @@ Visualize Kubernetes event logs on GKE.
 This parser shows events associated to K8s resources
 
 <!-- END GENERATED PART: feature-element-header-k8s_event -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_event -->
+### Parameters
+
+
+* **Namespaces** : 
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-k8s_event -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_event -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-k8s_event -->
@@ -55,8 +88,24 @@ GKE worker node components logs mainly from kubelet,containerd and dockerd.
 (WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter.
 
 <!-- END GENERATED PART: feature-element-header-k8s_node -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_node -->
+### Parameters
+
+
+* **Node names** : A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-k8s_node -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_node -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-k8s_node -->
@@ -70,7 +119,6 @@ resource.type="k8s_node"
 -logName="projects/gcp-project-id/logs/events"
 resource.labels.cluster_name="gcp-cluster-name"
 resource.labels.node_name:("gke-test-cluster-node-1" OR "gke-test-cluster-node-2")
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-k8s_node -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_container -->
@@ -81,8 +129,29 @@ Container logs ingested from stdout/stderr of workload Pods.
 (WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter or target namespace fewer.
 
 <!-- END GENERATED PART: feature-element-header-k8s_container -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_container -->
+### Parameters
+
+
+* **Namespaces(Container logs)** : Container logs tend to be a lot and take very long time to query.
+Specify the space splitted namespace lists to query container logs only in the specific namespaces.
+
+* **Pod names(Container logs)** : Container logs tend to be a lot and take very long time to query.
+	Specify the space splitted pod names lists to query container logs only in the specific pods.
+	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-k8s_container -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_container -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-k8s_container -->
@@ -104,8 +173,22 @@ resource.labels.cluster_name="gcp-cluster-name"
 GKE audit log including cluster creation,deletion and upgrades.
 
 <!-- END GENERATED PART: feature-element-header-gke_audit -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-gke_audit -->
+### Parameters
+
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-gke_audit -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-gke_audit -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-gke_audit -->
@@ -126,8 +209,26 @@ resource.labels.cluster_name="gcp-cluster-name"
 Compute API audit logs used for cluster related logs. This also visualize operations happened during the query time.
 
 <!-- END GENERATED PART: feature-element-header-compute_api -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-compute_api -->
+### Parameters
+
+
+* **Kind** : 
+
+* **Namespaces** : 
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-compute_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-compute_api -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-compute_api -->
@@ -142,7 +243,6 @@ resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 -- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-compute_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-compute_api -->
@@ -163,8 +263,26 @@ resource.type="gce_instance"
 GCE network API audit log including NEG related audit logs to identify when the associated NEG was attached/detached.
 
 <!-- END GENERATED PART: feature-element-header-gce_network -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-gce_network -->
+### Parameters
+
+
+* **Kind** : 
+
+* **Namespaces** : 
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-gce_network -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-gce_network -->
@@ -179,7 +297,6 @@ resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 -- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-gce_network -->
@@ -191,7 +308,6 @@ protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 resource.type="gce_network"
 -protoPayload.methodName:("list" OR "get" OR "watch")
 protoPayload.resourceName:(networkEndpointGroups/neg-id-1 OR networkEndpointGroups/neg-id-2)
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-header-multicloud_api -->
@@ -200,8 +316,22 @@ protoPayload.resourceName:(networkEndpointGroups/neg-id-1 OR networkEndpointGrou
 Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 
 <!-- END GENERATED PART: feature-element-header-multicloud_api -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-multicloud_api -->
+### Parameters
+
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-multicloud_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-multicloud_api -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-multicloud_api -->
@@ -215,7 +345,6 @@ resource.type="audited_resource"
 resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
 protoPayload.resourceName:"awsClusters/cluster-foo"
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-multicloud_api -->
 <!-- BEGIN GENERATED PART: feature-element-header-autoscaler -->
@@ -225,8 +354,22 @@ Autoscaler logs including decision reasons why they scale up/down or why they di
 This log type also includes Node Auto Provisioner logs.
 
 <!-- END GENERATED PART: feature-element-header-autoscaler -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-autoscaler -->
+### Parameters
+
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-autoscaler -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-autoscaler -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-autoscaler -->
@@ -249,8 +392,22 @@ logName="projects/gcp-project-id/logs/container.googleapis.com%2Fcluster-autosca
 Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.
 
 <!-- END GENERATED PART: feature-element-header-onprem_api -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-onprem_api -->
+### Parameters
+
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-onprem_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-onprem_api -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-onprem_api -->
@@ -264,7 +421,6 @@ resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
 protoPayload.resourceName:"baremetalClusters/my-cluster"
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-onprem_api -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_control_plane_component -->
@@ -273,8 +429,24 @@ protoPayload.resourceName:"baremetalClusters/my-cluster"
 Visualize Kubernetes control plane component logs on a cluster
 
 <!-- END GENERATED PART: feature-element-header-k8s_control_plane_component -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
+### Parameters
+
+
+* **Control plane component names** : Control plane component names to query(e.g. apiserver, controller-manager...etc)
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_control_plane_component -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-k8s_control_plane_component -->
@@ -297,8 +469,28 @@ resource.labels.project_id="gcp-project-id"
 Serial port logs of worker nodes. Serial port logging feature must be enabled on instances to query logs correctly.
 
 <!-- END GENERATED PART: feature-element-header-serialport -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-serialport -->
+### Parameters
+
+
+* **Kind** : 
+
+* **Namespaces** : 
+
+* **Node names** : A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Cluster name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-serialport -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-serialport -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-serialport -->
@@ -313,7 +505,6 @@ resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 -- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-
 ```
 <!-- END GENERATED PART: feature-element-depending-query-serialport -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-serialport -->
@@ -338,8 +529,24 @@ labels."compute.googleapis.com/resource_name"=("gke-test-cluster-node-1" OR "gke
 Airflow Scheduler logs contain information related to the scheduling of TaskInstances, making it an ideal source for understanding the lifecycle of TaskInstances.
 
 <!-- END GENERATED PART: feature-element-header-airflow_schedule -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
+### Parameters
+
+
+* **Location** : A location(regions) containing the environments to inspect
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Composer Environment Name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_schedule -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-airflow_schedule -->
@@ -358,8 +565,24 @@ TODO: add sample query
 Airflow Worker logs contain information related to the execution of TaskInstances. By including these logs, you can gain insights into where and how each TaskInstance was executed.
 
 <!-- END GENERATED PART: feature-element-header-airflow_worker -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_worker -->
+### Parameters
+
+
+* **Location** : A location(regions) containing the environments to inspect
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Composer Environment Name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-airflow_worker -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_worker -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-airflow_worker -->
@@ -378,8 +601,24 @@ TODO: add sample query
 The DagProcessorManager logs contain information for investigating the number of DAGs included in each Python file and the time it took to parse them. You can get information about missing DAGs and load.
 
 <!-- END GENERATED PART: feature-element-header-airflow_dag_processor -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
+### Parameters
+
+
+* **Location** : A location(regions) containing the environments to inspect
+
+* **Project ID** : A project ID containing the cluster to inspect
+
+* **Composer Environment Name** : 
+
+* **End time** : The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)
+
+* **Duration** : 
+
+<!-- END GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_dag_processor -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-airflow_dag_processor -->

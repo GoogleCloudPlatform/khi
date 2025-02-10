@@ -6,9 +6,18 @@
 {{$feature.Description}}
 
 <!-- END GENERATED PART: feature-element-header-{{$feature.ID}} -->
+{{with $feature.Forms}}
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
+### Parameters
+
+{{range $index,$form := $feature.Forms}}
+* **{{$form.Label}}** : {{$form.Description}}
+{{end}}
+<!-- END GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
+{{end}}
 {{with $feature.Queries}}
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-{{$feature.ID}} -->
-### Depending Queries
+### Target logs
 
 Following log queries are used with this feature.
 <!-- END GENERATED PART: feature-element-depending-query-header-{{$feature.ID}} -->
