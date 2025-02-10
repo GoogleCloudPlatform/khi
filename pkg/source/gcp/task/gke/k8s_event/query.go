@@ -91,5 +91,7 @@ var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(GKEK8sEventLogQueryTas
 }, GenerateK8sEventQuery(
 	"gcp-cluster-name",
 	"gcp-project-id",
-	&queryutil.SetFilterParseResult{},
+	&queryutil.SetFilterParseResult{
+		Additives: []string{"#cluster-scoped", "#namespaced"},
+	},
 ))

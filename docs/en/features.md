@@ -45,8 +45,8 @@ Sample query:
 resource.type="k8s_cluster"
 resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
--- Invalid: none of the resources will be selected. Ignoreing kind filter.
--- Invalid: none of the resources will be selected. Ignoreing namespace filter.
+protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."
+-- No namespace filter
 
 ```
 
@@ -87,7 +87,7 @@ Sample query:
 ```
 logName="projects/gcp-project-id/logs/events"
 resource.labels.cluster_name="gcp-cluster-name"
--- Invalid: none of the resources will be selected. Ignoreing namespace filter.
+-- No namespace filter
 ```
 
 <!-- END GENERATED PART: feature-element-target-query-k8s_event -->
@@ -173,8 +173,8 @@ Sample query:
 ```
 resource.type="k8s_container"
 resource.labels.cluster_name="gcp-cluster-name"
--- Invalid: none of the resources will be selected. Ignoreing kind filter.
--- Invalid: none of the resources will be selected. Ignoreing kind filter.
+resource.labels.namespace_name=("default")
+-resource.labels.pod_name:("nginx-" OR "redis")
 ```
 
 <!-- END GENERATED PART: feature-element-target-query-k8s_container -->
@@ -467,7 +467,7 @@ resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="gcp-cluster-name"
 resource.labels.project_id="gcp-project-id"
 -sourceLocation.file="httplog.go"
--- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.
+-- No component name filter
 ```
 
 <!-- END GENERATED PART: feature-element-target-query-k8s_control_plane_component -->
