@@ -35,6 +35,11 @@ import (
 type gkeAuditLogParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (p *gkeAuditLogParser) GetDocumentAnchorID() string {
+	return "gke_audit"
+}
+
 // Dependencies implements parser.Parser.
 func (*gkeAuditLogParser) Dependencies() []string {
 	return []string{}

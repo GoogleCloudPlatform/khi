@@ -47,6 +47,11 @@ const ConfigureHelperShTerminatingMsg = "Done for the configuration for kubernet
 type k8sNodeParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (p *k8sNodeParser) GetDocumentAnchorID() string {
+	return "k8s_node"
+}
+
 // Description implements parser.Parser.
 func (*k8sNodeParser) Description() string {
 	return `GKE worker node components logs mainly from kubelet,containerd and dockerd.

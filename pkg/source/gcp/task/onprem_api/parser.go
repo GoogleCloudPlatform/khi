@@ -36,6 +36,11 @@ import (
 type onpremCloudAuditLogParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (o *onpremCloudAuditLogParser) GetDocumentAnchorID() string {
+	return "onprem_api"
+}
+
 // Dependencies implements parser.Parser.
 func (*onpremCloudAuditLogParser) Dependencies() []string {
 	return []string{}

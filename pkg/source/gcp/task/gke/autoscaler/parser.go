@@ -36,6 +36,11 @@ import (
 type autoscalerLogParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (p *autoscalerLogParser) GetDocumentAnchorID() string {
+	return "autoscaler"
+}
+
 // Dependencies implements parser.Parser.
 func (*autoscalerLogParser) Dependencies() []string {
 	return []string{

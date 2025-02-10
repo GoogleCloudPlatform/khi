@@ -36,6 +36,11 @@ import (
 
 type gceNetworkParser struct{}
 
+// GetDocumentAnchorID implements parser.Parser.
+func (g *gceNetworkParser) GetDocumentAnchorID() string {
+	return "gce_network"
+}
+
 // Dependencies implements parser.Parser.
 func (*gceNetworkParser) Dependencies() []string {
 	return []string{}

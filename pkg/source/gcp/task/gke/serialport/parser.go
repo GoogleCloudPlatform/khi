@@ -44,6 +44,11 @@ var serialportSequenceConverters = []parserutil.SpecialSequenceConverter{
 type SerialPortLogParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (s *SerialPortLogParser) GetDocumentAnchorID() string {
+	return "serialport"
+}
+
 // Description implements parser.Parser.
 func (*SerialPortLogParser) Description() string {
 	return `Serial port logs of worker nodes. Serial port logging feature must be enabled on instances to query logs correctly.`

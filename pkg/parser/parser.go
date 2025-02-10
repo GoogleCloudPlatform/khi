@@ -37,6 +37,10 @@ var PARSER_MAX_THREADS = 16
 type Parser interface {
 	// GetParserName Returns it's own parser name. It must be unique by each instances.
 	GetParserName() string
+
+	// GetDocumentAnchorID returns a unique ID within feature tasks. This is used as the link anchor ID in document.
+	GetDocumentAnchorID() string
+
 	// Parse a log. Return an error to decide skip to parse the log and delegate later parsers.
 	Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error
 
@@ -170,6 +174,6 @@ func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool
 		return struct{}{}, nil
 	},
 		append([]task.LabelOpt{
-			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), isDefaultFeature),
+			inspection_task.FeatureTaskLabel(parser.GetDocumentAnchorID(), parser.GetParserName(), parser.Description(), isDefaultFeature),
 		}, labelOpts...)...)
 }

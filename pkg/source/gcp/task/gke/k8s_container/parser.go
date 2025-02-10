@@ -32,6 +32,11 @@ import (
 type k8sContainerParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (k *k8sContainerParser) GetDocumentAnchorID() string {
+	return "k8s_container"
+}
+
 // Description implements parser.Parser.
 func (*k8sContainerParser) Description() string {
 	return `Container logs ingested from stdout/stderr of workload Pods. 

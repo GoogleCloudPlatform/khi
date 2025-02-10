@@ -35,6 +35,11 @@ import (
 type computeAPIParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (c *computeAPIParser) GetDocumentAnchorID() string {
+	return "compute_api"
+}
+
 // Dependencies implements parser.Parser.
 func (*computeAPIParser) Dependencies() []string {
 	return []string{}

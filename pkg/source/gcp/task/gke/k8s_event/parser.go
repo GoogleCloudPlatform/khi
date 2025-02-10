@@ -33,6 +33,11 @@ var GKEK8sEventLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"
 type k8sEventParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (k *k8sEventParser) GetDocumentAnchorID() string {
+	return "k8s_event"
+}
+
 // Description implements parser.Parser.
 func (*k8sEventParser) Description() string {
 	return `Visualize Kubernetes event logs on GKE.

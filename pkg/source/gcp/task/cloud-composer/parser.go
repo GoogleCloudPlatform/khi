@@ -91,6 +91,11 @@ var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPre
 type AirflowSchedulerParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (t *AirflowSchedulerParser) GetDocumentAnchorID() string {
+	return "airflow_schedule"
+}
+
 var _ parser.Parser = &AirflowSchedulerParser{}
 
 func (*AirflowSchedulerParser) Dependencies() []string {
@@ -214,6 +219,11 @@ var AirflowWorkerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix
 var _ parser.Parser = &AirflowWorkerParser{}
 
 type AirflowWorkerParser struct {
+}
+
+// GetDocumentAnchorID implements parser.Parser.
+func (a *AirflowWorkerParser) GetDocumentAnchorID() string {
+	return "airflow_worker"
 }
 
 // Dependencies implements parser.Parser.
@@ -360,6 +370,11 @@ var AirflowDagProcessorLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCP
 
 type AirflowDagProcessorParser struct {
 	dagFilePath string
+}
+
+// GetDocumentAnchorID implements parser.Parser.
+func (a *AirflowDagProcessorParser) GetDocumentAnchorID() string {
+	return "airflow_dag_processor"
 }
 
 var _ parser.Parser = (*AirflowDagProcessorParser)(nil)

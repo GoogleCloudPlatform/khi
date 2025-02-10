@@ -29,6 +29,11 @@ import (
 type k8sControlPlaneComponentParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (k *k8sControlPlaneComponentParser) GetDocumentAnchorID() string {
+	return "k8s_control_plane_component"
+}
+
 // Dependencies implements parser.Parser.
 func (k *k8sControlPlaneComponentParser) Dependencies() []string {
 	return []string{}

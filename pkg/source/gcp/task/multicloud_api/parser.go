@@ -36,6 +36,11 @@ import (
 type multiCloudAuditLogParser struct {
 }
 
+// GetDocumentAnchorID implements parser.Parser.
+func (m *multiCloudAuditLogParser) GetDocumentAnchorID() string {
+	return "multicloud_api"
+}
+
 // Dependencies implements parser.Parser.
 func (*multiCloudAuditLogParser) Dependencies() []string {
 	return []string{}
