@@ -17,23 +17,38 @@
 {{- end}}
 <!-- END GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
 {{end}}
-{{with $feature.Queries}}
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-{{$feature.ID}} -->
-### Target logs
+
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->
+### Output timelines
+
+|Timeline type|Short name on chip|
+|:-:|:-:|
+{{- range $index,$timeline := $feature.OutputTimelines}}
+|[{{$timeline.LongName}}](./relationships.md#{{$timeline.RelationshipID}})|{{$timeline.Name}}|
+{{- end}}
+
+<!-- END GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-{{$feature.ID}} -->
+### Target log type
+
+**![{{$feature.TargetQueryDependency.LogTypeColorCode}}](https://placehold.co/15x15/{{$feature.TargetQueryDependency.LogTypeColorCode}}/{{$feature.TargetQueryDependency.LogTypeColorCode}}.png){{$feature.TargetQueryDependency.LogTypeLabel}}**
+
+Sample query:
+
+```
+{{$feature.TargetQueryDependency.SampleQuery}}
+```
+
+<!-- END GENERATED PART: feature-element-target-query-{{$feature.ID}} -->
+{{with $feature.IndirectQueryDependency}}
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-{{$feature.ID}} -->
+### Dependent queries
 
 Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-{{$feature.ID}} -->
-{{range $index,$query := $feature.Queries}}
-<!-- BEGIN GENERATED PART: feature-element-depending-query-{{$feature.ID}} -->
-#### ![{{$query.LogTypeColorCode}}](https://placehold.co/15x15/{{$query.LogTypeColorCode}}/{{$query.LogTypeColorCode}}.png){{$query.LogTypeLabel}}
-
-**Sample used query**
-
-```
-{{$query.SampleQuery}}
-```
-<!-- END GENERATED PART: feature-element-depending-query-{{$feature.ID}} -->
-{{end}}
+{{range $index,$query := $feature.IndirectQueryDependency}}
+* ![{{$query.LogTypeColorCode}}](https://placehold.co/15x15/{{$query.LogTypeColorCode}}/{{$query.LogTypeColorCode}}.png){{$query.LogTypeLabel}}
+{{- end}}
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-{{$feature.ID}} -->
 {{end}}
 {{end}}
 {{end}}

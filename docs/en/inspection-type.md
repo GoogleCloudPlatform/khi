@@ -12,7 +12,7 @@ Inspection type is ...
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-k8s_audit -->
-* [Kubernetes Audit Log(v2)](./features.md#k8s_audit)
+* [Kubernetes Audit Log](./features.md#k8s_audit)
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-k8s_audit -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-k8s_event -->
 * [Kubernetes Event Logs](./features.md#k8s_event)
@@ -48,7 +48,7 @@ Inspection type is ...
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-composer -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-composer-k8s_audit -->
-* [Kubernetes Audit Log(v2)](./features.md#k8s_audit)
+* [Kubernetes Audit Log](./features.md#k8s_audit)
 <!-- END GENERATED PART: inspection-type-element-header-gcp-composer-k8s_audit -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-composer-k8s_event -->
 * [Kubernetes Event Logs](./features.md#k8s_event)
@@ -93,7 +93,7 @@ Inspection type is ...
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-on-aws -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-aws-k8s_audit -->
-* [Kubernetes Audit Log(v2)](./features.md#k8s_audit)
+* [Kubernetes Audit Log](./features.md#k8s_audit)
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-on-aws-k8s_audit -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-aws-k8s_event -->
 * [Kubernetes Event Logs](./features.md#k8s_event)
@@ -117,7 +117,7 @@ Inspection type is ...
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-on-azure -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-azure-k8s_audit -->
-* [Kubernetes Audit Log(v2)](./features.md#k8s_audit)
+* [Kubernetes Audit Log](./features.md#k8s_audit)
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-on-azure-k8s_audit -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-azure-k8s_event -->
 * [Kubernetes Event Logs](./features.md#k8s_event)
@@ -141,7 +141,7 @@ Inspection type is ...
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal-k8s_audit -->
-* [Kubernetes Audit Log(v2)](./features.md#k8s_audit)
+* [Kubernetes Audit Log](./features.md#k8s_audit)
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal-k8s_audit -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal-k8s_event -->
 * [Kubernetes Event Logs](./features.md#k8s_event)
@@ -165,7 +165,7 @@ Inspection type is ...
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware-k8s_audit -->
-* [Kubernetes Audit Log(v2)](./features.md#k8s_audit)
+* [Kubernetes Audit Log](./features.md#k8s_audit)
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware-k8s_audit -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware-k8s_event -->
 * [Kubernetes Event Logs](./features.md#k8s_event)

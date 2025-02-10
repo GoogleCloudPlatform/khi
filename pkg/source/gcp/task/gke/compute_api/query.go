@@ -51,9 +51,9 @@ func GenerateComputeAPIQuery(taskMode int, nodeNames []string) []string {
 
 func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) string {
 	return fmt.Sprintf(`resource.type="gce_instance"
-	-protoPayload.methodName:("list" OR "get" OR "watch")
-	%s
-	`, instanceNameFilter)
+-protoPayload.methodName:("list" OR "get" OR "watch")
+%s
+`, instanceNameFilter)
 }
 
 var ComputeAPIQueryTask = query.NewQueryGeneratorTask(ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []string{

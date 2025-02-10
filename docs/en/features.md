@@ -1,5 +1,5 @@
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_audit -->
-## [Kubernetes Audit Log(v2)](#k8s_audit)
+## [Kubernetes Audit Log](#k8s_audit)
 
 Visualize Kubernetes audit logs in GKE. 
 This parser reveals how these resources are created,updated or deleted. 
@@ -18,15 +18,24 @@ This parser reveals how these resources are created,updated or deleted.
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_audit -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_audit -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-k8s_audit -->
-#### ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[The default resource timeline](./relationships.md#RelationshipChild)|resource|
+|[Status condition field timeline](./relationships.md#RelationshipResourceCondition)|condition|
+|[Endpoint serving state timeline](./relationships.md#RelationshipEndpointSlice)|endpointslice|
+|[Owning children timeline](./relationships.md#RelationshipOwnerReference)|owns|
+|[Pod binding timeline](./relationships.md#RelationshipPodBinding)|binds|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-k8s_audit -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_audit -->
+### Target log type
+
+**![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit**
+
+Sample query:
 
 ```
 resource.type="k8s_cluster"
@@ -34,8 +43,10 @@ resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 -- Invalid: none of the resources will be selected. Ignoreing namespace filter.
+
 ```
-<!-- END GENERATED PART: feature-element-depending-query-k8s_audit -->
+
+<!-- END GENERATED PART: feature-element-target-query-k8s_audit -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_event -->
 ## [Kubernetes Event Logs](#k8s_event)
 
@@ -55,22 +66,28 @@ This parser shows events associated to K8s resources
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_event -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_event -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-k8s_event -->
-#### ![3fb549](https://placehold.co/15x15/3fb549/3fb549.png)k8s_event
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[The default resource timeline](./relationships.md#RelationshipChild)|resource|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-k8s_event -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_event -->
+### Target log type
+
+**![3fb549](https://placehold.co/15x15/3fb549/3fb549.png)k8s_event**
+
+Sample query:
 
 ```
 logName="projects/gcp-project-id/logs/events"
 resource.labels.cluster_name="gcp-cluster-name"
 -- Invalid: none of the resources will be selected. Ignoreing namespace filter.
 ```
-<!-- END GENERATED PART: feature-element-depending-query-k8s_event -->
+
+<!-- END GENERATED PART: feature-element-target-query-k8s_event -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_node -->
 ## [Kubernetes Node Logs](#k8s_node)
 
@@ -91,23 +108,31 @@ GKE worker node components logs mainly from kubelet,containerd and dockerd.
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_node -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_node -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-k8s_node -->
-#### ![0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[Container timeline](./relationships.md#RelationshipContainer)|container|
+|[Node component timeline](./relationships.md#RelationshipNodeComponent)|node-component|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-k8s_node -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_node -->
+### Target log type
+
+**![0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node**
+
+Sample query:
 
 ```
 resource.type="k8s_node"
 -logName="projects/gcp-project-id/logs/events"
 resource.labels.cluster_name="gcp-cluster-name"
 resource.labels.node_name:("gke-test-cluster-node-1" OR "gke-test-cluster-node-2")
+
 ```
-<!-- END GENERATED PART: feature-element-depending-query-k8s_node -->
+
+<!-- END GENERATED PART: feature-element-target-query-k8s_node -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_container -->
 ## [Kubernetes container logs](#k8s_container)
 
@@ -132,15 +157,20 @@ Specify the space splitted namespace lists to query container logs only in the s
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_container -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_container -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-k8s_container -->
-#### ![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[Container timeline](./relationships.md#RelationshipContainer)|container|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-k8s_container -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_container -->
+### Target log type
+
+**![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container**
+
+Sample query:
 
 ```
 resource.type="k8s_container"
@@ -148,7 +178,8 @@ resource.labels.cluster_name="gcp-cluster-name"
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 -- Invalid: none of the resources will be selected. Ignoreing kind filter.
 ```
-<!-- END GENERATED PART: feature-element-depending-query-k8s_container -->
+
+<!-- END GENERATED PART: feature-element-target-query-k8s_container -->
 <!-- BEGIN GENERATED PART: feature-element-header-gke_audit -->
 ## [GKE Audit logs](#gke_audit)
 
@@ -166,22 +197,27 @@ GKE audit log including cluster creation,deletion and upgrades.
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-gke_audit -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-gke_audit -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-gke_audit -->
-#### ![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)gke_audit
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-gke_audit -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-gke_audit -->
+### Target log type
+
+**![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)gke_audit**
+
+Sample query:
 
 ```
 resource.type=("gke_cluster" OR "gke_nodepool")
 logName="projects/gcp-project-id/logs/cloudaudit.googleapis.com%2Factivity"
 resource.labels.cluster_name="gcp-cluster-name"
 ```
-<!-- END GENERATED PART: feature-element-depending-query-gke_audit -->
+
+<!-- END GENERATED PART: feature-element-target-query-gke_audit -->
 <!-- BEGIN GENERATED PART: feature-element-header-compute_api -->
 ## [Compute API Logs](#compute_api)
 
@@ -201,36 +237,36 @@ Compute API audit logs used for cluster related logs. This also visualize operat
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-compute_api -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-compute_api -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-compute_api -->
-#### ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-compute_api -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-compute_api -->
+### Target log type
 
-```
-resource.type="k8s_cluster"
-resource.labels.cluster_name="gcp-cluster-name"
-protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
--- Invalid: none of the resources will be selected. Ignoreing kind filter.
--- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-```
-<!-- END GENERATED PART: feature-element-depending-query-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-compute_api -->
-#### ![FFCC33](https://placehold.co/15x15/FFCC33/FFCC33.png)compute_api
+**![FFCC33](https://placehold.co/15x15/FFCC33/FFCC33.png)compute_api**
 
-**Sample used query**
+Sample query:
 
 ```
 resource.type="gce_instance"
-	-protoPayload.methodName:("list" OR "get" OR "watch")
-	protoPayload.resourceName:(instances/gke-test-cluster-node-1 OR instances/gke-test-cluster-node-2)
-	
+-protoPayload.methodName:("list" OR "get" OR "watch")
+protoPayload.resourceName:(instances/gke-test-cluster-node-1 OR instances/gke-test-cluster-node-2)
+
 ```
-<!-- END GENERATED PART: feature-element-depending-query-compute_api -->
+
+<!-- END GENERATED PART: feature-element-target-query-compute_api -->
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-compute_api -->
+### Dependent queries
+
+Following log queries are used with this feature.
+
+* ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-compute_api -->
 <!-- BEGIN GENERATED PART: feature-element-header-gce_network -->
 ## [GCE Network Logs](#gce_network)
 
@@ -250,35 +286,36 @@ GCE network API audit log including NEG related audit logs to identify when the 
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-gce_network -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-gce_network -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-gce_network -->
-#### ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[NEG timeline](./relationships.md#RelationshipNetworkEndpointGroup)|neg|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-gce_network -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-gce_network -->
+### Target log type
 
-```
-resource.type="k8s_cluster"
-resource.labels.cluster_name="gcp-cluster-name"
-protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
--- Invalid: none of the resources will be selected. Ignoreing kind filter.
--- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-```
-<!-- END GENERATED PART: feature-element-depending-query-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-gce_network -->
-#### ![33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api
+**![33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api**
 
-**Sample used query**
+Sample query:
 
 ```
 resource.type="gce_network"
 -protoPayload.methodName:("list" OR "get" OR "watch")
 protoPayload.resourceName:(networkEndpointGroups/neg-id-1 OR networkEndpointGroups/neg-id-2)
+
 ```
-<!-- END GENERATED PART: feature-element-depending-query-gce_network -->
+
+<!-- END GENERATED PART: feature-element-target-query-gce_network -->
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-gce_network -->
+### Dependent queries
+
+Following log queries are used with this feature.
+
+* ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-header-multicloud_api -->
 ## [MultiCloud API logs](#multicloud_api)
 
@@ -296,23 +333,29 @@ Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-multicloud_api -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-multicloud_api -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-multicloud_api -->
-#### ![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)multicloud_api
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-multicloud_api -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-multicloud_api -->
+### Target log type
+
+**![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)multicloud_api**
+
+Sample query:
 
 ```
 resource.type="audited_resource"
 resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
 protoPayload.resourceName:"awsClusters/cluster-foo"
+
 ```
-<!-- END GENERATED PART: feature-element-depending-query-multicloud_api -->
+
+<!-- END GENERATED PART: feature-element-target-query-multicloud_api -->
 <!-- BEGIN GENERATED PART: feature-element-header-autoscaler -->
 ## [Autoscaler Logs](#autoscaler)
 
@@ -331,15 +374,20 @@ This log type also includes Node Auto Provisioner logs.
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-autoscaler -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-autoscaler -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-autoscaler -->
-#### ![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)autoscaler
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[Managed instance group timeline](./relationships.md#RelationshipManagedInstanceGroup)|mig|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-autoscaler -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-autoscaler -->
+### Target log type
+
+**![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)autoscaler**
+
+Sample query:
 
 ```
 resource.type="k8s_cluster"
@@ -348,7 +396,8 @@ resource.labels.cluster_name="gcp-cluster-name"
 -jsonPayload.status: ""
 logName="projects/gcp-project-id/logs/container.googleapis.com%2Fcluster-autoscaler-visibility"
 ```
-<!-- END GENERATED PART: feature-element-depending-query-autoscaler -->
+
+<!-- END GENERATED PART: feature-element-target-query-autoscaler -->
 <!-- BEGIN GENERATED PART: feature-element-header-onprem_api -->
 ## [OnPrem API logs](#onprem_api)
 
@@ -366,23 +415,29 @@ Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and 
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-onprem_api -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-onprem_api -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-onprem_api -->
-#### ![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)onprem_api
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-onprem_api -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-onprem_api -->
+### Target log type
+
+**![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)onprem_api**
+
+Sample query:
 
 ```
 resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
 protoPayload.resourceName:"baremetalClusters/my-cluster"
+
 ```
-<!-- END GENERATED PART: feature-element-depending-query-onprem_api -->
+
+<!-- END GENERATED PART: feature-element-target-query-onprem_api -->
 <!-- BEGIN GENERATED PART: feature-element-header-k8s_control_plane_component -->
 ## [Kubernetes Control plane component logs](#k8s_control_plane_component)
 
@@ -401,15 +456,20 @@ Visualize Kubernetes control plane component logs on a cluster
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_control_plane_component -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-k8s_control_plane_component -->
-#### ![FF3333](https://placehold.co/15x15/FF3333/FF3333.png)control_plane_component
+|Timeline type|Short name on chip|
+|:-:|:-:|
+|[Control plane component timeline](./relationships.md#RelationshipControlPlaneComponent)|controlplane|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_control_plane_component -->
+### Target log type
+
+**![FF3333](https://placehold.co/15x15/FF3333/FF3333.png)control_plane_component**
+
+Sample query:
 
 ```
 resource.type="k8s_control_plane_component"
@@ -418,7 +478,8 @@ resource.labels.project_id="gcp-project-id"
 -sourceLocation.file="httplog.go"
 -- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.
 ```
-<!-- END GENERATED PART: feature-element-depending-query-k8s_control_plane_component -->
+
+<!-- END GENERATED PART: feature-element-target-query-k8s_control_plane_component -->
 <!-- BEGIN GENERATED PART: feature-element-header-serialport -->
 ## [Node serial port logs](#serialport)
 
@@ -439,28 +500,19 @@ Serial port logs of worker nodes. Serial port logging feature must be enabled on
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-serialport -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-serialport -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-serialport -->
-#### ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-serialport -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-serialport -->
+### Target log type
 
-```
-resource.type="k8s_cluster"
-resource.labels.cluster_name="gcp-cluster-name"
-protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
--- Invalid: none of the resources will be selected. Ignoreing kind filter.
--- Invalid: none of the resources will be selected. Ignoreing namespace filter.
-```
-<!-- END GENERATED PART: feature-element-depending-query-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-serialport -->
-#### ![333333](https://placehold.co/15x15/333333/333333.png)serial_port
+**![333333](https://placehold.co/15x15/333333/333333.png)serial_port**
 
-**Sample used query**
+Sample query:
 
 ```
 LOG_ID("serialconsole.googleapis.com%2Fserial_port_1_output") OR
@@ -472,7 +524,15 @@ labels."compute.googleapis.com/resource_name"=("gke-test-cluster-node-1" OR "gke
 
 -- No node name substring filters are specified.
 ```
-<!-- END GENERATED PART: feature-element-depending-query-serialport -->
+
+<!-- END GENERATED PART: feature-element-target-query-serialport -->
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-serialport -->
+### Dependent queries
+
+Following log queries are used with this feature.
+
+* ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-serialport -->
 <!-- BEGIN GENERATED PART: feature-element-header-airflow_schedule -->
 ## [(Alpha) Composer / Airflow Scheduler](#airflow_schedule)
 
@@ -491,20 +551,25 @@ Airflow Scheduler logs contain information related to the scheduling of TaskInst
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_schedule -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_schedule -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-airflow_schedule -->
-#### ![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-airflow_schedule -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-airflow_schedule -->
+### Target log type
+
+**![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment**
+
+Sample query:
 
 ```
 TODO: add sample query
 ```
-<!-- END GENERATED PART: feature-element-depending-query-airflow_schedule -->
+
+<!-- END GENERATED PART: feature-element-target-query-airflow_schedule -->
 <!-- BEGIN GENERATED PART: feature-element-header-airflow_worker -->
 ## [(Alpha) Cloud Composer / Airflow Worker](#airflow_worker)
 
@@ -523,20 +588,25 @@ Airflow Worker logs contain information related to the execution of TaskInstance
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_worker -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_worker -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-airflow_worker -->
-#### ![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-airflow_worker -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-airflow_worker -->
+### Target log type
+
+**![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment**
+
+Sample query:
 
 ```
 TODO: add sample query
 ```
-<!-- END GENERATED PART: feature-element-depending-query-airflow_worker -->
+
+<!-- END GENERATED PART: feature-element-target-query-airflow_worker -->
 <!-- BEGIN GENERATED PART: feature-element-header-airflow_dag_processor -->
 ## [(Alpha) Composer / Airflow DagProcessorManager](#airflow_dag_processor)
 
@@ -555,17 +625,22 @@ The DagProcessorManager logs contain information for investigating the number of
 (example: 2006-01-02T15:04:05-07:00)|
 |Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_dag_processor -->
-### Target logs
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_dag_processor -->
+### Output timelines
 
-Following log queries are used with this feature.
-<!-- END GENERATED PART: feature-element-depending-query-header-airflow_dag_processor -->
-<!-- BEGIN GENERATED PART: feature-element-depending-query-airflow_dag_processor -->
-#### ![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment
+|Timeline type|Short name on chip|
+|:-:|:-:|
 
-**Sample used query**
+<!-- END GENERATED PART: feature-element-output-timelines-airflow_dag_processor -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-airflow_dag_processor -->
+### Target log type
+
+**![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment**
+
+Sample query:
 
 ```
 TODO: add sample query
 ```
-<!-- END GENERATED PART: feature-element-depending-query-airflow_dag_processor -->
+
+<!-- END GENERATED PART: feature-element-target-query-airflow_dag_processor -->
