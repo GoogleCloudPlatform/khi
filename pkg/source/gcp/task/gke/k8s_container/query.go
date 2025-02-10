@@ -103,4 +103,4 @@ var GKEContainerQueryTask = query.NewQueryGeneratorTask(GKEContainerLogQueryTask
 		return []string{}, err
 	}
 	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
-})
+}, GenerateK8sContainerQuery("gcp-cluster-name", &queryutil.SetFilterParseResult{}, &queryutil.SetFilterParseResult{}))

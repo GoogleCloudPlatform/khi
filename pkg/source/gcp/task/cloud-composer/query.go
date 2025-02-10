@@ -40,6 +40,7 @@ var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-scheduler"),
+	"TODO: add sample query",
 )
 
 var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
@@ -51,6 +52,7 @@ var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("dag-processor-manager"),
+	"TODO: add sample query",
 )
 
 var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
@@ -62,6 +64,7 @@ var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-monitoring"),
+	"TODO: add sample query",
 )
 
 var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
@@ -73,6 +76,7 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-worker"),
+	"TODO: add sample query",
 )
 
 func createGenerator(componentName string) func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {

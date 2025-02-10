@@ -54,7 +54,7 @@ var GKEK8sControlPlaneLogQueryTask = query.NewQueryGeneratorTask(GKEK8sControlPl
 		return []string{}, err
 	}
 	return []string{GenerateK8sControlPlaneQuery(clusterName, projectId, controlPlaneComponentNameFilter)}, nil
-})
+}, GenerateK8sControlPlaneQuery("gcp-cluster-name", "gcp-project-id", &queryutil.SetFilterParseResult{}))
 
 func generateK8sControlPlaneComponentFilter(filter *queryutil.SetFilterParseResult) string {
 	if filter.ValidationError != "" {

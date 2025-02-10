@@ -64,4 +64,7 @@ var ComputeAPIQueryTask = query.NewQueryGeneratorTask(ComputeAPIQueryTaskID, "Co
 		return []string{}, err
 	}
 	return GenerateComputeAPIQuery(i, builder.ClusterResource.GetNodes()), nil
-})
+}, GenerateComputeAPIQuery(inspection_task.TaskModeRun, []string{
+	"gke-test-cluster-node-1",
+	"gke-test-cluster-node-2",
+})[0])

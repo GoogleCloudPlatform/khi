@@ -62,4 +62,4 @@ var GKENodeQueryTask = query.NewQueryGeneratorTask(GKENodeLogQueryTaskID, "Kuber
 		return nil, err
 	}
 	return []string{GenerateK8sNodeLogQuery(projectId, clusterName, nodeNameSubstrings)}, nil
-})
+}, GenerateK8sNodeLogQuery("gcp-project-id", "gcp-cluster-name", []string{"gke-test-cluster-node-1", "gke-test-cluster-node-2"}))

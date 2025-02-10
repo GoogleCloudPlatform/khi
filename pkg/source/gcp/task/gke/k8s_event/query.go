@@ -88,4 +88,8 @@ var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(GKEK8sEventLogQueryTas
 		return []string{}, err
 	}
 	return []string{GenerateK8sEventQuery(clusterName, projectId, namespaceFilter)}, nil
-})
+}, GenerateK8sEventQuery(
+	"gcp-cluster-name",
+	"gcp-project-id",
+	&queryutil.SetFilterParseResult{},
+))

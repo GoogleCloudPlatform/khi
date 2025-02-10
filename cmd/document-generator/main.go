@@ -47,6 +47,11 @@ func main() {
 	err = generator.GenerateDocument("./docs/en/inspection-type.md", "inspection-type-template", inspectionTypeDocumentModel, false)
 	fatal(err, "failed to generate inspection type document")
 
+	featureDocumentModel, err := model.GetFeatureDocumentModel(inspectionServer)
+	fatal(err, "failed to generate feature document model")
+	err = generator.GenerateDocument("./docs/en/features.md", "feature-template", featureDocumentModel, false)
+	fatal(err, "failed to generate feature document")
+
 	logTypeDocumentModel := model.GetLogTypeDocumentModel()
 	err = generator.GenerateDocument("./docs/en/log-types.md", "log-type-template", logTypeDocumentModel, false)
 	fatal(err, "failed to generate log type document")

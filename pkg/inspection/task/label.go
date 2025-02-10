@@ -16,6 +16,8 @@ package task
 
 import common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 
+//TODO: move task label related constants to ./label
+
 const (
 	InspectionTaskPrefix                 = common_task.KHISystemPrefix + "inspection/"
 	LabelKeyInspectionFeatureFlag        = InspectionTaskPrefix + "feature"
