@@ -9,7 +9,7 @@
 
 <!-- BEGIN GENERATED PART: inspection-type-element-header-features-{{$type.ID}} -->
 {{range $feature := $type.SupportedFeatures}}
-* [{{$feature.Name}}](./features.md#{{$feature.ID}})
+* [{{$feature.Name}}](./features.md#{{$feature.Name | anchor }})
 {{- end}}
 <!-- END GENERATED PART: inspection-type-element-header-features-{{$type.ID}} -->
 {{end}}

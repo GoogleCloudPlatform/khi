@@ -1,7 +1,7 @@
 {{define "relationship-template"}}
 {{range $index,$relationship := .Relationships }}
 <!-- BEGIN GENERATED PART: relationship-element-header-{{$relationship.ID}} -->
-## [{{with $relationship.HasVisibleChip}}![#{{$relationship.ColorCode}}](https://placehold.co/15x15/{{$relationship.ColorCode}}/{{$relationship.ColorCode}}.png) {{$relationship.Label}} - {{end}}{{$relationship.LongName}}](#{{$relationship.ID}})
+## ![#{{$relationship.ColorCode}}](https://placehold.co/15x15/{{$relationship.ColorCode}}/{{$relationship.ColorCode}}.png){{$relationship.LongName}}
 <!-- END GENERATED PART: relationship-element-header-{{$relationship.ID}} -->
 {{with $relationship.GeneratableRevisions}}
 <!-- BEGIN GENERATED PART: relationship-element-header-{{$relationship.ID}}-revisions-header -->

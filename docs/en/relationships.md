@@ -4,7 +4,7 @@ KHI timelines are basically placed in the order of `Kind` -> `Namespace` -> `Res
 The relationship between its parent and children is usually interpretted as the order of its hierarchy, but some subresources are not actual kubernetes resources and it's associated with the parent timeline for convenience. Each timeline color meanings and type of logs put on them are different by this relationship.
 
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipChild -->
-## [The default resource timeline](#RelationshipChild)
+## ![#CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)The default resource timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipChild -->
 
 ![](./images/reference/default-timeline.png)
@@ -41,7 +41,7 @@ This timeline can have the following events.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipChild-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipResourceCondition -->
-## [![#4c29e8](https://placehold.co/15x15/4c29e8/4c29e8.png) condition - Status condition field timeline](#RelationshipResourceCondition)
+## ![#4c29e8](https://placehold.co/15x15/4c29e8/4c29e8.png)Status condition field timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipResourceCondition -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipResourceCondition-revisions-header -->
 ### Revisions
@@ -57,7 +57,7 @@ This timeline can have the following revisions.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipResourceCondition-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipOperation -->
-## [![#000000](https://placehold.co/15x15/000000/000000.png) operation - Operation timeline](#RelationshipOperation)
+## ![#000000](https://placehold.co/15x15/000000/000000.png)Operation timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipOperation -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipOperation-revisions-header -->
 ### Revisions
@@ -80,7 +80,7 @@ This timeline can have the following revisions.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipOperation-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipEndpointSlice -->
-## [![#008000](https://placehold.co/15x15/008000/008000.png) endpointslice - Endpoint serving state timeline](#RelationshipEndpointSlice)
+## ![#008000](https://placehold.co/15x15/008000/008000.png)Endpoint serving state timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipEndpointSlice -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipEndpointSlice-revisions-header -->
 ### Revisions
@@ -96,7 +96,7 @@ This timeline can have the following revisions.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipEndpointSlice-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer -->
-## [![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png) container - Container timeline](#RelationshipContainer)
+## ![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)Container timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipContainer -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer-revisions-header -->
 ### Revisions
@@ -131,7 +131,7 @@ This timeline can have the following events.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipContainer-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNodeComponent -->
-## [![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png) node-component - Node component timeline](#RelationshipNodeComponent)
+## ![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)Node component timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipNodeComponent -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNodeComponent-revisions-header -->
 ### Revisions
@@ -158,7 +158,7 @@ This timeline can have the following events.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipNodeComponent-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipOwnerReference -->
-## [![#33DD88](https://placehold.co/15x15/33DD88/33DD88.png) owns - Owning children timeline](#RelationshipOwnerReference)
+## ![#33DD88](https://placehold.co/15x15/33DD88/33DD88.png)Owning children timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipOwnerReference -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipOwnerReference-aliases-header -->
 ### Aliases
@@ -172,7 +172,7 @@ This timeline can have the following aliases.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipOwnerReference-aliases-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipPodBinding -->
-## [![#FF8855](https://placehold.co/15x15/FF8855/FF8855.png) binds - Pod binding timeline](#RelationshipPodBinding)
+## ![#FF8855](https://placehold.co/15x15/FF8855/FF8855.png)Pod binding timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipPodBinding -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipPodBinding-aliases-header -->
 ### Aliases
@@ -186,7 +186,7 @@ This timeline can have the following aliases.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipPodBinding-aliases-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup -->
-## [![#A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png) neg - Network Endpoint Group timeline](#RelationshipNetworkEndpointGroup)
+## ![#A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png)Network Endpoint Group timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup-revisions-header -->
 ### Revisions
@@ -201,7 +201,7 @@ This timeline can have the following revisions.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup -->
-## [![#FF5555](https://placehold.co/15x15/FF5555/FF5555.png) mig - Managed instance group timeline](#RelationshipManagedInstanceGroup)
+## ![#FF5555](https://placehold.co/15x15/FF5555/FF5555.png)Managed instance group timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup-events-header -->
 ### Events
@@ -215,7 +215,7 @@ This timeline can have the following events.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent -->
-## [![#FF5555](https://placehold.co/15x15/FF5555/FF5555.png) controlplane - Control plane component timeline](#RelationshipControlPlaneComponent)
+## ![#FF5555](https://placehold.co/15x15/FF5555/FF5555.png)Control plane component timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent-events-header -->
 ### Events
@@ -229,7 +229,7 @@ This timeline can have the following events.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipSerialPort -->
-## [![#333333](https://placehold.co/15x15/333333/333333.png) serialport - Serialport log timeline](#RelationshipSerialPort)
+## ![#333333](https://placehold.co/15x15/333333/333333.png)Serialport log timeline
 <!-- END GENERATED PART: relationship-element-header-RelationshipSerialPort -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipSerialPort-events-header -->
 ### Events

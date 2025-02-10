@@ -1,7 +1,7 @@
 {{define "feature-template"}}
 {{range $index,$feature := .Features }}
 <!-- BEGIN GENERATED PART: feature-element-header-{{$feature.ID}} -->
-## [{{$feature.Name}}](#{{$feature.ID}})
+## {{$feature.Name}}
 
 {{$feature.Description}}
 
@@ -13,7 +13,7 @@
 |Parameter name|Description|
 |:-:|---|
 {{- range $index,$form := $feature.Forms}}
-|[{{$form.Label}}](./forms.md#{{$form.ID}})|{{$form.Description}}|
+|[{{$form.Label}}](./forms.md#{{$form.Label | anchor}})|{{$form.Description}}|
 {{- end}}
 <!-- END GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
 {{end}}
@@ -24,7 +24,7 @@
 |Timeline type|Short name on chip|
 |:-:|:-:|
 {{- range $index,$timeline := $feature.OutputTimelines}}
-|![{{$timeline.RelationshipColorCode}}](https://placehold.co/15x15/{{$timeline.RelationshipColorCode}}/{{$timeline.RelationshipColorCode}}.png)[{{$timeline.LongName}}](./relationships.md#{{$timeline.RelationshipID}})|{{$timeline.Name}}|
+|![{{$timeline.RelationshipColorCode}}](https://placehold.co/15x15/{{$timeline.RelationshipColorCode}}/{{$timeline.RelationshipColorCode}}.png)[{{$timeline.LongName}}](./relationships.md#{{$timeline.LongName | anchor}})|{{$timeline.Name}}|
 {{- end}}
 
 <!-- END GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->
