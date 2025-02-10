@@ -36,6 +36,11 @@ import (
 type multiCloudAuditLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (m *multiCloudAuditLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeMulticloudAPI
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (m *multiCloudAuditLogParser) GetDocumentAnchorID() string {
 	return "multicloud_api"

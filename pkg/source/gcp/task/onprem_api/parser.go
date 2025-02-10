@@ -36,6 +36,11 @@ import (
 type onpremCloudAuditLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (o *onpremCloudAuditLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeOnPremAPI
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (o *onpremCloudAuditLogParser) GetDocumentAnchorID() string {
 	return "onprem_api"

@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -42,6 +43,11 @@ var serialportSequenceConverters = []parserutil.SpecialSequenceConverter{
 }
 
 type SerialPortLogParser struct {
+}
+
+// TargetLogType implements parser.Parser.
+func (s *SerialPortLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeSerialPort
 }
 
 // GetDocumentAnchorID implements parser.Parser.

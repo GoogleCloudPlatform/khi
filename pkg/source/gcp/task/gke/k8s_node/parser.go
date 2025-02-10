@@ -47,6 +47,11 @@ const ConfigureHelperShTerminatingMsg = "Done for the configuration for kubernet
 type k8sNodeParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (p *k8sNodeParser) TargetLogType() enum.LogType {
+	return enum.LogTypeNode
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (p *k8sNodeParser) GetDocumentAnchorID() string {
 	return "k8s_node"

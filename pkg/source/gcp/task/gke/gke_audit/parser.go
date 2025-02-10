@@ -35,6 +35,11 @@ import (
 type gkeAuditLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (p *gkeAuditLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeGkeAudit
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (p *gkeAuditLogParser) GetDocumentAnchorID() string {
 	return "gke_audit"

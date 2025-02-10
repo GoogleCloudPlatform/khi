@@ -14,7 +14,10 @@
 
 package task
 
-import common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+)
 
 //TODO: move task label related constants to ./label
 
@@ -25,8 +28,9 @@ const (
 	LabelKeyInspectionRequiredFlag       = InspectionTaskPrefix + "required"
 	LabelKeyProgressReportable           = InspectionTaskPrefix + "progress-reportable"
 	// A []string typed label of Definition. Task registry will filter task units by given inspection type at first.
-	LabelKeyInspectionTypes  = InspectionTaskPrefix + "inspection-type"
-	LabelKeyFeatureTaskTitle = InspectionTaskPrefix + "feature/title"
+	LabelKeyInspectionTypes          = InspectionTaskPrefix + "inspection-type"
+	LabelKeyFeatureTaskTitle         = InspectionTaskPrefix + "feature/title"
+	LabelKeyFeatureTaskTargetLogType = InspectionTaskPrefix + "feature/log-type"
 	// LabelKeyFeatureDocumentAnchorID is a key of label for a short length task ID assigned to feature tasks. This is used in link anchors in documents.
 	LabelKeyFeatureDocumentAnchorID = InspectionTaskPrefix + "feature/short-title"
 
@@ -53,12 +57,14 @@ type FeatureTaskLabelImpl struct {
 	documentAnchorID string
 	title            string
 	description      string
+	logType          enum.LogType
 	isDefaultFeature bool
 }
 
 func (ftl *FeatureTaskLabelImpl) Write(label *common_task.LabelSet) {
 	label.Set(LabelKeyInspectionFeatureFlag, true)
 	label.Set(LabelKeyFeatureDocumentAnchorID, ftl.documentAnchorID)
+	label.Set(LabelKeyFeatureTaskTargetLogType, ftl.logType)
 	label.Set(LabelKeyFeatureTaskTitle, ftl.title)
 	label.Set(LabelKeyFeatureTaskDescription, ftl.description)
 	label.Set(LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
@@ -71,11 +77,12 @@ func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTas
 
 var _ common_task.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
-func FeatureTaskLabel(documentAnchorID string, title string, description string, isDefaultFeature bool) *FeatureTaskLabelImpl {
+func FeatureTaskLabel(documentAnchorID string, title string, description string, logType enum.LogType, isDefaultFeature bool) *FeatureTaskLabelImpl {
 	return &FeatureTaskLabelImpl{
 		title:            title,
 		documentAnchorID: documentAnchorID,
 		description:      description,
+		logType:          logType,
 		isDefaultFeature: isDefaultFeature,
 	}
 }

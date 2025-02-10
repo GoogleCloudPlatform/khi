@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
@@ -27,6 +28,11 @@ import (
 )
 
 type k8sControlPlaneComponentParser struct {
+}
+
+// TargetLogType implements parser.Parser.
+func (k *k8sControlPlaneComponentParser) TargetLogType() enum.LogType {
+	return enum.LogTypeControlPlaneComponent
 }
 
 // GetDocumentAnchorID implements parser.Parser.

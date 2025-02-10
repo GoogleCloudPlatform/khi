@@ -32,6 +32,11 @@ import (
 type k8sContainerParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (k *k8sContainerParser) TargetLogType() enum.LogType {
+	return enum.LogTypeContainer
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (k *k8sContainerParser) GetDocumentAnchorID() string {
 	return "k8s_container"

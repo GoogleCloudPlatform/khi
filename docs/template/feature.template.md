@@ -10,9 +10,11 @@
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
 ### Parameters
 
-{{range $index,$form := $feature.Forms}}
-* **{{$form.Label}}** : {{$form.Description}}
-{{end}}
+|Parameter name|Description|
+|:-:|---|
+{{- range $index,$form := $feature.Forms}}
+|{{$form.Label}}|{{$form.Description}}|
+{{- end}}
 <!-- END GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
 {{end}}
 {{with $feature.Queries}}

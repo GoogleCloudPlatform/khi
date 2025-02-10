@@ -36,6 +36,11 @@ import (
 
 type gceNetworkParser struct{}
 
+// TargetLogType implements parser.Parser.
+func (g *gceNetworkParser) TargetLogType() enum.LogType {
+	return enum.LogTypeNetworkAPI
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (g *gceNetworkParser) GetDocumentAnchorID() string {
 	return "gce_network"

@@ -8,20 +8,15 @@ This parser reveals how these resources are created,updated or deleted.
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_audit -->
 ### Parameters
 
-
-* **Kind** : 
-
-* **Namespaces** : 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Kind||
+|Namespaces||
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_audit -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_audit -->
 ### Target logs
@@ -51,18 +46,14 @@ This parser shows events associated to K8s resources
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_event -->
 ### Parameters
 
-
-* **Namespaces** : 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Namespaces||
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_event -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_event -->
 ### Target logs
@@ -91,18 +82,14 @@ GKE worker node components logs mainly from kubelet,containerd and dockerd.
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_node -->
 ### Parameters
 
-
-* **Node names** : A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Node names|A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_node -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_node -->
 ### Target logs
@@ -132,23 +119,18 @@ Container logs ingested from stdout/stderr of workload Pods.
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_container -->
 ### Parameters
 
-
-* **Namespaces(Container logs)** : Container logs tend to be a lot and take very long time to query.
-Specify the space splitted namespace lists to query container logs only in the specific namespaces.
-
-* **Pod names(Container logs)** : Container logs tend to be a lot and take very long time to query.
+|Parameter name|Description|
+|:-:|---|
+|Namespaces(Container logs)|Container logs tend to be a lot and take very long time to query.
+Specify the space splitted namespace lists to query container logs only in the specific namespaces.|
+|Pod names(Container logs)|Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
-	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_container -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_container -->
 ### Target logs
@@ -176,16 +158,13 @@ GKE audit log including cluster creation,deletion and upgrades.
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-gke_audit -->
 ### Parameters
 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-gke_audit -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-gke_audit -->
 ### Target logs
@@ -212,20 +191,15 @@ Compute API audit logs used for cluster related logs. This also visualize operat
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-compute_api -->
 ### Parameters
 
-
-* **Kind** : 
-
-* **Namespaces** : 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Kind||
+|Namespaces||
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-compute_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-compute_api -->
 ### Target logs
@@ -266,20 +240,15 @@ GCE network API audit log including NEG related audit logs to identify when the 
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-gce_network -->
 ### Parameters
 
-
-* **Kind** : 
-
-* **Namespaces** : 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Kind||
+|Namespaces||
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-gce_network -->
 ### Target logs
@@ -319,16 +288,13 @@ Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-multicloud_api -->
 ### Parameters
 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-multicloud_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-multicloud_api -->
 ### Target logs
@@ -357,16 +323,13 @@ This log type also includes Node Auto Provisioner logs.
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-autoscaler -->
 ### Parameters
 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-autoscaler -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-autoscaler -->
 ### Target logs
@@ -395,16 +358,13 @@ Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and 
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-onprem_api -->
 ### Parameters
 
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-onprem_api -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-onprem_api -->
 ### Target logs
@@ -432,18 +392,14 @@ Visualize Kubernetes control plane component logs on a cluster
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
 ### Parameters
 
-
-* **Control plane component names** : Control plane component names to query(e.g. apiserver, controller-manager...etc)
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Control plane component names|Control plane component names to query(e.g. apiserver, controller-manager...etc)|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-k8s_control_plane_component -->
 ### Target logs
@@ -472,22 +428,16 @@ Serial port logs of worker nodes. Serial port logging feature must be enabled on
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-serialport -->
 ### Parameters
 
-
-* **Kind** : 
-
-* **Namespaces** : 
-
-* **Node names** : A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Cluster name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Kind||
+|Namespaces||
+|Node names|A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.|
+|Project ID|A project ID containing the cluster to inspect|
+|Cluster name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-serialport -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-serialport -->
 ### Target logs
@@ -532,18 +482,14 @@ Airflow Scheduler logs contain information related to the scheduling of TaskInst
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
 ### Parameters
 
-
-* **Location** : A location(regions) containing the environments to inspect
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Composer Environment Name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Location|A location(regions) containing the environments to inspect|
+|Project ID|A project ID containing the cluster to inspect|
+|Composer Environment Name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_schedule -->
 ### Target logs
@@ -568,18 +514,14 @@ Airflow Worker logs contain information related to the execution of TaskInstance
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_worker -->
 ### Parameters
 
-
-* **Location** : A location(regions) containing the environments to inspect
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Composer Environment Name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Location|A location(regions) containing the environments to inspect|
+|Project ID|A project ID containing the cluster to inspect|
+|Composer Environment Name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_worker -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_worker -->
 ### Target logs
@@ -604,18 +546,14 @@ The DagProcessorManager logs contain information for investigating the number of
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
 ### Parameters
 
-
-* **Location** : A location(regions) containing the environments to inspect
-
-* **Project ID** : A project ID containing the cluster to inspect
-
-* **Composer Environment Name** : 
-
-* **End time** : The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)
-
-* **Duration** : 
-
+|Parameter name|Description|
+|:-:|---|
+|Location|A location(regions) containing the environments to inspect|
+|Project ID|A project ID containing the cluster to inspect|
+|Composer Environment Name||
+|End time|The endtime of query. Please input it in the format of RFC3339
+(example: 2006-01-02T15:04:05-07:00)|
+|Duration||
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
 <!-- BEGIN GENERATED PART: feature-element-depending-query-header-airflow_dag_processor -->
 ### Target logs

@@ -91,6 +91,11 @@ var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPre
 type AirflowSchedulerParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (t *AirflowSchedulerParser) TargetLogType() enum.LogType {
+	return enum.LogTypeComposerEnvironment
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (t *AirflowSchedulerParser) GetDocumentAnchorID() string {
 	return "airflow_schedule"
@@ -219,6 +224,11 @@ var AirflowWorkerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix
 var _ parser.Parser = &AirflowWorkerParser{}
 
 type AirflowWorkerParser struct {
+}
+
+// TargetLogType implements parser.Parser.
+func (a *AirflowWorkerParser) TargetLogType() enum.LogType {
+	return enum.LogTypeComposerEnvironment
 }
 
 // GetDocumentAnchorID implements parser.Parser.
@@ -370,6 +380,11 @@ var AirflowDagProcessorLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCP
 
 type AirflowDagProcessorParser struct {
 	dagFilePath string
+}
+
+// TargetLogType implements parser.Parser.
+func (a *AirflowDagProcessorParser) TargetLogType() enum.LogType {
+	return enum.LogTypeComposerEnvironment
 }
 
 // GetDocumentAnchorID implements parser.Parser.

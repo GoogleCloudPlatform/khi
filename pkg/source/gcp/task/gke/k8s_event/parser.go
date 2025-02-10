@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -31,6 +32,11 @@ import (
 var GKEK8sEventLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/event-parser", &k8sEventParser{}, true)
 
 type k8sEventParser struct {
+}
+
+// TargetLogType implements parser.Parser.
+func (k *k8sEventParser) TargetLogType() enum.LogType {
+	return enum.LogTypeEvent
 }
 
 // GetDocumentAnchorID implements parser.Parser.

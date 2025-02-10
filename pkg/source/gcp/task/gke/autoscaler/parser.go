@@ -36,6 +36,11 @@ import (
 type autoscalerLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (p *autoscalerLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeAutoscaler
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (p *autoscalerLogParser) GetDocumentAnchorID() string {
 	return "autoscaler"

@@ -35,6 +35,11 @@ import (
 type computeAPIParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (c *computeAPIParser) TargetLogType() enum.LogType {
+	return enum.LogTypeComputeApi
+}
+
 // GetDocumentAnchorID implements parser.Parser.
 func (c *computeAPIParser) GetDocumentAnchorID() string {
 	return "compute_api"
