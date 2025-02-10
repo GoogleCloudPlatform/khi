@@ -1,6 +1,8 @@
 package model
 
 import (
+	"strings"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/taskfilter"
@@ -36,7 +38,7 @@ func GetInspectionTypeDocumentModel(taskServer *inspection.InspectionTaskServer)
 		features := []InspectionTypeDocumentElementFeature{}
 		for _, task := range tasks {
 			features = append(features, InspectionTypeDocumentElementFeature{
-				ID:          task.Labels().GetOrDefault(inspection_task.LabelKeyFeatureDocumentAnchorID, "").(string),
+				ID:          strings.ToLower(task.Labels().GetOrDefault(inspection_task.LabelKeyFeatureDocumentAnchorID, "").(string)),
 				Name:        task.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
 				Description: task.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
 			})

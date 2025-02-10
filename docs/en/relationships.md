@@ -6,6 +6,9 @@ The relationship between its parent and children is usually interpretted as the 
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipChild -->
 ## [The default resource timeline](#RelationshipChild)
 <!-- END GENERATED PART: relationship-element-header-RelationshipChild -->
+
+![](./images/reference/default-timeline.png)
+
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipChild-revisions-header -->
 ### Revisions
 
@@ -87,9 +90,9 @@ This timeline can have the following revisions.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipEndpointSlice-revisions-table -->
 |State|Source log|Description|
 |---|---|---|
-|![#004400](https://placehold.co/15x15/004400/004400.png)Endpoint is ready|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit||
-|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)Endpoint is not ready|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit||
-|![#fed700](https://placehold.co/15x15/fed700/fed700.png)Endpoint is being terminated|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit||
+|![#004400](https://placehold.co/15x15/004400/004400.png)Endpoint is ready|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|An endpoint associated with the parent resource is ready|
+|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)Endpoint is not ready|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|An endpoint associated with the parent resource is not ready. Traffic shouldn't be routed during this time.|
+|![#fed700](https://placehold.co/15x15/fed700/fed700.png)Endpoint is being terminated|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|An endpoint associated with the parent resource is being terminated. New traffic shouldn't be routed to this endpoint during this time, but the endpoint can still have pending requests.|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipEndpointSlice-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer -->
@@ -103,13 +106,18 @@ This timeline can have the following revisions.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer-revisions-table -->
 |State|Source log|Description|
 |---|---|---|
-|![#997700](https://placehold.co/15x15/997700/997700.png)Waiting for starting container|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container||
-|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)Container is not ready|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container||
-|![#007700](https://placehold.co/15x15/007700/007700.png)Container is ready|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container||
-|![#113333](https://placehold.co/15x15/113333/113333.png)Container exited with healthy exit code|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container||
-|![#331111](https://placehold.co/15x15/331111/331111.png)Container exited with errornous exit code|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container||
+|![#997700](https://placehold.co/15x15/997700/997700.png)Waiting for starting container|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is not started yet and waiting for something.(Example: Pulling images, mounting volumes ...etc)|
+|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)Container is not ready|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is started but the readiness is not ready.|
+|![#007700](https://placehold.co/15x15/007700/007700.png)Container is ready|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is started and the readiness is ready|
+|![#113333](https://placehold.co/15x15/113333/113333.png)Container exited with healthy exit code|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is already terminated with successful exit code = 0|
+|![#331111](https://placehold.co/15x15/331111/331111.png)Container exited with errornous exit code|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is already terminated with errornous exit code != 0|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipContainer-revisions-table -->
+
+> [!TIP]
+> Detailed container statuses are only available when your project enabled `DATA_WRITE` audit log for Kubernetes Engine API.
+> Check [README](../../README.md) more details to configure `DATA_WRITE` audit log.
+
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer-events-header -->
 ### Events
 
@@ -118,8 +126,8 @@ This timeline can have the following events.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer-events-table -->
 |Source log|Description|
 |---|---|
-|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container||
-|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node||
+|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|A container log on stdout/etderr|
+|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node|kubelet/containerd logs associated with the container|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipContainer-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNodeComponent -->
@@ -133,9 +141,9 @@ This timeline can have the following revisions.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNodeComponent-revisions-table -->
 |State|Source log|Description|
 |---|---|---|
-|![#997700](https://placehold.co/15x15/997700/997700.png)Resource may be existing|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node||
-|![#0000FF](https://placehold.co/15x15/0000FF/0000FF.png)Resource is existing|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node||
-|![#CC0000](https://placehold.co/15x15/CC0000/CC0000.png)Resource is deleted|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node||
+|![#997700](https://placehold.co/15x15/997700/997700.png)Resource may be existing|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node|The component is infrred to be running because of the logs from it|
+|![#0000FF](https://placehold.co/15x15/0000FF/0000FF.png)Resource is existing|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node|The component is running running. (Few node components supports this state because the parser knows logs on startup for specific components)|
+|![#CC0000](https://placehold.co/15x15/CC0000/CC0000.png)Resource is deleted|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node|The component is no longer running. (Few node components supports this state because the parser knows logs on termination for specific components)|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipNodeComponent-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNodeComponent-events-header -->
@@ -146,7 +154,7 @@ This timeline can have the following events.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNodeComponent-events-table -->
 |Source log|Description|
 |---|---|
-|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node||
+|![#0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node|A log from the component on the log|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipNodeComponent-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipOwnerReference -->
@@ -178,7 +186,7 @@ This timeline can have the following aliases.
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipPodBinding-aliases-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup -->
-## [![#A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png) neg - NEG timeline](#RelationshipNetworkEndpointGroup)
+## [![#A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png) neg - Network Endpoint Group timeline](#RelationshipNetworkEndpointGroup)
 <!-- END GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup-revisions-header -->
 ### Revisions
@@ -188,8 +196,8 @@ This timeline can have the following revisions.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup-revisions-table -->
 |State|Source log|Description|
 |---|---|---|
-|![#004400](https://placehold.co/15x15/004400/004400.png)State is 'True'|![#33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api||
-|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)State is 'False'|![#33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api||
+|![#004400](https://placehold.co/15x15/004400/004400.png)State is 'True'|![#33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api|indicates the NEG is already attached to the Pod.|
+|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)State is 'False'|![#33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api|indicates the NEG is detached from the Pod|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipNetworkEndpointGroup-revisions-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup -->
@@ -203,7 +211,7 @@ This timeline can have the following events.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup-events-table -->
 |Source log|Description|
 |---|---|
-|![#FF5555](https://placehold.co/15x15/FF5555/FF5555.png)autoscaler||
+|![#FF5555](https://placehold.co/15x15/FF5555/FF5555.png)autoscaler|Autoscaler logs associated to a MIG(e.g The mig was scaled up by the austoscaler)|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipManagedInstanceGroup-events-table -->
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent -->
@@ -217,6 +225,20 @@ This timeline can have the following events.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent-events-table -->
 |Source log|Description|
 |---|---|
-|![#FF3333](https://placehold.co/15x15/FF3333/FF3333.png)control_plane_component||
+|![#FF3333](https://placehold.co/15x15/FF3333/FF3333.png)control_plane_component|A log from the control plane component|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipControlPlaneComponent-events-table -->
+<!-- BEGIN GENERATED PART: relationship-element-header-RelationshipSerialPort -->
+## [![#333333](https://placehold.co/15x15/333333/333333.png) serialport - Serialport log timeline](#RelationshipSerialPort)
+<!-- END GENERATED PART: relationship-element-header-RelationshipSerialPort -->
+<!-- BEGIN GENERATED PART: relationship-element-header-RelationshipSerialPort-events-header -->
+### Events
+
+This timeline can have the following events.
+<!-- END GENERATED PART: relationship-element-header-RelationshipSerialPort-events-header -->
+<!-- BEGIN GENERATED PART: relationship-element-header-RelationshipSerialPort-events-table -->
+|Source log|Description|
+|---|---|
+|![#333333](https://placehold.co/15x15/333333/333333.png)serial_port|A serialport log from the node|
+
+<!-- END GENERATED PART: relationship-element-header-RelationshipSerialPort-events-table -->

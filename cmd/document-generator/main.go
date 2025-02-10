@@ -52,6 +52,11 @@ func main() {
 	err = generator.GenerateDocument("./docs/en/features.md", "feature-template", featureDocumentModel, false)
 	fatal(err, "failed to generate feature document")
 
+	formDocumentModel, err := model.GetFormDocumentModel(inspectionServer)
+	fatal(err, "failed to generate form document model")
+	err = generator.GenerateDocument("./docs/en/forms.md", "form-template", formDocumentModel, false)
+	fatal(err, "failed to generate form document")
+
 	relationshipDocumentModel := model.GetRelationshipDocumentModel()
 	err = generator.GenerateDocument("./docs/en/relationships.md", "relationship-template", relationshipDocumentModel, false)
 	fatal(err, "failed to generate relationship document")

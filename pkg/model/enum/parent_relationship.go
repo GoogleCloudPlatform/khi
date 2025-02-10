@@ -33,7 +33,7 @@ const (
 )
 
 // EnumParentRelationshipLength is the count of ParentRelationship enum elements.
-const EnumParentRelationshipLength = int(relationshipUnusedEnd)
+const EnumParentRelationshipLength = int(relationshipUnusedEnd) + 1
 
 // parentRelationshipFrontendMetadata is a type defined for each parent relationship types.
 type ParentRelationshipFrontendMetadata struct {
@@ -241,14 +241,17 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				State:         RevisionStateEndpointReady,
 				SourceLogType: LogTypeAudit,
+				Description:   "An endpoint associated with the parent resource is ready",
 			},
 			{
 				State:         RevisionStateEndpointUnready,
 				SourceLogType: LogTypeAudit,
+				Description:   "An endpoint associated with the parent resource is not ready. Traffic shouldn't be routed during this time.",
 			},
 			{
 				State:         RevisionStateEndpointTerminating,
 				SourceLogType: LogTypeAudit,
+				Description:   "An endpoint associated with the parent resource is being terminated. New traffic shouldn't be routed to this endpoint during this time, but the endpoint can still have pending requests.",
 			},
 		},
 	},
@@ -265,30 +268,37 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				State:         RevisionStateContainerWaiting,
 				SourceLogType: LogTypeContainer,
+				Description:   "The container is not started yet and waiting for something.(Example: Pulling images, mounting volumes ...etc)",
 			},
 			{
 				State:         RevisionStateContainerRunningNonReady,
 				SourceLogType: LogTypeContainer,
+				Description:   "The container is started but the readiness is not ready.",
 			},
 			{
 				State:         RevisionStateContainerRunningReady,
 				SourceLogType: LogTypeContainer,
+				Description:   "The container is started and the readiness is ready",
 			},
 			{
 				State:         RevisionStateContainerTerminatedWithSuccess,
 				SourceLogType: LogTypeContainer,
+				Description:   "The container is already terminated with successful exit code = 0",
 			},
 			{
 				State:         RevisionStateContainerTerminatedWithError,
 				SourceLogType: LogTypeContainer,
+				Description:   "The container is already terminated with errornous exit code != 0",
 			},
 		},
 		GeneratableEvents: []GeneratableEventInfo{
 			{
 				SourceLogType: LogTypeContainer,
+				Description:   "A container log on stdout/etderr",
 			},
 			{
 				SourceLogType: LogTypeNode,
+				Description:   "kubelet/containerd logs associated with the container",
 			},
 		},
 	},
@@ -305,19 +315,23 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				State:         RevisionStateInferred,
 				SourceLogType: LogTypeNode,
+				Description:   "The component is infrred to be running because of the logs from it",
 			},
 			{
 				State:         RevisionStateExisting,
 				SourceLogType: LogTypeNode,
+				Description:   "The component is running running. (Few node components supports this state because the parser knows logs on startup for specific components)",
 			},
 			{
 				State:         RevisionStateDeleted,
 				SourceLogType: LogTypeNode,
+				Description:   "The component is no longer running. (Few node components supports this state because the parser knows logs on termination for specific components)",
 			},
 		},
 		GeneratableEvents: []GeneratableEventInfo{
 			{
 				SourceLogType: LogTypeNode,
+				Description:   "A log from the component on the log",
 			},
 		},
 	},
@@ -359,7 +373,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		Visible:              true,
 		EnumKeyName:          "RelationshipNetworkEndpointGroup",
 		Label:                "neg",
-		LongName:             "NEG timeline",
+		LongName:             "Network Endpoint Group timeline",
 		LabelColor:           "#FFFFFF",
 		LabelBackgroundColor: "#A52A2A",
 		Hint:                 "Pod serving status obtained from the associated NEG status",
@@ -368,10 +382,12 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				State:         RevisionStateConditionTrue,
 				SourceLogType: LogTypeNetworkAPI,
+				Description:   "indicates the NEG is already attached to the Pod.",
 			},
 			{
 				State:         RevisionStateConditionFalse,
 				SourceLogType: LogTypeNetworkAPI,
+				Description:   "indicates the NEG is detached from the Pod",
 			},
 		},
 	},
@@ -387,6 +403,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		GeneratableEvents: []GeneratableEventInfo{
 			{
 				SourceLogType: LogTypeAutoscaler,
+				Description:   "Autoscaler logs associated to a MIG(e.g The mig was scaled up by the austoscaler)",
 			},
 		},
 	},
@@ -402,6 +419,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		GeneratableEvents: []GeneratableEventInfo{
 			{
 				SourceLogType: LogTypeControlPlaneComponent,
+				Description:   "A log from the control plane component",
 			},
 		},
 	},
@@ -417,6 +435,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		GeneratableEvents: []GeneratableEventInfo{
 			{
 				SourceLogType: LogTypeSerialPort,
+				Description:   "A serialport log from the node",
 			},
 		},
 	},

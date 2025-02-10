@@ -7,10 +7,10 @@
 
 <!-- END GENERATED PART: inspection-type-element-header-{{$type.ID}} -->
 
+<!-- BEGIN GENERATED PART: inspection-type-element-header-features-{{$type.ID}} -->
 {{range $feature := $type.SupportedFeatures}}
-<!-- BEGIN GENERATED PART: inspection-type-element-header-{{$type.ID}}-{{$feature.ID}} -->
 * [{{$feature.Name}}](./features.md#{{$feature.ID}})
-<!-- END GENERATED PART: inspection-type-element-header-{{$type.ID}}-{{$feature.ID}} -->
-{{end}}
+{{- end}}
+<!-- END GENERATED PART: inspection-type-element-header-features-{{$type.ID}} -->
 {{end}}
 {{end}}

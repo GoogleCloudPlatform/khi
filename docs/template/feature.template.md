@@ -13,7 +13,7 @@
 |Parameter name|Description|
 |:-:|---|
 {{- range $index,$form := $feature.Forms}}
-|{{$form.Label}}|{{$form.Description}}|
+|[{{$form.Label}}](./forms.md#{{$form.ID}})|{{$form.Description}}|
 {{- end}}
 <!-- END GENERATED PART: feature-element-depending-form-header-{{$feature.ID}} -->
 {{end}}
