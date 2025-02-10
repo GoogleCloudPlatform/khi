@@ -52,10 +52,6 @@ func main() {
 	err = generator.GenerateDocument("./docs/en/features.md", "feature-template", featureDocumentModel, false)
 	fatal(err, "failed to generate feature document")
 
-	logTypeDocumentModel := model.GetLogTypeDocumentModel()
-	err = generator.GenerateDocument("./docs/en/log-types.md", "log-type-template", logTypeDocumentModel, false)
-	fatal(err, "failed to generate log type document")
-
 	relationshipDocumentModel := model.GetRelationshipDocumentModel()
 	err = generator.GenerateDocument("./docs/en/relationships.md", "relationship-template", relationshipDocumentModel, false)
 	fatal(err, "failed to generate relationship document")
