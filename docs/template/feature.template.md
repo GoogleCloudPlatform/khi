@@ -24,7 +24,7 @@
 |Timeline type|Short name on chip|
 |:-:|:-:|
 {{- range $index,$timeline := $feature.OutputTimelines}}
-|[{{$timeline.LongName}}](./relationships.md#{{$timeline.RelationshipID}})|{{$timeline.Name}}|
+|![{{$timeline.RelationshipColorCode}}](https://placehold.co/15x15/{{$timeline.RelationshipColorCode}}/{{$timeline.RelationshipColorCode}}.png)[{{$timeline.LongName}}](./relationships.md#{{$timeline.RelationshipID}})|{{$timeline.Name}}|
 {{- end}}
 
 <!-- END GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->

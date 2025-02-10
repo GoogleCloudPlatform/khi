@@ -10,24 +10,23 @@ This parser reveals how these resources are created,updated or deleted.
 
 |Parameter name|Description|
 |:-:|---|
-|Kind||
-|Namespaces||
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Kind|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
+|Namespaces|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_audit -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_audit -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[The default resource timeline](./relationships.md#RelationshipChild)|resource|
-|[Status condition field timeline](./relationships.md#RelationshipResourceCondition)|condition|
-|[Endpoint serving state timeline](./relationships.md#RelationshipEndpointSlice)|endpointslice|
-|[Owning children timeline](./relationships.md#RelationshipOwnerReference)|owns|
-|[Pod binding timeline](./relationships.md#RelationshipPodBinding)|binds|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
+|![4c29e8](https://placehold.co/15x15/4c29e8/4c29e8.png)[Status condition field timeline](./relationships.md#RelationshipResourceCondition)|condition|
+|![008000](https://placehold.co/15x15/008000/008000.png)[Endpoint serving state timeline](./relationships.md#RelationshipEndpointSlice)|endpointslice|
+|![33DD88](https://placehold.co/15x15/33DD88/33DD88.png)[Owning children timeline](./relationships.md#RelationshipOwnerReference)|owns|
+|![FF8855](https://placehold.co/15x15/FF8855/FF8855.png)[Pod binding timeline](./relationships.md#RelationshipPodBinding)|binds|
 
 <!-- END GENERATED PART: feature-element-output-timelines-k8s_audit -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-k8s_audit -->
@@ -59,19 +58,18 @@ This parser shows events associated to K8s resources
 
 |Parameter name|Description|
 |:-:|---|
-|Namespaces||
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Namespaces|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_event -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_event -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[The default resource timeline](./relationships.md#RelationshipChild)|resource|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
 
 <!-- END GENERATED PART: feature-element-output-timelines-k8s_event -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-k8s_event -->
@@ -101,20 +99,19 @@ GKE worker node components logs mainly from kubelet,containerd and dockerd.
 
 |Parameter name|Description|
 |:-:|---|
-|Node names|A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Node names||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_node -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_node -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[Container timeline](./relationships.md#RelationshipContainer)|container|
-|[Node component timeline](./relationships.md#RelationshipNodeComponent)|node-component|
+|![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)[Container timeline](./relationships.md#RelationshipContainer)|container|
+|![0077CC](https://placehold.co/15x15/0077CC/0077CC.png)[Node component timeline](./relationships.md#RelationshipNodeComponent)|node-component|
 
 <!-- END GENERATED PART: feature-element-output-timelines-k8s_node -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-k8s_node -->
@@ -146,23 +143,19 @@ Container logs ingested from stdout/stderr of workload Pods.
 
 |Parameter name|Description|
 |:-:|---|
-|Namespaces(Container logs)|Container logs tend to be a lot and take very long time to query.
-Specify the space splitted namespace lists to query container logs only in the specific namespaces.|
-|Pod names(Container logs)|Container logs tend to be a lot and take very long time to query.
-	Specify the space splitted pod names lists to query container logs only in the specific pods.
-	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Namespaces(Container logs)||
+|Pod names(Container logs)||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_container -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_container -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[Container timeline](./relationships.md#RelationshipContainer)|container|
+|![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)[Container timeline](./relationships.md#RelationshipContainer)|container|
 
 <!-- END GENERATED PART: feature-element-output-timelines-k8s_container -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-k8s_container -->
@@ -191,11 +184,10 @@ GKE audit log including cluster creation,deletion and upgrades.
 
 |Parameter name|Description|
 |:-:|---|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-gke_audit -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-gke_audit -->
 ### Output timelines
@@ -229,20 +221,19 @@ Compute API audit logs used for cluster related logs. This also visualize operat
 
 |Parameter name|Description|
 |:-:|---|
-|Kind||
-|Namespaces||
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Kind|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
+|Namespaces|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-compute_api -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-compute_api -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[Operation timeline](./relationships.md#RelationshipOperation)|operation|
+|![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 
 <!-- END GENERATED PART: feature-element-output-timelines-compute_api -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-compute_api -->
@@ -278,20 +269,19 @@ GCE network API audit log including NEG related audit logs to identify when the 
 
 |Parameter name|Description|
 |:-:|---|
-|Kind||
-|Namespaces||
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Kind|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
+|Namespaces|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-gce_network -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[NEG timeline](./relationships.md#RelationshipNetworkEndpointGroup)|neg|
+|![A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png)[NEG timeline](./relationships.md#RelationshipNetworkEndpointGroup)|neg|
 
 <!-- END GENERATED PART: feature-element-output-timelines-gce_network -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-gce_network -->
@@ -327,11 +317,10 @@ Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 
 |Parameter name|Description|
 |:-:|---|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-multicloud_api -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-multicloud_api -->
 ### Output timelines
@@ -368,18 +357,17 @@ This log type also includes Node Auto Provisioner logs.
 
 |Parameter name|Description|
 |:-:|---|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-autoscaler -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-autoscaler -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[Managed instance group timeline](./relationships.md#RelationshipManagedInstanceGroup)|mig|
+|![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)[Managed instance group timeline](./relationships.md#RelationshipManagedInstanceGroup)|mig|
 
 <!-- END GENERATED PART: feature-element-output-timelines-autoscaler -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-autoscaler -->
@@ -409,11 +397,10 @@ Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and 
 
 |Parameter name|Description|
 |:-:|---|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-onprem_api -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-onprem_api -->
 ### Output timelines
@@ -449,19 +436,18 @@ Visualize Kubernetes control plane component logs on a cluster
 
 |Parameter name|Description|
 |:-:|---|
-|Control plane component names|Control plane component names to query(e.g. apiserver, controller-manager...etc)|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Control plane component names||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
 ### Output timelines
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
-|[Control plane component timeline](./relationships.md#RelationshipControlPlaneComponent)|controlplane|
+|![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)[Control plane component timeline](./relationships.md#RelationshipControlPlaneComponent)|controlplane|
 
 <!-- END GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-k8s_control_plane_component -->
@@ -491,14 +477,13 @@ Serial port logs of worker nodes. Serial port logging feature must be enabled on
 
 |Parameter name|Description|
 |:-:|---|
-|Kind||
-|Namespaces||
-|Node names|A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.|
-|Project ID|A project ID containing the cluster to inspect|
-|Cluster name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|Kind|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
+|Namespaces|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
+|Node names||
+|Project ID|The project ID containing the logs of cluster to query|
+|Cluster name|The cluster name to gather logs.|
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-serialport -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-serialport -->
 ### Output timelines
@@ -544,12 +529,11 @@ Airflow Scheduler logs contain information related to the scheduling of TaskInst
 
 |Parameter name|Description|
 |:-:|---|
-|Location|A location(regions) containing the environments to inspect|
-|Project ID|A project ID containing the cluster to inspect|
+|Location||
+|Project ID|The project ID containing the logs of cluster to query|
 |Composer Environment Name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_schedule -->
 ### Output timelines
@@ -581,12 +565,11 @@ Airflow Worker logs contain information related to the execution of TaskInstance
 
 |Parameter name|Description|
 |:-:|---|
-|Location|A location(regions) containing the environments to inspect|
-|Project ID|A project ID containing the cluster to inspect|
+|Location||
+|Project ID|The project ID containing the logs of cluster to query|
 |Composer Environment Name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_worker -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_worker -->
 ### Output timelines
@@ -618,12 +601,11 @@ The DagProcessorManager logs contain information for investigating the number of
 
 |Parameter name|Description|
 |:-:|---|
-|Location|A location(regions) containing the environments to inspect|
-|Project ID|A project ID containing the cluster to inspect|
+|Location||
+|Project ID|The project ID containing the logs of cluster to query|
 |Composer Environment Name||
-|End time|The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)|
-|Duration||
+|End time|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
+|Duration|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
 <!-- END GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_dag_processor -->
 ### Output timelines

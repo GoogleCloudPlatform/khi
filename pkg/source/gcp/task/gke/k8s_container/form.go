@@ -32,7 +32,7 @@ var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]st
 }
 var InputContainerQueryNamespaceFilterTask = form.NewInputFormDefinitionBuilder(InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
 	WithDefaultValueConstant("@managed", true).
-	WithDescription(`Container logs tend to be a lot and take very long time to query.
+	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
@@ -59,7 +59,7 @@ const InputContainerQueryPodNamesTaskID = gcp_task.GCPPrefix + "input/container-
 var inputPodNamesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{}
 var InputContainerQueryPodNamesFilterMask = form.NewInputFormDefinitionBuilder(InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
 	WithDefaultValueConstant("@any", true).
-	WithDescription(`Container logs tend to be a lot and take very long time to query.
+	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
 	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {

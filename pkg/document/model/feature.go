@@ -46,9 +46,10 @@ type FeatureDependentFormElement struct {
 }
 
 type FeatureOutputTimelineElement struct {
-	RelationshipID string
-	LongName       string
-	Name           string
+	RelationshipID        string
+	RelationshipColorCode string
+	LongName              string
+	Name                  string
 }
 
 func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
@@ -122,9 +123,10 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 			}
 			if isRelated {
 				outputTimelines = append(outputTimelines, FeatureOutputTimelineElement{
-					RelationshipID: relationship.EnumKeyName,
-					LongName:       relationship.LongName,
-					Name:           relationship.Label,
+					RelationshipID:        relationship.EnumKeyName,
+					RelationshipColorCode: strings.TrimLeft(relationship.LabelBackgroundColor, "#"),
+					LongName:              relationship.LongName,
+					Name:                  relationship.Label,
 				})
 			}
 		}
