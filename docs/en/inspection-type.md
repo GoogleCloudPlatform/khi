@@ -1,14 +1,15 @@
-<!-- BEGIN GENERATED PART: inspection-type-header -->
 # Inspection types
 
-Inspection type is ...
+Log querying and parsing procedures in KHI is done on a DAG based task execution system.
+Each tasks can have dependency and KHI automatically resolves them and run them parallelly as much as possible. 
 
-<!-- END GENERATED PART: inspection-type-header -->
+Inspection type is the first menu item users will select on the `New inspection` menu. Inspection type is usually a cluster type.
+KHI filters out unsupported parser for the selected inspection type at first.
 
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke -->
 ## [Google Kubernetes Engine](#gcp-gke)
 
-### Supported features
+### Features
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-k8s_audit -->
@@ -44,7 +45,7 @@ Inspection type is ...
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-composer -->
 ## [Cloud Composer](#gcp-composer)
 
-### Supported features
+### Features
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-composer -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-composer-k8s_audit -->
@@ -89,7 +90,7 @@ Inspection type is ...
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-aws -->
 ## [GKE on AWS(Anthos on AWS)](#gcp-gke-on-aws)
 
-### Supported features
+### Features
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-on-aws -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-aws-k8s_audit -->
@@ -113,7 +114,7 @@ Inspection type is ...
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-azure -->
 ## [GKE on Azure(Anthos on Azure)](#gcp-gke-on-azure)
 
-### Supported features
+### Features
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gke-on-azure -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gke-on-azure-k8s_audit -->
@@ -137,7 +138,7 @@ Inspection type is ...
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal -->
 ## [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](#gcp-gdcv-for-baremetal)
 
-### Supported features
+### Features
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-baremetal-k8s_audit -->
@@ -161,7 +162,7 @@ Inspection type is ...
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware -->
 ## [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](#gcp-gdcv-for-vmware)
 
-### Supported features
+### Features
 
 <!-- END GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware -->
 <!-- BEGIN GENERATED PART: inspection-type-element-header-gcp-gdcv-for-vmware-k8s_audit -->
