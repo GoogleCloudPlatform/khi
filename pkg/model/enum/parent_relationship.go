@@ -87,6 +87,11 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		SortPriority:         1000,
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
+				State:         RevisionStateInferred,
+				SourceLogType: LogTypeAudit,
+				Description:   "This state indicates the resource exits at the time, but this existence is inferred from the other logs later. The detailed resource information is not available.",
+			},
+			{
 				State:         RevisionStateExisting,
 				SourceLogType: LogTypeAudit,
 				Description:   "This state indicates the resource exits at the time",
@@ -101,6 +106,11 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 				SourceLogType: LogTypeAudit,
 				Description:   "This state indicates the resource is being deleted with grace period at the time.",
 			},
+			{
+				State:         RevisionStateProvisioning,
+				SourceLogType: LogTypeGkeAudit,
+				Description:   "This state indicates the resource is being provisioned. Currently this state is only used for cluster/nodepool status only.",
+			},
 		},
 		GeneratableEvents: []GeneratableEventInfo{
 			{
@@ -110,6 +120,22 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				SourceLogType: LogTypeEvent,
 				Description:   "An event that related to a resource",
+			},
+			{
+				SourceLogType: LogTypeNode,
+				Description:   "An event that related to a node resource",
+			},
+			{
+				SourceLogType: LogTypeComputeApi,
+				Description:   "An event that related to a compute resource",
+			},
+			{
+				SourceLogType: LogTypeControlPlaneComponent,
+				Description:   "A log related to the timeline resource related to control plane component",
+			},
+			{
+				SourceLogType: LogTypeAutoscaler,
+				Description:   "A log related to the Pod which triggered or prevented autoscaler",
 			},
 		},
 	},
@@ -126,14 +152,17 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				State:         RevisionStateConditionTrue,
 				SourceLogType: LogTypeAudit,
+				Description:   "The condition state is `True`. **This doesn't always mean a good status** (For example, `NetworkUnreachabel` condition on a Node means a bad condition when it is `True`)",
 			},
 			{
 				State:         RevisionStateConditionFalse,
 				SourceLogType: LogTypeAudit,
+				Description:   "The condition state is `False`. **This doesn't always mean a bad status** (For example, `NetworkUnreachabel` condition on a Node means a good condition when it is `False`)",
 			},
 			{
 				State:         RevisionStateConditionUnknown,
 				SourceLogType: LogTypeAudit,
+				Description:   "The condition state is `Unknown`",
 			},
 		},
 	},
@@ -150,10 +179,52 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				State:         RevisionStateOperationStarted,
 				SourceLogType: LogTypeComputeApi,
+				Description:   "A long running operation is running",
 			},
 			{
 				State:         RevisionStateOperationFinished,
 				SourceLogType: LogTypeComputeApi,
+				Description:   "An operation is finished at the time of left edge of this operation.",
+			},
+			{
+				State:         RevisionStateOperationStarted,
+				SourceLogType: LogTypeGkeAudit,
+				Description:   "A long running operation is running",
+			},
+			{
+				State:         RevisionStateOperationFinished,
+				SourceLogType: LogTypeGkeAudit,
+				Description:   "An operation is finished at the time of left edge of this operation.",
+			},
+			{
+				State:         RevisionStateOperationStarted,
+				SourceLogType: LogTypeNetworkAPI,
+				Description:   "A long running operation is running",
+			},
+			{
+				State:         RevisionStateOperationFinished,
+				SourceLogType: LogTypeNetworkAPI,
+				Description:   "An operation is finished at the time of left edge of this operation.",
+			},
+			{
+				State:         RevisionStateOperationStarted,
+				SourceLogType: LogTypeMulticloudAPI,
+				Description:   "A long running operation is running",
+			},
+			{
+				State:         RevisionStateOperationFinished,
+				SourceLogType: LogTypeMulticloudAPI,
+				Description:   "An operation is finished at the time of left edge of this operation.",
+			},
+			{
+				State:         RevisionStateOperationStarted,
+				SourceLogType: LogTypeOnPremAPI,
+				Description:   "A long running operation is running",
+			},
+			{
+				State:         RevisionStateOperationFinished,
+				SourceLogType: LogTypeOnPremAPI,
+				Description:   "An operation is finished at the time of left edge of this operation.",
 			},
 		},
 	},
@@ -230,6 +301,20 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LabelBackgroundColor: "#0077CC",
 		Hint:                 "Non container resource running on a node",
 		SortPriority:         6000,
+		GeneratableRevisions: []GeneratableRevisionInfo{
+			{
+				State:         RevisionStateInferred,
+				SourceLogType: LogTypeNode,
+			},
+			{
+				State:         RevisionStateExisting,
+				SourceLogType: LogTypeNode,
+			},
+			{
+				State:         RevisionStateDeleted,
+				SourceLogType: LogTypeNode,
+			},
+		},
 		GeneratableEvents: []GeneratableEventInfo{
 			{
 				SourceLogType: LogTypeNode,

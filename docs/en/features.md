@@ -115,6 +115,7 @@ GKE worker node components logs mainly from kubelet,containerd and dockerd.
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
 |![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)[Container timeline](./relationships.md#RelationshipContainer)|container|
 |![0077CC](https://placehold.co/15x15/0077CC/0077CC.png)[Node component timeline](./relationships.md#RelationshipNodeComponent)|node-component|
 
@@ -199,6 +200,8 @@ GKE audit log including cluster creation,deletion and upgrades.
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
+|![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 
 <!-- END GENERATED PART: feature-element-output-timelines-gke_audit -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-gke_audit -->
@@ -238,6 +241,7 @@ Compute API audit logs used for cluster related logs. This also visualize operat
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
 |![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 
 <!-- END GENERATED PART: feature-element-output-timelines-compute_api -->
@@ -286,6 +290,7 @@ GCE network API audit log including NEG related audit logs to identify when the 
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 |![A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png)[NEG timeline](./relationships.md#RelationshipNetworkEndpointGroup)|neg|
 
 <!-- END GENERATED PART: feature-element-output-timelines-gce_network -->
@@ -332,6 +337,7 @@ Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 
 <!-- END GENERATED PART: feature-element-output-timelines-multicloud_api -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-multicloud_api -->
@@ -372,6 +378,7 @@ This log type also includes Node Auto Provisioner logs.
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
 |![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)[Managed instance group timeline](./relationships.md#RelationshipManagedInstanceGroup)|mig|
 
 <!-- END GENERATED PART: feature-element-output-timelines-autoscaler -->
@@ -412,6 +419,7 @@ Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and 
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#RelationshipOperation)|operation|
 
 <!-- END GENERATED PART: feature-element-output-timelines-onprem_api -->
 <!-- BEGIN GENERATED PART: feature-element-target-query-onprem_api -->
@@ -452,6 +460,7 @@ Visualize Kubernetes control plane component logs on a cluster
 
 |Timeline type|Short name on chip|
 |:-:|:-:|
+|![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#RelationshipChild)|resource|
 |![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)[Control plane component timeline](./relationships.md#RelationshipControlPlaneComponent)|controlplane|
 
 <!-- END GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
