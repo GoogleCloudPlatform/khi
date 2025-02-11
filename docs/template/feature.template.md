@@ -21,10 +21,12 @@
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->
 ### Output timelines
 
-|Timeline type|Short name on chip|
-|:-:|:-:|
+This feature can generates following timeline relationship of timelines. 
+
+|Timeline relationships|Short name on chip|Description|
+|:-:|:-:|:-:|
 {{- range $index,$timeline := $feature.OutputTimelines}}
-|![{{$timeline.RelationshipColorCode}}](https://placehold.co/15x15/{{$timeline.RelationshipColorCode}}/{{$timeline.RelationshipColorCode}}.png)[{{$timeline.LongName}}](./relationships.md#{{$timeline.LongName | anchor}})|{{$timeline.Name}}|
+|![{{$timeline.RelationshipColorCode}}](https://placehold.co/15x15/{{$timeline.RelationshipColorCode}}/{{$timeline.RelationshipColorCode}}.png)[{{$timeline.LongName}}](./relationships.md#{{$timeline.LongName | anchor}})|{{$timeline.Label}}|{{$timeline.Description}}|
 {{- end}}
 
 <!-- END GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->
@@ -35,7 +37,7 @@
 
 Sample query:
 
-```
+```ada {{/* "ada" syntax highlighting is good for Cloud Logging filter */}}
 {{$feature.TargetQueryDependency.SampleQuery}}
 ```
 
@@ -49,6 +51,17 @@ Following log queries are used with this feature.
 * ![{{$query.LogTypeColorCode}}](https://placehold.co/15x15/{{$query.LogTypeColorCode}}/{{$query.LogTypeColorCode}}.png){{$query.LogTypeLabel}}
 {{- end}}
 <!-- END GENERATED PART: feature-element-depending-indirect-query-header-{{$feature.ID}} -->
+{{end}}
+
+{{with $feature.AvailableInspectionTypes}}
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-{{$feature.ID}} -->
+### Inspection types
+
+This feature is supported in the following inspection types.
+{{range $index,$type := $feature.AvailableInspectionTypes}}
+* [{{$type.Name}}](./inspection-type.md#{{$type.Name | anchor}})
+{{- end}}
+<!-- END GENERATED PART: feature-element-available-inspection-type-{{$feature.ID}} -->
 {{end}}
 {{end}}
 {{end}}

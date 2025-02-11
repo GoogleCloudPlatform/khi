@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
@@ -20,10 +21,11 @@ type FeatureDocumentElement struct {
 	Name        string
 	Description string
 
-	IndirectQueryDependency []FeatureIndirectDependentQueryElement
-	TargetQueryDependency   FeatureDependentTargetQueryElement
-	Forms                   []FeatureDependentFormElement
-	OutputTimelines         []FeatureOutputTimelineElement
+	IndirectQueryDependency  []FeatureIndirectDependentQueryElement
+	TargetQueryDependency    FeatureDependentTargetQueryElement
+	Forms                    []FeatureDependentFormElement
+	OutputTimelines          []FeatureOutputTimelineElement
+	AvailableInspectionTypes []FeatureAvailableInspectionType
 }
 
 type FeatureIndirectDependentQueryElement struct {
@@ -49,7 +51,13 @@ type FeatureOutputTimelineElement struct {
 	RelationshipID        string
 	RelationshipColorCode string
 	LongName              string
-	Name                  string
+	Label                 string
+	Description           string
+}
+
+type FeatureAvailableInspectionType struct {
+	ID   string
+	Name string
 }
 
 func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
@@ -126,19 +134,21 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 					RelationshipID:        relationship.EnumKeyName,
 					RelationshipColorCode: strings.TrimLeft(relationship.LabelBackgroundColor, "#"),
 					LongName:              relationship.LongName,
-					Name:                  relationship.Label,
+					Label:                 relationship.Label,
+					Description:           relationship.Description,
 				})
 			}
 		}
 
 		result.Features = append(result.Features, FeatureDocumentElement{
-			ID:                      feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureDocumentAnchorID, "").(string),
-			Name:                    feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
-			Description:             feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
-			IndirectQueryDependency: indirectQueryDependencyElement,
-			TargetQueryDependency:   targetQueryDependencyElement,
-			Forms:                   formElements,
-			OutputTimelines:         outputTimelines,
+			ID:                       feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureDocumentAnchorID, "").(string),
+			Name:                     feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
+			Description:              feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
+			IndirectQueryDependency:  indirectQueryDependencyElement,
+			TargetQueryDependency:    targetQueryDependencyElement,
+			Forms:                    formElements,
+			OutputTimelines:          outputTimelines,
+			AvailableInspectionTypes: getAvailableInspectionTypes(taskServer, feature),
 		})
 
 	}
@@ -167,4 +177,24 @@ func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureT
 		return nil, err
 	}
 	return resolved.FilteredSubset(label.TaskLabelKeyIsFormTask, taskfilter.HasTrue, false).GetAll(), nil
+}
+
+// getAvailableInspectionTypes returns the list of information about inspection type that supports this feature.
+func getAvailableInspectionTypes(taskServer *inspection.InspectionTaskServer, featureTask task.Definition) []FeatureAvailableInspectionType {
+	result := []FeatureAvailableInspectionType{}
+	inspectionTypes := taskServer.GetAllInspectionTypes()
+	for _, inspectionType := range inspectionTypes {
+		labelsAny, found := featureTask.Labels().Get(inspection_task.LabelKeyInspectionTypes)
+		labels := []string{inspectionType.Id}
+		if found {
+			labels = labelsAny.([]string)
+		}
+		if slices.Contains(labels, inspectionType.Id) {
+			result = append(result, FeatureAvailableInspectionType{
+				ID:   inspectionType.Id,
+				Name: inspectionType.Name,
+			})
+		}
+	}
+	return result
 }

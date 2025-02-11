@@ -106,11 +106,11 @@ This timeline can have the following revisions.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipContainer-revisions-table -->
 |State|Source log|Description|
 |---|---|---|
-|![#997700](https://placehold.co/15x15/997700/997700.png)Waiting for starting container|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is not started yet and waiting for something.(Example: Pulling images, mounting volumes ...etc)|
-|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)Container is not ready|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is started but the readiness is not ready.|
-|![#007700](https://placehold.co/15x15/007700/007700.png)Container is ready|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is started and the readiness is ready|
-|![#113333](https://placehold.co/15x15/113333/113333.png)Container exited with healthy exit code|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is already terminated with successful exit code = 0|
-|![#331111](https://placehold.co/15x15/331111/331111.png)Container exited with errornous exit code|![#fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container|The container is already terminated with errornous exit code != 0|
+|![#997700](https://placehold.co/15x15/997700/997700.png)Waiting for starting container|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|The container is not started yet and waiting for something.(Example: Pulling images, mounting volumes ...etc)|
+|![#EE4400](https://placehold.co/15x15/EE4400/EE4400.png)Container is not ready|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|The container is started but the readiness is not ready.|
+|![#007700](https://placehold.co/15x15/007700/007700.png)Container is ready|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|The container is started and the readiness is ready|
+|![#113333](https://placehold.co/15x15/113333/113333.png)Container exited with healthy exit code|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|The container is already terminated with successful exit code = 0|
+|![#331111](https://placehold.co/15x15/331111/331111.png)Container exited with errornous exit code|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|The container is already terminated with errornous exit code != 0|
 
 <!-- END GENERATED PART: relationship-element-header-RelationshipContainer-revisions-table -->
 

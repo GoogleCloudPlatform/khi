@@ -382,6 +382,7 @@ func getNodeNameSubstringsFromRawInput(value string) []string {
 var InputNodeNameFilterTask = form.NewInputFormDefinitionBuilder(InputNodeNameFilterTaskID, PriorityForK8sResourceFilterGroup+3000, "Node names").
 	WithDefaultValueConstant("", true).
 	WithUIDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
+	WithDocumentDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		nodeNameSubstrings := getNodeNameSubstringsFromRawInput(value)
 		for _, name := range nodeNameSubstrings {

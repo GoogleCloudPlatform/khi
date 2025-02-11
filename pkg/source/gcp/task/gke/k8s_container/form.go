@@ -34,6 +34,7 @@ var InputContainerQueryNamespaceFilterTask = form.NewInputFormDefinitionBuilder(
 	WithDefaultValueConstant("@managed", true).
 	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
+	WithDocumentDescription("The namespace of Pods to gather container logs. Specify `@managed` to gather logs of system components.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
 		if err != nil {
@@ -62,6 +63,7 @@ var InputContainerQueryPodNamesFilterMask = form.NewInputFormDefinitionBuilder(I
 	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
 	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`).
+	WithDocumentDescription("The substring of Pod name to gather container logs. Specify `@any` to gather logs of all pods.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
 		if err != nil {

@@ -43,14 +43,16 @@ type ParentRelationshipFrontendMetadata struct {
 	EnumKeyName string
 	// Label is a short name shown on frontend as the chip on the left of timeline name.
 	Label string
-	// LongName is a descriptive name of the ralationship. This value is used in the document.
-	LongName string
 	// Hint explains the meaning of this timeline. This is shown as the tooltip on front end.
 	Hint                 string
 	LabelColor           string
 	LabelBackgroundColor string
 	SortPriority         int
 
+	// LongName is a descriptive name of the ralationship. This value is used in the document.
+	LongName string
+	// Description is a description of this timeline ralationship. This value is used in the document.
+	Description string
 	// GeneratableEvents contains the list of possible event types put on a timeline with the relationship type. This field is used for document generation.
 	GeneratableEvents []GeneratableEventInfo
 	// GeneratableRevisions contains the list of possible revision types put on a timeline with the relationship type. This field is used for document generation.
@@ -81,20 +83,21 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		Visible:              false,
 		EnumKeyName:          "RelationshipChild",
 		Label:                "resource",
-		LongName:             "The default resource timeline",
 		LabelColor:           "#000000",
 		LabelBackgroundColor: "#CCCCCC",
 		SortPriority:         1000,
+		LongName:             "The default resource timeline",
+		Description:          "A default timeline recording the history of Kubernetes resources",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateInferred,
 				SourceLogType: LogTypeAudit,
-				Description:   "This state indicates the resource exits at the time, but this existence is inferred from the other logs later. The detailed resource information is not available.",
+				Description:   "This state indicates the resource exists at the time, but this existence is inferred from the other logs later. The detailed resource information is not available.",
 			},
 			{
 				State:         RevisionStateExisting,
 				SourceLogType: LogTypeAudit,
-				Description:   "This state indicates the resource exits at the time",
+				Description:   "This state indicates the resource exists at the time",
 			},
 			{
 				State:         RevisionStateDeleted,
@@ -148,6 +151,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LabelBackgroundColor: "#4c29e8",
 		Hint:                 "Resource condition written on .status.conditions",
 		SortPriority:         2000,
+		Description:          "A timeline showing the state changes on `.status.conditions` of the parent resource",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateConditionTrue,
@@ -175,6 +179,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LabelBackgroundColor: "#000000",
 		Hint:                 "GCP operations associated with this resource",
 		SortPriority:         3000,
+		Description:          "A timeline showing long running operation status related to the parent resource",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateOperationStarted,
@@ -237,6 +242,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LabelBackgroundColor: "#008000",
 		Hint:                 "Pod serving status obtained from endpoint slice",
 		SortPriority:         20000, // later than container
+		Description:          "A timeline indicates the status of endpoint related to the parent resource(Pod or Service)",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateEndpointReady,
@@ -264,30 +270,31 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LabelBackgroundColor: "#fe9bab",
 		Hint:                 "Statuses/logs of a container",
 		SortPriority:         5000,
+		Description:          "A timline of a container included in the parent timeline of a Pod",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateContainerWaiting,
-				SourceLogType: LogTypeContainer,
+				SourceLogType: LogTypeAudit,
 				Description:   "The container is not started yet and waiting for something.(Example: Pulling images, mounting volumes ...etc)",
 			},
 			{
 				State:         RevisionStateContainerRunningNonReady,
-				SourceLogType: LogTypeContainer,
+				SourceLogType: LogTypeAudit,
 				Description:   "The container is started but the readiness is not ready.",
 			},
 			{
 				State:         RevisionStateContainerRunningReady,
-				SourceLogType: LogTypeContainer,
+				SourceLogType: LogTypeAudit,
 				Description:   "The container is started and the readiness is ready",
 			},
 			{
 				State:         RevisionStateContainerTerminatedWithSuccess,
-				SourceLogType: LogTypeContainer,
+				SourceLogType: LogTypeAudit,
 				Description:   "The container is already terminated with successful exit code = 0",
 			},
 			{
 				State:         RevisionStateContainerTerminatedWithError,
-				SourceLogType: LogTypeContainer,
+				SourceLogType: LogTypeAudit,
 				Description:   "The container is already terminated with errornous exit code != 0",
 			},
 		},
@@ -311,6 +318,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LabelBackgroundColor: "#0077CC",
 		Hint:                 "Non container resource running on a node",
 		SortPriority:         6000,
+		Description:          "A component running inside of the parent timeline of a Node",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateInferred,
