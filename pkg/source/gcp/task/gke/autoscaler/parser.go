@@ -36,6 +36,11 @@ import (
 type autoscalerLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (p *autoscalerLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeAutoscaler
+}
+
 // Dependencies implements parser.Parser.
 func (*autoscalerLogParser) Dependencies() []string {
 	return []string{
@@ -45,8 +50,7 @@ func (*autoscalerLogParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (*autoscalerLogParser) Description() string {
-	return `Autoscaler logs including decision reasons why they scale up/down or why they didn't.
-This log type also includes Node Auto Provisioner logs.`
+	return `Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.`
 }
 
 // GetParserName implements parser.Parser.

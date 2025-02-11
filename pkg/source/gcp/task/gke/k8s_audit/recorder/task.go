@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 
@@ -127,8 +128,7 @@ func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer) 
 	}
 	waiterTask := inspection_task.NewInspectionProcessor(fmt.Sprintf("%s/feature/audit-parser-v2", gcp_task.GCPPrefix), recorderTaskIds, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		return struct{}{}, nil
-	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log(v2)", `Visualize Kubernetes audit logs in GKE. 
-This parser reveals how these resources are created,updated or deleted. `, true))
+	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true))
 	err := server.AddTaskDefinition(waiterTask)
 	return err
 }

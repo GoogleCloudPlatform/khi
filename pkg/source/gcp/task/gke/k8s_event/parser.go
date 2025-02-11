@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -33,10 +34,14 @@ var GKEK8sEventLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"
 type k8sEventParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (k *k8sEventParser) TargetLogType() enum.LogType {
+	return enum.LogTypeEvent
+}
+
 // Description implements parser.Parser.
 func (*k8sEventParser) Description() string {
-	return `Visualize Kubernetes event logs on GKE.
-This parser shows events associated to K8s resources`
+	return `Gather kubernetes event logs and visualize these on the associated resource timeline.`
 }
 
 // GetParserName implements parser.Parser.

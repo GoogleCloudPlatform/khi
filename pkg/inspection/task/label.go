@@ -14,7 +14,12 @@
 
 package task
 
-import common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+)
+
+//TODO: move task label related constants to ./label
 
 const (
 	InspectionTaskPrefix                 = common_task.KHISystemPrefix + "inspection/"
@@ -23,8 +28,9 @@ const (
 	LabelKeyInspectionRequiredFlag       = InspectionTaskPrefix + "required"
 	LabelKeyProgressReportable           = InspectionTaskPrefix + "progress-reportable"
 	// A []string typed label of Definition. Task registry will filter task units by given inspection type at first.
-	LabelKeyInspectionTypes  = InspectionTaskPrefix + "inspection-type"
-	LabelKeyFeatureTaskTitle = InspectionTaskPrefix + "feature/title"
+	LabelKeyInspectionTypes          = InspectionTaskPrefix + "inspection-type"
+	LabelKeyFeatureTaskTitle         = InspectionTaskPrefix + "feature/title"
+	LabelKeyFeatureTaskTargetLogType = InspectionTaskPrefix + "feature/log-type"
 
 	LabelKeyFeatureTaskDescription = InspectionTaskPrefix + "feature/description"
 
@@ -48,11 +54,13 @@ var _ common_task.LabelOpt = (*ProgressReportableTaskLabelOptImpl)(nil)
 type FeatureTaskLabelImpl struct {
 	title            string
 	description      string
+	logType          enum.LogType
 	isDefaultFeature bool
 }
 
 func (ftl *FeatureTaskLabelImpl) Write(label *common_task.LabelSet) {
 	label.Set(LabelKeyInspectionFeatureFlag, true)
+	label.Set(LabelKeyFeatureTaskTargetLogType, ftl.logType)
 	label.Set(LabelKeyFeatureTaskTitle, ftl.title)
 	label.Set(LabelKeyFeatureTaskDescription, ftl.description)
 	label.Set(LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
@@ -65,10 +73,11 @@ func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTas
 
 var _ common_task.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
-func FeatureTaskLabel(title string, description string, isDefaultFeature bool) *FeatureTaskLabelImpl {
+func FeatureTaskLabel(title string, description string, logType enum.LogType, isDefaultFeature bool) *FeatureTaskLabelImpl {
 	return &FeatureTaskLabelImpl{
 		title:            title,
 		description:      description,
+		logType:          logType,
 		isDefaultFeature: isDefaultFeature,
 	}
 }

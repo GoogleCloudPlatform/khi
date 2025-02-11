@@ -46,7 +46,15 @@ var Task = query.NewQueryGeneratorTask(k8saudittask.K8sAuditQueryTaskID, "K8s au
 		return []string{}, err
 	}
 	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
-})
+}, GenerateK8sAuditQuery(
+	"gcp-cluster-name",
+	&queryutil.SetFilterParseResult{
+		Additives: []string{"deployments", "replicasets", "pods", "nodes"},
+	},
+	&queryutil.SetFilterParseResult{
+		Additives: []string{"#cluster-scoped", "#namespaced"},
+	},
+))
 
 func GenerateK8sAuditQuery(clusterName string, auditKindFilter *queryutil.SetFilterParseResult, namespaceFilter *queryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_cluster"

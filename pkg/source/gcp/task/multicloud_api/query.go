@@ -43,4 +43,4 @@ var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(MultiCloudAPIQueryTaskI
 		return []string{}, err
 	}
 	return []string{GenerateMultiCloudAPIQuery(clusterName)}, nil
-})
+}, GenerateMultiCloudAPIQuery("awsClusters/cluster-foo"))

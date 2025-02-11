@@ -36,6 +36,11 @@ import (
 type onpremCloudAuditLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (o *onpremCloudAuditLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeOnPremAPI
+}
+
 // Dependencies implements parser.Parser.
 func (*onpremCloudAuditLogParser) Dependencies() []string {
 	return []string{}
@@ -43,7 +48,7 @@ func (*onpremCloudAuditLogParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (*onpremCloudAuditLogParser) Description() string {
-	return `Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.`
+	return `Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.`
 }
 
 // GetParserName implements parser.Parser.

@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -37,6 +38,10 @@ var PARSER_MAX_THREADS = 16
 type Parser interface {
 	// GetParserName Returns it's own parser name. It must be unique by each instances.
 	GetParserName() string
+
+	// TargetLogType returns the log type which this parser should mainly parse and generate revisions or events for.
+	TargetLogType() enum.LogType
+
 	// Parse a log. Return an error to decide skip to parse the log and delegate later parsers.
 	Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error
 
@@ -170,6 +175,6 @@ func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool
 		return struct{}{}, nil
 	},
 		append([]task.LabelOpt{
-			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), isDefaultFeature),
+			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature),
 		}, labelOpts...)...)
 }

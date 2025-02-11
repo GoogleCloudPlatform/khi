@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -44,9 +45,14 @@ var serialportSequenceConverters = []parserutil.SpecialSequenceConverter{
 type SerialPortLogParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (s *SerialPortLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeSerialPort
+}
+
 // Description implements parser.Parser.
 func (*SerialPortLogParser) Description() string {
-	return `Serial port logs of worker nodes. Serial port logging feature must be enabled on instances to query logs correctly.`
+	return `Gather serialport logs of GKE nodes. This helps detailed investigation on VM bootstrapping issue on GKE node.`
 }
 
 // GetParserName implements parser.Parser.

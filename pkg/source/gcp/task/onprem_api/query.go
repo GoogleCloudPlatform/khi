@@ -43,4 +43,4 @@ var OnPremAPIQueryTask = query.NewQueryGeneratorTask(OnPremCloudAPIQueryTaskID, 
 		return []string{}, err
 	}
 	return []string{GenerateOnPremAPIQuery(clusterName)}, nil
-})
+}, GenerateOnPremAPIQuery("baremetalClusters/my-cluster"))

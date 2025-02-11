@@ -20,6 +20,7 @@ import (
 
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -51,7 +52,8 @@ type TextFormDefinitionBuilder struct {
 	label               string
 	priority            int
 	dependencies        []string
-	description         string
+	uiDescription       string
+	documentDescription string
 	defaultValue        TextFormDefaultValueGenerator
 	validator           TextFormValidator
 	allowEditProvider   TextFormAllowEditProvider
@@ -101,8 +103,13 @@ func (b *TextFormDefinitionBuilder) WithDependencies(dependencies []string) *Tex
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithDescription(description string) *TextFormDefinitionBuilder {
-	b.description = description
+func (b *TextFormDefinitionBuilder) WithUIDescription(uiDescription string) *TextFormDefinitionBuilder {
+	b.uiDescription = uiDescription
+	return b
+}
+
+func (b *TextFormDefinitionBuilder) WithDocumentDescription(documentDescription string) *TextFormDefinitionBuilder {
+	b.documentDescription = documentDescription
 	return b
 }
 
@@ -197,7 +204,7 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 		field.Type = "Text"
 		field.Priority = b.priority
 		field.Label = b.label
-		field.Description = b.description
+		field.Description = b.uiDescription
 		field.HintType = form_metadata.HintTypeInfo
 
 		suggestions, err := b.suggestionsProvider(ctx, currentValue, v, prevValue)
@@ -245,5 +252,8 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 			}
 		}
 		return convertedValue, nil
-	}, labelOpts...)
+	}, append(labelOpts, label.NewFormTaskLabelOpt(
+		b.label,
+		b.documentDescription,
+	))...)
 }

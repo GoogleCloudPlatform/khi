@@ -35,6 +35,8 @@ const (
 	logTypeUnusedEnd
 )
 
+const EnumLogTypeLength = int(logTypeUnusedEnd) + 1
+
 type LogTypeFrontendMetadata struct {
 	// EnumKeyName is the name of this enum value. Must match with the enum key.
 	EnumKeyName string
