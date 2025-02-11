@@ -21,7 +21,7 @@ KHI filters out unsupported parser for the selected inspection type at first.
 |[Kubernetes Audit Log](./features.md#kubernetes-audit-log)|Gather kubernetes audit logs and visualize resource modifications.|
 |[Kubernetes Event Logs](./features.md#kubernetes-event-logs)|Gather kubernetes event logs and visualize these on the associated resource timeline.|
 |[Kubernetes Node Logs](./features.md#kubernetes-node-logs)|Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.|
-|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.|
+|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.|
 |[GKE Audit logs](./features.md#gke-audit-logs)|Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool|
 |[Compute API Logs](./features.md#compute-api-logs)|Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.|
 |[GCE Network Logs](./features.md#gce-network-logs)|Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)|
@@ -41,7 +41,7 @@ KHI filters out unsupported parser for the selected inspection type at first.
 |[Kubernetes Audit Log](./features.md#kubernetes-audit-log)|Gather kubernetes audit logs and visualize resource modifications.|
 |[Kubernetes Event Logs](./features.md#kubernetes-event-logs)|Gather kubernetes event logs and visualize these on the associated resource timeline.|
 |[Kubernetes Node Logs](./features.md#kubernetes-node-logs)|Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.|
-|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.|
+|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.|
 |[GKE Audit logs](./features.md#gke-audit-logs)|Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool|
 |[Compute API Logs](./features.md#compute-api-logs)|Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.|
 |[GCE Network Logs](./features.md#gce-network-logs)|Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)|
@@ -64,7 +64,7 @@ KHI filters out unsupported parser for the selected inspection type at first.
 |[Kubernetes Audit Log](./features.md#kubernetes-audit-log)|Gather kubernetes audit logs and visualize resource modifications.|
 |[Kubernetes Event Logs](./features.md#kubernetes-event-logs)|Gather kubernetes event logs and visualize these on the associated resource timeline.|
 |[Kubernetes Node Logs](./features.md#kubernetes-node-logs)|Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.|
-|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.|
+|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.|
 |[MultiCloud API logs](./features.md#multicloud-api-logs)|Gather Anthos Multicloud audit log including cluster creation,deletion and upgrades.|
 |[Kubernetes Control plane component logs](./features.md#kubernetes-control-plane-component-logs)|Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs|
 <!-- END GENERATED PART: inspection-type-element-header-features-gcp-gke-on-aws -->
@@ -80,7 +80,7 @@ KHI filters out unsupported parser for the selected inspection type at first.
 |[Kubernetes Audit Log](./features.md#kubernetes-audit-log)|Gather kubernetes audit logs and visualize resource modifications.|
 |[Kubernetes Event Logs](./features.md#kubernetes-event-logs)|Gather kubernetes event logs and visualize these on the associated resource timeline.|
 |[Kubernetes Node Logs](./features.md#kubernetes-node-logs)|Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.|
-|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.|
+|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.|
 |[MultiCloud API logs](./features.md#multicloud-api-logs)|Gather Anthos Multicloud audit log including cluster creation,deletion and upgrades.|
 |[Kubernetes Control plane component logs](./features.md#kubernetes-control-plane-component-logs)|Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs|
 <!-- END GENERATED PART: inspection-type-element-header-features-gcp-gke-on-azure -->
@@ -96,7 +96,7 @@ KHI filters out unsupported parser for the selected inspection type at first.
 |[Kubernetes Audit Log](./features.md#kubernetes-audit-log)|Gather kubernetes audit logs and visualize resource modifications.|
 |[Kubernetes Event Logs](./features.md#kubernetes-event-logs)|Gather kubernetes event logs and visualize these on the associated resource timeline.|
 |[Kubernetes Node Logs](./features.md#kubernetes-node-logs)|Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.|
-|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.|
+|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.|
 |[OnPrem API logs](./features.md#onprem-api-logs)|Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.|
 |[Kubernetes Control plane component logs](./features.md#kubernetes-control-plane-component-logs)|Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs|
 <!-- END GENERATED PART: inspection-type-element-header-features-gcp-gdcv-for-baremetal -->
@@ -112,7 +112,7 @@ KHI filters out unsupported parser for the selected inspection type at first.
 |[Kubernetes Audit Log](./features.md#kubernetes-audit-log)|Gather kubernetes audit logs and visualize resource modifications.|
 |[Kubernetes Event Logs](./features.md#kubernetes-event-logs)|Gather kubernetes event logs and visualize these on the associated resource timeline.|
 |[Kubernetes Node Logs](./features.md#kubernetes-node-logs)|Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.|
-|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.|
+|[Kubernetes container logs](./features.md#kubernetes-container-logs)|Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.|
 |[OnPrem API logs](./features.md#onprem-api-logs)|Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.|
 |[Kubernetes Control plane component logs](./features.md#kubernetes-control-plane-component-logs)|Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs|
 <!-- END GENERATED PART: inspection-type-element-header-features-gcp-gdcv-for-vmware -->

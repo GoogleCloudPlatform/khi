@@ -6,47 +6,78 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
+// RelationshipDocumentModel is a model type for generating document docs/en/reference/relationships.md.
 type RelationshipDocumentModel struct {
+	// Relationships is a list of relationship document elements.
 	Relationships []RelationshipDocumentElement
 }
 
+// RelationshipDocumentElement represents a relationship element in the document.
 type RelationshipDocumentElement struct {
-	ID             string
+	// ID is the unique identifier of the relationship.
+	ID string
+	// HasVisibleChip indicates whether the relationship has a visible chip on the left side of timeline name.
 	HasVisibleChip bool
-	Label          string
-	LongName       string
-	ColorCode      string
+	// Label is the short label for the relationship.
+	Label string
+	// LongName is the descriptive name of the relationship.
+	LongName string
+	// ColorCode is the hexadecimal color code for the relationship.
+	ColorCode string
 
-	GeneratableEvents    []RelationshipGeneratableEvent
+	// GeneratableEvents is the list of the generatable events on the timeline of this relationship.
+	GeneratableEvents []RelationshipGeneratableEvent
+	// GeneratableRevisions is the list of the generatable revisions on the timeline of this relationship.
 	GeneratableRevisions []RelationshipGeneratableRevisions
-	GeneratableAliases   []RelationshipGeneratableAliases
+	// GeneratableAliases is the list of the generatable aliases on the timeline of this relationship.
+	GeneratableAliases []RelationshipGeneratableAliases
 }
 
+// RelationshipGeneratableEvent represents a generatable event on the timeline of this relationship.
 type RelationshipGeneratableEvent struct {
-	ID                 string
+	// ID is the unique identifier of the event.
+	ID string
+	// SourceLogTypeLabel is the label of the source log type.
 	SourceLogTypeLabel string
-	ColorCode          string
-	Description        string
+	// ColorCode is the hexadecimal color code for the event without `#` prefix.
+	ColorCode string
+	// Description describes the event.
+	Description string
 }
 
+// RelationshipGeneratableRevisions represents generatable revision states on the timeline of this relationship.
 type RelationshipGeneratableRevisions struct {
-	ID                     string
-	SourceLogTypeLabel     string
+	// ID is the unique identifier of the revision state.
+	ID string
+	// SourceLogTypeLabel is the label of the source log type.
+	SourceLogTypeLabel string
+	// SourceLogTypeColorCode is the hexadecimal color code for the source log type without `#` prefix.
 	SourceLogTypeColorCode string
+	// RevisionStateColorCode is the hexadecimal color code for the revision state without `#` prefix.
 	RevisionStateColorCode string
-	RevisionStateLabel     string
-	Description            string
+	// RevisionStateLabel is the label of the revision state.
+	RevisionStateLabel string
+	// Description describes the revision state.
+	Description string
 }
 
+// RelationshipGeneratableAliases represents generatable aliases on the timeline of this relationship.
 type RelationshipGeneratableAliases struct {
-	ID                                   string
-	AliasedTimelineRelationshipLabel     string
+	// ID is the unique identifier of the alias.
+	ID string
+	// AliasedTimelineRelationshipLabel is the label of the aliased timeline relationship.
+	AliasedTimelineRelationshipLabel string
+	// AliasedTimelineRelationshipColorCode is the hexadecimal color code for the aliased timeline relationship.
 	AliasedTimelineRelationshipColorCode string
-	SourceLogTypeLabel                   string
-	SourceLogTypeColorCode               string
-	Description                          string
+	// SourceLogTypeLabel is the label of the source log type.
+	SourceLogTypeLabel string
+	// SourceLogTypeColorCode is the hexadecimal color code for the source log type  without `#` prefix.
+	SourceLogTypeColorCode string
+	// Description describes the alias.
+	Description string
 }
 
+// GetRelationshipDocumentModel returns the document model for relationships.
 func GetRelationshipDocumentModel() RelationshipDocumentModel {
 	relationships := []RelationshipDocumentElement{}
 	for i := 0; i < int(enum.EnumParentRelationshipLength); i++ {
@@ -70,6 +101,7 @@ func GetRelationshipDocumentModel() RelationshipDocumentModel {
 	}
 }
 
+// getRelationshipGeneratableEvents retrieves generatable events for a given relationship.
 func getRelationshipGeneratableEvents(reltionship enum.ParentRelationship) []RelationshipGeneratableEvent {
 	result := []RelationshipGeneratableEvent{}
 	relationship := enum.ParentRelationships[reltionship]
@@ -85,6 +117,7 @@ func getRelationshipGeneratableEvents(reltionship enum.ParentRelationship) []Rel
 	return result
 }
 
+// getRelationshipGeneratableRevisions retrieves generatable revisions for a given relationship.
 func getRelationshipGeneratableRevisions(reltionship enum.ParentRelationship) []RelationshipGeneratableRevisions {
 	result := []RelationshipGeneratableRevisions{}
 	relationship := enum.ParentRelationships[reltionship]
@@ -103,6 +136,7 @@ func getRelationshipGeneratableRevisions(reltionship enum.ParentRelationship) []
 	return result
 }
 
+// getRelationshipGeneratableAliases retrieves generatable aliases for a given relationship.
 func getRelationshipGeneratableAliases(reltionship enum.ParentRelationship) []RelationshipGeneratableAliases {
 	result := []RelationshipGeneratableAliases{}
 	relationship := enum.ParentRelationships[reltionship]

@@ -181,7 +181,7 @@ This feature is supported in the following inspection types.
 <!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/container-parser -->
 ## Kubernetes container logs
 
-Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.
+Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.
 
 <!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/container-parser -->
 <!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/container-parser -->
