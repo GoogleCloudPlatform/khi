@@ -1,5 +1,8 @@
 # Features
 
+> [!WARNING]
+> 🚧 This reference document is under construction. 🚧
+
 The output timelnes of KHI is formed in the `feature tasks`. A feature may depends on parameters, other log query.
 User will select features on the 2nd menu of the dialog after clicking `New inspection` button.
 

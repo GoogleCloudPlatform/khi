@@ -1,5 +1,8 @@
 package main
 
+// cmd/reference-generator/main.go
+// Generates KHI reference documents from the task graph or constants defined in code base.
+
 import (
 	"fmt"
 	"log/slog"
@@ -40,24 +43,24 @@ func main() {
 		}
 	}
 
-	generator, err := generator.NewDocumentGeneratorFromTemplateFileGlob("./docs/template/*.template.md")
+	generator, err := generator.NewDocumentGeneratorFromTemplateFileGlob("./docs/template/reference/*.template.md")
 	fatal(err, "failed to load template files")
 
 	inspectionTypeDocumentModel := model.GetInspectionTypeDocumentModel(inspectionServer)
-	err = generator.GenerateDocument("./docs/en/inspection-type.md", "inspection-type-template", inspectionTypeDocumentModel, false)
+	err = generator.GenerateDocument("./docs/en/reference/inspection-type.md", "inspection-type-template", inspectionTypeDocumentModel, false)
 	fatal(err, "failed to generate inspection type document")
 
 	featureDocumentModel, err := model.GetFeatureDocumentModel(inspectionServer)
 	fatal(err, "failed to generate feature document model")
-	err = generator.GenerateDocument("./docs/en/features.md", "feature-template", featureDocumentModel, false)
+	err = generator.GenerateDocument("./docs/en/reference/features.md", "feature-template", featureDocumentModel, false)
 	fatal(err, "failed to generate feature document")
 
 	formDocumentModel, err := model.GetFormDocumentModel(inspectionServer)
 	fatal(err, "failed to generate form document model")
-	err = generator.GenerateDocument("./docs/en/forms.md", "form-template", formDocumentModel, false)
+	err = generator.GenerateDocument("./docs/en/reference/forms.md", "form-template", formDocumentModel, false)
 	fatal(err, "failed to generate form document")
 
 	relationshipDocumentModel := model.GetRelationshipDocumentModel()
-	err = generator.GenerateDocument("./docs/en/relationships.md", "relationship-template", relationshipDocumentModel, false)
+	err = generator.GenerateDocument("./docs/en/reference/relationships.md", "relationship-template", relationshipDocumentModel, false)
 	fatal(err, "failed to generate relationship document")
 }

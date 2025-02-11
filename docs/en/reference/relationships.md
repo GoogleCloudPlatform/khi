@@ -1,5 +1,8 @@
 # Relationships
 
+> [!WARNING]
+> 🚧 This reference document is under construction. 🚧
+
 KHI timelines are basically placed in the order of `Kind` -> `Namespace` -> `Resource name` -> `Subresource name`.
 The relationship between its parent and children is usually interpretted as the order of its hierarchy, but some subresources are not actual kubernetes resources and it's associated with the parent timeline for convenience. Each timeline color meanings and type of logs put on them are different by this relationship.
 
@@ -17,8 +20,8 @@ This timeline can have the following revisions.
 <!-- BEGIN GENERATED PART: relationship-element-header-RelationshipChild-revisions-table -->
 |State|Source log|Description|
 |---|---|---|
-|![#997700](https://placehold.co/15x15/997700/997700.png)Resource may be existing|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|This state indicates the resource exits at the time, but this existence is inferred from the other logs later. The detailed resource information is not available.|
-|![#0000FF](https://placehold.co/15x15/0000FF/0000FF.png)Resource is existing|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|This state indicates the resource exits at the time|
+|![#997700](https://placehold.co/15x15/997700/997700.png)Resource may be existing|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|This state indicates the resource exists at the time, but this existence is inferred from the other logs later. The detailed resource information is not available.|
+|![#0000FF](https://placehold.co/15x15/0000FF/0000FF.png)Resource is existing|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|This state indicates the resource exists at the time|
 |![#CC0000](https://placehold.co/15x15/CC0000/CC0000.png)Resource is deleted|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|This state indicates the resource is deleted at the time.|
 |![#CC5500](https://placehold.co/15x15/CC5500/CC5500.png)Resource is under deleting with graceful period|![#000000](https://placehold.co/15x15/000000/000000.png)k8s_audit|This state indicates the resource is being deleted with grace period at the time.|
 |![#4444ff](https://placehold.co/15x15/4444ff/4444ff.png)Resource is being provisioned|![#AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)gke_audit|This state indicates the resource is being provisioned. Currently this state is only used for cluster/nodepool status only.|

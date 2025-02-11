@@ -1,5 +1,8 @@
 # Inspection types
 
+> [!WARNING]
+> 🚧 This reference document is under construction. 🚧
+
 Log querying and parsing procedures in KHI is done on a DAG based task execution system.
 Each tasks can have dependency and KHI automatically resolves them and run them parallelly as much as possible. 
 
