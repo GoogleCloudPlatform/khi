@@ -141,7 +141,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 		}
 
 		result.Features = append(result.Features, FeatureDocumentElement{
-			ID:                       feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureDocumentAnchorID, "").(string),
+			ID:                       feature.ID().String(),
 			Name:                     feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
 			Description:              feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
 			IndirectQueryDependency:  indirectQueryDependencyElement,

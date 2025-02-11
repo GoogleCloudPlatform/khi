@@ -6,14 +6,13 @@
 The output timelnes of KHI is formed in the `feature tasks`. A feature may depends on parameters, other log query.
 User will select features on the 2nd menu of the dialog after clicking `New inspection` button.
 
-<!-- BEGIN GENERATED PART: feature-element-header-k8s_audit -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com//feature/audit-parser-v2 -->
 ## Kubernetes Audit Log
 
-Visualize Kubernetes audit logs in GKE. 
-This parser reveals how these resources are created,updated or deleted. 
+Gather kubernetes audit logs and visualize resource modifications.
 
-<!-- END GENERATED PART: feature-element-header-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_audit -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com//feature/audit-parser-v2 -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com//feature/audit-parser-v2 -->
 ### Parameters
 
 |Parameter name|Description|
@@ -24,8 +23,8 @@ This parser reveals how these resources are created,updated or deleted.
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_audit -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com//feature/audit-parser-v2 -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com//feature/audit-parser-v2 -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -39,8 +38,8 @@ This feature can generates following timeline relationship of timelines.
 |![33DD88](https://placehold.co/15x15/33DD88/33DD88.png)[Owning children timeline](./relationships.md#owning-children-timeline)|owns||
 |![FF8855](https://placehold.co/15x15/FF8855/FF8855.png)[Pod binding timeline](./relationships.md#pod-binding-timeline)|binds||
 
-<!-- END GENERATED PART: feature-element-output-timelines-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_audit -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com//feature/audit-parser-v2 -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com//feature/audit-parser-v2 -->
 ### Target log type
 
 **![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit**
@@ -56,8 +55,8 @@ protoPayload.methodName=~"\.(deployments|replicasets|pods|nodes)\."
 
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-k8s_audit -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com//feature/audit-parser-v2 -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com//feature/audit-parser-v2 -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
@@ -68,15 +67,14 @@ This feature is supported in the following inspection types.
 * [GKE on Azure(Anthos on Azure)](./inspection-type.md#gke-on-azureanthos-on-azure)
 * [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](./inspection-type.md#gdcv-for-baremetalgke-on-baremetal-anthos-on-baremetal)
 * [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](./inspection-type.md#gdcv-for-vmwaregke-on-vmware-anthos-on-vmware)
-<!-- END GENERATED PART: feature-element-available-inspection-type-k8s_audit -->
-<!-- BEGIN GENERATED PART: feature-element-header-k8s_event -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com//feature/audit-parser-v2 -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/event-parser -->
 ## Kubernetes Event Logs
 
-Visualize Kubernetes event logs on GKE.
-This parser shows events associated to K8s resources
+Gather kubernetes event logs and visualize these on the associated resource timeline.
 
-<!-- END GENERATED PART: feature-element-header-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_event -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/event-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/event-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -86,8 +84,8 @@ This parser shows events associated to K8s resources
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_event -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/event-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/event-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -96,8 +94,8 @@ This feature can generates following timeline relationship of timelines.
 |:-:|:-:|:-:|
 |![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#the-default-resource-timeline)|resource|A default timeline recording the history of Kubernetes resources|
 
-<!-- END GENERATED PART: feature-element-output-timelines-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_event -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/event-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/event-parser -->
 ### Target log type
 
 **![3fb549](https://placehold.co/15x15/3fb549/3fb549.png)k8s_event**
@@ -110,8 +108,8 @@ resource.labels.cluster_name="gcp-cluster-name"
 -- No namespace filter
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-k8s_event -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/event-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/event-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
@@ -122,16 +120,14 @@ This feature is supported in the following inspection types.
 * [GKE on Azure(Anthos on Azure)](./inspection-type.md#gke-on-azureanthos-on-azure)
 * [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](./inspection-type.md#gdcv-for-baremetalgke-on-baremetal-anthos-on-baremetal)
 * [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](./inspection-type.md#gdcv-for-vmwaregke-on-vmware-anthos-on-vmware)
-<!-- END GENERATED PART: feature-element-available-inspection-type-k8s_event -->
-<!-- BEGIN GENERATED PART: feature-element-header-k8s_node -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/event-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/nodelog-parser -->
 ## Kubernetes Node Logs
 
-GKE worker node components logs mainly from kubelet,containerd and dockerd.
+Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.
 
-(WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter.
-
-<!-- END GENERATED PART: feature-element-header-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_node -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/nodelog-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/nodelog-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -141,8 +137,8 @@ GKE worker node components logs mainly from kubelet,containerd and dockerd.
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_node -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/nodelog-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/nodelog-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -153,8 +149,8 @@ This feature can generates following timeline relationship of timelines.
 |![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)[Container timeline](./relationships.md#container-timeline)|container|A timline of a container included in the parent timeline of a Pod|
 |![0077CC](https://placehold.co/15x15/0077CC/0077CC.png)[Node component timeline](./relationships.md#node-component-timeline)|node-component|A component running inside of the parent timeline of a Node|
 
-<!-- END GENERATED PART: feature-element-output-timelines-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_node -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/nodelog-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/nodelog-parser -->
 ### Target log type
 
 **![0077CC](https://placehold.co/15x15/0077CC/0077CC.png)k8s_node**
@@ -169,8 +165,8 @@ resource.labels.node_name:("gke-test-cluster-node-1" OR "gke-test-cluster-node-2
 
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-k8s_node -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/nodelog-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/nodelog-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
@@ -181,16 +177,14 @@ This feature is supported in the following inspection types.
 * [GKE on Azure(Anthos on Azure)](./inspection-type.md#gke-on-azureanthos-on-azure)
 * [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](./inspection-type.md#gdcv-for-baremetalgke-on-baremetal-anthos-on-baremetal)
 * [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](./inspection-type.md#gdcv-for-vmwaregke-on-vmware-anthos-on-vmware)
-<!-- END GENERATED PART: feature-element-available-inspection-type-k8s_node -->
-<!-- BEGIN GENERATED PART: feature-element-header-k8s_container -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/nodelog-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/container-parser -->
 ## Kubernetes container logs
 
-Container logs ingested from stdout/stderr of workload Pods. 
+Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.
 
-(WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter or target namespace fewer.
-
-<!-- END GENERATED PART: feature-element-header-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_container -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/container-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/container-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -201,8 +195,8 @@ Container logs ingested from stdout/stderr of workload Pods.
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_container -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/container-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/container-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -211,8 +205,8 @@ This feature can generates following timeline relationship of timelines.
 |:-:|:-:|:-:|
 |![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)[Container timeline](./relationships.md#container-timeline)|container|A timline of a container included in the parent timeline of a Pod|
 
-<!-- END GENERATED PART: feature-element-output-timelines-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_container -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/container-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/container-parser -->
 ### Target log type
 
 **![fe9bab](https://placehold.co/15x15/fe9bab/fe9bab.png)k8s_container**
@@ -226,8 +220,8 @@ resource.labels.namespace_name=("default")
 -resource.labels.pod_name:("nginx-" OR "redis")
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-k8s_container -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/container-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/container-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
@@ -238,14 +232,14 @@ This feature is supported in the following inspection types.
 * [GKE on Azure(Anthos on Azure)](./inspection-type.md#gke-on-azureanthos-on-azure)
 * [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](./inspection-type.md#gdcv-for-baremetalgke-on-baremetal-anthos-on-baremetal)
 * [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](./inspection-type.md#gdcv-for-vmwaregke-on-vmware-anthos-on-vmware)
-<!-- END GENERATED PART: feature-element-available-inspection-type-k8s_container -->
-<!-- BEGIN GENERATED PART: feature-element-header-gke_audit -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/container-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/gke-audit-parser -->
 ## GKE Audit logs
 
-GKE audit log including cluster creation,deletion and upgrades.
+Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool
 
-<!-- END GENERATED PART: feature-element-header-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-gke_audit -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/gke-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/gke-audit-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -254,8 +248,8 @@ GKE audit log including cluster creation,deletion and upgrades.
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-gke_audit -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/gke-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/gke-audit-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -265,8 +259,8 @@ This feature can generates following timeline relationship of timelines.
 |![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#the-default-resource-timeline)|resource|A default timeline recording the history of Kubernetes resources|
 |![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#operation-timeline)|operation|A timeline showing long running operation status related to the parent resource|
 
-<!-- END GENERATED PART: feature-element-output-timelines-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-gke_audit -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/gke-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/gke-audit-parser -->
 ### Target log type
 
 **![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)gke_audit**
@@ -279,22 +273,22 @@ logName="projects/gcp-project-id/logs/cloudaudit.googleapis.com%2Factivity"
 resource.labels.cluster_name="gcp-cluster-name"
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-gke_audit -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/gke-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/gke-audit-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Google Kubernetes Engine](./inspection-type.md#google-kubernetes-engine)
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-gke_audit -->
-<!-- BEGIN GENERATED PART: feature-element-header-compute_api -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/gke-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/compute-api-parser -->
 ## Compute API Logs
 
-Compute API audit logs used for cluster related logs. This also visualize operations happened during the query time.
+Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.
 
-<!-- END GENERATED PART: feature-element-header-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-compute_api -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/compute-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/compute-api-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -305,8 +299,8 @@ Compute API audit logs used for cluster related logs. This also visualize operat
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-compute_api -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/compute-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/compute-api-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -316,8 +310,8 @@ This feature can generates following timeline relationship of timelines.
 |![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#the-default-resource-timeline)|resource|A default timeline recording the history of Kubernetes resources|
 |![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#operation-timeline)|operation|A timeline showing long running operation status related to the parent resource|
 
-<!-- END GENERATED PART: feature-element-output-timelines-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-compute_api -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/compute-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/compute-api-parser -->
 ### Target log type
 
 **![FFCC33](https://placehold.co/15x15/FFCC33/FFCC33.png)compute_api**
@@ -331,29 +325,29 @@ protoPayload.resourceName:(instances/gke-test-cluster-node-1 OR instances/gke-te
 
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-compute_api -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/compute-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-cloud.google.com/feature/compute-api-parser -->
 ### Dependent queries
 
 Following log queries are used with this feature.
 
 * ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
-<!-- END GENERATED PART: feature-element-depending-indirect-query-header-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-compute_api -->
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-cloud.google.com/feature/compute-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/compute-api-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Google Kubernetes Engine](./inspection-type.md#google-kubernetes-engine)
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-compute_api -->
-<!-- BEGIN GENERATED PART: feature-element-header-gce_network -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/compute-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/network-api-parser -->
 ## GCE Network Logs
 
-GCE network API audit log including NEG related audit logs to identify when the associated NEG was attached/detached.
+Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)
 
-<!-- END GENERATED PART: feature-element-header-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-gce_network -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/network-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/network-api-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -364,8 +358,8 @@ GCE network API audit log including NEG related audit logs to identify when the 
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-gce_network -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/network-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/network-api-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -375,8 +369,8 @@ This feature can generates following timeline relationship of timelines.
 |![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#operation-timeline)|operation|A timeline showing long running operation status related to the parent resource|
 |![A52A2A](https://placehold.co/15x15/A52A2A/A52A2A.png)[Network Endpoint Group timeline](./relationships.md#network-endpoint-group-timeline)|neg||
 
-<!-- END GENERATED PART: feature-element-output-timelines-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-gce_network -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/network-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/network-api-parser -->
 ### Target log type
 
 **![33CCFF](https://placehold.co/15x15/33CCFF/33CCFF.png)network_api**
@@ -390,29 +384,29 @@ protoPayload.resourceName:(networkEndpointGroups/neg-id-1 OR networkEndpointGrou
 
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-gce_network -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/network-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-cloud.google.com/feature/network-api-parser -->
 ### Dependent queries
 
 Following log queries are used with this feature.
 
 * ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
-<!-- END GENERATED PART: feature-element-depending-indirect-query-header-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-gce_network -->
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-cloud.google.com/feature/network-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/network-api-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Google Kubernetes Engine](./inspection-type.md#google-kubernetes-engine)
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-gce_network -->
-<!-- BEGIN GENERATED PART: feature-element-header-multicloud_api -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/network-api-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/multicloud-audit-parser -->
 ## MultiCloud API logs
 
-Anthos Multicloud audit log including cluster creation,deletion and upgrades.
+Gather Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 
-<!-- END GENERATED PART: feature-element-header-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-multicloud_api -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/multicloud-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/multicloud-audit-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -421,8 +415,8 @@ Anthos Multicloud audit log including cluster creation,deletion and upgrades.
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-multicloud_api -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/multicloud-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/multicloud-audit-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -431,8 +425,8 @@ This feature can generates following timeline relationship of timelines.
 |:-:|:-:|:-:|
 |![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#operation-timeline)|operation|A timeline showing long running operation status related to the parent resource|
 
-<!-- END GENERATED PART: feature-element-output-timelines-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-multicloud_api -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/multicloud-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/multicloud-audit-parser -->
 ### Target log type
 
 **![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)multicloud_api**
@@ -447,23 +441,22 @@ protoPayload.resourceName:"awsClusters/cluster-foo"
 
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-multicloud_api -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/multicloud-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/multicloud-audit-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [GKE on AWS(Anthos on AWS)](./inspection-type.md#gke-on-awsanthos-on-aws)
 * [GKE on Azure(Anthos on Azure)](./inspection-type.md#gke-on-azureanthos-on-azure)
-<!-- END GENERATED PART: feature-element-available-inspection-type-multicloud_api -->
-<!-- BEGIN GENERATED PART: feature-element-header-autoscaler -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/multicloud-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/autoscaler-parser -->
 ## Autoscaler Logs
 
-Autoscaler logs including decision reasons why they scale up/down or why they didn't.
-This log type also includes Node Auto Provisioner logs.
+Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.
 
-<!-- END GENERATED PART: feature-element-header-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-autoscaler -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/autoscaler-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/autoscaler-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -472,8 +465,8 @@ This log type also includes Node Auto Provisioner logs.
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-autoscaler -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/autoscaler-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/autoscaler-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -483,8 +476,8 @@ This feature can generates following timeline relationship of timelines.
 |![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#the-default-resource-timeline)|resource|A default timeline recording the history of Kubernetes resources|
 |![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)[Managed instance group timeline](./relationships.md#managed-instance-group-timeline)|mig||
 
-<!-- END GENERATED PART: feature-element-output-timelines-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-autoscaler -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/autoscaler-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/autoscaler-parser -->
 ### Target log type
 
 **![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)autoscaler**
@@ -499,22 +492,22 @@ resource.labels.cluster_name="gcp-cluster-name"
 logName="projects/gcp-project-id/logs/container.googleapis.com%2Fcluster-autoscaler-visibility"
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-autoscaler -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/autoscaler-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/autoscaler-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Google Kubernetes Engine](./inspection-type.md#google-kubernetes-engine)
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-autoscaler -->
-<!-- BEGIN GENERATED PART: feature-element-header-onprem_api -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/autoscaler-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/onprem-audit-parser -->
 ## OnPrem API logs
 
-Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.
+Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.
 
-<!-- END GENERATED PART: feature-element-header-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-onprem_api -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/onprem-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/onprem-audit-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -523,8 +516,8 @@ Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and 
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-onprem_api -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/onprem-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/onprem-audit-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -533,8 +526,8 @@ This feature can generates following timeline relationship of timelines.
 |:-:|:-:|:-:|
 |![000000](https://placehold.co/15x15/000000/000000.png)[Operation timeline](./relationships.md#operation-timeline)|operation|A timeline showing long running operation status related to the parent resource|
 
-<!-- END GENERATED PART: feature-element-output-timelines-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-onprem_api -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/onprem-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/onprem-audit-parser -->
 ### Target log type
 
 **![AA00FF](https://placehold.co/15x15/AA00FF/AA00FF.png)onprem_api**
@@ -549,22 +542,22 @@ protoPayload.resourceName:"baremetalClusters/my-cluster"
 
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-onprem_api -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/onprem-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/onprem-audit-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](./inspection-type.md#gdcv-for-baremetalgke-on-baremetal-anthos-on-baremetal)
 * [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](./inspection-type.md#gdcv-for-vmwaregke-on-vmware-anthos-on-vmware)
-<!-- END GENERATED PART: feature-element-available-inspection-type-onprem_api -->
-<!-- BEGIN GENERATED PART: feature-element-header-k8s_control_plane_component -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/onprem-audit-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/controlplane-component-parser -->
 ## Kubernetes Control plane component logs
 
-Visualize Kubernetes control plane component logs on a cluster
+Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs
 
-<!-- END GENERATED PART: feature-element-header-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/controlplane-component-parser -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/controlplane-component-parser -->
 ### Parameters
 
 |Parameter name|Description|
@@ -574,8 +567,8 @@ Visualize Kubernetes control plane component logs on a cluster
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/controlplane-component-parser -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/controlplane-component-parser -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -585,8 +578,8 @@ This feature can generates following timeline relationship of timelines.
 |![CCCCCC](https://placehold.co/15x15/CCCCCC/CCCCCC.png)[The default resource timeline](./relationships.md#the-default-resource-timeline)|resource|A default timeline recording the history of Kubernetes resources|
 |![FF5555](https://placehold.co/15x15/FF5555/FF5555.png)[Control plane component timeline](./relationships.md#control-plane-component-timeline)|controlplane||
 
-<!-- END GENERATED PART: feature-element-output-timelines-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-k8s_control_plane_component -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/controlplane-component-parser -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/controlplane-component-parser -->
 ### Target log type
 
 **![FF3333](https://placehold.co/15x15/FF3333/FF3333.png)control_plane_component**
@@ -601,8 +594,8 @@ resource.labels.project_id="gcp-project-id"
 -- No component name filter
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-k8s_control_plane_component -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/controlplane-component-parser -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/controlplane-component-parser -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
@@ -613,14 +606,14 @@ This feature is supported in the following inspection types.
 * [GKE on Azure(Anthos on Azure)](./inspection-type.md#gke-on-azureanthos-on-azure)
 * [GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)](./inspection-type.md#gdcv-for-baremetalgke-on-baremetal-anthos-on-baremetal)
 * [GDCV for VMWare(GKE on VMWare, Anthos on VMWare)](./inspection-type.md#gdcv-for-vmwaregke-on-vmware-anthos-on-vmware)
-<!-- END GENERATED PART: feature-element-available-inspection-type-k8s_control_plane_component -->
-<!-- BEGIN GENERATED PART: feature-element-header-serialport -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/controlplane-component-parser -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/feature/serialport -->
 ## Node serial port logs
 
-Serial port logs of worker nodes. Serial port logging feature must be enabled on instances to query logs correctly.
+Gather serialport logs of GKE nodes. This helps detailed investigation on VM bootstrapping issue on GKE node.
 
-<!-- END GENERATED PART: feature-element-header-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-serialport -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/feature/serialport -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/serialport -->
 ### Parameters
 
 |Parameter name|Description|
@@ -632,8 +625,8 @@ Serial port logs of worker nodes. Serial port logging feature must be enabled on
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-serialport -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/feature/serialport -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/serialport -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -642,8 +635,8 @@ This feature can generates following timeline relationship of timelines.
 |:-:|:-:|:-:|
 |![333333](https://placehold.co/15x15/333333/333333.png)[Serialport log timeline](./relationships.md#serialport-log-timeline)|serialport||
 
-<!-- END GENERATED PART: feature-element-output-timelines-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-serialport -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/serialport -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/feature/serialport -->
 ### Target log type
 
 **![333333](https://placehold.co/15x15/333333/333333.png)serial_port**
@@ -661,29 +654,29 @@ labels."compute.googleapis.com/resource_name"=("gke-test-cluster-node-1" OR "gke
 -- No node name substring filters are specified.
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-serialport -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/feature/serialport -->
+<!-- BEGIN GENERATED PART: feature-element-depending-indirect-query-header-cloud.google.com/feature/serialport -->
 ### Dependent queries
 
 Following log queries are used with this feature.
 
 * ![000000](https://placehold.co/15x15/000000/000000.png)k8s_audit
-<!-- END GENERATED PART: feature-element-depending-indirect-query-header-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-serialport -->
+<!-- END GENERATED PART: feature-element-depending-indirect-query-header-cloud.google.com/feature/serialport -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/serialport -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Google Kubernetes Engine](./inspection-type.md#google-kubernetes-engine)
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-serialport -->
-<!-- BEGIN GENERATED PART: feature-element-header-airflow_schedule -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/feature/serialport -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/composer/scheduler -->
 ## (Alpha) Composer / Airflow Scheduler
 
 Airflow Scheduler logs contain information related to the scheduling of TaskInstances, making it an ideal source for understanding the lifecycle of TaskInstances.
 
-<!-- END GENERATED PART: feature-element-header-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/composer/scheduler -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/composer/scheduler -->
 ### Parameters
 
 |Parameter name|Description|
@@ -693,8 +686,8 @@ Airflow Scheduler logs contain information related to the scheduling of TaskInst
 |[Composer Environment Name](./forms.md#composer-environment-name)||
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_schedule -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/composer/scheduler -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/scheduler -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -702,8 +695,8 @@ This feature can generates following timeline relationship of timelines.
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
 
-<!-- END GENERATED PART: feature-element-output-timelines-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-airflow_schedule -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/scheduler -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/composer/scheduler -->
 ### Target log type
 
 **![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment**
@@ -714,21 +707,21 @@ Sample query:
 TODO: add sample query
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-airflow_schedule -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/composer/scheduler -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/composer/scheduler -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-airflow_schedule -->
-<!-- BEGIN GENERATED PART: feature-element-header-airflow_worker -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/composer/scheduler -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/composer/worker -->
 ## (Alpha) Cloud Composer / Airflow Worker
 
 Airflow Worker logs contain information related to the execution of TaskInstances. By including these logs, you can gain insights into where and how each TaskInstance was executed.
 
-<!-- END GENERATED PART: feature-element-header-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_worker -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/composer/worker -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/composer/worker -->
 ### Parameters
 
 |Parameter name|Description|
@@ -738,8 +731,8 @@ Airflow Worker logs contain information related to the execution of TaskInstance
 |[Composer Environment Name](./forms.md#composer-environment-name)||
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_worker -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/composer/worker -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/worker -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -747,8 +740,8 @@ This feature can generates following timeline relationship of timelines.
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
 
-<!-- END GENERATED PART: feature-element-output-timelines-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-airflow_worker -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/worker -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/composer/worker -->
 ### Target log type
 
 **![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment**
@@ -759,21 +752,21 @@ Sample query:
 TODO: add sample query
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-airflow_worker -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/composer/worker -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/composer/worker -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-airflow_worker -->
-<!-- BEGIN GENERATED PART: feature-element-header-airflow_dag_processor -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/composer/worker -->
+<!-- BEGIN GENERATED PART: feature-element-header-cloud.google.com/composer/dagprocessor -->
 ## (Alpha) Composer / Airflow DagProcessorManager
 
 The DagProcessorManager logs contain information for investigating the number of DAGs included in each Python file and the time it took to parse them. You can get information about missing DAGs and load.
 
-<!-- END GENERATED PART: feature-element-header-airflow_dag_processor -->
-<!-- BEGIN GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
+<!-- END GENERATED PART: feature-element-header-cloud.google.com/composer/dagprocessor -->
+<!-- BEGIN GENERATED PART: feature-element-depending-form-header-cloud.google.com/composer/dagprocessor -->
 ### Parameters
 
 |Parameter name|Description|
@@ -783,8 +776,8 @@ The DagProcessorManager logs contain information for investigating the number of
 |[Composer Environment Name](./forms.md#composer-environment-name)||
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
-<!-- END GENERATED PART: feature-element-depending-form-header-airflow_dag_processor -->
-<!-- BEGIN GENERATED PART: feature-element-output-timelines-airflow_dag_processor -->
+<!-- END GENERATED PART: feature-element-depending-form-header-cloud.google.com/composer/dagprocessor -->
+<!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/dagprocessor -->
 ### Output timelines
 
 This feature can generates following timeline relationship of timelines. 
@@ -792,8 +785,8 @@ This feature can generates following timeline relationship of timelines.
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
 
-<!-- END GENERATED PART: feature-element-output-timelines-airflow_dag_processor -->
-<!-- BEGIN GENERATED PART: feature-element-target-query-airflow_dag_processor -->
+<!-- END GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/dagprocessor -->
+<!-- BEGIN GENERATED PART: feature-element-target-query-cloud.google.com/composer/dagprocessor -->
 ### Target log type
 
 **![88AA55](https://placehold.co/15x15/88AA55/88AA55.png)composer_environment**
@@ -804,11 +797,11 @@ Sample query:
 TODO: add sample query
 ```
 
-<!-- END GENERATED PART: feature-element-target-query-airflow_dag_processor -->
-<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-airflow_dag_processor -->
+<!-- END GENERATED PART: feature-element-target-query-cloud.google.com/composer/dagprocessor -->
+<!-- BEGIN GENERATED PART: feature-element-available-inspection-type-cloud.google.com/composer/dagprocessor -->
 ### Inspection types
 
 This feature is supported in the following inspection types.
 
 * [Cloud Composer](./inspection-type.md#cloud-composer)
-<!-- END GENERATED PART: feature-element-available-inspection-type-airflow_dag_processor -->
+<!-- END GENERATED PART: feature-element-available-inspection-type-cloud.google.com/composer/dagprocessor -->

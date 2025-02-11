@@ -35,11 +35,6 @@ func (k *k8sControlPlaneComponentParser) TargetLogType() enum.LogType {
 	return enum.LogTypeControlPlaneComponent
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (k *k8sControlPlaneComponentParser) GetDocumentAnchorID() string {
-	return "k8s_control_plane_component"
-}
-
 // Dependencies implements parser.Parser.
 func (k *k8sControlPlaneComponentParser) Dependencies() []string {
 	return []string{}
@@ -47,7 +42,7 @@ func (k *k8sControlPlaneComponentParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (k *k8sControlPlaneComponentParser) Description() string {
-	return `Visualize Kubernetes control plane component logs on a cluster`
+	return `Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs`
 }
 
 // GetParserName implements parser.Parser.

@@ -37,16 +37,9 @@ func (k *k8sContainerParser) TargetLogType() enum.LogType {
 	return enum.LogTypeContainer
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (k *k8sContainerParser) GetDocumentAnchorID() string {
-	return "k8s_container"
-}
-
 // Description implements parser.Parser.
 func (*k8sContainerParser) Description() string {
-	return `Container logs ingested from stdout/stderr of workload Pods. 
-
-(WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter or target namespace fewer.`
+	return `Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.`
 }
 
 // GetParserName implements parser.Parser.

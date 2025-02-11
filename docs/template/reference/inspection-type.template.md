@@ -3,14 +3,18 @@
 <!-- BEGIN GENERATED PART: inspection-type-element-header-{{$type.ID}} -->
 ## [{{$type.Name}}](#{{$type.ID}})
 
-### Features
-
 <!-- END GENERATED PART: inspection-type-element-header-{{$type.ID}} -->
 
+{{with $type.SupportedFeatures}}
 <!-- BEGIN GENERATED PART: inspection-type-element-header-features-{{$type.ID}} -->
-{{range $feature := $type.SupportedFeatures}}
-* [{{$feature.Name}}](./features.md#{{$feature.Name | anchor }})
+### Features
+
+| Feature task name | Description |
+| --- | --- |
+{{- range $feature := $type.SupportedFeatures}}
+|[{{$feature.Name}}](./features.md#{{$feature.Name | anchor }})|{{$feature.Description}}|
 {{- end}}
 <!-- END GENERATED PART: inspection-type-element-header-features-{{$type.ID}} -->
+{{end}}
 {{end}}
 {{end}}

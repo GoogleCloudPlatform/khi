@@ -41,11 +41,6 @@ func (g *gceNetworkParser) TargetLogType() enum.LogType {
 	return enum.LogTypeNetworkAPI
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (g *gceNetworkParser) GetDocumentAnchorID() string {
-	return "gce_network"
-}
-
 // Dependencies implements parser.Parser.
 func (*gceNetworkParser) Dependencies() []string {
 	return []string{}
@@ -53,7 +48,7 @@ func (*gceNetworkParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (*gceNetworkParser) Description() string {
-	return `GCE network API audit log including NEG related audit logs to identify when the associated NEG was attached/detached.`
+	return `Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)`
 }
 
 // GetParserName implements parser.Parser.

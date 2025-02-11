@@ -52,16 +52,9 @@ func (p *k8sNodeParser) TargetLogType() enum.LogType {
 	return enum.LogTypeNode
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (p *k8sNodeParser) GetDocumentAnchorID() string {
-	return "k8s_node"
-}
-
 // Description implements parser.Parser.
 func (*k8sNodeParser) Description() string {
-	return `GKE worker node components logs mainly from kubelet,containerd and dockerd.
-
-(WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter.`
+	return `Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.`
 }
 
 // GetParserName implements parser.Parser.

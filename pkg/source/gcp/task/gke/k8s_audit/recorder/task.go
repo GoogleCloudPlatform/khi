@@ -128,8 +128,7 @@ func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer) 
 	}
 	waiterTask := inspection_task.NewInspectionProcessor(fmt.Sprintf("%s/feature/audit-parser-v2", gcp_task.GCPPrefix), recorderTaskIds, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		return struct{}{}, nil
-	}, inspection_task.FeatureTaskLabel("k8s_audit", "Kubernetes Audit Log", `Visualize Kubernetes audit logs in GKE. 
-This parser reveals how these resources are created,updated or deleted. `, enum.LogTypeAudit, true))
+	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true))
 	err := server.AddTaskDefinition(waiterTask)
 	return err
 }

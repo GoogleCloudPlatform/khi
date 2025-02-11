@@ -40,11 +40,6 @@ func (p *gkeAuditLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeGkeAudit
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (p *gkeAuditLogParser) GetDocumentAnchorID() string {
-	return "gke_audit"
-}
-
 // Dependencies implements parser.Parser.
 func (*gkeAuditLogParser) Dependencies() []string {
 	return []string{}
@@ -52,7 +47,7 @@ func (*gkeAuditLogParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (*gkeAuditLogParser) Description() string {
-	return `GKE audit log including cluster creation,deletion and upgrades.`
+	return `Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool`
 }
 
 // GetParserName implements parser.Parser.

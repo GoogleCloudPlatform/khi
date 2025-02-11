@@ -41,11 +41,6 @@ func (m *multiCloudAuditLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeMulticloudAPI
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (m *multiCloudAuditLogParser) GetDocumentAnchorID() string {
-	return "multicloud_api"
-}
-
 // Dependencies implements parser.Parser.
 func (*multiCloudAuditLogParser) Dependencies() []string {
 	return []string{}
@@ -53,7 +48,7 @@ func (*multiCloudAuditLogParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (*multiCloudAuditLogParser) Description() string {
-	return `Anthos Multicloud audit log including cluster creation,deletion and upgrades.`
+	return `Gather Anthos Multicloud audit log including cluster creation,deletion and upgrades.`
 }
 
 // GetParserName implements parser.Parser.

@@ -40,11 +40,6 @@ func (c *computeAPIParser) TargetLogType() enum.LogType {
 	return enum.LogTypeComputeApi
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (c *computeAPIParser) GetDocumentAnchorID() string {
-	return "compute_api"
-}
-
 // Dependencies implements parser.Parser.
 func (*computeAPIParser) Dependencies() []string {
 	return []string{}
@@ -52,7 +47,7 @@ func (*computeAPIParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (*computeAPIParser) Description() string {
-	return `Compute API audit logs used for cluster related logs. This also visualize operations happened during the query time.`
+	return `Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.`
 }
 
 // GetParserName implements parser.Parser.

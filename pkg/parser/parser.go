@@ -39,9 +39,6 @@ type Parser interface {
 	// GetParserName Returns it's own parser name. It must be unique by each instances.
 	GetParserName() string
 
-	// GetDocumentAnchorID returns a unique ID within feature tasks. This is used as the link anchor ID in document.
-	GetDocumentAnchorID() string
-
 	// TargetLogType returns the log type which this parser should mainly parse and generate revisions or events for.
 	TargetLogType() enum.LogType
 
@@ -178,6 +175,6 @@ func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool
 		return struct{}{}, nil
 	},
 		append([]task.LabelOpt{
-			inspection_task.FeatureTaskLabel(parser.GetDocumentAnchorID(), parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature),
+			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature),
 		}, labelOpts...)...)
 }

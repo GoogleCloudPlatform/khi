@@ -31,8 +31,6 @@ const (
 	LabelKeyInspectionTypes          = InspectionTaskPrefix + "inspection-type"
 	LabelKeyFeatureTaskTitle         = InspectionTaskPrefix + "feature/title"
 	LabelKeyFeatureTaskTargetLogType = InspectionTaskPrefix + "feature/log-type"
-	// LabelKeyFeatureDocumentAnchorID is a key of label for a short length task ID assigned to feature tasks. This is used in link anchors in documents.
-	LabelKeyFeatureDocumentAnchorID = InspectionTaskPrefix + "feature/short-title"
 
 	LabelKeyFeatureTaskDescription = InspectionTaskPrefix + "feature/description"
 
@@ -54,7 +52,6 @@ var _ common_task.LabelOpt = (*ProgressReportableTaskLabelOptImpl)(nil)
 // FeatureTaskLabelImpl is an implementation of task.LabelOpt.
 // This annotate a task definition to be a feature in inspection.
 type FeatureTaskLabelImpl struct {
-	documentAnchorID string
 	title            string
 	description      string
 	logType          enum.LogType
@@ -63,7 +60,6 @@ type FeatureTaskLabelImpl struct {
 
 func (ftl *FeatureTaskLabelImpl) Write(label *common_task.LabelSet) {
 	label.Set(LabelKeyInspectionFeatureFlag, true)
-	label.Set(LabelKeyFeatureDocumentAnchorID, ftl.documentAnchorID)
 	label.Set(LabelKeyFeatureTaskTargetLogType, ftl.logType)
 	label.Set(LabelKeyFeatureTaskTitle, ftl.title)
 	label.Set(LabelKeyFeatureTaskDescription, ftl.description)
@@ -77,10 +73,9 @@ func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTas
 
 var _ common_task.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
-func FeatureTaskLabel(documentAnchorID string, title string, description string, logType enum.LogType, isDefaultFeature bool) *FeatureTaskLabelImpl {
+func FeatureTaskLabel(title string, description string, logType enum.LogType, isDefaultFeature bool) *FeatureTaskLabelImpl {
 	return &FeatureTaskLabelImpl{
 		title:            title,
-		documentAnchorID: documentAnchorID,
 		description:      description,
 		logType:          logType,
 		isDefaultFeature: isDefaultFeature,

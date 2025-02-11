@@ -50,14 +50,9 @@ func (s *SerialPortLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeSerialPort
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (s *SerialPortLogParser) GetDocumentAnchorID() string {
-	return "serialport"
-}
-
 // Description implements parser.Parser.
 func (*SerialPortLogParser) Description() string {
-	return `Serial port logs of worker nodes. Serial port logging feature must be enabled on instances to query logs correctly.`
+	return `Gather serialport logs of GKE nodes. This helps detailed investigation on VM bootstrapping issue on GKE node.`
 }
 
 // GetParserName implements parser.Parser.

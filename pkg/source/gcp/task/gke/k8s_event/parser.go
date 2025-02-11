@@ -39,15 +39,9 @@ func (k *k8sEventParser) TargetLogType() enum.LogType {
 	return enum.LogTypeEvent
 }
 
-// GetDocumentAnchorID implements parser.Parser.
-func (k *k8sEventParser) GetDocumentAnchorID() string {
-	return "k8s_event"
-}
-
 // Description implements parser.Parser.
 func (*k8sEventParser) Description() string {
-	return `Visualize Kubernetes event logs on GKE.
-This parser shows events associated to K8s resources`
+	return `Gather kubernetes event logs and visualize these on the associated resource timeline.`
 }
 
 // GetParserName implements parser.Parser.

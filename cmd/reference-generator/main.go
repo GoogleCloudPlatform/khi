@@ -46,6 +46,7 @@ func main() {
 	generator, err := generator.NewDocumentGeneratorFromTemplateFileGlob("./docs/template/reference/*.template.md")
 	fatal(err, "failed to load template files")
 
+	// Generate the reference for inspection types
 	inspectionTypeDocumentModel := model.GetInspectionTypeDocumentModel(inspectionServer)
 	err = generator.GenerateDocument("./docs/en/reference/inspection-type.md", "inspection-type-template", inspectionTypeDocumentModel, false)
 	fatal(err, "failed to generate inspection type document")
