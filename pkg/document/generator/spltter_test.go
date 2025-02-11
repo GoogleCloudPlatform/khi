@@ -1,4 +1,18 @@
-package splitter
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package generator
 
 import (
 	"testing"
@@ -23,7 +37,7 @@ Generated content 1
 			expected: []*DocumentSection{
 				{
 					Type: SectionTypeGenerated,
-					Id:   "generated-id-1",
+					ID:   "generated-id-1",
 					Body: "<!-- BEGIN GENERATED PART:generated-id-1-->\nGenerated content 1\n<!-- END GENERATED PART:generated-id-1-->",
 				},
 			},
@@ -41,17 +55,17 @@ Generated content 2
 			expected: []*DocumentSection{
 				{
 					Type: SectionTypeGenerated,
-					Id:   "generated-id-1",
+					ID:   "generated-id-1",
 					Body: "<!-- BEGIN GENERATED PART:generated-id-1-->\nGenerated content 1\n<!-- END GENERATED PART:generated-id-1-->",
 				},
 				{
 					Type: SectionTypeAmend,
-					Id:   "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // Hash of amend content
+					ID:   "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // Hash of amend content
 					Body: "",
 				},
 				{
 					Type: SectionTypeGenerated,
-					Id:   "generated-id-2",
+					ID:   "generated-id-2",
 					Body: "<!-- BEGIN GENERATED PART:generated-id-2-->\nGenerated content 2\n<!-- END GENERATED PART:generated-id-2-->",
 				},
 			},
@@ -73,22 +87,22 @@ Amend content 2
 			expected: []*DocumentSection{
 				{
 					Type: SectionTypeGenerated,
-					Id:   "generated-id-1",
+					ID:   "generated-id-1",
 					Body: "<!-- BEGIN GENERATED PART:generated-id-1-->\nGenerated content 1\n<!-- END GENERATED PART:generated-id-1-->",
 				},
 				{
 					Type: SectionTypeAmend,
-					Id:   "8425062b6f9c5ce9895ebb6fcd8d3c58c68887c14c8628a33e8f604dac84e919", // Hash of amend content
+					ID:   "8425062b6f9c5ce9895ebb6fcd8d3c58c68887c14c8628a33e8f604dac84e919", // Hash of amend content
 					Body: "\nAmend content 1\n",
 				},
 				{
 					Type: SectionTypeGenerated,
-					Id:   "generated-id-2",
+					ID:   "generated-id-2",
 					Body: "<!-- BEGIN GENERATED PART:generated-id-2-->\nGenerated content 2\n<!-- END GENERATED PART:generated-id-2-->",
 				},
 				{
 					Type: SectionTypeAmend,
-					Id:   "76b08fe06ecd34111bc58e645360d32593cdfdb797d70f84e7ed0c3cf3103374", // Hash of amend content
+					ID:   "76b08fe06ecd34111bc58e645360d32593cdfdb797d70f84e7ed0c3cf3103374", // Hash of amend content
 					Body: "\nAmend content 2\n",
 				},
 			},
@@ -120,7 +134,7 @@ Amend content
 			expected: []*DocumentSection{
 				{
 					Type: SectionTypeAmend,
-					Id:   "1ff547697cd3b7542f7bb024812b201fc77e31bd605f95f247f41b585286c464",
+					ID:   "1ff547697cd3b7542f7bb024812b201fc77e31bd605f95f247f41b585286c464",
 					Body: "\nAmend content\n",
 				},
 			},

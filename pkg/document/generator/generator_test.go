@@ -1,9 +1,22 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package generator
 
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/document/splitter"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -88,69 +101,69 @@ Generated content 2
 func TestConcatAmendedContents(t *testing.T) {
 	testCases := []struct {
 		name                              string
-		generated                         []*splitter.DocumentSection
-		prev                              []*splitter.DocumentSection
+		generated                         []*DocumentSection
+		prev                              []*DocumentSection
 		ignoreNonMatchingGeneratedSection bool
 		wantResult                        string
 		wantErr                           string
 	}{
 		{
 			name: "no amended sections",
-			generated: []*splitter.DocumentSection{
-				{Id: "generated-1", Type: splitter.SectionTypeGenerated, Body: "Generated 1"},
-				{Id: "generated-2", Type: splitter.SectionTypeGenerated, Body: "Generated 2"},
+			generated: []*DocumentSection{
+				{ID: "generated-1", Type: SectionTypeGenerated, Body: "Generated 1"},
+				{ID: "generated-2", Type: SectionTypeGenerated, Body: "Generated 2"},
 			},
-			prev:                              []*splitter.DocumentSection{},
+			prev:                              []*DocumentSection{},
 			ignoreNonMatchingGeneratedSection: false,
 			wantResult:                        "Generated 1\nGenerated 2\n",
 		},
 		{
 			name: "single amended section at beginning",
-			generated: []*splitter.DocumentSection{
-				{Id: "generated-1", Type: splitter.SectionTypeGenerated, Body: "Generated 1"},
+			generated: []*DocumentSection{
+				{ID: "generated-1", Type: SectionTypeGenerated, Body: "Generated 1"},
 			},
-			prev: []*splitter.DocumentSection{
-				{Id: "amended-1", Type: splitter.SectionTypeAmend, Body: "Amended 1"},
+			prev: []*DocumentSection{
+				{ID: "amended-1", Type: SectionTypeAmend, Body: "Amended 1"},
 			},
 			ignoreNonMatchingGeneratedSection: false,
 			wantResult:                        "Amended 1\nGenerated 1\n",
 		},
 		{
 			name: "new generated section and a single amended section",
-			generated: []*splitter.DocumentSection{
-				{Id: "generated-1", Type: splitter.SectionTypeGenerated, Body: "Generated 1"},
-				{Id: "generated-2", Type: splitter.SectionTypeGenerated, Body: "Generated 2"},
+			generated: []*DocumentSection{
+				{ID: "generated-1", Type: SectionTypeGenerated, Body: "Generated 1"},
+				{ID: "generated-2", Type: SectionTypeGenerated, Body: "Generated 2"},
 			},
-			prev: []*splitter.DocumentSection{
-				{Id: "generated-1", Type: splitter.SectionTypeGenerated, Body: "Generated 1"},
-				{Id: "amended-1", Type: splitter.SectionTypeAmend, Body: "Amended 1"},
+			prev: []*DocumentSection{
+				{ID: "generated-1", Type: SectionTypeGenerated, Body: "Generated 1"},
+				{ID: "amended-1", Type: SectionTypeAmend, Body: "Amended 1"},
 			},
 			ignoreNonMatchingGeneratedSection: false,
 			wantResult:                        "Generated 1\nAmended 1\nGenerated 2\n",
 		},
 		{
 			name: "multiple amended sections",
-			generated: []*splitter.DocumentSection{
-				{Id: "generated-1", Body: "Generated 1"},
-				{Id: "generated-2", Body: "Generated 2"},
+			generated: []*DocumentSection{
+				{ID: "generated-1", Body: "Generated 1"},
+				{ID: "generated-2", Body: "Generated 2"},
 			},
-			prev: []*splitter.DocumentSection{
-				{Id: "amended-1", Type: splitter.SectionTypeAmend, Body: "Amended 1"},
-				{Id: "generated-1", Body: "Generated 1"},
-				{Id: "amended-2", Type: splitter.SectionTypeAmend, Body: "Amended 2"},
-				{Id: "generated-2", Body: "Generated 2"},
-				{Id: "amended-3", Type: splitter.SectionTypeAmend, Body: "Amended 3"},
+			prev: []*DocumentSection{
+				{ID: "amended-1", Type: SectionTypeAmend, Body: "Amended 1"},
+				{ID: "generated-1", Body: "Generated 1"},
+				{ID: "amended-2", Type: SectionTypeAmend, Body: "Amended 2"},
+				{ID: "generated-2", Body: "Generated 2"},
+				{ID: "amended-3", Type: SectionTypeAmend, Body: "Amended 3"},
 			},
 			ignoreNonMatchingGeneratedSection: false,
 			wantResult:                        "Amended 1\nGenerated 1\nAmended 2\nGenerated 2\nAmended 3\n",
 		},
 		{
 			name:      "no generated sections",
-			generated: []*splitter.DocumentSection{},
-			prev: []*splitter.DocumentSection{
-				{Id: "amended-1", Type: splitter.SectionTypeAmend, Body: "Amended 1"},
-				{Id: "generated-1", Body: "Generated 1"},
-				{Id: "amended-2", Type: splitter.SectionTypeAmend, Body: "Amended 2"},
+			generated: []*DocumentSection{},
+			prev: []*DocumentSection{
+				{ID: "amended-1", Type: SectionTypeAmend, Body: "Amended 1"},
+				{ID: "generated-1", Body: "Generated 1"},
+				{ID: "amended-2", Type: SectionTypeAmend, Body: "Amended 2"},
 			},
 			ignoreNonMatchingGeneratedSection: false,
 			wantErr:                           "previous amended sections belongs to other generated sections is not used. Unused ids [generated-1]",

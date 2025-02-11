@@ -43,8 +43,8 @@ const InputProjectIdTaskID = GCPPrefix + "input/project-id"
 var projectIdValidator = regexp.MustCompile(`^\s*[0-9a-z\.:\-]+\s*$`)
 
 var InputProjectIdTask = form.NewInputFormDefinitionBuilder(InputProjectIdTaskID, PriorityForResourceIdentifierGroup+5000, "Project ID").
-	WithUIDescription("The project ID containing the logs of cluster to query").
-	WithDocumentDescription("The project ID containing the logs of cluster to query").
+	WithUIDescription("The project ID containing logs of the cluster to query").
+	WithDocumentDescription("The project ID containing logs of the cluster to query").
 	WithDependencies([]string{}).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		if !projectIdValidator.Match([]byte(value)) {
