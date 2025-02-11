@@ -12,7 +12,7 @@ type InspectionTypeDocumentModel struct {
 	InspectionTypes []InspectionTypeDocumentElement
 }
 
-// InspectionTypeDocumentElement is a model for a InspectionType used in InspectionTypeDocumentModel.
+// InspectionTypeDocumentElement is a model type for a InspectionType used in InspectionTypeDocumentModel.
 type InspectionTypeDocumentElement struct {
 	// ID is the unique name of the InspectionType.
 	ID string
@@ -22,7 +22,7 @@ type InspectionTypeDocumentElement struct {
 	SupportedFeatures []InspectionTypeDocumentElementFeature
 }
 
-// InspectionTypeDocumentElementFeature is a model for a feature task used for generatng the list of supported features of a InspectionType.
+// InspectionTypeDocumentElementFeature is a model type for a feature task used for generatng the list of supported features of a InspectionType.
 type InspectionTypeDocumentElementFeature struct {
 	// ID is the unique name of the feature task.
 	ID string
@@ -32,7 +32,7 @@ type InspectionTypeDocumentElementFeature struct {
 	Description string
 }
 
-// GetInspectionTypeDocumentModel returns the document model from task server.
+// GetInspectionTypeDocumentModel returns the document model for inspection types from task server.
 func GetInspectionTypeDocumentModel(taskServer *inspection.InspectionTaskServer) InspectionTypeDocumentModel {
 	result := InspectionTypeDocumentModel{}
 	inspectionTypes := taskServer.GetAllInspectionTypes()

@@ -39,7 +39,7 @@ func (k *k8sContainerParser) TargetLogType() enum.LogType {
 
 // Description implements parser.Parser.
 func (*k8sContainerParser) Description() string {
-	return `Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod.`
+	return `Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.`
 }
 
 // GetParserName implements parser.Parser.
