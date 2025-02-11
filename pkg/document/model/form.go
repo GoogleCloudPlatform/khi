@@ -8,28 +8,38 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
+// FormDocumentModel represents the model for generating document docs/en/reference/form.md.
 type FormDocumentModel struct {
+	// Forms is a list of form elements for the document.
 	Forms []FormDocumentElement
 }
 
+// FormDocumentElement represents a single form element in the documentation.
 type FormDocumentElement struct {
-	ID          string
-	Label       string
+	// ID is the unique identifier of the form.
+	ID string
+	// Label is the display label for the form.
+	Label string
+	// Description provides a description of the form.
 	Description string
-
+	// UsedFeatures lists the features requesting this form parameter in their dependency.
 	UsedFeatures []FormUsedFeatureElement
 }
 
+// FormUsedFeatureElement represents a feature used by a form.
 type FormUsedFeatureElement struct {
-	ID   string
+	// ID is the unique identifier of the feature.
+	ID string
+	// Name is the human-readable name of the feature.
 	Name string
 }
 
+// GetFormDocumentModel returns the document model for forms.
 func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDocumentModel, error) {
 	result := FormDocumentModel{}
 	forms := taskServer.RootTaskSet.FilteredSubset(label.TaskLabelKeyIsFormTask, taskfilter.HasTrue, false)
 	for _, form := range forms.GetAll() {
-		usedFeatures, err := getUsedFeatures(taskServer, form)
+		usedFeatures, err := getFeaturesRequestingFormTask(taskServer, form)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +61,8 @@ func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDoc
 	return &result, nil
 }
 
-func getUsedFeatures(taskServer *inspection.InspectionTaskServer, formTask task.Definition) ([]task.Definition, error) {
+// getFeaturesRequestingFormTask returns the list of feature tasks that depends on the given form task.
+func getFeaturesRequestingFormTask(taskServer *inspection.InspectionTaskServer, formTask task.Definition) ([]task.Definition, error) {
 	var result []task.Definition
 	features := taskServer.RootTaskSet.FilteredSubset(inspection_task.LabelKeyInspectionFeatureFlag, taskfilter.HasTrue, false)
 	for _, feature := range features.GetAll() {
