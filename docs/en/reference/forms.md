@@ -6,7 +6,7 @@
 <!-- BEGIN GENERATED PART: form-element-header-cloud.google.com/input/project-id -->
 ## Project ID
 
-The project ID containing the logs of cluster to query
+The project ID containing logs of the cluster to query
 <!-- END GENERATED PART: form-element-header-cloud.google.com/input/project-id -->
 <!-- BEGIN GENERATED PART: form-used-feature-cloud.google.com/input/project-id -->
 ### Features using this parameter

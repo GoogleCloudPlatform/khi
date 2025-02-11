@@ -19,7 +19,7 @@ Gather kubernetes audit logs and visualize resource modifications.
 |:-:|---|
 |[Kind](./forms.md#kind)|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
 |[Namespaces](./forms.md#namespaces)|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -80,7 +80,7 @@ Gather kubernetes event logs and visualize these on the associated resource time
 |Parameter name|Description|
 |:-:|---|
 |[Namespaces](./forms.md#namespaces)|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -133,7 +133,7 @@ Gather node components(e.g docker/container) logs. Log volume can be huge when t
 |Parameter name|Description|
 |:-:|---|
 |[Node names](./forms.md#node-names)|A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -191,7 +191,7 @@ Gather stdout/stderr logs of containers on the cluster to visualize them on the 
 |:-:|---|
 |[Namespaces(Container logs)](./forms.md#namespacescontainer-logs)|The namespace of Pods to gather container logs. Specify `@managed` to gather logs of system components.|
 |[Pod names(Container logs)](./forms.md#pod-namescontainer-logs)|The substring of Pod name to gather container logs. Specify `@any` to gather logs of all pods.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -244,7 +244,7 @@ Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool
 
 |Parameter name|Description|
 |:-:|---|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -295,7 +295,7 @@ Gather Compute API audit logs to show the timings of the provisioning of resourc
 |:-:|---|
 |[Kind](./forms.md#kind)|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
 |[Namespaces](./forms.md#namespaces)|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -354,7 +354,7 @@ Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG
 |:-:|---|
 |[Kind](./forms.md#kind)|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
 |[Namespaces](./forms.md#namespaces)|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -411,7 +411,7 @@ Gather Anthos Multicloud audit log including cluster creation,deletion and upgra
 
 |Parameter name|Description|
 |:-:|---|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -461,7 +461,7 @@ Gather logs related to cluster autoscaler behavior to show them on the timelines
 
 |Parameter name|Description|
 |:-:|---|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -512,7 +512,7 @@ Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenro
 
 |Parameter name|Description|
 |:-:|---|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -563,7 +563,7 @@ Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-ma
 |Parameter name|Description|
 |:-:|---|
 |[Control plane component names](./forms.md#control-plane-component-names)||
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -621,7 +621,7 @@ Gather serialport logs of GKE nodes. This helps detailed investigation on VM boo
 |[Kind](./forms.md#kind)|The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources|
 |[Namespaces](./forms.md#namespaces)|The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.|
 |[Node names](./forms.md#node-names)|A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.|
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Cluster name](./forms.md#cluster-name)|The cluster name to gather logs.|
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -682,7 +682,7 @@ Airflow Scheduler logs contain information related to the scheduling of TaskInst
 |Parameter name|Description|
 |:-:|---|
 |[Location](./forms.md#location)||
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Composer Environment Name](./forms.md#composer-environment-name)||
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -704,7 +704,9 @@ This feature can generates following timeline relationship of timelines.
 Sample query:
 
 ```ada 
-TODO: add sample query
+resource.type="cloud_composer_environment"
+resource.labels.environment_name="sample-composer-environment"
+log_name=projects/test-project/logs/airflow-scheduler
 ```
 
 <!-- END GENERATED PART: feature-element-target-query-cloud.google.com/composer/scheduler -->
@@ -727,7 +729,7 @@ Airflow Worker logs contain information related to the execution of TaskInstance
 |Parameter name|Description|
 |:-:|---|
 |[Location](./forms.md#location)||
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Composer Environment Name](./forms.md#composer-environment-name)||
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -749,7 +751,9 @@ This feature can generates following timeline relationship of timelines.
 Sample query:
 
 ```ada 
-TODO: add sample query
+resource.type="cloud_composer_environment"
+resource.labels.environment_name="sample-composer-environment"
+log_name=projects/test-project/logs/airflow-worker
 ```
 
 <!-- END GENERATED PART: feature-element-target-query-cloud.google.com/composer/worker -->
@@ -772,7 +776,7 @@ The DagProcessorManager logs contain information for investigating the number of
 |Parameter name|Description|
 |:-:|---|
 |[Location](./forms.md#location)||
-|[Project ID](./forms.md#project-id)|The project ID containing the logs of cluster to query|
+|[Project ID](./forms.md#project-id)|The project ID containing logs of the cluster to query|
 |[Composer Environment Name](./forms.md#composer-environment-name)||
 |[End time](./forms.md#end-time)|The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.|
 |[Duration](./forms.md#duration)|The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)|
@@ -794,7 +798,9 @@ This feature can generates following timeline relationship of timelines.
 Sample query:
 
 ```ada 
-TODO: add sample query
+resource.type="cloud_composer_environment"
+resource.labels.environment_name="sample-composer-environment"
+log_name=projects/test-project/logs/dag-processor-manager
 ```
 
 <!-- END GENERATED PART: feature-element-target-query-cloud.google.com/composer/dagprocessor -->
