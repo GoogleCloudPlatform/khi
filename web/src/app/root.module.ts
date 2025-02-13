@@ -88,6 +88,8 @@ import {
 } from './annotator/change-pair-tool/default';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from './annotator/change-pair/resolver';
 import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/default';
+import { GraphPageDataSource } from './services/frame-connection/frames/graph-page-datasource.service';
+
 @NgModule({
   declarations: [RootComponent],
   imports: [
@@ -112,6 +114,7 @@ import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/d
     InspectionDataLoaderService,
     DiffPageDataSourceServer,
     GraphPageDataSourceServer,
+    GraphPageDataSource,
 
     TimelineSelectionService,
     InspectionDataStoreService,
