@@ -44,7 +44,7 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/project-id",
 				Type:        "Text",
@@ -61,7 +61,7 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/project-id",
 				Type:        "Text",
@@ -86,7 +86,7 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:        1,
 				Id:              GCPPrefix + "input/project-id",
 				Type:            "Text",
@@ -104,7 +104,7 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/project-id",
 				Type:        "Text",
@@ -121,7 +121,7 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/project-id",
 				Type:        "Text",
@@ -145,7 +145,7 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/cluster-name",
 				Type:        "Text",
@@ -161,7 +161,7 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "  foo-cluster   ",
 			ExpectedValue: "foo-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/cluster-name",
 				Type:        "Text",
@@ -177,7 +177,7 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "An invalid cluster name",
 			ExpectedValue: "foo-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:        1,
 				Id:              GCPPrefix + "input/cluster-name",
 				Type:            "Text",
@@ -194,7 +194,7 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "nonexisting-cluster",
 			ExpectedValue: "nonexisting-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:        1,
 				Id:              GCPPrefix + "input/cluster-name",
 				Type:            "Text",
@@ -225,7 +225,7 @@ func TestDurationInput(t *testing.T) {
 			Input:         "10m",
 			ExpectedValue: time.Duration(time.Minute) * 10,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       expectedLabel,
 				Description: expectedDescription,
 				Suggestions: expectedSuggestions,
@@ -243,7 +243,7 @@ func TestDurationInput(t *testing.T) {
 			Input:         "foo",
 			ExpectedValue: time.Hour,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -258,7 +258,7 @@ func TestDurationInput(t *testing.T) {
 			Input:         "-10m",
 			ExpectedValue: time.Hour,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -273,7 +273,7 @@ func TestDurationInput(t *testing.T) {
 			Input:         "672h", // starting time will be 30 days before the inspection time
 			ExpectedValue: time.Hour * 672,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Type:        "Text",
 				Label:       expectedLabel,
 				Description: expectedDescription,
@@ -294,7 +294,7 @@ Query range:
 			Input:         "1h",
 			ExpectedValue: time.Hour,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskJST},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Type:        "Text",
 				Label:       expectedLabel,
 				Description: expectedDescription,
@@ -331,7 +331,7 @@ func TestInputEndtime(t *testing.T) {
 			Input:         "",
 			ExpectedValue: expectedValue1,
 			Dependencies:  []task.Definition{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -346,7 +346,7 @@ func TestInputEndtime(t *testing.T) {
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
 			Dependencies:  []task.Definition{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -361,7 +361,7 @@ func TestInputEndtime(t *testing.T) {
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
 			Dependencies:  []task.Definition{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -414,7 +414,7 @@ func TestInputKindName(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -431,7 +431,7 @@ func TestInputKindName(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       expectedLabel,
 				Description: expectedDescription,
 				AllowEdit:   true,
@@ -446,7 +446,7 @@ func TestInputKindName(t *testing.T) {
 				Subtractives:    []string{},
 				ValidationError: "",
 				SubtractMode:    false,
-			}, ExpectedFormField: &form.FormField{
+			}, ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -475,7 +475,7 @@ func TestInputNamespaces(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -492,7 +492,7 @@ func TestInputNamespaces(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       expectedLabel,
 				Description: expectedDescription,
 				AllowEdit:   true,
@@ -507,7 +507,7 @@ func TestInputNamespaces(t *testing.T) {
 				Subtractives:    []string{},
 				ValidationError: "",
 				SubtractMode:    false,
-			}, ExpectedFormField: &form.FormField{
+			}, ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
 				AllowEdit:       true,
@@ -530,7 +530,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "",
 			ExpectedValue: []string{},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
 				AllowEdit:   true,
@@ -543,7 +543,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "node-name-1",
 			ExpectedValue: []string{"node-name-1"},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
 				AllowEdit:   true,
@@ -556,7 +556,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "node-name-1 node-name-2 node-name-3",
 			ExpectedValue: []string{"node-name-1", "node-name-2", "node-name-3"},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
 				AllowEdit:   true,
@@ -569,7 +569,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "node-name-1 invalid=node=name node-name-3",
 			ExpectedValue: []string{},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:           wantLabelName,
 				Description:     wantDescription,
 				AllowEdit:       true,
@@ -583,7 +583,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "  node-name-1  node-name-2  ",
 			ExpectedValue: []string{"node-name-1", "node-name-2"},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
 				AllowEdit:   true,
@@ -601,7 +601,7 @@ func TestLocationInput(t *testing.T) {
 			Input:         "asia-northeast1",
 			ExpectedValue: "asia-northeast1",
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: &form.FormField{
+			ExpectedFormField: form.FormField{
 				Priority:    1,
 				Id:          GCPPrefix + "input/location",
 				Type:        "Text",

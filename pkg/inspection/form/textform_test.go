@@ -50,7 +50,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		Name              string
 		FormConfigurator  testFormConfigurator
 		RequestValue      string
-		ExpectedFormField *form_metadata.FormField
+		ExpectedFormField form_metadata.FormField
 		ExpectedValue     any
 		ExpectedError     string
 	}{
@@ -60,7 +60,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:     "bar",
 			ExpectedValue:    "bar",
 			ExpectedError:    "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: true,
 				HintType:  form_metadata.HintTypeInfo,
 			},
@@ -73,7 +73,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "",
 			ExpectedValue: "foo-default",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: true,
 				Default:   "foo-default",
 				HintType:  form_metadata.HintTypeInfo,
@@ -89,7 +89,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "",
 			ExpectedValue: "foo-default",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit:       true,
 				ValidationError: "foo validation error",
 				HintType:        form_metadata.HintTypeInfo,
@@ -105,7 +105,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "",
 			ExpectedValue: "",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: false,
 				HintType:  form_metadata.HintTypeInfo,
 			},
@@ -120,7 +120,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "foo-from-default",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: false,
 				Default:   "foo-from-default",
 				HintType:  form_metadata.HintTypeInfo,
@@ -136,7 +136,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "bar-from-request",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: true,
 				Hint:      "foo-hint",
 				HintType:  form_metadata.HintTypeInfo,
@@ -152,7 +152,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "bar-from-request",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: true,
 				Default:   "foo-from-default",
 				HintType:  form_metadata.HintTypeInfo,
@@ -170,7 +170,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			RequestValue:  "bar-from-request",
 			ExpectedValue: "bar-from-request",
 			ExpectedError: "",
-			ExpectedFormField: &form_metadata.FormField{
+			ExpectedFormField: form_metadata.FormField{
 				AllowEdit: true,
 				Suggestions: []string{
 					"foo-suggest1",
@@ -187,7 +187,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			originalBuilder := NewInputFormDefinitionBuilder("foo", 1, "foo label")
 			testCase.FormConfigurator(originalBuilder)
 			taskDef := originalBuilder.Build()
-			formFields := []*form_metadata.FormField{}
+			formFields := []form_metadata.FormField{}
 
 			// Execute task as DryRun mode
 			vs := generateFakeVariableSet("foo", testCase.RequestValue)
@@ -208,9 +208,6 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					t.Errorf("unexpected error while getting metadata\n%v", err)
 				}
 				field := ms.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet).DangerouslyGetField("foo")
-				if field == nil {
-					t.Errorf("field metadata wasn't added as expected")
-				}
 				formFields = append(formFields, field)
 			}
 
@@ -234,9 +231,6 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 						t.Errorf("unexpected error while getting metadata\n%v", err)
 					}
 					field := ms.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet).DangerouslyGetField("foo")
-					if field == nil {
-						t.Errorf("field metadata wasn't added as expected")
-					}
 					formFields = append(formFields, field)
 				}
 

@@ -175,7 +175,7 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 		if err != nil {
 			return nil, fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
 		}
-		field := &form_metadata.FormField{}
+		field := form_metadata.FormField{}
 		field.AllowEdit = allowEdit
 
 		// Compute the default value of the form
@@ -222,12 +222,6 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 			return nil, fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, field.ValidationError)
 		}
 
-		formFields := m.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet)
-		err = formFields.SetField(field)
-		if err != nil {
-			return nil, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
-		}
-
 		convertedValue, err := b.converter(ctx, currentValue, v)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
@@ -243,6 +237,12 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 				newValueHistory := append([]string{currentValue}, prevValue...)
 				cacheStore.Store(previousValueStoreKey, newValueHistory)
 			}
+		}
+
+		formFields := m.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet)
+		err = formFields.SetField(field)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
 		}
 		return convertedValue, nil
 	}, labelOpts...)

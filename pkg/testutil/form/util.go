@@ -30,7 +30,7 @@ type FormTestCase struct {
 	Name              string
 	Input             string
 	ExpectedValue     any
-	ExpectedFormField *form.FormField
+	ExpectedFormField form.FormField
 	Dependencies      []task.Definition
 	Before            func()
 	After             func()
