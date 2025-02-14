@@ -25,6 +25,8 @@ import (
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestParseSummary(t *testing.T) {

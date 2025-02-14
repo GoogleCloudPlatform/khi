@@ -21,6 +21,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type mockHeaderProvider struct {

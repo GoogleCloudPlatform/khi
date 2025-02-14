@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestNewMultiTokenStoreRefresher(t *testing.T) {

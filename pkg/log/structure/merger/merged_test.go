@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 var emptyMergeKeyResolver = &MergeConfigResolver{
@@ -253,7 +255,7 @@ qux: 13
 		},
 		{
 			name: "merge map with $patch=replace",
-			prev: `foo: 
+			prev: `foo:
   bar: 10
   qux: 12
 `,
@@ -493,7 +495,7 @@ qux:
     - c`,
 			patch: `foo:
   bar: abcdefg
-qux: 
+qux:
   hoge: null
   fuga: null`,
 			expected: `foo:
@@ -570,7 +572,7 @@ qux:
   bar: 10
 `,
 			patch: `foo:
-  $retainKeys: 
+  $retainKeys:
     - qux
   qux: 11
 `,
@@ -584,7 +586,7 @@ qux:
   bar: 10
 `,
 			patch: `foo:
-  $retainKeys: 
+  $retainKeys:
     - bar
     - qux
   qux: 11
@@ -911,7 +913,7 @@ bar:
 		{
 			name: "mix $deleteFromPrimitiveList and $setElementOrder",
 			prev: `foo:
-  bar: 
+  bar:
     baz1: hello
     baz2: true
   qux:
@@ -921,7 +923,7 @@ bar:
       - grape
 `,
 			patch: `foo:
-  bar: 
+  bar:
     baz2: false
     baz1: hello2
   qux:
@@ -950,7 +952,7 @@ bar:
 		{
 			name: "mix $patch=delete and $setElementOrder",
 			prev: `foo:
-  bar: 
+  bar:
     baz1: hello
     baz2: true
   qux:
@@ -966,7 +968,7 @@ bar:
         value2: 30
 `,
 			patch: `foo:
-  bar: 
+  bar:
     baz2: false
     baz1: hello2
   qux:
@@ -996,7 +998,7 @@ bar:
       value2: 30
     - name: lemon
       value: 4
-      value2: 40  
+      value2: 40
 `,
 			keyResolver: keyResolverFromMap(map[string]string{
 				".foo.qux.quux": "name",

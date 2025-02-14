@@ -31,6 +31,8 @@ import (
 	form_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/form"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 var testClusterNamePrefix = task_test.MockProcessorTaskFromTaskID(ClusterNamePrefixTaskID, "")

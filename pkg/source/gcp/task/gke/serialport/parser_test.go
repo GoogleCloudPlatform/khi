@@ -21,6 +21,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestSerialPortLogParser_ParseBasicSerialPortLog(t *testing.T) {

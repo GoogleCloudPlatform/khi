@@ -17,6 +17,8 @@ package token
 import (
 	"context"
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestMultiTokenResolver_Resolve(t *testing.T) {

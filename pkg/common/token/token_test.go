@@ -17,6 +17,8 @@ package token
 import (
 	"testing"
 	"time"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestNew(t *testing.T) {

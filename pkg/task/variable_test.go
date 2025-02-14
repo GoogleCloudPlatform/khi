@@ -18,6 +18,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestVariableSetToBeReleasedWhenItWasSet(t *testing.T) {

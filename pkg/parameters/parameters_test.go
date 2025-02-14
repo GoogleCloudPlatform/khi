@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	khiflag "github.com/GoogleCloudPlatform/khi/pkg/common/flag"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func prepareFlagParsingTest(t *testing.T) {

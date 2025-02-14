@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testOnMemoryCacheItemStorageProvider struct {

@@ -20,6 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func testPrepareInspectionServer(inspectionServer *inspection.InspectionTaskServer) error {

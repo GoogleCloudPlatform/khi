@@ -19,6 +19,8 @@ import (
 
 	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestQueryConformance(t *testing.T) {

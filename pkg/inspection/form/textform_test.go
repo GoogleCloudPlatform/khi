@@ -24,6 +24,8 @@ import (
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func generateFakeVariableSet(taskId string, value string) *common_task.VariableSet {

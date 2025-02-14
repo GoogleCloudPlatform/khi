@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestGCPAccessTokenHeaderProvider(t *testing.T) {

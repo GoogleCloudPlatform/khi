@@ -26,6 +26,8 @@ import (
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestGroupByTimelineTask(t *testing.T) {
@@ -44,7 +46,7 @@ func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it grups logs by timleines", func(t *testing.T) {
 		baseLog := `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   status:

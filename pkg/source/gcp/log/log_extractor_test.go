@@ -23,6 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func logFromYaml(yaml string) (*log.LogEntity, error) {

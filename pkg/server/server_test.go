@@ -43,6 +43,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testPopupForm struct{}
