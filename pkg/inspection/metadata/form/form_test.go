@@ -42,7 +42,7 @@ func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(fsActual, fsExpected, cmp.AllowUnexported(FormFieldSet{}),cmpopts.IgnoreFields(FormFieldSet{},"fieldsLock")); diff != "" {
+	if diff := cmp.Diff(fsActual, fsExpected, cmp.AllowUnexported(FormFieldSet{}), cmpopts.IgnoreFields(FormFieldSet{}, "fieldsLock")); diff != "" {
 		t.Errorf("FieldSet has fields in unexpected shape\n%v", diff)
 	}
 }

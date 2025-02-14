@@ -49,7 +49,7 @@ type FormField struct {
 // FormFieldSet is a metadata type used in frontend to generate the form fields.
 type FormFieldSet struct {
 	fieldsLock sync.RWMutex
-	fields []FormField
+	fields     []FormField
 }
 
 var _ metadata.Metadata = (*FormFieldSet)(nil)
