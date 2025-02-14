@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
@@ -82,6 +83,9 @@ resource.labels.project_id="foo-project"
 	}
 
 	for i, testCase := range testCases {
+		if *testflags.SkipCloudLogging {
+			t.Skip("cloud logging tests are skipped")
+		}
 		t.Run(fmt.Sprintf("testcase-%d-%s", i, testCase.ExpectedQuery), func(t *testing.T) {
 			result := GenerateK8sControlPlaneQuery(testCase.InputClusterName, testCase.InputProjectName, testCase.InputControlplaneComponentNameFilter)
 			if result != testCase.ExpectedQuery {
