@@ -46,7 +46,6 @@ export class LogHeaderComponent {
 
   @Input()
   public set logIndex(index: number) {
-    console.log(`log index change: ${index}`);
     this.logIndexObservable.next(index);
   }
 
