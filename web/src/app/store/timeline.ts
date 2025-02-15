@@ -19,24 +19,33 @@ import { ResourceEvent } from './event';
 import { ResourceRevision } from './revision';
 
 /**
- * A model type used in store.
- * This class provides utility functions to query data included in a timeline.
+ * ResourceTimeline is a model representing a timeline associated with a specific resorce path.
+ *
+ * Note: KHI can have multiple resources bound to a timeline. For example, the timeline to show owner reference can have the aliased timeline.
  */
-export class TimelineEntry {
+export class ResourceTimeline {
   private readonly resourcePathFragments: string[] = [];
 
-  private _privateParent: TimelineEntry | null = null;
+  private _privateParent: ResourceTimeline | null = null;
   /**
    * Get the parent of this timeline.
    * Returns null when this timeline is at the root layer.
    */
-  public get parent(): TimelineEntry | null {
+  public get parent(): ResourceTimeline | null {
     return this._privateParent;
   }
 
-  public readonly children: TimelineEntry[] = [];
+  public readonly children: ResourceTimeline[] = [];
 
+  /**
+   * @param timelineId The ID of timeline. There can be several ResourceTimelines shareing same timelineId but with different resource path.
+   * @param resourcePath The resource path representing the location of the timeline. Example: core.v1/pod#kube-system#nginx
+   * @param revisions The list of ResourceRevisions contained in this timeline.
+   * @param events The list of ResourceEvents contained in this timeline.
+   * @param parentRelationship A type representing the relationship between this timeline and this parent.
+   */
   constructor(
+    public readonly timelineId: string,
     public readonly resourcePath: string,
     public readonly revisions: ResourceRevision[],
     public readonly events: ResourceEvent[],
@@ -48,7 +57,7 @@ export class TimelineEntry {
   /**
    * Add a timeline as a children.
    */
-  public addChildTimeline(timeline: TimelineEntry) {
+  public addChildTimeline(timeline: ResourceTimeline) {
     timeline._privateParent = this;
     this.children.push(timeline);
   }
@@ -194,13 +203,13 @@ export class TimelineEntry {
   /**
    * Get the list of TimelineEntry having this TimelineEntry as an ancestor.
    */
-  public getAllChildrenRecursive(): TimelineEntry[] {
+  public getAllChildrenRecursive(): ResourceTimeline[] {
     return [
       ...this.children,
       ...this.children.reduce((p, t) => {
         p.push(...t.getAllChildrenRecursive());
         return p;
-      }, [] as TimelineEntry[]),
+      }, [] as ResourceTimeline[]),
     ];
   }
 
@@ -230,15 +239,16 @@ export class TimelineEntry {
     return false;
   }
 
-  public static clone(timeline: TimelineEntry): TimelineEntry {
-    const p = new TimelineEntry(
+  public static clone(timeline: ResourceTimeline): ResourceTimeline {
+    const p = new ResourceTimeline(
+      timeline.timelineId,
       timeline.resourcePath,
       timeline.revisions.map((r) => ResourceRevision.clone(r)),
       timeline.events.map((e) => ResourceEvent.clone(e)),
       timeline.parentRelationship,
     );
     timeline.children
-      .map((t) => TimelineEntry.clone(t))
+      .map((t) => ResourceTimeline.clone(t))
       .forEach((child) => p.addChildTimeline(child));
     return p;
   }

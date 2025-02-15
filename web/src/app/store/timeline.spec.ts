@@ -23,10 +23,11 @@ import {
 } from '../generated';
 import { ResourceEvent } from './event';
 import { ResourceRevision } from './revision';
-import { TimelineEntry, TimelineLayer } from './timeline';
+import { ResourceTimeline, TimelineLayer } from './timeline';
 
-function generateTestTimeline(resourcePath: string): TimelineEntry {
-  return new TimelineEntry(
+function generateTestTimeline(resourcePath: string): ResourceTimeline {
+  return new ResourceTimeline(
+    'test',
     resourcePath,
     [],
     [],
@@ -36,13 +37,15 @@ function generateTestTimeline(resourcePath: string): TimelineEntry {
 
 describe('TimelineEntry', () => {
   it('initialize parent field in child with addChildTimeline', () => {
-    const child1 = new TimelineEntry(
+    const child1 = new ResourceTimeline(
+      'child1',
       'core/v1#pod',
       [],
       [],
       ParentRelationship.RelationshipChild,
     );
-    const p = new TimelineEntry(
+    const p = new ResourceTimeline(
+      'parent',
       'core/v1',
       [],
       [],
@@ -80,7 +83,8 @@ describe('TimelineEntry', () => {
       },
     ];
     for (const tc of testCases) {
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         tc.resourcePath,
         [],
         [],
@@ -118,7 +122,8 @@ describe('TimelineEntry', () => {
       },
     ];
     for (const tc of testCases) {
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         tc.resourcePath,
         [],
         [],
@@ -167,7 +172,8 @@ describe('TimelineEntry', () => {
       },
     ];
     for (const tc of testCases) {
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         tc.resourcePath,
         [],
         [],
@@ -181,7 +187,8 @@ describe('TimelineEntry', () => {
   describe('queryEventsInRange', () => {
     it('returns the list of events in the range', () => {
       const eventTimes = [0, 1, 2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         eventTimes.map(
@@ -207,7 +214,8 @@ describe('TimelineEntry', () => {
   describe('pickEventNearCenterOfRange', () => {
     it('returns a event at the center of specified range', () => {
       const eventTimes = [0, 1, 2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         eventTimes.map(
@@ -230,7 +238,8 @@ describe('TimelineEntry', () => {
 
     it('returns null when the range is outside of events', () => {
       const eventTimes = [0, 1, 2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         eventTimes.map(
@@ -254,7 +263,8 @@ describe('TimelineEntry', () => {
   describe('queryRevisionsInRange', () => {
     it('returns the list of revisions in the range', () => {
       const revisionTimes = [0, 1, 2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         revisionTimes.map(
           (t) =>
@@ -283,7 +293,8 @@ describe('TimelineEntry', () => {
 
     it('returns the revision overwrapping the given range', () => {
       const revisionTimes = [0, 1, 2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         revisionTimes.map(
           (t) =>
@@ -313,7 +324,8 @@ describe('TimelineEntry', () => {
   describe('getLatestRevisionOfTime', () => {
     it('returns the revision not reaching the given endtime', () => {
       const revisionTimes = [0, 1, 2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         revisionTimes.map(
           (t) =>
@@ -341,7 +353,8 @@ describe('TimelineEntry', () => {
 
     it('returns null when no revision started yet at the given time', () => {
       const revisionTimes = [2, 3, 4, 5];
-      const tl = new TimelineEntry(
+      const tl = new ResourceTimeline(
+        'test',
         'core/v1',
         revisionTimes.map(
           (t) =>
@@ -396,7 +409,8 @@ describe('TimelineEntry', () => {
   describe('getRevisionPairByLogId', () => {
     it('returns the pair when the revision having the log index found in the timeline', () => {
       const logIndices = [0, 3, 5, 7, 9];
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         logIndices.map(
           (li, ri) =>
@@ -424,7 +438,8 @@ describe('TimelineEntry', () => {
 
     it('returns the pair without the previous field when there is no older revision', () => {
       const logIndices = [0, 3, 5, 7, 9];
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         logIndices.map(
           (li, ri) =>
@@ -451,7 +466,8 @@ describe('TimelineEntry', () => {
     });
 
     it('returns null when no revisions are included in the timeline', () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         [],
@@ -465,7 +481,8 @@ describe('TimelineEntry', () => {
 
   describe('hasNonFilteredOutIndices', () => {
     it('returns true when there is a revision not included in the filtered indices', () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         [
           new ResourceRevision(
@@ -498,7 +515,8 @@ describe('TimelineEntry', () => {
       expect(timeline.hasNonFilteredOutIndices(filteredOut)).toBeTrue();
     });
     it('returns false when all revisions are included in the filtered indices', () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         [
           new ResourceRevision(
@@ -531,7 +549,8 @@ describe('TimelineEntry', () => {
       expect(timeline.hasNonFilteredOutIndices(filteredOut)).toBeFalse();
     });
     it('returns true when there is an event not included in the filtered indices', () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         [
@@ -544,7 +563,8 @@ describe('TimelineEntry', () => {
       expect(timeline.hasNonFilteredOutIndices(filteredOut)).toBeTrue();
     });
     it('returns false when all events are included in the filtered indices', () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         [
@@ -557,7 +577,8 @@ describe('TimelineEntry', () => {
       expect(timeline.hasNonFilteredOutIndices(filteredOut)).toBeFalse();
     });
     it('returns false when there is no revision and event', () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         'core/v1',
         [],
         [],
@@ -571,7 +592,8 @@ describe('TimelineEntry', () => {
   describe('hasNonFilteredOutIndicesRecursive', () => {
     it('returns true when there is a revision not included in the filtered indices in its children', () => {
       const p1 = generateTestTimeline('core/v1');
-      const p1c1 = new TimelineEntry(
+      const p1c1 = new ResourceTimeline(
+        'test',
         'core/v1#pod',
         [
           new ResourceRevision(
@@ -595,7 +617,8 @@ describe('TimelineEntry', () => {
     });
     it('returns false when all revisions are included in the filtered indices in its children', () => {
       const p1 = generateTestTimeline('core/v1');
-      const p1c1 = new TimelineEntry(
+      const p1c1 = new ResourceTimeline(
+        'test',
         'core/v1#pod',
         [
           new ResourceRevision(

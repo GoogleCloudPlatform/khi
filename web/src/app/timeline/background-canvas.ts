@@ -22,7 +22,7 @@ import { CanvasSize } from './canvas/types';
 import * as generated from '../generated';
 import { SelectionManagerService } from '../services/selection-manager.service';
 import { LogEntry } from '../store/log';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 import { TimelineFilter } from '../services/timeline-filter.service';
 import { TimeRange } from '../store/inspection-data';
 
@@ -654,7 +654,7 @@ export class BackgroundCanvas {
 
   private filterLogsWithTimelines(
     logs: LogEntry[],
-    timelines: TimelineEntry[],
+    timelines: ResourceTimeline[],
   ): LogEntry[] {
     const logIndices = new Set<number>();
     for (const timeline of timelines) {

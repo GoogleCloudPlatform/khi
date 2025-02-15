@@ -48,7 +48,7 @@ import { TimelineRowWebGLRenderer } from './timeline_gl_row_renderer';
 import { GLVerticalLineRenderer } from './gl_vertical_line_renderer';
 import { TimeRange } from 'src/app/store/inspection-data';
 import { LogEntry } from 'src/app/store/log';
-import { TimelineEntry } from 'src/app/store/timeline';
+import { ResourceTimeline } from 'src/app/store/timeline';
 import { TimelineGLResourceManager } from './timeline_gl_resource_manager';
 
 @Injectable()
@@ -158,7 +158,7 @@ export class TimelineRendererService {
     this.dataStore.$timeRange,
   ]).pipe(
     map(([gl, timelines, { begin }]) => {
-      const rendererMap = new Map<TimelineEntry, TimelineRowWebGLRenderer>();
+      const rendererMap = new Map<ResourceTimeline, TimelineRowWebGLRenderer>();
       timelines.forEach((t) => {
         rendererMap.set(
           t,
@@ -173,7 +173,7 @@ export class TimelineRendererService {
       });
       return rendererMap;
     }),
-    startWith(new Map<TimelineEntry, TimelineRowWebGLRenderer>()),
+    startWith(new Map<ResourceTimeline, TimelineRowWebGLRenderer>()),
     share(),
   );
 
@@ -400,12 +400,12 @@ export class TimelineRendererService {
     offsetToFirstItemFromVisibleArea: number,
     visibleItemRange: ListRange,
     perRowScrollingProperties: PerRowScrollingProperty[],
-    rowRenderers: Map<TimelineEntry, TimelineRowWebGLRenderer>,
+    rowRenderers: Map<ResourceTimeline, TimelineRowWebGLRenderer>,
     timeRange: TimeRange,
-    stickyTimelines: TimelineEntry[],
-    selectedTimeline: TimelineEntry | null,
-    highlightedTimeline: TimelineEntry | null,
-    highlightedByParentSelection: Set<TimelineEntry>,
+    stickyTimelines: ResourceTimeline[],
+    selectedTimeline: ResourceTimeline | null,
+    highlightedTimeline: ResourceTimeline | null,
+    highlightedByParentSelection: Set<ResourceTimeline>,
     logs: LogEntry[],
     selectedLog: number,
     filteredLog: Set<number>,
@@ -568,15 +568,15 @@ export class TimelineRendererService {
     pos: CanvasMouseLocation | null,
     timeOffset: number,
     pixelPerTime: number,
-    lastTimelines: TimelineEntry[],
-    lastStickyTimelines: TimelineEntry[],
+    lastTimelines: ResourceTimeline[],
+    lastStickyTimelines: ResourceTimeline[],
   ): TimelineMouseLocation | null {
     if (pos === null || lastTimelines.length === 0) {
       return null;
     }
 
     // Find the hitting timeline
-    let timeline: TimelineEntry | null = null;
+    let timeline: ResourceTimeline | null = null;
     let offset = 0;
     for (let i = 0; i < lastStickyTimelines.length; i++) {
       offset += TIMELINE_ITEM_HEIGHTS[lastStickyTimelines[i].layer];

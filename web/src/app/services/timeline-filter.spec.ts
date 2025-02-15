@@ -18,7 +18,7 @@ import { debounceTime, NEVER, ReplaySubject, take } from 'rxjs';
 import { InspectionDataStore } from './inspection-data-store.service';
 import { TimelineFilter } from './timeline-filter.service';
 import { ParentRelationship } from '../generated';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 import { ViewStateService } from './view-state.service';
 
 describe('TimelineFilter', () => {
@@ -276,7 +276,7 @@ describe('TimelineFilter', () => {
   describe('resourceNameTimelineRegexFilter', () => {
     it('emit new resource name timeline regex filter on setResourceNameRegexFilter', () => {
       const store = <InspectionDataStore>{};
-      const allTimelines = new ReplaySubject<TimelineEntry[]>(1);
+      const allTimelines = new ReplaySubject<ResourceTimeline[]>(1);
       store.allTimelines = allTimelines;
       const filter = new TimelineFilter(store, new ViewStateService());
       const gotFilters: string[] = [];
@@ -292,7 +292,7 @@ describe('TimelineFilter', () => {
 
     it('reset the filter when a new data loaded on the data store', () => {
       const store = <InspectionDataStore>{};
-      const allTimelines = new ReplaySubject<TimelineEntry[]>(1);
+      const allTimelines = new ReplaySubject<ResourceTimeline[]>(1);
       store.allTimelines = allTimelines;
       const filter = new TimelineFilter(store, new ViewStateService());
       const gotFilters: string[] = [];
@@ -309,7 +309,7 @@ describe('TimelineFilter', () => {
 
     it('emits resource name timeline regex filter set before subscription', () => {
       const store = <InspectionDataStore>{};
-      const allTimelines = new ReplaySubject<TimelineEntry[]>(1);
+      const allTimelines = new ReplaySubject<ResourceTimeline[]>(1);
       store.allTimelines = allTimelines;
       const filter = new TimelineFilter(store, new ViewStateService());
       const gotFilters: string[] = [];
@@ -325,68 +325,79 @@ describe('TimelineFilter', () => {
   });
 
   describe('filterTimelines', () => {
-    const timelines: TimelineEntry[] = [
-      new TimelineEntry(
+    const timelines: ResourceTimeline[] = [
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace1',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace1#name1',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace1#name2',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace1#name2#subresource1',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace1#name2#subresource-bidning',
         [],
         [],
         ParentRelationship.RelationshipPodBinding,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace2',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind1#namespace2#name2',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind2',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind2#namespace2',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
         'apiVersion1#kind2#namespace2#name3',
         [],
         [],
@@ -395,7 +406,7 @@ describe('TimelineFilter', () => {
     ];
 
     let store: InspectionDataStore;
-    let allTimelines: ReplaySubject<TimelineEntry[]>;
+    let allTimelines: ReplaySubject<ResourceTimeline[]>;
     let availableKinds: ReplaySubject<Set<string>>;
     let availableNamespaces: ReplaySubject<Set<string>>;
     let availableSubresourceParentRelationships: ReplaySubject<
@@ -404,7 +415,7 @@ describe('TimelineFilter', () => {
     let filteredOutLogIndicesSet: ReplaySubject<Set<number>>;
     beforeEach(() => {
       store = <InspectionDataStore>{};
-      allTimelines = new ReplaySubject<TimelineEntry[]>(1);
+      allTimelines = new ReplaySubject<ResourceTimeline[]>(1);
       allTimelines.next(timelines);
       availableKinds = new ReplaySubject<Set<string>>(1);
       availableKinds.next(new Set(['kind1', 'kind2']));
@@ -448,37 +459,43 @@ describe('TimelineFilter', () => {
         .pipe(debounceTime(10), take(1))
         .subscribe((timelines) => {
           expect(timelines).toEqual([
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace1#name1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2#name3',
               [],
               [],
@@ -496,19 +513,22 @@ describe('TimelineFilter', () => {
         .pipe(debounceTime(10), take(1))
         .subscribe((timelines) => {
           expect(timelines).toEqual([
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2#name3',
               [],
               [],
@@ -526,37 +546,43 @@ describe('TimelineFilter', () => {
         .pipe(debounceTime(10), take(1))
         .subscribe((timelines) => {
           expect(timelines).toEqual([
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace2#name2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2#name3',
               [],
               [],
@@ -574,61 +600,71 @@ describe('TimelineFilter', () => {
         .pipe(debounceTime(10), take(1))
         .subscribe((timelines) => {
           expect(timelines).toEqual([
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace1#name1',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace1#name2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace1#name2#subresource-bidning',
               [],
               [],
               ParentRelationship.RelationshipPodBinding,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind1#namespace2#name2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2',
               [],
               [],
               ParentRelationship.RelationshipChild,
             ),
-            new TimelineEntry(
+            new ResourceTimeline(
+              'test',
               'apiVersion1#kind2#namespace2#name3',
               [],
               [],

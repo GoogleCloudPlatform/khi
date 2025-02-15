@@ -15,25 +15,62 @@
  */
 
 import { ParentRelationship } from '../generated';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 import { SelectOnlyDeeperOrEqual } from './timeline-collection-util';
 
 describe('TimelineCollectionUtility', () => {
   it('SelectOnlyDeeperOrEqual', () => {
     const timelines = [
-      new TimelineEntry('1', [], [], ParentRelationship.RelationshipChild),
-      new TimelineEntry('1#1', [], [], ParentRelationship.RelationshipChild),
-      new TimelineEntry('1#2', [], [], ParentRelationship.RelationshipChild),
-      new TimelineEntry('1#2#1', [], [], ParentRelationship.RelationshipChild),
-      new TimelineEntry(
+      new ResourceTimeline(
+        'test',
+        '1',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '1#1',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '1#2',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '1#2#1',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
         '1#2#2',
 
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new TimelineEntry('2', [], [], ParentRelationship.RelationshipChild),
-      new TimelineEntry('3', [], [], ParentRelationship.RelationshipChild),
+      new ResourceTimeline(
+        'test',
+        '2',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '3',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
     ];
     const result = SelectOnlyDeeperOrEqual(timelines, 2);
     expect(result.length).toBe(4);

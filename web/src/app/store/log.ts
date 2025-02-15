@@ -21,7 +21,7 @@ import {
   Severity,
   SeverityMetadata,
 } from '../generated';
-import { TimelineEntry } from './timeline';
+import { ResourceTimeline } from './timeline';
 import { TextReference } from '../common/loader/interface';
 import { ToTextReferenceFromKHIFileBinary } from '../common/loader/reference-type';
 
@@ -29,7 +29,7 @@ export class LogEntry {
   /**
    * Set of timelines relate to this log.
    */
-  public relatedTimelines: Set<TimelineEntry> = new Set();
+  public relatedTimelines: Set<ResourceTimeline> = new Set();
 
   public logTypeLabel = LogTypeMetadata[this.logType].label;
 

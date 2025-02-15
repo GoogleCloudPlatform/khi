@@ -15,7 +15,7 @@
  */
 
 import { ParentRelationship } from '../generated';
-import { TimelineEntry } from './timeline';
+import { ResourceTimeline } from './timeline';
 import { TimelineFilterFacade } from './timeline-filter';
 
 interface TimelineFilterTestCase {
@@ -39,7 +39,8 @@ describe('TimelineFilter#isNodeOrNodeChildren', () => {
   ];
   for (const testCase of testCases) {
     it(testCase.name, () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         testCase.resourcePath,
         [],
         [],
@@ -67,7 +68,8 @@ describe('TimelineFilter#isPodOrChildren', () => {
   ];
   for (const testCase of testCases) {
     it(testCase.name, () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         testCase.resourcePath,
         [],
         [],
@@ -100,7 +102,8 @@ describe('TimelineFilter#isPodBindingForNode', () => {
   ];
   for (const testCase of testCases) {
     it(testCase.name, () => {
-      const timeline = new TimelineEntry(
+      const timeline = new ResourceTimeline(
+        'test',
         testCase.resourcePath,
         [],
         [],

@@ -21,7 +21,7 @@ import {
   revisionStates,
   severities,
 } from 'src/app/generated';
-import { TimelineEntry, TimelineLayer } from 'src/app/store/timeline';
+import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { TimelineGLResourceManager } from './timeline_gl_resource_manager';
 import { Subject, takeUntil } from 'rxjs';
 
@@ -81,7 +81,7 @@ export class TimelineRowWebGLRenderer extends GLResource {
     gl: WebGL2RenderingContext,
     private resourceManager: TimelineGLResourceManager,
     private sharedResources: SharedGLResources,
-    private timeline: TimelineEntry,
+    private timeline: ResourceTimeline,
     private leftMostTime: number,
   ) {
     super(gl);

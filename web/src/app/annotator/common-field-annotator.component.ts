@@ -36,7 +36,7 @@ import { ViewStateService } from 'src/app/services/view-state.service';
 import { AnnotationDecider, DECISION_HIDDEN } from './annotator';
 import { LogEntry } from '../store/log';
 import { ResourceRevision } from '../store/revision';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 
 @Component({
   standalone: true,
@@ -141,9 +141,9 @@ export class CommonFieldAnnotatorComponent {
   public static inputMapperForTimelineEntry(
     icon: string,
     label: string,
-    fieldMapper: (tl: TimelineEntry) => string,
-  ): AnnotationDecider<TimelineEntry> {
-    return (tl?: TimelineEntry | null) => {
+    fieldMapper: (tl: ResourceTimeline) => string,
+  ): AnnotationDecider<ResourceTimeline> {
+    return (tl?: ResourceTimeline | null) => {
       if (!tl) return DECISION_HIDDEN;
       const result = fieldMapper(tl);
       if (!result) return DECISION_HIDDEN;
@@ -161,8 +161,8 @@ export class CommonFieldAnnotatorComponent {
     icon: string,
     label: string,
     fieldMapper: (tl: ResourceRevision) => string | undefined,
-  ): AnnotationDecider<TimelineEntry> {
-    return (tl?: TimelineEntry | null) => {
+  ): AnnotationDecider<ResourceTimeline> {
+    return (tl?: ResourceTimeline | null) => {
       if (!tl) return DECISION_HIDDEN;
       const values = new Set<string>();
       for (const rev of tl.revisions) {

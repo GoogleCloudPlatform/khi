@@ -43,13 +43,16 @@ interface ResourceRefAnnotationViewModel {
   path: string;
 }
 
+/**
+ * ResourceReferenceListAnnotatorComponent shows the list of related resources of the selected log.
+ */
 @Component({
   standalone: true,
-  templateUrl: './relationship-annotator.component.html',
-  styleUrl: './relationship-annotator.component.sass',
+  templateUrl: './resource-reference-list.component.html',
+  styleUrl: './resource-reference-list.component.sass',
   imports: [CommonModule, MatIconModule],
 })
-export class RelationshipAnnotatorComponent {
+export class ResourceReferenceListAnnotatorComponent {
   private readonly selectionManager = inject(SelectionManagerService);
 
   @Input()
@@ -60,10 +63,16 @@ export class RelationshipAnnotatorComponent {
     shareReplay(1),
   );
 
+  /**
+   * Select the resource at the resource path.
+   */
   public selectResource(resourcePath: string) {
     this.selectionManager.onSelectTimeline(resourcePath);
   }
 
+  /**
+   * Highlight the resource at the resource path.
+   */
   public highlightResource(resourcePath: string) {
     this.selectionManager.onHighlightTimeline(resourcePath);
   }
@@ -89,12 +98,32 @@ export class RelationshipAnnotatorComponent {
           withLatestFrom(
             dataStore.referenceResolver.pipe(filter((tb) => !!tb)),
           ),
-          map(([refs, bufferLoader]) =>
-            refs.map((ref) =>
-              bufferLoader!.getText(ToTextReferenceFromKHIFileBinary(ref)),
+          map(
+            (
+              [refs, bufferLoader], // related resource paths are stored in the text buffer. The text reference needs to be resolved as string with buffer loader.
+            ) =>
+              refs.map((ref) =>
+                bufferLoader!.getText(ToTextReferenceFromKHIFileBinary(ref)),
+              ),
+          ),
+          switchMap((refs) => forkJoin(refs)), // Each resolving text steps returns Observable, forkJoin to wait all and receive them as a string array.
+          // A timeline at a resource path can be aliased to the other timelines. Add aliased timelines from inspection data and include in the related resource paths.
+          withLatestFrom(
+            dataStore.inspectionData.pipe(filter((data) => !!data)),
+          ),
+          map(([refs, inspectionData]) =>
+            refs.reduce<string[]>(
+              (prev, next) => [
+                ...prev,
+                next,
+                ...inspectionData
+                  .getAliasedTimelines(next)
+                  .map((t) => t.resourcePath),
+              ],
+              [],
             ),
           ),
-          switchMap((refs) => forkJoin(refs)),
+          // Dedupe them and return as the list of view models.
           map((refs) =>
             [...new Set(refs)].map((path) => {
               const splittedPath = path.split('#');

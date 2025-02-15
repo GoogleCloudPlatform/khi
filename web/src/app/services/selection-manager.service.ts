@@ -29,7 +29,7 @@ import {
 } from 'rxjs';
 import { InspectionDataStoreService } from './inspection-data-store.service';
 import { LogEntry, NullLog } from '../store/log';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 import { ResourceRevision } from '../store/revision';
 import { ResourceEvent } from '../store/event';
 type LogSelectionQuery = LogEntry | number | null;
@@ -85,7 +85,7 @@ export class SelectionManagerService {
     }),
   );
 
-  private highlightedTimelineSubject: Subject<TimelineEntry | null> =
+  private highlightedTimelineSubject: Subject<ResourceTimeline | null> =
     new Subject();
 
   public highlightedTimeline = this.highlightedTimelineSubject.pipe(
@@ -120,7 +120,7 @@ export class SelectionManagerService {
     }),
   );
 
-  private selectedTimelineSubject: Subject<TimelineEntry | null> =
+  private selectedTimelineSubject: Subject<ResourceTimeline | null> =
     new Subject();
 
   public selectedTimeline = this.selectedTimelineSubject.pipe(
@@ -197,7 +197,7 @@ export class SelectionManagerService {
     // Change selection status when current timeline selection was changed.
     this.selectedTimeline
       .pipe(
-        filter((timeline): timeline is TimelineEntry => !!timeline),
+        filter((timeline): timeline is ResourceTimeline => !!timeline),
         withLatestFrom(this.selectedLog, this.selectedRevision),
       )
       .subscribe(([timeline, log, revision]) => {
@@ -234,7 +234,7 @@ export class SelectionManagerService {
       });
   }
 
-  public onSelectTimeline(timeline: TimelineEntry | string | null) {
+  public onSelectTimeline(timeline: ResourceTimeline | string | null) {
     if (typeof timeline === 'string') {
       this.inspectionDataStore.inspectionData
         .pipe(
@@ -255,7 +255,7 @@ export class SelectionManagerService {
     this.selectedTimelineSubject.next(timeline);
   }
 
-  public onHighlightTimeline(timeline: TimelineEntry | string | null) {
+  public onHighlightTimeline(timeline: ResourceTimeline | string | null) {
     if (typeof timeline === 'string') {
       this.inspectionDataStore.inspectionData
         .pipe(
@@ -299,7 +299,10 @@ export class SelectionManagerService {
    * @param timeline the timeline containing selected event
    * @param event selected event
    */
-  public changeSelectionByEvent(timeline: TimelineEntry, event: ResourceEvent) {
+  public changeSelectionByEvent(
+    timeline: ResourceTimeline,
+    event: ResourceEvent,
+  ) {
     this.changeSelectionByEventInternal(timeline, event, false);
   }
 
@@ -310,7 +313,7 @@ export class SelectionManagerService {
    * @param revision selected revision
    */
   public changeSelectionByRevision(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
     revision: ResourceRevision,
   ) {
     this.changeSelectionByRevisionInternal(timeline, revision, false);
@@ -364,7 +367,7 @@ export class SelectionManagerService {
   }
 
   private changeSelectionByEventInternal(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
     event: ResourceEvent,
     ignoreLogSelect: boolean,
   ) {
@@ -375,7 +378,7 @@ export class SelectionManagerService {
   }
 
   private changeSelectionByRevisionInternal(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
     revision: ResourceRevision,
     ignoreLogSelect: boolean,
   ) {
