@@ -45,7 +45,7 @@ import { CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER } from '../annotator/change-pair-to
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
 import {
   ResourceRevisionChangePair,
-  TimelineEntry,
+  ResourceTimeline,
   TimelineLayer,
 } from '../store/timeline';
 import { ResourceRevision } from '../store/revision';
@@ -66,7 +66,7 @@ interface DiffViewSelectionMoveCommand {
 }
 
 type DiffViewViewModel = {
-  selectedTimeline: TimelineEntry | null;
+  selectedTimeline: ResourceTimeline | null;
   selectedLogIndex: number;
   highlightedLogIndex: Set<number>;
   currentRevision: ResourceRevision | null;
@@ -118,7 +118,7 @@ export class DiffViewComponent implements OnInit, OnDestroy {
 
   @ViewChild(CdkVirtualScrollViewport) viewPort!: CdkVirtualScrollViewport;
 
-  public timeline = new BehaviorSubject<TimelineEntry | null>(null);
+  public timeline = new BehaviorSubject<ResourceTimeline | null>(null);
 
   timelineAnnotators = this.timelineAnnotatorResolver.getResolvedAnnotators(
     this.timeline,

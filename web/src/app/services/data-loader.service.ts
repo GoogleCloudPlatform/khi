@@ -34,7 +34,7 @@ import {
 import { LogEntry } from '../store/log';
 import { ResourceEvent } from '../store/event';
 import { ResourceRevision } from '../store/revision';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 import {
   EXTENSION_STORE,
   ExtensionStore,
@@ -173,7 +173,7 @@ export class InspectionDataLoaderService {
       timelineIdToTimeline[timeline.id] = timeline;
     }
     // Process resource hierarchy
-    const timelines: TimelineEntry[] = [];
+    const timelines: ResourceTimeline[] = [];
     for (
       let apiVersionIndex = 0;
       apiVersionIndex < response.resources.length;
@@ -186,7 +186,8 @@ export class InspectionDataLoaderService {
         kindIndex++
       ) {
         const kindResource = apiVersionResource.children[kindIndex];
-        const kindTimeline = new TimelineEntry(
+        const kindTimeline = new ResourceTimeline(
+          kindResource.timeline,
           kindResource.path,
           [],
           [],
@@ -199,7 +200,8 @@ export class InspectionDataLoaderService {
           namespaceIndex++
         ) {
           const namespaceResource = kindResource.children[namespaceIndex];
-          const namespaceTimeline = new TimelineEntry(
+          const namespaceTimeline = new ResourceTimeline(
+            namespaceResource.timeline,
             namespaceResource.path,
             [],
             [],
@@ -216,7 +218,8 @@ export class InspectionDataLoaderService {
             // timeline can be null when the children is defined but no event/revisions are included
             const timeline =
               timelineIdToTimeline[nameResource.timeline] ?? null;
-            const nameTimeline = new TimelineEntry(
+            const nameTimeline = new ResourceTimeline(
+              nameResource.timeline,
               nameResource.path,
               await this.revisionDataToViewRevisions(
                 nameResource,
@@ -245,7 +248,8 @@ export class InspectionDataLoaderService {
               // timeline can be null when the children is defined but no event/revisions are included
               const timeline =
                 timelineIdToTimeline[subResourceResource.timeline] ?? null;
-              const subresourceTimeline = new TimelineEntry(
+              const subresourceTimeline = new ResourceTimeline(
+                subResourceResource.timeline,
                 subResourceResource.path,
                 await this.revisionDataToViewRevisions(
                   subResourceResource,

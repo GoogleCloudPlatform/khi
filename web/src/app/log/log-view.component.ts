@@ -46,7 +46,7 @@ import { InspectionDataStoreService } from '../services/inspection-data-store.se
 import { SelectionManagerService } from '../services/selection-manager.service';
 import { ObservableCSSClassBinder } from '../utils/observable-css-class-binder';
 import { LogEntry } from '../store/log';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 import { monitorElementHeight } from '../utils/observable-util';
 import { IconToggleButtonComponent } from './icon-toggle-button.component';
 import { CommonModule } from '@angular/common';
@@ -264,7 +264,7 @@ export class LogViewComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private filterLogsWithTimelines(
     logs: LogEntry[],
-    timelines: TimelineEntry[],
+    timelines: ResourceTimeline[],
   ): LogEntry[] {
     const logIndices = new Set<number>();
     for (const timeline of timelines) {

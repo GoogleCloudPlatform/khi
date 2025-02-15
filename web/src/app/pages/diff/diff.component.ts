@@ -23,7 +23,7 @@ import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from 'src/app/annotator/change-pair/re
 import { TIMELINE_ANNOTATOR_RESOLVER } from 'src/app/annotator/timeline/resolver';
 import { TitleBarComponent } from 'src/app/header/titlebar.component';
 import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/diff-page-datasource.service';
-import { TimelineEntry } from 'src/app/store/timeline';
+import { ResourceTimeline } from 'src/app/store/timeline';
 
 @Component({
   selector: 'khi-diff-page',
@@ -46,7 +46,7 @@ export class DiffComponent {
     CHANGE_PAIR_ANNOTATOR_RESOLVER,
   );
 
-  timeline: Observable<TimelineEntry> = this.diffPageSource.data$.pipe(
+  timeline: Observable<ResourceTimeline> = this.diffPageSource.data$.pipe(
     map((data) => data.timeline),
   );
 

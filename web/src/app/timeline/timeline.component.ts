@@ -59,7 +59,10 @@ import {
   TimelineViewModel,
 } from './timeline.component.vm';
 import { LogEntry } from '../store/log';
-import { ResourceRevisionChangePair, TimelineEntry } from '../store/timeline';
+import {
+  ResourceRevisionChangePair,
+  ResourceTimeline,
+} from '../store/timeline';
 import {
   LogType,
   ParentRelationshipMetadataType,
@@ -399,7 +402,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectionManager.selectedTimeline
       .pipe(
         takeUntil(this.destoroyed),
-        filter((timeline): timeline is TimelineEntry => !!timeline),
+        filter((timeline): timeline is ResourceTimeline => !!timeline),
       )
       .subscribe((timeline) =>
         this.timelineScrollStrategy.scrollToTimeline(timeline),
@@ -615,11 +618,11 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-  onTimelineHeaderClick(timeline: TimelineEntry) {
+  onTimelineHeaderClick(timeline: ResourceTimeline) {
     this.selectionManager.onSelectTimeline(timeline);
   }
 
-  onTimelineHeaderMouseOver(timeline: TimelineEntry) {
+  onTimelineHeaderMouseOver(timeline: ResourceTimeline) {
     this.selectionManager.onHighlightTimeline(timeline);
   }
 

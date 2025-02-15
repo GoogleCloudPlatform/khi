@@ -16,7 +16,7 @@
 
 import { Annotator } from '../annotator';
 import { CommonFieldAnnotatorComponent } from '../common-field-annotator.component';
-import { RelationshipAnnotatorComponent } from './relationship-annotator.component';
+import { ResourceReferenceListAnnotatorComponent } from './resource-reference-list.component';
 import { LogAnnotatorResolver } from './resolver';
 import { TypeSeverityAnnotatorComponent } from './type-severity-annotator.component';
 
@@ -49,8 +49,8 @@ export function getDefaultLogAnnotatorResolver(): LogAnnotatorResolver {
       ),
     ),
     new Annotator(
-      RelationshipAnnotatorComponent,
-      RelationshipAnnotatorComponent.inputMapper,
+      ResourceReferenceListAnnotatorComponent,
+      ResourceReferenceListAnnotatorComponent.inputMapper,
     ),
   ]);
 }

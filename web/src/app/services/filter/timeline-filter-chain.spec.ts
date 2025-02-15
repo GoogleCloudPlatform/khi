@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry } from 'src/app/store/timeline';
+import { ResourceTimeline } from 'src/app/store/timeline';
 import {
   FilterNamepaceOrKindWithoutResource,
   FilterSubresourceWithoutParent,
@@ -28,8 +28,8 @@ import {
 } from 'src/app/generated';
 import { ResourceRevision } from 'src/app/store/revision';
 
-function generateTestTimeline(resourcePath: string): TimelineEntry {
-  return new TimelineEntry(
+function generateTestTimeline(resourcePath: string): ResourceTimeline {
+  return new ResourceTimeline(
     resourcePath,
     [],
     [],
@@ -40,8 +40,8 @@ function generateTestTimeline(resourcePath: string): TimelineEntry {
 function generateTestTimelineWithLogIndices(
   resourcePath: string,
   logIndices: number[],
-): TimelineEntry {
-  return new TimelineEntry(
+): ResourceTimeline {
+  return new ResourceTimeline(
     resourcePath,
     logIndices.map(
       (index) =>

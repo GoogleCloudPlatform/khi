@@ -17,7 +17,7 @@
 import { Inject, Injectable } from '@angular/core';
 import { SelectionManagerService } from '../services/selection-manager.service';
 import { Subject, withLatestFrom } from 'rxjs';
-import { TimelineEntry, TimelineLayer } from '../store/timeline';
+import { ResourceTimeline, TimelineLayer } from '../store/timeline';
 import {
   DEFAULT_TIMELINE_FILTER,
   TimelineFilter,
@@ -209,7 +209,7 @@ export class CanvasKeyEventHandler {
   }
 
   private findNextTimeline(
-    timelines: TimelineEntry[],
+    timelines: ResourceTimeline[],
     fromIndex: number,
     direction: number,
     layer: TimelineLayer,
