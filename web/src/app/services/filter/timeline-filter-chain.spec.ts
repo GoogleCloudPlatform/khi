@@ -30,6 +30,7 @@ import { ResourceRevision } from 'src/app/store/revision';
 
 function generateTestTimeline(resourcePath: string): ResourceTimeline {
   return new ResourceTimeline(
+    'test',
     resourcePath,
     [],
     [],
@@ -42,6 +43,7 @@ function generateTestTimelineWithLogIndices(
   logIndices: number[],
 ): ResourceTimeline {
   return new ResourceTimeline(
+    'test',
     resourcePath,
     logIndices.map(
       (index) =>

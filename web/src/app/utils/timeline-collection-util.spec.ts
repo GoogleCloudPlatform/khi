@@ -21,24 +21,56 @@ import { SelectOnlyDeeperOrEqual } from './timeline-collection-util';
 describe('TimelineCollectionUtility', () => {
   it('SelectOnlyDeeperOrEqual', () => {
     const timelines = [
-      new ResourceTimeline('1', [], [], ParentRelationship.RelationshipChild),
-      new ResourceTimeline('1#1', [], [], ParentRelationship.RelationshipChild),
-      new ResourceTimeline('1#2', [], [], ParentRelationship.RelationshipChild),
       new ResourceTimeline(
+        'test',
+        '1',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '1#1',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '1#2',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
         '1#2#1',
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
       new ResourceTimeline(
+        'test',
         '1#2#2',
 
         [],
         [],
         ParentRelationship.RelationshipChild,
       ),
-      new ResourceTimeline('2', [], [], ParentRelationship.RelationshipChild),
-      new ResourceTimeline('3', [], [], ParentRelationship.RelationshipChild),
+      new ResourceTimeline(
+        'test',
+        '2',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
+      new ResourceTimeline(
+        'test',
+        '3',
+        [],
+        [],
+        ParentRelationship.RelationshipChild,
+      ),
     ];
     const result = SelectOnlyDeeperOrEqual(timelines, 2);
     expect(result.length).toBe(4);
