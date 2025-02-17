@@ -54,20 +54,10 @@ export class MockPopupManager implements PopupManager {
   requests(): Observable<PopupFormRequestWithClient> {
     return of({
       id: 'test',
-      title: 'Google Admin inspection token',
+      title: 'Additional input required',
       type: 'text',
-      description:
-        'Google Admin token seems to be expired. Please copy the KHI command again from Google Admin and paste it here.',
-      placeholder: `gcloud auth configure-docker --quiet
-docker run --rm --pull always -p 8080:8080 -it -e KHI_FIXED_PROJECT_ID="XXXXXXXXX" -e GCP_DEFAULT_PROJECT="XXXXXXXXX" -e GCP_ACCESS_TOKEN=\`gcloud auth print-access-token\` -e KHI_GA_LABELS="justification=vector/123456,user=XXXXXXXXX" -e IAM_TOKEN="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" gcr.io/kubernetes-history-inspector/standalone:latest`,
+      description: 'Please input the additional input requested',
+      placeholder: `This is the placeholder`,
       client: new MockPopupClient(),
       options: {},
     });
