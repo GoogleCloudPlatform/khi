@@ -41,8 +41,8 @@ type LocalUploadFileStoreProvider struct {
 }
 
 // NewLocalUploadFileStoreProvider creates a new LocalUploadFileStore.
-func NewLocalUploadFileStoreProvider(directoryPath string) (*LocalUploadFileStoreProvider, error) {
-	return &LocalUploadFileStoreProvider{directoryPath: directoryPath}, nil
+func NewLocalUploadFileStoreProvider(directoryPath string) *LocalUploadFileStoreProvider {
+	return &LocalUploadFileStoreProvider{directoryPath: directoryPath}
 }
 
 // GetUploadToken implements UploadFileStoreProvider.

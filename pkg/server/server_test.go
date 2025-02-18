@@ -20,8 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -37,6 +39,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
@@ -842,6 +845,99 @@ func TestKHIServerRedirects(t *testing.T) {
 			gotRedirectTo := recorer.Result().Header.Get("Location")
 			if gotRedirectTo != tc.redirectTo {
 				t.Errorf("got redirect to %s, want %s", gotRedirectTo, tc.redirectTo)
+			}
+		})
+	}
+}
+
+func TestKHIDirectFileUpload(t *testing.T) {
+	testCases := []struct {
+		name              string
+		tokenID           string
+		content           string
+		maxUploadFileSize int
+		wantCode          int
+		wantErr           bool
+		wantErrMsg        string
+	}{
+		{
+			name:              "success",
+			tokenID:           "test-token-1",
+			content:           "test-content",
+			maxUploadFileSize: 1024 * 1024 * 1024,
+			wantCode:          200,
+			wantErr:           false,
+		},
+		{
+			name:              "file size exceeds the limit",
+			tokenID:           "test-token-2",
+			content:           strings.Repeat("a", 1024*1024*1024+1),
+			maxUploadFileSize: 1024 * 1024 * 1024,
+			wantCode:          400,
+			wantErr:           true,
+			wantErrMsg:        "file size exceeds the limit",
+		},
+		{
+			name:              "missing upload-token-id",
+			tokenID:           "",
+			content:           "test-content",
+			maxUploadFileSize: 1024 * 1024 * 1024,
+			wantCode:          400,
+			wantErr:           true,
+			wantErrMsg:        "missing upload-token-id",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger.InitGlobalKHILogger()
+			tempDir, err := os.MkdirTemp("", "uploadtest")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tempDir)
+			provider := upload.NewLocalUploadFileStoreProvider(tempDir)
+			store := upload.NewUploadFileStore(provider)
+			store.GetUploadToken(tc.tokenID, &upload.NopUploadFileVerifier{})
+			serverConfig := ServerConfig{
+				ViewerMode:       false,
+				StaticFolderPath: "../../dist",
+				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
+				ServerBasePath:   "/foo",
+				UploadFileStore:  store,
+			}
+			inspectionServer, err := createTestInspectionServer()
+			if err != nil {
+				t.Fatalf("unexpected error %s", err)
+			}
+			engine := CreateKHIServer(inspectionServer, &serverConfig)
+			parameters.Server.MaxUploadFileSizeInBytes = testutil.P(tc.maxUploadFileSize)
+
+			var buf bytes.Buffer
+			writer := multipart.NewWriter(&buf)
+
+			fileWriter, err := writer.CreateFormFile("file", "test.log")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = fileWriter.Write([]byte(tc.content))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writer.WriteField("upload-token-id", tc.tokenID)
+			writer.Close()
+
+			recorder := httptest.NewRecorder()
+			req, _ := http.NewRequest("POST", "/foo/api/v2/upload", &buf)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			engine.ServeHTTP(recorder, req)
+			if recorder.Code != tc.wantCode {
+				t.Errorf("got response code %d(%s), want %d", recorder.Code, recorder.Body.String(), tc.wantCode)
+			}
+			if tc.wantErr {
+				if !strings.Contains(recorder.Body.String(), tc.wantErrMsg) {
+					t.Errorf("got error message %s, want %s", recorder.Body.String(), tc.wantErrMsg)
+				}
 			}
 		})
 	}

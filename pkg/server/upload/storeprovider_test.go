@@ -45,10 +45,7 @@ func TestLocalUploadFileStoreProvider_Essential(t *testing.T) {
 	defer os.RemoveAll(tempDir) // Clean up after the test.
 
 	// Create a new LocalUploadFileStore.
-	store, err := NewLocalUploadFileStoreProvider(tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	store := NewLocalUploadFileStoreProvider(tempDir)
 
 	t.Run("WriteAndRead_Basic", func(t *testing.T) {
 		token := store.GetUploadToken("test-token")

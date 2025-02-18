@@ -43,10 +43,8 @@ func TestUploadFileStore(t *testing.T) {
 	defer os.RemoveAll(tempDir) // Clean up after the test.
 
 	// Create a new LocalUploadFileStore.
-	provider, err := NewLocalUploadFileStoreProvider(tempDir)
-	if err != nil {
-		t.Fatal(err)
-	}
+	provider := NewLocalUploadFileStoreProvider(tempDir)
+
 	t.Run("GetUploadToken_NewToken", func(t *testing.T) {
 		store := NewUploadFileStore(provider)
 		verifier := &MockUploadFileVerifier{}

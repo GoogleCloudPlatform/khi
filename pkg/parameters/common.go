@@ -30,6 +30,8 @@ type CommonParameters struct {
 	DataDestinationFolder *string
 	// TemporaryFolder is the folder path where be used as a working directory to generate the final khi file.
 	TemporaryFolder *string
+	// UploadFileStoreFolder is the folder path to store the uploaded log files.
+	UploadFileStoreFolder *string
 	// Version is the flag to show the version name and exit.
 	Version *bool
 }
@@ -40,6 +42,9 @@ func (c *CommonParameters) PostProcess() error {
 		slog.Info(fmt.Sprintf("Kubernetes History Inspector (version: %s)", constants.VERSION))
 		os.Exit(0)
 	}
+	if *c.UploadFileStoreFolder == "" {
+		*c.UploadFileStoreFolder = *c.DataDestinationFolder + "/upload"
+	}
 	return nil
 }
 
@@ -47,6 +52,7 @@ func (c *CommonParameters) PostProcess() error {
 func (c *CommonParameters) Prepare() error {
 	c.DataDestinationFolder = flag.String("data-destination-folder", "./data", "The folder path where the final khi file to be stored for serving.", "")
 	c.TemporaryFolder = flag.String("temporary-folder", "/tmp", "The folder path where be used as a working directory to generate the final khi file.", "")
+	c.UploadFileStoreFolder = flag.String("upload-file-store-folder", "", "The folder path to store the uploaded log files. Use the concatinated path of `--data-destination-folder` and `/upload` when this value is not specified.", "")
 	c.Version = flag.Bool("version", false, "Show the version.", "")
 	return nil
 }

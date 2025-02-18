@@ -36,6 +36,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
@@ -142,11 +143,18 @@ func main() {
 
 		slog.Info("Starting Kubernetes History Inspector server...")
 
+		uploadFileStoreFolder := "/tmp"
+
+		if parameters.Common.UploadFileStoreFolder != nil {
+			uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
+		}
+
 		config := server.ServerConfig{
 			ViewerMode:       *parameters.Server.ViewerMode,
 			StaticFolderPath: *parameters.Server.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *parameters.Server.BasePath,
+			UploadFileStore:  upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder)),
 		}
 		engine := server.CreateKHIServer(inspectionServer, &config)
 
