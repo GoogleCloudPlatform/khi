@@ -17,6 +17,7 @@ package k8s_node
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -48,6 +49,9 @@ func TestGenerateK8sNodeQueryIsValid(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		if *testflags.SkipCloudLogging {
+			t.Skip("cloud logging tests are skipped")
+		}
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateK8sNodeLogQuery(tc.ProjectName, tc.ClusterName, tc.NodeNameSubstrings)
 			err := gcp_test.IsValidLogQuery(query)
