@@ -17,7 +17,6 @@ package autoscaler
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -79,9 +78,6 @@ func TestGeneratedAutoscalerQueryIsValid(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		if *testflags.SkipCloudLogging {
-			t.Skip("cloud logging tests are skipped")
-		}
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateAutoscalerQuery(tc.ProjectId, tc.ClusterName, tc.ExcludeStatus)
 			err := gcp_test.IsValidLogQuery(query)

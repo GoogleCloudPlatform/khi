@@ -17,7 +17,6 @@ package k8s_container
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
@@ -61,9 +60,6 @@ func TestGenerateK8sContainerQueryIsValid(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		if *testflags.SkipCloudLogging {
-			t.Skip("cloud logging tests are skipped")
-		}
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateK8sContainerQuery(tc.ClusterName, tc.PodNameFilter, tc.NamespaceFilter)
 			err := gcp_test.IsValidLogQuery(query)
