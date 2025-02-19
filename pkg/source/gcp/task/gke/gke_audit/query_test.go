@@ -17,7 +17,6 @@ package gke_audit
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -57,12 +56,9 @@ func TestGeneratedGKEAuditQueryIsValid(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		if *testflags.SkipCloudLogging {
-			t.Skip("cloud logging tests are skipped")
-		}
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateGKEAuditQuery(tc.ProjectId, tc.ClusterName)
-			err := gcp_test.IsValidLogQuery(query)
+			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf(err.Error())
 			}

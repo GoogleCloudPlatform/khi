@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
@@ -83,16 +82,13 @@ resource.labels.project_id="foo-project"
 	}
 
 	for i, testCase := range testCases {
-		if *testflags.SkipCloudLogging {
-			t.Skip("cloud logging tests are skipped")
-		}
 		t.Run(fmt.Sprintf("testcase-%d-%s", i, testCase.ExpectedQuery), func(t *testing.T) {
 			result := GenerateK8sControlPlaneQuery(testCase.InputClusterName, testCase.InputProjectName, testCase.InputControlplaneComponentNameFilter)
 			if result != testCase.ExpectedQuery {
 				t.Errorf("the result query is not valid:\nInput:\n%v\nActual:\n%s\nExpected:\n%s", testCase, result, testCase.ExpectedQuery)
 			}
 			t.Run("generated query must be valid in Cloud Logging", func(t *testing.T) {
-				err := gcp_test.IsValidLogQuery(result)
+				err := gcp_test.IsValidLogQuery(t, result)
 				if err != nil {
 					t.Errorf(err.Error())
 				}

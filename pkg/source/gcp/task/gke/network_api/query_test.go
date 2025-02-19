@@ -17,7 +17,6 @@ package network_api
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -33,12 +32,9 @@ func TestGenerateGenerateGCPNetworkAPIQueryIsValid(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		if *testflags.SkipCloudLogging {
-			t.Skip("cloud logging tests are skipped")
-		}
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateGCPNetworkAPIQuery(0, tc.NEGs)
-			err := gcp_test.IsValidLogQuery(query[0])
+			err := gcp_test.IsValidLogQuery(t, query[0])
 			if err != nil {
 				t.Errorf("Query is not valid: %v", err)
 			}

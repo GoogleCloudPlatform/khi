@@ -19,7 +19,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
@@ -93,15 +92,12 @@ labels."compute.googleapis.com/resource_name":("node-1")`,
 	}
 
 	for _, tc := range testCases {
-		if *testflags.SkipCloudLogging {
-			t.Skip("cloud logging tests are skipped")
-		}
 		t.Run(tc.name, func(t *testing.T) {
 			query := GenerateSerialPortQuery(tc.taskMode, tc.nodeNames, tc.nodeNameSubstrings)
 			if diff := cmp.Diff(tc.wantQuery, query[0]); diff != "" {
 				t.Errorf("the generated query is not matching with the expected query\n%s", diff)
 			}
-			err := gcp_test.IsValidLogQuery(query[0])
+			err := gcp_test.IsValidLogQuery(t, query[0])
 			if err != nil {
 				t.Errorf("the generated query is invalid. error:%v", err)
 			}
@@ -110,9 +106,6 @@ labels."compute.googleapis.com/resource_name":("node-1")`,
 }
 
 func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
-	if *testflags.SkipCloudLogging {
-		t.Skip("cloud logging tests are skipped")
-	}
 	nodeNames := []string{}
 	for i := 0; i < MaxNodesPerQuery*2+1; i++ { // This query must be splitted with 3 sub groups.
 		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, randomString(46), randomString(8), randomString(4)))
@@ -122,7 +115,7 @@ func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
 		t.Errorf("len(GenerateSerialPortQuery())=%d, want %d", len(query), 3)
 	}
 	for _, subquery := range query {
-		err := gcp_test.IsValidLogQuery(subquery)
+		err := gcp_test.IsValidLogQuery(t, subquery)
 		if err != nil {
 			t.Errorf("the generated query is invalid. error:%v", err)
 		}
