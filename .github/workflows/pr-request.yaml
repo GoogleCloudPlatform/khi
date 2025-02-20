@@ -62,10 +62,10 @@ jobs:
     # TODO: Remove the flag after the cloud logging test is ready
     - name: Backend Test
       run: |
-        mkdir dist
+        mkdir -p dist/session
         # A placeholder frontend code read from backend test
         echo "" > ./dist/index.html
-        make build-web
+        echo "" > ./dist/session/100
         go test ./... -args -skip-cloud-logging=true
 
     - name: Backend Format and Lint Check
