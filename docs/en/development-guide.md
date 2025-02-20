@@ -79,6 +79,12 @@ Run the following code to verify frontend and backend codes.
 $ make test
 ```
 
+When you want to run backend tests without Cloud Logging, run the following code.
+
+```shell
+$ go test ./... -args -skip-cloud-logging=true
+```
+
 ## Auto generated codes
 
 ### Generated codes from backend codes
