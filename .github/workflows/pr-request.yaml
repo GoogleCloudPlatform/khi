@@ -65,6 +65,7 @@ jobs:
         mkdir dist
         # A placeholder frontend code read from backend test
         echo "" > ./dist/index.html
+        make build-web
         go test ./... -args -skip-cloud-logging=true
 
     - name: Backend Format and Lint Check
