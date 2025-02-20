@@ -58,6 +58,11 @@ jobs:
     #     echo "" > ./dist/index.html
     #     make coverage-go
 
+    # For now, we skip the cloud logging test
+    # TODO: Remove the flag after the cloud logging test is ready
+    - name: Backend Test
+      run: go test ./... -args -skip-cloud-logging=true
+
     - name: Backend Format and Lint Check
       run: |
         make check-format-go
