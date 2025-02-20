@@ -30,6 +30,8 @@ import (
 	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	corev1 "k8s.io/api/core/v1"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestRecordChangeSetForLog(t *testing.T) {

@@ -23,6 +23,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/exp/slices"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testTaskDefinition struct {

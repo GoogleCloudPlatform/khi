@@ -17,6 +17,8 @@ package structuredata
 import (
 	"fmt"
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestYamlString(t *testing.T) {
@@ -31,7 +33,7 @@ func TestYamlString(t *testing.T) {
 `,
 		},
 		{
-			input: `foo: 
+			input: `foo:
   bar:
    - apple
    - banana
@@ -156,7 +158,7 @@ func TestJsonString(t *testing.T) {
 			wantValue: `{"data":"hello world"}`,
 		},
 		{
-			input: `foo: 
+			input: `foo:
   bar:
    - apple
    - banana

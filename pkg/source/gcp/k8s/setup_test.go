@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestMain(m *testing.M) {

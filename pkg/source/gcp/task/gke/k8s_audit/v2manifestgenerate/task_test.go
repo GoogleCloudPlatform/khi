@@ -31,6 +31,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestBodyMergerTask(t *testing.T) {
@@ -45,7 +47,7 @@ func TestBodyMergerTask(t *testing.T) {
 		Name: "Standard non patching merge",
 		baseLog: `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod
@@ -76,7 +78,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 		Name: "Standard patching merge",
 		baseLog: `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod
@@ -107,7 +109,7 @@ qux: qux1`,
 		Name: "Standard patching merge with middle ignored failed patch request",
 		baseLog: `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod
@@ -138,7 +140,7 @@ qux: qux1
 		Name: "response field should be ignored when it was deleteoption",
 		baseLog: `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod
@@ -168,7 +170,7 @@ qux: qux1
 		Name: "Metadata level audit logs",
 		baseLog: `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod

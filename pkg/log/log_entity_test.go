@@ -13,3 +13,7 @@
 // limitations under the License.
 
 package log
+
+import (
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+)

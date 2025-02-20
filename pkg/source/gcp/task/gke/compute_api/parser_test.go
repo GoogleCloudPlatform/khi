@@ -24,6 +24,8 @@ import (
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestComputeApiParser_Parse_OperationFirstLog(t *testing.T) {

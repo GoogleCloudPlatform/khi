@@ -25,12 +25,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestLogFillerTask(t *testing.T) {
 	builder := history.NewBuilder(&ioconfig.IOConfig{})
 	baseLog := `protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod

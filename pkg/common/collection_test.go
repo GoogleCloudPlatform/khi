@@ -20,6 +20,8 @@ import (
 	"sort" // Import the sort package
 
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestDedupStringArray(t *testing.T) {

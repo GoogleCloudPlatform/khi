@@ -22,6 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestFromResourceTypeReflection(t *testing.T) {

@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestDivideTimeSegments(t *testing.T) {

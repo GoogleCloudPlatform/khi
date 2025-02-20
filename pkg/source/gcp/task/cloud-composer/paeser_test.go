@@ -20,6 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/stretchr/testify/assert"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestAirflowSchedulerParser(t *testing.T) {

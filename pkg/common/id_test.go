@@ -14,7 +14,11 @@
 
 package common
 
-import "testing"
+import (
+	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+)
 
 func TestNewUUID(t *testing.T) {
 	uuid1 := NewUUID()

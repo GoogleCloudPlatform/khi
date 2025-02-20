@@ -22,6 +22,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {

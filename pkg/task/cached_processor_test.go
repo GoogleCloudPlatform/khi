@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type cachableData struct{}

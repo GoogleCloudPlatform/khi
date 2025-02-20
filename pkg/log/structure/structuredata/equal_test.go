@@ -14,7 +14,11 @@
 
 package structuredata
 
-import "testing"
+import (
+	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+)
 
 func TestEqualStructureData(t *testing.T) {
 	testCases := []struct {
@@ -89,12 +93,12 @@ func TestEqualStructureData(t *testing.T) {
 			name: "deeper map",
 			a: `foo:
   bar:
-    qux: 
+    qux:
       quux: 10
 `,
 			b: `foo:
   bar:
-    qux: 
+    qux:
       quux: 10
 `, expected: true,
 		},
@@ -102,12 +106,12 @@ func TestEqualStructureData(t *testing.T) {
 			name: "deeper map with different value",
 			a: `foo:
   bar:
-    qux: 
+    qux:
       quux: 10
 `,
 			b: `foo:
   bar:
-    qux: 
+    qux:
       quux: 11
 `, expected: false,
 		}, {

@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
@@ -206,7 +208,7 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 		},
 		{
 			Name: "Node Pool Deletion",
-			InputJSON: `{ 
+			InputJSON: `{
 				"decideTime": "1585830461",
 				"eventId": "68b0d1c7-b684-4542-bc19-f030922fb820",
 				"nodePoolDeleted": {

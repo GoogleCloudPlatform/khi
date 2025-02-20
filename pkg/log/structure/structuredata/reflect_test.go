@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	corev1 "k8s.io/api/core/v1"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestReadPodManifest(t *testing.T) {

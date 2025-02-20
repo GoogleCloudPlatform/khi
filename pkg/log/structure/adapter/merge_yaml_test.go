@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestYamlMergeAdapterTest(t *testing.T) {

@@ -24,6 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type mockMDSResponseHttpClient struct {

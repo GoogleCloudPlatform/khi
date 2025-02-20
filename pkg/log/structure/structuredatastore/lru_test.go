@@ -19,6 +19,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestLRUStructureDataStoreFactory(t *testing.T) {

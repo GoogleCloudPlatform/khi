@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcp_test
+package testflags
 
-import (
-	"testing"
+import "flag"
 
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-)
-
-func TestIsValidLogQuery(t *testing.T) {
-	err := IsValidLogQuery(t, "\"")
-	if err == nil {
-		t.Errorf("got nil, want invalid query error")
-	}
-}
+// SkipCloudLogging is a flag of program arguments on testing.  Unit tests using Cloud Logging APIs are skipped with this flag.
+var SkipCloudLogging = flag.Bool("skip-cloud-logging", false, "skip tests that require cloud logging")
