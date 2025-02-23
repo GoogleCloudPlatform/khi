@@ -66,15 +66,6 @@ describe('FileUploadComponent', () => {
     fixture.componentRef.setInput('description', 'test-description');
   });
 
-  afterAll(() => {
-    TestBed.resetTestEnvironment();
-    TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
-      { teardown: { destroyAfterEach: true } },
-    );
-  });
-
   it('should pass input values', () => {
     fixture.componentRef.setInput('errorMessage', 'test error message');
     fixture.detectChanges();
