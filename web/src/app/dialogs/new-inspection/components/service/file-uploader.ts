@@ -16,23 +16,7 @@
 
 import { InjectionToken } from '@angular/core';
 import { Observable, of } from 'rxjs';
-
-/**
- * The ID of token given from the backend to identify uploaded files.
- */
-export interface UploadToken {
-  id: string;
-}
-
-/**
- * The types of UploadStatus given from the backend.
- */
-export enum UploadStatus {
-  Waiting = 0,
-  Uploading = 1,
-  Verifying = 2,
-  Done = 3,
-}
+import { UploadToken } from '../../../../common/schema/form-types';
 
 /**
  * Type for the status reported from the uploader.

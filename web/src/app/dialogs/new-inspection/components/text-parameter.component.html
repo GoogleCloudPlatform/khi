@@ -15,13 +15,30 @@
 -->
 
 <div class="container">
+  @let param = parameter();
   <khi-new-inspection-parameter-header
-    [label]="label()"
-    [description]="description()"
-    [hasError]="errorMessage() !== ''"
+    [parameter]="param"
   ></khi-new-inspection-parameter-header>
   <mat-form-field>
-    <mat-label>{{ label() }}</mat-label>
-    <input matInput />
+    <mat-label>{{ param.label }}</mat-label>
+    <input
+      class="text-input"
+      matInput
+      [placeholder]="param.default"
+      [matAutocomplete]="auto"
+      [disabled]="!param.allowEdit"
+    />
+    <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+      @for (suggestion of param.suggestions; track suggestion) {
+        <mat-option [value]="suggestion">
+          {{ suggestion }}
+        </mat-option>
+      }
+    </mat-autocomplete>
   </mat-form-field>
+  <div class="hint">
+    <khi-new-inspection-parameter-hint
+      [parameter]="param"
+    ></khi-new-inspection-parameter-hint>
+  </div>
 </div>

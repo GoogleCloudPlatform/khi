@@ -16,25 +16,30 @@
 
 import { Component, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { BreaklinePipe } from 'src/app/common/breakline.pipe';
+import { CommonModule } from '@angular/common';
+import { BreaklinePipe } from '../../../common/breakline.pipe';
 import {
-  ParameterFormFieldBase,
+  ParameterFormField,
   ParameterHintType,
 } from 'src/app/common/schema/form-types';
 
 /**
- * Component of common parameter headers used in new inspection dialog.
+ * Hint message (error, warning or info) at the bottom of parameter form field.
  */
 @Component({
-  selector: 'khi-new-inspection-parameter-header',
-  templateUrl: './parameter-header.component.html',
-  styleUrls: ['./parameter-header.component.sass'],
-  imports: [BreaklinePipe, MatIconModule],
+  selector: 'khi-new-inspection-parameter-hint',
+  templateUrl: './parameter-hint.component.html',
+  styleUrls: ['./parameter-hint.component.sass'],
+  imports: [CommonModule, MatIconModule, BreaklinePipe],
 })
-export class ParameterHeaderComponent {
-  readonly ParameterHintType = ParameterHintType;
+export class ParameterHintComponent {
   /**
-   * The spec of this text type parameter.
+   * Type of ParameterHintType enum. Exporting this to be used in the template.
    */
-  parameter = input.required<ParameterFormFieldBase>();
+  readonly ParameterHintType = ParameterHintType;
+
+  /**
+   * The spec of this parameter field.
+   */
+  parameter = input.required<ParameterFormField>();
 }

@@ -13,15 +13,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
+
 @let param = parameter();
-<div class="container">
-  <div class="label-row">
-    @if (param.hintType === ParameterHintType.Error) {
-      <mat-icon class="error">error</mat-icon>
-    } @else {
-      <mat-icon class="verified">check_circle</mat-icon>
-    }
-    <p class="label">{{ param.label }}</p>
+@if (param.hintType !== ParameterHintType.None) {
+  <div class="container" [ngClass]="[param.hintType]">
+    <div class="icon-container">
+      @switch (param.hintType) {
+        @case (ParameterHintType.Error) {
+          <mat-icon>error</mat-icon>
+        }
+        @case (ParameterHintType.Warning) {
+          <mat-icon>warning</mat-icon>
+        }
+        @default {
+          <mat-icon>info</mat-icon>
+        }
+      }
+    </div>
+    <p class="hint" [innerHTML]="param.hint | breakline"></p>
   </div>
-  <p class="description" [innerHTML]="param.description | breakline"></p>
-</div>
+}

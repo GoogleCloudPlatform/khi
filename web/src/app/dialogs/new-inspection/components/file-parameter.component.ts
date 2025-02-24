@@ -28,17 +28,20 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import {
-  FILE_UPLOADER,
-  UploadToken,
-  UploadStatus,
-} from './service/file-uploader';
+import { FILE_UPLOADER } from './service/file-uploader';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import {
+  FileParameterFormField,
+  UploadStatus,
+} from 'src/app/common/schema/form-types';
+import { ParameterHeaderComponent } from './parameter-header.component';
+import { ParameterHintComponent } from './parameter-hint.component';
 
 @Component({
-  selector: 'khi-new-inspection-file-upload',
-  templateUrl: './file-upload.component.html',
-  styleUrls: ['./file-upload.component.sass'],
+  selector: 'khi-new-inspection-file-parameter',
+  templateUrl: './file-parameter.component.html',
+  styleUrls: ['./file-parameter.component.sass'],
+
   imports: [
     CommonModule,
     MatFormFieldModule,
@@ -47,33 +50,16 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     MatButtonModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    ParameterHeaderComponent,
+    ParameterHintComponent,
   ],
 })
-export class FileUploadComponent {
+export class FileParameterComponent {
+  readonly UploadStatus = UploadStatus;
   /**
-   * The label of this upload form field.
+   * The setting of this file type form field.
    */
-  label = input.required<string>();
-
-  /**
-   * The token provided from backend to request file.
-   */
-  uploadToken = input.required<UploadToken>();
-
-  /**
-   * The description of this upload form field.
-   */
-  description = input('');
-
-  /**
-   * The error message returned from the backend about this field.
-   */
-  errorMessage = input('');
-
-  /**
-   * The status of upload for this file form.
-   */
-  uploadStatus = input(UploadStatus.Waiting);
+  parameter = input.required<FileParameterFormField>();
 
   /**
    * The state if currently selected file is uploaded or not.
@@ -163,7 +149,7 @@ export class FileUploadComponent {
       return;
     }
     this.uploader
-      .upload(this.uploadToken(), this.selectedFile)
+      .upload(this.parameter().token, this.selectedFile)
       .subscribe((status) => {
         this.uploadRatio.set(status.completeRatio);
         if (status.done) {

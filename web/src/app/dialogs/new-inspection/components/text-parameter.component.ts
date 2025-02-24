@@ -20,6 +20,12 @@ import { ParameterHeaderComponent } from './parameter-header.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
+import { ParameterHintComponent } from './parameter-hint.component';
+import {
+  ParameterHintType,
+  TextParameterFormField,
+} from 'src/app/common/schema/form-types';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 
 /**
  * A form field of parameter in the new-inspection dialog.
@@ -34,21 +40,14 @@ import { MatInputModule } from '@angular/material/input';
     MatInputModule,
     MatFormFieldModule,
     ReactiveFormsModule,
+    ParameterHintComponent,
+    MatAutocompleteModule,
   ],
 })
 export class TextParameterComponent {
+  readonly ParameterHintType = ParameterHintType;
   /**
-   * The label of this text parameter field.
+   * The spec of this text type parameter.
    */
-  label = input.required<string>();
-
-  /**
-   * The description of this text parameter field.
-   */
-  description = input('');
-
-  /**
-   * The error message of this text parameter field.
-   */
-  errorMessage = input('');
+  parameter = input.required<TextParameterFormField>();
 }

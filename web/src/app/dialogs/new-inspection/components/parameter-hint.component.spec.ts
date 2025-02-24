@@ -14,23 +14,23 @@
  * limitations under the License.
  */
 
+import { HarnessLoader } from '@angular/cdk/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ParameterHintComponent } from './parameter-hint.component';
 import {
   BrowserDynamicTestingModule,
   platformBrowserDynamicTesting,
 } from '@angular/platform-browser-dynamic/testing';
-import { ParameterHeaderComponent } from './parameter-header.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
-import { By } from '@angular/platform-browser';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { HarnessLoader } from '@angular/cdk/testing';
+import { By } from '@angular/platform-browser';
 import { MatIconHarness } from '@angular/material/icon/testing';
 import { ParameterHintType } from 'src/app/common/schema/form-types';
-describe('ParameterHeaderComponent', () => {
-  let fixture: ComponentFixture<ParameterHeaderComponent>;
-  let harnessLoader: HarnessLoader;
 
+describe('ParameterHintComponent', () => {
+  let fixture: ComponentFixture<ParameterHintComponent>;
+  let harnessLoader: HarnessLoader;
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
@@ -46,12 +46,10 @@ describe('ParameterHeaderComponent', () => {
     }).compileComponents();
     const matIconRegistry = TestBed.inject(MatIconRegistry);
     matIconRegistry.setDefaultFontSetClass('material-symbols-outlined');
-    fixture = TestBed.createComponent(ParameterHeaderComponent);
+    fixture = TestBed.createComponent(ParameterHintComponent);
     fixture.componentRef.setInput('parameter', {
-      label: 'test-label',
-      description:
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, \n sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      hintType: ParameterHintType.None,
+      hintType: ParameterHintType.Error,
+      hint: 'test-hint1 \n test-hint2 \n test-hint3',
     });
     harnessLoader = TestbedHarnessEnvironment.loader(fixture);
   });
@@ -61,28 +59,53 @@ describe('ParameterHeaderComponent', () => {
     const matIcon = await harnessLoader.getAllHarnesses(MatIconHarness);
 
     expect(fixture.componentInstance).toBeTruthy();
-    const label = fixture.debugElement.query(By.css('.label'));
-    expect(label.nativeElement.textContent).toBe('test-label');
-    const description = fixture.debugElement.query(By.css('.description'));
-    expect(description.nativeElement.innerHTML).toBe(
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, <br> sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    const container = fixture.debugElement.query(By.css('.container'));
+    expect('error' in container.classes).toBeTrue();
+    expect('warning' in container.classes).toBeFalse();
+    expect('info' in container.classes).toBeFalse();
+
+    const hint = fixture.debugElement.query(By.css('.hint'));
+    expect(hint.nativeElement.innerHTML).toBe(
+      'test-hint1 <br> test-hint2 <br> test-hint3',
     );
 
     expect(matIcon.length).toBe(1);
-    expect(await matIcon[0].getName()).toBe('check_circle');
+    expect(await matIcon[0].getName()).toBe('error');
   });
 
-  it('should show error icon when hintType = ERROR', async () => {
+  it('shows with type = warning', async () => {
     fixture.componentRef.setInput('parameter', {
-      label: 'test-label',
-      description:
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, \n sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      hintType: ParameterHintType.Error,
+      hintType: ParameterHintType.Warning,
+      hint: 'test-hint1 \n test-hint2 \n test-hint3',
     });
     fixture.detectChanges();
     const matIcon = await harnessLoader.getAllHarnesses(MatIconHarness);
 
+    expect(fixture.componentInstance).toBeTruthy();
+    const container = fixture.debugElement.query(By.css('.container'));
+    expect('error' in container.classes).toBeFalse();
+    expect('warning' in container.classes).toBeTrue();
+    expect('info' in container.classes).toBeFalse();
+
     expect(matIcon.length).toBe(1);
-    expect(await matIcon[0].getName()).toBe('error');
+    expect(await matIcon[0].getName()).toBe('warning');
+  });
+
+  it('shows with type = info', async () => {
+    fixture.componentRef.setInput('parameter', {
+      hintType: ParameterHintType.Info,
+      hint: 'test-hint1 \n test-hint2 \n test-hint3',
+    });
+    fixture.detectChanges();
+    const matIcon = await harnessLoader.getAllHarnesses(MatIconHarness);
+
+    expect(fixture.componentInstance).toBeTruthy();
+    const container = fixture.debugElement.query(By.css('.container'));
+    expect('error' in container.classes).toBeFalse();
+    expect('warning' in container.classes).toBeFalse();
+    expect('info' in container.classes).toBeTrue();
+
+    expect(matIcon.length).toBe(1);
+    expect(await matIcon[0].getName()).toBe('info');
   });
 });
