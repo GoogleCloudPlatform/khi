@@ -28,6 +28,10 @@ module.exports = function (config) {
       require('karma-coverage'),
       require('@angular-devkit/build-angular/plugins/karma')
     ],
+    files: [
+      { pattern: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap', type: "css", included: true, served: false, watched: false },
+      { pattern: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0', type: "css", included: true, served: false, watched: false },
+    ],
     client: {
       jasmine: {
         // you can add configuration options for Jasmine here
@@ -55,7 +59,7 @@ module.exports = function (config) {
     autoWatch: true,
     browsers: ['Chrome'],
     singleRun: false,
-    restartOnFileChange: true,
+    restartOnFileChange: false,
     captureTimeout: 60 * 60 * 1000,
     browserDisconnectTimeout: 60 * 60 * 1000,
     browserDisconnectTolerance: 1,

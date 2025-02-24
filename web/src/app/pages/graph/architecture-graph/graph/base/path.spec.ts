@@ -25,7 +25,7 @@ const POINT_STYLE: ElementStyle = {
 };
 
 describe('Path related class specs', () => {
-  graphRootIt('with layout elements', 300, (root) => {
+  graphRootIt('with layout elements', (root) => {
     root
       .withChildren([
         $alignedGroup(Direction.Vertical)

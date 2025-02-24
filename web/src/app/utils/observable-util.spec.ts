@@ -16,8 +16,20 @@
 
 import { map, take, timer } from 'rxjs';
 import { monitorElementHeight } from './observable-util';
+import {
+  BrowserDynamicTestingModule,
+  platformBrowserDynamicTesting,
+} from '@angular/platform-browser-dynamic/testing';
+import { TestBed } from '@angular/core/testing';
 
 describe('observable-util', () => {
+  beforeAll(() => {
+    TestBed.resetTestEnvironment();
+    TestBed.initTestEnvironment(
+      BrowserDynamicTestingModule,
+      platformBrowserDynamicTesting(),
+    );
+  });
   describe('monitorElementHeight', () => {
     it('emits heights on resize events', (done) => {
       const element = document.createElement('div');

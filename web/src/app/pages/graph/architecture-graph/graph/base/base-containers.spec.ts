@@ -32,7 +32,7 @@ const DEBUG_STYLE: ElementStyle = {
 };
 
 describe('Layout', () => {
-  graphRootIt('Box containing a label', 100, (root) => {
+  graphRootIt('Box containing a label', (root) => {
     const nonExceededLayoutLoop = root
       .withChildren([
         $rect()
@@ -51,7 +51,7 @@ describe('Layout', () => {
     expect(rect.element!.getAttribute('height')).toBe(bbox.height + '');
   });
 
-  graphRootIt('Box containing a label with margins', 100, (root) => {
+  graphRootIt('Box containing a label with margins', (root) => {
     const nonExceededLayoutLoop = root
       .withChildren([
         $rect()
@@ -70,7 +70,7 @@ describe('Layout', () => {
     expect(rect.element!.getAttribute('height')).toBe(bbox.height + 20 + '');
   });
 
-  graphRootIt('AlignedGroup should expand children', 100, (root) => {
+  graphRootIt('AlignedGroup should expand children', (root) => {
     const nonExceededLayoutLoop = root
       .withChildren([
         $rect()
@@ -96,7 +96,7 @@ describe('Layout', () => {
     // expect(labelBox1.element.getAttribute("width")).toBe(labelBox2.element.getAttribute("width"))
   });
 
-  graphRootIt('Nested aligned group', 300, (root) => {
+  graphRootIt('Nested aligned group', (root) => {
     const nonExceededLayoutLoop = root
       .withChildren([
         $rect()
@@ -125,7 +125,7 @@ describe('Layout', () => {
     expect(nonExceededLayoutLoop).toBeTrue();
   });
 
-  graphRootIt('Aligned group with margin', 100, (root) => {
+  graphRootIt('Aligned group with margin', (root) => {
     const nonExceededLayoutLoop = root
       .withChildren([
         $rect()
@@ -155,35 +155,5 @@ describe('Layout', () => {
       .getChildren()[0];
     expect(label.element!.nodeName).toBe('text');
     expect(label.element!.getAttribute('x')).toBe('20');
-  });
-
-  it('Horizontal pair should expand the middle', () => {
-    //TODO: Update this test to match the spec
-    // const root = generateRoot("Horizontal pair should expand the middle", 800)
-    // const nonExceededLayoutLoop = root.withChildren([
-    //     $rect()
-    //         .withChildren([
-    //             $hpair(
-    //                 $rect()
-    //                     .withStyle(DEBUG_STYLE)
-    //                     .withChildren([
-    //                         $label("HOGE")
-    //                     ]),
-    //                 $rect()
-    //                     .withStyle(DEBUG_STYLE)
-    //                     .withChildren([
-    //                         $label("HOGEHOGEHOGE")
-    //                     ])
-    //             ).withMinSize(500, 0)
-    //         ]).withStyle(DEBUG_STYLE)
-    // ]).render()
-    // expect(nonExceededLayoutLoop).toBeTrue()
-    // const topRect = root.getChildren()[0]
-    // expect(topRect.element.getBoundingClientRect().width).toBe(500)
-    // const left = root.getChildren()[0].getChildren()[0].getChildren()[0]
-    // const right = root.getChildren()[0].getChildren()[0].getChildren()[1]
-    // const rbox = right.element.getBoundingClientRect()
-    // expect(left.element.getAttribute("x")).toBe("0")
-    // expect(+right.element.getAttribute("x")! + rbox.width).toBe(500)
   });
 });

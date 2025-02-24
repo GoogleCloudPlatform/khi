@@ -20,7 +20,7 @@ import { Direction } from './base-containers';
 import { ArrowHead } from './element';
 
 describe('Sized rect', () => {
-  graphRootIt('Sized rect should retain the size', 200, (r) => {
+  graphRootIt('Sized rect should retain the size', (r) => {
     r.withChildren([
       $alignedGroup(Direction.Horizontal)
         .withGap(30)
@@ -48,7 +48,7 @@ describe('Sized rect', () => {
 });
 
 describe('Arrow head', () => {
-  graphRootIt('Arrow head should be rendered correctly', 100, (r) => {
+  graphRootIt('Arrow head should be rendered correctly', (r) => {
     r.withChildren([new ArrowHead(10, 0)]).render();
   });
 });
