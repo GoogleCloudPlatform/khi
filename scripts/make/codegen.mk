@@ -20,3 +20,7 @@ web/src/environments/version.*.ts: VERSION
 .PHONY=add-licenses
 add-licenses:
 	$(GOPATH)/bin/addlicense  -c "Google LLC" -l apache .
+
+.PHONY=generate-reference
+generate-reference: 
+	go run ./cmd/reference-generator/

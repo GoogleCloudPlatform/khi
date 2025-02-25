@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
@@ -43,7 +44,7 @@ type QueryGeneratorFunc = func(context.Context, int, *task.VariableSet) ([]strin
 
 var queryThreadPool = worker.NewPool(16)
 
-func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum.LogType, dependencies []string, generator QueryGeneratorFunc) task.Definition {
+func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum.LogType, dependencies []string, generator QueryGeneratorFunc, sampleQuery string) task.Definition {
 	return inspection_task.NewInspectionProcessor(taskId, append(dependencies, gcp_task.InputProjectIdTaskID, gcp_task.InputStartTimeTaskID, gcp_task.InputEndTimeTaskID, inspection_task.ReaderFactoryGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
@@ -124,5 +125,5 @@ func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum
 		}
 
 		return []*log.LogEntity{}, err
-	})
+	}, label.NewQueryTaskLabelOpt(logType, sampleQuery))
 }

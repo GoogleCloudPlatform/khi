@@ -40,6 +40,7 @@ var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-scheduler"),
+	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-scheduler"),
 )
 
 var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
@@ -51,6 +52,7 @@ var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("dag-processor-manager"),
+	generateQueryForComponent("sample-composer-environment", "test-project", "dag-processor-manager"),
 )
 
 var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
@@ -62,6 +64,7 @@ var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-monitoring"),
+	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-monitoring"),
 )
 
 var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
@@ -73,6 +76,7 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 		InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-worker"),
+	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
 )
 
 func createGenerator(componentName string) func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
@@ -90,12 +94,15 @@ func createGenerator(componentName string) func(ctx context.Context, i int, vs *
 			return []string{}, err
 		}
 
-		composerFilter := composerEnvironmentLog(environmentName)
-		schedulerFilter := logPath(projectId, componentName)
-
-		return []string{fmt.Sprintf(`%s
-%s`, composerFilter, schedulerFilter)}, nil
+		return []string{generateQueryForComponent(environmentName, projectId, componentName)}, nil
 	}
+}
+
+func generateQueryForComponent(environmentName string, projectId string, componentName string) string {
+	composerFilter := composerEnvironmentLog(environmentName)
+	schedulerFilter := logPath(projectId, componentName)
+	return fmt.Sprintf(`%s
+%s`, composerFilter, schedulerFilter)
 }
 
 func composerEnvironmentLog(environmentName string) string {

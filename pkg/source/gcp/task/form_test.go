@@ -38,6 +38,7 @@ import (
 var testClusterNamePrefix = task_test.MockProcessorTaskFromTaskID(ClusterNamePrefixTaskID, "")
 
 func TestProjectIdInput(t *testing.T) {
+	wantDescription := "The project ID containing logs of the cluster to query"
 	form_test.TestTextForms(t, "gcp-project-id", InputProjectIdTask, []*form_test.FormTestCase{
 		{
 			Name:          "With valid project ID",
@@ -51,7 +52,7 @@ func TestProjectIdInput(t *testing.T) {
 					ID:          GCPPrefix + "input/project-id",
 					Type:        form.Text,
 					Label:       "Project ID",
-					Description: "A project ID containing the cluster to inspect",
+					Description: wantDescription,
 					HintType:    form.None,
 				},
 			},
@@ -68,7 +69,7 @@ func TestProjectIdInput(t *testing.T) {
 					ID:          GCPPrefix + "input/project-id",
 					Type:        form.Text,
 					Label:       "Project ID",
-					Description: "A project ID containing the cluster to inspect",
+					Description: wantDescription,
 					HintType:    form.None,
 				},
 				Readonly: true,
@@ -94,7 +95,7 @@ func TestProjectIdInput(t *testing.T) {
 					ID:          GCPPrefix + "input/project-id",
 					Type:        form.Text,
 					Label:       "Project ID",
-					Description: "A project ID containing the cluster to inspect",
+					Description: wantDescription,
 					HintType:    form.Error,
 					Hint:        "Project ID must match `^*[0-9a-z\\.:\\-]+$`",
 				},
@@ -112,7 +113,7 @@ func TestProjectIdInput(t *testing.T) {
 					ID:          GCPPrefix + "input/project-id",
 					Type:        form.Text,
 					Label:       "Project ID",
-					Description: "A project ID containing the cluster to inspect",
+					Description: wantDescription,
 					HintType:    form.None,
 				},
 			},
@@ -127,7 +128,7 @@ func TestProjectIdInput(t *testing.T) {
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/project-id",
-					Description: "A project ID containing the cluster to inspect",
+					Description: wantDescription,
 					Type:        "Text",
 					Label:       "Project ID",
 					HintType:    form.None,
