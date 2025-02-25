@@ -22,10 +22,11 @@ $drop-area-color-tint-background: mat.m2-get-color-from-palette(mat.$m2-indigo-p
 $drop-area-color-tint-border: mat.m2-get-color-from-palette(mat.$m2-indigo-palette,400)
 $done-label-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette,400)
 
-$error-message-color: red
-
 .container
     width: 500px
+
+.form-body
+    margin: 0px 0px 0px 20px
 
 .drop-area-outer
     margin: 5px 0px
@@ -71,15 +72,9 @@ $error-message-color: red
     font-size: 12px
     line-height: 16px
     padding: 4px 0px
-.error-message
-    display: flex
-    align-items: center
-    font-size: 12px
-    color: $error-message-color
-    mat-icon
-        transform: scale(0.7)
 
 .footer-container
+    margin: 4px 0px
     display: flex
     .progress-label
         margin: 0px 20px 0px 10px

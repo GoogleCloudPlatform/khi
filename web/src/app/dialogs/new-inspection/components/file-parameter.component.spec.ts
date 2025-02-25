@@ -15,28 +15,41 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FileUploadComponent } from './file-upload.component';
+import { FileParameterComponent } from './file-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import {
   BrowserDynamicTestingModule,
   platformBrowserDynamicTesting,
 } from '@angular/platform-browser-dynamic/testing';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
-import {
-  FILE_UPLOADER,
-  MockFileUploader,
-  UploadToken,
-  UploadStatus,
-} from './service/file-uploader';
+import { FILE_UPLOADER, MockFileUploader } from './service/file-uploader';
 import { By } from '@angular/platform-browser';
 import { of } from 'rxjs';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatProgressSpinnerHarness } from '@angular/material/progress-spinner/testing';
+import {
+  FileParameterFormField,
+  ParameterHintType,
+  ParameterInputType,
+  UploadStatus,
+  UploadToken,
+} from '../../../common/schema/form-types';
 
-describe('FileUploadComponent', () => {
+describe('FileParameterComponent', () => {
   const mockFileUploader = new MockFileUploader();
   const fakeUploadToken: UploadToken = { id: 'foo' };
-  let fixture: ComponentFixture<FileUploadComponent>;
+  const defaultFileParameterForm = {
+    label: 'test-field-label',
+    description: 'test-description',
+    hintType: ParameterHintType.Info,
+    hint: 'this is a test info',
+    type: ParameterInputType.File,
+    id: 'test-id',
+    token: fakeUploadToken,
+    status: UploadStatus.Waiting,
+  } as FileParameterFormField;
+
+  let fixture: ComponentFixture<FileParameterComponent>;
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
@@ -60,34 +73,14 @@ describe('FileUploadComponent', () => {
     }).compileComponents();
     const matIconRegistry = TestBed.inject(MatIconRegistry);
     matIconRegistry.setDefaultFontSetClass('material-symbols-outlined');
-    fixture = TestBed.createComponent(FileUploadComponent);
-    fixture.componentRef.setInput('uploadToken', fakeUploadToken);
-    fixture.componentRef.setInput('label', 'test-field-label');
-    fixture.componentRef.setInput('description', 'test-description');
-  });
-
-  afterAll(() => {
-    TestBed.resetTestEnvironment();
-    TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
-      { teardown: { destroyAfterEach: true } },
-    );
+    fixture = TestBed.createComponent(FileParameterComponent);
+    fixture.componentRef.setInput('parameter', defaultFileParameterForm);
   });
 
   it('should pass input values', () => {
-    fixture.componentRef.setInput('errorMessage', 'test error message');
     fixture.detectChanges();
 
     expect(fixture.componentInstance).toBeTruthy();
-    const label = fixture.debugElement.query(By.css('.label'));
-    expect(label.nativeElement.textContent).toBe('test-field-label');
-    const description = fixture.debugElement.query(By.css('.description'));
-    expect(description.nativeElement.textContent).toBe('test-description');
-    const errorMessage = fixture.debugElement.query(
-      By.css('.error-message span'),
-    );
-    expect(errorMessage.nativeElement.textContent).toBe('test error message');
   });
 
   it('shows filename if the name is assigned', () => {
@@ -106,15 +99,6 @@ describe('FileUploadComponent', () => {
     expect(uploadButton.attributes['disabled']).toBeFalsy();
   });
 
-  it('should not show error message when it was empty string', () => {
-    fixture.detectChanges();
-
-    const errorMessage = fixture.debugElement.query(
-      By.css('.error-message span'),
-    );
-    expect(errorMessage).toBeNull();
-  });
-
   it('shows progress bar with upload status', async () => {
     mockFileUploader.statusProvider = () =>
       of({
@@ -122,11 +106,10 @@ describe('FileUploadComponent', () => {
         completeRatio: 0.5,
       });
 
-    fixture.componentRef.setInput(
-      'errorMessage',
-      'This file is not in the format of JSON line.',
-    );
-    fixture.componentRef.setInput('uploadStatus', UploadStatus.Uploading);
+    fixture.componentRef.setInput('parameter', {
+      ...defaultFileParameterForm,
+      status: UploadStatus.Uploading,
+    });
     fixture.componentInstance.selectedFile = new File([], 'a mock file');
     fixture.componentInstance.onClickUploadButton();
     fixture.detectChanges();
@@ -144,11 +127,11 @@ describe('FileUploadComponent', () => {
         done: false,
         completeRatio: 0.5,
       });
-    fixture.componentRef.setInput(
-      'errorMessage',
-      'This file is not in the format of JSON line.',
-    );
-    fixture.componentRef.setInput('uploadStatus', UploadStatus.Verifying);
+
+    fixture.componentRef.setInput('parameter', {
+      ...defaultFileParameterForm,
+      status: UploadStatus.Verifying,
+    });
     fixture.componentInstance.selectedFile = new File([], 'a mock file');
     fixture.componentInstance.onClickUploadButton();
     fixture.detectChanges();
@@ -165,7 +148,10 @@ describe('FileUploadComponent', () => {
         done: false,
         completeRatio: 0.5,
       });
-    fixture.componentRef.setInput('uploadStatus', UploadStatus.Done);
+    fixture.componentRef.setInput('parameter', {
+      ...defaultFileParameterForm,
+      status: UploadStatus.Done,
+    });
     fixture.componentInstance.onClickUploadButton();
     fixture.detectChanges();
 
@@ -176,11 +162,10 @@ describe('FileUploadComponent', () => {
   });
 
   it('must disable upload button after upload', () => {
-    fixture.componentRef.setInput(
-      'errorMessage',
-      'This file is not in the format of JSON line.',
-    );
-    fixture.componentRef.setInput('uploadStatus', UploadStatus.Verifying);
+    fixture.componentRef.setInput('parameter', {
+      ...defaultFileParameterForm,
+      status: UploadStatus.Verifying,
+    });
     fixture.componentInstance.selectedFile = new File([], 'a mock file');
     fixture.componentInstance.isSelectedFileUploaded.set(false);
     fixture.detectChanges();
