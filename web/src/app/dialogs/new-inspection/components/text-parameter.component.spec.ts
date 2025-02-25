@@ -22,10 +22,29 @@ import {
 import { TextParameterComponent } from './text-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
-import { ParameterHintType } from 'src/app/common/schema/form-types';
+import {
+  ParameterHintType,
+  TextParameterFormField,
+} from 'src/app/common/schema/form-types';
+import { MatInputHarness } from '@angular/material/input/testing';
+import { HarnessLoader } from '@angular/cdk/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 
 describe('TextParameterComponent', () => {
   let fixture: ComponentFixture<TextParameterComponent>;
+  let harnessLoader: HarnessLoader;
+
+  const defaultParameter = {
+    label: 'test-label',
+    default: 'test-default-value',
+    description:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, <br> sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+    hintType: ParameterHintType.Error,
+    hint: 'parameter test validation failed',
+    readonly: false,
+    suggestions: ['foo', 'bar', 'qux'],
+  } as TextParameterFormField;
+
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
@@ -42,20 +61,28 @@ describe('TextParameterComponent', () => {
     const matIconRegistry = TestBed.inject(MatIconRegistry);
     matIconRegistry.setDefaultFontSetClass('material-symbols-outlined');
     fixture = TestBed.createComponent(TextParameterComponent);
-    fixture.componentRef.setInput('parameter', {
-      label: 'test-label',
-      description:
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, <br> sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-      hintType: ParameterHintType.Error,
-      hint: 'parameter test validation failed',
-      allowEdit: true,
-      suggestions: ['foo', 'bar', 'qux'],
-    });
+    fixture.componentRef.setInput('parameter', defaultParameter);
+    harnessLoader = TestbedHarnessEnvironment.loader(fixture);
   });
 
-  it('should create', () => {
+  it('should create', async () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance).toBeTruthy();
+    const matInput = await harnessLoader.getHarness(MatInputHarness);
+
+    expect(await matInput.isDisabled()).toBeFalse();
+    expect(await matInput.getPlaceholder()).toBe('test-default-value');
+  });
+
+  it('should make its input disabled when parameter.readonly = true', async () => {
+    fixture.componentRef.setInput('parameter', {
+      ...defaultParameter,
+      readonly: true,
+    });
+    fixture.detectChanges();
+    const matInput = await harnessLoader.getHarness(MatInputHarness);
+
+    expect(await matInput.isDisabled()).toBeTrue();
   });
 });

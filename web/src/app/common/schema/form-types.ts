@@ -53,7 +53,7 @@ export interface ParameterFormFieldBase {
    */
   description: string;
   /**
-   * Type of hint message (error,warning or info)
+   * Type of hint message (error, warning or info)
    */
   hintType: ParameterHintType;
   /**
@@ -68,9 +68,9 @@ export interface ParameterFormFieldBase {
 export interface TextParameterFormField extends ParameterFormFieldBase {
   type: ParameterInputType.Text;
   /**
-   * If this text form field is editable from user or not.
+   * If this text form field is readonly or not.
    */
-  allowEdit: boolean;
+  readonly: boolean;
   /**
    * The default value of this text form field.
    */
