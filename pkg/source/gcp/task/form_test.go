@@ -51,7 +51,7 @@ func TestProjectIdInput(t *testing.T) {
 				Label:       "Project ID",
 				Description: "A project ID containing the cluster to inspect",
 				HintType:    form.HintTypeInfo,
-				AllowEdit:   true,
+				ReadOnly:    true,
 			},
 		},
 		{
@@ -67,7 +67,7 @@ func TestProjectIdInput(t *testing.T) {
 				Type:        "Text",
 				Label:       "Project ID",
 				Description: "A project ID containing the cluster to inspect",
-				AllowEdit:   false,
+				ReadOnly:    false,
 				HintType:    form.HintTypeInfo,
 				Default:     "bar-project",
 			},
@@ -92,7 +92,7 @@ func TestProjectIdInput(t *testing.T) {
 				Type:            "Text",
 				Label:           "Project ID",
 				Description:     "A project ID containing the cluster to inspect",
-				AllowEdit:       true,
+				ReadOnly:        true,
 				HintType:        form.HintTypeInfo,
 				ValidationError: "Project ID must match `^*[0-9a-z\\.:\\-]+$`",
 			},
@@ -111,7 +111,7 @@ func TestProjectIdInput(t *testing.T) {
 				Label:       "Project ID",
 				Description: "A project ID containing the cluster to inspect",
 				HintType:    form.HintTypeInfo,
-				AllowEdit:   true,
+				ReadOnly:    true,
 			},
 		},
 		{
@@ -128,7 +128,7 @@ func TestProjectIdInput(t *testing.T) {
 				Label:       "Project ID",
 				Description: "A project ID containing the cluster to inspect",
 				HintType:    form.HintTypeInfo,
-				AllowEdit:   true,
+				ReadOnly:    true,
 			},
 		},
 	})
@@ -150,7 +150,7 @@ func TestClusterNameInput(t *testing.T) {
 				Id:          GCPPrefix + "input/cluster-name",
 				Type:        "Text",
 				Label:       "Cluster name",
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
 				HintType:    form.HintTypeInfo,
@@ -166,7 +166,7 @@ func TestClusterNameInput(t *testing.T) {
 				Id:          GCPPrefix + "input/cluster-name",
 				Type:        "Text",
 				Label:       "Cluster name",
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
 				HintType:    form.HintTypeInfo,
@@ -183,7 +183,7 @@ func TestClusterNameInput(t *testing.T) {
 				Type:            "Text",
 				Label:           "Cluster name",
 				ValidationError: "Cluster name must match `^[0-9a-z:\\-]+$`",
-				AllowEdit:       true,
+				ReadOnly:        true,
 				Suggestions:     common.SortForAutocomplete("An invalid cluster name", []string{"foo-cluster", "bar-cluster"}),
 				Default:         "foo-cluster",
 				HintType:        form.HintTypeInfo,
@@ -200,7 +200,7 @@ func TestClusterNameInput(t *testing.T) {
 				Type:            "Text",
 				Label:           "Cluster name",
 				ValidationError: "",
-				AllowEdit:       true,
+				ReadOnly:        true,
 				Suggestions:     []string{"foo-cluster", "bar-cluster"},
 				Default:         "foo-cluster",
 				Hint:            "Cluster `nonexisting-cluster` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.",
@@ -229,7 +229,7 @@ func TestDurationInput(t *testing.T) {
 				Label:       expectedLabel,
 				Description: expectedDescription,
 				Suggestions: expectedSuggestions,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Default:     "1h",
 				HintType:    form.HintTypeInfo,
 				Hint: `Query range:
@@ -246,7 +246,7 @@ func TestDurationInput(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				Suggestions:     expectedSuggestions,
 				ValidationError: "time: invalid duration \"foo\"",
 				Default:         "1h",
@@ -261,7 +261,7 @@ func TestDurationInput(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				Suggestions:     expectedSuggestions,
 				ValidationError: "duration must be positive",
 				Default:         "1h",
@@ -277,7 +277,7 @@ func TestDurationInput(t *testing.T) {
 				Type:        "Text",
 				Label:       expectedLabel,
 				Description: expectedDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Suggestions: expectedSuggestions,
 				Default:     "1h",
 				Hint: `Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.
@@ -298,7 +298,7 @@ Query range:
 				Type:        "Text",
 				Label:       expectedLabel,
 				Description: expectedDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Suggestions: expectedSuggestions,
 				Default:     "1h",
 				Hint: `Query range:
@@ -334,7 +334,7 @@ func TestInputEndtime(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				ValidationError: "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)",
 				Default:         "2020-01-02T03:04:05Z",
 				HintType:        form.HintTypeInfo,
@@ -349,7 +349,7 @@ func TestInputEndtime(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				ValidationError: "",
 				Default:         "2020-01-02T03:04:05Z",
 				HintType:        form.HintTypeInfo,
@@ -364,7 +364,7 @@ func TestInputEndtime(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				ValidationError: "",
 				Default:         "2020-01-02T12:04:05+09:00",
 				HintType:        form.HintTypeInfo,
@@ -417,7 +417,7 @@ func TestInputKindName(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				Default:         "@default",
 				HintType:        form.HintTypeInfo,
 				ValidationError: "kind filter can't be empty",
@@ -434,7 +434,7 @@ func TestInputKindName(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:       expectedLabel,
 				Description: expectedDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Default:     "@default",
 				HintType:    form.HintTypeInfo,
 			},
@@ -449,7 +449,7 @@ func TestInputKindName(t *testing.T) {
 			}, ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				ValidationError: "alias `invalid_alias` was not found",
 				Default:         "@default",
 				HintType:        form.HintTypeInfo,
@@ -478,7 +478,7 @@ func TestInputNamespaces(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				Default:         "@all_cluster_scoped @all_namespaced",
 				HintType:        form.HintTypeInfo,
 				ValidationError: "namespace filter can't be empty",
@@ -495,7 +495,7 @@ func TestInputNamespaces(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:       expectedLabel,
 				Description: expectedDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				Default:     "@all_cluster_scoped @all_namespaced",
 				HintType:    form.HintTypeInfo,
 			},
@@ -510,7 +510,7 @@ func TestInputNamespaces(t *testing.T) {
 			}, ExpectedFormField: form.FormField{
 				Label:           expectedLabel,
 				Description:     expectedDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				ValidationError: "",
 				Default:         "@all_cluster_scoped @all_namespaced",
 				HintType:        form.HintTypeInfo,
@@ -533,7 +533,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				HintType:    form.HintTypeInfo,
 				Default:     "",
 			},
@@ -546,7 +546,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				HintType:    form.HintTypeInfo,
 				Default:     "",
 			},
@@ -559,7 +559,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				HintType:    form.HintTypeInfo,
 				Default:     "",
 			},
@@ -572,7 +572,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:           wantLabelName,
 				Description:     wantDescription,
-				AllowEdit:       true,
+				ReadOnly:        true,
 				HintType:        form.HintTypeInfo,
 				ValidationError: "substring `invalid=node=name` is not valid as a substring of node name",
 				Default:         "",
@@ -586,7 +586,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			ExpectedFormField: form.FormField{
 				Label:       wantLabelName,
 				Description: wantDescription,
-				AllowEdit:   true,
+				ReadOnly:    true,
 				HintType:    form.HintTypeInfo,
 				Default:     "",
 			},
@@ -608,7 +608,7 @@ func TestLocationInput(t *testing.T) {
 				Label:       "Location",
 				Description: "A location(regions) containing the environments to inspect",
 				HintType:    form.HintTypeInfo,
-				AllowEdit:   true,
+				ReadOnly:    true,
 			},
 		},
 	})

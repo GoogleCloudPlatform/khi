@@ -31,8 +31,8 @@ type TextFormValidator = func(ctx context.Context, value string, variables *comm
 // TextFormDefaultValueGenerator is a function type to generate the default value.
 type TextFormDefaultValueGenerator = func(ctx context.Context, variables *common_task.VariableSet, previousValues []string) (string, error)
 
-// TextFormAllowEditProvider is a function type to compute if the field is allowed edit or not.
-type TextFormAllowEditProvider = func(ctx context.Context, variables *common_task.VariableSet) (bool, error)
+// TextFormReadonlyProvider is a function type to compute if the field is allowed edit or not.
+type TextFormReadonlyProvider = func(ctx context.Context, variables *common_task.VariableSet) (bool, error)
 
 // TextFormSuggestionsProvider is a function to return the list of strings shown in the autocomplete.
 // Return nil instead of emptry string array means the autocomplete is disabled for the field.
@@ -42,7 +42,7 @@ type TextFormSuggestionsProvider = func(ctx context.Context, value string, varia
 type TextFormValueConverter = func(ctx context.Context, value string, variables *common_task.VariableSet) (any, error)
 
 // TextFormHintGenerator is a function type to generate a hint string
-type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.FormFieldHintType, error)
+type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.ParameterHintType, error)
 
 // TextFormDefinitionBuilder is an utility to construct an instance of Definition for input form field.
 // This will generate the Definition instance with `Build()` method call after chaining several configuration methods.
@@ -54,7 +54,7 @@ type TextFormDefinitionBuilder struct {
 	description         string
 	defaultValue        TextFormDefaultValueGenerator
 	validator           TextFormValidator
-	allowEditProvider   TextFormAllowEditProvider
+	readonlyProvider    TextFormReadonlyProvider
 	suggestionsProvider TextFormSuggestionsProvider
 	hintGenerator       TextFormHintGenerator
 	converter           TextFormValueConverter
@@ -81,8 +81,8 @@ func NewInputFormDefinitionBuilder(id string, priority int, fieldLabel string) *
 		validator: func(ctx context.Context, value string, variables *common_task.VariableSet) (string, error) {
 			return "", nil
 		},
-		allowEditProvider: func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
-			return true, nil
+		readonlyProvider: func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
+			return false, nil
 		},
 		suggestionsProvider: func(ctx context.Context, value string, variables *common_task.VariableSet, previousValues []string) ([]string, error) {
 			return nil, nil
@@ -90,8 +90,8 @@ func NewInputFormDefinitionBuilder(id string, priority int, fieldLabel string) *
 		converter: func(ctx context.Context, value string, variables *common_task.VariableSet) (any, error) {
 			return value, nil
 		},
-		hintGenerator: func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.FormFieldHintType, error) {
-			return "", form_metadata.HintTypeInfo, nil
+		hintGenerator: func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.ParameterHintType, error) {
+			return "", form_metadata.Info, nil
 		},
 	}
 }
@@ -127,8 +127,8 @@ func (b *TextFormDefinitionBuilder) WithDefaultValueConstant(defValue string, pr
 	})
 }
 
-func (b *TextFormDefinitionBuilder) WithAllowEditFunc(allowEditFunc TextFormAllowEditProvider) *TextFormDefinitionBuilder {
-	b.allowEditProvider = allowEditFunc
+func (b *TextFormDefinitionBuilder) WithAllowEditFunc(readonlyFunc TextFormReadonlyProvider) *TextFormDefinitionBuilder {
+	b.readonlyProvider = readonlyFunc
 	return b
 }
 
@@ -171,12 +171,12 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 		prevValueAny, _ := cacheStore.LoadOrStore(previousValueStoreKey, []string{})
 		prevValue := prevValueAny.([]string)
 
-		allowEdit, err := b.allowEditProvider(ctx, v)
+		readonly, err := b.readonlyProvider(ctx, v)
 		if err != nil {
 			return nil, fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
 		}
-		field := form_metadata.FormField{}
-		field.AllowEdit = allowEdit
+		field := form_metadata.TextParameterFormField{}
+		field.Readonly = readonly
 
 		// Compute the default value of the form
 		var currentValue string
@@ -185,7 +185,7 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 			return nil, fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 		}
 		field.Default = currentValue
-		if valueRaw, exist := req.Values[b.id]; exist && allowEdit {
+		if valueRaw, exist := req.Values[b.id]; exist && !readonly {
 			valueString, isString := valueRaw.(string)
 			if !isString {
 				return nil, fmt.Errorf("request parameter `%s` was not given in string in task %s", b.id, b.id)
@@ -193,12 +193,12 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 			currentValue = valueString
 		}
 
-		field.Id = b.id
-		field.Type = "Text"
+		field.ID = b.id
+		field.Type = form_metadata.Text
 		field.Priority = b.priority
 		field.Label = b.label
 		field.Description = b.description
-		field.HintType = form_metadata.HintTypeInfo
+		field.HintType = form_metadata.Info
 
 		suggestions, err := b.suggestionsProvider(ctx, currentValue, v, prevValue)
 		if err != nil {
@@ -217,19 +217,24 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 				return nil, fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 			}
 		}
-		field.ValidationError = validationErr
-		if field.ValidationError != "" && taskMode == task.TaskModeRun {
-			return nil, fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, field.ValidationError)
+		if validationErr != "" && taskMode == task.TaskModeRun {
+			return nil, fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, validationErr)
 		}
 
 		convertedValue, err := b.converter(ctx, currentValue, v)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
 		}
-		if field.ValidationError == "" {
+		if validationErr != "" {
+			field.HintType = form_metadata.Error
+			field.Hint = validationErr
+		} else {
 			hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue, v)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
+			}
+			if hint == "" {
+				hintType = form_metadata.None
 			}
 			field.Hint = hint
 			field.HintType = hintType

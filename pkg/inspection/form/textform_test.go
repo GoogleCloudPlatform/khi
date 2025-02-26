@@ -61,8 +61,8 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue:    "bar",
 			ExpectedError:    "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: true,
-				HintType:  form_metadata.HintTypeInfo,
+				ReadOnly: true,
+				HintType: form_metadata.HintTypeInfo,
 			},
 		},
 		{
@@ -74,9 +74,9 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "foo-default",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: true,
-				Default:   "foo-default",
-				HintType:  form_metadata.HintTypeInfo,
+				ReadOnly: true,
+				Default:  "foo-default",
+				HintType: form_metadata.HintTypeInfo,
 			},
 		},
 		{
@@ -90,7 +90,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "foo-default",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit:       true,
+				ReadOnly:        true,
 				ValidationError: "foo validation error",
 				HintType:        form_metadata.HintTypeInfo,
 			},
@@ -106,8 +106,8 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: false,
-				HintType:  form_metadata.HintTypeInfo,
+				ReadOnly: false,
+				HintType: form_metadata.HintTypeInfo,
 			},
 		},
 		{
@@ -121,9 +121,9 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "foo-from-default",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: false,
-				Default:   "foo-from-default",
-				HintType:  form_metadata.HintTypeInfo,
+				ReadOnly: false,
+				Default:  "foo-from-default",
+				HintType: form_metadata.HintTypeInfo,
 			},
 		},
 		{
@@ -137,9 +137,9 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "bar-from-request",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: true,
-				Hint:      "foo-hint",
-				HintType:  form_metadata.HintTypeInfo,
+				ReadOnly: true,
+				Hint:     "foo-hint",
+				HintType: form_metadata.HintTypeInfo,
 			},
 		},
 		{
@@ -153,9 +153,9 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "bar-from-request",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: true,
-				Default:   "foo-from-default",
-				HintType:  form_metadata.HintTypeInfo,
+				ReadOnly: true,
+				Default:  "foo-from-default",
+				HintType: form_metadata.HintTypeInfo,
 			},
 		},
 		{
@@ -171,7 +171,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			ExpectedValue: "bar-from-request",
 			ExpectedError: "",
 			ExpectedFormField: form_metadata.FormField{
-				AllowEdit: true,
+				ReadOnly: true,
 				Suggestions: []string{
 					"foo-suggest1",
 					"foo-suggest2",

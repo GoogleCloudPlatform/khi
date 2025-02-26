@@ -55,7 +55,7 @@ var InputProjectIdTask = form.NewInputFormDefinitionBuilder(InputProjectIdTaskID
 		if parameters.Auth.FixedProjectID == nil {
 			return true, nil
 		}
-		return *parameters.Auth.FixedProjectID == "", nil
+		return *parameters.Auth.FixedProjectID != "", nil
 	}).
 	WithDefaultValueFunc(func(ctx context.Context, variables *task.VariableSet, previousValues []string) (string, error) {
 		if parameters.Auth.FixedProjectID != nil && *parameters.Auth.FixedProjectID != "" {
@@ -102,26 +102,26 @@ var InputClusterNameTask = form.NewInputFormDefinitionBuilder(InputClusterNameTa
 		}
 		return common.SortForAutocomplete(value, clusters.ClusterNames), nil
 	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *task.VariableSet) (string, form_metadata.FormFieldHintType, error) {
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *task.VariableSet) (string, form_metadata.ParameterHintType, error) {
 		clusters, err := GetAutocompleteClusterNamesFromTaskVariable(variables)
 		if err != nil {
-			return "", form_metadata.HintTypeInfo, err
+			return "", form_metadata.Info, err
 		}
 		// on failure of getting the list of clusters
 		if clusters.Error != "" {
-			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), form_metadata.HintTypeWarning, nil
+			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), form_metadata.Warning, nil
 		}
 		prefix, err := GetClusterNamePrefixFromTaskVariable(variables)
 		if err != nil {
-			return "", form_metadata.HintTypeInfo, err
+			return "", form_metadata.Info, err
 		}
 		convertedWithoutPrefix := strings.TrimPrefix(convertedValue.(string), prefix)
 		for _, suggestedCluster := range clusters.ClusterNames {
 			if suggestedCluster == convertedWithoutPrefix {
-				return "", form_metadata.HintTypeInfo, nil
+				return "", form_metadata.Info, nil
 			}
 		}
-		return fmt.Sprintf("Cluster `%s` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.", value), form_metadata.HintTypeWarning, nil
+		return fmt.Sprintf("Cluster `%s` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.", value), form_metadata.Warning, nil
 	}).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		if !clusterNameValidator.Match([]byte(value)) {
@@ -158,18 +158,18 @@ var InputDurationTask = form.NewInputFormDefinitionBuilder(InputDurationTaskID, 
 			return "1h", nil
 		}
 	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *task.VariableSet) (string, form_metadata.FormFieldHintType, error) {
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *task.VariableSet) (string, form_metadata.ParameterHintType, error) {
 		inspectionTime, err := common_task.GetInspectionTimeFromTaskVariable(variables)
 		if err != nil {
-			return "", form_metadata.HintTypeInfo, err
+			return "", form_metadata.Info, err
 		}
 		endTime, err := GetInputEndTimeFromTaskVariable(variables)
 		if err != nil {
-			return "", form_metadata.HintTypeInfo, err
+			return "", form_metadata.Info, err
 		}
 		timezoneShift, err := GetTimezoneShiftInput(variables)
 		if err != nil {
-			return "", form_metadata.HintTypeInfo, err
+			return "", form_metadata.Info, err
 		}
 		duration := convertedValue.(time.Duration)
 		startTime := endTime.Add(-duration)
@@ -184,7 +184,7 @@ var InputDurationTask = form.NewInputFormDefinitionBuilder(InputDurationTaskID, 
 		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
 		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
 		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
-		return hintString, form_metadata.HintTypeInfo, nil
+		return hintString, form_metadata.Info, nil
 	}).
 	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
@@ -236,16 +236,16 @@ var InputEndTimeTask = form.NewInputFormDefinitionBuilder(InputEndTimeTaskID, Pr
 		}
 		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *task.VariableSet) (string, form_metadata.FormFieldHintType, error) {
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *task.VariableSet) (string, form_metadata.ParameterHintType, error) {
 		inspectionTime, err := common_task.GetInspectionTimeFromTaskVariable(variables)
 		if err != nil {
-			return "", form_metadata.HintTypeInfo, err
+			return "", form_metadata.Info, err
 		}
 		specifiedTime := convertedValue.(time.Time)
 		if inspectionTime.Sub(specifiedTime) < 0 {
-			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), form_metadata.HintTypeWarning, nil
+			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), form_metadata.Warning, nil
 		}
-		return "", form_metadata.HintTypeInfo, nil
+		return "", form_metadata.Info, nil
 	}).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		_, err := common.ParseTime(value)

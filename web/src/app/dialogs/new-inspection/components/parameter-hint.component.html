@@ -15,7 +15,9 @@
 -->
 
 @let param = parameter();
-@if (param.hintType !== ParameterHintType.None) {
+@if (
+  param.hintType !== undefined && param.hintType !== ParameterHintType.None
+) {
   <div class="container" [ngClass]="[param.hintType]">
     <div class="icon-container">
       @switch (param.hintType) {

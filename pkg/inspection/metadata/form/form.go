@@ -20,36 +20,79 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 const FormFieldSetMetadataKey = "form"
 
-type FormFieldHintType string
+// ParameterInputType represents the type of parameter form field.
+type ParameterInputType string
 
 const (
-	HintTypeWarning = "warning"
-	HintTypeInfo    = "info"
+	Group ParameterInputType = "group"
+	Text  ParameterInputType = "text"
+	File  ParameterInputType = "file"
 )
 
-type FormField struct {
-	Priority        int               `json:"-"`
-	Id              string            `json:"id"`
-	Type            string            `json:"type"`
-	Label           string            `json:"label"`
-	Description     string            `json:"description"`
-	Hint            string            `json:"hint"`
-	HintType        FormFieldHintType `json:"hintType"`
-	Default         string            `json:"default"`
-	AllowEdit       bool              `json:"allowEdit"`
-	Suggestions     []string          `json:"suggestions"`
-	ValidationError string            `json:"validationError"`
+// ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
+type ParameterHintType string
+
+const (
+	None    ParameterHintType = "none"
+	Error   ParameterHintType = "error"
+	Warning ParameterHintType = "warning"
+	Info    ParameterHintType = "info"
+)
+
+type ParameterFormField interface{}
+
+// ParameterFormFieldBase is the base type of parameter form fields.
+type ParameterFormFieldBase struct {
+	Priority    int                `json:"-"`
+	ID          string             `json:"id"`
+	Type        ParameterInputType `json:"type"`
+	Label       string             `json:"label"`
+	Description string             `json:"description"`
+	HintType    ParameterHintType  `json:"hintType"`
+	Hint        string             `json:"hint"`
+}
+
+// GroupParameterFormField represents Group type parameter specific data.
+type GroupParameterFormField struct {
+	ParameterFormFieldBase
+	Children []ParameterFormField `json:"children"`
+}
+
+// TextParameterFormField represents Text type parameter specific data.
+type TextParameterFormField struct {
+	ParameterFormFieldBase
+	Readonly    bool     `json:"readonly"`
+	Default     string   `json:"default"`
+	Suggestions []string `json:"suggestions"`
+}
+
+// UploadStatus represents the types of UploadStatus given from the backend.
+type UploadStatus int
+
+const (
+	Waiting   UploadStatus = 0
+	Uploading UploadStatus = 1
+	Verifying UploadStatus = 2
+	Done      UploadStatus = 3
+)
+
+// FileParameterFormField represents File type parameter specific data.
+type FileParameterFormField struct {
+	ParameterFormFieldBase
+	Token  upload.UploadToken `json:"token"`
+	Status UploadStatus       `json:"status"`
 }
 
 // FormFieldSet is a metadata type used in frontend to generate the form fields.
 type FormFieldSet struct {
 	fieldsLock sync.RWMutex
-	fields     []FormField
+	fields     []ParameterFormField
 }
 
 var _ metadata.Metadata = (*FormFieldSet)(nil)
@@ -63,35 +106,50 @@ func (f *FormFieldSet) ToSerializable() interface{} {
 	return f.fields
 }
 
-func (f *FormFieldSet) SetField(newField FormField) error {
+func (f *FormFieldSet) SetField(newField ParameterFormField) error {
 	f.fieldsLock.Lock()
 	defer f.fieldsLock.Unlock()
-	if newField.Id == "" {
+	newFieldBase := getFieldBase(newField)
+	if newFieldBase.ID == "" {
 		return fmt.Errorf("id must not be empty")
 	}
 	for _, field := range f.fields {
-		if field.Id == newField.Id {
-			return fmt.Errorf("id %s is already used", newField.Id)
+		fieldBase := getFieldBase(field)
+		if fieldBase.ID == newFieldBase.ID {
+			return fmt.Errorf("id %s is already used", newFieldBase.ID)
 		}
 	}
 	f.fields = append(f.fields, newField)
-	slices.SortFunc(f.fields, func(a, b FormField) int {
-		return b.Priority - a.Priority
+	slices.SortFunc(f.fields, func(a, b ParameterFormField) int {
+		return getFieldBase(b).Priority - getFieldBase(a).Priority
 	})
 	return nil
 }
 
 // DangerouslyGetField shouldn't be used in non testing code. Because a field shouldn't depend on the other field metadata.
 // This is only for testing purpose.
-func (f *FormFieldSet) DangerouslyGetField(id string) FormField {
+func (f *FormFieldSet) DangerouslyGetField(id string) ParameterFormField {
 	f.fieldsLock.RLock()
 	defer f.fieldsLock.RUnlock()
 	for _, field := range f.fields {
-		if field.Id == id {
+		if getFieldBase(field).ID == id {
 			return field
 		}
 	}
-	return FormField{}
+	return ParameterFormFieldBase{}
+}
+
+func getFieldBase(parameter ParameterFormField) ParameterFormFieldBase {
+	switch v := parameter.(type) {
+	case GroupParameterFormField:
+		return v.ParameterFormFieldBase
+	case TextParameterFormField:
+		return v.ParameterFormFieldBase
+	case FileParameterFormField:
+		return v.ParameterFormFieldBase
+	default:
+		return ParameterFormFieldBase{}
+	}
 }
 
 type FormFieldSetMetadataFactory struct{}
@@ -99,7 +157,7 @@ type FormFieldSetMetadataFactory struct{}
 // Instanciate implements metadata.MetadataFactory.
 func (f *FormFieldSetMetadataFactory) Instanciate() metadata.Metadata {
 	return &FormFieldSet{
-		fields: make([]FormField, 0),
+		fields: make([]ParameterFormField, 0),
 	}
 }
 
