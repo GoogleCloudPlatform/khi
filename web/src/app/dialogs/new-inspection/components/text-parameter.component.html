@@ -24,6 +24,8 @@
     <input
       class="text-input"
       matInput
+      [value]="value | async"
+      (input)="onInput($event)"
       [placeholder]="param.default"
       [matAutocomplete]="auto"
       [disabled]="param.readonly"

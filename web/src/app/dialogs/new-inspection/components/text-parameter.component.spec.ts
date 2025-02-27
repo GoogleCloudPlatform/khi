@@ -29,12 +29,19 @@ import {
 import { MatInputHarness } from '@angular/material/input/testing';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import {
+  DefaultParameterStore,
+  PARAMETER_STORE,
+} from './service/parameter-store';
+import { firstValueFrom } from 'rxjs';
 
 describe('TextParameterComponent', () => {
   let fixture: ComponentFixture<TextParameterComponent>;
   let harnessLoader: HarnessLoader;
+  let parameterStore: DefaultParameterStore;
 
   const defaultParameter = {
+    id: 'test-parameter-id',
     label: 'test-label',
     default: 'test-default-value',
     description:
@@ -55,14 +62,28 @@ describe('TextParameterComponent', () => {
   });
 
   beforeEach(async () => {
+    parameterStore = new DefaultParameterStore();
     await TestBed.configureTestingModule({
       imports: [BrowserAnimationsModule],
+      providers: [
+        {
+          provide: PARAMETER_STORE,
+          useValue: parameterStore,
+        },
+      ],
     }).compileComponents();
     const matIconRegistry = TestBed.inject(MatIconRegistry);
     matIconRegistry.setDefaultFontSetClass('material-symbols-outlined');
     fixture = TestBed.createComponent(TextParameterComponent);
     fixture.componentRef.setInput('parameter', defaultParameter);
+    parameterStore.setDefaultValues({
+      'test-parameter-id': 'the default value',
+    });
     harnessLoader = TestbedHarnessEnvironment.loader(fixture);
+  });
+
+  afterEach(() => {
+    parameterStore.destroy();
   });
 
   it('should create', async () => {
@@ -73,6 +94,18 @@ describe('TextParameterComponent', () => {
 
     expect(await matInput.isDisabled()).toBeFalse();
     expect(await matInput.getPlaceholder()).toBe('test-default-value');
+  });
+
+  it('should set the value to store when input received', async () => {
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance).toBeTruthy();
+    const matInput = await harnessLoader.getHarness(MatInputHarness);
+
+    await matInput.setValue('updated value');
+    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+      'test-parameter-id': 'updated value',
+    });
   });
 
   it('should make its input disabled when parameter.readonly = true', async () => {

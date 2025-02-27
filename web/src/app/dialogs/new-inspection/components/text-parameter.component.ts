@@ -15,7 +15,7 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, input } from '@angular/core';
+import { Component, inject, input, OnInit } from '@angular/core';
 import { ParameterHeaderComponent } from './parameter-header.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -26,6 +26,8 @@ import {
   TextParameterFormField,
 } from 'src/app/common/schema/form-types';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { PARAMETER_STORE } from './service/parameter-store';
+import { Observable, Subject, takeUntil } from 'rxjs';
 
 /**
  * A form field of parameter in the new-inspection dialog.
@@ -44,10 +46,25 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
     MatAutocompleteModule,
   ],
 })
-export class TextParameterComponent {
+export class TextParameterComponent implements OnInit {
   readonly ParameterHintType = ParameterHintType;
+  readonly destroyed = new Subject();
   /**
    * The spec of this text type parameter.
    */
   parameter = input.required<TextParameterFormField>();
+
+  store = inject(PARAMETER_STORE);
+
+  value!: Observable<string>;
+
+  ngOnInit(): void {
+    this.value = this.store
+      .watch<string>(this.parameter().id)
+      .pipe(takeUntil(this.destroyed));
+  }
+
+  onInput(ev: Event) {
+    this.store.set(this.parameter().id, (ev.target as HTMLInputElement).value);
+  }
 }
