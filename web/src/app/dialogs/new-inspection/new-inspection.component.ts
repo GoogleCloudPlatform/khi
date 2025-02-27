@@ -28,7 +28,6 @@ import {
   Subject,
   filter,
   map,
-  of,
   shareReplay,
   switchMap,
   take,
@@ -130,9 +129,14 @@ export class NewInspectionDialogComponent implements OnDestroy {
   static readonly STEP_INDEX_FEATURE_SELECTION = 1;
   static readonly STEP_INDEX_PARAMETER_INPUT = 2;
 
-  private destoroyed = new Subject<void>();
+  private destroyed = new Subject<void>();
 
   private readonly store = inject(PARAMETER_STORE);
+
+  /**
+   * It's true only when the run button has already pressed.
+   */
+  public hadRun = signal(false);
 
   constructor(
     private readonly dialogRef: MatDialogRef<object, NewInspectionDialogResult>,
@@ -143,7 +147,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   ) {
     this.featureToggleRequest
       .pipe(
-        takeUntil(this.destoroyed),
+        takeUntil(this.destroyed),
         withLatestFrom(this.currentEnabledFeatures),
         map(([toggleFeature, features]) => {
           if (!features.has(toggleFeature)) {
@@ -158,7 +162,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
         client.setFeatures(featureIds);
       });
     this.dryrunRequest
-      .pipe(takeUntil(this.destoroyed), withLatestFrom(this.currentTaskClient))
+      .pipe(takeUntil(this.destroyed), withLatestFrom(this.currentTaskClient))
       .subscribe(([req, client]) => {
         client.dryrun(req);
       });
@@ -166,15 +170,32 @@ export class NewInspectionDialogComponent implements OnDestroy {
     // Send dryrun request to server when any of the parameters changed to validate parameters.
     this.store
       .watchAll()
-      .pipe(takeUntil(this.destoroyed))
+      .pipe(takeUntil(this.destroyed))
       .subscribe((values) => {
         this.dryrunRequest.next(values);
       });
+
+    // Receive the form field parameters and extract default values, then set it to the store.
     this.currentDryrunMetadata
-      .pipe(takeUntil(this.destoroyed))
+      .pipe(takeUntil(this.destroyed))
       .subscribe((metadata) => {
         const defaultValues = this.flattenDefaultValues(metadata.form);
         this.store.setDefaultValues(defaultValues);
+      });
+
+    // Event handler reacting to the `Run` button click.
+    this.startInspectionSubject
+      .pipe(
+        takeUntil(this.destroyed),
+        take(1),
+        withLatestFrom(this.currentTaskClient, this.store.watchAll()),
+        switchMap(([, client, parameters]) => client.run(parameters)),
+      )
+      .subscribe(() => {
+        this.extension.notifyLifecycleOnInspectionStart();
+        this.dialogRef.close({
+          inspectionTaskStarted: true,
+        });
       });
   }
 
@@ -206,7 +227,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   private dryrunRequest = new Subject<InspectionDryRunRequest>();
 
-  hadRun = signal(false);
+  private startInspectionSubject = new Subject<void>();
 
   private currentDryrunMetadata = this.currentTaskClient.pipe(
     switchMap((client) => client.dryRunResult),
@@ -247,21 +268,9 @@ export class NewInspectionDialogComponent implements OnDestroy {
     this.featureToggleRequest.next(featureId);
   }
 
-  public run() {
+  public onRunButtonClick() {
     this.hadRun.set(true);
-    of(void 0)
-      .pipe(
-        takeUntil(this.destoroyed),
-        withLatestFrom(this.currentTaskClient, this.store.watchAll()),
-        take(1),
-        switchMap(([, client, values]) => client.run(values)),
-      )
-      .subscribe(() => {
-        this.extension.notifyLifecycleOnInspectionStart();
-        this.dialogRef.close({
-          inspectionTaskStarted: true,
-        });
-      });
+    this.startInspectionSubject.next();
   }
 
   /**
@@ -290,7 +299,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   }
 
   /**
-   * Count the count of fields with error.
+   * Count error fields.
    * This ignores Group type form because the group itself isn't a field.
    */
   private countErrorFields(parameters: ParameterFormField[]): number {
@@ -306,7 +315,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   }
 
   /**
-   * Count the count of all fields.
+   * Count fields.
    * This ignores Group type form because the group itself isn't a field.
    */
   private countAllFields(parameters: ParameterFormField[]): number {
@@ -325,6 +334,6 @@ export class NewInspectionDialogComponent implements OnDestroy {
     if (this.store instanceof DefaultParameterStore) {
       this.store.destroy();
     }
-    this.destoroyed.next();
+    this.destroyed.next();
   }
 }

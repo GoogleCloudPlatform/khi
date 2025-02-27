@@ -71,7 +71,7 @@ export class DefaultParameterStore implements ParameterStore {
     return this.currentParameters.pipe(
       takeUntil(this.destroyed),
       distinctUntilChanged((prev, current) => {
-        return this.deepEqual(prev, current);
+        return this.haveEqualKeyValues(prev, current);
       }),
     );
   }
@@ -97,7 +97,6 @@ export class DefaultParameterStore implements ParameterStore {
           ...parameters,
           [id]: value,
         });
-        console.log('parameter update', value);
       });
   }
 
@@ -116,7 +115,11 @@ export class DefaultParameterStore implements ParameterStore {
     this.destroyed.next(void 0);
   }
 
-  private deepEqual(
+  /**
+   * Check if the given objects are both having same key and its value.
+   * This doesn't compare them recursively, because currently the parameter values are all primitives.
+   */
+  private haveEqualKeyValues(
     prev: { [id: string]: unknown },
     current: { [id: string]: unknown },
   ): boolean {
