@@ -41,5 +41,5 @@ export class ParameterHeaderComponent {
   /**
    * If the status of validation should show on header or not.
    */
-  showStatus = input(true);
+  showValidationStatus = input(true);
 }

@@ -16,7 +16,7 @@
 @let param = parameter();
 <div class="container">
   <div class="label-row">
-    @if (showStatus()) {
+    @if (showValidationStatus()) {
       @if (param.hintType === ParameterHintType.Error) {
         <mat-icon class="error">error</mat-icon>
       } @else {

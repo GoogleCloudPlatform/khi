@@ -27,7 +27,7 @@ import {
 } from 'rxjs';
 
 /**
- * THe injection token to get an implementation of ParameterStore.
+ * The injection token to get an implementation of ParameterStore.
  */
 export const PARAMETER_STORE = new InjectionToken<ParameterStore>(
   'PARAMETER_STORE',
