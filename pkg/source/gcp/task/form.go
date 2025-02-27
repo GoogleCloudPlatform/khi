@@ -51,9 +51,9 @@ var InputProjectIdTask = form.NewInputFormDefinitionBuilder(InputProjectIdTaskID
 		}
 		return "", nil
 	}).
-	WithAllowEditFunc(func(ctx context.Context, variables *task.VariableSet) (bool, error) {
+	WithReadonlyFunc(func(ctx context.Context, variables *task.VariableSet) (bool, error) {
 		if parameters.Auth.FixedProjectID == nil {
-			return true, nil
+			return false, nil
 		}
 		return *parameters.Auth.FixedProjectID != "", nil
 	}).

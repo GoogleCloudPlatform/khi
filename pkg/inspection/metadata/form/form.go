@@ -109,19 +109,19 @@ func (f *FormFieldSet) ToSerializable() interface{} {
 func (f *FormFieldSet) SetField(newField ParameterFormField) error {
 	f.fieldsLock.Lock()
 	defer f.fieldsLock.Unlock()
-	newFieldBase := getFieldBase(newField)
+	newFieldBase := GetParameterFormFieldBase(newField)
 	if newFieldBase.ID == "" {
 		return fmt.Errorf("id must not be empty")
 	}
 	for _, field := range f.fields {
-		fieldBase := getFieldBase(field)
+		fieldBase := GetParameterFormFieldBase(field)
 		if fieldBase.ID == newFieldBase.ID {
 			return fmt.Errorf("id %s is already used", newFieldBase.ID)
 		}
 	}
 	f.fields = append(f.fields, newField)
 	slices.SortFunc(f.fields, func(a, b ParameterFormField) int {
-		return getFieldBase(b).Priority - getFieldBase(a).Priority
+		return GetParameterFormFieldBase(b).Priority - GetParameterFormFieldBase(a).Priority
 	})
 	return nil
 }
@@ -132,14 +132,15 @@ func (f *FormFieldSet) DangerouslyGetField(id string) ParameterFormField {
 	f.fieldsLock.RLock()
 	defer f.fieldsLock.RUnlock()
 	for _, field := range f.fields {
-		if getFieldBase(field).ID == id {
+		if GetParameterFormFieldBase(field).ID == id {
 			return field
 		}
 	}
 	return ParameterFormFieldBase{}
 }
 
-func getFieldBase(parameter ParameterFormField) ParameterFormFieldBase {
+// GetParameterFormFieldBase returns the ParameterFormFieldBase from the given ParameterFormField.
+func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldBase {
 	switch v := parameter.(type) {
 	case GroupParameterFormField:
 		return v.ParameterFormFieldBase

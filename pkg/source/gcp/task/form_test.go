@@ -44,14 +44,14 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/project-id",
-				Type:        "Text",
-				Label:       "Project ID",
-				Description: "A project ID containing the cluster to inspect",
-				HintType:    form.HintTypeInfo,
-				ReadOnly:    true,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:          GCPPrefix + "input/project-id",
+					Type:        form.Text,
+					Label:       "Project ID",
+					Description: "A project ID containing the cluster to inspect",
+					HintType:    form.None,
+				},
 			},
 		},
 		{
@@ -61,15 +61,16 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/project-id",
-				Type:        "Text",
-				Label:       "Project ID",
-				Description: "A project ID containing the cluster to inspect",
-				ReadOnly:    false,
-				HintType:    form.HintTypeInfo,
-				Default:     "bar-project",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:          GCPPrefix + "input/project-id",
+					Type:        form.Text,
+					Label:       "Project ID",
+					Description: "A project ID containing the cluster to inspect",
+					HintType:    form.None,
+				},
+				Readonly: true,
+				Default:  "bar-project",
 			},
 			Before: func() {
 				expectedFixedProjectId := "bar-project"
@@ -86,15 +87,15 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: form.FormField{
-				Priority:        1,
-				Id:              GCPPrefix + "input/project-id",
-				Type:            "Text",
-				Label:           "Project ID",
-				Description:     "A project ID containing the cluster to inspect",
-				ReadOnly:        true,
-				HintType:        form.HintTypeInfo,
-				ValidationError: "Project ID must match `^*[0-9a-z\\.:\\-]+$`",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:          GCPPrefix + "input/project-id",
+					Type:        form.Text,
+					Label:       "Project ID",
+					Description: "A project ID containing the cluster to inspect",
+					HintType:    form.Error,
+					Hint:        "Project ID must match `^*[0-9a-z\\.:\\-]+$`",
+				},
 			},
 		},
 		{
@@ -104,14 +105,14 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/project-id",
-				Type:        "Text",
-				Label:       "Project ID",
-				Description: "A project ID containing the cluster to inspect",
-				HintType:    form.HintTypeInfo,
-				ReadOnly:    true,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:          GCPPrefix + "input/project-id",
+					Type:        form.Text,
+					Label:       "Project ID",
+					Description: "A project ID containing the cluster to inspect",
+					HintType:    form.None,
+				},
 			},
 		},
 		{
@@ -121,14 +122,14 @@ func TestProjectIdInput(t *testing.T) {
 			Dependencies: []task.Definition{
 				testClusterNamePrefix,
 			},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/project-id",
-				Type:        "Text",
-				Label:       "Project ID",
-				Description: "A project ID containing the cluster to inspect",
-				HintType:    form.HintTypeInfo,
-				ReadOnly:    true,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:          GCPPrefix + "input/project-id",
+					Description: "A project ID containing the cluster to inspect",
+					Type:        "Text",
+					Label:       "Project ID",
+					HintType:    form.None,
+				},
 			},
 		},
 	})
@@ -145,15 +146,15 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/cluster-name",
-				Type:        "Text",
-				Label:       "Cluster name",
-				ReadOnly:    true,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:       GCPPrefix + "input/cluster-name",
+					Type:     "Text",
+					Label:    "Cluster name",
+					HintType: form.None,
+				},
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
-				HintType:    form.HintTypeInfo,
 			},
 		},
 		{
@@ -161,15 +162,15 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "  foo-cluster   ",
 			ExpectedValue: "foo-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/cluster-name",
-				Type:        "Text",
-				Label:       "Cluster name",
-				ReadOnly:    true,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:       GCPPrefix + "input/cluster-name",
+					Type:     "Text",
+					Label:    "Cluster name",
+					HintType: form.None,
+				},
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
-				HintType:    form.HintTypeInfo,
 			},
 		},
 		{
@@ -177,16 +178,16 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "An invalid cluster name",
 			ExpectedValue: "foo-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: form.FormField{
-				Priority:        1,
-				Id:              GCPPrefix + "input/cluster-name",
-				Type:            "Text",
-				Label:           "Cluster name",
-				ValidationError: "Cluster name must match `^[0-9a-z:\\-]+$`",
-				ReadOnly:        true,
-				Suggestions:     common.SortForAutocomplete("An invalid cluster name", []string{"foo-cluster", "bar-cluster"}),
-				Default:         "foo-cluster",
-				HintType:        form.HintTypeInfo,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:       GCPPrefix + "input/cluster-name",
+					Type:     "Text",
+					Label:    "Cluster name",
+					HintType: form.Error,
+					Hint:     "Cluster name must match `^[0-9a-z:\\-]+$`",
+				},
+				Suggestions: common.SortForAutocomplete("An invalid cluster name", []string{"foo-cluster", "bar-cluster"}),
+				Default:     "foo-cluster",
 			},
 		},
 		{
@@ -194,17 +195,16 @@ func TestClusterNameInput(t *testing.T) {
 			Input:         "nonexisting-cluster",
 			ExpectedValue: "nonexisting-cluster",
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
-			ExpectedFormField: form.FormField{
-				Priority:        1,
-				Id:              GCPPrefix + "input/cluster-name",
-				Type:            "Text",
-				Label:           "Cluster name",
-				ValidationError: "",
-				ReadOnly:        true,
-				Suggestions:     []string{"foo-cluster", "bar-cluster"},
-				Default:         "foo-cluster",
-				Hint:            "Cluster `nonexisting-cluster` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.",
-				HintType:        form.HintTypeWarning,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:       GCPPrefix + "input/cluster-name",
+					Type:     "Text",
+					Label:    "Cluster name",
+					Hint:     "Cluster `nonexisting-cluster` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.",
+					HintType: form.Warning,
+				},
+				Suggestions: []string{"foo-cluster", "bar-cluster"},
+				Default:     "foo-cluster",
 			},
 		},
 	})
@@ -225,17 +225,18 @@ func TestDurationInput(t *testing.T) {
 			Input:         "10m",
 			ExpectedValue: time.Duration(time.Minute) * 10,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: form.FormField{
-				Label:       expectedLabel,
-				Description: expectedDescription,
-				Suggestions: expectedSuggestions,
-				ReadOnly:    true,
-				Default:     "1h",
-				HintType:    form.HintTypeInfo,
-				Hint: `Query range:
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.Info,
+					Hint: `Query range:
 2023-04-01T11:50:00Z ~ 2023-04-01T12:00:00Z
 (UTC: 2023-04-01T11:50:00 ~ 2023-04-01T12:00:00)
 (PDT: 2023-04-01T04:50:00 ~ 2023-04-01T05:00:00)`,
+				},
+				Suggestions: expectedSuggestions,
+				Default:     "1h",
 			},
 		},
 		{
@@ -243,14 +244,15 @@ func TestDurationInput(t *testing.T) {
 			Input:         "foo",
 			ExpectedValue: time.Hour,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				Suggestions:     expectedSuggestions,
-				ValidationError: "time: invalid duration \"foo\"",
-				Default:         "1h",
-				HintType:        form.HintTypeInfo,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					Hint:        "time: invalid duration \"foo\"",
+					HintType:    form.Error,
+				},
+				Default:     "1h",
+				Suggestions: expectedSuggestions,
 			},
 		},
 		{
@@ -258,14 +260,15 @@ func TestDurationInput(t *testing.T) {
 			Input:         "-10m",
 			ExpectedValue: time.Hour,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				Suggestions:     expectedSuggestions,
-				ValidationError: "duration must be positive",
-				Default:         "1h",
-				HintType:        form.HintTypeInfo,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					Hint:        "duration must be positive",
+					HintType:    form.Error,
+				},
+				Suggestions: expectedSuggestions,
+				Default:     "1h",
 			},
 		},
 		{
@@ -273,20 +276,21 @@ func TestDurationInput(t *testing.T) {
 			Input:         "672h", // starting time will be 30 days before the inspection time
 			ExpectedValue: time.Hour * 672,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: form.FormField{
-				Type:        "Text",
-				Label:       expectedLabel,
-				Description: expectedDescription,
-				ReadOnly:    true,
-				Suggestions: expectedSuggestions,
-				Default:     "1h",
-				Hint: `Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Type:        "Text",
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					Hint: `Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.
 This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.
 Query range:
 2023-03-04T12:00:00Z ~ 2023-04-01T12:00:00Z
 (UTC: 2023-03-04T12:00:00 ~ 2023-04-01T12:00:00)
 (PDT: 2023-03-04T05:00:00 ~ 2023-04-01T05:00:00)`,
-				HintType: form.HintTypeInfo,
+					HintType: form.Info,
+				},
+				Suggestions: expectedSuggestions,
+				Default:     "1h",
 			},
 		},
 		{
@@ -294,18 +298,19 @@ Query range:
 			Input:         "1h",
 			ExpectedValue: time.Hour,
 			Dependencies:  []task.Definition{endTimeTask, currentTimeTask1, timezoneTaskJST},
-			ExpectedFormField: form.FormField{
-				Type:        "Text",
-				Label:       expectedLabel,
-				Description: expectedDescription,
-				ReadOnly:    true,
-				Suggestions: expectedSuggestions,
-				Default:     "1h",
-				Hint: `Query range:
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Type:        "Text",
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					Hint: `Query range:
 2023-04-01T20:00:00+09:00 ~ 2023-04-01T21:00:00+09:00
 (UTC: 2023-04-01T11:00:00 ~ 2023-04-01T12:00:00)
 (PDT: 2023-04-01T04:00:00 ~ 2023-04-01T05:00:00)`,
-				HintType: form.HintTypeInfo,
+					HintType: form.Info,
+				},
+				Suggestions: expectedSuggestions,
+				Default:     "1h",
 			},
 		},
 	})
@@ -331,14 +336,15 @@ func TestInputEndtime(t *testing.T) {
 			Input:         "",
 			ExpectedValue: expectedValue1,
 			Dependencies:  []task.Definition{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				ValidationError: "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)",
-				Default:         "2020-01-02T03:04:05Z",
-				HintType:        form.HintTypeInfo,
-				Suggestions:     []string{},
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					Hint:        "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)",
+					HintType:    form.Error,
+				},
+				Default:     "2020-01-02T03:04:05Z",
+				Suggestions: []string{},
 			},
 		},
 		{
@@ -346,14 +352,14 @@ func TestInputEndtime(t *testing.T) {
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
 			Dependencies:  []task.Definition{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				ValidationError: "",
-				Default:         "2020-01-02T03:04:05Z",
-				HintType:        form.HintTypeInfo,
-				Suggestions:     []string{},
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.None,
+				},
+				Suggestions: []string{},
+				Default:     "2020-01-02T03:04:05Z",
 			},
 		},
 		{
@@ -361,14 +367,14 @@ func TestInputEndtime(t *testing.T) {
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
 			Dependencies:  []task.Definition{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				ValidationError: "",
-				Default:         "2020-01-02T12:04:05+09:00",
-				HintType:        form.HintTypeInfo,
-				Suggestions:     []string{},
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.None,
+				},
+				Suggestions: []string{},
+				Default:     "2020-01-02T12:04:05+09:00",
 			},
 		},
 	})
@@ -414,13 +420,15 @@ func TestInputKindName(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				Default:         "@default",
-				HintType:        form.HintTypeInfo,
-				ValidationError: "kind filter can't be empty",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.Error,
+					Hint:        "kind filter can't be empty",
+				},
+				Readonly: false,
+				Default:  "@default",
 			},
 		},
 		{
@@ -431,12 +439,15 @@ func TestInputKindName(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: form.FormField{
-				Label:       expectedLabel,
-				Description: expectedDescription,
-				ReadOnly:    true,
-				Default:     "@default",
-				HintType:    form.HintTypeInfo,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.None,
+				},
+
+				Readonly: false,
+				Default:  "@default",
 			},
 		},
 		{
@@ -446,13 +457,15 @@ func TestInputKindName(t *testing.T) {
 				Subtractives:    []string{},
 				ValidationError: "",
 				SubtractMode:    false,
-			}, ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				ValidationError: "alias `invalid_alias` was not found",
-				Default:         "@default",
-				HintType:        form.HintTypeInfo,
+			}, ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					Hint:        "alias `invalid_alias` was not found",
+					HintType:    form.Error,
+				},
+				Default:  "@default",
+				Readonly: false,
 			},
 		},
 	}, cmpopts.SortSlices(func(a string, b string) bool {
@@ -475,13 +488,15 @@ func TestInputNamespaces(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				Default:         "@all_cluster_scoped @all_namespaced",
-				HintType:        form.HintTypeInfo,
-				ValidationError: "namespace filter can't be empty",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.Error,
+					Hint:        "namespace filter can't be empty",
+				},
+				Readonly: false,
+				Default:  "@all_cluster_scoped @all_namespaced",
 			},
 		},
 		{
@@ -492,12 +507,14 @@ func TestInputNamespaces(t *testing.T) {
 				ValidationError: "",
 				SubtractMode:    false,
 			},
-			ExpectedFormField: form.FormField{
-				Label:       expectedLabel,
-				Description: expectedDescription,
-				ReadOnly:    true,
-				Default:     "@all_cluster_scoped @all_namespaced",
-				HintType:    form.HintTypeInfo,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.None,
+				},
+				Readonly: false,
+				Default:  "@all_cluster_scoped @all_namespaced",
 			},
 		},
 		{
@@ -507,13 +524,14 @@ func TestInputNamespaces(t *testing.T) {
 				Subtractives:    []string{},
 				ValidationError: "",
 				SubtractMode:    false,
-			}, ExpectedFormField: form.FormField{
-				Label:           expectedLabel,
-				Description:     expectedDescription,
-				ReadOnly:        true,
-				ValidationError: "",
-				Default:         "@all_cluster_scoped @all_namespaced",
-				HintType:        form.HintTypeInfo,
+			}, ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       expectedLabel,
+					Description: expectedDescription,
+					HintType:    form.None,
+				},
+				Readonly: false,
+				Default:  "@all_cluster_scoped @all_namespaced",
 			},
 		},
 	}, cmpopts.SortSlices(func(a string, b string) bool {
@@ -530,12 +548,13 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "",
 			ExpectedValue: []string{},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: form.FormField{
-				Label:       wantLabelName,
-				Description: wantDescription,
-				ReadOnly:    true,
-				HintType:    form.HintTypeInfo,
-				Default:     "",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       wantLabelName,
+					Description: wantDescription,
+					HintType:    form.None,
+				},
+				Readonly: false,
 			},
 		},
 		{
@@ -543,12 +562,12 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "node-name-1",
 			ExpectedValue: []string{"node-name-1"},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: form.FormField{
-				Label:       wantLabelName,
-				Description: wantDescription,
-				ReadOnly:    true,
-				HintType:    form.HintTypeInfo,
-				Default:     "",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       wantLabelName,
+					Description: wantDescription,
+					HintType:    form.None,
+				},
 			},
 		},
 		{
@@ -556,12 +575,12 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "node-name-1 node-name-2 node-name-3",
 			ExpectedValue: []string{"node-name-1", "node-name-2", "node-name-3"},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: form.FormField{
-				Label:       wantLabelName,
-				Description: wantDescription,
-				ReadOnly:    true,
-				HintType:    form.HintTypeInfo,
-				Default:     "",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       wantLabelName,
+					Description: wantDescription,
+					HintType:    form.None,
+				},
 			},
 		},
 		{
@@ -569,13 +588,13 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "node-name-1 invalid=node=name node-name-3",
 			ExpectedValue: []string{},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: form.FormField{
-				Label:           wantLabelName,
-				Description:     wantDescription,
-				ReadOnly:        true,
-				HintType:        form.HintTypeInfo,
-				ValidationError: "substring `invalid=node=name` is not valid as a substring of node name",
-				Default:         "",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       wantLabelName,
+					Description: wantDescription,
+					Hint:        "substring `invalid=node=name` is not valid as a substring of node name",
+					HintType:    form.Error,
+				},
 			},
 		},
 		{
@@ -583,12 +602,12 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Input:         "  node-name-1  node-name-2  ",
 			ExpectedValue: []string{"node-name-1", "node-name-2"},
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: form.FormField{
-				Label:       wantLabelName,
-				Description: wantDescription,
-				ReadOnly:    true,
-				HintType:    form.HintTypeInfo,
-				Default:     "",
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					Label:       wantLabelName,
+					Description: wantDescription,
+					HintType:    form.None,
+				},
 			},
 		},
 	})
@@ -601,14 +620,15 @@ func TestLocationInput(t *testing.T) {
 			Input:         "asia-northeast1",
 			ExpectedValue: "asia-northeast1",
 			Dependencies:  []task.Definition{},
-			ExpectedFormField: form.FormField{
-				Priority:    1,
-				Id:          GCPPrefix + "input/location",
-				Type:        "Text",
-				Label:       "Location",
-				Description: "A location(regions) containing the environments to inspect",
-				HintType:    form.HintTypeInfo,
-				ReadOnly:    true,
+			ExpectedFormField: form.TextParameterFormField{
+				ParameterFormFieldBase: form.ParameterFormFieldBase{
+					ID:          GCPPrefix + "input/location",
+					Type:        "Text",
+					Label:       "Location",
+					Description: "A location(regions) containing the environments to inspect",
+					HintType:    form.None,
+				},
+				Readonly: false,
 			},
 		},
 	})

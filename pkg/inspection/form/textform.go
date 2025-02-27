@@ -127,7 +127,7 @@ func (b *TextFormDefinitionBuilder) WithDefaultValueConstant(defValue string, pr
 	})
 }
 
-func (b *TextFormDefinitionBuilder) WithAllowEditFunc(readonlyFunc TextFormReadonlyProvider) *TextFormDefinitionBuilder {
+func (b *TextFormDefinitionBuilder) WithReadonlyFunc(readonlyFunc TextFormReadonlyProvider) *TextFormDefinitionBuilder {
 	b.readonlyProvider = readonlyFunc
 	return b
 }
@@ -180,11 +180,12 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 
 		// Compute the default value of the form
 		var currentValue string
-		currentValue, err = b.defaultValue(ctx, v, prevValue)
+		defaultValue, err := b.defaultValue(ctx, v, prevValue)
 		if err != nil {
 			return nil, fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 		}
-		field.Default = currentValue
+		field.Default = defaultValue
+		currentValue = defaultValue
 		if valueRaw, exist := req.Values[b.id]; exist && !readonly {
 			valueString, isString := valueRaw.(string)
 			if !isString {
