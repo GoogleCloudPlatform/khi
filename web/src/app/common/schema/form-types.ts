@@ -18,6 +18,7 @@
  * The type of parameter form field.
  */
 export enum ParameterInputType {
+  Group = 'group',
   Text = 'text',
   File = 'file',
 }
@@ -63,7 +64,19 @@ export interface ParameterFormFieldBase {
 }
 
 /**
- * Text type parameter specific data in ParameterFormField type.
+ * Group type parameter specific data.
+ */
+export interface GroupParameterFormField extends ParameterFormFieldBase {
+  type: ParameterInputType.Group;
+
+  /**
+   * List of child parameters.
+   */
+  children: ParameterFormField[];
+}
+
+/**
+ * Text type parameter specific data.
  */
 export interface TextParameterFormField extends ParameterFormFieldBase {
   type: ParameterInputType.Text;
@@ -100,7 +113,7 @@ export enum UploadStatus {
 }
 
 /**
- * File type parameter specific data in ParameterFormField type.
+ * File type parameter specific data.
  */
 export interface FileParameterFormField extends ParameterFormFieldBase {
   type: ParameterInputType.File;
@@ -116,5 +129,6 @@ export interface FileParameterFormField extends ParameterFormFieldBase {
 }
 
 export type ParameterFormField =
+  | GroupParameterFormField
   | TextParameterFormField
   | FileParameterFormField;

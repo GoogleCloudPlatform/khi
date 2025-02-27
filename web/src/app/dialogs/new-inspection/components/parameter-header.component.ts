@@ -37,4 +37,9 @@ export class ParameterHeaderComponent {
    * The spec of this text type parameter.
    */
   parameter = input.required<ParameterFormFieldBase>();
+
+  /**
+   * If the status of validation should show on header or not.
+   */
+  showValidationStatus = input(true);
 }

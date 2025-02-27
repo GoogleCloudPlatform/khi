@@ -16,10 +16,12 @@
 @let param = parameter();
 <div class="container">
   <div class="label-row">
-    @if (param.hintType === ParameterHintType.Error) {
-      <mat-icon class="error">error</mat-icon>
-    } @else {
-      <mat-icon class="verified">check_circle</mat-icon>
+    @if (showValidationStatus()) {
+      @if (param.hintType === ParameterHintType.Error) {
+        <mat-icon class="error">error</mat-icon>
+      } @else {
+        <mat-icon class="verified">check_circle</mat-icon>
+      }
     }
     <p class="label">{{ param.label }}</p>
   </div>

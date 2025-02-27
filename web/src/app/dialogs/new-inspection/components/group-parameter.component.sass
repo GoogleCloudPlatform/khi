@@ -14,10 +14,20 @@
  * limitations under the License.
  */
 
-mat-form-field
-    width: 100%
-    box-sizing: border-box
-    padding: 0px 10px 0px 20px
+@use "sass:color"
+@use '@angular/material' as mat
 
-.hint
-    margin: -20px 10px 0px 20px
+$separator-color:  mat.m2-get-color-from-palette(mat.$m2-gray-palette,100)
+
+.container
+    width: 500px
+
+.children
+    padding: 0px 0px 0px 10px
+
+.separator
+    height: 4px
+    width: 20px
+    border-radius: 2px
+    background-color: $separator-color
+    margin: 5px auto

@@ -17,16 +17,24 @@
 import { BreaklinePipe } from './breakline.pipe';
 
 describe('BreaklinePipe', () => {
-  it('create an instance', () => {
+  it('creates an instance', () => {
     const pipe = new BreaklinePipe();
     expect(pipe).toBeTruthy();
   });
-  it('convert string not containing breakline', () => {
+  it('converts string not containing breakline', () => {
     const pipe = new BreaklinePipe();
     expect(pipe.transform('foo')).toBe('foo');
   });
-  it('convert string containing breaklines', () => {
+  it('converts string containing breaklines', () => {
     const pipe = new BreaklinePipe();
     expect(pipe.transform('a\nb\nc')).toBe('a<br/>b<br/>c');
+  });
+  it('returns an empty string for undefined', () => {
+    const pipe = new BreaklinePipe();
+    expect(pipe.transform(undefined)).toBe('');
+  });
+  it('returns an empty string for null', () => {
+    const pipe = new BreaklinePipe();
+    expect(pipe.transform(null)).toBe('');
   });
 });
