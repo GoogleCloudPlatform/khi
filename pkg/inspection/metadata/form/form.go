@@ -30,45 +30,63 @@ const FormFieldSetMetadataKey = "form"
 type ParameterInputType string
 
 const (
+	// Group is a type of ParameetrInputType. This contains multiple children fields.
 	Group ParameterInputType = "group"
-	Text  ParameterInputType = "text"
-	File  ParameterInputType = "file"
+	// Text is a type of ParameterInputType. This represents the text type input field.
+	Text ParameterInputType = "text"
+	// File is a type of ParameterInputType. This represents the file type input field.
+	File ParameterInputType = "file"
 )
 
 // ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
 type ParameterHintType string
 
 const (
-	None    ParameterHintType = "none"
-	Error   ParameterHintType = "error"
+	// None is a type of ParameterHintType. Frontend will supress hint when this type is given.
+	None ParameterHintType = "none"
+	// Error is a type of ParameterHintType. Frontend will prevent user to click the button to go the next page when there is at least a field with a hint of this type.
+	Error ParameterHintType = "error"
+	// Warning is a type of ParameterHintType. User may need be cautious about the field, but user can navigate the form to the next step with a field having this type hint.
 	Warning ParameterHintType = "warning"
-	Info    ParameterHintType = "info"
+	// Info is a type of ParameterHintType. It's a supplemntal hint just for helping user.
+	Info ParameterHintType = "info"
 )
 
 type ParameterFormField interface{}
 
 // ParameterFormFieldBase is the base type of parameter form fields.
 type ParameterFormFieldBase struct {
-	Priority    int                `json:"-"`
-	ID          string             `json:"id"`
-	Type        ParameterInputType `json:"type"`
-	Label       string             `json:"label"`
-	Description string             `json:"description"`
-	HintType    ParameterHintType  `json:"hintType"`
-	Hint        string             `json:"hint"`
+	// Priority is a number used in sorting order.
+	Priority int `json:"-"`
+	// ID is a unique name of the form field.
+	ID string `json:"id"`
+	// Type is the ParameterInputType of this field.
+	Type ParameterInputType `json:"type"`
+	// Label is a short human readable title of this field. This is visible on the form.
+	Label string `json:"label"`
+	// Description is a human readable explaination of this field.
+	Description string `json:"description"`
+	// HintType is the ParameterHintType of the Hint field of this parameter field.
+	HintType ParameterHintType `json:"hintType"`
+	// Hint is the message shown under the form field. Assign HintType as well when you assign a value to this field.
+	Hint string `json:"hint"`
 }
 
 // GroupParameterFormField represents Group type parameter specific data.
 type GroupParameterFormField struct {
 	ParameterFormFieldBase
+	// Children is the children of this field.
 	Children []ParameterFormField `json:"children"`
 }
 
 // TextParameterFormField represents Text type parameter specific data.
 type TextParameterFormField struct {
 	ParameterFormFieldBase
-	Readonly    bool     `json:"readonly"`
-	Default     string   `json:"default"`
+	// Readonly limits users to modify the field.
+	Readonly bool `json:"readonly"`
+	// Default is the default value of this field.
+	Default string `json:"default"`
+	// Suggestion is the auto complete drop down values.
 	Suggestions []string `json:"suggestions"`
 }
 
@@ -76,17 +94,23 @@ type TextParameterFormField struct {
 type UploadStatus int
 
 const (
-	Waiting   UploadStatus = 0
+	// Waiting indicates the server is waiting the client side to upload the file.
+	Waiting UploadStatus = 0
+	// Uploading indicates the server is now receiving the file from the client.
 	Uploading UploadStatus = 1
+	// Verifying indicates the server is performing the verification process on the uploaded file
 	Verifying UploadStatus = 2
-	Done      UploadStatus = 3
+	// Done indicates the server completed the verification process and the file is ready to go.
+	Done UploadStatus = 3
 )
 
 // FileParameterFormField represents File type parameter specific data.
 type FileParameterFormField struct {
 	ParameterFormFieldBase
-	Token  upload.UploadToken `json:"token"`
-	Status UploadStatus       `json:"status"`
+	// Token is the type used for specifying the destination of file. This value is generated from server side and the client will upload the file with the token.
+	Token upload.UploadToken `json:"token"`
+	// Status is the current status of the file.
+	Status UploadStatus `json:"status"`
 }
 
 // FormFieldSet is a metadata type used in frontend to generate the form fields.
