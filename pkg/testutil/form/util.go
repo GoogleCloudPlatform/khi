@@ -30,7 +30,7 @@ type FormTestCase struct {
 	Name              string
 	Input             string
 	ExpectedValue     any
-	ExpectedFormField form.FormField
+	ExpectedFormField form.ParameterFormField
 	Dependencies      []task.Definition
 	Before            func()
 	After             func()
@@ -89,13 +89,14 @@ func TestTextForms(t *testing.T, label string, formVariable task.Definition, tes
 
 			formFields := md.LoadOrStore(form.FormFieldSetMetadataKey, &form.FormFieldSetMetadataFactory{}).(*form.FormFieldSet)
 			field := formFields.DangerouslyGetField(formVariable.ID().ReferenceId().String())
-			if field.Type != "Text" {
-				t.Errorf("the generated form has type %s and it's not Text", field.Type)
+			fieldBase := form.GetParameterFormFieldBase(field)
+			if fieldBase.Type != form.Text {
+				t.Errorf("the generated form has type %s and it's not Text", fieldBase.Type)
 			}
-			if field.Id == "" {
+			if fieldBase.ID == "" {
 				t.Errorf("the generated form had the empty Id")
 			}
-			if diff := cmp.Diff(testCase.ExpectedFormField, field, cmpopts.IgnoreFields(form.FormField{}, "Priority", "Id", "Type")); diff != "" {
+			if diff := cmp.Diff(testCase.ExpectedFormField, field, cmpopts.IgnoreFields(form.TextParameterFormField{}, "Priority", "ID", "Type")); diff != "" {
 				t.Errorf("the form task didn't generate the expected form field metadata\n%s", diff)
 			}
 			if testCase.After != nil {

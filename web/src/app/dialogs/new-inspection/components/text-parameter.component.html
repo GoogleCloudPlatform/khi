@@ -30,7 +30,11 @@
       [matAutocomplete]="auto"
       [disabled]="param.readonly"
     />
-    <mat-autocomplete autoActiveFirstOption #auto="matAutocomplete">
+    <mat-autocomplete
+      autoActiveFirstOption
+      #auto="matAutocomplete"
+      (optionSelected)="onOptionSelected($event)"
+    >
       @for (suggestion of param.suggestions; track suggestion) {
         <mat-option [value]="suggestion">
           {{ suggestion }}

@@ -25,7 +25,10 @@ import {
   ParameterHintType,
   TextParameterFormField,
 } from 'src/app/common/schema/form-types';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
 import { PARAMETER_STORE } from './service/parameter-store';
 import { Observable, Subject, takeUntil } from 'rxjs';
 
@@ -66,5 +69,9 @@ export class TextParameterComponent implements OnInit {
 
   onInput(ev: Event) {
     this.store.set(this.parameter().id, (ev.target as HTMLInputElement).value);
+  }
+
+  onOptionSelected(ev: MatAutocompleteSelectedEvent) {
+    this.store.set(this.parameter().id, ev.option.value);
   }
 }

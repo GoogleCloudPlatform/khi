@@ -68,7 +68,12 @@ export class DefaultParameterStore implements ParameterStore {
     this.currentParameters.next({});
   }
   watchAll(): Observable<{ [id: string]: unknown }> {
-    return this.currentParameters.pipe(takeUntil(this.destroyed));
+    return this.currentParameters.pipe(
+      takeUntil(this.destroyed),
+      distinctUntilChanged((prev, current) => {
+        return this.haveEqualKeyValues(prev, current);
+      }),
+    );
   }
 
   watch<T>(id: string): Observable<T> {
@@ -88,8 +93,10 @@ export class DefaultParameterStore implements ParameterStore {
         take(1),
       )
       .subscribe((parameters) => {
-        parameters[id] = value;
-        this.currentParameters.next(parameters);
+        this.currentParameters.next({
+          ...parameters,
+          [id]: value,
+        });
       });
   }
 
@@ -106,5 +113,29 @@ export class DefaultParameterStore implements ParameterStore {
    */
   public destroy(): void {
     this.destroyed.next(void 0);
+  }
+
+  /**
+   * Check if the given objects are both having same key and its value.
+   * This doesn't compare them recursively, because currently the parameter values are all primitives.
+   */
+  private haveEqualKeyValues(
+    prev: { [id: string]: unknown },
+    current: { [id: string]: unknown },
+  ): boolean {
+    for (const prevFieldKey in prev) {
+      if (
+        !(prevFieldKey in current) ||
+        prev[prevFieldKey] !== current[prevFieldKey]
+      ) {
+        return false;
+      }
+    }
+    for (const currentFieldKey in current) {
+      if (!(currentFieldKey in prev)) {
+        return false;
+      }
+    }
+    return true;
   }
 }
