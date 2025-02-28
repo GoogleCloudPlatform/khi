@@ -56,7 +56,7 @@ export interface ParameterFormFieldBase {
   /**
    * Type of hint message (error, warning or info)
    */
-  hintType: ParameterHintType;
+  hintType?: ParameterHintType;
   /**
    * The hint message shown at the bottom of inputs.
    */

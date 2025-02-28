@@ -23,10 +23,12 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-func fieldWithIdAndPriorityForTest(id string, priority int) FormField {
-	return FormField{
-		Id:       id,
-		Priority: priority,
+func fieldWithIdAndPriorityForTest(id string, priority int) TextParameterFormField {
+	return TextParameterFormField{
+		ParameterFormFieldBase: ParameterFormFieldBase{
+			ID:       id,
+			Priority: priority,
+		},
 	}
 }
 
@@ -37,7 +39,7 @@ func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
 	fsActual.SetField(fieldWithIdAndPriorityForTest("qux", 2))
 
 	fsExpected := &FormFieldSet{
-		fields: []FormField{
+		fields: []ParameterFormField{
 			fieldWithIdAndPriorityForTest("bar", 3),
 			fieldWithIdAndPriorityForTest("qux", 2),
 			fieldWithIdAndPriorityForTest("foo", 1),

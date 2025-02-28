@@ -19,9 +19,9 @@
  * Defines the API schemas used between KHI backend and frontend
  */
 
+import { ParameterFormField } from './form-types';
 import {
   InspectionMetadataErrorSet,
-  InspectionMetadataFormField,
   InspectionMetadataHeader,
   InspectionMetadataLog,
   InspectionMetadataPlan,
@@ -161,7 +161,7 @@ export type InspectionMetadataInDryrun = {
   /**
    * List of form fields to be filled to run this inspection task.
    */
-  form: InspectionMetadataFormField[];
+  form: ParameterFormField[];
 
   /**
    * List of queries to be run with this inspection task.
