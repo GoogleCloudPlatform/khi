@@ -208,6 +208,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
   );
 
   public currentTaskClient = this.currentInspectionType.pipe(
+    takeUntil(this.destroyed),
     filter((type) => !!type),
     switchMap((taskType) => this.apiClient.createInspection(taskType!.id)),
     shareReplay(1),
