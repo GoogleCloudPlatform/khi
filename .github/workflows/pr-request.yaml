@@ -20,6 +20,67 @@ on:
       - 'main'
 
 jobs:
+  languagetool-lint:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Checkout the repository
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Java (LanguageTool requires Java)
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Step 3: Download and unzip LanguageTool CLI
+      - name: Download LanguageTool CLI
+        run: |
+          wget -q https://languagetool.org/download/LanguageTool-stable.zip -O LanguageTool.zip
+          unzip -q LanguageTool.zip
+          # Confirm the jar exists (it should be at LanguageTool-stable/LanguageTool-commandline.jar)
+          if [ ! -f LanguageTool-6.5/languagetool-commandline.jar ]; then
+            echo "languagetool-commandline not found!"
+            exit 1
+          fi
+
+      # Step 4: Run LanguageTool on all Markdown files in English.
+      - name: Lint English Markdown Files
+        run: |
+          # Find all Markdown files
+          FILES=$(find . -type f -name "*.md")
+          if [ -z "$FILES" ]; then
+            echo "No markdown files found."
+            exit 0
+          fi
+          EXIT_CODE=0
+          # Loop over each file and run LanguageTool CLI
+          for file in $FILES; do
+            echo "Checking $file"
+            # Adjust --language as needed (here using en-US)
+            java -jar LanguageTool-6.5/languagetool-commandline.jar --language en-US "$file" || EXIT_CODE=1
+          done
+          exit $EXIT_CODE
+      
+      # Step 5: Run LanguageTool on all Markdown files in Japanese language.
+      - name: Lint Japanese Markdown Files
+        run: |
+          # Find all Markdown files
+          FILES=$(find . -type f -name "*.ja.md")
+          if [ -z "$FILES" ]; then
+            echo "No markdown files found."
+            exit 0
+          fi
+          EXIT_CODE=0
+          # Loop over each file and run LanguageTool CLI
+          for file in $FILES; do
+            echo "Checking $file"
+            # Adjust --language as needed (here using ja for Japanese)
+            java -jar LanguageTool-6.5/languagetool-commandline.jar --language ja "$file" || EXIT_CODE=1
+          done
+          exit $EXIT_CODE
+  
   backend-tests:
     runs-on: ubuntu-latest
     permissions:
