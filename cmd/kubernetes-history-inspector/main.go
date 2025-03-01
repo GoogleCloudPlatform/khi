@@ -41,6 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 
 	"cloud.google.com/go/profiler"
 )
@@ -85,6 +86,7 @@ func init() {
 
 	taskSetRegistrer = append(taskSetRegistrer, common.PrepareInspectionServer)
 	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
 }
 
 func handleTerminateSignal(terminateErrorCode int) {
