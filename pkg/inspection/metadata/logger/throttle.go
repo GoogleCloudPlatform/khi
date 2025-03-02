@@ -48,11 +48,12 @@ func (c ConstantLogThrottle) ThrottleStatus(logKind string) LogThrottleStatus {
 		return StatusNoThrottle
 	}
 	cnt := c.counter.Incr(logKind)
-	if cnt == c.MaxCountPerKind {
+	switch {
+	case cnt == c.MaxCountPerKind:
 		return StatusJustBeforeThrottle
-	} else if cnt > c.MaxCountPerKind {
+	case cnt > c.MaxCountPerKind:
 		return StatusThrottled
-	} else {
+	default:
 		return StatusNoThrottle
 	}
 }

@@ -34,6 +34,11 @@ jobs:
       with:
         go-version-file: './go.mod'
 
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6.5.0
+      with:
+        version: v1.64
+
     # TODO: Configure Github Action after getting the Workload Identity Pool for this project
     # https://github.com/GoogleCloudPlatform/khi/issues/29
     # - name: Authenticate to Google Cloud
@@ -70,7 +75,6 @@ jobs:
     - name: Backend Format and Lint Check
       run: |
         make check-format-go
-        make lint-go
 
   frontend-tests:
     runs-on: ubuntu-latest

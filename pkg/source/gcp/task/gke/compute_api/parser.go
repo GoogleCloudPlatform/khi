@@ -96,11 +96,12 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 	}
 	cs.RecordEvent(nodeResourcePath)
 
-	if isFirst && !isLast {
+	switch {
+	case isFirst && !isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
-	} else if !isFirst && isLast {
+	case !isFirst && isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
-	} else {
+	default:
 		cs.RecordLogSummary(methodName)
 	}
 

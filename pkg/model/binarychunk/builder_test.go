@@ -85,6 +85,9 @@ func TestBuilder(t *testing.T) {
 		var result bytes.Buffer
 
 		_, err := b.Build(context.Background(), &result, progress.NewTaskProgress("foo"))
+		if err != nil {
+			t.Errorf("err was not nil:%v", err)
+		}
 		bufferCount := 0
 		for {
 			_, err = result.Read(sizeReadBuffer)
@@ -104,9 +107,12 @@ func TestBuilder(t *testing.T) {
 
 			gzipReader, err := gzip.NewReader(bytes.NewBuffer(compressedBuffer))
 			if err != nil {
-				t.Errorf("err was not a nil:%v", err)
+				t.Errorf("err was not nil:%v", err)
 			}
 			decompressed, err := io.ReadAll(gzipReader)
+			if err != nil {
+				t.Errorf("err was not nil:%v", err)
+			}
 
 			if len(decompressed) != 1024*1024*50 {
 				t.Errorf("decompressed buffer size is not matching the source buffer size: %d != %d", len(decompressed), 1024*1024*50)

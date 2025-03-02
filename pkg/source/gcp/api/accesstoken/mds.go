@@ -42,7 +42,7 @@ func NewMetadataServerAccessTokenResolver(client *httpclient.JSONReponseHttpClie
 
 // Resolve implements token.TokenResolver.
 func (m *MDSTokenResolver) Resolve(ctx context.Context) (*token.Token, error) {
-	req, err := http.NewRequest("GET", metadataServerAddress, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", metadataServerAddress, nil)
 	if err != nil {
 		return nil, err
 	}
