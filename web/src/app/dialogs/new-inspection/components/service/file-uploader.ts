@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { inject, InjectionToken } from '@angular/core';
+import { filter, map, Observable, of } from 'rxjs';
 import { UploadToken } from '../../../../common/schema/form-types';
+import {
+  BACKEND_API,
+  BackendAPI,
+} from 'src/app/services/api/backend-api-interface';
+import { HttpEventType } from '@angular/common/http';
 
 /**
  * Type for the status reported from the uploader.
@@ -56,5 +61,44 @@ export class MockFileUploader implements FileUploader {
 
   upload(): Observable<FileUploaderStatus> {
     return this.statusProvider();
+  }
+}
+
+/**
+ * An implementation of the file uploader to the KHI server.
+ */
+export class KHIServerFileUploader implements FileUploader {
+  private readonly backendAPI: BackendAPI = inject(BACKEND_API);
+
+  upload(token: UploadToken, file: File): Observable<FileUploaderStatus> {
+    return this.backendAPI.uploadFile(token, file).pipe(
+      filter(
+        (status) =>
+          status.type !== HttpEventType.User &&
+          status.type !== HttpEventType.DownloadProgress,
+      ),
+      map((status) => {
+        switch (status.type) {
+          case HttpEventType.Response:
+            return {
+              done: true,
+              completeRatio: 1,
+            };
+          case HttpEventType.ResponseHeader:
+          case HttpEventType.Sent:
+            return {
+              done: false,
+              completeRatio: 0,
+            };
+          case HttpEventType.UploadProgress:
+            return {
+              done: status.loaded === status.total,
+              completeRatio: status.loaded / status.total!,
+            };
+          default:
+            throw new Error('unknown event type' + status.type);
+        }
+      }),
+    );
   }
 }

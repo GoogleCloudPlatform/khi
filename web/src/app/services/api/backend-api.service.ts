@@ -33,6 +33,7 @@ import {
 } from '../../common/schema/api-types';
 import {
   HttpClient,
+  HttpEvent,
   HttpEventType,
   HttpRequest,
   HttpResponse,
@@ -60,6 +61,7 @@ import { BackendAPI, DownloadProgressReporter } from './backend-api-interface';
 import { ProgressDialogStatusUpdator } from '../progress/progress-interface';
 import { ProgressUtil } from '../progress/progress-util';
 import { environment } from 'src/environments/environment';
+import { UploadToken } from 'src/app/common/schema/form-types';
 
 /**
  * An implementation of BackendAPI interface.
@@ -278,6 +280,20 @@ export class BackendAPIImpl implements BackendAPI {
     return this.http
       .post(url, null, { responseType: 'text' })
       .pipe(map(() => {}));
+  }
+
+  public uploadFile(
+    token: UploadToken,
+    file: File,
+  ): Observable<HttpEvent<unknown>> {
+    const url = this.baseUrl + `/api/v2/upload`;
+    const formData = new FormData();
+    formData.append('upload-token-id', token.id);
+    formData.append('file', file, file.name);
+    return this.http.post(url, formData, {
+      reportProgress: true,
+      observe: 'events',
+    });
   }
 }
 

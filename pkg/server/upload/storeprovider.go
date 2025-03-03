@@ -15,9 +15,11 @@
 package upload
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type UploadFileStoreProvider interface {
@@ -51,6 +53,10 @@ func (l *LocalUploadFileStoreProvider) GetUploadToken(id string) UploadToken {
 }
 
 func (l *LocalUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser, error) {
+	err := l.validateTokenFormat(token)
+	if err != nil {
+		return nil, err
+	}
 	filePath := filepath.Join(l.directoryPath, token.GetID())
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -63,7 +69,11 @@ func (l *LocalUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser, e
 }
 
 func (l *LocalUploadFileStoreProvider) Write(token UploadToken, reader io.Reader) error {
-	err := l.ensureFolderExists()
+	err := l.validateTokenFormat(token)
+	if err != nil {
+		return err
+	}
+	err = l.ensureFolderExists()
 	if err != nil {
 		return err
 	}
@@ -87,6 +97,14 @@ func (l *LocalUploadFileStoreProvider) ensureFolderExists() error {
 	// Create the directory (and any parent directories) if it doesn't exist.
 	// os.MkdirAll will not return an error if the directory already exists.
 	return os.MkdirAll(l.directoryPath, 0700)
+}
+
+func (l *LocalUploadFileStoreProvider) validateTokenFormat(token UploadToken) error {
+	id := token.GetID()
+	if strings.Contains(id, "/") {
+		return errors.New("token id must not contain `/`")
+	}
+	return nil
 }
 
 var _ UploadFileStoreProvider = &LocalUploadFileStoreProvider{}

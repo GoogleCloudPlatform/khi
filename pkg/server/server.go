@@ -400,7 +400,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			}
 			serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, nil)
 
-			ctx.String(http.StatusOK, "ok")
+			ctx.String(http.StatusOK, "")
 		})
 	}
 	return engine

@@ -895,7 +895,7 @@ func TestKHIDirectFileUpload(t *testing.T) {
 			defer os.RemoveAll(tempDir)
 			provider := upload.NewLocalUploadFileStoreProvider(tempDir)
 			store := upload.NewUploadFileStore(provider)
-			store.GetUploadToken(tc.tokenID, &upload.NopUploadFileVerifier{})
+			store.GetUploadToken(tc.tokenID, &upload.NopWaitUploadFileVerifier{})
 			serverConfig := ServerConfig{
 				ViewerMode:       false,
 				StaticFolderPath: "../../dist",

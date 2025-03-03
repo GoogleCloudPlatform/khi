@@ -41,6 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 
 	"cloud.google.com/go/profiler"
 )
@@ -85,6 +86,7 @@ func init() {
 
 	taskSetRegistrer = append(taskSetRegistrer, common.PrepareInspectionServer)
 	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
 }
 
 func handleTerminateSignal(terminateErrorCode int) {
@@ -149,12 +151,14 @@ func main() {
 			uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
 		}
 
+		upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+
 		config := server.ServerConfig{
 			ViewerMode:       *parameters.Server.ViewerMode,
 			StaticFolderPath: *parameters.Server.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *parameters.Server.BasePath,
-			UploadFileStore:  upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder)),
+			UploadFileStore:  upload.DefaultUploadFileStore,
 		}
 		engine := server.CreateKHIServer(inspectionServer, &config)
 

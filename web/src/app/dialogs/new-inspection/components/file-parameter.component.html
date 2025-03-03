@@ -49,30 +49,33 @@
     ></khi-new-inspection-parameter-hint>
     <div class="footer-container">
       <div class="progress-wrapper">
-        @if (param.status === UploadStatus.Uploading) {
+        @if (isSelectedFileUploading()) {
           <mat-progress-spinner
             color="primary"
             diameter="30"
             mode="determinate"
             [value]="uploadRatio() * 100"
+            [matTooltip]="uploadRatio() * 100 + '%'"
           ></mat-progress-spinner>
           <p class="progress-label upload-status-indicator-label">Uploading</p>
-        }
-        @if (param.status === UploadStatus.Verifying) {
-          <mat-progress-spinner
-            color="accent"
-            diameter="30"
-            mode="indeterminate"
-          ></mat-progress-spinner>
-          <p class="progress-label verifying-status-indicator-label">
-            Verifying
-          </p>
-        }
-        @if (param.status === UploadStatus.Done) {
-          <div class="done-status-indicator">
-            <mat-icon>check_circle</mat-icon>
-            <p class="progress-label done-status-indicator-label">Done</p>
-          </div>
+        } @else {
+          @if (param.status === UploadStatus.Verifying) {
+            <mat-progress-spinner
+              color="accent"
+              diameter="30"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+            <p class="progress-label verifying-status-indicator-label">
+              Verifying
+            </p>
+          }
+          @if (param.status === UploadStatus.Done) {
+            <div class="done-status-indicator">
+              <p class="progress-label done-status-indicator-label">
+                File uploaded
+              </p>
+            </div>
+          }
         }
       </div>
       <button

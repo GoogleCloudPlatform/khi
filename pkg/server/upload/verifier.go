@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // UploadFileVerifier verifies uploaded files (e.g., file type checks).
@@ -27,14 +28,21 @@ type UploadFileVerifier interface {
 	Verify(storeProvider UploadFileStoreProvider, token UploadToken) error
 }
 
-type NopUploadFileVerifier struct{}
-
-// Verify implements UploadFileVerifier.
-func (n *NopUploadFileVerifier) Verify(storeProvider UploadFileStoreProvider, token UploadToken) error {
-	return nil
+// NopWaitUploadFileVerifier just waits the specified time without doing anything on the file.
+type NopWaitUploadFileVerifier struct {
+	// WaitTimeInMs is the time to wait before returning the veification result.
+	WaitTimeInMs int
+	// Error is the error returned from Verify function after waiting the WaitTimeInMs.
+	Error error
 }
 
-var _ UploadFileVerifier = &NopUploadFileVerifier{}
+// Verify implements UploadFileVerifier.
+func (n *NopWaitUploadFileVerifier) Verify(storeProvider UploadFileStoreProvider, token UploadToken) error {
+	<-time.After(time.Duration(n.WaitTimeInMs) * time.Millisecond)
+	return n.Error
+}
+
+var _ UploadFileVerifier = &NopWaitUploadFileVerifier{}
 
 type JSONLineUploadFileVerifier struct {
 	MaxLineSizeInBytes int

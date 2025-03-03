@@ -89,6 +89,10 @@ import {
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from './annotator/change-pair/resolver';
 import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/default';
 import { GraphPageDataSource } from './services/frame-connection/frames/graph-page-datasource.service';
+import {
+  FILE_UPLOADER,
+  KHIServerFileUploader,
+} from './dialogs/new-inspection/components/service/file-uploader';
 
 @NgModule({
   declarations: [RootComponent],
@@ -175,6 +179,10 @@ import { GraphPageDataSource } from './services/frame-connection/frames/graph-pa
         showDelay: 0,
         hideDelay: 0,
       } as MatTooltipDefaultOptions,
+    },
+    {
+      provide: FILE_UPLOADER,
+      useClass: KHIServerFileUploader,
     },
     NotificationManager,
     DiffPageDataSource,
