@@ -151,12 +151,14 @@ func main() {
 			uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
 		}
 
+		upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+
 		config := server.ServerConfig{
 			ViewerMode:       *parameters.Server.ViewerMode,
 			StaticFolderPath: *parameters.Server.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *parameters.Server.BasePath,
-			UploadFileStore:  upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder)),
+			UploadFileStore:  upload.DefaultUploadFileStore,
 		}
 		engine := server.CreateKHIServer(inspectionServer, &config)
 

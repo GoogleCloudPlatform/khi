@@ -20,6 +20,7 @@ import (
 
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -28,19 +29,27 @@ type FileFormTaskBuilder struct {
 	label        string
 	priority     int
 	dependencies []string
+	verifier     upload.UploadFileVerifier
 }
 
-func NewFileFormTaskBuilder(id string, priority int, label string) *FileFormTaskBuilder {
+func NewFileFormTaskBuilder(id string, priority int, label string, verifier upload.UploadFileVerifier) *FileFormTaskBuilder {
 	return &FileFormTaskBuilder{
 		id:       id,
 		priority: priority,
 		label:    label,
+		verifier: verifier,
 	}
 }
 
 func (b *FileFormTaskBuilder) Build() common_task.Definition {
 	return common_task.NewProcessorTask(b.id, b.dependencies, func(ctx context.Context, taskMode int, v *common_task.VariableSet) (any, error) {
 		m, err := task.GetMetadataSetFromVariable(v)
+		if err != nil {
+			return nil, err
+		}
+
+		token := upload.DefaultUploadFileStore.GetUploadToken(upload.GenerateUploadIDWithTaskContext(ctx, b.id), b.verifier)
+		status, err := upload.DefaultUploadFileStore.GetResult(token)
 		if err != nil {
 			return nil, err
 		}
@@ -53,6 +62,22 @@ func (b *FileFormTaskBuilder) Build() common_task.Definition {
 				HintType: form_metadata.None,
 				Hint:     "",
 			},
+			Token:  token,
+			Status: status.Status,
+		}
+
+		if status.UploadError != nil {
+			field.Hint = status.UploadError.Error()
+			field.HintType = form_metadata.Error
+		} else if status.VerificationError != nil {
+			field.Hint = status.VerificationError.Error()
+			field.HintType = form_metadata.Error
+		} else if status.Status == upload.UploadStatusWaiting {
+			field.Hint = "Waiting a file to be uploaded."
+			field.HintType = form_metadata.Error
+		} else if status.Status != upload.UploadStatusCompleted {
+			field.Hint = "File is being processed. Please wait a moment."
+			field.HintType = form_metadata.Error
 		}
 
 		formFields := m.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet)

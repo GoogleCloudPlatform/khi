@@ -91,7 +91,7 @@ import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/d
 import { GraphPageDataSource } from './services/frame-connection/frames/graph-page-datasource.service';
 import {
   FILE_UPLOADER,
-  MockFileUploader,
+  KHIServerFileUploader,
 } from './dialogs/new-inspection/components/service/file-uploader';
 
 @NgModule({
@@ -182,7 +182,7 @@ import {
     },
     {
       provide: FILE_UPLOADER,
-      useValue: new MockFileUploader(),
+      useClass: KHIServerFileUploader,
     },
     NotificationManager,
     DiffPageDataSource,

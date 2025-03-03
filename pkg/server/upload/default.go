@@ -12,18 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package form
+package upload
 
-import (
-	"fmt"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-)
-
-var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000, "Audit Log Files", &upload.NopWaitUploadFileVerifier{
-	WaitTimeInMs: 10000,
-	Error:        fmt.Errorf("test error"),
-}).Build()
-
-var TestTextForm = form.NewInputFormDefinitionBuilder("oss/test-param", 1001, "test").Build()
+var DefaultUploadFileStore *UploadFileStore = nil

@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package form
+package upload
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 )
 
-var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000, "Audit Log Files", &upload.NopWaitUploadFileVerifier{
-	WaitTimeInMs: 10000,
-	Error:        fmt.Errorf("test error"),
-}).Build()
-
-var TestTextForm = form.NewInputFormDefinitionBuilder("oss/test-param", 1001, "test").Build()
+// GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
+func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
+	ids := task.GetIDsFromTaskContext(ctx)
+	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", ids.InspectionID, ids.TaskID, formId), "/", "_")
+}

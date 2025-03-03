@@ -31,6 +31,10 @@ func Prepare(inspetionServer *inspection.InspectionTaskServer) error {
 	if err != nil {
 		return err
 	}
+	err = inspetionServer.AddTaskDefinition(form.TestTextForm)
+	if err != nil {
+		return err
+	}
 	err = inspetionServer.AddTaskDefinition(form.AuditLogFilesForm)
 	if err != nil {
 		return err

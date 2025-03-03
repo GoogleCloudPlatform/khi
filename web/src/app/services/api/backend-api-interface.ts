@@ -30,6 +30,8 @@ import {
 } from '../../common/schema/api-types';
 import { InspectionTaskClient } from './backend-api.service';
 import { InjectionToken } from '@angular/core';
+import { UploadToken } from 'src/app/common/schema/form-types';
+import { HttpEvent } from '@angular/common/http';
 
 /**
  * A function type to report the progress of download.
@@ -152,4 +154,9 @@ export interface BackendAPI {
    * Expected called endpoint: POST /api/v2/popup/answer
    */
   answerPopup(answer: PopupAnswerResponse): Observable<void>;
+
+  /**
+   * Upload the file as the one bound to the token.
+   */
+  uploadFile(token: UploadToken, file: File): Observable<HttpEvent<unknown>>;
 }

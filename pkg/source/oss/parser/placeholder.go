@@ -29,6 +29,7 @@ var OSSPlaceHolderParser = inspection_task.NewInspectionProcessor(
 	constant.OSSTaskPrefix+"placeholder",
 	[]string{
 		form.AuditLogFilesForm.ID().String(),
+		form.TestTextForm.ID().String(),
 	},
 	func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		return nil, nil
