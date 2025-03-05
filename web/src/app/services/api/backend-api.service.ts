@@ -59,7 +59,6 @@ import { ViewStateService } from '../view-state.service';
 import { BackendAPI, DownloadProgressReporter } from './backend-api-interface';
 import { ProgressDialogStatusUpdator } from '../progress/progress-interface';
 import { ProgressUtil } from '../progress/progress-util';
-import { environment } from 'src/environments/environment';
 
 /**
  * An implementation of BackendAPI interface.
@@ -75,8 +74,6 @@ export class BackendAPIImpl implements BackendAPI {
    * The base address of the backend server.
    *
    * The index HTML file contains `<base>` tag to control the base address of resources in frontend to supporting KHI to be hosted with path rewriting behind reverse proxies.
-   * This backend address can't rely on this feature, because the backend can be placed on the other servers from this frontend and addresses in this class must be in the absolute format. (any path beginning with `/` or the address begining with `http`).
-   * (The development server usually runs the backend with the port 8080, but runs the angular development server for frontend with the port 4200. The origin is different and frontend needs to access the backend.)
    */
   private readonly baseUrl: string;
 
@@ -86,14 +83,13 @@ export class BackendAPIImpl implements BackendAPI {
     private http: HttpClient,
     private readonly viewState: ViewStateService,
   ) {
-    const urlPrefix = environment.apiBaseUrl;
-    this.baseUrl = urlPrefix + BackendAPIImpl.getServerBasePath();
+    this.baseUrl = BackendAPIImpl.getServerBasePath();
 
     const getConfigUrl = this.baseUrl + '/api/v2/config';
     this.getConfigObservable = this.http
       .get<GetConfigResponse>(getConfigUrl)
       .pipe(
-        retry(),
+        retry({ delay: 1000 }),
         shareReplay(1), // the config is cached at the first time of the loading.
       );
   }
