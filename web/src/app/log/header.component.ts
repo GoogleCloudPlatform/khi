@@ -22,7 +22,13 @@ import {
   inject,
 } from '@angular/core';
 import { InspectionDataStoreService } from '../services/inspection-data-store.service';
-import { Subject, map, shareReplay, startWith, withLatestFrom } from 'rxjs';
+import {
+  ReplaySubject,
+  map,
+  shareReplay,
+  startWith,
+  withLatestFrom,
+} from 'rxjs';
 import {
   LOG_ANNOTATOR_RESOLVER,
   LogAnnotatorResolver,
@@ -43,7 +49,7 @@ export class LogHeaderComponent {
     this.logIndexObservable.next(index);
   }
 
-  private logIndexObservable = new Subject<number>();
+  private logIndexObservable = new ReplaySubject<number>(1);
 
   public logEntryObservable = this.logIndexObservable.pipe(
     startWith(0),

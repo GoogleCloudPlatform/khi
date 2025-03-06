@@ -58,6 +58,15 @@ jobs:
     #     echo "" > ./dist/index.html
     #     make coverage-go
 
+    # For now, we skip the cloud logging test
+    # TODO: Remove the flag after the cloud logging test is ready
+    - name: Backend Test
+      run: |
+        mkdir -p dist/session
+        # A placeholder frontend code read from backend test
+        echo '<!--INJECT GENERATED CODE HERE FROM BACKEND-->' > ./dist/index.html
+        go test ./... -args -skip-cloud-logging=true
+
     - name: Backend Format and Lint Check
       run: |
         make check-format-go
@@ -92,7 +101,7 @@ jobs:
       run: make prepare-frontend
 
     - name: Install Chrome for Angular Test
-      uses: browser-actions/setup-chrome@v1
+      uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # 1.7.3
       with:
         chrome-version: stable
 
@@ -140,7 +149,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -156,12 +164,3 @@ jobs:
       - name: Run addlicense
         id: license_header_check
         run: addlicense  -c "Google LLC" -l apache -v -check .
-      
-      - name: run if license_header_check failed
-        if: failure() && steps.license_header_check.outcome == 'failure'
-        env:
-          PULL_REQUEST: ${{ github.event.number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "License header check failed.\nConsider running \`make add-license-headers\`.\n(Please check ./scripts/make/codegen.mk for more details.)" > /tmp/comment_body
-          gh pr comment "${PULL_REQUEST}" -F /tmp/comment_body

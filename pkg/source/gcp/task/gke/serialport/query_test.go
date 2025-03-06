@@ -97,7 +97,7 @@ labels."compute.googleapis.com/resource_name":("node-1")`,
 			if diff := cmp.Diff(tc.wantQuery, query[0]); diff != "" {
 				t.Errorf("the generated query is not matching with the expected query\n%s", diff)
 			}
-			err := gcp_test.IsValidLogQuery(query[0])
+			err := gcp_test.IsValidLogQuery(t, query[0])
 			if err != nil {
 				t.Errorf("the generated query is invalid. error:%v", err)
 			}
@@ -115,7 +115,7 @@ func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
 		t.Errorf("len(GenerateSerialPortQuery())=%d, want %d", len(query), 3)
 	}
 	for _, subquery := range query {
-		err := gcp_test.IsValidLogQuery(subquery)
+		err := gcp_test.IsValidLogQuery(t, subquery)
 		if err != nil {
 			t.Errorf("the generated query is invalid. error:%v", err)
 		}

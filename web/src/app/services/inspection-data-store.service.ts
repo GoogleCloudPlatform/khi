@@ -30,7 +30,7 @@ import {
 import { InspectionData, TimeRange } from '../store/inspection-data';
 import { FilterWorkerService } from './filter-worker.service';
 import { ParentRelationship } from '../generated';
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 
 /**
  * InspectionDataStore provides observable to the inspection data loaded.
@@ -41,7 +41,7 @@ export interface InspectionDataStore {
   /**
    * allTimelines emits the array of timeline entry without any filter.
    */
-  allTimelines: Observable<TimelineEntry[]>;
+  allTimelines: Observable<ResourceTimeline[]>;
 
   /**
    * availableKinds emits the set of all kind names found in the inspection data.
@@ -90,7 +90,7 @@ export class InspectionDataStoreService implements InspectionDataStore {
 
   public allTimelines = this.currentValidInspectionData.pipe(
     map((data) => data.timelines),
-    startWith([] as TimelineEntry[]),
+    startWith([] as ResourceTimeline[]),
   );
 
   public $timeRange = this.currentValidInspectionData.pipe(

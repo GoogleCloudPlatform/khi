@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestDirectAdapter(t *testing.T) {

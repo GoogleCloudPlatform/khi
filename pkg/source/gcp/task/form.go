@@ -43,7 +43,8 @@ const InputProjectIdTaskID = GCPPrefix + "input/project-id"
 var projectIdValidator = regexp.MustCompile(`^\s*[0-9a-z\.:\-]+\s*$`)
 
 var InputProjectIdTask = form.NewInputFormDefinitionBuilder(InputProjectIdTaskID, PriorityForResourceIdentifierGroup+5000, "Project ID").
-	WithDescription("A project ID containing the cluster to inspect").
+	WithUIDescription("The project ID containing logs of the cluster to query").
+	WithDocumentDescription("The project ID containing logs of the cluster to query").
 	WithDependencies([]string{}).
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		if !projectIdValidator.Match([]byte(value)) {
@@ -81,6 +82,7 @@ var clusterNameValidator = regexp.MustCompile(`^\s*[0-9a-z\-]+\s*$`)
 
 var InputClusterNameTask = form.NewInputFormDefinitionBuilder(InputClusterNameTaskID, PriorityForResourceIdentifierGroup+4000, "Cluster name").
 	WithDependencies([]string{AutocompleteClusterNamesTaskID, ClusterNamePrefixTaskID}).
+	WithDocumentDescription("The cluster name to gather logs.").
 	WithDefaultValueFunc(func(ctx context.Context, variables *task.VariableSet, previousValues []string) (string, error) {
 		clusters, err := GetAutocompleteClusterNamesFromTaskVariable(variables)
 		if err != nil {
@@ -151,6 +153,7 @@ var InputDurationTask = form.NewInputFormDefinitionBuilder(InputDurationTaskID, 
 		InputEndTimeTaskID,
 		TimeZoneShiftInputTaskID,
 	}).
+	WithDocumentDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
 	WithDefaultValueFunc(func(ctx context.Context, variables *task.VariableSet, previousValues []string) (string, error) {
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
@@ -217,8 +220,9 @@ var InputEndTimeTask = form.NewInputFormDefinitionBuilder(InputEndTimeTaskID, Pr
 		common_task.InspectionTimeTaskID,
 		TimeZoneShiftInputTaskID,
 	}).
-	WithDescription(`The endtime of query. Please input it in the format of RFC3339
+	WithUIDescription(`The endtime of query. Please input it in the format of RFC3339
 (example: 2006-01-02T15:04:05-07:00)`).
+	WithDocumentDescription("The endtime of the time range to gather logs.  The start time of the time range will be this endtime subtracted with the duration parameter.").
 	WithSuggestionsFunc(func(ctx context.Context, value string, variables *task.VariableSet, previousValues []string) ([]string, error) {
 		return previousValues, nil
 	}).
@@ -300,6 +304,7 @@ var inputKindNameAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]stri
 }
 var InputKindFilterTask = form.NewInputFormDefinitionBuilder(InputKindFilterTaskID, PriorityForK8sResourceFilterGroup+5000, "Kind").
 	WithDefaultValueConstant("@default", true).
+	WithDocumentDescription("The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		if value == "" {
 			return "kind filter can't be empty", nil
@@ -331,6 +336,7 @@ var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]st
 }
 var InputNamespaceFilterTask = form.NewInputFormDefinitionBuilder(InputNamespaceFilterTaskID, PriorityForK8sResourceFilterGroup+4000, "Namespaces").
 	WithDefaultValueConstant("@all_cluster_scoped @all_namespaced", true).
+	WithDocumentDescription("The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		if value == "" {
 			return "namespace filter can't be empty", nil
@@ -375,7 +381,8 @@ func getNodeNameSubstringsFromRawInput(value string) []string {
 // InputNodeNameFilterTask is a task to collect list of substrings of node names. This input value is used in querying k8s_node or serialport logs.
 var InputNodeNameFilterTask = form.NewInputFormDefinitionBuilder(InputNodeNameFilterTaskID, PriorityForK8sResourceFilterGroup+3000, "Node names").
 	WithDefaultValueConstant("", true).
-	WithDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
+	WithUIDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
+	WithDocumentDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		nodeNameSubstrings := getNodeNameSubstringsFromRawInput(value)
 		for _, name := range nodeNameSubstrings {
@@ -394,7 +401,7 @@ func GetNodeNameFilterFromTaskVaraible(tv *task.VariableSet) ([]string, error) {
 
 const InputLocationsTaskID = GCPPrefix + "input/location"
 
-var InputLocationsTask = form.NewInputFormDefinitionBuilder(InputLocationsTaskID, PriorityForResourceIdentifierGroup+4500, "Location").WithDescription(
+var InputLocationsTask = form.NewInputFormDefinitionBuilder(InputLocationsTaskID, PriorityForResourceIdentifierGroup+4500, "Location").WithUIDescription(
 	"A location(regions) containing the environments to inspect",
 ).Build()
 

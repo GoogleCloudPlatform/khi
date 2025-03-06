@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestAnyAdapter(t *testing.T) {

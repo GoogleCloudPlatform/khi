@@ -34,7 +34,7 @@ func TestGenerateGenerateGCPNetworkAPIQueryIsValid(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateGCPNetworkAPIQuery(0, tc.NEGs)
-			err := gcp_test.IsValidLogQuery(query[0])
+			err := gcp_test.IsValidLogQuery(t, query[0])
 			if err != nil {
 				t.Errorf("Query is not valid: %v", err)
 			}

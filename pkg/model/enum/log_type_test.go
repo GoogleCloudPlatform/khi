@@ -17,6 +17,8 @@ package enum
 import (
 	"fmt"
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestLogTypeMetadataIsFilled(t *testing.T) {

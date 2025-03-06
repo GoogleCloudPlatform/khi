@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry, TimelineLayer } from 'src/app/store/timeline';
+import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import {
   DisplayableTimelineNavigatorExtension,
   TimelineNavigatorExtension,
@@ -31,7 +31,7 @@ import {
  * NodeNameBindingWithPod is a TimelineNavigatorExtension that shows node names where the pod scheduled on.
  */
 export class NodeNameBindingWithPod implements TimelineNavigatorExtension {
-  show(timeline: TimelineEntry): boolean {
+  show(timeline: ResourceTimeline): boolean {
     const bindingTimeline = timeline.children.find(
       (t) =>
         t.getNameOfLayer(TimelineLayer.Subresource) === SUBRESOURCE_BINDING,
@@ -43,7 +43,7 @@ export class NodeNameBindingWithPod implements TimelineNavigatorExtension {
     );
   }
   getDisplayable(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
   ): DisplayableTimelineNavigatorExtension {
     const bindingTimeline = timeline.children.find(
       (t) =>

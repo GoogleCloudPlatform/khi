@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry, TimelineLayer } from 'src/app/store/timeline';
+import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { FilterChainElement } from './chain';
 import { combineLatestWith, map, Observable } from 'rxjs';
 
@@ -22,14 +22,14 @@ import { combineLatestWith, map, Observable } from 'rxjs';
  * FilterNamepaceOrKindWithoutResource removes TimelineEntry without any name layer timeline in its children.
  */
 export class FilterNamepaceOrKindWithoutResource
-  implements FilterChainElement<TimelineEntry>
+  implements FilterChainElement<ResourceTimeline>
 {
-  chain(items: Observable<TimelineEntry[]>): Observable<TimelineEntry[]> {
+  chain(items: Observable<ResourceTimeline[]>): Observable<ResourceTimeline[]> {
     return items.pipe(
       map((timelines) => {
-        let lastProcessedKind: TimelineEntry | null = null;
-        let lastProcessedNamespace: TimelineEntry | null = null;
-        const filteredTimelines: TimelineEntry[] = [];
+        let lastProcessedKind: ResourceTimeline | null = null;
+        let lastProcessedNamespace: ResourceTimeline | null = null;
+        const filteredTimelines: ResourceTimeline[] = [];
         for (const timeline of timelines) {
           if (timeline.layer === TimelineLayer.Kind) {
             lastProcessedKind = timeline;
@@ -59,13 +59,13 @@ export class FilterNamepaceOrKindWithoutResource
  * FilterSubresourceWithoutParent removes subresource timelines when its parent resource is filtered out already.
  */
 export class FilterSubresourceWithoutParent
-  implements FilterChainElement<TimelineEntry>
+  implements FilterChainElement<ResourceTimeline>
 {
-  chain(items: Observable<TimelineEntry[]>): Observable<TimelineEntry[]> {
+  chain(items: Observable<ResourceTimeline[]>): Observable<ResourceTimeline[]> {
     return items.pipe(
       map((timelines) => {
         let lastProcessedResourceName: string = '';
-        const filteredTimelines: TimelineEntry[] = [];
+        const filteredTimelines: ResourceTimeline[] = [];
         for (const timeline of timelines) {
           if (timeline.layer === TimelineLayer.Name) {
             lastProcessedResourceName = timeline.getNameOfLayer(
@@ -91,14 +91,14 @@ export class FilterSubresourceWithoutParent
  * FilterTimelinesOnlyWithFilteredLogs removes timelines that don't have any logs that are not filtered out.
  */
 export class FilterTimelinesOnlyWithFilteredLogs
-  implements FilterChainElement<TimelineEntry>
+  implements FilterChainElement<ResourceTimeline>
 {
   constructor(
     private readonly filteredOut: Observable<Set<number>>,
     private readonly hideFilteredOut: Observable<boolean>,
   ) {}
 
-  chain(items: Observable<TimelineEntry[]>): Observable<TimelineEntry[]> {
+  chain(items: Observable<ResourceTimeline[]>): Observable<ResourceTimeline[]> {
     return items.pipe(
       combineLatestWith(this.filteredOut, this.hideFilteredOut),
       map(([timelines, logIndices, hideFilteredOut]) =>
@@ -118,14 +118,14 @@ export class FilterTimelinesOnlyWithFilteredLogs
  * FilterTimelinesOnlyWithFilteredLogs removes subresource layer timelines that don't have any logs that are not filtered out.
  */
 export class FilterSubresourceTimelinesOnlyWithFilteredLogs
-  implements FilterChainElement<TimelineEntry>
+  implements FilterChainElement<ResourceTimeline>
 {
   constructor(
     private readonly filteredOut: Observable<Set<number>>,
     private readonly hideFilteredOut: Observable<boolean>,
   ) {}
 
-  chain(items: Observable<TimelineEntry[]>): Observable<TimelineEntry[]> {
+  chain(items: Observable<ResourceTimeline[]>): Observable<ResourceTimeline[]> {
     return items.pipe(
       combineLatestWith(this.filteredOut, this.hideFilteredOut),
       map(([timelines, logIndices, hideFilteredOut]) =>

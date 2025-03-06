@@ -36,3 +36,22 @@ func newLocalCachedTaskRunnerForSingleTask(target Definition, cache TaskVariable
 	localRunner.WithCacheProvider(cache)
 	return localRunner, nil
 }
+
+// HasDependency check if 2 tasks have dependency between them when the task graph was resolved with given task set.
+func HasDependency(taskSet *DefinitionSet, dependencyFrom Definition, dependencyTo Definition) (bool, error) {
+	sourceSet, err := NewSet([]Definition{dependencyFrom})
+	if err != nil {
+		return false, err
+	}
+	resolvedSet, err := sourceSet.ResolveTask(taskSet)
+	if err != nil {
+		return false, err
+	}
+	dependentDefinitions := resolvedSet.GetAll()
+	for _, definition := range dependentDefinitions {
+		if definition.ID() == dependencyTo.ID() {
+			return true, nil
+		}
+	}
+	return false, nil
+}

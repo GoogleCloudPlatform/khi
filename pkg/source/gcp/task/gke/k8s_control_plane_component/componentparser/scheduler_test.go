@@ -20,6 +20,8 @@ import (
 
 	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestPodRelatedLogsToResourcePath(t *testing.T) {

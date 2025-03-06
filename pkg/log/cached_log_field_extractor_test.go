@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type commonLogFieldExtractorStub struct {

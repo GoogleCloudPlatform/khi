@@ -16,10 +16,12 @@ package gcp_test
 
 import (
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestIsValidLogQuery(t *testing.T) {
-	err := IsValidLogQuery("\"")
+	err := IsValidLogQuery(t, "\"")
 	if err == nil {
 		t.Errorf("got nil, want invalid query error")
 	}

@@ -32,8 +32,8 @@ const GCPNetworkLogQueryTaskID = query.GKEQueryPrefix + "network-api"
 
 func GenerateGCPNetworkAPIQuery(taskMode int, negNames []string) []string {
 	nodeNamesWithNetworkEndpointGroups := []string{}
-	for _, nodeName := range negNames {
-		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", nodeName))
+	for _, negName := range negNames {
+		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
 	}
 	if taskMode == inspection_task.TaskModeDryRun {
 		return []string{queryFromNegNameFilter("-- neg name filters to be determined after audit log query")}
@@ -63,4 +63,4 @@ var GCPNetworkLogQueryTask = query.NewQueryGeneratorTask(GCPNetworkLogQueryTaskI
 		return []string{}, err
 	}
 	return GenerateGCPNetworkAPIQuery(i, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
-})
+}, GenerateGCPNetworkAPIQuery(inspection_task.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])

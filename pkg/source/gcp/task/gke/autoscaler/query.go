@@ -51,4 +51,4 @@ var AutoscalerQueryTask = query.NewQueryGeneratorTask(AutoscalerQueryTaskID, "Au
 		return []string{}, err
 	}
 	return []string{GenerateAutoscalerQuery(projectId, clusterName, true)}, nil
-})
+}, GenerateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true))

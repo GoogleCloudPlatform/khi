@@ -46,11 +46,14 @@ const ConfigureHelperShTerminatingMsg = "Done for the configuration for kubernet
 type k8sNodeParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (p *k8sNodeParser) TargetLogType() enum.LogType {
+	return enum.LogTypeNode
+}
+
 // Description implements parser.Parser.
 func (*k8sNodeParser) Description() string {
-	return `GKE worker node components logs mainly from kubelet,containerd and dockerd.
-
-(WARNING)Log volume could be very large for long query duration or big cluster and can lead OOM. Please limit time range shorter.`
+	return `Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.`
 }
 
 // GetParserName implements parser.Parser.

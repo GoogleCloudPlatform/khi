@@ -23,6 +23,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type mockHttpClientForPageClient struct {

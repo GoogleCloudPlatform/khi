@@ -33,7 +33,7 @@ import { isConditionPositive } from '../store/condition-positive-map';
 import { LongTimestampFormatPipe } from '../common/timestamp-format.pipe';
 import { ViewStateService } from '../services/view-state.service';
 import { asBehaviorSubject } from '../utils/observable-util';
-import { TimelineEntry, TimelineLayer } from '../store/timeline';
+import { ResourceTimeline, TimelineLayer } from '../store/timeline';
 import { ResourceRevision } from '../store/revision';
 
 interface PodGraphDataGroupedByNode {
@@ -45,7 +45,7 @@ interface ContainerGraphDataMap {
 }
 
 interface MappedTimelineEntry {
-  [label: string]: TimelineEntry;
+  [label: string]: ResourceTimeline;
 }
 
 @Injectable({
@@ -59,7 +59,7 @@ export class GraphDataConverterService {
     0,
   );
 
-  public getGraphDataAt(timelines: TimelineEntry[], t: number): GraphData {
+  public getGraphDataAt(timelines: ResourceTimeline[], t: number): GraphData {
     const mappedTimeline: MappedTimelineEntry = {};
     for (const timeline of timelines) {
       mappedTimeline[timeline.resourcePath] = timeline;
@@ -198,7 +198,7 @@ export class GraphDataConverterService {
     return result;
   }
 
-  private getNodes(timeline: TimelineEntry[]): TimelineEntry[] {
+  private getNodes(timeline: ResourceTimeline[]): ResourceTimeline[] {
     return timeline.filter(
       (t) =>
         t.layer == TimelineLayer.Name &&
@@ -210,7 +210,7 @@ export class GraphDataConverterService {
   private getNodeGraphData(
     timeline: MappedTimelineEntry,
     podNames: PodGraphDataGroupedByNode,
-    nodeTimeline: TimelineEntry,
+    nodeTimeline: ResourceTimeline,
     t: number,
   ): GraphNode | null {
     const nodeManifest: k8s.K8sNodeResource = this._getManifest(
@@ -283,7 +283,7 @@ export class GraphDataConverterService {
   private _parsePodInfo(
     timelines: MappedTimelineEntry,
     t: number,
-    podTimeline: TimelineEntry,
+    podTimeline: ResourceTimeline,
     podManifest: k8s.K8sPodResource,
     dest: PodGraphDataGroupedByNode,
   ) {
@@ -557,7 +557,7 @@ export class GraphDataConverterService {
 
   private _getManifest(
     timelines: MappedTimelineEntry,
-    targetEntry: TimelineEntry,
+    targetEntry: ResourceTimeline,
     t: number,
   ): unknown {
     const resourceLevelRevision = targetEntry.getLatestRevisionOfTime(t);
@@ -592,7 +592,7 @@ export class GraphDataConverterService {
   private _checkDeletionThresholdAndUpdateTimestamp(
     t: number,
     timelines: MappedTimelineEntry,
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
     result: GraphResourceData,
   ): boolean {
     const deletionThreshold = 180;
@@ -638,7 +638,7 @@ export class GraphDataConverterService {
 
   private _getRevisionLatestWithStatus(
     timelines: MappedTimelineEntry,
-    targetEntry: TimelineEntry,
+    targetEntry: ResourceTimeline,
     t: number,
   ): ResourceRevision | null {
     const statusLevelEntry = timelines[`${targetEntry.resourcePath}#status`];

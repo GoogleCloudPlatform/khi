@@ -28,6 +28,8 @@ import (
 	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestRecordLogSummary(t *testing.T) {

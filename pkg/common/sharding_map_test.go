@@ -19,6 +19,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 const keyLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

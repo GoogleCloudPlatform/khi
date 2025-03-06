@@ -18,8 +18,6 @@ import { PublicKHIExtension } from 'src/app/extensions/public/module';
 
 export const environment = {
   production: true,
-  // For production builds, backend API origin is always matching with the one serving frontend.
-  apiBaseUrl: '',
   bugReportUrl:
     'https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue',
   documentUrl: 'https://github.com/GoogleCloudPlatform/khi',

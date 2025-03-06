@@ -20,6 +20,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 // Metadata test utility used from tests in another package

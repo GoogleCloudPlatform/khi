@@ -18,7 +18,7 @@ import { ReferenceResolverStore } from '../common/loader/reference-resolver';
 import { InspectionMetadataHeader } from '../common/schema/metadata-types';
 import { ParentRelationship } from '../generated';
 import { LogEntry } from './log';
-import { TimelineEntry, TimelineLayer } from './timeline';
+import { ResourceTimeline, TimelineLayer } from './timeline';
 
 export class TimeRange {
   constructor(
@@ -54,14 +54,14 @@ export class InspectionData {
   /**
    * Map to bind a string resource path to a TimelineEntry.
    */
-  private readonly resourcePathToTimelineMap: Map<string, TimelineEntry> =
+  private readonly resourcePathToTimelineMap: Map<string, ResourceTimeline> =
     new Map();
 
   constructor(
     public readonly header: InspectionMetadataHeader,
     public readonly range: TimeRange,
     public readonly referenceResolver: ReferenceResolverStore,
-    public readonly timelines: TimelineEntry[],
+    public readonly timelines: ResourceTimeline[],
     public readonly logs: LogEntry[],
   ) {
     this.namespaces = this.getUniqueValuesOfTimelinesOnLayer(
@@ -86,7 +86,7 @@ export class InspectionData {
    */
   private getUniqueValuesOfTimelinesOnLayer<T>(
     layer: TimelineLayer,
-    getter: (t: TimelineEntry) => T,
+    getter: (t: ResourceTimeline) => T,
   ): Set<T> {
     const result = new Set<T>();
     for (const t of this.getTimelinesOfLayer(layer)) {
@@ -98,14 +98,29 @@ export class InspectionData {
   /**
    * Get all the timelines on the specific layer.
    */
-  public getTimelinesOfLayer(layer: TimelineLayer): TimelineEntry[] {
+  public getTimelinesOfLayer(layer: TimelineLayer): ResourceTimeline[] {
     return this.timelines.filter((t) => t.layer === layer);
   }
 
   /**
    * Find a TimelineEntry with resource path string. Return null when specified path is not existing in this inspection data.
    */
-  public getTimelineByResourcePath(resourcePath: string): TimelineEntry | null {
+  public getTimelineByResourcePath(
+    resourcePath: string,
+  ): ResourceTimeline | null {
     return this.resourcePathToTimelineMap.get(resourcePath) ?? null;
+  }
+
+  /**
+   * Find list of aliased timelines of the timeline specified with resource path.
+   * @param resourcePath The resource path of ResourceTimeline to find aliased ResoruceTimeline
+   * @returns The list of aliased timelines of the timeline at the given resource path.
+   */
+  public getAliasedTimelines(resourcePath: string): ResourceTimeline[] {
+    const timeline = this.getTimelineByResourcePath(resourcePath);
+    if (!timeline) return [];
+    return this.timelines.filter(
+      (t) => timeline !== t && t.timelineId === timeline.timelineId,
+    );
   }
 }

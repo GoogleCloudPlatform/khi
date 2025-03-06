@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry } from '../store/timeline';
+import { ResourceTimeline } from '../store/timeline';
 
 /**
  * Filter non used upper layers when there were no any layer lower or equal to given depth
@@ -23,10 +23,10 @@ import { TimelineEntry } from '../store/timeline';
  * @returns
  */
 export function SelectOnlyDeeperOrEqual(
-  timelines: TimelineEntry[],
+  timelines: ResourceTimeline[],
   depth: number,
-): TimelineEntry[] {
-  const result: TimelineEntry[] = [];
+): ResourceTimeline[] {
+  const result: ResourceTimeline[] = [];
   const retainIndicies: Set<number> = new Set();
   for (let i = 0; i < timelines.length; i++) {
     const timeline = timelines[i];

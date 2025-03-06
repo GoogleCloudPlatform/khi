@@ -28,12 +28,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestParseResourceSpecificParserInput(t *testing.T) {
 	baseLog := `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod
@@ -114,7 +116,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 func TestPrestepParseTaskFinishWithSuccess(t *testing.T) {
 	baseLog := `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   methodName: io.k8s.core.v1.pods.create
   resourceName: core/v1/namespaces/default/pods/my-pod
@@ -159,7 +161,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 func TestPrestepParseIgnoreErrornousLogs(t *testing.T) {
 	baseLog := `insertId: foo
 protoPayload:
-  authenticationInfo: 
+  authenticationInfo:
     principalEmail: user@example.com
   resourceName: core/v1/namespaces/default/pods/my-pod
   status:

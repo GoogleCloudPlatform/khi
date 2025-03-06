@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry, TimelineLayer } from 'src/app/store/timeline';
+import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 
 export const TIMELINE_ITEM_HEIGHTS: { [key: number]: number } = {
   [TimelineLayer.Kind]: 25,
@@ -162,7 +162,7 @@ export interface CanvasMouseLocation {
 }
 
 export interface TimelineMouseLocation {
-  timeline: TimelineEntry;
+  timeline: ResourceTimeline;
   time: number;
   y: number;
 }

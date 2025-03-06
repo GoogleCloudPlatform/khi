@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/serializer"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/taskfilter"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -84,13 +85,9 @@ func (i *InspectionRunner) SetInspectionType(inspectionType string) error {
 	if !typeFound {
 		return fmt.Errorf("inspection type %s was not found", inspectionType)
 	}
-	i.availableDefinitions = i.inspectionServer.rootTaskSet.FilteredSubset(inspection_task.LabelKeyInspectionTypes, generateFilterByIncluded(inspectionType), true)
-	defaultFeatures := i.availableDefinitions.FilteredSubset(inspection_task.LabelKeyInspectionDefaultFeatureFlag, func(v any) bool {
-		return v.(bool)
-	}, false)
-	i.requiredDefinitions = i.availableDefinitions.FilteredSubset(inspection_task.LabelKeyInspectionRequiredFlag, func(v any) bool {
-		return v.(bool)
-	}, false)
+	i.availableDefinitions = i.inspectionServer.RootTaskSet.FilteredSubset(inspection_task.LabelKeyInspectionTypes, taskfilter.ContainsElement(inspectionType), true)
+	defaultFeatures := i.availableDefinitions.FilteredSubset(inspection_task.LabelKeyInspectionDefaultFeatureFlag, taskfilter.HasTrue, false)
+	i.requiredDefinitions = i.availableDefinitions.FilteredSubset(inspection_task.LabelKeyInspectionRequiredFlag, taskfilter.HasTrue, false)
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
 		defaultFeatureIds = append(defaultFeatureIds, featureTask.ID().String())
@@ -103,9 +100,7 @@ func (i *InspectionRunner) FeatureList() ([]FeatureListItem, error) {
 	if i.availableDefinitions == nil {
 		return nil, fmt.Errorf("inspection type is not yet initialized")
 	}
-	featureSet := i.availableDefinitions.FilteredSubset(inspection_task.LabelKeyInspectionFeatureFlag, func(v any) bool {
-		return v.(bool)
-	}, false)
+	featureSet := i.availableDefinitions.FilteredSubset(inspection_task.LabelKeyInspectionFeatureFlag, taskfilter.HasTrue, false)
 	features := []FeatureListItem{}
 	for _, definition := range featureSet.GetAll() {
 		label := definition.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", definition.ID()))
@@ -401,18 +396,6 @@ func generateInspectionId() string {
 		randomid[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(randomid)
-}
-
-func generateFilterByIncluded(value string) func(v any) bool {
-	return func(v any) bool {
-		strArr := v.([]string)
-		for _, element := range strArr {
-			if element == value {
-				return true
-			}
-		}
-		return false
-	}
 }
 
 func getLogLevel() slog.Level {

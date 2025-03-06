@@ -18,12 +18,19 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
 
-func IsValidLogQuery(query string) error {
+func IsValidLogQuery(t *testing.T, query string) error {
+	t.Helper()
+
+	if *testflags.SkipCloudLogging {
+		t.Skip("cloud logging tests are skipped")
+	}
 	accessToken, found := os.LookupEnv("GCP_ACCESS_TOKEN")
 	if found {
 		parameters.Auth.AccessToken = &accessToken

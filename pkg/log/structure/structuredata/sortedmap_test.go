@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func shufleFields(fields []string) []string {

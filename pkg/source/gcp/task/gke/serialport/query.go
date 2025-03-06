@@ -81,4 +81,7 @@ var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(SerialPortLogQueryTa
 		return nil, err
 	}
 	return GenerateSerialPortQuery(taskMode, builder.ClusterResource.GetNodes(), nodeNameSubstrings), nil
-})
+}, GenerateSerialPortQuery(inspection_task.TaskModeRun, []string{
+	"gke-test-cluster-node-1",
+	"gke-test-cluster-node-2",
+}, []string{})[0])

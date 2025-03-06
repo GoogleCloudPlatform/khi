@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
@@ -29,6 +30,11 @@ import (
 type k8sControlPlaneComponentParser struct {
 }
 
+// TargetLogType implements parser.Parser.
+func (k *k8sControlPlaneComponentParser) TargetLogType() enum.LogType {
+	return enum.LogTypeControlPlaneComponent
+}
+
 // Dependencies implements parser.Parser.
 func (k *k8sControlPlaneComponentParser) Dependencies() []string {
 	return []string{}
@@ -36,7 +42,7 @@ func (k *k8sControlPlaneComponentParser) Dependencies() []string {
 
 // Description implements parser.Parser.
 func (k *k8sControlPlaneComponentParser) Description() string {
-	return `Visualize Kubernetes control plane component logs on a cluster`
+	return `Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs`
 }
 
 // GetParserName implements parser.Parser.

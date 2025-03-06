@@ -23,6 +23,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	goyaml "gopkg.in/yaml.v3"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestParseSingleEndpoint(t *testing.T) {

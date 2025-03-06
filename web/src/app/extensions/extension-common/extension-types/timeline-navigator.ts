@@ -21,7 +21,7 @@
 
 import { Type } from '@angular/core';
 import { ResourceRevision } from 'src/app/store/revision';
-import { TimelineEntry } from 'src/app/store/timeline';
+import { ResourceTimeline } from 'src/app/store/timeline';
 
 /**
  * DisplayableTimelineNavigatorExtension is the set of parameters and the component to be shown as the extension.
@@ -45,21 +45,21 @@ export interface TimelineNavigatorExtension {
   /**
    * show returns true only when this extension should be visible on the timeline.
    */
-  show(timeline: TimelineEntry): boolean;
+  show(timeline: ResourceTimeline): boolean;
 
   /**
    * getDisplayable constructs the set of parameters and the component shown as the extension.
    * @param timeline
    */
   getDisplayable(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
   ): DisplayableTimelineNavigatorExtension;
 }
 
 export type RevisionManifestFieldFilterPredicate = (
   fieldValue: unknown,
   revision: ResourceRevision,
-  timeline: TimelineEntry,
+  timeline: ResourceTimeline,
 ) => boolean;
 
 /**
@@ -71,7 +71,7 @@ export class TimelineNavigatorExtensionUtil {
    * Note: this method is not supporting checking the field having array in the path between the field and its root.
    */
   public static anyOfManifestBodyFieldInRevisions(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
     path: string[],
     predicate: RevisionManifestFieldFilterPredicate,
   ): boolean {
@@ -114,7 +114,7 @@ export class TimelineNavigatorExtensionUtil {
    * Note: this method is not supporting checking the field having array in the path between the field and its root.
    */
   public static getSetOfManifestBodyFieldInRevisions(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
     path: string[],
   ): unknown[] {
     const result = new Set<unknown>();

@@ -16,6 +16,8 @@ package logger
 
 import (
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestConstantLogThrottle(t *testing.T) {

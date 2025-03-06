@@ -62,7 +62,7 @@ func TestGenerateK8sContainerQueryIsValid(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			query := GenerateK8sContainerQuery(tc.ClusterName, tc.PodNameFilter, tc.NamespaceFilter)
-			err := gcp_test.IsValidLogQuery(query)
+			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf(err.Error())
 			}

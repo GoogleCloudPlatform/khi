@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestK8sEventParser_ParseSampleLog(t *testing.T) {

@@ -45,4 +45,4 @@ var GKEAuditQueryTask = query.NewQueryGeneratorTask(GKEAuditLogQueryTaskID, "GKE
 	}
 
 	return []string{GenerateGKEAuditQuery(projectId, clusterName)}, nil
-})
+}, GenerateGKEAuditQuery("gcp-project-id", "gcp-cluster-name"))

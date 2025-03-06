@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry } from 'src/app/store/timeline';
+import { ResourceTimeline } from 'src/app/store/timeline';
 import {
   DisplayableTimelineNavigatorExtension,
   TimelineNavigatorExtension,
@@ -66,7 +66,7 @@ export class ExtensionStore {
    * Returns the visible extensions for the given timeline.
    */
   public getVisibleTimelineNavigatorExtensions(
-    timeline: TimelineEntry,
+    timeline: ResourceTimeline,
   ): DisplayableTimelineNavigatorExtension[] {
     return runInInjectionContext(this.injector, () => {
       return this.timelineNavigatorExtensions

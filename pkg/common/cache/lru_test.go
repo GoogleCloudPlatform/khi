@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestTouchKeyAndGetRemoved(t *testing.T) {

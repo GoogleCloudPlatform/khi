@@ -13,3 +13,7 @@
 // limitations under the License.
 
 package resourceinfo
+
+import (
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+)

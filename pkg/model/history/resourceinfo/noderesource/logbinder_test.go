@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testResourceBinding struct {

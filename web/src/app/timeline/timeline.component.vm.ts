@@ -19,7 +19,7 @@ import {
   ParentRelationshipMetadataType,
 } from '../generated';
 import {
-  TimelineEntry,
+  ResourceTimeline,
   TimelineLayer,
   timelineLayerToName,
 } from '../store/timeline';
@@ -66,7 +66,7 @@ export interface TimelineViewModel {
   /**
    * The source of this vm.
    */
-  data: TimelineEntry;
+  data: ResourceTimeline;
   /**
    * The resource path representing the FQDN of timeline name.
    */
@@ -95,7 +95,7 @@ export interface TimelineViewModel {
 }
 
 export function convertTimlineEntryToTimelineComponentViewModel(
-  timeline: TimelineEntry,
+  timeline: ResourceTimeline,
 ): TimelineViewModel {
   return {
     data: timeline,

@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestTestIOConfigCanFindTheRoot(t *testing.T) {

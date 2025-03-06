@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineEntry, TimelineLayer } from './timeline';
+import { ResourceTimeline, TimelineLayer } from './timeline';
 
 export const API_VERSION_CORE = 'core/v1';
 
@@ -29,7 +29,7 @@ export class TimelineFilterFacade {
   /**
    * Returns true if the timeline belongs to a node or a descendant of that node.
    */
-  public static isNodeOrNodeChildren(timeline: TimelineEntry): boolean {
+  public static isNodeOrNodeChildren(timeline: ResourceTimeline): boolean {
     return (
       timeline.getNameOfLayer(TimelineLayer.APIVersion) === API_VERSION_CORE &&
       timeline.getNameOfLayer(TimelineLayer.Kind) === KIND_NODE
@@ -39,7 +39,7 @@ export class TimelineFilterFacade {
   /**
    * Returns true if the timeline belongs to a node or a descendant of that node.
    */
-  public static isPodOrPodChildren(timeline: TimelineEntry): boolean {
+  public static isPodOrPodChildren(timeline: ResourceTimeline): boolean {
     return (
       timeline.getNameOfLayer(TimelineLayer.APIVersion) === API_VERSION_CORE &&
       timeline.getNameOfLayer(TimelineLayer.Kind) === KIND_POD
@@ -49,7 +49,7 @@ export class TimelineFilterFacade {
   /**
    * Returns true if the timeline belongs to a binding subresource of a Pod or a descendant of that binding.
    */
-  public static isPodBindingForNode(timeline: TimelineEntry): boolean {
+  public static isPodBindingForNode(timeline: ResourceTimeline): boolean {
     return (
       timeline.getNameOfLayer(TimelineLayer.APIVersion) === API_VERSION_CORE &&
       timeline.getNameOfLayer(TimelineLayer.Kind) === KIND_POD &&

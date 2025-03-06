@@ -68,7 +68,7 @@ To develop frontend code, we usually start Angular dev server on port 4200 with 
 $ make watch-web
 ```
 
-This will build the frontend code with [the configuration to access APIs on `localhost:8080`](../../web/src/environments/environment.dev.ts).
+Angular development server on KHI proxies requests to `localhost:4200/api` to `localhost:8080`. ([the proxy config](../../web/proxy.conf.mjs))
 You can use KHI with accessing `localhost:4200` instead of `localhost:8080`. Angular dev server automatically build and serve the new build when you change the frontend code.
 
 ### Run test
@@ -77,6 +77,12 @@ Run the following code to verify frontend and backend codes.
 
 ```shell
 $ make test
+```
+
+When you want to run backend tests without Cloud Logging, run the following code.
+
+```shell
+$ go test ./... -args -skip-cloud-logging=true
 ```
 
 ## Auto generated codes

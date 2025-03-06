@@ -16,7 +16,6 @@
 
 export const environment = {
   production: false,
-  apiBaseUrl: '',
   bugReportUrl: '',
   documentUrl: '',
   pluginModules: [],

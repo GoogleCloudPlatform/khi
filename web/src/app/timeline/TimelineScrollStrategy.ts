@@ -27,7 +27,7 @@ import {
   withLatestFrom,
 } from 'rxjs';
 import { TIMELINE_ITEM_HEIGHTS } from './canvas/types';
-import { TimelineEntry, TimelineLayer } from '../store/timeline';
+import { ResourceTimeline, TimelineLayer } from '../store/timeline';
 import {
   DEFAULT_TIMELINE_FILTER,
   TimelineFilter,
@@ -39,7 +39,7 @@ import {
 export interface PerRowScrollingProperty {
   height: number;
   offset: number;
-  source: TimelineEntry | null;
+  source: ResourceTimeline | null;
 }
 
 @Injectable()
@@ -178,7 +178,7 @@ export class TimelinesScrollStrategy {
   /**
    * The timeline where the viewport needs to scroll to.
    */
-  scrollToTimelineVerticallyCommand: Subject<TimelineEntry> = new Subject();
+  scrollToTimelineVerticallyCommand: Subject<ResourceTimeline> = new Subject();
 
   constructor(
     @Inject(DEFAULT_TIMELINE_FILTER) private timelineFilter: TimelineFilter,
@@ -236,7 +236,7 @@ export class TimelinesScrollStrategy {
       });
   }
 
-  visibleTimelines: Observable<TimelineEntry[]> = combineLatest([
+  visibleTimelines: Observable<ResourceTimeline[]> = combineLatest([
     this.visibleItemRange,
     this.timelineFilter.filteredTimeline,
   ]).pipe(
@@ -248,7 +248,7 @@ export class TimelinesScrollStrategy {
   /**
    * List of timelines should be shown as the sticky header.
    */
-  stickyTimelines: Observable<TimelineEntry[]> = combineLatest([
+  stickyTimelines: Observable<ResourceTimeline[]> = combineLatest([
     this.visibleItemRange,
     this.timelineFilter.filteredTimeline,
   ]).pipe(
@@ -291,7 +291,7 @@ export class TimelinesScrollStrategy {
     checkScrollAmount();
   }
 
-  scrollToTimeline(timeline: TimelineEntry): void {
+  scrollToTimeline(timeline: ResourceTimeline): void {
     this.scrollToTimelineVerticallyCommand.next(timeline);
   }
 

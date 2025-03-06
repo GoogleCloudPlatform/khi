@@ -23,6 +23,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestConformance(t *testing.T) {

@@ -19,6 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestInspectionTasksAreResolvable(t *testing.T) {
