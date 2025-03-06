@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,18 @@
  * limitations under the License.
  */
 
-export const environment = {
-  production: false,
-  bugReportUrl: '',
-  documentUrl: '',
-  pluginModules: [],
-  options: {} as Record<string, unknown>,
+/**
+ * Angular Proxy Configuration
+ * 
+ * This file defines the proxy configuration for the Angular development server.
+ * During development, requests to the /api/ path are forwarded to localhost:8080.
+ */
+
+export default {
+  '/api': {
+    target: 'http://localhost:8080',
+    secure: false,
+    changeOrigin: true,
+    logLevel: 'debug'
+  }
 };
