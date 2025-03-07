@@ -159,7 +159,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			}
 			ctx.String(http.StatusAccepted, "ok")
 		})
-		//GET /api/v2/inspection/tasks/<task-id>/features
+		// GET /api/v2/inspection/tasks/<task-id>/features
 		router.GET("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
 			taskId := ctx.Param("taskId")
 			task := inspectionServer.GetTask(taskId)

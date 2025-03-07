@@ -52,7 +52,7 @@ type ResourceRevision struct {
 	ChangeTime time.Time                    `json:"changeTime"`
 	State      enum.RevisionState           `json:"state"`
 
-	// DEPRECATED: This field is no longer used. Will be removed in near future.
+	// Deprecated: This field is no longer used. Will be removed in near future.
 	Partial bool `json:"partial"`
 }
 

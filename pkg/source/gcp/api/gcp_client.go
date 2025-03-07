@@ -146,7 +146,7 @@ func NewGCPClient(refresher token.TokenRefresher, headerProviders []httpclient.H
 }
 
 func (c *GCPClientImpl) CreateGCPHttpRequest(ctx context.Context, method string, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, err
 	}

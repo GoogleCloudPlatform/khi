@@ -102,16 +102,16 @@ func (lh *KHILogFormatHandler) wrapColorByLevel(level slog.Level, msg string) st
 	}
 	var colorBegin string
 	if level.Level() == slog.LevelDebug {
-		colorBegin = "\033[90m" //bright black
+		colorBegin = "\033[90m" // bright black
 	}
 	if level.Level() == slog.LevelInfo {
-		colorBegin = "\033[96m" //bright cyan
+		colorBegin = "\033[96m" // bright cyan
 	}
 	if level.Level() == slog.LevelWarn {
-		colorBegin = "\033[93m" //bright yellow
+		colorBegin = "\033[93m" // bright yellow
 	}
 	if level.Level() == slog.LevelError {
-		colorBegin = "\033[97;101m" //bright yellow
+		colorBegin = "\033[97;101m" // bright yellow
 	}
 	return fmt.Sprintf("%s%s%s", colorBegin, msg, reset)
 }

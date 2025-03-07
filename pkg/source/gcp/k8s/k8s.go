@@ -24,11 +24,11 @@ import (
 func ParseKubernetesOperation(resourceName string, methodName string) *model.KubernetesObjectOperation {
 	resourceNameFragments := strings.Split(resourceName, "/")
 	methodNameFragments := strings.Split(methodName, ".")
-	pluralKind := ""
-	namespace := ""
-	name := "unknown"
-	subResourceName := ""
-	if methodNameFragments[4] == "namespaces" {
+	var pluralKind, namespace, name, subResourceName string
+	name = "unknown"
+
+	switch {
+	case methodNameFragments[4] == "namespaces":
 		// Branch for namespace resource
 		namespace = "Cluster-Scope"
 		name = resourceNameFragments[3]
@@ -36,7 +36,7 @@ func ParseKubernetesOperation(resourceName string, methodName string) *model.Kub
 		if len(resourceNameFragments) > 4 {
 			subResourceName = resourceNameFragments[4]
 		}
-	} else if resourceNameFragments[2] == "namespaces" && len(resourceNameFragments) >= 5 {
+	case resourceNameFragments[2] == "namespaces" && len(resourceNameFragments) >= 5:
 		namespace = resourceNameFragments[3]
 		pluralKind = resourceNameFragments[4]
 		if len(resourceNameFragments) > 5 {
@@ -45,7 +45,7 @@ func ParseKubernetesOperation(resourceName string, methodName string) *model.Kub
 		if len(resourceNameFragments) > 6 {
 			subResourceName = resourceNameFragments[6]
 		}
-	} else if len(resourceNameFragments) >= 3 {
+	case len(resourceNameFragments) >= 3:
 		namespace = "Cluster-Scope"
 		if len(resourceNameFragments) > 3 {
 			name = resourceNameFragments[3]
