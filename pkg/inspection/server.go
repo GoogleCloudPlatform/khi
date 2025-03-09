@@ -87,11 +87,10 @@ func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionTyp
 	if _, exist := idMap[newInspectionType.Id]; exist {
 		return fmt.Errorf("inspection type id:%s is duplicated. InspectionType ID must be unique", newInspectionType.Id)
 	}
-	inspectionTypesCandidate := append(s.inspectionTypes, &newInspectionType)
-	slices.SortFunc(inspectionTypesCandidate, func(a *InspectionType, b *InspectionType) int {
+	s.inspectionTypes = append(s.inspectionTypes, &newInspectionType)
+	slices.SortFunc(s.inspectionTypes, func(a *InspectionType, b *InspectionType) int {
 		return b.Priority - a.Priority
 	})
-	s.inspectionTypes = inspectionTypesCandidate
 	return nil
 }
 

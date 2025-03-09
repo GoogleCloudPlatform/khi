@@ -92,7 +92,8 @@ func (d *StrategicMergedStructureData) Keys() ([]string, error) {
 		return []string{""}, nil
 	}
 
-	if ty == structuredata.StructuredTypeMap {
+	switch ty {
+	case structuredata.StructuredTypeMap:
 		keydiff := NewKeyDiff(prevKeys, patchKeys)
 		strategicPatchKeys := splitPatchKeysByFieldsOrMergeAttributes(keydiff.OnlyInPatch)
 		if err == nil {
@@ -118,7 +119,7 @@ func (d *StrategicMergedStructureData) Keys() ([]string, error) {
 			return retainResult, nil
 		}
 		return result, nil
-	} else if ty == structuredata.StructuredTypeArray {
+	case structuredata.StructuredTypeArray:
 		if d.arrayMergeResultSourceCache == nil {
 			err := d.buildArrayMergeResultSourceCache()
 			if err != nil {
@@ -126,8 +127,7 @@ func (d *StrategicMergedStructureData) Keys() ([]string, error) {
 			}
 		}
 		return stringSequence(len(d.arrayMergeResultSourceCache.References)), nil
-
-	} else {
+	default:
 		return []string{""}, nil
 	}
 }
@@ -147,14 +147,16 @@ func (d *StrategicMergedStructureData) Value(fieldName string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ty == structuredata.StructuredTypeScalar {
+
+	switch ty {
+	case structuredata.StructuredTypeScalar:
 		patchPolicy, err := d.readScalarAsString(d.patch, "$patch")
 		if err == nil && patchPolicy == "delete" {
 			return nil, nil
 		}
 		return d.patch.Value(fieldName)
-	}
-	if ty == structuredata.StructuredTypeMap {
+
+	case structuredata.StructuredTypeMap:
 		if fieldName == "" {
 			return d, nil
 		}
@@ -214,7 +216,9 @@ func (d *StrategicMergedStructureData) Value(fieldName string) (any, error) {
 				prevFound = true
 			}
 		}
-		if prevFound && patchFound {
+
+		switch {
+		case prevFound && patchFound:
 			result := NewStrategicMergedStructureData(fmt.Sprintf("%s.%s", d.path, fieldName), prevValueStructure, patchValueStructure, d.mergeKeyResolver)
 			deleteFromPrimitiveList, err := d.readArray(d.patch, fmt.Sprintf("$deleteFromPrimitiveList/%s", fieldName))
 			if err == nil {
@@ -229,7 +233,7 @@ func (d *StrategicMergedStructureData) Value(fieldName string) (any, error) {
 				}
 			}
 			return result, nil
-		} else if prevFound {
+		case prevFound:
 			result := NewStrategicMergedStructureData(fmt.Sprintf("%s.%s", d.path, fieldName), prevValueStructure, prevValueStructure, d.mergeKeyResolver)
 			deleteFromPrimitiveList, err := d.readArray(d.patch, fmt.Sprintf("$deleteFromPrimitiveList/%s", fieldName))
 			if err == nil {
@@ -244,7 +248,7 @@ func (d *StrategicMergedStructureData) Value(fieldName string) (any, error) {
 				}
 			}
 			return result, nil
-		} else if patchFound {
+		case patchFound:
 			result := NewStrategicMergedStructureData(fmt.Sprintf("%s.%s", d.path, fieldName), patchValueStructure, patchValueStructure, d.mergeKeyResolver)
 			deleteFromPrimitiveList, err := d.readArray(d.patch, fmt.Sprintf("$deleteFromPrimitiveList/%s", fieldName))
 			if err == nil {
@@ -259,11 +263,11 @@ func (d *StrategicMergedStructureData) Value(fieldName string) (any, error) {
 				}
 			}
 			return result, nil
-		} else {
+		default:
 			return nil, fmt.Errorf("field not found:%s", fieldName)
 		}
-	}
-	if ty == structuredata.StructuredTypeArray {
+
+	case structuredata.StructuredTypeArray:
 		if fieldName == "" {
 			return d, nil
 		}
@@ -285,8 +289,10 @@ func (d *StrategicMergedStructureData) Value(fieldName string) (any, error) {
 			return ref.From, nil
 		}
 		return ref.From.Value(ref.Index)
+
+	default:
+		return nil, fmt.Errorf("unsupported type to merge")
 	}
-	return nil, fmt.Errorf("unsupported type to merge")
 }
 
 func (d *StrategicMergedStructureData) buildArrayMergeResultSourceCache() error {

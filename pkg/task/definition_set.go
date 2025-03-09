@@ -97,10 +97,8 @@ func (s *DefinitionSet) FilteredSubset(key string, predicate LabelPredicate, inc
 			if predicate(labelValue) {
 				filteredTasks = append(filteredTasks, task)
 			}
-		} else {
-			if includeUndefined {
-				filteredTasks = append(filteredTasks, task)
-			}
+		} else if includeUndefined {
+			filteredTasks = append(filteredTasks, task)
 		}
 	}
 	return &DefinitionSet{
@@ -195,10 +193,8 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 				if !isThreadUnsafe {
 					nextResolveTaskId = taskId
 					break
-				} else {
-					if nextResolvedTaskIdThreadUnsafeCandidate == "N/A" {
-						nextResolvedTaskIdThreadUnsafeCandidate = taskId
-					}
+				} else if nextResolvedTaskIdThreadUnsafeCandidate == "N/A" {
+					nextResolvedTaskIdThreadUnsafeCandidate = taskId
 				}
 			}
 		}
@@ -358,7 +354,7 @@ func sortedMapKeys[T any](inputMap map[string]T) []string {
 	for key := range inputMap {
 		result = append(result, key)
 	}
-	slices.SortFunc(result, func(a, b string) int { return strings.Compare(a, b) })
+	slices.SortFunc(result, strings.Compare)
 	return result
 }
 

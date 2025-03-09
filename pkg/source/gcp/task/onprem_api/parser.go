@@ -184,11 +184,12 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 		})
 	}
 
-	if isFirst && !isLast {
+	switch {
+	case isFirst && !isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
-	} else if !isFirst && isLast {
+	case !isFirst && isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
-	} else {
+	default:
 		cs.RecordLogSummary(methodName)
 	}
 	return nil

@@ -89,6 +89,8 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 	}()
 
 	cancellableCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(errors.New("query completed"))
+
 	for i := 0; i < len(timeSegments)-1; i++ {
 		workerIndex := i
 		begin := timeSegments[i]
@@ -136,7 +138,7 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 	wg.Wait()
 	close(logSink)
 	err := context.Cause(cancellableCtx)
-	if err != nil {
+	if err != nil && !errors.Is(err, errors.New("query completed")) {
 		return nil, err
 	}
 	return logEntries, nil

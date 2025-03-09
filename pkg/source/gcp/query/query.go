@@ -95,23 +95,23 @@ func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum
 			// Run query only when thetask mode is for running
 			if taskMode == inspection_task.TaskModeRun {
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
-				logs, err := worker.Query(ctx, readerFactory, projectId, progress)
-				if err != nil {
-					if strings.HasPrefix(err.Error(), "401:") {
+				queryLogs, queryErr := worker.Query(ctx, readerFactory, projectId, progress)
+				if queryErr != nil {
+					if strings.HasPrefix(queryErr.Error(), "401:") {
 						errors := metadata.LoadOrStore(error_metadata.ErrorMessageSetMetadataKey, &error_metadata.ErrorMessageSetFactory{}).(*error_metadata.ErrorMessageSet)
 						errors.AddErrorMessage(error_metadata.NewUnauthorizedErrorMessage())
 					}
-					if strings.HasPrefix(err.Error(), "403:") {
+					if strings.HasPrefix(queryErr.Error(), "403:") {
 						errors := metadata.LoadOrStore(error_metadata.ErrorMessageSetMetadataKey, &error_metadata.ErrorMessageSetFactory{}).(*error_metadata.ErrorMessageSet)
 						errors.AddErrorMessage(error_metadata.NewPermissionErrorMessage(projectId))
 					}
-					if strings.HasPrefix(err.Error(), "404:") {
+					if strings.HasPrefix(queryErr.Error(), "404:") {
 						errors := metadata.LoadOrStore(error_metadata.ErrorMessageSetMetadataKey, &error_metadata.ErrorMessageSetFactory{}).(*error_metadata.ErrorMessageSet)
 						errors.AddErrorMessage(error_metadata.NewNotFoundErrorMessage(projectId))
 					}
-					return nil, err
+					return nil, queryErr
 				}
-				allLogs = append(allLogs, logs...)
+				allLogs = append(allLogs, queryLogs...)
 			}
 		}
 		if taskMode == inspection_task.TaskModeRun {

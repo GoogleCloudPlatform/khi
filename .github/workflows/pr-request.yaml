@@ -144,7 +144,7 @@ jobs:
     - name: Build web
       working-directory: ./web
       run: npx ng build --configuration ${{ matrix.configuration }}
-  
+
   license-header-check:
     runs-on: ubuntu-latest
     permissions:
@@ -152,15 +152,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: './go.mod'
-      
+
       - name: Install addlicense package
         run: go install github.com/google/addlicense@latest
-      
+
       - name: Run addlicense
         id: license_header_check
         run: addlicense  -c "Google LLC" -l apache -v -check .

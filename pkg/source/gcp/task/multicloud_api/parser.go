@@ -76,7 +76,9 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs
 	principal := l.GetStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
 	code := l.GetStringOrDefault("protoPayload.status.code", "0")
 	isSucceedRequest := code == "0"
-	operationResourcePath := resourcepath.ResourcePath{}
+
+	var operationResourcePath resourcepath.ResourcePath
+
 	if resource.NodepoolName == "" {
 		// assume this is a cluster operation
 		clusterResourcePath := resourcepath.Cluster(resource.ClusterName)
@@ -159,11 +161,12 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs
 		})
 	}
 
-	if isFirst && !isLast {
+	switch {
+	case isFirst && !isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
-	} else if !isFirst && isLast {
+	case !isFirst && isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
-	} else {
+	default:
 		cs.RecordLogSummary(methodName)
 	}
 	return nil

@@ -46,9 +46,12 @@ func (p *PageClient[T]) GetAll(ctx context.Context, requestGenerator RequestGene
 				return nil, err
 			}
 			client := httpclient.NewJsonResponseHttpClient[T](p.client)
-			typedResponse, _, err := client.DoWithContext(ctx, request)
+			typedResponse, resp, err := client.DoWithContext(ctx, request)
 			if err != nil {
 				return nil, err
+			}
+			if resp != nil && resp.Body != nil {
+				defer resp.Body.Close()
 			}
 			result = append(result, typedResponse)
 			nextPageToken = nextPageTokenMapper(typedResponse)

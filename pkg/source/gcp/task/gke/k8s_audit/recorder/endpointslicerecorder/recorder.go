@@ -158,13 +158,14 @@ func parseSingleEndpoint(ctx context.Context, endpoint *model.EndpointSliceEndpo
 	isEndpointForPod := endpoint.TargetRef != nil && endpoint.TargetRef.Kind == "Pod"                                    // target of this endpoint is a Pod.
 	hasConditionChanged := endpoint.Conditions != nil && (prev == nil || !endpoint.Conditions.SameWith(prev.Conditions)) // the condition state is changed.
 	if hasConditionChanged {
-		if endpoint.Conditions.Ready {
+		switch {
+		case endpoint.Conditions.Ready:
 			state = enum.RevisionStateEndpointReady
 			verb = enum.RevisionVerbReady
-		} else if endpoint.Conditions.Terminating {
+		case endpoint.Conditions.Terminating:
 			state = enum.RevisionStateEndpointTerminating
 			verb = enum.RevisionVerbTerminating
-		} else {
+		default:
 			state = enum.RevisionStateEndpointUnready
 			verb = enum.RevisionVerbNonReady
 		}

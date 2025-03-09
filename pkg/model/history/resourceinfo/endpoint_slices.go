@@ -100,8 +100,10 @@ func (e *EndpointSliceInfo) GetLastDiffs(uid string) ([]*EndpointSliceEndpointDi
 		return nil, err
 	}
 	result := []*EndpointSliceEndpointDiff{}
-	if previous == nil {
-		if current.Endpoints == nil || len(current.Endpoints) == 0 {
+
+	switch {
+	case previous == nil:
+		if len(current.Endpoints) == 0 {
 			return []*EndpointSliceEndpointDiff{}, nil
 		}
 		for _, endpoint := range current.Endpoints {
@@ -112,7 +114,7 @@ func (e *EndpointSliceInfo) GetLastDiffs(uid string) ([]*EndpointSliceEndpointDi
 				TargetRef: endpoint.TargetRef,
 			})
 		}
-	} else if current == nil {
+	case current == nil:
 		for _, endpoint := range previous.Endpoints {
 			result = append(result, &EndpointSliceEndpointDiff{
 				Operation: DiffDeleted,
@@ -121,7 +123,7 @@ func (e *EndpointSliceInfo) GetLastDiffs(uid string) ([]*EndpointSliceEndpointDi
 				TargetRef: endpoint.TargetRef,
 			})
 		}
-	} else {
+	default:
 		previousEndpointsMap := map[string]*model.EndpointSliceEndpoint{}
 		currentEndpointsMap := map[string]*model.EndpointSliceEndpoint{}
 		if previous.Endpoints != nil {
@@ -160,15 +162,13 @@ func (e *EndpointSliceInfo) GetLastDiffs(uid string) ([]*EndpointSliceEndpointDi
 					Current:   current,
 					TargetRef: current.TargetRef,
 				})
-			} else {
-				if !previous.Conditions.SameWith(current.Conditions) {
-					result = append(result, &EndpointSliceEndpointDiff{
-						Operation: DiffChanged,
-						Previous:  previous,
-						Current:   current,
-						TargetRef: current.TargetRef,
-					})
-				}
+			} else if !previous.Conditions.SameWith(current.Conditions) {
+				result = append(result, &EndpointSliceEndpointDiff{
+					Operation: DiffChanged,
+					Previous:  previous,
+					Current:   current,
+					TargetRef: current.TargetRef,
+				})
 			}
 		}
 	}

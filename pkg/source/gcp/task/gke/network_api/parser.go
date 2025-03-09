@@ -83,7 +83,9 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 	} else {
 		negResourcePath = resourcepath.NetworkEndpointGroup("unknown", negName)
 	}
-	if !(isLast && isFirst) && (isLast || isFirst) {
+
+	switch {
+	case !(isLast && isFirst) && (isLast || isFirst):
 		state := enum.RevisionStateOperationStarted
 		if isLast {
 			state = enum.RevisionStateOperationFinished
@@ -96,7 +98,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 			ChangeTime: l.Timestamp(),
 			Partial:    false,
 		})
-	} else {
+	default:
 		cs.RecordEvent(negResourcePath)
 	}
 	if isFirst {
@@ -139,11 +141,12 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 			}
 		}
 	}
-	if isFirst && !isLast {
+	switch {
+	case isFirst && !isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
-	} else if !isFirst && isLast {
+	case !isFirst && isLast:
 		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
-	} else {
+	default:
 		cs.RecordLogSummary(methodName)
 	}
 

@@ -127,8 +127,8 @@ func ParseSetFilter(filter string, aliases SetFilterAliasToItemsMap, allowAny bo
 			result.Additives = append(result.Additives, add)
 		}
 	}
-	slices.SortFunc(result.Additives, func(a, b string) int { return strings.Compare(a, b) })
-	slices.SortFunc(result.Subtractives, func(a, b string) int { return strings.Compare(a, b) })
+	slices.SortFunc(result.Additives, strings.Compare)
+	slices.SortFunc(result.Subtractives, strings.Compare)
 	if convertToLowerCase {
 		result.Additives = ToLowerForStringArray(result.Additives)
 		result.Subtractives = ToLowerForStringArray(result.Subtractives)

@@ -29,7 +29,7 @@ func DedupStringArray(arr []string) []string {
 	for v := range arrByMap {
 		deduped = append(deduped, v)
 	}
-	slices.SortFunc(deduped, func(a, b string) int { return strings.Compare(a, b) })
+	slices.SortFunc(deduped, strings.Compare)
 	return deduped
 }
 

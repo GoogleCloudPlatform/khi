@@ -78,6 +78,7 @@ func TestResponseFromString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ResponseFromString(tt.args.code, tt.args.response)
+			defer got.Body.Close()
 			if got.StatusCode != tt.wantCode {
 				t.Errorf("ResponseFromString() = %v, want %v", got.StatusCode, tt.wantCode)
 			}

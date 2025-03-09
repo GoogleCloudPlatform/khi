@@ -72,10 +72,8 @@ func (*k8sEventParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.
 			return nil
 		}
 		return err
-	} else {
-		if kind != "Event" {
-			return fmt.Errorf("skipping kind:%s", kind)
-		}
+	} else if kind != "Event" {
+		return fmt.Errorf("skipping kind:%s", kind)
 	}
 	apiVersion := l.GetStringOrDefault("jsonPayload.involvedObject.apiVersion", "v1")
 

@@ -54,13 +54,14 @@ func (m *MetricsContainerLogSeverityParser) TryParse(message string) enum.Severi
 		return enum.SeverityUnknown
 	}
 	severityStr := fragments[1]
-	if severityStr == "info" {
+	switch severityStr {
+	case "info":
 		return enum.SeverityInfo
-	} else if severityStr == "warn" {
+	case "warn":
 		return enum.SeverityWarning
-	} else if severityStr == "error" {
+	case "error":
 		return enum.SeverityError
-	} else {
+	default:
 		return enum.SeverityUnknown
 	}
 }

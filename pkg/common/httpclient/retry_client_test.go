@@ -227,6 +227,7 @@ func TestRetryBehavior(t *testing.T) {
 			for _, respCode := range tc.ResponseCodes {
 				responses = append(responses, &http.Response{
 					StatusCode: respCode,
+					Body:       io.NopCloser(bytes.NewBufferString("")),
 				})
 			}
 			baseClient := mockFailClient{
@@ -247,6 +248,8 @@ func TestRetryBehavior(t *testing.T) {
 			if tc.ExpectedError == "" {
 				if response == nil {
 					t.Error("got nil, want response")
+				} else {
+					defer response.Body.Close()
 				}
 				if err != nil {
 					t.Errorf("got error %v, want nil", err)

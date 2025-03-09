@@ -48,20 +48,36 @@ func TestPageClient(t *testing.T) {
 		Value         string `json:"value"`
 		NextPageToken string `json:"nextPageToken"`
 	}
+
+	responseCleanup := func(responses []*http.Response) {
+		for _, resp := range responses {
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+			}
+		}
+	}
+
 	mc := &mockHttpClientForPageClient{}
 	pc := NewPageClient[TestResponseType](mc)
-	mc.Response = append(mc.Response, &http.Response{
-		StatusCode: 200,
-		Body:       io.NopCloser(strings.NewReader("{\"value\": \"v1\", \"nextPageToken\": \"t1\"}")),
-	})
-	mc.Response = append(mc.Response, &http.Response{
-		StatusCode: 200,
-		Body:       io.NopCloser(strings.NewReader("{\"value\": \"v2\", \"nextPageToken\": \"t2\"}")),
-	})
-	mc.Response = append(mc.Response, &http.Response{
-		StatusCode: 200,
-		Body:       io.NopCloser(strings.NewReader("{\"value\": \"v3\"}")),
-	})
+
+	responses := []*http.Response{
+		{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader("{\"value\": \"v1\", \"nextPageToken\": \"t1\"}")),
+		},
+		{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader("{\"value\": \"v2\", \"nextPageToken\": \"t2\"}")),
+		},
+		{
+			StatusCode: 200,
+			Body:       io.NopCloser(strings.NewReader("{\"value\": \"v3\"}")),
+		},
+	}
+
+	mc.Response = responses
+
+	defer responseCleanup(responses)
 
 	r, err := pc.GetAll(context.Background(), func(hasToken bool, pageToken string) (*http.Request, error) {
 		if !hasToken {

@@ -85,8 +85,5 @@ func MockLogWithId(id string) *log.LogEntity {
 		id:          id,
 		mainMessage: fmt.Sprintf("# mock log for %s", id),
 	})
-	if err != nil {
-		panic(err)
-	}
 	return yaml
 }

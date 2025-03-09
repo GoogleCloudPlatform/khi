@@ -49,7 +49,7 @@ type templateInput struct {
 }
 
 func main() {
-	var templateInput templateInput = templateInput{
+	var input templateInput = templateInput{
 		RevisionStates:          enum.RevisionStates,
 		ParentRelationships:     enum.ParentRelationships,
 		Severities:              enum.Severities,
@@ -69,7 +69,7 @@ func main() {
 		if l == 0.0 { // only applicable for #000
 			dl = 0.8
 		}
-		templateInput.LogTypeDarkColors[logType.Label] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
+		input.LogTypeDarkColors[logType.Label] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
 	}
 
 	for _, revisonState := range enum.RevisionStates {
@@ -79,12 +79,12 @@ func main() {
 		}
 		h, s, l := colorconv.ColorToHSL(color)
 		dl := l * 0.8
-		templateInput.RevisionStateDarkColors[revisonState.CSSSelector] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
+		input.RevisionStateDarkColors[revisonState.CSSSelector] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
 	}
 
 	sassTemplate := loadTemplate("color-sass", SASS_TEMPLATE)
 	var sassTemplateResult bytes.Buffer
-	err := sassTemplate.Execute(&sassTemplateResult, templateInput)
+	err := sassTemplate.Execute(&sassTemplateResult, input)
 	if err != nil {
 		panic(err)
 	}
@@ -92,7 +92,7 @@ func main() {
 
 	var legendTemplateResult bytes.Buffer
 	legendTemplate := loadTemplate("logtypes-ts", GENERATED_TS_TEMPLATE)
-	err = legendTemplate.Execute(&legendTemplateResult, templateInput)
+	err = legendTemplate.Execute(&legendTemplateResult, input)
 	if err != nil {
 		panic(err)
 	}

@@ -82,10 +82,8 @@ timestamp: 2024-01-01T00:00:00+09:00`
 		for _, result := range result {
 			if count, found := expectedLogCounts[result.TimelineResourcePath]; !found {
 				t.Errorf("unexpected timeline %s not found", result.TimelineResourcePath)
-			} else {
-				if count != len(result.PreParsedLogs) {
-					t.Errorf("expected log count is not matching in a timeline:%s", result.TimelineResourcePath)
-				}
+			} else if count != len(result.PreParsedLogs) {
+				t.Errorf("expected log count is not matching in a timeline:%s", result.TimelineResourcePath)
 			}
 		}
 	})
