@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
@@ -86,22 +85,28 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
 }
 
-func handleTerminateSignal(terminateErrorCode int) {
+func handleTerminateSignal(exitCh chan<- int) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
 	s := <-sig
 	lifecycle.Default.NotifyTerminate(s)
-	os.Exit(terminateErrorCode)
+
+	exitCh <- 128 + int(s.(syscall.Signal))
 }
 
 func main() {
+	// main() shouldn't have the other line other than this line, for os.Exit(N) to prevent calling `defer errorreport.CheckAndReportPanic`
+	os.Exit(run())
+}
+
+func run() int {
 	defer errorreport.CheckAndReportPanic()
 	logger.InitGlobalKHILogger()
 	err := parameters.Parse()
 	if err != nil {
 		slog.Error(err.Error())
-		os.Exit(1)
+		return 1
 	}
 	if *parameters.Debug.Verbose {
 		flag.DumpAll(context.Background())
@@ -138,6 +143,11 @@ func main() {
 		}
 	}
 
+	// Channel to receive exit codes from concurrent goroutines
+	exitCh := make(chan int, 1)
+	// Start signal handler
+	go handleTerminateSignal(exitCh)
+
 	if !*parameters.Job.JobMode {
 
 		slog.Info("Starting Kubernetes History Inspector server...")
@@ -154,87 +164,101 @@ func main() {
 			err := accesstoken.DefaultOAuthTokenResolver.SetServer(engine)
 			if err != nil {
 				slog.Error("failed to register the web server to OAuth Token resolver")
-				os.Exit(1)
+				return 1
 			}
 		}
 
-		grp := sync.WaitGroup{}
-		grp.Add(1)
 		go func() {
 			err = engine.Run(fmt.Sprintf("%s:%d", *parameters.Server.Host, *parameters.Server.Port))
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to start server\n%s", err.Error()))
-				os.Exit(1)
+				exitCh <- 1
+			} else {
+				slog.Error("Hitting the unreachable code. Server terminated unexpectedly")
+				exitCh <- 1
 			}
-			grp.Done()
 		}()
-		go handleTerminateSignal(0)
+
 		displayStartMessage(*parameters.Server.Host, *parameters.Server.Port)
-		grp.Wait()
 	} else {
 		slog.Info("Starting Kubernetes History Inspector as job mode...")
-		go handleTerminateSignal(1)
-		queryParametersInJson := *parameters.Job.InspectionValues
-		var values map[string]any
-		err := json.Unmarshal([]byte(queryParametersInJson), &values)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to parse an inspection value %s\n%s", queryParametersInJson, err.Error()))
-			os.Exit(1)
-		}
-		taskId, err := inspectionServer.CreateInspection(*parameters.Job.InspectionType)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to create an inspection with type %s\n%s", *parameters.Job.InspectionType, err.Error()))
-			os.Exit(1)
-		}
 
-		features := strings.Split(*parameters.Job.InspectionFeatures, ",")
-		t := inspectionServer.GetTask(taskId)
-		// When the features env has `ALL`, it enables every features being available
-		if len(features) == 1 && strings.ToUpper(features[0]) == "ALL" {
-			availableFeatures, err := t.FeatureList()
+		go func() {
+			queryParametersInJson := *parameters.Job.InspectionValues
+			var values map[string]any
+			err := json.Unmarshal([]byte(queryParametersInJson), &values)
 			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to obtain current feature list\n%s", err.Error()))
-				os.Exit(1)
+				slog.Error(fmt.Sprintf("Failed to parse an inspection value %s\n%s", queryParametersInJson, err.Error()))
+				exitCh <- 1
+				return
 			}
-			allFeatures := []string{}
-			for _, af := range availableFeatures {
-				allFeatures = append(allFeatures, af.Id)
+			taskId, err := inspectionServer.CreateInspection(*parameters.Job.InspectionType)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to create an inspection with type %s\n%s", *parameters.Job.InspectionType, err.Error()))
+				exitCh <- 1
+				return
 			}
-			features = allFeatures
-		}
-		err = t.SetFeatureList(features)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to set features %v\n%s", features, err.Error()))
-			os.Exit(1)
-		}
-		err = t.Run(context.Background(), &task.InspectionRequest{
-			Values: values,
-		})
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to run inspection task \n%s", err.Error()))
-			os.Exit(1)
-		}
-		<-t.Wait()
-		result, err := t.Result()
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to get inspection result \n%s", err.Error()))
-			os.Exit(1)
-		}
-		reader, err := result.ResultStore.GetReader()
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to get inspection result reader \n%s", err.Error()))
-			os.Exit(1)
-		}
-		file, err := os.OpenFile(*parameters.Job.ExportDestination, os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to open the destination file \n%s", err.Error()))
-			os.Exit(1)
-		}
-		_, err = io.Copy(file, reader)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to flush to the destination file \n%s", err.Error()))
-			os.Exit(1)
-		}
-		os.Exit(0)
+
+			features := strings.Split(*parameters.Job.InspectionFeatures, ",")
+			t := inspectionServer.GetTask(taskId)
+			// When the features env has `ALL`, it enables every features being available
+			if len(features) == 1 && strings.ToUpper(features[0]) == "ALL" {
+				availableFeatures, err := t.FeatureList()
+				if err != nil {
+					slog.Error(fmt.Sprintf("Failed to obtain current feature list\n%s", err.Error()))
+					exitCh <- 1
+
+					return
+				}
+				allFeatures := []string{}
+				for _, af := range availableFeatures {
+					allFeatures = append(allFeatures, af.Id)
+				}
+				features = allFeatures
+			}
+			err = t.SetFeatureList(features)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to set features %v\n%s", features, err.Error()))
+				exitCh <- 1
+				return
+			}
+			err = t.Run(context.Background(), &task.InspectionRequest{
+				Values: values,
+			})
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to run inspection task \n%s", err.Error()))
+				exitCh <- 1
+				return
+			}
+			<-t.Wait()
+			result, err := t.Result()
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to get inspection result \n%s", err.Error()))
+				exitCh <- 1
+				return
+			}
+			reader, err := result.ResultStore.GetReader()
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to get inspection result reader \n%s", err.Error()))
+				exitCh <- 1
+				return
+			}
+			file, err := os.OpenFile(*parameters.Job.ExportDestination, os.O_WRONLY|os.O_CREATE, 0644)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to open the destination file \n%s", err.Error()))
+				exitCh <- 1
+				return
+			}
+			_, err = io.Copy(file, reader)
+			if err != nil {
+				slog.Error(fmt.Sprintf("Failed to flush to the destination file \n%s", err.Error()))
+				exitCh <- 1
+				return
+			}
+		}()
 	}
+
+	// Wait for exit code from any source
+	code := <-exitCh
+	return code
 }

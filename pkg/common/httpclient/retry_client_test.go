@@ -225,10 +225,12 @@ func TestRetryBehavior(t *testing.T) {
 		t.Run(tc.Title, func(t *testing.T) {
 			responses := []*http.Response{}
 			for _, respCode := range tc.ResponseCodes {
-				responses = append(responses, &http.Response{
+				response := &http.Response{
 					StatusCode: respCode,
 					Body:       io.NopCloser(bytes.NewBufferString("")),
-				})
+				}
+				defer response.Body.Close()
+				responses = append(responses, response) // nolint:bodyclose // a lint error happens unintentionally even it closes the response body.
 			}
 			baseClient := mockFailClient{
 				Responses: responses,
@@ -245,11 +247,12 @@ func TestRetryBehavior(t *testing.T) {
 				req.Header.Add(headerKey, headerValue)
 			}
 			response, err := retryClient.DoWithContext(context.Background(), req)
+			if err == nil {
+				defer response.Body.Close()
+			}
 			if tc.ExpectedError == "" {
 				if response == nil {
 					t.Error("got nil, want response")
-				} else {
-					defer response.Body.Close()
 				}
 				if err != nil {
 					t.Errorf("got error %v, want nil", err)
