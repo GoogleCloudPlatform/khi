@@ -15,15 +15,14 @@
 package form
 
 import (
-	"fmt"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
-var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000, "Audit Log Files", &upload.NopWaitUploadFileVerifier{
-	WaitTimeInMs: 10000,
-	Error:        fmt.Errorf("test error"),
-}).Build()
+var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
+	MaxLineSizeInBytes: 1024 * 1024 * 1024,
+}).
+	WithDescription(`Upload JSONLine format kube-apiserver audit log`).
+	Build()
 
-var TestTextForm = form.NewInputFormDefinitionBuilder("oss/test-param", 1001, "test").Build()
+var TestTextForm = form.NewTextFormTaskBuilder("oss/test-param", 1001, "test").Build()

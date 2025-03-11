@@ -45,7 +45,7 @@ func generateFakeVariableSet(taskId string, value string) *common_task.VariableS
 	return vs
 }
 
-type testFormConfigurator = func(builder *TextFormDefinitionBuilder)
+type testFormConfigurator = func(builder *TextFormTaskBuilder)
 
 func TestTextFormDefinitionBuilder(t *testing.T) {
 	testCases := []struct {
@@ -58,7 +58,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 	}{
 		{
 			Name:             "A text form with given parameter",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {},
+			FormConfigurator: func(builder *TextFormTaskBuilder) {},
 			RequestValue:     "bar",
 			ExpectedValue:    "bar",
 			ExpectedError:    "",
@@ -71,7 +71,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with default parameter",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithDefaultValueConstant("foo-default", true)
 			},
 			RequestValue:  "",
@@ -87,7 +87,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with validator",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithValidator(func(ctx context.Context, value string, variables *common_task.VariableSet) (string, error) {
 					return "foo validation error", nil
 				})
@@ -105,7 +105,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with allow edit hand",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithReadonlyFunc(func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
 					return true, nil
 				})
@@ -122,7 +122,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with non allow edit hand but with parameter",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithReadonlyFunc(func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
 					return true, nil
 				}).WithDefaultValueConstant("foo-from-default", true)
@@ -140,7 +140,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with hint",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.ParameterHintType, error) {
 					return "foo-hint", form_metadata.Info, nil
 				})
@@ -158,7 +158,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with allow edit but with parameter",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithReadonlyFunc(func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
 					return true, nil
 				}).WithDefaultValueConstant("foo-from-default", true)
@@ -176,7 +176,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		},
 		{
 			Name: "A text form with suggestions",
-			FormConfigurator: func(builder *TextFormDefinitionBuilder) {
+			FormConfigurator: func(builder *TextFormTaskBuilder) {
 				builder.WithSuggestionsConstant([]string{
 					"foo-suggest1",
 					"foo-suggest2",
@@ -202,7 +202,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			originalBuilder := NewInputFormDefinitionBuilder("foo", 1, "foo label")
+			originalBuilder := NewTextFormTaskBuilder("foo", 1, "foo label")
 			testCase.FormConfigurator(originalBuilder)
 			taskDef := originalBuilder.Build()
 			formFields := []form_metadata.ParameterFormField{}

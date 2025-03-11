@@ -25,23 +25,30 @@ import (
 )
 
 type FileFormTaskBuilder struct {
-	id           string
-	label        string
-	priority     int
-	dependencies []string
-	verifier     upload.UploadFileVerifier
+	FormTaskBuilderBase
+	verifier upload.UploadFileVerifier
 }
 
 func NewFileFormTaskBuilder(id string, priority int, label string, verifier upload.UploadFileVerifier) *FileFormTaskBuilder {
 	return &FileFormTaskBuilder{
-		id:       id,
-		priority: priority,
-		label:    label,
-		verifier: verifier,
+		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, label),
+		verifier:            verifier,
 	}
 }
 
-func (b *FileFormTaskBuilder) Build() common_task.Definition {
+// WithDependencies sets the task dependencies
+func (b *FileFormTaskBuilder) WithDependencies(dependencies []string) *FileFormTaskBuilder {
+	b.FormTaskBuilderBase.WithDependencies(dependencies)
+	return b
+}
+
+// WithDescription sets the description for the form field
+func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskBuilder {
+	b.FormTaskBuilderBase.WithDescription(description)
+	return b
+}
+
+func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Definition {
 	return common_task.NewProcessorTask(b.id, b.dependencies, func(ctx context.Context, taskMode int, v *common_task.VariableSet) (any, error) {
 		m, err := task.GetMetadataSetFromVariable(v)
 		if err != nil {
@@ -55,30 +62,16 @@ func (b *FileFormTaskBuilder) Build() common_task.Definition {
 		}
 		field := form_metadata.FileParameterFormField{
 			ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
-				ID:       b.id,
 				Type:     form_metadata.File,
-				Label:    b.label,
-				Priority: b.priority,
 				HintType: form_metadata.None,
 				Hint:     "",
 			},
 			Token:  token,
 			Status: status.Status,
 		}
+		b.SetupBaseFormField(&field.ParameterFormFieldBase)
 
-		if status.UploadError != nil {
-			field.Hint = status.UploadError.Error()
-			field.HintType = form_metadata.Error
-		} else if status.VerificationError != nil {
-			field.Hint = status.VerificationError.Error()
-			field.HintType = form_metadata.Error
-		} else if status.Status == upload.UploadStatusWaiting {
-			field.Hint = "Waiting a file to be uploaded."
-			field.HintType = form_metadata.Error
-		} else if status.Status != upload.UploadStatusCompleted {
-			field.Hint = "File is being processed. Please wait a moment."
-			field.HintType = form_metadata.Error
-		}
+		field = setFormHintsFromUploadResult(status, field)
 
 		formFields := m.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet)
 		err = formFields.SetField(field)
@@ -86,5 +79,24 @@ func (b *FileFormTaskBuilder) Build() common_task.Definition {
 			return nil, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
 		}
 		return nil, nil
-	})
+	}, labelOpts...)
+}
+
+// setFormHintsFromUploadResult sets the appropriate hint and hint type on a form field
+// based on the upload result status and any errors encountered during the upload process.
+func setFormHintsFromUploadResult(result upload.UploadResult, field form_metadata.FileParameterFormField) form_metadata.FileParameterFormField {
+	if result.UploadError != nil {
+		field.Hint = result.UploadError.Error()
+		field.HintType = form_metadata.Error
+	} else if result.VerificationError != nil {
+		field.Hint = result.VerificationError.Error()
+		field.HintType = form_metadata.Error
+	} else if result.Status == upload.UploadStatusWaiting {
+		field.Hint = "Waiting a file to be uploaded."
+		field.HintType = form_metadata.Error
+	} else if result.Status != upload.UploadStatusCompleted {
+		field.Hint = "File is being processed. Please wait a moment."
+		field.HintType = form_metadata.Error
+	}
+	return field
 }

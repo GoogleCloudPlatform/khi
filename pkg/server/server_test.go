@@ -107,14 +107,14 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 		task.NewProcessorTask("errorend", []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
 			return nil, fmt.Errorf("test error")
 		}, inspection_task.InspectionTypeLabel("foo", "bar", "qux")),
-		form.NewInputFormDefinitionBuilder("foo-input", 0, "A input field for foo").WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
+		form.NewTextFormTaskBuilder("foo-input", 0, "A input field for foo").WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 			if value == "foo-input-invalid-value" {
 				return "invalid value", nil
 			}
 			return "", nil
 		}).Build(inspection_task.InspectionTypeLabel("foo")),
 		task_test.MockProcessorTaskFromTaskID(gcp_task.TimeZoneShiftInputTaskID, time.UTC),
-		form.NewInputFormDefinitionBuilder("bar-input", 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
+		form.NewTextFormTaskBuilder("bar-input", 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
 		inspection_task.NewInspectionProcessor("feature-foo1", []string{"foo-input"}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo1-value", nil
 		}, inspection_task.InspectionTypeLabel("foo"), inspection_task.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, false)),

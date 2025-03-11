@@ -29,7 +29,7 @@ const InputControlPlaneComponentNameFilterTaskID = gcp_task.GCPPrefix + "input/c
 
 var inputControlPlaneComponentNameAliasMap map[string][]string = map[string][]string{}
 
-var InputControlPlaneComponentNameFilterTask = form.NewInputFormDefinitionBuilder(
+var InputControlPlaneComponentNameFilterTask = form.NewTextFormTaskBuilder(
 	InputControlPlaneComponentNameFilterTaskID,
 	priorityForControlPlaneGroup+1000,
 	"Control plane component names",
@@ -40,7 +40,7 @@ var InputControlPlaneComponentNameFilterTask = form.NewInputFormDefinitionBuilde
 		"controller-manager",
 		"scheduler",
 	}).
-	WithUIDescription("Control plane component names to query(e.g. apiserver, controller-manager...etc)").
+	WithDescription("Control plane component names to query(e.g. apiserver, controller-manager...etc)").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
 		if err != nil {
