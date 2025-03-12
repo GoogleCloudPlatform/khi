@@ -59,7 +59,7 @@ type Parser interface {
 	Grouper() grouper.LogGrouper
 }
 
-func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool, labelOpts ...task.LabelOpt) task.Definition {
+func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool, avalableInspectionTypes []string, labelOpts ...task.LabelOpt) task.Definition {
 	return inspection_task.NewInspectionProcessor(taskId, append(parser.Dependencies(), parser.LogTask(), inspection_task.BuilderGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 		if taskMode == inspection_task.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
@@ -175,6 +175,6 @@ func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool
 		return struct{}{}, nil
 	},
 		append([]task.LabelOpt{
-			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature),
+			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, avalableInspectionTypes...),
 		}, labelOpts...)...)
 }

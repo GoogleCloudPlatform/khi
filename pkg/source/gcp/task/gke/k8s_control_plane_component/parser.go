@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/componentparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -82,4 +83,4 @@ func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.LogEn
 var _ parser.Parser = (*k8sControlPlaneComponentParser)(nil)
 
 var GKEK8sControlPlaneComponentLogParseTask = parser.NewParserTaskFromParser(
-	gcp_task.GCPPrefix+"feature/controlplane-component-parser", &k8sControlPlaneComponentParser{}, true)
+	gcp_task.GCPPrefix+"feature/controlplane-component-parser", &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)

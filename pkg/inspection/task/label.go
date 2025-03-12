@@ -56,6 +56,7 @@ type FeatureTaskLabelImpl struct {
 	description      string
 	logType          enum.LogType
 	isDefaultFeature bool
+	inspectionTypes  []string
 }
 
 func (ftl *FeatureTaskLabelImpl) Write(label *common_task.LabelSet) {
@@ -64,6 +65,7 @@ func (ftl *FeatureTaskLabelImpl) Write(label *common_task.LabelSet) {
 	label.Set(LabelKeyFeatureTaskTitle, ftl.title)
 	label.Set(LabelKeyFeatureTaskDescription, ftl.description)
 	label.Set(LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
+	label.Set(LabelKeyInspectionTypes, ftl.inspectionTypes)
 }
 
 func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTaskLabelImpl {
@@ -73,12 +75,13 @@ func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTas
 
 var _ common_task.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
-func FeatureTaskLabel(title string, description string, logType enum.LogType, isDefaultFeature bool) *FeatureTaskLabelImpl {
+func FeatureTaskLabel(title string, description string, logType enum.LogType, isDefaultFeature bool, inspectionTypes ...string) *FeatureTaskLabelImpl {
 	return &FeatureTaskLabelImpl{
 		title:            title,
 		description:      description,
 		logType:          logType,
 		isDefaultFeature: isDefaultFeature,
+		inspectionTypes:  inspectionTypes,
 	}
 }
 
@@ -94,6 +97,7 @@ func (itl *InspectionTypeLabelImpl) Write(label *common_task.LabelSet) {
 var _ common_task.LabelOpt = (*InspectionTypeLabelImpl)(nil)
 
 // InspectionTypeLabel returns a LabelOpt to mark the task only to be used in the specified inspection types.
+// This label must not be used in the feature task. Use the FeatureTaskLabel in feature tasks.
 func InspectionTypeLabel(types ...string) *InspectionTypeLabelImpl {
 	return &InspectionTypeLabelImpl{
 		inspectionTypes: types,
