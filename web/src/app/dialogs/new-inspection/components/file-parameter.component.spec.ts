@@ -34,7 +34,10 @@ import {
   UploadStatus,
   UploadToken,
 } from '../../../common/schema/form-types';
-import { DefaultParameterStore, PARAMETER_STORE } from './service/parameter-store';
+import {
+  DefaultParameterStore,
+  PARAMETER_STORE,
+} from './service/parameter-store';
 
 describe('FileParameterComponent', () => {
   const mockFileUploader = new MockFileUploader();
@@ -72,8 +75,8 @@ describe('FileParameterComponent', () => {
         },
         {
           provide: PARAMETER_STORE,
-          useClass: DefaultParameterStore
-        }
+          useClass: DefaultParameterStore,
+        },
       ],
     }).compileComponents();
     const matIconRegistry = TestBed.inject(MatIconRegistry);

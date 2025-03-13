@@ -29,6 +29,7 @@ import { HttpEventType } from '@angular/common/http';
 export interface FileUploaderStatus {
   done: boolean;
   completeRatio: number;
+  completeRatioUnknown: boolean;
 }
 
 /**
@@ -54,6 +55,7 @@ export class MockFileUploader implements FileUploader {
     of({
       done: true,
       completeRatio: 1,
+      completeRatioUnknown: false,
     });
 
   public statusProvider: () => Observable<FileUploaderStatus> =
@@ -83,18 +85,30 @@ export class KHIServerFileUploader implements FileUploader {
             return {
               done: true,
               completeRatio: 1,
+              completeRatioUnknown: false,
             };
           case HttpEventType.ResponseHeader:
           case HttpEventType.Sent:
             return {
               done: false,
               completeRatio: 0,
+              completeRatioUnknown: false,
             };
           case HttpEventType.UploadProgress:
-            return {
-              done: status.loaded === status.total,
-              completeRatio: status.loaded / status.total!,
-            };
+            if (status.total !== undefined) {
+              // This status.total can be undefined but I don't know when it could be.
+              return {
+                done: status.loaded === status.total,
+                completeRatio: status.loaded / status.total,
+                completeRatioUnknown: false,
+              };
+            } else {
+              return {
+                done: status.loaded === status.total,
+                completeRatio: 0,
+                completeRatioUnknown: true,
+              };
+            }
           default:
             throw new Error('unknown event type' + status.type);
         }
