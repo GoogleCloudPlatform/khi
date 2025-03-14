@@ -7,5 +7,9 @@
   "private": true,
   "devDependencies": {
     "markdownlint-cli2": "^0.12.1"
+  },
+  "scripts": {
+    "lint:markdown": "markdownlint-cli2",
+    "lint:markdown:fix": "markdownlint-cli2 --fix"
   }
 } 

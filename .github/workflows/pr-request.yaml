@@ -29,6 +29,8 @@ jobs:
       - name: Run markdownlint
         # Pinned to a specific commit for security (v19.1.0)
         uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265
+        with:
+          globs: "**/*.md"
 
   backend-tests:
     runs-on: ubuntu-latest
