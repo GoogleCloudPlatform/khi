@@ -20,16 +20,14 @@ import (
 	"log/slog"
 	"strings"
 
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
-	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -196,7 +194,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 
 var _ parser.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/onprem-audit-parser", &onpremCloudAuditLogParser{}, true, inspection_task.InspectionTypeLabel(baremetal.InspectionTypeId, vmware.InspectionTypeId))
+var OnPremCloudAuditLogParseTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/onprem-audit-parser", &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

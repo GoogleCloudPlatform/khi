@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
@@ -94,4 +95,4 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.LogEntity, cs *hist
 
 var _ parser.Parser = (*k8sContainerParser)(nil)
 
-var GKEContainerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/container-parser", &k8sContainerParser{}, false)
+var GKEContainerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/container-parser", &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
