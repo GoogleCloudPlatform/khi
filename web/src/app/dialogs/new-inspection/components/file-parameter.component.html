@@ -49,30 +49,43 @@
     ></khi-new-inspection-parameter-hint>
     <div class="footer-container">
       <div class="progress-wrapper">
-        @if (param.status === UploadStatus.Uploading) {
-          <mat-progress-spinner
-            color="primary"
-            diameter="30"
-            mode="determinate"
-            [value]="uploadRatio() * 100"
-          ></mat-progress-spinner>
+        @if (isSelectedFileUploading()) {
+          @let ratio = uploadRatio();
+          <!--The ratio may be undefined when the file size is not available.-->
+          @if (ratio === undefined) {
+            <mat-progress-spinner
+              color="primary"
+              diameter="30"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+          } @else {
+            <mat-progress-spinner
+              color="primary"
+              diameter="30"
+              mode="determinate"
+              [value]="ratio * 100"
+              [matTooltip]="ratio * 100 + '%'"
+            ></mat-progress-spinner>
+          }
           <p class="progress-label upload-status-indicator-label">Uploading</p>
-        }
-        @if (param.status === UploadStatus.Verifying) {
-          <mat-progress-spinner
-            color="accent"
-            diameter="30"
-            mode="indeterminate"
-          ></mat-progress-spinner>
-          <p class="progress-label verifying-status-indicator-label">
-            Verifying
-          </p>
-        }
-        @if (param.status === UploadStatus.Done) {
-          <div class="done-status-indicator">
-            <mat-icon>check_circle</mat-icon>
-            <p class="progress-label done-status-indicator-label">Done</p>
-          </div>
+        } @else {
+          @if (param.status === UploadStatus.Verifying) {
+            <mat-progress-spinner
+              color="accent"
+              diameter="30"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+            <p class="progress-label verifying-status-indicator-label">
+              Verifying
+            </p>
+          }
+          @if (param.status === UploadStatus.Done) {
+            <div class="done-status-indicator">
+              <p class="progress-label done-status-indicator-label">
+                File uploaded
+              </p>
+            </div>
+          }
         }
       </div>
       <button

@@ -20,6 +20,7 @@ import {
   ElementRef,
   inject,
   input,
+  OnDestroy,
   signal,
   ViewChild,
 } from '@angular/core';
@@ -36,6 +37,9 @@ import {
 } from 'src/app/common/schema/form-types';
 import { ParameterHeaderComponent } from './parameter-header.component';
 import { ParameterHintComponent } from './parameter-hint.component';
+import { PARAMETER_STORE } from './service/parameter-store';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { interval, Subject, takeUntil, takeWhile } from 'rxjs';
 
 @Component({
   selector: 'khi-new-inspection-file-parameter',
@@ -45,6 +49,7 @@ import { ParameterHintComponent } from './parameter-hint.component';
   imports: [
     CommonModule,
     MatFormFieldModule,
+    MatTooltipModule,
     ReactiveFormsModule,
     MatIconModule,
     MatButtonModule,
@@ -54,7 +59,12 @@ import { ParameterHintComponent } from './parameter-hint.component';
     ParameterHintComponent,
   ],
 })
-export class FileParameterComponent {
+export class FileParameterComponent implements OnDestroy {
+  /**
+   * The interval to attempt to retrieve the form status from backend.
+   */
+  static readonly FORM_STATUS_POLLING_INTERVAL_MS = 500;
+
   readonly UploadStatus = UploadStatus;
   /**
    * The setting of this file type form field.
@@ -68,6 +78,8 @@ export class FileParameterComponent {
    */
   isSelectedFileUploaded = signal(true);
 
+  isSelectedFileUploading = signal(false);
+
   /**
    * The status if a file is dragged over the file dropping area.
    */
@@ -75,8 +87,9 @@ export class FileParameterComponent {
 
   /**
    * The ratio of file size completed upload.
+   * This ratio may be undefined only when the file size information is not available.
    */
-  uploadRatio = signal(0);
+  uploadRatio = signal<number | undefined>(0);
 
   /**
    * The filename uploaded or will be uploaded on this field.
@@ -89,9 +102,13 @@ export class FileParameterComponent {
 
   selectedFile: File | null = null;
 
+  private formStoreRefreshCancel = new Subject();
+
   private snackBar = inject(MatSnackBar);
 
   private uploader = inject(FILE_UPLOADER);
+
+  private store = inject(PARAMETER_STORE);
 
   /**
    * Event handler of clicking the drop area.
@@ -148,12 +165,21 @@ export class FileParameterComponent {
     if (this.selectedFile === null) {
       return;
     }
+    this.isSelectedFileUploading.set(true);
     this.uploader
       .upload(this.parameter().token, this.selectedFile)
       .subscribe((status) => {
-        this.uploadRatio.set(status.completeRatio);
+        if (status.completeRatioUnknown) {
+          this.uploadRatio.set(undefined);
+        } else {
+          this.uploadRatio.set(status.completeRatio);
+        }
+
+        this.requestStoreRefresh();
         if (status.done) {
+          this.isSelectedFileUploading.set(false);
           this.isSelectedFileUploaded.set(true);
+          this.monitorRefreshingFormStoreWhileVerification();
         }
       });
   }
@@ -166,5 +192,33 @@ export class FileParameterComponent {
     this.filename.set(file.name);
     this.isSelectedFileUploaded.set(false);
     this.selectedFile = file;
+  }
+
+  /**
+   * Request refreshing the store status forcibly.
+   * File form doesn't store meaningful parameter into the parameter store because it uploads file to the destination specified from the backend.
+   * Set a timestamp instead of the parameter on the store when file form needs to get the latest form status from backend side.
+   */
+  private requestStoreRefresh() {
+    this.store.setDefaultValues({
+      [this.parameter().id]: '',
+    });
+    this.store.set(this.parameter().id, new Date());
+  }
+
+  private monitorRefreshingFormStoreWhileVerification() {
+    this.formStoreRefreshCancel.next(void 0);
+    interval(FileParameterComponent.FORM_STATUS_POLLING_INTERVAL_MS)
+      .pipe(
+        takeUntil(this.formStoreRefreshCancel),
+        takeWhile(() => this.parameter().status === UploadStatus.Verifying),
+      )
+      .subscribe(() => {
+        this.requestStoreRefresh();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.formStoreRefreshCancel.next(void 0);
   }
 }

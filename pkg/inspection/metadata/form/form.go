@@ -90,27 +90,13 @@ type TextParameterFormField struct {
 	Suggestions []string `json:"suggestions"`
 }
 
-// UploadStatus represents the types of UploadStatus given from the backend.
-type UploadStatus int
-
-const (
-	// Waiting indicates the server is waiting the client side to upload the file.
-	Waiting UploadStatus = 0
-	// Uploading indicates the server is now receiving the file from the client.
-	Uploading UploadStatus = 1
-	// Verifying indicates the server is performing the verification process on the uploaded file
-	Verifying UploadStatus = 2
-	// Done indicates the server completed the verification process and the file is ready to go.
-	Done UploadStatus = 3
-)
-
 // FileParameterFormField represents File type parameter specific data.
 type FileParameterFormField struct {
 	ParameterFormFieldBase
 	// Token is the type used for specifying the destination of file. This value is generated from server side and the client will upload the file with the token.
 	Token upload.UploadToken `json:"token"`
 	// Status is the current status of the file.
-	Status UploadStatus `json:"status"`
+	Status upload.UploadStatus `json:"status"`
 }
 
 // FormFieldSet is a metadata type used in frontend to generate the form fields.

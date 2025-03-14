@@ -34,6 +34,10 @@ import {
   UploadStatus,
   UploadToken,
 } from '../../../common/schema/form-types';
+import {
+  DefaultParameterStore,
+  PARAMETER_STORE,
+} from './service/parameter-store';
 
 describe('FileParameterComponent', () => {
   const mockFileUploader = new MockFileUploader();
@@ -68,6 +72,10 @@ describe('FileParameterComponent', () => {
         {
           provide: FILE_UPLOADER,
           useValue: mockFileUploader,
+        },
+        {
+          provide: PARAMETER_STORE,
+          useClass: DefaultParameterStore,
         },
       ],
     }).compileComponents();
@@ -124,8 +132,8 @@ describe('FileParameterComponent', () => {
   it('shows progress bar with veryfying status', async () => {
     mockFileUploader.statusProvider = () =>
       of({
-        done: false,
-        completeRatio: 0.5,
+        done: true,
+        completeRatio: 1,
       });
 
     fixture.componentRef.setInput('parameter', {

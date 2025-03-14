@@ -139,6 +139,7 @@ func TestProjectIdInput(t *testing.T) {
 }
 
 func TestClusterNameInput(t *testing.T) {
+	wantDescription := "The cluster name to gather logs."
 	mockClusterNamesTask1 := task_test.MockProcessorTaskFromTaskID(AutocompleteClusterNamesTaskID, &AutocompleteClusterNameList{
 		ClusterNames: []string{"foo-cluster", "bar-cluster"},
 		Error:        "",
@@ -151,10 +152,11 @@ func TestClusterNameInput(t *testing.T) {
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
-					ID:       GCPPrefix + "input/cluster-name",
-					Type:     "Text",
-					Label:    "Cluster name",
-					HintType: form.None,
+					ID:          GCPPrefix + "input/cluster-name",
+					Type:        "Text",
+					Label:       "Cluster name",
+					HintType:    form.None,
+					Description: wantDescription,
 				},
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
@@ -167,10 +169,11 @@ func TestClusterNameInput(t *testing.T) {
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
-					ID:       GCPPrefix + "input/cluster-name",
-					Type:     "Text",
-					Label:    "Cluster name",
-					HintType: form.None,
+					ID:          GCPPrefix + "input/cluster-name",
+					Type:        "Text",
+					Label:       "Cluster name",
+					Description: wantDescription,
+					HintType:    form.None,
 				},
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
@@ -183,11 +186,12 @@ func TestClusterNameInput(t *testing.T) {
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
-					ID:       GCPPrefix + "input/cluster-name",
-					Type:     "Text",
-					Label:    "Cluster name",
-					HintType: form.Error,
-					Hint:     "Cluster name must match `^[0-9a-z:\\-]+$`",
+					ID:          GCPPrefix + "input/cluster-name",
+					Type:        "Text",
+					Label:       "Cluster name",
+					Description: wantDescription,
+					HintType:    form.Error,
+					Hint:        "Cluster name must match `^[0-9a-z:\\-]+$`",
 				},
 				Suggestions: common.SortForAutocomplete("An invalid cluster name", []string{"foo-cluster", "bar-cluster"}),
 				Default:     "foo-cluster",
@@ -200,11 +204,12 @@ func TestClusterNameInput(t *testing.T) {
 			Dependencies:  []task.Definition{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
-					ID:       GCPPrefix + "input/cluster-name",
-					Type:     "Text",
-					Label:    "Cluster name",
-					Hint:     "Cluster `nonexisting-cluster` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.",
-					HintType: form.Warning,
+					ID:          GCPPrefix + "input/cluster-name",
+					Type:        "Text",
+					Label:       "Cluster name",
+					Description: wantDescription,
+					Hint:        "Cluster `nonexisting-cluster` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.",
+					HintType:    form.Warning,
 				},
 				Suggestions: []string{"foo-cluster", "bar-cluster"},
 				Default:     "foo-cluster",
@@ -214,7 +219,7 @@ func TestClusterNameInput(t *testing.T) {
 }
 
 func TestDurationInput(t *testing.T) {
-	expectedDescription := ""
+	expectedDescription := "The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)"
 	expectedLabel := "Duration"
 	expectedSuggestions := []string{"1m", "10m", "1h", "3h", "12h", "24h"}
 	timezoneTaskUTC := task_test.MockProcessorTaskFromTaskID(TimeZoneShiftInputTaskID, time.UTC)
@@ -412,7 +417,7 @@ func TestInputStartTime(t *testing.T) {
 }
 
 func TestInputKindName(t *testing.T) {
-	expectedDescription := ""
+	expectedDescription := "The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources"
 	expectedLabel := "Kind"
 	form_test.TestTextForms(t, "kind", InputKindFilterTask, []*form_test.FormTestCase{
 		{
@@ -477,7 +482,7 @@ func TestInputKindName(t *testing.T) {
 }
 
 func TestInputNamespaces(t *testing.T) {
-	expectedDescription := ""
+	expectedDescription := "The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gather logs for all non-namespaced resources. Specify `@all_namespaced` to gather logs for all namespaced resources."
 	expectedLabel := "Namespaces"
 	form_test.TestTextForms(t, "namespaces", InputNamespaceFilterTask, []*form_test.FormTestCase{
 		{

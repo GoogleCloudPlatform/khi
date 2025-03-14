@@ -62,7 +62,7 @@ func GetAutocompleteComposerEnvironmentNamesTaskVariable(v *task.VariableSet) ([
 
 const InputComposerEnvironmentTaskID = gcp_task.GCPPrefix + "input/composer/environment_name"
 
-var InputComposerEnvironmentNameTask = form.NewInputFormDefinitionBuilder(InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
+var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
 	[]string{AutocompleteComposerEnvironmentNamesTaskID},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, variables *task.VariableSet, previousValues []string) ([]string, error) {
 	environments, err := GetAutocompleteComposerEnvironmentNamesTaskVariable(variables)

@@ -45,15 +45,10 @@ type TextFormValueConverter = func(ctx context.Context, value string, variables 
 // TextFormHintGenerator is a function type to generate a hint string
 type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.ParameterHintType, error)
 
-// TextFormDefinitionBuilder is an utility to construct an instance of Definition for input form field.
-// This will generate the Definition instance with `Build()` method call after chaining several configuration methods.
-type TextFormDefinitionBuilder struct {
-	id                  string
-	label               string
-	priority            int
-	dependencies        []string
-	uiDescription       string
-	documentDescription string
+// TextFormTaskBuilder is an utility to construct an instance of task for input form field.
+// This will generate the task instance with `Build()` method call after chaining several configuration methods.
+type TextFormTaskBuilder struct {
+	FormTaskBuilderBase
 	defaultValue        TextFormDefaultValueGenerator
 	validator           TextFormValidator
 	readonlyProvider    TextFormReadonlyProvider
@@ -62,7 +57,7 @@ type TextFormDefinitionBuilder struct {
 	converter           TextFormValueConverter
 }
 
-// NewInputFormDefinitionBuilder constructs an instace of TextFormDefinitionBuilder.
+// NewTextFormTaskBuilder constructs an instace of TextFormDefinitionBuilder.
 // id,prioirity and label will be initialized with the value given in the argument. The other values are initialized with the following values.
 // dependencies : Initialized with an empty string array indicating this definition is not depending on anything.
 // description: Initialized with an empty string.
@@ -71,12 +66,9 @@ type TextFormDefinitionBuilder struct {
 // allowEditProvider: Initialized with a function to return true.
 // suggestionsProvider: Initialized with a function to return nil.
 // converter: Initialized with a function to return the given value. This means no conversion applied and treated as a string.
-func NewInputFormDefinitionBuilder(id string, priority int, fieldLabel string) *TextFormDefinitionBuilder {
-	return &TextFormDefinitionBuilder{
-		id:           id,
-		priority:     priority,
-		label:        fieldLabel,
-		dependencies: []string{},
+func NewTextFormTaskBuilder(id string, priority int, fieldLabel string) *TextFormTaskBuilder {
+	return &TextFormTaskBuilder{
+		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, fieldLabel),
 		defaultValue: func(ctx context.Context, variables *common_task.VariableSet, previousValues []string) (string, error) {
 			return "", nil
 		},
@@ -98,32 +90,27 @@ func NewInputFormDefinitionBuilder(id string, priority int, fieldLabel string) *
 	}
 }
 
-func (b *TextFormDefinitionBuilder) WithDependencies(dependencies []string) *TextFormDefinitionBuilder {
-	b.dependencies = dependencies
+func (b *TextFormTaskBuilder) WithDependencies(dependencies []string) *TextFormTaskBuilder {
+	b.FormTaskBuilderBase.WithDependencies(dependencies)
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithUIDescription(uiDescription string) *TextFormDefinitionBuilder {
-	b.uiDescription = uiDescription
+func (b *TextFormTaskBuilder) WithDescription(description string) *TextFormTaskBuilder {
+	b.FormTaskBuilderBase.WithDescription(description)
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithDocumentDescription(documentDescription string) *TextFormDefinitionBuilder {
-	b.documentDescription = documentDescription
-	return b
-}
-
-func (b *TextFormDefinitionBuilder) WithValidator(validator TextFormValidator) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithValidator(validator TextFormValidator) *TextFormTaskBuilder {
 	b.validator = validator
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithDefaultValueFunc(defFunc TextFormDefaultValueGenerator) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithDefaultValueFunc(defFunc TextFormDefaultValueGenerator) *TextFormTaskBuilder {
 	b.defaultValue = defFunc
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithDefaultValueConstant(defValue string, preferPrevValue bool) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithDefaultValueConstant(defValue string, preferPrevValue bool) *TextFormTaskBuilder {
 	return b.WithDefaultValueFunc(func(ctx context.Context, variables *common_task.VariableSet, previousValues []string) (string, error) {
 		if preferPrevValue {
 			if len(previousValues) > 0 {
@@ -134,33 +121,33 @@ func (b *TextFormDefinitionBuilder) WithDefaultValueConstant(defValue string, pr
 	})
 }
 
-func (b *TextFormDefinitionBuilder) WithReadonlyFunc(readonlyFunc TextFormReadonlyProvider) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithReadonlyFunc(readonlyFunc TextFormReadonlyProvider) *TextFormTaskBuilder {
 	b.readonlyProvider = readonlyFunc
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithSuggestionsFunc(suggestionsFunc TextFormSuggestionsProvider) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithSuggestionsFunc(suggestionsFunc TextFormSuggestionsProvider) *TextFormTaskBuilder {
 	b.suggestionsProvider = suggestionsFunc
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithSuggestionsConstant(suggestions []string) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithSuggestionsConstant(suggestions []string) *TextFormTaskBuilder {
 	return b.WithSuggestionsFunc(func(ctx context.Context, value string, variables *common_task.VariableSet, previousValues []string) ([]string, error) {
 		return suggestions, nil
 	})
 }
 
-func (b *TextFormDefinitionBuilder) WithHintFunc(hintFunc TextFormHintGenerator) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithHintFunc(hintFunc TextFormHintGenerator) *TextFormTaskBuilder {
 	b.hintGenerator = hintFunc
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) WithConverter(converter TextFormValueConverter) *TextFormDefinitionBuilder {
+func (b *TextFormTaskBuilder) WithConverter(converter TextFormValueConverter) *TextFormTaskBuilder {
 	b.converter = converter
 	return b
 }
 
-func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Definition {
+func (b *TextFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Definition {
 	return common_task.NewProcessorTask(b.id, b.dependencies, func(ctx context.Context, taskMode int, v *common_task.VariableSet) (any, error) {
 		m, err := task.GetMetadataSetFromVariable(v)
 		if err != nil {
@@ -201,12 +188,10 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 			currentValue = valueString
 		}
 
-		field.ID = b.id
 		field.Type = form_metadata.Text
-		field.Priority = b.priority
-		field.Label = b.label
-		field.Description = b.uiDescription
 		field.HintType = form_metadata.Info
+
+		b.SetupBaseFormField(&field.ParameterFormFieldBase)
 
 		suggestions, err := b.suggestionsProvider(ctx, currentValue, v, prevValue)
 		if err != nil {
@@ -260,6 +245,6 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 		return convertedValue, nil
 	}, append(labelOpts, label.NewFormTaskLabelOpt(
 		b.label,
-		b.documentDescription,
+		b.description,
 	))...)
 }

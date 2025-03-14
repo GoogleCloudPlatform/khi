@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { inject, InjectionToken } from '@angular/core';
+import { filter, map, Observable, of } from 'rxjs';
 import { UploadToken } from '../../../../common/schema/form-types';
+import {
+  BACKEND_API,
+  BackendAPI,
+} from 'src/app/services/api/backend-api-interface';
+import { HttpEventType } from '@angular/common/http';
 
 /**
  * Type for the status reported from the uploader.
@@ -24,6 +29,7 @@ import { UploadToken } from '../../../../common/schema/form-types';
 export interface FileUploaderStatus {
   done: boolean;
   completeRatio: number;
+  completeRatioUnknown: boolean;
 }
 
 /**
@@ -49,6 +55,7 @@ export class MockFileUploader implements FileUploader {
     of({
       done: true,
       completeRatio: 1,
+      completeRatioUnknown: false,
     });
 
   public statusProvider: () => Observable<FileUploaderStatus> =
@@ -56,5 +63,56 @@ export class MockFileUploader implements FileUploader {
 
   upload(): Observable<FileUploaderStatus> {
     return this.statusProvider();
+  }
+}
+
+/**
+ * An implementation of the file uploader to the KHI server.
+ */
+export class KHIServerFileUploader implements FileUploader {
+  private readonly backendAPI: BackendAPI = inject(BACKEND_API);
+
+  upload(token: UploadToken, file: File): Observable<FileUploaderStatus> {
+    return this.backendAPI.uploadFile(token, file).pipe(
+      filter(
+        (status) =>
+          status.type !== HttpEventType.User &&
+          status.type !== HttpEventType.DownloadProgress,
+      ),
+      map((status) => {
+        switch (status.type) {
+          case HttpEventType.Response:
+            return {
+              done: true,
+              completeRatio: 1,
+              completeRatioUnknown: false,
+            };
+          case HttpEventType.ResponseHeader:
+          case HttpEventType.Sent:
+            return {
+              done: false,
+              completeRatio: 0,
+              completeRatioUnknown: false,
+            };
+          case HttpEventType.UploadProgress:
+            if (status.total !== undefined) {
+              // This status.total can be undefined but I don't know when it could be.
+              return {
+                done: status.loaded === status.total,
+                completeRatio: status.loaded / status.total,
+                completeRatioUnknown: false,
+              };
+            } else {
+              return {
+                done: status.loaded === status.total,
+                completeRatio: 0,
+                completeRatioUnknown: true,
+              };
+            }
+          default:
+            throw new Error('unknown event type' + status.type);
+        }
+      }),
+    );
   }
 }

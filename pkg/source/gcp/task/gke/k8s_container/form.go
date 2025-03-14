@@ -30,11 +30,10 @@ const InputContainerQueryNamespacesTaskID = gcp_task.GCPPrefix + "input/containe
 var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},
 }
-var InputContainerQueryNamespaceFilterTask = form.NewInputFormDefinitionBuilder(InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
+var InputContainerQueryNamespaceFilterTask = form.NewTextFormTaskBuilder(InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
 	WithDefaultValueConstant("@managed", true).
-	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
+	WithDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
-	WithDocumentDescription("The namespace of Pods to gather container logs. Specify `@managed` to gather logs of system components.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
 		if err != nil {
@@ -58,12 +57,11 @@ func GetInputContainerQueryNamespacesFilterFromTaskVariable(tv *task.VariableSet
 const InputContainerQueryPodNamesTaskID = gcp_task.GCPPrefix + "input/container-query-podnames"
 
 var inputPodNamesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{}
-var InputContainerQueryPodNamesFilterMask = form.NewInputFormDefinitionBuilder(InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
+var InputContainerQueryPodNamesFilterMask = form.NewTextFormTaskBuilder(InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
 	WithDefaultValueConstant("@any", true).
-	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
+	WithDescription(`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
 	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`).
-	WithDocumentDescription("The substring of Pod name to gather container logs. Specify `@any` to gather logs of all pods.").
 	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
 		if err != nil {
