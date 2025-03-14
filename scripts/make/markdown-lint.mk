@@ -15,6 +15,5 @@
 .PHONY: lint-markdown
 
 lint-markdown:
-	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Please install with 'npm install -g markdownlint-cli'"; exit 1; }
 	@echo "Linting all Markdown files with markdownlint..."
-	@markdownlint "**/*.md" || exit 1 
+	@npx markdownlint "**/*.md" 
