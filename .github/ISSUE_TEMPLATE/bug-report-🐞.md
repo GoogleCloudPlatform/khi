@@ -19,6 +19,7 @@ assignees: ''
 <!-- A clear and concise description of what you expected to happen.-->
 
 ### Debugging resources
+
 **Reproductive steps**
 <!-- 
 1. Go to '...'
@@ -35,6 +36,6 @@ assignees: ''
 
 ### Environments
 
-**[Image version](https://github.com/GoogleCloudPlatform/khi/pkgs/container/khi) used**: 
+**[Image version](https://github.com/GoogleCloudPlatform/khi/pkgs/container/khi) used**:
 
 - [ ] I use the latest Chrome when I observed this issue

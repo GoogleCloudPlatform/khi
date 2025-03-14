@@ -1,0 +1,9 @@
+# Markdown linting configuration
+globs:
+  - "**/*.md"
+ignores:
+  - "**/node_modules/**"
+config:
+  default: true
+  MD013: false  # Line length
+  MD033: false  # Inline HTML 
