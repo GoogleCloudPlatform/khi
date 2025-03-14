@@ -99,19 +99,6 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
   e.g. `cd khi`
 1. Run `cd ./web && npm install` from the project root
 
-#### Markdown Linting
-We use markdownlint to enforce our documentation style and ensure consistency across our Markdown files.
-
-### Installation of markdownlint
-```bash
-npm install -g markdownlint-cli
-```
-
-To lint Markdown files, run:
-```bash
-markdownlint "**/*.md"
-```
-
 #### Run KHI
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
   e.g. `gcloud auth login` if you use your user account credentials
