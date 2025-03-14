@@ -15,9 +15,11 @@
 package model
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/taskfilter"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // InspectionTypeDocumentModel is a model type for generating document docs/en/reference/inspection-type.md
@@ -52,17 +54,15 @@ func GetInspectionTypeDocumentModel(taskServer *inspection.InspectionTaskServer)
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {
 		// Get the list of feature tasks supporting the inspection type.
-		tasks := taskServer.RootTaskSet.
-			FilteredSubset(inspection_task.LabelKeyInspectionTypes, taskfilter.ContainsElement(inspectionType.Id), true).
-			FilteredSubset(inspection_task.LabelKeyInspectionFeatureFlag, taskfilter.HasTrue, false).
-			GetAll()
+		tasksInInspectionType := task.Subset(taskServer.RootTaskSet, filter.NewContainsElementFilter(inspection_task.LabelKeyInspectionTypes, inspectionType.Id, true))
+		featureTasks := task.Subset(tasksInInspectionType, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false)).GetAll()
 
 		features := []InspectionTypeDocumentElementFeature{}
-		for _, task := range tasks {
+		for _, task := range featureTasks {
 			features = append(features, InspectionTypeDocumentElementFeature{
 				ID:          task.ID().String(),
-				Name:        task.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
-				Description: task.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
+				Name:        typedmap.GetOrDefault(task.Labels(), inspection_task.LabelKeyFeatureTaskTitle, ""),
+				Description: typedmap.GetOrDefault(task.Labels(), inspection_task.LabelKeyFeatureTaskDescription, ""),
 			})
 		}
 

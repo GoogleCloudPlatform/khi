@@ -31,7 +31,7 @@ func fieldWithIdAndPriorityForTest(id string, priority int) FormField {
 }
 
 func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
-	fsActual := (&FormFieldSetMetadataFactory{}).Instanciate().(*FormFieldSet)
+	fsActual := NewFormFieldSet()
 	fsActual.SetField(fieldWithIdAndPriorityForTest("foo", 1))
 	fsActual.SetField(fieldWithIdAndPriorityForTest("bar", 3))
 	fsActual.SetField(fieldWithIdAndPriorityForTest("qux", 2))

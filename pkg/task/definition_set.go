@@ -19,11 +19,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"golang.org/x/exp/slices"
 )
 
-type LabelPredicate = func(v any) bool
+type LabelPredicate[T any] = func(v T) bool
 
 // DefinitionSet is a collection of task definitions.
 // It has several collection operation features for constructing the task graph to execute.
@@ -88,25 +89,6 @@ func (s *DefinitionSet) Get(id string) (Definition, error) {
 	return nil, fmt.Errorf("task definition %s was not found", id)
 }
 
-// FilteredSubset constructs another DefinitionSet from given filter.
-// When the label is not given for a task definition, that task won't be incldued in the result set.
-func (s *DefinitionSet) FilteredSubset(key string, predicate LabelPredicate, includeUndefined bool) *DefinitionSet {
-	filteredTasks := []Definition{}
-	for _, task := range s.definitions {
-		if labelValue, exist := task.Labels().Get(key); exist {
-			if predicate(labelValue) {
-				filteredTasks = append(filteredTasks, task)
-			}
-		} else if includeUndefined {
-			filteredTasks = append(filteredTasks, task)
-		}
-	}
-	return &DefinitionSet{
-		definitions: filteredTasks,
-		runnable:    false,
-	}
-}
-
 // WrapGraph adds init task and done task to the runnable graph.
 // The init task named as `subgraphId`-init has the dependency provided in the subgraphDependency argument. And the init task will be dependency of the tasks that had no dependency before calling this method.
 // The done task named as `subgraphId`-done has the dependency of the tasks that were not dependent from any other tasks.
@@ -121,7 +103,8 @@ func (s *DefinitionSet) WrapGraph(subgraphId taskid.TaskImplementationId, subgra
 			capturedTask := t
 			rewiredTask := NewDefinitionFromFunc(t.ID(), []taskid.TaskReferenceId{taskid.NewTaskReference(initTaskId)}, func(taskMode int) Runnable {
 				return capturedTask.Runnable(taskMode)
-			}, FromLabelSet(t.Labels()))
+			})
+			rewiredTask.labels = t.Labels().Clone()
 			rewiredTasks = append(rewiredTasks, rewiredTask)
 		} else {
 			rewiredTasks = append(rewiredTasks, t)
@@ -186,14 +169,8 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 		var nextResolveTaskId string = "N/A"
 		nextResolvedTaskIdThreadUnsafeCandidate := "N/A"
 		for _, taskId := range sortedMapKeys(nonResolvedTasksMap) { // Needs task sorting to get the same result every time.
-			task := nonResolvedTasksMap[taskId]
-			// non thread safe tasks are low prioritized
-			isThreadUnsafe := task.Labels().GetOrDefault(LabelKeyThreadUnsafe, false).(bool)
 			if currentMissingTaskSourceCount[taskId] == 0 {
-				if !isThreadUnsafe {
-					nextResolveTaskId = taskId
-					break
-				} else if nextResolvedTaskIdThreadUnsafeCandidate == "N/A" {
+				if nextResolvedTaskIdThreadUnsafeCandidate == "N/A" {
 					nextResolvedTaskIdThreadUnsafeCandidate = taskId
 				}
 			}
@@ -288,7 +265,7 @@ func (s *DefinitionSet) ResolveTask(availableDefinitionSet *DefinitionSet) (*Def
 			maxPriority := -1
 			var maxPriorityTaskDefinition Definition
 			for _, task := range matched {
-				priority := task.Labels().GetOrDefault(LabelKeyTaskSelectionPriority, 0).(int)
+				priority := typedmap.GetOrDefault(task.Labels(), LabelKeyTaskSelectionPriority, 0)
 				if priority >= maxPriority {
 					maxPriority = priority
 					maxPriorityTaskDefinition = task
@@ -323,9 +300,11 @@ func (s *DefinitionSet) DumpGraphviz() (string, error) {
 	result := "digraph G {\n"
 	result += "start [shape=\"diamond\",fillcolor=gray,style=filled]\n"
 	for _, definition := range s.definitions {
-		typeAny := definition.Labels().GetOrDefault("khi.google.com/inspection/feature", false)
+		// concept of the feature is not defined in task level, but it's better to be included in the dumpped graph.
+		// The ID can't be referenced directly because of the circular dependency issue, thus this code define the ID with NewLabelKey
+		feature := typedmap.GetOrDefault(definition.Labels(), NewTaskLabelKey[bool]("khi.google.com/inspection/feature"), false)
 		shape := "circle"
-		if typeAny.(bool) {
+		if feature {
 			shape = "doublecircle"
 		}
 		result += fmt.Sprintf("%s [shape=\"%s\",label=\"%s\"]\n", graphVizValidId(definition.ID().String()), shape, definition.ID())

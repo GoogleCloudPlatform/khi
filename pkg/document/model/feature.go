@@ -18,10 +18,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/taskfilter"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
@@ -109,11 +110,11 @@ type FeatureAvailableInspectionType struct {
 // GetFeatureDocumentModel returns the document model for feature tasks from the task server.
 func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
 	result := FeatureDocumentModel{}
-	features := taskServer.RootTaskSet.FilteredSubset(inspection_task.LabelKeyInspectionFeatureFlag, taskfilter.HasTrue, false)
+	features := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	for _, feature := range features.GetAll() {
 		indirectQueryDependencyElement := []FeatureIndirectDependentQueryElement{}
 		targetQueryDependencyElement := FeatureDependentTargetQueryElement{}
-		targetLogTypeKey := feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTargetLogType, enum.LogTypeUnknown).(enum.LogType)
+		targetLogTypeKey := typedmap.GetOrDefault(feature.Labels(), inspection_task.LabelKeyFeatureTaskTargetLogType, enum.LogTypeUnknown)
 
 		// Get query related tasks in the dependency of this feature.
 		queryTasksInDependency, err := getDependentQueryTasks(taskServer, feature)
@@ -121,7 +122,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 			return nil, err
 		}
 		for _, queryTask := range queryTasksInDependency {
-			logTypeKey := enum.LogType(queryTask.Labels().GetOrDefault(label.TaskLabelKeyQueryTaskTargetLogType, enum.LogTypeUnknown).(enum.LogType))
+			logTypeKey := typedmap.GetOrDefault(queryTask.Labels(), label.TaskLabelKeyQueryTaskTargetLogType, enum.LogTypeUnknown)
 			if targetLogTypeKey != logTypeKey {
 				logType := enum.LogTypes[logTypeKey]
 				indirectQueryDependencyElement = append(indirectQueryDependencyElement, FeatureIndirectDependentQueryElement{
@@ -134,7 +135,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 					ID:               queryTask.ID().String(),
 					LogTypeLabel:     enum.LogTypes[targetLogTypeKey].Label,
 					LogTypeColorCode: strings.TrimLeft(enum.LogTypes[targetLogTypeKey].LabelBackgroundColor, "#"),
-					SampleQuery:      queryTask.Labels().GetOrDefault(label.TaskLabelKeyQueryTaskSampleQuery, "").(string),
+					SampleQuery:      typedmap.GetOrDefault(queryTask.Labels(), label.TaskLabelKeyQueryTaskSampleQuery, ""),
 				}
 			}
 		}
@@ -147,8 +148,8 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 		for _, formTask := range formTasks {
 			formElements = append(formElements, FeatureDependentFormElement{
 				ID:          formTask.ID().String(),
-				Label:       formTask.Labels().GetOrDefault(label.TaskLabelKeyFormFieldLabel, "").(string),
-				Description: formTask.Labels().GetOrDefault(label.TaskLabelKeyFormFieldDescription, "").(string),
+				Label:       typedmap.GetOrDefault(formTask.Labels(), label.TaskLabelKeyFormFieldLabel, ""),
+				Description: typedmap.GetOrDefault(formTask.Labels(), label.TaskLabelKeyFormFieldDescription, ""),
 			})
 		}
 
@@ -189,8 +190,8 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 
 		result.Features = append(result.Features, FeatureDocumentElement{
 			ID:                       feature.ID().String(),
-			Name:                     feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskTitle, "").(string),
-			Description:              feature.Labels().GetOrDefault(inspection_task.LabelKeyFeatureTaskDescription, "").(string),
+			Name:                     typedmap.GetOrDefault(feature.Labels(), inspection_task.LabelKeyFeatureTaskTitle, ""),
+			Description:              typedmap.GetOrDefault(feature.Labels(), inspection_task.LabelKeyFeatureTaskDescription, ""),
 			IndirectQueryDependency:  indirectQueryDependencyElement,
 			TargetQueryDependency:    targetQueryDependencyElement,
 			Forms:                    formElements,
@@ -212,7 +213,7 @@ func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, feature
 	if err != nil {
 		return nil, err
 	}
-	return resolved.FilteredSubset(label.TaskLabelKeyIsQueryTask, taskfilter.HasTrue, false).GetAll(), nil
+	return task.Subset(resolved, filter.NewEnabledFilter(label.TaskLabelKeyIsQueryTask, false)).GetAll(), nil
 }
 
 // getDependentFormTasks returns the list of form tasks required by the feature task.
@@ -225,7 +226,7 @@ func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureT
 	if err != nil {
 		return nil, err
 	}
-	return resolved.FilteredSubset(label.TaskLabelKeyIsFormTask, taskfilter.HasTrue, false).GetAll(), nil
+	return task.Subset(resolved, filter.NewEnabledFilter(label.TaskLabelKeyIsFormTask, false)).GetAll(), nil
 }
 
 // getAvailableInspectionTypes returns the list of information about inspection type that supports this feature.
@@ -233,12 +234,8 @@ func getAvailableInspectionTypes(taskServer *inspection.InspectionTaskServer, fe
 	result := []FeatureAvailableInspectionType{}
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {
-		labelsAny, found := featureTask.Labels().Get(inspection_task.LabelKeyInspectionTypes)
-		labels := []string{inspectionType.Id}
-		if found {
-			labels = labelsAny.([]string)
-		}
-		if slices.Contains(labels, inspectionType.Id) {
+		labels, found := typedmap.Get(featureTask.Labels(), inspection_task.LabelKeyInspectionTypes)
+		if found && slices.Contains(labels, inspectionType.Id) {
 			result = append(result, FeatureAvailableInspectionType{
 				ID:   inspectionType.Id,
 				Name: inspectionType.Name,

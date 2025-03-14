@@ -17,7 +17,7 @@ package v2manifestgenerate
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
@@ -195,7 +195,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 				v2commonlogparse.Task,
 				gcp_task.GCPDefaultK8sResourceMergeConfigTask,
 			}, task.TaskModeRun,
-				testtask.PriorTaskResultFromID(task.MetadataVariableName, metadata.NewSet()),
+				testtask.PriorTaskResultFromID(task.MetadataVariableName, typedmap.NewTypedMap().AsReadonly()),
 				testtask.PriorTaskResultFromID(task.ReaderFactoryGeneratorTaskID, structure.NewReaderFactory(&structuredatastore.OnMemoryStructureDataStore{})),
 				testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 

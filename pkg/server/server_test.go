@@ -317,7 +317,7 @@ func TestApiResponses(t *testing.T) {
 			RequestGenerator: func(t *testing.T, stat map[string]string) any {
 				return map[string]any{}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":""}]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":""}],"query":[]}}`, "plan"),
 		},
 		{
 			// 008
@@ -330,7 +330,7 @@ func TestApiResponses(t *testing.T) {
 					"foo-input": "foo-input-value",
 				}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":""}]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":""}],"query":[]}}`, "plan"),
 		},
 		{
 			// 009
@@ -343,7 +343,7 @@ func TestApiResponses(t *testing.T) {
 					"foo-input": "foo-input-invalid-value",
 				}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":"invalid value"}]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":"invalid value"}],"query":[]}}`, "plan"),
 		}, {
 			// 010
 			// Attempting to access non started task result

@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
@@ -78,7 +79,11 @@ func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum
 		if err != nil {
 			return nil, err
 		}
-		queryInfo := metadata.LoadOrStore(query.QueryMetadataKey, &query.QueryMetadataFactory{}).(*query.QueryMetadata)
+		queryInfo, found := typedmap.Get(metadata, query.QueryMetadataKey)
+		if !found {
+			return nil, fmt.Errorf("query metadata was not found")
+		}
+
 		allLogs := []*log.LogEntity{}
 		for queryIndex, queryString := range queryStrings {
 			// Record query information in metadat a
@@ -97,17 +102,18 @@ func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
 				queryLogs, queryErr := worker.Query(ctx, readerFactory, projectId, progress)
 				if queryErr != nil {
+					errorMessageSet, found := typedmap.Get(metadata, error_metadata.ErrorMessageSetMetadataKey)
+					if !found {
+						return nil, fmt.Errorf("error message set metadata was not found")
+					}
 					if strings.HasPrefix(queryErr.Error(), "401:") {
-						errors := metadata.LoadOrStore(error_metadata.ErrorMessageSetMetadataKey, &error_metadata.ErrorMessageSetFactory{}).(*error_metadata.ErrorMessageSet)
-						errors.AddErrorMessage(error_metadata.NewUnauthorizedErrorMessage())
+						errorMessageSet.AddErrorMessage(error_metadata.NewUnauthorizedErrorMessage())
 					}
 					if strings.HasPrefix(queryErr.Error(), "403:") {
-						errors := metadata.LoadOrStore(error_metadata.ErrorMessageSetMetadataKey, &error_metadata.ErrorMessageSetFactory{}).(*error_metadata.ErrorMessageSet)
-						errors.AddErrorMessage(error_metadata.NewPermissionErrorMessage(projectId))
+						errorMessageSet.AddErrorMessage(error_metadata.NewPermissionErrorMessage(projectId))
 					}
 					if strings.HasPrefix(queryErr.Error(), "404:") {
-						errors := metadata.LoadOrStore(error_metadata.ErrorMessageSetMetadataKey, &error_metadata.ErrorMessageSetFactory{}).(*error_metadata.ErrorMessageSet)
-						errors.AddErrorMessage(error_metadata.NewNotFoundErrorMessage(projectId))
+						errorMessageSet.AddErrorMessage(error_metadata.NewNotFoundErrorMessage(projectId))
 					}
 					return nil, queryErr
 				}

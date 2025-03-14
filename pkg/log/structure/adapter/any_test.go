@@ -29,7 +29,7 @@ func TestAnyAdapter(t *testing.T) {
 	})
 	reader, err := direct.GetReaderBackedByStore(&store)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if reader.ReadStringOrDefault("textPayload", "") != "hello world" {
 		t.Errorf("expected hello world, got %s", reader.ReadStringOrDefault("textPayload", ""))

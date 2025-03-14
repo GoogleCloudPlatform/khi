@@ -52,7 +52,7 @@ func TestGenerateK8sNodeQueryIsValid(t *testing.T) {
 			query := GenerateK8sNodeLogQuery(tc.ProjectName, tc.ClusterName, tc.NodeNameSubstrings)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Errorf("%s", err.Error())
 			}
 		})
 	}

@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -33,9 +33,10 @@ func generateFakeVariableSet(taskId string, value string) *common_task.VariableS
 	if value != "" {
 		requestMap[taskId] = value
 	}
-	m := metadata.NewSet()
+	m := typedmap.NewTypedMap()
+	typedmap.Set(m, form_metadata.FormFieldSetMetadataKey, form_metadata.NewFormFieldSet())
 	vs := common_task.NewVariableSet(map[string]any{
-		task.MetadataVariableName: m,
+		task.MetadataVariableName: m.AsReadonly(),
 		task.InspectionRequestVariableName: &task.InspectionRequest{
 			Values: requestMap,
 		},
@@ -209,7 +210,11 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error while getting metadata\n%v", err)
 				}
-				field := ms.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet).DangerouslyGetField("foo")
+				fields, found := typedmap.Get(ms, form_metadata.FormFieldSetMetadataKey)
+				if !found {
+					t.Fatal("FormFieldSet not found on metadata")
+				}
+				field := fields.DangerouslyGetField("foo")
 				formFields = append(formFields, field)
 			}
 
@@ -232,7 +237,11 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					if err != nil {
 						t.Errorf("unexpected error while getting metadata\n%v", err)
 					}
-					field := ms.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet).DangerouslyGetField("foo")
+					fields, found := typedmap.Get(ms, form_metadata.FormFieldSetMetadataKey)
+					if !found {
+						t.Fatal("FormFieldSet not found on metadata")
+					}
+					field := fields.DangerouslyGetField("foo")
 					formFields = append(formFields, field)
 				}
 

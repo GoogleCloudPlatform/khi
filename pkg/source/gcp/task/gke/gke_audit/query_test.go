@@ -60,7 +60,7 @@ func TestGeneratedGKEAuditQueryIsValid(t *testing.T) {
 			query := GenerateGKEAuditQuery(tc.ProjectId, tc.ClusterName)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Errorf("%s", err.Error())
 			}
 		})
 	}

@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -385,8 +384,8 @@ func TestInputStartTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	startTime, err := testtask.RunSingleTask[time.Time](InputStartTimeTask, inspection_task.TaskModeDryRun,
-		testtask.PriorTaskResultFromID(inspection_task.MetadataVariableName, metadata.NewSet()),
 		testtask.PriorTaskResultFromID(InputDurationTaskID, duration),
 		testtask.PriorTaskResultFromID(InputEndTimeTaskID, endTime),
 		testtask.PriorTaskResultFromID(TimeZoneShiftInputTaskID, time.UTC),

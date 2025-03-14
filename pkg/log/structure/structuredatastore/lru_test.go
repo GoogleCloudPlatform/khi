@@ -34,20 +34,20 @@ func TestLRUStructureDataStoreFactory(t *testing.T) {
 		}
 		d, err := lru.StoreStructureData(sd)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 		_, err = d.Get()
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 		// Needs to check Get() call twice to verify it's on the cache not to read from the storage
 		sd, err = d.Get()
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 		yaml, err := structuredata.ToYaml(sd)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 		if yaml != data {
 			t.Errorf("expected %s, got %s", data, yaml)

@@ -15,8 +15,8 @@
 package inspection_test
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -26,11 +26,12 @@ import (
 
 // DryRunInspectionTaskGraph executes the task graph just with provided dependency tasks with several variables given in default local runner
 func DryRunInspectionTaskGraph(target task.Definition, requestParams map[string]any, dependencies ...task.Definition) (*task.VariableSet, error) {
-	ms := metadata.NewSet()
-	ms.LoadOrStore(header.HeaderMetadataKey, &header.HeaderMetadataFactory{})
-	ms.LoadOrStore(form.FormFieldSetMetadataKey, &form.FormFieldSetMetadataFactory{})
+	ms := typedmap.NewTypedMap()
+	typedmap.Set(ms, header.HeaderMetadataKey, &header.Header{})
+	typedmap.Set(ms, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
+
 	return task_test.RunTaskGraph(target, inspection_task.TaskModeDryRun, map[string]any{
-		inspection_task.MetadataVariableName: ms,
+		inspection_task.MetadataVariableName: ms.AsReadonly(),
 		inspection_task.InspectionRequestVariableName: &inspection_task.InspectionRequest{
 			Values: requestParams,
 		},
@@ -39,12 +40,12 @@ func DryRunInspectionTaskGraph(target task.Definition, requestParams map[string]
 
 // RunInspectionTaskGraph executes the task graph just with provided dependency tasks with several variables given in the default local runner
 func RunInspectionTaskGraph(target task.Definition, requestParams map[string]any, dependencies ...task.Definition) (*task.VariableSet, error) {
-	ms := metadata.NewSet()
-	ms.LoadOrStore(header.HeaderMetadataKey, &header.HeaderMetadataFactory{})
-	ms.LoadOrStore(form.FormFieldSetMetadataKey, &form.FormFieldSetMetadataFactory{})
+	ms := typedmap.NewTypedMap()
+	typedmap.Set(ms, header.HeaderMetadataKey, &header.Header{})
+	typedmap.Set(ms, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
 
 	return task_test.RunTaskGraph(target, inspection_task.TaskModeRun, map[string]any{
-		inspection_task.MetadataVariableName: ms,
+		inspection_task.MetadataVariableName: ms.AsReadonly(),
 		inspection_task.InspectionRequestVariableName: &inspection_task.InspectionRequest{
 			Values: requestParams,
 		},

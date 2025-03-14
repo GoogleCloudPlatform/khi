@@ -24,7 +24,7 @@ import (
 )
 
 func newFormFieldsForConformanceTest() metadata.Metadata {
-	forms := (&FormFieldSetMetadataFactory{}).Instanciate().(*FormFieldSet)
+	forms := NewFormFieldSet()
 	forms.SetField(FormField{})
 	return forms
 }

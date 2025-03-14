@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -27,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var LoggerMetadataKey = "log"
+var LoggerMetadataKey = metadata.NewMetadataKey[*Logger]("log")
 
 // similarLogThrottlingLogCount is the count of similar logs to start preventing output.
 var similarLogThrottlingLogCount = 10
@@ -140,7 +141,7 @@ type Logger struct {
 var _ metadata.Metadata = (*Logger)(nil)
 
 // Labels implements metadata.Metadata.
-func (*Logger) Labels() *task.LabelSet {
+func (*Logger) Labels() *typedmap.ReadonlyTypedMap {
 	return task.NewLabelSet(
 		metadata.IncludeInRunResult(),
 	)
@@ -195,12 +196,8 @@ func (l *Logger) MakeTaskLogger(ctx context.Context, minLevel slog.Level) *TaskL
 	return nil
 }
 
-type LoggerMetadataFactory struct{}
-
-// Instanciate implements metadata.MetadataFactory.
-func (l *LoggerMetadataFactory) Instanciate() metadata.Metadata {
-	return &Logger{loggers: []*TaskLogger{}}
+func NewLogger() *Logger {
+	return &Logger{
+		loggers: make([]*TaskLogger, 0),
+	}
 }
-
-// LoggerMetadataFactory implements metadata.MetadataFactory
-var _ metadata.MetadataFactory = (*LoggerMetadataFactory)(nil)

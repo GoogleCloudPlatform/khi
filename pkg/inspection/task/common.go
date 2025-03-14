@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -45,8 +45,8 @@ var TestInspectionTimeTaskProducer func(timeStr string) common_task.Definition =
 	})
 }
 
-func GetMetadataSetFromVariable(v *common_task.VariableSet) (*metadata.MetadataSet, error) {
-	return common_task.GetTypedVariableFromTaskVariable[*metadata.MetadataSet](v, MetadataVariableName, nil)
+func GetMetadataSetFromVariable(v *common_task.VariableSet) (*typedmap.ReadonlyTypedMap, error) {
+	return common_task.GetTypedVariableFromTaskVariable[*typedmap.ReadonlyTypedMap](v, MetadataVariableName, nil)
 }
 
 func GetInspectionRequestFromVariable(v *common_task.VariableSet) (*InspectionRequest, error) {

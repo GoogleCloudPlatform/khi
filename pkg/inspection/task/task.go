@@ -16,7 +16,9 @@ package task
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
@@ -30,10 +32,12 @@ func NewInspectionProcessor(taskId string, dependencies []string, processor Insp
 		if err != nil {
 			return nil, err
 		}
-		progressRaw := md.LoadOrStore(progress.ProgressMetadataKey, &progress.ProgressMetadataFactory{})
-		p := progressRaw.(*progress.Progress)
-		defer p.ResolveTask(taskId)
-		taskProgress, err := p.GetTaskProgress(taskId)
+		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
+		if !found {
+			return nil, fmt.Errorf("progress metadata not found")
+		}
+		defer progress.ResolveTask(taskId)
+		taskProgress, err := progress.GetTaskProgress(taskId)
 		if err != nil {
 			return nil, err
 		}
@@ -49,10 +53,12 @@ func NewInspectionCachedProcessor(taskId string, dependencies []string, processo
 		if err != nil {
 			return nil, err
 		}
-		progressRaw := md.LoadOrStore(progress.ProgressMetadataKey, &progress.ProgressMetadataFactory{})
-		p := progressRaw.(*progress.Progress)
-		defer p.ResolveTask(taskId)
-		taskProgress, err := p.GetTaskProgress(taskId)
+		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
+		if !found {
+			return nil, fmt.Errorf("progress metadata not found")
+		}
+		defer progress.ResolveTask(taskId)
+		taskProgress, err := progress.GetTaskProgress(taskId)
 		if err != nil {
 			return nil, err
 		}
@@ -70,10 +76,12 @@ func NewInspectionProducer(taskId string, producer InspectionProducerFunc, label
 		if err != nil {
 			return nil, err
 		}
-		progressRaw := md.LoadOrStore(progress.ProgressMetadataKey, &progress.ProgressMetadataFactory{})
-		p := progressRaw.(*progress.Progress)
-		defer p.ResolveTask(taskId)
-		taskProgress, err := p.GetTaskProgress(taskId)
+		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
+		if !found {
+			return nil, fmt.Errorf("progress metadata not found")
+		}
+		defer progress.ResolveTask(taskId)
+		taskProgress, err := progress.GetTaskProgress(taskId)
 		if err != nil {
 			return nil, err
 		}

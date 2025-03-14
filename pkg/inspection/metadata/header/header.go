@@ -17,11 +17,12 @@ package header
 import (
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-var HeaderMetadataKey = "header"
+var HeaderMetadataKey = metadata.NewMetadataKey[*Header]("header")
 
 // Header is a metadata type shown for users in the inspection list page.
 type Header struct {
@@ -38,8 +39,8 @@ type Header struct {
 var _ metadata.Metadata = (*Header)(nil)
 
 // Labels implements Metadata.
-func (*Header) Labels() *task.LabelSet {
-	return task.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInDryRunResult(), metadata.IncludeInTaskList(), metadata.IncludeInResultBinary())
+func (*Header) Labels() *typedmap.ReadonlyTypedMap {
+	return task.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList(), metadata.IncludeInResultBinary())
 }
 
 func (h *Header) ToSerializable() interface{} {
@@ -57,14 +58,3 @@ func (h *Header) SetEndTime(endTime time.Time) {
 func (h *Header) SetInspectionTime(inspectionTime time.Time) {
 	h.InspectTimeUnixSeconds = inspectionTime.Unix()
 }
-
-type HeaderMetadataFactory struct {
-	DefaultHeader Header
-}
-
-// Instanciate implements metadata.MetadataFactory.
-func (h *HeaderMetadataFactory) Instanciate() metadata.Metadata {
-	return &h.DefaultHeader
-}
-
-var _ metadata.MetadataFactory = (*HeaderMetadataFactory)(nil)

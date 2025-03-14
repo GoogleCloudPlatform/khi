@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
@@ -287,7 +288,12 @@ var InputStartTimeTask = common_task.NewInspectionProcessor(InputStartTimeTaskID
 	if err != nil {
 		return nil, err
 	}
-	header := metadataSet.LoadOrStore(header.HeaderMetadataKey, &header.HeaderMetadataFactory{}).(*header.Header)
+
+	header, found := typedmap.Get(metadataSet, header.HeaderMetadataKey)
+	if !found {
+		return nil, fmt.Errorf("header metadata not found")
+	}
+
 	header.StartTimeUnixSeconds = startTime.Unix()
 	header.EndTimeUnixSeconds = endTime.Unix()
 	return startTime, nil

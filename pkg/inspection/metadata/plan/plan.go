@@ -15,18 +15,19 @@
 package plan
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-var InspectionPlanMetadataKey = "plan"
+var InspectionPlanMetadataKey = metadata.NewMetadataKey[*InspectionPlan]("plan")
 
 type InspectionPlan struct {
 	TaskGraph string `json:"taskGraph"`
 }
 
 // Labels implements metadata.Metadata.
-func (*InspectionPlan) Labels() *task.LabelSet {
+func (*InspectionPlan) Labels() *typedmap.ReadonlyTypedMap {
 	return task.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
 }
 
@@ -37,12 +38,8 @@ func (p *InspectionPlan) ToSerializable() interface{} {
 
 var _ metadata.Metadata = (*InspectionPlan)(nil)
 
-type InspectionPlanMetadataFactory struct{}
-
-// Instanciate implements metadata.MetadataFactory.
-func (i *InspectionPlanMetadataFactory) Instanciate() metadata.Metadata {
-	return &InspectionPlan{}
+func NewInspectionPlan(taskGraph string) *InspectionPlan {
+	return &InspectionPlan{
+		TaskGraph: taskGraph,
+	}
 }
-
-// InspectionPlanMetadataFactory implements metadata.MetadataFactory
-var _ metadata.MetadataFactory = (*InspectionPlanMetadataFactory)(nil)

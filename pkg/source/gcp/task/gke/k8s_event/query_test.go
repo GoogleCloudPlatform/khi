@@ -105,7 +105,7 @@ func TestGenerateK8sEventQueryIsValid(t *testing.T) {
 			query := GenerateK8sEventQuery(tc.ClusterName, tc.ProjectName, tc.NamespaceFilter)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Errorf("%s", err.Error())
 			}
 		})
 	}

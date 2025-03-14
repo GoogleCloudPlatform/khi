@@ -27,7 +27,7 @@ func TestYamlAdapter(t *testing.T) {
 	yamlAdapter := Yaml("textPayload: hello world")
 	reader, err := yamlAdapter.GetReaderBackedByStore(&store)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if reader.ReadStringOrDefault("textPayload", "") != "hello world" {
 		t.Errorf("expected hello world, got %s", reader.ReadStringOrDefault("textPayload", ""))

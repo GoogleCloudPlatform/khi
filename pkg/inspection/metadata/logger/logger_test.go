@@ -28,7 +28,7 @@ import (
 )
 
 func TestConformance(t *testing.T) {
-	logger := (&LoggerMetadataFactory{}).Instanciate().(*Logger)
+	logger := NewLogger()
 	metadata_test.ConformanceMetadataTypeTest(t, logger)
 }
 
@@ -46,7 +46,7 @@ func testRecord(attrs ...slog.Attr) slog.Record {
 
 func TestChildLoggers(t *testing.T) {
 	logger.InitGlobalKHILogger()
-	logger := (&LoggerMetadataFactory{}).Instanciate().(*Logger)
+	logger := NewLogger()
 	log1Ctx := loggerCtx(context.Background(), "inspect1", "task1", "rid1")
 	log2Ctx := loggerCtx(context.Background(), "inspect2", "task2", "rid2")
 	log1 := logger.MakeTaskLogger(log1Ctx, slog.LevelDebug)

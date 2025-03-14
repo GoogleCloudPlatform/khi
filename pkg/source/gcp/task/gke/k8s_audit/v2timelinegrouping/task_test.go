@@ -17,7 +17,7 @@ package v2timelinegrouping
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
@@ -33,7 +33,7 @@ import (
 func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
 		result, err := testtask.RunSingleTask[struct{}](Task, task.TaskModeDryRun,
-			testtask.PriorTaskResultFromID(task.MetadataVariableName, metadata.NewSet()),
+			testtask.PriorTaskResultFromID(task.MetadataVariableName, typedmap.NewTypedMap().AsReadonly()),
 			testtask.PriorTaskResultFromID(k8saudittask.CommonLogParseTaskID, struct{}{}))
 		if err != nil {
 			t.Error(err)
@@ -74,7 +74,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 		}
 
 		result, err := testtask.RunMultipleTask[[]*types.TimelineGrouperResult](Task, []base_task.Definition{v2commonlogparse.Task}, task.TaskModeRun,
-			testtask.PriorTaskResultFromID(task.MetadataVariableName, metadata.NewSet()),
+			testtask.PriorTaskResultFromID(task.MetadataVariableName, typedmap.NewTypedMap().AsReadonly()),
 			testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 		if err != nil {
 			t.Error(err)

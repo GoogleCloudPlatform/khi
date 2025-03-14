@@ -24,13 +24,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
@@ -111,7 +111,8 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 						ctx.String(http.StatusInternalServerError, err.Error())
 						return
 					}
-					m, err := md.ToMap(common_task.EqualLabelFilter(metadata.LabelKeyIncludedInTaskListFlag, true, false))
+
+					m, err := metadata.GetSerializableSubsetMapFromMetadataSet(md, filter.NewEnabledFilter(metadata.LabelKeyIncludedInTaskListFlag, false))
 					if err != nil {
 						ctx.String(http.StatusInternalServerError, err.Error())
 						return

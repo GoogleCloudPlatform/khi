@@ -90,7 +90,7 @@ resource.labels.project_id="foo-project"
 			t.Run("generated query must be valid in Cloud Logging", func(t *testing.T) {
 				err := gcp_test.IsValidLogQuery(t, result)
 				if err != nil {
-					t.Errorf(err.Error())
+					t.Errorf("%s", err.Error())
 				}
 			})
 		})

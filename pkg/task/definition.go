@@ -17,21 +17,22 @@ package task
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 const (
-	KHISystemPrefix      = "khi.google.com/"
-	LabelKeyThreadUnsafe = KHISystemPrefix + "thread-unsafe"
-	// KHI allows tasks with different ID suffixes to be specified as dependencies
-	// using only the ID without the suffix. For example, both `a.b.c/qux#foo` and `a.b.c/qux#bar`
-	// can be specified as a dependency using `a.b.c/qux`.
-	//
-	// Normally, the task ID is uniquely determined by the task filter or other
-	// ways. However, if multiple tasks exist, the value specified with this label
-	// with the highest priority is used.
-	LabelKeyTaskSelectionPriority = KHISystemPrefix + "task-selection-priority"
+	KHISystemPrefix = "khi.google.com/"
 )
+
+// KHI allows tasks with different ID suffixes to be specified as dependencies
+// using only the ID without the suffix. For example, both `a.b.c/qux#foo` and `a.b.c/qux#bar`
+// can be specified as a dependency using `a.b.c/qux`.
+//
+// Normally, the task ID is uniquely determined by the task filter or other
+// ways. However, if multiple tasks exist, the value specified with this label
+// with the highest priority is used.
+var LabelKeyTaskSelectionPriority = NewTaskLabelKey[int](KHISystemPrefix + "task-selection-priority")
 
 // Definition represents a task definition that behaves as a factory of the task runner itself and contains metadata of dependency and labels.
 // The implementation of ID and Labels must be deterministic when the application started.
@@ -45,7 +46,7 @@ type Definition interface {
 	ID() taskid.TaskImplementationId
 	// Labels returns KHITaskLabelSet assigned to this task unit.
 	// The implementation of this function must return a constant value.
-	Labels() *LabelSet
+	Labels() *typedmap.ReadonlyTypedMap
 
 	// Dependencies returns the set of Definition ids without the suffix beginning with #. Task runner will wait these dependent tasks to be done before running this task.
 	Dependencies() []taskid.TaskReferenceId
@@ -77,7 +78,7 @@ func NewRunnableFunc(f func(ctx context.Context, v *VariableSet) error) Runnable
 
 type ConstantDefinitionImpl struct {
 	id                taskid.TaskImplementationId
-	labels            *LabelSet
+	labels            *typedmap.ReadonlyTypedMap
 	dependencies      []taskid.TaskReferenceId
 	runnableGenerator func(taskMode int) Runnable
 }
@@ -93,7 +94,7 @@ func (c *ConstantDefinitionImpl) ID() taskid.TaskImplementationId {
 }
 
 // Labels implements Definition.
-func (c *ConstantDefinitionImpl) Labels() *LabelSet {
+func (c *ConstantDefinitionImpl) Labels() *typedmap.ReadonlyTypedMap {
 	return c.labels
 }
 
@@ -111,19 +112,5 @@ func NewDefinitionFromFunc(taskId taskid.TaskImplementationId, dependencies []ta
 		labels:            labels,
 		dependencies:      taskid.DedupeReferenceIds(dependencies),
 		runnableGenerator: runnableGenerator,
-	}
-}
-
-type selectionPrioirtyLabelOpt struct {
-	priority int
-}
-
-func (s *selectionPrioirtyLabelOpt) Write(ls *LabelSet) {
-	ls.Set(LabelKeyTaskSelectionPriority, s.priority)
-}
-
-func WithSelectionPriority(priority int) LabelOpt {
-	return &selectionPrioirtyLabelOpt{
-		priority: priority,
 	}
 }

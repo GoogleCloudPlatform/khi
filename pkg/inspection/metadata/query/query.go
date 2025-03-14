@@ -19,11 +19,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-var QueryMetadataKey = "query"
+var QueryMetadataKey = metadata.NewMetadataKey[*QueryMetadata]("query")
 
 type QueryItem struct {
 	Id    string `json:"id"`
@@ -37,7 +38,7 @@ type QueryMetadata struct {
 }
 
 // Labels implements metadata.Metadata.
-func (*QueryMetadata) Labels() *task.LabelSet {
+func (*QueryMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return task.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
 }
 
@@ -68,11 +69,8 @@ func (q *QueryMetadata) SetQuery(id string, name string, queryString string) {
 
 var _ metadata.Metadata = (*QueryMetadata)(nil)
 
-type QueryMetadataFactory struct{}
-
-// Instanciate implements metadata.MetadataFactory.
-func (q *QueryMetadataFactory) Instanciate() metadata.Metadata {
-	return &QueryMetadata{}
+func NewQueryMetadata() *QueryMetadata {
+	return &QueryMetadata{
+		Queries: []*QueryItem{},
+	}
 }
-
-var _ metadata.MetadataFactory = (*QueryMetadataFactory)(nil)

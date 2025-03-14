@@ -19,6 +19,8 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
@@ -56,7 +58,7 @@ var SerializeTask = inspection_task.NewInspectionProcessor(SerializerTaskID, []s
 	if err != nil {
 		return nil, err
 	}
-	resultMetadata, err := metadataSet.ToMap(task.EqualLabelFilter(metadata.LabelKeyIncludedInResultBinaryFlag, true, false))
+	resultMetadata, err := metadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, filter.NewEqualFilter(metadata.LabelKeyIncludedInResultBinaryFlag, true, false))
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +70,9 @@ var SerializeTask = inspection_task.NewInspectionProcessor(SerializerTaskID, []s
 	if err != nil {
 		return nil, err
 	}
-	metadataSet.LoadOrStore(header.HeaderMetadataKey, &header.HeaderMetadataFactory{}).(*header.Header).FileSize = fileSize
+	header, found := typedmap.Get(metadataSet, header.HeaderMetadataKey)
+	if found {
+		header.FileSize = fileSize
+	}
 	return store, nil
 })

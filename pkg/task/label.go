@@ -14,108 +14,59 @@
 
 package task
 
-// LabelSet manages labels assigned to a task definition.
-type LabelSet struct {
-	rawLabels map[string]interface{}
+import "github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+
+// TaskLabelKey is a key of labels given to task.
+type TaskLabelKey[LabelValueType any] = typedmap.TypedKey[LabelValueType]
+
+// NewTaskLabelKey returns the key used in labels with type annotation,
+func NewTaskLabelKey[T any](key string) TaskLabelKey[T] {
+	return typedmap.NewTypedKey[T](key)
 }
 
 // Construct the LabelSet with required fields.
-func NewLabelSet(labelOpts ...LabelOpt) *LabelSet {
-	labelSet := &LabelSet{
-		rawLabels: map[string]interface{}{},
-	}
+func NewLabelSet(labelOpts ...LabelOpt) *typedmap.ReadonlyTypedMap {
+	typedMap := typedmap.NewTypedMap()
 	for _, lo := range labelOpts {
-		lo.Write(labelSet)
+		lo.Write(typedMap)
 	}
-	return labelSet
+	return typedMap.AsReadonly()
 }
 
-func (l *LabelSet) Get(key string) (any, bool) {
-	value, exist := l.rawLabels[key]
-	return value, exist
-}
-
-func (l *LabelSet) GetOrDefault(key string, defaultValue any) any {
-	value, exist := l.Get(key)
-	if exist {
-		return value
-	}
-	return defaultValue
-}
-
-func (l *LabelSet) Set(key string, value any) {
-	l.rawLabels[key] = value
-}
-
-// LabelOpt is a utility to modify label during task definition generation.
-// See producer.go for the actual usage.
+// LabelOpt implementations wraps setting values to the task albels.
 type LabelOpt interface {
-	Write(label *LabelSet)
+	Write(labels *typedmap.TypedMap)
 }
 
-type labelAdder struct {
-	key   string
-	value any
+type selectionPrioirtyLabelOpt struct {
+	priority int
 }
 
-// Write implements LabelOpt.
-func (a *labelAdder) Write(label *LabelSet) {
-	label.Set(a.key, a.value)
+func (s *selectionPrioirtyLabelOpt) Write(ls *typedmap.TypedMap) {
+	typedmap.Set(ls, LabelKeyTaskSelectionPriority, s.priority)
 }
 
-var _ LabelOpt = (*labelAdder)(nil)
-
-func WithLabel(key string, value any) LabelOpt {
-	return &labelAdder{
-		key:   key,
-		value: value,
+func WithSelectionPriority(priority int) LabelOpt {
+	return &selectionPrioirtyLabelOpt{
+		priority: priority,
 	}
 }
 
-type cloneLabel struct {
-	source *LabelSet
+// labelValueOpt stores a label value associating to a label key.
+type labelValueOpt[T any] struct {
+	labelKey TaskLabelKey[T]
+	value    T
 }
 
-// Write implements LabelOpt.
-func (c *cloneLabel) Write(label *LabelSet) {
-	for key, value := range c.source.rawLabels {
-		label.Set(key, value)
-	}
+// Write implements LabelOpt interface
+func (o *labelValueOpt[T]) Write(labels *typedmap.TypedMap) {
+	typedmap.Set(labels, o.labelKey, o.value)
 }
 
-var _ LabelOpt = (*cloneLabel)(nil)
-
-func FromLabelSet(labelSet *LabelSet) LabelOpt {
-	return &cloneLabel{
-		source: labelSet,
-	}
-}
-
-type LabelFilter interface {
-	Filter(label *LabelSet) bool
-}
-
-type equalLabelFilter struct {
-	labelKey      string
-	defaultResult bool
-	operand       any
-}
-
-// Filter implements LabelFilter.
-func (e *equalLabelFilter) Filter(label *LabelSet) bool {
-	l, exist := label.Get(e.labelKey)
-	if exist {
-		return l == e.operand
-	}
-	return e.defaultResult
-}
-
-var _ LabelFilter = (*equalLabelFilter)(nil)
-
-func EqualLabelFilter(labelKey string, operand any, defaultResult bool) LabelFilter {
-	return &equalLabelFilter{
-		labelKey:      labelKey,
-		operand:       operand,
-		defaultResult: defaultResult,
+// WithLabelValue creates a LabelOpt to store a single value associated to a label key.
+func WithLabelValue[T any](labelKey TaskLabelKey[T], value T) LabelOpt {
+	return &labelValueOpt[T]{
+		labelKey: labelKey,
+		value:    value,
 	}
 }

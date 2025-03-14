@@ -106,7 +106,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 					t.Errorf("the result is not valid:\n%s", diff)
 				}
 				if err != nil {
-					t.Errorf(err.Error())
+					t.Errorf("%s", err.Error())
 				}
 			}
 		})
@@ -145,7 +145,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 	res, err := testtask.RunSingleTask[[]*types.ResourceSpecificParserInput](Task, task.TaskModeRun,
 		testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	if len(res) != len(logs) {
@@ -194,7 +194,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 	res, err := testtask.RunSingleTask[[]*types.ResourceSpecificParserInput](Task, task.TaskModeRun,
 		testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	if len(res) != 50 {

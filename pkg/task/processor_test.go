@@ -20,8 +20,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
 func TestProcessorTaskWithSuccessResult(t *testing.T) {
@@ -67,7 +69,9 @@ func TestProcessorTaskWithErroResult(t *testing.T) {
 func TestProcessorTaskToBeCreatedWithGivenProperties(t *testing.T) {
 	taskId := "foo-task"
 	sources := []string{"bar-output", "qux-output"}
-	labels := []LabelOpt{WithLabel("label-foo", "foo-value"), WithLabel("label-bar", "bar-value")}
+	labelFooKey := NewTaskLabelKey[string]("label-foo")
+	labelBarKey := NewTaskLabelKey[string]("label-bar")
+	labels := []LabelOpt{WithLabelValue(labelFooKey, "foo-value"), WithLabelValue(labelBarKey, "bar-value")}
 	processor := NewProcessorTask(taskId, sources, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
 		return "foo-value", nil
 	}, labels...)
@@ -87,7 +91,7 @@ func TestProcessorTaskToBeCreatedWithGivenProperties(t *testing.T) {
 	cmpValues := []struct {
 		Id           string
 		Dependencies []string
-		Label        *LabelSet
+		Label        *typedmap.ReadonlyTypedMap
 	}{
 		{
 			Id:           taskId,
@@ -100,7 +104,7 @@ func TestProcessorTaskToBeCreatedWithGivenProperties(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(cmpValues[0], cmpValues[1], cmp.AllowUnexported(LabelSet{})); diff != "" {
+	if diff := cmp.Diff(cmpValues[0], cmpValues[1], cmpopts.IgnoreUnexported(typedmap.ReadonlyTypedMap{})); diff != "" {
 		t.Errorf("processor was initialized with unexpected values\n%s", diff)
 	}
 }

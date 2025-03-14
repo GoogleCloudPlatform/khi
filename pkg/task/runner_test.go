@@ -97,28 +97,6 @@ func TestLocalRunnerToBeCompleted(t *testing.T) {
 		},
 		{
 			definitions: []Definition{
-				newDebugDefinition("foo1", []string{}).WithRunnable(newDebugRunnable(100, "foo1")).WithThreadUnsafeLabel(),
-				newDebugDefinition("foo2", []string{"foo1"}).WithRunnable(newDebugRunnable(100, "foo2")).WithThreadUnsafeLabel(),
-				newDebugDefinition("foo3", []string{"foo2"}).WithRunnable(newDebugRunnable(100, "foo3")).WithThreadUnsafeLabel(),
-			},
-			expectError: false,
-			expectedStatus: []*LocalRunnerTaskStat{
-				{
-					Phase: LocalRunnerTaskStatPhaseStopped,
-					Error: nil,
-				},
-				{
-					Phase: LocalRunnerTaskStatPhaseStopped,
-					Error: nil,
-				},
-				{
-					Phase: LocalRunnerTaskStatPhaseStopped,
-					Error: nil,
-				},
-			},
-		},
-		{
-			definitions: []Definition{
 				newDebugDefinition("foo1", []string{}).WithRunnable(newErrorDebugRunnable(100)),
 				newDebugDefinition("foo2", []string{"foo1"}).WithRunnable(newDebugRunnable(100, "foo2")),
 				newDebugDefinition("foo3", []string{"foo1"}).WithRunnable(newDebugRunnable(100, "foo3")),
@@ -132,50 +110,6 @@ func TestLocalRunnerToBeCompleted(t *testing.T) {
 				{
 					Phase: LocalRunnerTaskStatPhaseWaiting,
 					Error: nil,
-				},
-				{
-					Phase: LocalRunnerTaskStatPhaseWaiting,
-					Error: nil,
-				},
-			},
-		},
-		{
-			definitions: []Definition{
-				newDebugDefinition("foo1", []string{}).WithRunnable(newErrorDebugRunnable(100)).WithThreadUnsafeLabel(),
-				newDebugDefinition("foo2", []string{"foo1"}).WithRunnable(newDebugRunnable(100, "foo2")).WithThreadUnsafeLabel(),
-				newDebugDefinition("foo3", []string{"foo2"}).WithRunnable(newDebugRunnable(100, "foo3")).WithThreadUnsafeLabel(),
-			},
-			expectError: true,
-			expectedStatus: []*LocalRunnerTaskStat{
-				{
-					Phase: LocalRunnerTaskStatPhaseStopped,
-					Error: errFoo,
-				},
-				{
-					Phase: LocalRunnerTaskStatPhaseWaiting,
-					Error: nil,
-				},
-				{
-					Phase: LocalRunnerTaskStatPhaseWaiting,
-					Error: nil,
-				},
-			},
-		},
-		{
-			definitions: []Definition{
-				newDebugDefinition("foo1", []string{}).WithRunnable(newErrorDebugRunnable(100)),
-				newDebugDefinition("foo2", []string{}).WithRunnable(newDebugRunnable(1000, "foo2")),
-				newDebugDefinition("foo3", []string{"foo1", "foo2"}).WithRunnable(newDebugRunnable(100, "foo3")).WithThreadUnsafeLabel(),
-			},
-			expectError: true,
-			expectedStatus: []*LocalRunnerTaskStat{
-				{
-					Phase: LocalRunnerTaskStatPhaseStopped,
-					Error: errFoo,
-				},
-				{
-					Phase: LocalRunnerTaskStatPhaseStopped,
-					Error: context.Canceled,
 				},
 				{
 					Phase: LocalRunnerTaskStatPhaseWaiting,

@@ -17,11 +17,12 @@ package error
 import (
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-const ErrorMessageSetMetadataKey = "error"
+var ErrorMessageSetMetadataKey = metadata.NewMetadataKey[*ErrorMessageSet]("error")
 
 type ErrorMessage struct {
 	ErrorId int    `json:"errorId"`
@@ -35,7 +36,7 @@ type ErrorMessageSet struct {
 }
 
 // Labels implements metadata.Metadata.
-func (e *ErrorMessageSet) Labels() *task.LabelSet {
+func (e *ErrorMessageSet) Labels() *typedmap.ReadonlyTypedMap {
 	return task.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList())
 }
 
@@ -77,12 +78,8 @@ func NewUnauthorizedErrorMessage() *ErrorMessage {
 	}
 }
 
-var _ metadata.MetadataFactory = (*ErrorMessageSetFactory)(nil)
-
-type ErrorMessageSetFactory struct {
-}
-
-// Instanciate implements metadata.MetadataFactory.
-func (e *ErrorMessageSetFactory) Instanciate() metadata.Metadata {
-	return &ErrorMessageSet{[]*ErrorMessage{}}
+func NewErrorMessageSet() *ErrorMessageSet {
+	return &ErrorMessageSet{
+		ErrorMessages: []*ErrorMessage{},
+	}
 }

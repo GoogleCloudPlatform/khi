@@ -18,11 +18,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-const ProgressMetadataKey = "progress"
+var ProgressMetadataKey = metadata.NewMetadataKey[*Progress]("progress")
 
 const TASK_PHASE_RUNNING = "RUNNING"
 const TASK_PHASE_DONE = "DONE"
@@ -69,12 +70,7 @@ type Progress struct {
 	lock              sync.Mutex      `json:"-"`
 }
 
-var _ metadata.Metadata = (*Progress)(nil)
-
-type ProgressMetadataFactory struct{}
-
-// Instanciate implements metadata.MetadataFactory.
-func (p *ProgressMetadataFactory) Instanciate() metadata.Metadata {
+func NewProgress() *Progress {
 	return &Progress{
 		Phase:             TASK_PHASE_RUNNING,
 		TaskProgresses:    make([]*TaskProgress, 0),
@@ -85,10 +81,8 @@ func (p *ProgressMetadataFactory) Instanciate() metadata.Metadata {
 	}
 }
 
-var _ metadata.MetadataFactory = (*ProgressMetadataFactory)(nil)
-
 // Labels implements Metadata.
-func (*Progress) Labels() *task.LabelSet {
+func (*Progress) Labels() *typedmap.ReadonlyTypedMap {
 	return task.NewLabelSet(
 		metadata.IncludeInTaskList(),
 	)

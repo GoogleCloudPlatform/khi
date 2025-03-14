@@ -17,7 +17,10 @@ package testtask
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
@@ -58,8 +61,13 @@ func RunMultipleTask[T any](target task.Definition, availableTasks []task.Defini
 
 	localRunner = localRunner.WithCacheProvider(&task.LocalTaskVariableCache{})
 
+	metadata := typedmap.NewTypedMap()
+	typedmap.Set(metadata, header.HeaderMetadataKey, &header.Header{})
+	typedmap.Set(metadata, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
+	typedmap.Set(metadata, progress.ProgressMetadataKey, progress.NewProgress())
+
 	err = localRunner.Run(context.Background(), mode, map[string]any{
-		inspection_task.MetadataVariableName: metadata.NewSet(),
+		inspection_task.MetadataVariableName: metadata.AsReadonly(),
 	})
 	if err != nil {
 		return *new(T), err
@@ -75,7 +83,6 @@ func RunMultipleTask[T any](target task.Definition, availableTasks []task.Defini
 
 func generateVariableSetFromOpts(opts ...TestRunTaskParameterOpt) map[string]any {
 	parameters := map[string]any{}
-	parameters[inspection_task.MetadataVariableName] = metadata.NewSet()
 	for _, opt := range opts {
 		opt.AddParam(parameters)
 	}

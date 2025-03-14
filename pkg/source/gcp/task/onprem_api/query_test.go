@@ -61,7 +61,7 @@ func TestGenerateOnPremAPIQueryIsValid(t *testing.T) {
 			query := GenerateOnPremAPIQuery(tc.ClusterName)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
-				t.Errorf(err.Error())
+				t.Errorf("%s", err.Error())
 			}
 		})
 	}

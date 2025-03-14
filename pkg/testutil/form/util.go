@@ -18,7 +18,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -62,9 +62,11 @@ func TestTextForms(t *testing.T, label string, formVariable task.Definition, tes
 			if err != nil {
 				t.Errorf("unexpected error during creating an instance of LocalRunner\n%v", err)
 			}
-			md := metadata.NewSet()
+			md := typedmap.NewTypedMap()
+			formFields := form.NewFormFieldSet()
+			typedmap.Set(md, form.FormFieldSetMetadataKey, formFields)
 			err = runner.Run(context.Background(), inspection_task.TaskModeDryRun, map[string]any{
-				inspection_task.MetadataVariableName: md,
+				inspection_task.MetadataVariableName: md.AsReadonly(),
 				inspection_task.InspectionRequestVariableName: &inspection_task.InspectionRequest{
 					Values: map[string]any{
 						formVariable.ID().ReferenceId().String(): testCase.Input,
@@ -87,7 +89,6 @@ func TestTextForms(t *testing.T, label string, formVariable task.Definition, tes
 				t.Errorf("the form task didn't generate the expected output\n%s", diff)
 			}
 
-			formFields := md.LoadOrStore(form.FormFieldSetMetadataKey, &form.FormFieldSetMetadataFactory{}).(*form.FormFieldSet)
 			field := formFields.DangerouslyGetField(formVariable.ID().ReferenceId().String())
 			if field.Type != "Text" {
 				t.Errorf("the generated form has type %s and it's not Text", field.Type)

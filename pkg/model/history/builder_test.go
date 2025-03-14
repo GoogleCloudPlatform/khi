@@ -276,7 +276,7 @@ func TestGetChildResources(t *testing.T) {
 			if diff := cmp.Diff(actualTimelineResourcePaths, testCase.ExpectedTimelines, cmpopts.SortSlices(func(a string, b string) bool {
 				return strings.Compare(a, b) > 0
 			})); diff != "" {
-				t.Errorf(diff)
+				t.Error(diff)
 			}
 		})
 	}

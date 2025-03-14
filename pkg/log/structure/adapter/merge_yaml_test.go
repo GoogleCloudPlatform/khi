@@ -28,7 +28,7 @@ func TestYamlMergeAdapterTest(t *testing.T) {
 	yamlAdapter := MergeYaml("foo: hello", "bar: world", &merger.MergeConfigResolver{})
 	reader, err := yamlAdapter.GetReaderBackedByStore(&store)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if reader.ReadStringOrDefault("foo", "") != "hello" {
 		t.Errorf("expected hello world, got %s", reader.ReadStringOrDefault("foo", ""))

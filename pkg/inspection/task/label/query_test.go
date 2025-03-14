@@ -17,6 +17,7 @@ package label
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 
@@ -27,27 +28,27 @@ func TestQueryTaskLabelOpt(t *testing.T) {
 	labelOpt := NewQueryTaskLabelOpt(enum.LogTypeComputeApi, "sample query")
 	label := task.NewLabelSet(labelOpt)
 
-	anyQueryTask, exists := label.Get(TaskLabelKeyIsQueryTask)
+	anyQueryTask, exists := typedmap.Get(label, TaskLabelKeyIsQueryTask)
 	if !exists {
-		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyIsQueryTask)
+		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyIsQueryTask.Key())
 	}
-	if anyQueryTask.(bool) != true {
-		t.Errorf("TaskLabel %s is expected to be true, but it is %v", TaskLabelKeyIsQueryTask, anyQueryTask)
+	if anyQueryTask != true {
+		t.Errorf("TaskLabel %s is expected to be true, but it is %v", TaskLabelKeyIsQueryTask.Key(), anyQueryTask)
 	}
 
-	targetLogType, exists := label.Get(TaskLabelKeyQueryTaskTargetLogType)
+	targetLogType, exists := typedmap.Get(label, TaskLabelKeyQueryTaskTargetLogType)
 	if !exists {
-		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyQueryTaskTargetLogType)
+		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyQueryTaskTargetLogType.Key())
 	}
-	if targetLogType.(enum.LogType) != enum.LogTypeComputeApi {
-		t.Errorf("TaskLabel %s is expected to be %v, but it is %v", TaskLabelKeyQueryTaskTargetLogType, enum.LogTypeComputeApi, targetLogType)
+	if targetLogType != enum.LogTypeComputeApi {
+		t.Errorf("TaskLabel %s is expected to be %v, but it is %v", TaskLabelKeyQueryTaskTargetLogType.Key(), enum.LogTypeComputeApi, targetLogType)
 	}
 
-	sampleQuery, exists := label.Get(TaskLabelKeyQueryTaskSampleQuery)
+	sampleQuery, exists := typedmap.Get(label, TaskLabelKeyQueryTaskSampleQuery)
 	if !exists {
-		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyQueryTaskSampleQuery)
+		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyQueryTaskSampleQuery.Key())
 	}
-	if sampleQuery.(string) != "sample query" {
-		t.Errorf("TaskLabel %s is expected to be sample query, but it is %v", TaskLabelKeyQueryTaskSampleQuery, sampleQuery)
+	if sampleQuery != "sample query" {
+		t.Errorf("TaskLabel %s is expected to be sample query, but it is %v", TaskLabelKeyQueryTaskSampleQuery.Key(), sampleQuery)
 	}
 }

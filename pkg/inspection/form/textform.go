@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
@@ -245,8 +246,10 @@ func (b *TextFormDefinitionBuilder) Build(labelOpts ...common_task.LabelOpt) com
 				cacheStore.Store(previousValueStoreKey, newValueHistory)
 			}
 		}
-
-		formFields := m.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet)
+		formFields, found := typedmap.Get(m, form_metadata.FormFieldSetMetadataKey)
+		if !found {
+			return nil, fmt.Errorf("form field set was not found in the metadata set")
+		}
 		err = formFields.SetField(field)
 		if err != nil {
 			return nil, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)

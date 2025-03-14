@@ -26,7 +26,7 @@ import (
 func TestGenerateDefaultMergeConfig(t *testing.T) {
 	resolver, err := GenerateDefaultMergeConfig()
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 	fmt.Println(resolver)
 }

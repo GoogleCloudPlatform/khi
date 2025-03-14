@@ -19,11 +19,12 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-const FormFieldSetMetadataKey = "form"
+var FormFieldSetMetadataKey = metadata.NewMetadataKey[*FormFieldSet]("form")
 
 type FormFieldHintType string
 
@@ -55,7 +56,7 @@ type FormFieldSet struct {
 var _ metadata.Metadata = (*FormFieldSet)(nil)
 
 // Labels implements Metadata.
-func (*FormFieldSet) Labels() *task.LabelSet {
+func (*FormFieldSet) Labels() *typedmap.ReadonlyTypedMap {
 	return task.NewLabelSet(metadata.IncludeInDryRunResult())
 }
 
@@ -94,14 +95,8 @@ func (f *FormFieldSet) DangerouslyGetField(id string) FormField {
 	return FormField{}
 }
 
-type FormFieldSetMetadataFactory struct{}
-
-// Instanciate implements metadata.MetadataFactory.
-func (f *FormFieldSetMetadataFactory) Instanciate() metadata.Metadata {
+func NewFormFieldSet() *FormFieldSet {
 	return &FormFieldSet{
 		fields: make([]FormField, 0),
 	}
 }
-
-// FormFieldSetMetadataFactory implements metadata.MetadataFactory
-var _ (metadata.MetadataFactory) = (*FormFieldSetMetadataFactory)(nil)

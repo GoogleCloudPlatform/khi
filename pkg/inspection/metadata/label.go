@@ -14,26 +14,28 @@
 
 package metadata
 
-import "github.com/GoogleCloudPlatform/khi/pkg/task"
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+)
 
 // TODO: avoid circular dependency and use namespace in the flag name
-const LabelKeyIncludedInRunResultFlag = "metadata/include-in-run-result"
-const LabelKeyIncludedInDryRunResultFlag = "metadata/include-in-dry-run-result"
-const LabelKeyIncludedInTaskListFlag = "metadata/include-in-tasklist"
-const LabelKeyIncludedInResultBinaryFlag = "metadata/include-in-result-binary"
+var LabelKeyIncludedInRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-run-result")
+var LabelKeyIncludedInDryRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-dry-run-result")
+var LabelKeyIncludedInTaskListFlag = NewMetadataLabelsKey[bool]("metadata/include-in-tasklist")
+var LabelKeyIncludedInResultBinaryFlag = NewMetadataLabelsKey[bool]("metadata/include-in-result-binary")
 
 func IncludeInRunResult() task.LabelOpt {
-	return task.WithLabel(LabelKeyIncludedInRunResultFlag, true)
+	return task.WithLabelValue(LabelKeyIncludedInRunResultFlag, true)
 }
 
 func IncludeInDryRunResult() task.LabelOpt {
-	return task.WithLabel(LabelKeyIncludedInDryRunResultFlag, true)
+	return task.WithLabelValue(LabelKeyIncludedInDryRunResultFlag, true)
 }
 
 func IncludeInTaskList() task.LabelOpt {
-	return task.WithLabel(LabelKeyIncludedInTaskListFlag, true)
+	return task.WithLabelValue(LabelKeyIncludedInTaskListFlag, true)
 }
 
 func IncludeInResultBinary() task.LabelOpt {
-	return task.WithLabel(LabelKeyIncludedInResultBinaryFlag, true)
+	return task.WithLabelValue(LabelKeyIncludedInResultBinaryFlag, true)
 }

@@ -83,28 +83,28 @@ func TestCache(t *testing.T) {
 	cache.SetAsync("key4", []byte("value4"))
 	v, err := cache.Get("key1")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if v.Value != "value1" {
 		t.Errorf("expected value1, got %s", v.Value)
 	}
 	v, err = cache.Get("key1")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if v.Value != "value1" {
 		t.Errorf("expected value1, got %s", v.Value)
 	}
 	v, err = cache.Get("key2")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if v.Value != "value2" {
 		t.Errorf("expected value1, got %s", v.Value)
 	}
 	v, err = cache.Get("key4")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 	if v.Value != "value4" {
 		t.Errorf("expected value1, got %s", v.Value)
