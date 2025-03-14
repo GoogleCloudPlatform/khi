@@ -50,13 +50,23 @@
     <div class="footer-container">
       <div class="progress-wrapper">
         @if (isSelectedFileUploading()) {
-          <mat-progress-spinner
-            color="primary"
-            diameter="30"
-            mode="determinate"
-            [value]="uploadRatio() * 100"
-            [matTooltip]="uploadRatio() * 100 + '%'"
-          ></mat-progress-spinner>
+          @let ratio = uploadRatio();
+          <!--The ratio may be undefined when the file size is not available.-->
+          @if (ratio === undefined) {
+            <mat-progress-spinner
+              color="primary"
+              diameter="30"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+          } @else {
+            <mat-progress-spinner
+              color="primary"
+              diameter="30"
+              mode="determinate"
+              [value]="ratio * 100"
+              [matTooltip]="ratio * 100 + '%'"
+            ></mat-progress-spinner>
+          }
           <p class="progress-label upload-status-indicator-label">Uploading</p>
         } @else {
           @if (param.status === UploadStatus.Verifying) {

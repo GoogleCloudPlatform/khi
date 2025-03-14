@@ -87,8 +87,9 @@ export class FileParameterComponent implements OnDestroy {
 
   /**
    * The ratio of file size completed upload.
+   * This ratio may be undefined only when the file size information is not available.
    */
-  uploadRatio = signal(0);
+  uploadRatio = signal<number | undefined>(0);
 
   /**
    * The filename uploaded or will be uploaded on this field.
@@ -168,7 +169,12 @@ export class FileParameterComponent implements OnDestroy {
     this.uploader
       .upload(this.parameter().token, this.selectedFile)
       .subscribe((status) => {
-        this.uploadRatio.set(status.completeRatio);
+        if (status.completeRatioUnknown) {
+          this.uploadRatio.set(undefined);
+        } else {
+          this.uploadRatio.set(status.completeRatio);
+        }
+
         this.requestStoreRefresh();
         if (status.done) {
           this.isSelectedFileUploading.set(false);
@@ -189,8 +195,8 @@ export class FileParameterComponent implements OnDestroy {
   }
 
   /**
-   * request refreshing the store status forcibly.
-   * File form don't store meaningful parameter into the parameter store because it uploads file to the destination specified from the backend.
+   * Request refreshing the store status forcibly.
+   * File form doesn't store meaningful parameter into the parameter store because it uploads file to the destination specified from the backend.
    * Set a timestamp instead of the parameter on the store when file form needs to get the latest form status from backend side.
    */
   private requestStoreRefresh() {
@@ -202,7 +208,7 @@ export class FileParameterComponent implements OnDestroy {
 
   private monitorRefreshingFormStoreWhileVerification() {
     this.formStoreRefreshCancel.next(void 0);
-    return interval(FileParameterComponent.FORM_STATUS_POLLING_INTERVAL_MS)
+    interval(FileParameterComponent.FORM_STATUS_POLLING_INTERVAL_MS)
       .pipe(
         takeUntil(this.formStoreRefreshCancel),
         takeWhile(() => this.parameter().status === UploadStatus.Verifying),
