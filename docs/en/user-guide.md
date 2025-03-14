@@ -24,7 +24,7 @@ Once the query done, you can open the visualization result with hitting the `Ope
 
 ## Understanding the visualization
 
-After opening the log, you will see a colorful visualization.
+After opening the log, you will see a colorful visualization. 
 This is the main view of KHI, and you can see the timeline diagram on the left side, which reveals the macroscopic behavior of resources in your cluster.
 The right side is dedicated to details of each resource. You can see detailed information by selecting a resource in the timeline.
 
