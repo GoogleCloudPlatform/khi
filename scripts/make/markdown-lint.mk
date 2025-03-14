@@ -12,8 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: lint-markdown
+.PHONY: lint-markdown lint-markdown-fix
 
 lint-markdown:
-	@echo "Linting all Markdown files with markdownlint..."
-	@npx markdownlint "**/*.md" 
+	@echo "Linting all Markdown files with markdownlint-cli2..."
+	@npx markdownlint-cli2
+
+lint-markdown-fix:
+	@echo "Fixing Markdown files with markdownlint-cli2..."
+	@npx markdownlint-cli2 --fix
+	@echo "Automatic fixes applied. Please review changes before committing." 
