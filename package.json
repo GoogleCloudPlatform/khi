@@ -1,0 +1,15 @@
+{
+  "name": "khi-devtools",
+  "version": "1.0.0",
+  "description": "Development tools for KHI project",
+  "license": "Apache-2.0",
+  "copyright": "Copyright 2025 Google LLC",
+  "private": true,
+  "devDependencies": {
+    "markdownlint-cli2": "^0.12.1"
+  },
+  "scripts": {
+    "lint:markdown": "markdownlint-cli2",
+    "lint:markdown:fix": "markdownlint-cli2 --fix"
+  }
+} 

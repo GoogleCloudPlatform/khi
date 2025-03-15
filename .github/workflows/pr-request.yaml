@@ -20,6 +20,15 @@ on:
       - 'main'
 
 jobs:
+  markdownlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run markdownlint # Using v19.1.0 (pinned to specific commit for security)
+        uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265
+
   backend-tests:
     runs-on: ubuntu-latest
     permissions:
