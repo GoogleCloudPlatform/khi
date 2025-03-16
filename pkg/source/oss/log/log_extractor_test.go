@@ -12,15 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package form
-
-import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-)
-
-var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
-	MaxLineSizeInBytes: 1024 * 1024 * 1024,
-}).
-	WithDescription(`Upload JSONLine format kube-apiserver audit log`).
-	Build()
+package log

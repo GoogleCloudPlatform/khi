@@ -26,12 +26,23 @@ func Prepare(inspetionServer *inspection.InspectionTaskServer) error {
 		return err
 	}
 
-	// TODO: remove before merging this into main
-	err = inspetionServer.AddTaskDefinition(parser.OSSPlaceHolderParser)
+	err = inspetionServer.AddTaskDefinition(parser.OSSK8sEventLogParserTask)
 	if err != nil {
 		return err
 	}
-	err = inspetionServer.AddTaskDefinition(form.TestTextForm)
+	err = inspetionServer.AddTaskDefinition(parser.OSSK8sAuditParserTask)
+	if err != nil {
+		return err
+	}
+	err = inspetionServer.AddTaskDefinition(parser.OSSLogFileReader)
+	if err != nil {
+		return err
+	}
+	err = inspetionServer.AddTaskDefinition(parser.OSSEventLogFilter)
+	if err != nil {
+		return err
+	}
+	err = inspetionServer.AddTaskDefinition(parser.OSSNonEventLogFilter)
 	if err != nil {
 		return err
 	}
