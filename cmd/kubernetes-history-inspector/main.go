@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
@@ -37,6 +37,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
@@ -84,9 +85,10 @@ func init() {
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
 
-	taskSetRegistrer = append(taskSetRegistrer, common.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, inspection_common.PrepareInspectionServer)
 	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
 	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
+	taskSetRegistrer = append(taskSetRegistrer, common.Register)
 }
 
 func handleTerminateSignal(terminateErrorCode int) {

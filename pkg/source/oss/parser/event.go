@@ -59,7 +59,7 @@ func (o *OSSK8sEventFromK8sAudit) LogTask() string {
 
 // Parse implements parser.Parser.
 func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
-	apiVersion := l.Fields.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "unknown")
+	apiVersion := l.Fields.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "core/v1")
 	kind := strings.ToLower(l.Fields.ReadStringOrDefault("responseObject.involvedObject.kind", "unknown"))
 	namespace := l.Fields.ReadStringOrDefault("responseObject.involvedObject.namespace", "cluster-scope")
 	name := l.Fields.ReadStringOrDefault("responseObject.involvedObject.name", "unknown")

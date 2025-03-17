@@ -16,133 +16,86 @@ package parser
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/constants"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/containerstatusrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/endpointslicerecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/noderecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/ownerreferencerecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/statusrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/fieldextractor"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-type OSSK8sAudit struct {
-}
-
-// Dependencies implements parser.Parser.
-func (o *OSSK8sAudit) Dependencies() []string {
-	return []string{}
-}
-
-// Description implements parser.Parser.
-func (o *OSSK8sAudit) Description() string {
-	return `The audit log parser for OSS kubernetes from the JSONL kube-apiserver audit log`
-}
-
-// GetParserName implements parser.Parser.
-func (o *OSSK8sAudit) GetParserName() string {
-	return "OSS Kubernetes Audit logs from JSONL audit log"
-}
-
-// Grouper implements parser.Parser.
-func (o *OSSK8sAudit) Grouper() grouper.LogGrouper {
-	return grouper.AllDependentLogGrouper
-}
-
-// LogTask implements parser.Parser.
-func (o *OSSK8sAudit) LogTask() string {
-	return OSSAuditLogNonEventFilterTaskID
-}
-
-// Parse implements parser.Parser.
-func (o *OSSK8sAudit) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
-	apiGroup := l.Fields.ReadStringOrDefault("objectRef.apiGroup", "core")
-	apiVersion := l.Fields.ReadStringOrDefault("objectRef.apiVersion", "unknown")
-	kind := l.Fields.ReadStringOrDefault("objectRef.resource", "unknown")
-	namespace := l.Fields.ReadStringOrDefault("objectRef.namespace", "cluster-scope")
-	name := l.Fields.ReadStringOrDefault("objectRef.name", "unknown")
-	subresource := l.Fields.ReadStringOrDefault("objectRef.subresource", "")
-	verb := l.Fields.ReadStringOrDefault("verb", "")
-
-	if subresource == "status" {
-		subresource = "" // status subresource response should contain the full body data of its parent
+// OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
+var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionProcessor(taskid.NewTaskImplementationId(constants.CommonAuitLogSource+"#oss").String(), []string{
+	OSSAuditLogNonEventFilterTaskID,
+}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
+	if taskMode == inspection_task.TaskModeDryRun {
+		return struct{}{}, nil
 	}
-
-	k8sOp := model.KubernetesObjectOperation{
-		APIVersion:      fmt.Sprintf("%s/%s", apiGroup, apiVersion),
-		PluralKind:      kind,
-		Namespace:       namespace,
-		Name:            name,
-		SubResourceName: subresource,
-		Verb:            verbStringToEnum(verb),
-	}
-
-	path := resourcepath.ResourcePath{
-		Path:               k8sOp.CovertToResourcePath(),
-		ParentRelationship: enum.RelationshipChild,
-	}
-
-	body, err := l.Fields.ToYaml("responseObject")
+	logs, err := task.GetTypedVariableFromTaskVariable[[]*log.LogEntity](v, OSSAuditLogNonEventFilterTaskID, nil)
 	if err != nil {
-		body = "# failed to parse"
+		return nil, err
+	}
+	return &types.AuditLogParserLogSource{
+		Logs:      logs,
+		Extractor: &fieldextractor.OSSJSONLAuditLogFieldExtractor{},
+	}, nil
+}, inspection_task.InspectionTypeLabel(constant.OSSInspectionTypeID))
+
+// RegisterK8sAuditTasks registers tasks needed for parsing OSS k8s audit logs on the inspection server.
+var RegisterK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspectionServer *inspection.InspectionTaskServer) error {
+	err := inspectionServer.AddTaskDefinition(OSSK8sAuditLogSourceTask)
+	if err != nil {
+		return err
 	}
 
-	requestor := l.Fields.ReadStringOrDefault("user.username", "unknown")
-	status := enum.RevisionStateExisting
-	if verb == "delete" {
-		status = enum.RevisionStateDeleted
+	manager := recorder.NewAuditRecorderTaskManager(taskid.NewTaskImplementationId(constant.OSSTaskPrefix + "audit-parser"))
+	err = commonrecorder.Register(manager)
+	if err != nil {
+		return err
 	}
-	deletionGracefulSeconds := l.Fields.ReadIntOrDefault("responseObject.metadata.deletionGracePeriodSeconds", -1)
-	if deletionGracefulSeconds == 0 {
-		status = enum.RevisionStateDeleted
-	} else if deletionGracefulSeconds > 0 {
-		status = enum.RevisionStateDeleting
+	err = statusrecorder.Register(manager)
+	if err != nil {
+		return err
+	}
+	err = bindingrecorder.Register(manager)
+	if err != nil {
+		return err
+	}
+	err = endpointslicerecorder.Register(manager)
+	if err != nil {
+		return err
+	}
+	err = ownerreferencerecorder.Register(manager)
+	if err != nil {
+		return err
+	}
+	err = containerstatusrecorder.Register(manager)
+	if err != nil {
+		return err
+	}
+	err = noderecorder.Register(manager)
+	if err != nil {
+		return err
 	}
 
-	cs.RecordRevision(path, &history.StagingResourceRevision{
-		Verb:       k8sOp.Verb,
-		Body:       body,
-		Requestor:  requestor,
-		ChangeTime: l.Timestamp(),
-		State:      status,
-	})
-
-	requestURI := l.Fields.ReadStringOrDefault("requestURI", "")
-	cs.RecordLogSummary(fmt.Sprintf("%s %s", verb, requestURI))
+	err = manager.Register(inspectionServer, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, constant.OSSInspectionTypeID))
+	if err != nil {
+		return err
+	}
 	return nil
 }
-
-func verbStringToEnum(verbStr string) enum.RevisionVerb {
-	switch verbStr {
-	case "create":
-		return enum.RevisionVerbCreate
-	case "update":
-		return enum.RevisionVerbUpdate
-	case "patch":
-		return enum.RevisionVerbPatch
-	case "delete":
-		return enum.RevisionVerbDelete
-	case "deletecollection":
-		return enum.RevisionVerbDelete
-	default:
-		// Add verbs for get/list/watch
-		return enum.RevisionVerbUpdate
-	}
-}
-
-// TargetLogType implements parser.Parser.
-func (o *OSSK8sAudit) TargetLogType() enum.LogType {
-	return enum.LogTypeAudit
-}
-
-var _ parser.Parser = (*OSSK8sAudit)(nil)
-
-var OSSK8sAuditParserTask = parser.NewParserTaskFromParser(
-	constant.OSSTaskPrefix+"audit-parser",
-	&OSSK8sAudit{}, true, []string{
-		constant.OSSInspectionTypeID,
-	},
-)

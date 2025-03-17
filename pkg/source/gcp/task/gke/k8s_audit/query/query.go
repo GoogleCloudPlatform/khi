@@ -24,11 +24,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+
+	gcp_k8s_audit_constants "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/constants"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-var Task = query.NewQueryGeneratorTask(k8saudittask.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []string{
+var Task = query.NewQueryGeneratorTask(gcp_k8s_audit_constants.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []string{
 	gcp_task.InputClusterNameTaskID,
 	gcp_task.InputKindFilterTaskID,
 	gcp_task.InputNamespaceFilterTaskID,
