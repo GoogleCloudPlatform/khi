@@ -26,12 +26,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
-
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
 )
 
 var serialportSequenceConverters = []parserutil.SpecialSequenceConverter{
@@ -103,4 +100,4 @@ func (*SerialPortLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 
 var _ parser.Parser = (*SerialPortLogParser)(nil)
 
-var GKESerialPortLogParseTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/serialport", &SerialPortLogParser{}, false, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_task.InspectionTypeId))
+var GKESerialPortLogParseTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/serialport", &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)

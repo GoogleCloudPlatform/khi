@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	gcp_k8s_audit_constants "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/constants"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -57,7 +57,7 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 }
 
 var ComputeAPIQueryTask = query.NewQueryGeneratorTask(ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []string{
-	k8saudittask.K8sAuditParseTaskID,
+	gcp_k8s_audit_constants.K8sAuditParseTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
 	builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(vs)
 	if err != nil {

@@ -29,11 +29,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser/k8s"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-var GKENodeLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/nodelog-parser", &k8sNodeParser{}, false)
+var GKENodeLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/nodelog-parser", &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
 
 const ContainerdStartingMsg = "starting containerd"
 const DockerdStartingMsg = "Starting up"

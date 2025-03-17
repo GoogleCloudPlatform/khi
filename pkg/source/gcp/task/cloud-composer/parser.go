@@ -20,7 +20,6 @@ import (
 	"regexp"
 	"strings"
 
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -80,7 +79,7 @@ func tiStatusToVerb(ti *model.AirflowTaskInstance) (enum.RevisionVerb, enum.Revi
 	}
 }
 
-var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"composer/scheduler", &AirflowSchedulerParser{}, false, inspection_task.InspectionTypeLabel(InspectionTypeId))
+var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"composer/scheduler", &AirflowSchedulerParser{}, false, []string{InspectionTypeId})
 
 // Parse airflow-scheduler logs and make them into TaskInstances.
 // This parser will detect these lifecycles;
@@ -211,7 +210,7 @@ var (
 	airflowWorkerMarkingStatusTemplate = regexp.MustCompile(`.*Marking task as\s(?P<state>\S+).\sdag_id=(?P<dagid>\S+),\stask_id=(?P<taskid>\S+),\s(map_index=(?P<mapIndex>\d+),\s)?.+`)
 )
 
-var AirflowWorkerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"composer/worker", &AirflowWorkerParser{}, false, inspection_task.InspectionTypeLabel(InspectionTypeId))
+var AirflowWorkerLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"composer/worker", &AirflowWorkerParser{}, false, []string{InspectionTypeId})
 
 // Parse airflow-scheduler logs and make them into TaskInstances.
 // This parser will detect these lifecycles;
@@ -366,7 +365,7 @@ type airflowParserFn interface {
 	fn(inputLog *log.LogEntity) (*model.AirflowTaskInstance, error)
 }
 
-var AirflowDagProcessorLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"composer/dagprocessor", &AirflowDagProcessorParser{"/home/airflow/gcs/dags/"}, false, inspection_task.InspectionTypeLabel(InspectionTypeId))
+var AirflowDagProcessorLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"composer/dagprocessor", &AirflowDagProcessorParser{"/home/airflow/gcs/dags/"}, false, []string{InspectionTypeId})
 
 type AirflowDagProcessorParser struct {
 	dagFilePath string

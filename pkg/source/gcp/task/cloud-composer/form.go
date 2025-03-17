@@ -73,5 +73,5 @@ var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(InputComposer
 }).Build()
 
 func GetInputComposerEnvironmentVariable(tv *task.VariableSet) (string, error) {
-	return task.GetTypedVariableFromTaskVariable[string](tv, InputComposerEnvironmentNameTask.ID().String(), "<INVALID>")
+	return task.GetTypedVariableFromTaskVariable(tv, InputComposerEnvironmentNameTask.ID().String(), "<INVALID>")
 }
