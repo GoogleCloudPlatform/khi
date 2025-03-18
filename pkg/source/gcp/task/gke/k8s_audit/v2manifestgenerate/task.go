@@ -33,23 +33,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/rtype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
 
-var Task = inspection_task.NewInspectionProcessor(k8saudittask.ManifestGenerateTaskID, []string{
+var Task = inspection_task.NewInspectionProcessor(k8saudittask.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
 	inspection_task.ReaderFactoryGeneratorTaskID,
 	k8saudittask.TimelineGroupingTaskID,
-	gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().ReferenceId().String(),
-}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+	gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID(),
+}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_task.TaskModeDryRun {
-		return struct{}{}, nil
+		return nil, nil
 	}
-	groups, err := task.GetTypedVariableFromTaskVariable[[]*types.TimelineGrouperResult](v, k8saudittask.TimelineGroupingTaskID, nil)
+	groups, err := task.GetTypedVariableFromTaskVariable[[]*types.TimelineGrouperResult](v, k8saudittask.TimelineGroupingTaskID.ReferenceIDString(), nil)
 	if err != nil {
 		return nil, err
 	}
-	mergeConfigRegistry, err := task.GetTypedVariableFromTaskVariable[*model_k8s.MergeConfigRegistry](v, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().ReferenceId().String(), nil)
+	mergeConfigRegistry, err := task.GetTypedVariableFromTaskVariable[*model_k8s.MergeConfigRegistry](v, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().ReferenceIDString(), nil)
 	if err != nil {
 		return nil, err
 	}

@@ -23,11 +23,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	gke_compute_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
-
-var ComputeAPIQueryTaskID = query.GKEQueryPrefix + "compute-api"
 
 func GenerateComputeAPIQuery(taskMode int, nodeNames []string) []string {
 	if taskMode == inspection_task.TaskModeDryRun {
@@ -56,7 +56,7 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 `, instanceNameFilter)
 }
 
-var ComputeAPIQueryTask = query.NewQueryGeneratorTask(ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []string{
+var ComputeAPIQueryTask = query.NewQueryGeneratorTask(gke_compute_api_taskid.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
 	k8saudittask.K8sAuditParseTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
 	builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(vs)

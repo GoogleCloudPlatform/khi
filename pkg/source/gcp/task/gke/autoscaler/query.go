@@ -21,10 +21,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
-
-var AutoscalerQueryTaskID = query.GKEQueryPrefix + "autoscaler"
 
 func GenerateAutoscalerQuery(projectId string, clusterName string, excludeStatus bool) string {
 	excludeStatusQueryFragment := "-- include query for status log"
@@ -38,7 +38,7 @@ resource.labels.cluster_name="%s"
 logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, projectId, clusterName, excludeStatusQueryFragment, projectId)
 }
 
-var AutoscalerQueryTask = query.NewQueryGeneratorTask(AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []string{
+var AutoscalerQueryTask = query.NewQueryGeneratorTask(gke_autoscaler_taskid.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {

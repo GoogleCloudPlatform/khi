@@ -20,8 +20,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AnthosOnAzureClusterNamePrefixTask = inspection_task.NewInspectionProducer(task.ClusterNamePrefixTaskID+"#gke-on-azure", func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (any, error) {
+var AnthosOnAzureClusterNamePrefixTask = inspection_task.NewInspectionProducer(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "gke-on-azure"), func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (string, error) {
 	return "azureClusters/", nil
 }, inspection_task.InspectionTypeLabel(InspectionTypeId))

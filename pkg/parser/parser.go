@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -50,16 +51,16 @@ type Parser interface {
 	Description() string
 
 	// LogTask returns the task Id generating []*log.LogEntity
-	LogTask() string
+	LogTask() taskid.TaskReference[[]*log.LogEntity]
 
 	// Dependencies returns the list of task Ids excluding the log task
-	Dependencies() []string
+	Dependencies() []taskid.UntypedTaskReference
 
 	// Grouper returns LogGrouper that groups logs into multiple sets. These sets are sorted individually and parsed in parallel, then merged later.
 	Grouper() grouper.LogGrouper
 }
 
-func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool, labelOpts ...task.LabelOpt) task.Definition {
+func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Parser, isDefaultFeature bool, labelOpts ...task.LabelOpt) task.Definition[any] {
 	return inspection_task.NewInspectionProcessor(taskId, append(parser.Dependencies(), parser.LogTask(), inspection_task.BuilderGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 		if taskMode == inspection_task.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
@@ -69,7 +70,7 @@ func NewParserTaskFromParser(taskId string, parser Parser, isDefaultFeature bool
 		if err != nil {
 			return nil, err
 		}
-		logs, err := task.GetTypedVariableFromTaskVariable[[]*log.LogEntity](v, parser.LogTask(), nil)
+		logs, err := task.GetTypedVariableFromTaskVariable[[]*log.LogEntity](v, parser.LogTask().ReferenceIDString(), nil)
 		if err != nil {
 			return nil, err
 		}

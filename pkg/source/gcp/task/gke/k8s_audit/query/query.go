@@ -26,9 +26,10 @@ import (
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var Task = query.NewQueryGeneratorTask(k8saudittask.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []string{
+var Task = query.NewQueryGeneratorTask(k8saudittask.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
 	gcp_task.InputClusterNameTaskID,
 	gcp_task.InputKindFilterTaskID,
 	gcp_task.InputNamespaceFilterTaskID,

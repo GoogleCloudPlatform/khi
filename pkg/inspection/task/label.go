@@ -18,6 +18,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 //TODO: move task label related constants to ./label
@@ -30,6 +31,9 @@ const (
 	TaskModeDryRun = 1
 	TaskModeRun    = 2
 )
+
+var InspectionMainSubgraphInitTaskID = taskid.NewDefaultImplementationID[any](InspectionMainSubgraphName + "-init")
+var InspectionMainSubgraphDoneTaskID = taskid.NewDefaultImplementationID[any](InspectionMainSubgraphName + "-done")
 
 var (
 	LabelKeyInspectionFeatureFlag        = common_task.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")

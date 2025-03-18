@@ -23,7 +23,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 func GenerateK8sNodeLogQuery(projectId string, clusterId string, nodeNameSubstrings []string) string {
@@ -42,9 +44,7 @@ func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
 	}
 }
 
-const GKENodeLogQueryTaskID = query.GKEQueryPrefix + "k8s-node"
-
-var GKENodeQueryTask = query.NewQueryGeneratorTask(GKENodeLogQueryTaskID, "Kubernetes node log", enum.LogTypeNode, []string{
+var GKENodeQueryTask = query.NewQueryGeneratorTask(k8s_node_taskid.GKENodeLogQueryTaskID, "Kubernetes node log", enum.LogTypeNode, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
 	gcp_task.InputNodeNameFilterTaskID,

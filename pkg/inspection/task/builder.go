@@ -20,11 +20,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-const BuilderGeneratorTaskID = InspectionTaskPrefix + "builder-generator"
+var BuilderGeneratorTaskID = taskid.NewDefaultImplementationID[*history.Builder](InspectionTaskPrefix + "builder-generator")
 
-var BuilderGeneratorTask = task.NewProcessorTask(BuilderGeneratorTaskID, []string{ioconfig.IOConfigTaskName}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+var BuilderGeneratorTask = task.NewProcessorTask(BuilderGeneratorTaskID, []taskid.UntypedTaskReference{ioconfig.IOConfigTaskID}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*history.Builder, error) {
 	ioConfig, err := ioconfig.GetIOConfigFromTaskVariable(v)
 	if err != nil {
 		return nil, err

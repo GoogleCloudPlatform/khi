@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_task
+package composer_query
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -27,9 +29,9 @@ func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
 	ctx := context.Background()
 	projectId := "test-project"
 	environmentName := "test-environment"
-	vs := &task.VariableSet{}
-	vs.Set(gcp_task.InputProjectIdTaskID, projectId)
-	vs.Set(InputComposerEnvironmentTaskID, environmentName)
+	vs := task.NewVariableSet(map[string]any{})
+	vs.Set(gcp_task.InputProjectIdTaskID.ReferenceIDString(), projectId)
+	vs.Set(composer_taskid.InputComposerEnvironmentTaskID.ReferenceIDString(), environmentName)
 
 	// resource.type="cloud_composer_environment"
 	// resource.labels.environment_name="test-environment"

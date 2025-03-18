@@ -29,15 +29,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/rtype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var Task = inspection_task.NewInspectionProcessor(k8saudittask.TimelineGroupingTaskID, []string{
+var Task = inspection_task.NewInspectionProcessor(k8saudittask.TimelineGroupingTaskID, []taskid.UntypedTaskReference{
 	k8saudittask.CommonLogParseTaskID,
-}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_task.TaskModeDryRun {
-		return struct{}{}, nil
+		return nil, nil
 	}
-	preStepParseResult, err := task.GetTypedVariableFromTaskVariable[[]*types.ResourceSpecificParserInput](v, k8saudittask.CommonLogParseTaskID, nil)
+	preStepParseResult, err := task.GetTypedVariableFromTaskVariable[[]*types.ResourceSpecificParserInput](v, k8saudittask.CommonLogParseTaskID.ReferenceIDString(), nil)
 	if err != nil {
 		return nil, err
 	}

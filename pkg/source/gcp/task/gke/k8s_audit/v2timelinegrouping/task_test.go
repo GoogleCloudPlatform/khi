@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2commonlogparse"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 
@@ -32,13 +33,13 @@ import (
 
 func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
-		result, err := testtask.RunSingleTask[struct{}](Task, task.TaskModeDryRun,
-			testtask.PriorTaskResultFromID(task.MetadataVariableName, typedmap.NewTypedMap().AsReadonly()),
-			testtask.PriorTaskResultFromID(k8saudittask.CommonLogParseTaskID, struct{}{}))
+		result, err := testtask.RunSingleTask(Task, task.TaskModeDryRun,
+			testtask.PriorTaskResultFromID(taskid.NewDefaultImplementationID[*typedmap.ReadonlyTypedMap](task.MetadataVariableName), typedmap.NewTypedMap().AsReadonly()),
+			testtask.PriorTaskResultFromID(k8saudittask.CommonLogParseTaskID, nil))
 		if err != nil {
 			t.Error(err)
 		}
-		if result != struct{}{} {
+		if result != nil {
 			t.Errorf("the result is not valid")
 		}
 	})
@@ -73,8 +74,8 @@ timestamp: 2024-01-01T00:00:00+09:00`
 			logs = append(logs, tl.With(opt...).MustBuildLogEntity(&log.UnreachableCommonFieldExtractor{}))
 		}
 
-		result, err := testtask.RunMultipleTask[[]*types.TimelineGrouperResult](Task, []base_task.Definition{v2commonlogparse.Task}, task.TaskModeRun,
-			testtask.PriorTaskResultFromID(task.MetadataVariableName, typedmap.NewTypedMap().AsReadonly()),
+		result, err := testtask.RunMultipleTask[[]*types.TimelineGrouperResult](Task, []base_task.UntypedDefinition{v2commonlogparse.Task}, task.TaskModeRun,
+			testtask.PriorTaskResultFromID(taskid.NewDefaultImplementationID[*typedmap.ReadonlyTypedMap](task.MetadataVariableName), typedmap.NewTypedMap().AsReadonly()),
 			testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 		if err != nil {
 			t.Error(err)

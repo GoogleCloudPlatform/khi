@@ -21,25 +21,26 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-type InspectionProcessorFunc = func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error)
+type InspectionProcessorFunc[T any] = func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (T, error)
 
 // NewInspectionProcessor generates a processor task.Definition with progress reporting feature
-func NewInspectionProcessor(taskId string, dependencies []string, processor InspectionProcessorFunc, labelOpts ...task.LabelOpt) task.Definition {
-	return task.NewProcessorTask(taskId, dependencies, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+func NewInspectionProcessor[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, processor InspectionProcessorFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
+	return task.NewProcessorTask(taskId, dependencies, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
 		md, err := GetMetadataSetFromVariable(v)
 		if err != nil {
-			return nil, err
+			return *new(T), err
 		}
 		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
 		if !found {
-			return nil, fmt.Errorf("progress metadata not found")
+			return *new(T), fmt.Errorf("progress metadata not found")
 		}
-		defer progress.ResolveTask(taskId)
-		taskProgress, err := progress.GetTaskProgress(taskId)
+		defer progress.ResolveTask(taskId.String())
+		taskProgress, err := progress.GetTaskProgress(taskId.String())
 		if err != nil {
-			return nil, err
+			return *new(T), err
 		}
 		return processor(ctx, taskMode, v, taskProgress)
 
@@ -47,43 +48,43 @@ func NewInspectionProcessor(taskId string, dependencies []string, processor Insp
 }
 
 // NewInspectionCachedProcessor generates a cached processor task.Definition with progress reporting feature
-func NewInspectionCachedProcessor(taskId string, dependencies []string, processor InspectionProcessorFunc, labelOpts ...task.LabelOpt) task.Definition {
-	return task.NewCachedProcessor(taskId, dependencies, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+func NewInspectionCachedProcessor[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, processor InspectionProcessorFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
+	return task.NewCachedProcessor(taskId, dependencies, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
 		md, err := GetMetadataSetFromVariable(v)
 		if err != nil {
-			return nil, err
+			return *new(T), err
 		}
 		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
 		if !found {
-			return nil, fmt.Errorf("progress metadata not found")
+			return *new(T), fmt.Errorf("progress metadata not found")
 		}
-		defer progress.ResolveTask(taskId)
-		taskProgress, err := progress.GetTaskProgress(taskId)
+		defer progress.ResolveTask(taskId.String())
+		taskProgress, err := progress.GetTaskProgress(taskId.String())
 		if err != nil {
-			return nil, err
+			return *new(T), err
 		}
 		return processor(ctx, taskMode, v, taskProgress)
 
 	}, append([]task.LabelOpt{&ProgressReportableTaskLabelOptImpl{}}, labelOpts...)...)
 }
 
-type InspectionProducerFunc = func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (any, error)
+type InspectionProducerFunc[T any] = func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (T, error)
 
 // NewInspectionProducer generates a producer task.Definition with progress reporting feature
-func NewInspectionProducer(taskId string, producer InspectionProducerFunc, labelOpts ...task.LabelOpt) task.Definition {
-	return task.NewProcessorTask(taskId, []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+func NewInspectionProducer[T any](taskId taskid.TaskImplementationID[T], producer InspectionProducerFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
+	return task.NewProcessorTask(taskId, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
 		md, err := GetMetadataSetFromVariable(v)
 		if err != nil {
-			return nil, err
+			return *new(T), err
 		}
 		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
 		if !found {
-			return nil, fmt.Errorf("progress metadata not found")
+			return *new(T), fmt.Errorf("progress metadata not found")
 		}
-		defer progress.ResolveTask(taskId)
-		taskProgress, err := progress.GetTaskProgress(taskId)
+		defer progress.ResolveTask(taskId.String())
+		taskProgress, err := progress.GetTaskProgress(taskId.String())
 		if err != nil {
-			return nil, err
+			return *new(T), err
 		}
 		return producer(ctx, taskMode, taskProgress)
 

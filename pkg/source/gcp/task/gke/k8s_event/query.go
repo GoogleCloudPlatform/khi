@@ -24,7 +24,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	k8s_event_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 func GenerateK8sEventQuery(clusterName string, projectId string, namespaceFilter *queryutil.SetFilterParseResult) string {
@@ -68,9 +70,7 @@ func generateK8sEventNamespaceFilter(filter *queryutil.SetFilterParseResult) str
 	}
 }
 
-const GKEK8sEventLogQueryTaskID = query.GKEQueryPrefix + "k8s-event"
-
-var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []string{
+var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(k8s_event_taskid.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
 	gcp_task.InputNamespaceFilterTaskID,

@@ -14,7 +14,10 @@
 
 package testtask
 
-import "github.com/GoogleCloudPlatform/khi/pkg/task"
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+)
 
 // TestRunTaskParameterOpt is type used for the Functional Option Pattern on RunSingleTask
 type TestRunTaskParameterOpt interface {
@@ -22,29 +25,29 @@ type TestRunTaskParameterOpt interface {
 }
 
 type priorTaskResultOpt struct {
-	taskId    string
+	refID     string
 	parameter any
 }
 
 // AddParam implements RunSingleTaskParameterOpt.
 func (p *priorTaskResultOpt) AddParam(params map[string]any) {
-	params[p.taskId] = p.parameter
+	params[p.refID] = p.parameter
 }
 
 var _ TestRunTaskParameterOpt = (*priorTaskResultOpt)(nil)
 
 // PriorTaskResult returns RunSingleTaskParameterOpt to fill a parameter of a task result with given value.
-func PriorTaskResult(task task.Definition, parameter any) TestRunTaskParameterOpt {
+func PriorTaskResult[T any](task task.Definition[T], parameter T) TestRunTaskParameterOpt {
 	return &priorTaskResultOpt{
-		taskId:    task.ID().String(),
+		refID:     task.UntypedID().String(),
 		parameter: parameter,
 	}
 }
 
 // PriorTaskResultFromID returns RunSingleTaskParameterOpt to fill a parameter of a task result with given value.
-func PriorTaskResultFromID(id string, parameter any) TestRunTaskParameterOpt {
+func PriorTaskResultFromID[T any](id taskid.TaskImplementationID[T], parameter T) TestRunTaskParameterOpt {
 	return &priorTaskResultOpt{
-		taskId:    id,
+		refID:     id.ReferenceIDString(),
 		parameter: parameter,
 	}
 }

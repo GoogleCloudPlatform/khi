@@ -21,7 +21,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 func GenerateGKEAuditQuery(projectName string, clusterName string) string {
@@ -30,8 +32,7 @@ logName="projects/%s/logs/cloudaudit.googleapis.com%%2Factivity"
 resource.labels.cluster_name="%s"`, projectName, clusterName)
 }
 
-var GKEAuditLogQueryTaskID = query.GKEQueryPrefix + "gke-audit"
-var GKEAuditQueryTask = query.NewQueryGeneratorTask(GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []string{
+var GKEAuditQueryTask = query.NewQueryGeneratorTask(gke_audit_taskid.GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {

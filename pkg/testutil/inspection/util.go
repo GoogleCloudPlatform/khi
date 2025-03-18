@@ -25,7 +25,7 @@ import (
 )
 
 // DryRunInspectionTaskGraph executes the task graph just with provided dependency tasks with several variables given in default local runner
-func DryRunInspectionTaskGraph(target task.Definition, requestParams map[string]any, dependencies ...task.Definition) (*task.VariableSet, error) {
+func DryRunInspectionTaskGraph(target task.UntypedDefinition, requestParams map[string]any, dependencies ...task.UntypedDefinition) (*task.VariableSet, error) {
 	ms := typedmap.NewTypedMap()
 	typedmap.Set(ms, header.HeaderMetadataKey, &header.Header{})
 	typedmap.Set(ms, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
@@ -39,7 +39,7 @@ func DryRunInspectionTaskGraph(target task.Definition, requestParams map[string]
 }
 
 // RunInspectionTaskGraph executes the task graph just with provided dependency tasks with several variables given in the default local runner
-func RunInspectionTaskGraph(target task.Definition, requestParams map[string]any, dependencies ...task.Definition) (*task.VariableSet, error) {
+func RunInspectionTaskGraph(target task.UntypedDefinition, requestParams map[string]any, dependencies ...task.UntypedDefinition) (*task.VariableSet, error) {
 	ms := typedmap.NewTypedMap()
 	typedmap.Set(ms, header.HeaderMetadataKey, &header.Header{})
 	typedmap.Set(ms, form.FormFieldSetMetadataKey, form.NewFormFieldSet())

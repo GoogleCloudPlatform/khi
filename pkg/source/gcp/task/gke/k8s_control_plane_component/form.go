@@ -20,17 +20,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 const priorityForControlPlaneGroup = gcp_task.FormBasePriority + 30000
 
-const InputControlPlaneComponentNameFilterTaskID = gcp_task.GCPPrefix + "input/component-names"
-
 var inputControlPlaneComponentNameAliasMap map[string][]string = map[string][]string{}
 
 var InputControlPlaneComponentNameFilterTask = form.NewInputFormDefinitionBuilder(
-	InputControlPlaneComponentNameFilterTaskID,
+	k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID,
 	priorityForControlPlaneGroup+1000,
 	"Control plane component names",
 ).
@@ -48,15 +47,15 @@ var InputControlPlaneComponentNameFilterTask = form.NewInputFormDefinitionBuilde
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (any, error) {
+	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
 		result, err := queryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		return result, nil
 	}).
 	Build()
 
 func GetInputControlPlaneComponentNameFilterFromTaskVariable(tv *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
-	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, InputControlPlaneComponentNameFilterTaskID, nil)
+	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.ReferenceIDString(), nil)
 }

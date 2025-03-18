@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_task
+package composer_form
 
 import (
 	"context"
@@ -22,12 +22,15 @@ import (
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
+	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AutocompleteClusterNames = task.NewCachedProcessor(gcp_task.AutocompleteClusterNamesTaskID+"#composer", []string{
+var AutocompleteClusterNames = task.NewCachedProcessor(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
-}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*gcp_task.AutocompleteClusterNameList, error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return nil, err
@@ -54,4 +57,4 @@ var AutocompleteClusterNames = task.NewCachedProcessor(gcp_task.AutocompleteClus
 		ClusterNames: []string{},
 		Error:        "Project ID is empty",
 	}, nil
-}, inspection_task.InspectionTypeLabel(InspectionTypeId))
+}, inspection_task.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))

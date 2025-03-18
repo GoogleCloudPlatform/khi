@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 type commonRecorderStatus struct {
@@ -33,7 +34,7 @@ type commonRecorderStatus struct {
 }
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("common", []string{}, func(ctx context.Context, resourcePath string, l *types.ResourceSpecificParserInput, prevState any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
+	manager.AddRecorder("common", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, l *types.ResourceSpecificParserInput, prevState any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
 		prevTypedState := &commonRecorderStatus{
 			IsFirstRevision: true,
 		}

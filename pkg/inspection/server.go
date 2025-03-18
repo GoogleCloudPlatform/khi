@@ -64,7 +64,7 @@ type InspectionTaskServer struct {
 }
 
 func NewServer() (*InspectionTaskServer, error) {
-	ns, err := task.NewSet([]task.Definition{})
+	ns, err := task.NewSet([]task.UntypedDefinition{})
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionTyp
 }
 
 // AddTaskDefinition register a task definition usable for the inspection tasks
-func (s *InspectionTaskServer) AddTaskDefinition(taskDefinition task.Definition) error {
+func (s *InspectionTaskServer) AddTaskDefinition(taskDefinition task.UntypedDefinition) error {
 	return s.RootTaskSet.Add(taskDefinition)
 }
 
@@ -137,6 +137,6 @@ func (s *InspectionTaskServer) GetAllRunners() []*InspectionRunner {
 }
 
 // GetAllRegisteredTasks returns a cloned list of all definitions registered in this server.
-func (s *InspectionTaskServer) GetAllRegisteredTasks() []task.Definition {
+func (s *InspectionTaskServer) GetAllRegisteredTasks() []task.UntypedDefinition {
 	return s.RootTaskSet.GetAll()
 }

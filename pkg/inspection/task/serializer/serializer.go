@@ -28,11 +28,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-const SerializerTaskID = inspection_task.InspectionTaskPrefix + "serialize"
+var SerializerTaskID = taskid.NewDefaultImplementationID[*inspectiondata.FileSystemStore](inspection_task.InspectionTaskPrefix + "serialize")
 
-var SerializeTask = inspection_task.NewInspectionProcessor(SerializerTaskID, []string{inspection_task.InspectionMainSubgraphName + "-done", ioconfig.IOConfigTaskName, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
+var SerializeTask = inspection_task.NewInspectionProcessor(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID, ioconfig.IOConfigTaskID, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
 	if taskMode == inspection_task.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil

@@ -23,11 +23,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AutocompleteClusterNames = task.NewCachedProcessor(gcp_task.AutocompleteClusterNamesTaskID+"#anthos-on-vmware", []string{
+var AutocompleteClusterNames = task.NewCachedProcessor(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "anthos-on-vmware"), []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
-}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*gcp_task.AutocompleteClusterNameList, error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return nil, err

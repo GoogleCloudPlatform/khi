@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_task
+package serialport_taskid
 
 import (
-	"math"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var InspectionTypeId = "gcp-composer"
-
-var ComposerInspectionType = inspection.InspectionType{
-	Id:   InspectionTypeId,
-	Name: "Cloud Composer",
-	Description: `Visualize logs related to Cloud Composer environment.
-Supports all GKE related logs(Cloud Composer v2 or v1) and Airflow logs(Airflow 2.0.0 or higher in any Cloud Composer version(v1-v3))`,
-	Icon:     "assets/icons/composer.webp",
-	Priority: math.MaxInt - 1,
-}
+var SerialPortLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "serialport")
+var SerialPortLogParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/serialport")

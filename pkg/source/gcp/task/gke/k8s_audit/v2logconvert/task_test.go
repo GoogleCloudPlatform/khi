@@ -60,7 +60,7 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 		logs = append(logs, testlog.New(testlog.BaseYaml(baseLog)).With(opt...).MustBuildLogEntity(gcp_log.GCPCommonFieldExtractor{}))
 	}
 
-	_, err := testtask.RunSingleTask[struct{}](Task, inspection_task.TaskModeRun,
+	_, err := testtask.RunSingleTask(Task, inspection_task.TaskModeRun,
 		testtask.PriorTaskResultFromID(inspection_task.BuilderGeneratorTaskID, builder),
 		testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs),
 	)

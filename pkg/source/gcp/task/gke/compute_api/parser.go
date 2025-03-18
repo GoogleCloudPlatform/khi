@@ -26,10 +26,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
+	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
+	gke_compute_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 type computeAPIParser struct {
@@ -41,8 +42,8 @@ func (c *computeAPIParser) TargetLogType() enum.LogType {
 }
 
 // Dependencies implements parser.Parser.
-func (*computeAPIParser) Dependencies() []string {
-	return []string{}
+func (*computeAPIParser) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
 }
 
 // Description implements parser.Parser.
@@ -56,8 +57,8 @@ func (*computeAPIParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*computeAPIParser) LogTask() string {
-	return ComputeAPIQueryTaskID
+func (*computeAPIParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+	return gke_compute_api_taskid.ComputeAPIQueryTaskID.GetTaskReference()
 }
 func (*computeAPIParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
@@ -110,4 +111,4 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 
 var _ parser.Parser = (*computeAPIParser)(nil)
 
-var ComputeAPIParserTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/compute-api-parser", &computeAPIParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_task.InspectionTypeId))
+var ComputeAPIParserTask = parser.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_inspection_type.InspectionTypeId))

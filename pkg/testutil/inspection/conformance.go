@@ -37,25 +37,25 @@ func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, pr
 	}
 
 	for _, definition := range testServer.GetAllRegisteredTasks() {
-		t.Run(fmt.Sprintf("%s-only-contains-%s-must-be-resolvable", label, definition.ID()), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s-only-contains-%s-must-be-resolvable", label, definition.UntypedID().String()), func(t *testing.T) {
 			availableSet, err := task.NewSet(testServer.GetAllRegisteredTasks())
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}
-			originalSet, err := task.NewSet([]task.Definition{definition})
+			originalSet, err := task.NewSet([]task.UntypedDefinition{definition})
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}
 
 			rs, err := originalSet.ResolveTask(availableSet)
 			if err != nil {
-				t.Errorf("given graph with a single task %s couldn't be resolved.\n unexpected error %v", definition.ID(), err)
+				t.Errorf("given graph with a single task %s couldn't be resolved.\n unexpected error %v", definition.UntypedID().String(), err)
 			}
 			graphViz, err := rs.DumpGraphviz()
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
 			}
-			fmt.Printf("graphviz:\n%s\n%s\n", definition.ID(), graphViz)
+			fmt.Printf("graphviz:\n%s\n%s\n", definition.UntypedID().String(), graphViz)
 		})
 	}
 }

@@ -16,9 +16,10 @@ package task
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AutocompleteClusterNamesTaskID = GCPPrefix + "autocomplete/cluster-names"
+var AutocompleteClusterNamesTaskID = taskid.NewTaskReference[*AutocompleteClusterNameList](GCPPrefix + "autocomplete/cluster-names")
 
 type AutocompleteClusterNameList struct {
 	ClusterNames []string
@@ -26,5 +27,5 @@ type AutocompleteClusterNameList struct {
 }
 
 func GetAutocompleteClusterNamesFromTaskVariable(v *task.VariableSet) (*AutocompleteClusterNameList, error) {
-	return task.GetTypedVariableFromTaskVariable[*AutocompleteClusterNameList](v, AutocompleteClusterNamesTaskID, nil)
+	return task.GetTypedVariableFromTaskVariable[*AutocompleteClusterNameList](v, AutocompleteClusterNamesTaskID.ReferenceIDString(), nil)
 }

@@ -23,23 +23,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-func RunSingleTask[T any](target task.Definition, mode int, opts ...TestRunTaskParameterOpt) (T, error) {
-	return RunMultipleTask[T](target, []task.Definition{}, mode, opts...)
+func RunSingleTask[T any](target task.Definition[T], mode int, opts ...TestRunTaskParameterOpt) (T, error) {
+	return RunMultipleTask[T](target, []task.UntypedDefinition{}, mode, opts...)
 }
 
-func RunMultipleTask[T any](target task.Definition, availableTasks []task.Definition, mode int, opts ...TestRunTaskParameterOpt) (T, error) {
+func RunMultipleTask[T any](target task.Definition[T], availableTasks []task.UntypedDefinition, mode int, opts ...TestRunTaskParameterOpt) (T, error) {
 	params := generateVariableSetFromOpts(opts...)
-	sourceTaskSet, err := task.NewSet([]task.Definition{target})
+	sourceTaskSet, err := task.NewSet([]task.UntypedDefinition{target})
 	if err != nil {
 		return *new(T), err
 	}
 
-	mockedParameterTasks := []task.Definition{}
+	mockedParameterTasks := []task.UntypedDefinition{}
 	for key, value := range params {
 		nextTaskValue := value
-		mockedParameterTasks = append(mockedParameterTasks, task.NewProcessorTask(key, []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+		mockedParameterTasks = append(mockedParameterTasks, task.NewProcessorTask(taskid.NewDefaultImplementationID[any](key), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
 			return nextTaskValue, nil
 		}))
 	}
@@ -78,7 +79,7 @@ func RunMultipleTask[T any](target task.Definition, availableTasks []task.Defini
 	if err != nil {
 		return *new(T), err
 	}
-	return task.GetTypedVariableFromTaskVariable(result, target.ID().String(), *new(T))
+	return task.GetTypedVariableFromTaskVariable(result, target.UntypedID().ReferenceIDString(), *new(T))
 }
 
 func generateVariableSetFromOpts(opts ...TestRunTaskParameterOpt) map[string]any {

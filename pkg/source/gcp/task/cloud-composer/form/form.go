@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_task
+package composer_form
 
 import (
 	"context"
@@ -23,15 +23,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AutocompleteComposerEnvironmentNamesTaskID = gcp_task.GCPPrefix + "autocomplete/composer-environment-names"
-
-var AutocompleteComposerEnvironmentNames = task.NewCachedProcessor(AutocompleteComposerEnvironmentNamesTaskID, []string{
+var AutocompleteComposerEnvironmentNames = task.NewCachedProcessor(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
 	gcp_task.InputLocationsTaskID,
 	gcp_task.InputProjectIdTaskID,
-}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+}, func(ctx context.Context, taskMode int, v *task.VariableSet) ([]string, error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return nil, err
@@ -57,13 +57,11 @@ var AutocompleteComposerEnvironmentNames = task.NewCachedProcessor(AutocompleteC
 })
 
 func GetAutocompleteComposerEnvironmentNamesTaskVariable(v *task.VariableSet) ([]string, error) {
-	return task.GetTypedVariableFromTaskVariable[[]string](v, AutocompleteComposerEnvironmentNamesTaskID, nil)
+	return task.GetTypedVariableFromTaskVariable[[]string](v, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.ReferenceIDString(), nil)
 }
 
-const InputComposerEnvironmentTaskID = gcp_task.GCPPrefix + "input/composer/environment_name"
-
-var InputComposerEnvironmentNameTask = form.NewInputFormDefinitionBuilder(InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
-	[]string{AutocompleteComposerEnvironmentNamesTaskID},
+var InputComposerEnvironmentNameTask = form.NewInputFormDefinitionBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
+	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, variables *task.VariableSet, previousValues []string) ([]string, error) {
 	environments, err := GetAutocompleteComposerEnvironmentNamesTaskVariable(variables)
 	if err != nil {
@@ -73,5 +71,5 @@ var InputComposerEnvironmentNameTask = form.NewInputFormDefinitionBuilder(InputC
 }).Build()
 
 func GetInputComposerEnvironmentVariable(tv *task.VariableSet) (string, error) {
-	return task.GetTypedVariableFromTaskVariable[string](tv, InputComposerEnvironmentNameTask.ID().String(), "<INVALID>")
+	return task.GetTypedVariableFromTaskVariable[string](tv, InputComposerEnvironmentNameTask.ID().ReferenceIDString(), "<INVALID>")
 }

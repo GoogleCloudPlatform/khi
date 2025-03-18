@@ -21,11 +21,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var TimeZoneShiftInputTaskID = GCPPrefix + "input/timezone-shift"
+var TimeZoneShiftInputTaskID = taskid.NewDefaultImplementationID[*time.Location](GCPPrefix + "input/timezone-shift")
 
-var TimeZoneShiftInputTask = inspection_task.NewInspectionProcessor(TimeZoneShiftInputTaskID, []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
+var TimeZoneShiftInputTask = inspection_task.NewInspectionProcessor(TimeZoneShiftInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (*time.Location, error) {
 	req, err := inspection_task.GetInspectionRequestFromVariable(v)
 	if err != nil {
 		return nil, err
@@ -42,5 +43,5 @@ var TimeZoneShiftInputTask = inspection_task.NewInspectionProcessor(TimeZoneShif
 })
 
 func GetTimezoneShiftInput(tv *task.VariableSet) (*time.Location, error) {
-	return task.GetTypedVariableFromTaskVariable[*time.Location](tv, TimeZoneShiftInputTaskID, time.UTC)
+	return task.GetTypedVariableFromTaskVariable[*time.Location](tv, TimeZoneShiftInputTaskID.ReferenceIDString(), time.UTC)
 }

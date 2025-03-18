@@ -26,10 +26,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
+	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
+	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 type gkeAuditLogParser struct {
@@ -41,8 +42,8 @@ func (p *gkeAuditLogParser) TargetLogType() enum.LogType {
 }
 
 // Dependencies implements parser.Parser.
-func (*gkeAuditLogParser) Dependencies() []string {
-	return []string{}
+func (*gkeAuditLogParser) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
 }
 
 // Description implements parser.Parser.
@@ -56,8 +57,8 @@ func (*gkeAuditLogParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*gkeAuditLogParser) LogTask() string {
-	return GKEAuditLogQueryTaskID
+func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+	return gke_audit_taskid.GKEAuditLogQueryTaskID.GetTaskReference()
 }
 
 func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {
@@ -196,4 +197,4 @@ func getRelatedNodepool(l *log.LogEntity) (string, error) {
 
 var _ parser.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/gke-audit-parser", &gkeAuditLogParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_task.InspectionTypeId))
+var GKEAuditLogParseJob = parser.NewParserTaskFromParser(gke_audit_taskid.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_inspection_type.InspectionTypeId))

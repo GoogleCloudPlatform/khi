@@ -29,11 +29,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser/k8s"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var GKENodeLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/nodelog-parser", &k8sNodeParser{}, false)
+var GKENodeLogParseJob = parser.NewParserTaskFromParser(k8s_node_taskid.GKENodeLogParserTaskID, &k8sNodeParser{}, false)
 
 const ContainerdStartingMsg = "starting containerd"
 const DockerdStartingMsg = "Starting up"
@@ -61,12 +62,12 @@ func (*k8sNodeParser) GetParserName() string {
 	return `Kubernetes Node Logs`
 }
 
-func (*k8sNodeParser) Dependencies() []string {
-	return []string{}
+func (*k8sNodeParser) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
 }
 
-func (*k8sNodeParser) LogTask() string {
-	return GKENodeLogQueryTaskID
+func (*k8sNodeParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+	return k8s_node_taskid.GKENodeLogQueryTaskID.GetTaskReference()
 }
 
 func (*k8sNodeParser) Grouper() grouper.LogGrouper {

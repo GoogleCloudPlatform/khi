@@ -20,8 +20,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AnthosOnBaremetalClusterNamePrefixTask = inspection_task.NewInspectionProducer(task.ClusterNamePrefixTaskID+"#gdcv-for-baremetal", func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (any, error) {
+var AnthosOnBaremetalClusterNamePrefixTask = inspection_task.NewInspectionProducer(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "#gdcv-for-baremetal"), func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (string, error) {
 	return "", nil
 }, inspection_task.InspectionTypeLabel(InspectionTypeId))

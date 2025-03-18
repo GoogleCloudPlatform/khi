@@ -31,25 +31,25 @@ type FormTestCase struct {
 	Input             string
 	ExpectedValue     any
 	ExpectedFormField form.FormField
-	Dependencies      []task.Definition
+	Dependencies      []task.UntypedDefinition
 	Before            func()
 	After             func()
 }
 
-func TestTextForms(t *testing.T, label string, formVariable task.Definition, testCases []*FormTestCase, cmpOptions ...cmp.Option) {
+func TestTextForms(t *testing.T, label string, formVariable task.UntypedDefinition, testCases []*FormTestCase, cmpOptions ...cmp.Option) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			if testCase.Before != nil {
 				testCase.Before()
 			}
 			if testCase.Dependencies == nil {
-				testCase.Dependencies = make([]task.Definition, 0)
+				testCase.Dependencies = make([]task.UntypedDefinition, 0)
 			}
 			availableSet, err := task.NewSet(testCase.Dependencies)
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
 			}
-			formTaskSet, err := task.NewSet([]task.Definition{formVariable})
+			formTaskSet, err := task.NewSet([]task.UntypedDefinition{formVariable})
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
 			}
@@ -69,7 +69,7 @@ func TestTextForms(t *testing.T, label string, formVariable task.Definition, tes
 				inspection_task.MetadataVariableName: md.AsReadonly(),
 				inspection_task.InspectionRequestVariableName: &inspection_task.InspectionRequest{
 					Values: map[string]any{
-						formVariable.ID().ReferenceId().String(): testCase.Input,
+						formVariable.UntypedID().GetUntypedReference().String(): testCase.Input,
 					},
 				},
 			})
@@ -81,7 +81,7 @@ func TestTextForms(t *testing.T, label string, formVariable task.Definition, tes
 			if err != nil {
 				t.Errorf("task graph was ended with a failure result.\n%v", err)
 			}
-			result, err := vs.Get(formVariable.ID().ReferenceId().String())
+			result, err := task.GetTypedVariableFromTaskVariable[any](vs, formVariable.UntypedID().GetUntypedReference().ReferenceIDString(), nil)
 			if err != nil {
 				t.Errorf("failed to get the form variable\n%v", err)
 			}
@@ -89,7 +89,7 @@ func TestTextForms(t *testing.T, label string, formVariable task.Definition, tes
 				t.Errorf("the form task didn't generate the expected output\n%s", diff)
 			}
 
-			field := formFields.DangerouslyGetField(formVariable.ID().ReferenceId().String())
+			field := formFields.DangerouslyGetField(formVariable.UntypedID().GetUntypedReference().String())
 			if field.Type != "Text" {
 				t.Errorf("the generated form has type %s and it's not Text", field.Type)
 			}

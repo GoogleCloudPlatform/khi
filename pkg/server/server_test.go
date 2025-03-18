@@ -38,6 +38,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
 	"github.com/google/go-cmp/cmp"
@@ -81,18 +82,26 @@ type testScenarioStep struct {
 	After            func(stat map[string]string)
 }
 
+func debugTaskImplID(id string) taskid.TaskImplementationID[any] {
+	return taskid.NewDefaultImplementationID[any](id)
+}
+
+func debugRef(id string) taskid.TaskReference[any] {
+	return taskid.NewTaskReference[any](id)
+}
+
 func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 	inspectionServer, err := inspection.NewServer()
 	if err != nil {
 		return nil, err
 	}
-	taskDefinitions := []task.Definition{
-		task_test.MockProcessorTaskFromTaskID(inspection_task.BuilderGeneratorTask.ID().String(), history.NewBuilder(&ioconfig.IOConfig{
+	taskDefinitions := []task.UntypedDefinition{
+		task_test.MockProcessorTaskFromTaskID(inspection_task.BuilderGeneratorTask.ID(), history.NewBuilder(&ioconfig.IOConfig{
 			ApplicationRoot: "/",
 			DataDestination: "/tmp/",
 			TemporaryFolder: "/tmp/",
 		})),
-		inspection_task.NewInspectionProcessor("neverend", []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewInspectionProcessor(debugTaskImplID("neverend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 			tp.Update(0.5, "test")
 			select {
 			case <-time.After(time.Hour * time.Duration(1000000)):
@@ -101,27 +110,27 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 				return nil, nil
 			}
 		}, inspection_task.InspectionTypeLabel("foo", "bar", "qux")),
-		task.NewProcessorTask("errorend", []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+		task.NewProcessorTask(debugTaskImplID("errorend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
 			return nil, fmt.Errorf("test error")
 		}, inspection_task.InspectionTypeLabel("foo", "bar", "qux")),
-		form.NewInputFormDefinitionBuilder("foo-input", 0, "A input field for foo").WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
+		form.NewInputFormDefinitionBuilder(debugTaskImplID("foo-input"), 0, "A input field for foo").WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
 			if value == "foo-input-invalid-value" {
 				return "invalid value", nil
 			}
 			return "", nil
 		}).Build(inspection_task.InspectionTypeLabel("foo")),
 		task_test.MockProcessorTaskFromTaskID(gcp_task.TimeZoneShiftInputTaskID, time.UTC),
-		form.NewInputFormDefinitionBuilder("bar-input", 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
-		inspection_task.NewInspectionProcessor("feature-foo1", []string{"foo-input"}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+		form.NewInputFormDefinitionBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
+		inspection_task.NewInspectionProcessor(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo1-value", nil
 		}, inspection_task.InspectionTypeLabel("foo"), inspection_task.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, false)),
-		inspection_task.NewInspectionProcessor("feature-foo2", []string{"foo-input"}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewInspectionProcessor(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo2-value", nil
 		}, inspection_task.InspectionTypeLabel("foo"), inspection_task.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, false)),
-		inspection_task.NewInspectionProcessor("feature-bar", []string{"bar-input", "neverend"}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewInspectionProcessor(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
 		}, inspection_task.InspectionTypeLabel("bar"), inspection_task.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, false)),
-		inspection_task.NewInspectionProcessor("feature-qux", []string{"errorend"}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewInspectionProcessor(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
 		}, inspection_task.InspectionTypeLabel("qux"), inspection_task.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, false)),
 		ioconfig.TestIOConfig,
@@ -285,7 +294,7 @@ func TestApiResponses(t *testing.T) {
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/features",
-			BodyValidator: bodyCompareWithStringExpectedValue(`{"features":[{"id":"feature-foo1","label":"foo feature1","description":"test-feature","enabled":false},{"id":"feature-foo2","label":"foo feature2","description":"test-feature","enabled":false}]}`),
+			BodyValidator: bodyCompareWithStringExpectedValue(`{"features":[{"id":"feature-foo1#default","label":"foo feature1","description":"test-feature","enabled":false},{"id":"feature-foo2#default","label":"foo feature2","description":"test-feature","enabled":false}]}`),
 		},
 		{
 			// 005
@@ -295,7 +304,7 @@ func TestApiResponses(t *testing.T) {
 			RequestGenerator: func(t *testing.T, stat map[string]string) any {
 				return PutInspectionTaskFeatureRequest{
 					Features: []string{
-						"feature-foo2",
+						"feature-foo2#default",
 					},
 				}
 			},
@@ -306,7 +315,7 @@ func TestApiResponses(t *testing.T) {
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/features",
-			BodyValidator: bodyCompareWithStringExpectedValue(`{"features":[{"id":"feature-foo1","label":"foo feature1","description":"test-feature","enabled":false},{"id":"feature-foo2","label":"foo feature2","description":"test-feature","enabled":true}]}`),
+			BodyValidator: bodyCompareWithStringExpectedValue(`{"features":[{"id":"feature-foo1#default","label":"foo feature1","description":"test-feature","enabled":false},{"id":"feature-foo2#default","label":"foo feature2","description":"test-feature","enabled":true}]}`),
 		},
 		{
 			// 007
@@ -455,7 +464,7 @@ func TestApiResponses(t *testing.T) {
 			RequestGenerator: func(t *testing.T, stat map[string]string) any {
 				return PutInspectionTaskFeatureRequest{
 					Features: []string{
-						"feature-bar",
+						"feature-bar#default",
 					},
 				}
 			},
@@ -477,7 +486,7 @@ func TestApiResponses(t *testing.T) {
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks",
-			BodyValidator: taskCompare("task-2", `{"error":{"errorMessages":[]},"progress":{"phase":"RUNNING","progresses":[{"id":"neverend","indeterminate":false,"label":"neverend","message":"test","percentage":0.5}],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"0 of 3 tasks complete","percentage":0}}}`, "header"),
+			BodyValidator: taskCompare("task-2", `{"error":{"errorMessages":[]},"progress":{"phase":"RUNNING","progresses":[{"id":"neverend#default","indeterminate":false,"label":"neverend#default","message":"test","percentage":0.5}],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"0 of 3 tasks complete","percentage":0}}}`, "header"),
 		},
 		{
 			// 024
@@ -527,7 +536,7 @@ func TestApiResponses(t *testing.T) {
 			RequestGenerator: func(t *testing.T, stat map[string]string) any {
 				return PutInspectionTaskFeatureRequest{
 					Features: []string{
-						"feature-qux",
+						"feature-qux#default",
 					},
 				}
 			},

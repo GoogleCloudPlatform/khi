@@ -15,7 +15,7 @@
 package taskid
 
 import (
-	"slices"
+	"fmt"
 	"strings"
 )
 
@@ -27,69 +27,86 @@ import (
 // TaskReferenceId, but "foo.bar#qux" cannot be used as a TaskReferenceId because it
 // has a suffix.
 
-type TaskReferenceId struct {
+// TODO: rewrite comments above.
+
+type UntypedTaskReference interface {
+	String() string
+	ReferenceIDString() string
+}
+
+type TaskReference[TaskResult any] interface {
+	UntypedTaskReference
+	// GetZeroValue is only needed to make sure TaskReference[A] != TaskReference[B]
+	GetZeroValue() TaskResult
+}
+
+type UntypedTaskImplementationID interface {
+	String() string
+	ReferenceIDString() string
+	GetTaskImplementationHash() string
+	GetUntypedReference() UntypedTaskReference
+}
+
+type TaskImplementationID[TaskResult any] interface {
+	UntypedTaskImplementationID
+	GetTaskReference() TaskReference[TaskResult]
+}
+
+type taskReferenceImpl[TaskResult any] struct {
 	id string
 }
-type TaskImplementationId struct {
+
+func (t taskReferenceImpl[TaskResult]) String() string {
+	return t.id
+}
+
+func (t taskReferenceImpl[TaskResult]) GetZeroValue() TaskResult {
+	return *new(TaskResult)
+}
+
+type taskImplementationIDImpl[TaskResult any] struct {
 	referenceId        string
 	implementationHash string
 }
 
-func (r TaskReferenceId) String() string {
-	return r.id
+func (t taskImplementationIDImpl[TaskResult]) String() string {
+	return t.referenceId + "#" + t.implementationHash
 }
 
-func (i TaskImplementationId) String() string {
-	if i.implementationHash == "" {
-		return i.referenceId
+func (t taskImplementationIDImpl[TaskResult]) GetTaskReference() TaskReference[TaskResult] {
+	return taskReferenceImpl[TaskResult]{id: t.referenceId}
+}
+
+func (t taskReferenceImpl[TaskResult]) ReferenceIDString() string {
+	return t.String()
+}
+
+func (t taskImplementationIDImpl[TaskResult]) ReferenceIDString() string {
+	return t.referenceId
+}
+
+func (t taskImplementationIDImpl[TaskResult]) GetTaskImplementationHash() string {
+	return t.implementationHash
+}
+
+func (t taskImplementationIDImpl[TaskResult]) GetUntypedReference() UntypedTaskReference {
+	return t.GetTaskReference()
+}
+
+func NewTaskReference[TaskResult any](id string) TaskReference[TaskResult] {
+	if strings.Contains(id, "#") {
+		panic(fmt.Sprintf("reference id %s is invalid. It cannot contain '#' in reference ID", id))
 	}
-	return i.referenceId + "#" + i.implementationHash
+	return taskReferenceImpl[TaskResult]{id: id}
 }
 
-func (i TaskImplementationId) ImplementationHash() string {
-	return i.implementationHash
-}
-
-func (i TaskImplementationId) ReferenceId() TaskReferenceId {
-	return NewTaskReference(i.referenceId)
-}
-
-func NewTaskReference(taskId string) TaskReferenceId {
-	return TaskReferenceId{
-		id: taskId,
+func NewDefaultImplementationID[TaskResult any](id string) TaskImplementationID[TaskResult] {
+	if strings.Contains(id, "#") {
+		panic(fmt.Sprintf("task id %s is invalid. It cannot contain '#' on NewDefaultImplementationID. Use NewImplementationID instead to use a custom implementation hash.", id))
 	}
+	return taskImplementationIDImpl[TaskResult]{referenceId: id, implementationHash: "default"}
 }
 
-func NewTaskImplementationId(taskId string) TaskImplementationId {
-	if strings.Count(taskId, "#") > 0 {
-		splitted := strings.Split(taskId, "#")
-		return TaskImplementationId{
-			referenceId:        splitted[0],
-			implementationHash: splitted[1],
-		}
-	} else {
-		return TaskImplementationId{
-			referenceId:        taskId,
-			implementationHash: "",
-		}
-	}
-}
-
-func (i TaskImplementationId) Match(reference TaskReferenceId) bool {
-	return i.referenceId == reference.id
-}
-
-func DedupeReferenceIds(references []TaskReferenceId) []TaskReferenceId {
-	found := map[string]struct{}{}
-	for _, elem := range references {
-		found[elem.id] = struct{}{}
-	}
-	result := []TaskReferenceId{}
-	for id := range found {
-		result = append(result, TaskReferenceId{
-			id: id,
-		})
-	}
-	slices.SortFunc(result, func(a, b TaskReferenceId) int { return strings.Compare(a.id, b.id) })
-	return result
+func NewImplementationID[TaskResult any](baseReference TaskReference[TaskResult], implementationHash string) TaskImplementationID[TaskResult] {
+	return taskImplementationIDImpl[TaskResult]{referenceId: baseReference.String(), implementationHash: implementationHash}
 }

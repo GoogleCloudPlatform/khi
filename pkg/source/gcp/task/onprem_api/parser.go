@@ -27,10 +27,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
 	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
+	multicloud_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
+	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 type onpremCloudAuditLogParser struct {
@@ -42,8 +44,8 @@ func (o *onpremCloudAuditLogParser) TargetLogType() enum.LogType {
 }
 
 // Dependencies implements parser.Parser.
-func (*onpremCloudAuditLogParser) Dependencies() []string {
-	return []string{}
+func (*onpremCloudAuditLogParser) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
 }
 
 // Description implements parser.Parser.
@@ -57,8 +59,8 @@ func (*onpremCloudAuditLogParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*onpremCloudAuditLogParser) LogTask() string {
-	return OnPremCloudAPIQueryTaskID
+func (*onpremCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+	return multicloud_api_taskid.OnPremCloudAPIQueryTaskID.GetTaskReference()
 }
 
 func (*onpremCloudAuditLogParser) Grouper() grouper.LogGrouper {
@@ -197,7 +199,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 
 var _ parser.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/onprem-audit-parser", &onpremCloudAuditLogParser{}, true, inspection_task.InspectionTypeLabel(baremetal.InspectionTypeId, vmware.InspectionTypeId))
+var OnPremCloudAuditLogParseTask = parser.NewParserTaskFromParser(onprem_api_taskid.OnPremCloudAPIParserTaskID, &onpremCloudAuditLogParser{}, true, inspection_task.InspectionTypeLabel(baremetal.InspectionTypeId, vmware.InspectionTypeId))
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

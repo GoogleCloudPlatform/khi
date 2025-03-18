@@ -21,7 +21,7 @@ import (
 
 // Subset returns a new DefinitionSet filtered using the provided type-safe filter
 func Subset[T any](definitionSet *DefinitionSet, mapFilter filter.TypedMapFilter[T]) *DefinitionSet {
-	getMap := func(d Definition) *typedmap.ReadonlyTypedMap {
+	getMap := func(d UntypedDefinition) *typedmap.ReadonlyTypedMap {
 		return d.Labels()
 	}
 

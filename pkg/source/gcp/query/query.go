@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 const GKEQueryPrefix = gcp_task.GCPPrefix + "query/gke/"
@@ -45,11 +46,11 @@ type QueryGeneratorFunc = func(context.Context, int, *task.VariableSet) ([]strin
 
 var queryThreadPool = worker.NewPool(16)
 
-func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum.LogType, dependencies []string, generator QueryGeneratorFunc, sampleQuery string) task.Definition {
-	return inspection_task.NewInspectionProcessor(taskId, append(dependencies, gcp_task.InputProjectIdTaskID, gcp_task.InputStartTimeTaskID, gcp_task.InputEndTimeTaskID, inspection_task.ReaderFactoryGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
+func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, generator QueryGeneratorFunc, sampleQuery string) task.Definition[[]*log.LogEntity] {
+	return inspection_task.NewInspectionProcessor(taskId, append(dependencies, gcp_task.InputProjectIdTaskID, gcp_task.InputStartTimeTaskID, gcp_task.InputEndTimeTaskID, inspection_task.ReaderFactoryGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		projectId, err := gcp_task.GetInputProjectIdFromTaskVariable(v)
 		if err != nil {
@@ -57,15 +58,15 @@ func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum
 		}
 		metadata, err := inspection_task.GetMetadataSetFromVariable(v)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		readerFactory, err := inspection_task.GetReaderFactoryFromTaskVariable(v)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		queryStrings, err := generator(ctx, taskMode, v)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if len(queryStrings) == 0 {
 			slog.InfoContext(ctx, fmt.Sprintf("Query generator `%s` decided to skip.", taskId))
@@ -95,7 +96,7 @@ func NewQueryGeneratorTask(taskId string, readableQueryName string, logType enum
 			if len(finalQuery) > 20000 {
 				slog.WarnContext(ctx, fmt.Sprintf("Logging filter is exceeding Cloud Logging limitation 20000 charactors\n%s", finalQuery))
 			}
-			queryInfo.SetQuery(taskId, readableQueryNameForQueryIndex, finalQuery)
+			queryInfo.SetQuery(taskId.String(), readableQueryNameForQueryIndex, finalQuery)
 			// TODO: not to store whole logs on memory to avoid OOM
 			// Run query only when thetask mode is for running
 			if taskMode == inspection_task.TaskModeRun {

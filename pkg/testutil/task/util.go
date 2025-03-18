@@ -18,19 +18,20 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 // Deprecated: Use testtask package instead.
-func MockProcessorTaskFromTaskID(taskId string, value any) task.Definition {
-	return task.NewProcessorTask(taskId, []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+func MockProcessorTaskFromTaskID[T any](taskId taskid.TaskImplementationID[T], value T) task.Definition[T] {
+	return task.NewProcessorTask(taskId, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
 		return value, nil
 	})
 }
 
 // Deprecated: Use testtask package instead.
 // RunTaskGraph executes the task graph just with provided dependency tasks
-func RunTaskGraph(target task.Definition, mode int, initialParameters map[string]any, dependencies ...task.Definition) (*task.VariableSet, error) {
-	sourceDs, err := task.NewSet([]task.Definition{target})
+func RunTaskGraph(target task.UntypedDefinition, mode int, initialParameters map[string]any, dependencies ...task.UntypedDefinition) (*task.VariableSet, error) {
+	sourceDs, err := task.NewSet([]task.UntypedDefinition{target})
 	if err != nil {
 		return nil, err
 	}

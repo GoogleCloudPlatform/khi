@@ -21,6 +21,7 @@ import (
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 const GCPPrefix = "cloud.google.com/"
@@ -29,18 +30,18 @@ const GCPPrefix = "cloud.google.com/"
 // For GKE, it's just a task to return "" always.
 // For Anthos on AWS, it should return "awsClusters/" because the `resource.labels.cluster_name` field would be `awsClusters/<cluster-name>`
 // For Anthos on Azure, it will be "azureClusters/"
-const ClusterNamePrefixTaskID = GCPPrefix + "cluster-name-prefix"
+var ClusterNamePrefixTaskID = taskid.NewTaskReference[string](GCPPrefix + "cluster-name-prefix")
 
 func GetClusterNamePrefixFromTaskVariable(v *task.VariableSet) (string, error) {
-	return task.GetTypedVariableFromTaskVariable[string](v, ClusterNamePrefixTaskID, "")
+	return task.GetTypedVariableFromTaskVariable[string](v, ClusterNamePrefixTaskID.ReferenceIDString(), "")
 }
 
-const K8sResourceMergeConfigTaskID = GCPPrefix + "merge-config"
+var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.MergeConfigRegistry](GCPPrefix + "merge-config")
 
 func GetK8sResourceMergeConfigFromTaskVariable(v *task.VariableSet) (*k8s.MergeConfigRegistry, error) {
-	return task.GetTypedVariableFromTaskVariable[*k8s.MergeConfigRegistry](v, K8sResourceMergeConfigTaskID, nil)
+	return task.GetTypedVariableFromTaskVariable[*k8s.MergeConfigRegistry](v, K8sResourceMergeConfigTaskID.ReferenceIDString(), nil)
 }
 
-var GCPDefaultK8sResourceMergeConfigTask = inspection_task.NewInspectionProducer(K8sResourceMergeConfigTaskID+"#gcp", func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (any, error) {
+var GCPDefaultK8sResourceMergeConfigTask = inspection_task.NewInspectionProducer(K8sResourceMergeConfigTaskID, func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (*k8s.MergeConfigRegistry, error) {
 	return k8s.GenerateDefaultMergeConfig()
 })

@@ -61,13 +61,13 @@ func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDoc
 		usedFeatureElements := []FormUsedFeatureElement{}
 		for _, feature := range usedFeatures {
 			usedFeatureElements = append(usedFeatureElements, FormUsedFeatureElement{
-				ID:   feature.ID().String(),
+				ID:   feature.UntypedID().String(),
 				Name: typedmap.GetOrDefault(feature.Labels(), inspection_task.LabelKeyFeatureTaskTitle, ""),
 			})
 		}
 
 		result.Forms = append(result.Forms, FormDocumentElement{
-			ID:           form.ID().String(),
+			ID:           form.UntypedID().String(),
 			Label:        typedmap.GetOrDefault(form.Labels(), label.TaskLabelKeyFormFieldLabel, ""),
 			Description:  typedmap.GetOrDefault(form.Labels(), label.TaskLabelKeyFormFieldDescription, ""),
 			UsedFeatures: usedFeatureElements,
@@ -77,8 +77,8 @@ func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDoc
 }
 
 // getFeaturesRequestingFormTask returns the list of feature tasks that depends on the given form task.
-func getFeaturesRequestingFormTask(taskServer *inspection.InspectionTaskServer, formTask task.Definition) ([]task.Definition, error) {
-	var result []task.Definition
+func getFeaturesRequestingFormTask(taskServer *inspection.InspectionTaskServer, formTask task.UntypedDefinition) ([]task.UntypedDefinition, error) {
+	var result []task.UntypedDefinition
 	features := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	for _, feature := range features.GetAll() {
 		hasDependency, err := task.HasDependency(taskServer.RootTaskSet, feature, formTask)

@@ -126,13 +126,13 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 			if targetLogTypeKey != logTypeKey {
 				logType := enum.LogTypes[logTypeKey]
 				indirectQueryDependencyElement = append(indirectQueryDependencyElement, FeatureIndirectDependentQueryElement{
-					ID:               queryTask.ID().String(),
+					ID:               queryTask.UntypedID().String(),
 					LogTypeLabel:     logType.Label,
 					LogTypeColorCode: strings.TrimLeft(logType.LabelBackgroundColor, "#"),
 				})
 			} else {
 				targetQueryDependencyElement = FeatureDependentTargetQueryElement{
-					ID:               queryTask.ID().String(),
+					ID:               queryTask.UntypedID().String(),
 					LogTypeLabel:     enum.LogTypes[targetLogTypeKey].Label,
 					LogTypeColorCode: strings.TrimLeft(enum.LogTypes[targetLogTypeKey].LabelBackgroundColor, "#"),
 					SampleQuery:      typedmap.GetOrDefault(queryTask.Labels(), label.TaskLabelKeyQueryTaskSampleQuery, ""),
@@ -147,7 +147,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 		}
 		for _, formTask := range formTasks {
 			formElements = append(formElements, FeatureDependentFormElement{
-				ID:          formTask.ID().String(),
+				ID:          formTask.UntypedID().String(),
 				Label:       typedmap.GetOrDefault(formTask.Labels(), label.TaskLabelKeyFormFieldLabel, ""),
 				Description: typedmap.GetOrDefault(formTask.Labels(), label.TaskLabelKeyFormFieldDescription, ""),
 			})
@@ -189,7 +189,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 		}
 
 		result.Features = append(result.Features, FeatureDocumentElement{
-			ID:                       feature.ID().String(),
+			ID:                       feature.UntypedID().String(),
 			Name:                     typedmap.GetOrDefault(feature.Labels(), inspection_task.LabelKeyFeatureTaskTitle, ""),
 			Description:              typedmap.GetOrDefault(feature.Labels(), inspection_task.LabelKeyFeatureTaskDescription, ""),
 			IndirectQueryDependency:  indirectQueryDependencyElement,
@@ -204,8 +204,8 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 }
 
 // getDependentQueryTasks returns the list of query tasks required by the feature task.
-func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, featureTask task.Definition) ([]task.Definition, error) {
-	resolveSource, err := task.NewSet([]task.Definition{featureTask})
+func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, featureTask task.UntypedDefinition) ([]task.UntypedDefinition, error) {
+	resolveSource, err := task.NewSet([]task.UntypedDefinition{featureTask})
 	if err != nil {
 		return nil, err
 	}
@@ -217,8 +217,8 @@ func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, feature
 }
 
 // getDependentFormTasks returns the list of form tasks required by the feature task.
-func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureTask task.Definition) ([]task.Definition, error) {
-	resolveSource, err := task.NewSet([]task.Definition{featureTask})
+func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureTask task.UntypedDefinition) ([]task.UntypedDefinition, error) {
+	resolveSource, err := task.NewSet([]task.UntypedDefinition{featureTask})
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureT
 }
 
 // getAvailableInspectionTypes returns the list of information about inspection type that supports this feature.
-func getAvailableInspectionTypes(taskServer *inspection.InspectionTaskServer, featureTask task.Definition) []FeatureAvailableInspectionType {
+func getAvailableInspectionTypes(taskServer *inspection.InspectionTaskServer, featureTask task.UntypedDefinition) []FeatureAvailableInspectionType {
 	result := []FeatureAvailableInspectionType{}
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {

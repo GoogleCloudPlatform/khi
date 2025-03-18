@@ -54,7 +54,7 @@ func (*KHILogFormatHandler) Enabled(context.Context, slog.Level) bool {
 func (lh *KHILogFormatHandler) Handle(ctx context.Context, r slog.Record) error {
 	tidAny := ctx.Value("tid")
 	var logLine string
-	if tid, convertible := tidAny.(taskid.TaskImplementationId); convertible {
+	if tid, convertible := tidAny.(taskid.UntypedTaskImplementationID); convertible {
 		logLine = fmt.Sprintf("%s%s >%s %s %s\n", lh.taskIdToColor(tid.String()), tid, lh.resetColor(), lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, r.Message))
 	} else {
 		logLine = fmt.Sprintf("global > %s %s\n", lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, r.Message))

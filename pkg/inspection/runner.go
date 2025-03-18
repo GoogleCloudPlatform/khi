@@ -92,7 +92,7 @@ func (i *InspectionRunner) SetInspectionType(inspectionType string) error {
 	i.requiredDefinitions = task.Subset(i.availableDefinitions, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionRequiredFlag, false))
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
-		defaultFeatureIds = append(defaultFeatureIds, featureTask.ID().String())
+		defaultFeatureIds = append(defaultFeatureIds, featureTask.UntypedID().String())
 	}
 	i.currentInspectionType = inspectionType
 	return i.SetFeatureList(defaultFeatureIds)
@@ -105,14 +105,14 @@ func (i *InspectionRunner) FeatureList() ([]FeatureListItem, error) {
 	featureSet := task.Subset(i.availableDefinitions, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	features := []FeatureListItem{}
 	for _, definition := range featureSet.GetAll() {
-		label := typedmap.GetOrDefault(definition.Labels(), inspection_task.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", definition.ID()))
+		label := typedmap.GetOrDefault(definition.Labels(), inspection_task.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", definition.UntypedID()))
 		description := typedmap.GetOrDefault(definition.Labels(), inspection_task.LabelKeyFeatureTaskDescription, "")
 		enabled := false
-		if v, exist := i.enabledFeatures[definition.ID().String()]; exist && v {
+		if v, exist := i.enabledFeatures[definition.UntypedID().String()]; exist && v {
 			enabled = true
 		}
 		features = append(features, FeatureListItem{
-			Id:          definition.ID().String(),
+			Id:          definition.UntypedID().String(),
 			Label:       label,
 			Description: description,
 			Enabled:     enabled,
@@ -122,14 +122,14 @@ func (i *InspectionRunner) FeatureList() ([]FeatureListItem, error) {
 }
 
 func (i *InspectionRunner) SetFeatureList(featureList []string) error {
-	featureDefinitions := []task.Definition{}
+	featureDefinitions := []task.UntypedDefinition{}
 	for _, featureId := range featureList {
 		definition, err := i.availableDefinitions.Get(featureId)
 		if err != nil {
 			return err
 		}
 		if !typedmap.GetOrDefault(definition.Labels(), inspection_task.LabelKeyInspectionFeatureFlag, false) {
-			return fmt.Errorf("task `%s` is not marked as a feature but requested to be included in the feature set of an inspection", definition.ID())
+			return fmt.Errorf("task `%s` is not marked as a feature but requested to be included in the feature set of an inspection", definition.UntypedID())
 		}
 		featureDefinitions = append(featureDefinitions, definition)
 	}
@@ -201,7 +201,7 @@ func (i *InspectionRunner) Run(ctx context.Context, req *inspection_task.Inspect
 		} else {
 			progress.Done()
 			status = "done"
-			history, err := task.GetTypedVariableFromTaskVariable[inspectiondata.Store](result, serializer.SerializerTaskID, nil)
+			history, err := task.GetTypedVariableFromTaskVariable[inspectiondata.Store](result, serializer.SerializerTaskID.ReferenceIDString(), nil)
 			if err != nil {
 				slog.ErrorContext(ctx, fmt.Sprintf("Failed to get generated history after the completion\n%s", err))
 			}
@@ -215,7 +215,7 @@ func (i *InspectionRunner) Run(ctx context.Context, req *inspection_task.Inspect
 			}
 			// Remove unnecessary variables stored in the result to release memory
 			result.DeleteItems(func(key string) bool {
-				return key != serializer.SerializerTaskID && key != inspection_task.MetadataVariableName
+				return key != serializer.SerializerTaskID.ReferenceIDString() && key != inspection_task.MetadataVariableName
 			})
 		}
 		lifecycle.Default.NotifyInspectionEnd(rid, currentInspectionType.Name, status, resultSize)
@@ -233,7 +233,7 @@ func (i *InspectionRunner) Result() (*InspectionRunResult, error) {
 		return nil, err
 	}
 
-	inspectionResultAny, err := v.Get(serializer.SerializerTaskID)
+	inspectionResult, err := task.GetTypedVariableFromTaskVariable[inspectiondata.Store](v, serializer.SerializerTaskID.ReferenceIDString(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +244,7 @@ func (i *InspectionRunner) Result() (*InspectionRunResult, error) {
 	}
 	return &InspectionRunResult{
 		Metadata:    md,
-		ResultStore: inspectionResultAny.(inspectiondata.Store),
+		ResultStore: inspectionResult,
 	}, nil
 }
 
@@ -295,10 +295,10 @@ func (i *InspectionRunner) DryRun(ctx context.Context, req *inspection_task.Insp
 	}, nil
 }
 
-func (i *InspectionRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, definitions []task.Definition) *logger.Logger {
+func (i *InspectionRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, definitions []task.UntypedDefinition) *logger.Logger {
 	logger := logger.NewLogger()
 	for _, def := range definitions {
-		taskCtx := context.WithValue(ctx, "tid", def.ID())
+		taskCtx := context.WithValue(ctx, "tid", def.UntypedID())
 		logger.MakeTaskLogger(taskCtx, minLevel)
 	}
 	return logger
@@ -329,7 +329,7 @@ func (i *InspectionRunner) resolveTaskGraph() (*task.DefinitionSet, error) {
 	if i.featuresDefinitions == nil || i.availableDefinitions == nil {
 		return nil, fmt.Errorf("this runner is not ready for resolving graph")
 	}
-	usedTaskDefinitions := []task.Definition{}
+	usedTaskDefinitions := []task.UntypedDefinition{}
 	usedTaskDefinitions = append(usedTaskDefinitions, i.featuresDefinitions.GetAll()...)
 	usedTaskDefinitions = append(usedTaskDefinitions, i.requiredDefinitions.GetAll()...)
 	initialTaskSet, err := task.NewSet(usedTaskDefinitions)
@@ -341,7 +341,7 @@ func (i *InspectionRunner) resolveTaskGraph() (*task.DefinitionSet, error) {
 		return nil, err
 	}
 
-	wrapped, err := set.WrapGraph(taskid.NewTaskImplementationId(inspection_task.InspectionMainSubgraphName), []taskid.TaskReferenceId{})
+	wrapped, err := set.WrapGraph(taskid.NewDefaultImplementationID[any](inspection_task.InspectionMainSubgraphName), []taskid.UntypedTaskReference{})
 	if err != nil {
 		return nil, err
 	}

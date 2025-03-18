@@ -60,7 +60,7 @@ func GetInspectionTypeDocumentModel(taskServer *inspection.InspectionTaskServer)
 		features := []InspectionTypeDocumentElementFeature{}
 		for _, task := range featureTasks {
 			features = append(features, InspectionTypeDocumentElementFeature{
-				ID:          task.ID().String(),
+				ID:          task.UntypedID().String(),
 				Name:        typedmap.GetOrDefault(task.Labels(), inspection_task.LabelKeyFeatureTaskTitle, ""),
 				Description: typedmap.GetOrDefault(task.Labels(), inspection_task.LabelKeyFeatureTaskDescription, ""),
 			})

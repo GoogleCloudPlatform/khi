@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
@@ -41,17 +42,17 @@ type LogFilterFunc = func(ctx context.Context, l *types.ResourceSpecificParserIn
 type RecorderFunc = func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error)
 
 type RecorderTaskManager struct {
-	recorderTasks []task.Definition
+	recorderTasks []task.UntypedDefinition
 }
 
 func NewTaskManager() *RecorderTaskManager {
 	return &RecorderTaskManager{
-		recorderTasks: make([]task.Definition, 0),
+		recorderTasks: make([]task.UntypedDefinition, 0),
 	}
 }
 
-func (r *RecorderTaskManager) AddRecorder(name string, dependencies []string, recorder RecorderFunc, logGroupFilter LogGroupFilterFunc, logFilter LogFilterFunc) {
-	dependenciesBase := []string{
+func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.UntypedTaskReference, recorder RecorderFunc, logGroupFilter LogGroupFilterFunc, logFilter LogFilterFunc) {
+	dependenciesBase := []taskid.UntypedTaskReference{
 		inspection_task.BuilderGeneratorTaskID,
 		k8saudittask.LogConvertTaskID,
 		k8saudittask.ManifestGenerateTaskID,
@@ -64,7 +65,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []string, re
 		if err != nil {
 			return nil, err
 		}
-		groupedLogs, err := task.GetTypedVariableFromTaskVariable[[]*types.TimelineGrouperResult](v, k8saudittask.ManifestGenerateTaskID, nil)
+		groupedLogs, err := task.GetTypedVariableFromTaskVariable[[]*types.TimelineGrouperResult](v, k8saudittask.ManifestGenerateTaskID.ReferenceIDString(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -113,20 +114,20 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []string, re
 	r.recorderTasks = append(r.recorderTasks, newTask)
 }
 
-func (r *RecorderTaskManager) GetRecorderTaskName(recorderName string) string {
-	return fmt.Sprintf("%s/feature/k8s_audit/recorder/%s", gcp_task.GCPPrefix, recorderName)
+func (r *RecorderTaskManager) GetRecorderTaskName(recorderName string) taskid.TaskImplementationID[any] {
+	return taskid.NewDefaultImplementationID[any](fmt.Sprintf("%s/feature/k8s_audit/recorder/%s", gcp_task.GCPPrefix, recorderName))
 }
 
 func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer) error {
-	recorderTaskIds := []string{}
+	recorderTaskIds := []taskid.UntypedTaskReference{}
 	for _, recorder := range r.recorderTasks {
 		err := server.AddTaskDefinition(recorder)
 		if err != nil {
 			return err
 		}
-		recorderTaskIds = append(recorderTaskIds, recorder.ID().String())
+		recorderTaskIds = append(recorderTaskIds, recorder.UntypedID().GetUntypedReference())
 	}
-	waiterTask := inspection_task.NewInspectionProcessor(fmt.Sprintf("%s/feature/audit-parser-v2", gcp_task.GCPPrefix), recorderTaskIds, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
+	waiterTask := inspection_task.NewInspectionProcessor(taskid.NewDefaultImplementationID[any](fmt.Sprintf("%s/feature/audit-parser-v2", gcp_task.GCPPrefix)), recorderTaskIds, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		return struct{}{}, nil
 	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true))
 	err := server.AddTaskDefinition(waiterTask)

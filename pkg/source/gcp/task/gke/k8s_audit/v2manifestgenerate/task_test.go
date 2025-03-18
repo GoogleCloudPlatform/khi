@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2commonlogparse"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2timelinegrouping"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 	"github.com/google/go-cmp/cmp"
@@ -190,12 +191,12 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 				logs = append(logs, logBase.With(logOpts...).MustBuildLogEntity(&log.UnreachableCommonFieldExtractor{}))
 			}
 
-			result, err := testtask.RunMultipleTask[[]*types.TimelineGrouperResult](Task, []base_task.Definition{
+			result, err := testtask.RunMultipleTask[[]*types.TimelineGrouperResult](Task, []base_task.UntypedDefinition{
 				v2timelinegrouping.Task,
 				v2commonlogparse.Task,
 				gcp_task.GCPDefaultK8sResourceMergeConfigTask,
 			}, task.TaskModeRun,
-				testtask.PriorTaskResultFromID(task.MetadataVariableName, typedmap.NewTypedMap().AsReadonly()),
+				testtask.PriorTaskResultFromID(taskid.NewDefaultImplementationID[*typedmap.ReadonlyTypedMap](task.MetadataVariableName), typedmap.NewTypedMap().AsReadonly()),
 				testtask.PriorTaskResultFromID(task.ReaderFactoryGeneratorTaskID, structure.NewReaderFactory(&structuredatastore.OnMemoryStructureDataStore{})),
 				testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 

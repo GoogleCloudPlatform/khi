@@ -20,17 +20,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 const priorityForContainerGroup = gcp_task.FormBasePriority + 20000
 
-const InputContainerQueryNamespacesTaskID = gcp_task.GCPPrefix + "input/container-query-namespaces"
-
 var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},
 }
-var InputContainerQueryNamespaceFilterTask = form.NewInputFormDefinitionBuilder(InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
+var InputContainerQueryNamespaceFilterTask = form.NewInputFormDefinitionBuilder(gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
 	WithDefaultValueConstant("@managed", true).
 	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
@@ -42,23 +41,21 @@ Specify the space splitted namespace lists to query container logs only in the s
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (any, error) {
+	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
 		result, err := queryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		return result, nil
 	}).
 	Build()
 
 func GetInputContainerQueryNamespacesFilterFromTaskVariable(tv *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
-	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, InputContainerQueryNamespacesTaskID, nil)
+	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.ReferenceIDString(), nil)
 }
 
-const InputContainerQueryPodNamesTaskID = gcp_task.GCPPrefix + "input/container-query-podnames"
-
 var inputPodNamesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{}
-var InputContainerQueryPodNamesFilterMask = form.NewInputFormDefinitionBuilder(InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
+var InputContainerQueryPodNamesFilterMask = form.NewInputFormDefinitionBuilder(gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
 	WithDefaultValueConstant("@any", true).
 	WithUIDescription(`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
@@ -71,15 +68,15 @@ var InputContainerQueryPodNamesFilterMask = form.NewInputFormDefinitionBuilder(I
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (any, error) {
+	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
 		result, err := queryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		return result, nil
 	}).
 	Build()
 
 func GetInputContainerQueryPodNamesFilterFromTaskVariable(tv *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
-	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, InputContainerQueryPodNamesTaskID, nil)
+	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.ReferenceIDString(), nil)
 }

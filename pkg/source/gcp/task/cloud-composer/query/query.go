@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_task
+package composer_query
 
 import (
 	"context"
@@ -21,59 +21,55 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
+	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-const ComposerQueryPrefix = gcp_task.GCPPrefix + "query/composer/"
-
-const ComposerSchedulerLogQueryTaskName = ComposerQueryPrefix + "scheduler"
-const ComposerDagProcessorManagerLogQueryTaskName = ComposerQueryPrefix + "dag-processor-manager"
-const ComposerMonitoringLogQueryTaskName = ComposerQueryPrefix + "monitoring"
-const ComposerWorkerLogQueryTaskName = ComposerQueryPrefix + "worker"
-
 var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
-	ComposerSchedulerLogQueryTaskName,
+	composer_taskid.ComposerSchedulerLogQueryTaskID,
 	"Composer Environment/Airflow Scheduler",
 	enum.LogTypeComposerEnvironment,
-	[]string{
+	[]taskid.UntypedTaskReference{
 		gcp_task.InputProjectIdTaskID,
-		InputComposerEnvironmentTaskID,
+		composer_taskid.InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-scheduler"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-scheduler"),
 )
 
 var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
-	ComposerDagProcessorManagerLogQueryTaskName,
+	composer_taskid.ComposerDagProcessorManagerLogQueryTaskID,
 	"Composer Environment/DAG Processor Manager",
 	enum.LogTypeComposerEnvironment,
-	[]string{
+	[]taskid.UntypedTaskReference{
 		gcp_task.InputProjectIdTaskID,
-		InputComposerEnvironmentTaskID,
+		composer_taskid.InputComposerEnvironmentTaskID,
 	},
 	createGenerator("dag-processor-manager"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "dag-processor-manager"),
 )
 
 var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
-	ComposerMonitoringLogQueryTaskName,
+	composer_taskid.ComposerMonitoringLogQueryTaskID,
 	"Composer Environment/Airflow Monitoring",
 	enum.LogTypeComposerEnvironment,
-	[]string{
+	[]taskid.UntypedTaskReference{
 		gcp_task.InputProjectIdTaskID,
-		InputComposerEnvironmentTaskID,
+		composer_taskid.InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-monitoring"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-monitoring"),
 )
 
 var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
-	ComposerWorkerLogQueryTaskName,
+	composer_taskid.ComposerWorkerLogQueryTaskID,
 	"Composer Environment/Airflow Worker",
 	enum.LogTypeComposerEnvironment,
-	[]string{
+	[]taskid.UntypedTaskReference{
 		gcp_task.InputProjectIdTaskID,
-		InputComposerEnvironmentTaskID,
+		composer_taskid.InputComposerEnvironmentTaskID,
 	},
 	createGenerator("airflow-worker"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
@@ -89,7 +85,7 @@ func createGenerator(componentName string) func(ctx context.Context, i int, vs *
 		if err != nil {
 			return []string{}, err
 		}
-		environmentName, err := GetInputComposerEnvironmentVariable(vs)
+		environmentName, err := composer_form.GetInputComposerEnvironmentVariable(vs)
 		if err != nil {
 			return []string{}, err
 		}

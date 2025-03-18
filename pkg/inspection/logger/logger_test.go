@@ -26,6 +26,10 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
+func debugTaskID(id string) taskid.TaskImplementationID[any] {
+	return taskid.NewDefaultImplementationID[any](id)
+}
+
 func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {
 	bufDefault := new(bytes.Buffer)
 	buf1 := new(bytes.Buffer)
@@ -34,15 +38,15 @@ func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {
 	buf2Handler := slog.NewTextHandler(buf2, nil)
 	lh := localInitInspectionLogger(slog.NewTextHandler(bufDefault, nil))
 	ctx := context.Background()
-	t1Ctx := context.WithValue(context.WithValue(context.WithValue(ctx, "tid", taskid.NewTaskImplementationId("task1")), "iid", "inspection1"), "rid", "r1")
-	t2Ctx := context.WithValue(context.WithValue(context.WithValue(ctx, "tid", taskid.NewTaskImplementationId("task2")), "iid", "inspection2"), "rid", "r2")
+	t1Ctx := context.WithValue(context.WithValue(context.WithValue(ctx, "tid", taskid.NewDefaultImplementationID[any]("task1")), "iid", "inspection1"), "rid", "r1")
+	t2Ctx := context.WithValue(context.WithValue(context.WithValue(ctx, "tid", taskid.NewDefaultImplementationID[any]("task2")), "iid", "inspection2"), "rid", "r2")
 	logger := slog.New(lh)
 
 	logger.Info("default info")
 	logger.InfoContext(ctx, "default info")
 	logger.InfoContext(t1Ctx, "unknown task")
-	lh.RegisterTaskLogger("inspection1", "task1", "r1", buf1Handler)
-	lh.RegisterTaskLogger("inspection2", "task2", "r2", buf2Handler)
+	lh.RegisterTaskLogger("inspection2", debugTaskID("task2"), "r2", buf2Handler)
+	lh.RegisterTaskLogger("inspection1", debugTaskID("task1"), "r1", buf1Handler)
 	logger.InfoContext(t1Ctx, "inspection1 task1 info")
 	logger.InfoContext(t2Ctx, "inspection2 task2 info")
 

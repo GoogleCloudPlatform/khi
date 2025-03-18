@@ -87,7 +87,7 @@ func (g *globalLoggerHandler) routeHandler(ctx context.Context) slog.Handler {
 	tidAny := ctx.Value("tid") // task id
 	ridAny := ctx.Value("rid")
 	if iid, converted := iidAny.(string); converted {
-		if tid, converted := tidAny.(taskid.TaskImplementationId); converted {
+		if tid, converted := tidAny.(taskid.UntypedTaskImplementationID); converted {
 			if rid, converted := ridAny.(string); converted {
 				g.handlersLock.Lock()
 				defer g.handlersLock.Unlock()
@@ -104,20 +104,20 @@ func (g *globalLoggerHandler) routeHandler(ctx context.Context) slog.Handler {
 	return g.defaultHandler
 }
 
-func (g *globalLoggerHandler) RegisterTaskLogger(inspectionId string, taskId string, runId string, handler slog.Handler) {
+func (g *globalLoggerHandler) RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
 	g.handlersLock.Lock()
 	defer g.handlersLock.Unlock()
-	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId, runId)
+	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
 	if _, found := (*g.handlers)[loggerId]; found {
 		slog.Warn(fmt.Sprintf("duplicated logger found for %s. Ignoreing...", loggerId))
 	} else {
 		(*g.handlers)[loggerId] = handler
 	}
 }
-func (g *globalLoggerHandler) UnregisterTaskLogger(inspectionId string, taskId string, runId string, handler slog.Handler) {
+func (g *globalLoggerHandler) UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
 	g.handlersLock.Lock()
 	defer g.handlersLock.Unlock()
-	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId, runId)
+	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
 	delete((*g.handlers), loggerId)
 }
 
@@ -137,6 +137,6 @@ func localInitInspectionLogger(defaultHandler slog.Handler) *globalLoggerHandler
 	return handler
 }
 
-func RegisterTaskLogger(inspectionId string, taskId string, runId string, handler slog.Handler) {
+func RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
 	globalLogHandler.RegisterTaskLogger(inspectionId, taskId, runId, handler)
 }

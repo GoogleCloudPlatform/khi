@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
@@ -39,6 +40,7 @@ type LocalRunner struct {
 	resultError           error
 	started               bool
 	stopped               bool
+	taskWaiters           *sync.Map // sync.Map[string(taskRefID), sync.RWMutex], runner acquire the write lock at the beginning. All dependents will acquire read lock, it will be released when the task run finished.
 	waiter                chan interface{}
 	taskStatuses          []*LocalRunnerTaskStat
 	cache                 TaskVariableCache
@@ -108,8 +110,8 @@ func (r *LocalRunner) runTask(ctx context.Context, taskDefIndex int, taskMode in
 	definition := r.resolvedDefinitionSet.GetAll()[taskDefIndex]
 	sources := definition.Dependencies()
 	taskStatus := r.taskStatuses[taskDefIndex]
-	ctx = context.WithValue(ctx, "tid", definition.ID())
-	slog.DebugContext(ctx, fmt.Sprintf("task %s started", definition.ID().String()))
+	ctx = context.WithValue(ctx, "tid", definition.UntypedID())
+	slog.DebugContext(ctx, fmt.Sprintf("task %s started", definition.UntypedID().String()))
 	r.waitDependencies(ctx, sources)
 	if ctx.Err() == context.Canceled {
 		return context.Canceled
@@ -117,13 +119,13 @@ func (r *LocalRunner) runTask(ctx context.Context, taskDefIndex int, taskMode in
 
 	taskStatus.StartTime = time.Now()
 	taskStatus.Phase = LocalRunnerTaskStatPhaseRunning
-	slog.DebugContext(ctx, fmt.Sprintf("task %s started", definition.ID()))
+	slog.DebugContext(ctx, fmt.Sprintf("task %s started", definition.UntypedID()))
 
-	result, err := definition.Run(ctx, taskMode, r.resultVariable)
+	result, err := definition.UntypedRun(ctx, taskMode, r.resultVariable)
 
 	taskStatus.Phase = LocalRunnerTaskStatPhaseStopped
 	taskStatus.EndTime = time.Now()
-	slog.DebugContext(ctx, fmt.Sprintf("task %s stopped after %f sec", definition.ID(), taskStatus.EndTime.Sub(taskStatus.StartTime).Seconds()))
+	slog.DebugContext(ctx, fmt.Sprintf("task %s stopped after %f sec", definition.UntypedID(), taskStatus.EndTime.Sub(taskStatus.StartTime).Seconds()))
 	taskStatus.Error = err
 	if ctx.Err() == context.Canceled {
 		return context.Canceled
@@ -134,15 +136,9 @@ func (r *LocalRunner) runTask(ctx context.Context, taskDefIndex int, taskMode in
 		slog.ErrorContext(ctx, err.Error())
 		return detailedErr
 	}
-	r.resultVariable.Set(definition.ID().ReferenceId().String(), result)
-	err = r.resolveTask(ctx, definition.ID())
-	if err != nil {
-		detailedErr := r.wrapWithTaskError(err, definition)
-		taskStatus.Error = err
-		r.resultError = detailedErr
-		slog.ErrorContext(ctx, err.Error())
-		return detailedErr
-	}
+	r.resultVariable.Set(definition.UntypedID().GetUntypedReference().String(), result)
+	taskWaiter, _ := r.taskWaiters.Load(definition.UntypedID().GetUntypedReference().String())
+	taskWaiter.(*sync.RWMutex).Unlock()
 	return nil
 }
 
@@ -161,8 +157,14 @@ func NewLocalRunner(taskSet *DefinitionSet) (*LocalRunner, error) {
 		return nil, fmt.Errorf("given taskset must be runnable")
 	}
 	taskStatuses := []*LocalRunnerTaskStat{}
+	taskWaiters := sync.Map{}
 	for i := 0; i < len(taskSet.definitions); i++ {
 		taskStatuses = append(taskStatuses, newLocalRunnerTaskStatus())
+
+		// lock the task waiter until its task finished.
+		waiter := sync.RWMutex{}
+		waiter.Lock()
+		taskWaiters.Store(taskSet.definitions[i].UntypedID().ReferenceIDString(), &waiter)
 	}
 	return &LocalRunner{
 		resolvedDefinitionSet: taskSet,
@@ -170,6 +172,7 @@ func NewLocalRunner(taskSet *DefinitionSet) (*LocalRunner, error) {
 		resultVariable:        nil,
 		resultError:           nil,
 		stopped:               false,
+		taskWaiters:           &taskWaiters,
 		waiter:                make(chan interface{}),
 		taskStatuses:          taskStatuses,
 		cache:                 &GlobalTaskVariableCache{},
@@ -184,31 +187,37 @@ func (r *LocalRunner) WithCacheProvider(cache TaskVariableCache) *LocalRunner {
 func (r *LocalRunner) markDone() {
 	r.stopped = true
 	close(r.waiter)
+	r.taskWaiters.Range(func(key, value any) bool {
+		mutex, _ := value.(*sync.RWMutex)
+		if !mutex.TryRLock() {
+			mutex.Unlock()
+		}
+		return true
+	})
 }
 
-func (r *LocalRunner) resolveTask(ctx context.Context, taskId taskid.TaskImplementationId) error {
-	err := r.resultVariable.Set(fmt.Sprintf("%s/resolved", taskId.ReferenceId().String()), struct{}{})
-	if err != nil {
-		return err
+func (r *LocalRunner) waitDependencies(ctx context.Context, dependencies []taskid.UntypedTaskReference) error {
+	for _, dependency := range dependencies {
+		select { // wait for getting the RLock for the task result, or context cancel
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-func() chan struct{} {
+			ch := make(chan struct{})
+			go func() {
+				waiter, _ := r.taskWaiters.Load(dependency.ReferenceIDString())
+				taskWaiter := waiter.(*sync.RWMutex)
+				taskWaiter.RLock()
+				close(ch)
+			}()
+			return ch
+		}():
+			continue
+		}
 	}
 	return nil
 }
 
-func (r *LocalRunner) waitDependencies(ctx context.Context, sources []taskid.TaskReferenceId) error {
-	errGrp := errgroup.Group{}
-	for _, source := range sources {
-		captureSource := source
-		if !r.resultVariable.IsResolved(captureSource.String()) {
-			errGrp.Go(func() error {
-				_, err := r.resultVariable.Wait(ctx, fmt.Sprintf("%s/resolved", captureSource))
-				return err
-			})
-		}
-	}
-	return errGrp.Wait()
-}
-
-func (r *LocalRunner) wrapWithTaskError(err error, definition Definition) error {
-	errMsg := fmt.Sprintf("failed to run a task graph.\n definition ID=%s got an error. \n ERROR:\n%v", definition.ID(), err)
+func (r *LocalRunner) wrapWithTaskError(err error, definition UntypedDefinition) error {
+	errMsg := fmt.Sprintf("failed to run a task graph.\n definition ID=%s got an error. \n ERROR:\n%v", definition.UntypedID(), err)
 	return fmt.Errorf("%s", errMsg)
 }

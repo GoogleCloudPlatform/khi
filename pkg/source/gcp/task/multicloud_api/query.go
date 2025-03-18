@@ -20,12 +20,12 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	multicloud_api_taskidvar "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api/multicloud_api_taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
-
-var MultiCloudAPIQueryTaskID = query.GKEQueryPrefix + "multicloud-api"
 
 func GenerateMultiCloudAPIQuery(clusterNameWithPrefix string) string {
 	return fmt.Sprintf(`resource.type="audited_resource"
@@ -35,7 +35,7 @@ protoPayload.resourceName:"%s"
 `, clusterNameWithPrefix)
 }
 
-var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []string{
+var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(multicloud_api_taskidvar.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
 	gcp_task.InputClusterNameTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
 	clusterName, err := gcp_task.GetInputClusterNameFromTaskVariable(vs)

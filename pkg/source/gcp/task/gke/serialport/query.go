@@ -20,16 +20,16 @@ import (
 	"strings"
 
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	serialport_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/serialport/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
-
-const SerialPortLogQueryTaskID = query.GKEQueryPrefix + "serialport"
 
 const MaxNodesPerQuery = 30
 
@@ -68,7 +68,7 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 %s`, instanceNameFilter, nodeNameSubstringFilter)
 }
 
-var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []string{
+var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(serialport_taskid.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
 	k8saudittask.K8sAuditParseTaskID,
 	gcp_task.InputNodeNameFilterTaskID,
 }, func(ctx context.Context, taskMode int, vs *task.VariableSet) ([]string, error) {

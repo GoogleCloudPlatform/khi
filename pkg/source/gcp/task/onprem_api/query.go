@@ -20,12 +20,12 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
-
-var OnPremCloudAPIQueryTaskID = query.GKEQueryPrefix + "onprem-api"
 
 func GenerateOnPremAPIQuery(clusterNameWithPrefix string) string {
 	return fmt.Sprintf(`resource.type="audited_resource"
@@ -35,7 +35,7 @@ protoPayload.resourceName:"%s"
 `, clusterNameWithPrefix)
 }
 
-var OnPremAPIQueryTask = query.NewQueryGeneratorTask(OnPremCloudAPIQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []string{
+var OnPremAPIQueryTask = query.NewQueryGeneratorTask(onprem_api_taskid.OnPremCloudAPIQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
 	gcp_task.InputClusterNameTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
 	clusterName, err := gcp_task.GetInputClusterNameFromTaskVariable(vs)

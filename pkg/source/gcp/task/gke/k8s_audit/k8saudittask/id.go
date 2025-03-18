@@ -15,14 +15,17 @@
 package k8saudittask
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-const K8sAuditQueryTaskID = gcp_task.GCPPrefix + "query/k8s_audit"
-const K8sAuditParseTaskID = gcp_task.GCPPrefix + "/feature/audit-parser-v2"
-const k8sAuditTaskIDPrefix = gcp_task.GCPPrefix + "feature/k8s_audit/"
+var K8sAuditQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](gcp_task.GCPPrefix + "query/k8s_audit")
+var K8sAuditParseTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "/feature/audit-parser-v2")
+var k8sAuditTaskIDPrefix = gcp_task.GCPPrefix + "feature/k8s_audit/"
 
-const TimelineGroupingTaskID = k8sAuditTaskIDPrefix + "timelne-grouping"
-const ManifestGenerateTaskID = k8sAuditTaskIDPrefix + "manifest-generate"
-const LogConvertTaskID = k8sAuditTaskIDPrefix + "log-convert"
-const CommonLogParseTaskID = k8sAuditTaskIDPrefix + "common-fields-parse"
+var TimelineGroupingTaskID = taskid.NewDefaultImplementationID[[]*types.TimelineGrouperResult](k8sAuditTaskIDPrefix + "timelne-grouping")
+var ManifestGenerateTaskID = taskid.NewDefaultImplementationID[[]*types.TimelineGrouperResult](k8sAuditTaskIDPrefix + "manifest-generate")
+var LogConvertTaskID = taskid.NewDefaultImplementationID[any](k8sAuditTaskIDPrefix + "log-convert")
+var CommonLogParseTaskID = taskid.NewDefaultImplementationID[[]*types.ResourceSpecificParserInput](k8sAuditTaskIDPrefix + "common-fields-parse")

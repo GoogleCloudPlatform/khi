@@ -14,7 +14,10 @@
 
 package typedmap
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 // TypedKey represents a key with associated type information.
 // The type parameter T indicates what type this key will retrieve.
@@ -62,12 +65,6 @@ func (m *ReadonlyTypedMap) load(key string) (interface{}, bool) {
 // NewTypedMap creates a new empty TypedMap.
 func NewTypedMap() *TypedMap {
 	return &TypedMap{}
-}
-
-// Set stores a value with type safety.
-// The key's type parameter must match the value's type.
-func Set[T any](m *TypedMap, key TypedKey[T], value T) {
-	m.container.Store(key.key, value)
 }
 
 // AsReadonly returns a read-only view of this map.
@@ -124,7 +121,7 @@ func Get[T any](m ReadableTypedMap, key TypedKey[T]) (T, bool) {
 	// Type assertion
 	typed, ok := v.(T)
 	if !ok {
-		return zero, false
+		panic(fmt.Sprintf("expected map value at %s is convertible to %T, but got %T", key.key, *new(T), v))
 	}
 
 	return typed, true
@@ -133,9 +130,21 @@ func Get[T any](m ReadableTypedMap, key TypedKey[T]) (T, bool) {
 // GetOrDefault retrieves a value or returns the default if not found.
 // Works with both TypedMap and ReadonlyTypedMap.
 func GetOrDefault[T any](m ReadableTypedMap, key TypedKey[T], defaultValue T) T {
-	v, ok := Get[T](m, key)
+	v, ok := Get(m, key)
 	if !ok {
 		return defaultValue
 	}
 	return v
+}
+
+// Set stores a value.
+// The key's type parameter must match the value's type.
+func Set[T any](m *TypedMap, key TypedKey[T], value T) {
+	m.container.Store(key.key, value)
+}
+
+// Delete removes the value associated with the given key.
+// The key's type parameter indicates which type of value to delete.
+func Delete[T any](m *TypedMap, key TypedKey[T]) {
+	m.container.Delete(key.key)
 }

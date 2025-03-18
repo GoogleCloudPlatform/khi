@@ -22,9 +22,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var IOConfigTaskName = task.KHISystemPrefix + "inspection/ioconfig"
+var IOConfigTaskID = taskid.NewDefaultImplementationID[*IOConfig](task.KHISystemPrefix + "inspection/ioconfig")
 
 type IOConfig struct {
 	// The project root folder
@@ -35,7 +36,7 @@ type IOConfig struct {
 	TemporaryFolder string
 }
 
-var ProductionIOConfig = task.NewCachedProcessor(IOConfigTaskName, []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+var ProductionIOConfig = task.NewCachedProcessor(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*IOConfig, error) {
 	dataDestinationFolder := "./data"
 	if parameters.Common.DataDestinationFolder != nil {
 		dataDestinationFolder = *parameters.Common.DataDestinationFolder
@@ -58,7 +59,7 @@ var ProductionIOConfig = task.NewCachedProcessor(IOConfigTaskName, []string{}, f
 	}, nil
 })
 
-var TestIOConfig = task.NewCachedProcessor(IOConfigTaskName, []string{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (any, error) {
+var TestIOConfig = task.NewCachedProcessor(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*IOConfig, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -78,5 +79,5 @@ var TestIOConfig = task.NewCachedProcessor(IOConfigTaskName, []string{}, func(ct
 })
 
 func GetIOConfigFromTaskVariable(v *task.VariableSet) (*IOConfig, error) {
-	return task.GetTypedVariableFromTaskVariable[*IOConfig](v, IOConfigTaskName, nil)
+	return task.GetTypedVariableFromTaskVariable[*IOConfig](v, IOConfigTaskID.ReferenceIDString(), nil)
 }

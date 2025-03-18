@@ -18,6 +18,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
+	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
+	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
+	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
 	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
 	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
@@ -268,29 +271,29 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	if err != nil {
 		return err
 	}
-	err = inspectionServer.AddInspectionType(composer_task.ComposerInspectionType)
+	err = inspectionServer.AddInspectionType(composer_inspection_type.ComposerInspectionType)
 	if err != nil {
 		return err
 	}
 
 	// Composer Query Task
-	err = inspectionServer.AddTaskDefinition(composer_task.ComposerMonitoringLogQueryTask)
+	err = inspectionServer.AddTaskDefinition(composer_query.ComposerMonitoringLogQueryTask)
 	if err != nil {
 		return err
 	}
-	err = inspectionServer.AddTaskDefinition(composer_task.ComposerDagProcessorManagerLogQueryTask)
+	err = inspectionServer.AddTaskDefinition(composer_query.ComposerDagProcessorManagerLogQueryTask)
 	if err != nil {
 		return err
 	}
-	err = inspectionServer.AddTaskDefinition(composer_task.ComposerSchedulerLogQueryTask)
+	err = inspectionServer.AddTaskDefinition(composer_query.ComposerSchedulerLogQueryTask)
 	if err != nil {
 		return err
 	}
-	err = inspectionServer.AddTaskDefinition(composer_task.ComposerWorkerLogQueryTask)
+	err = inspectionServer.AddTaskDefinition(composer_query.ComposerWorkerLogQueryTask)
 	if err != nil {
 		return err
 	}
-	err = inspectionServer.AddTaskDefinition(composer_task.AutocompleteClusterNames)
+	err = inspectionServer.AddTaskDefinition(composer_form.AutocompleteClusterNames)
 	if err != nil {
 		return err
 	}
@@ -300,13 +303,13 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	}
 
 	// Composer Input Task
-	err = inspectionServer.AddTaskDefinition(composer_task.InputComposerEnvironmentNameTask)
+	err = inspectionServer.AddTaskDefinition(composer_form.InputComposerEnvironmentNameTask)
 	if err != nil {
 		return err
 	}
 
 	// Composer AutoComplete Task
-	err = inspectionServer.AddTaskDefinition(composer_task.AutocompleteComposerEnvironmentNames)
+	err = inspectionServer.AddTaskDefinition(composer_form.AutocompleteComposerEnvironmentNames)
 	if err != nil {
 		return err
 	}

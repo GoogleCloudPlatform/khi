@@ -20,8 +20,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var ComposerClusterNamePrefixTask = inspection_task.NewInspectionProducer(task.ClusterNamePrefixTaskID+"#composer", func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (any, error) {
+var ComposerClusterNamePrefixTask = inspection_task.NewInspectionProducer(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "composer"), func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (string, error) {
 	return "", nil
-}, inspection_task.InspectionTypeLabel(InspectionTypeId))
+}, inspection_task.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))

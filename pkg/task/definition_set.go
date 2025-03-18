@@ -29,27 +29,27 @@ type LabelPredicate[T any] = func(v T) bool
 // DefinitionSet is a collection of task definitions.
 // It has several collection operation features for constructing the task graph to execute.
 type DefinitionSet struct {
-	definitions []Definition
+	definitions []UntypedDefinition
 	runnable    bool
 }
 
 // SortTaskGraphResult represents result of topological sorting taks definitions.
 type SortTaskGraphResult struct {
 	// TopologicalSortedTasks is the list of definitions in topological order.
-	TopologicalSortedTasks []Definition
+	TopologicalSortedTasks []UntypedDefinition
 	// MissingDependencies is the list of task reference Ids missed to resolve task dependencies.
 	// This must be empty array when the sorting succeeded.
-	MissingDependencies []taskid.TaskReferenceId
+	MissingDependencies []taskid.UntypedTaskReference
 	// HasCyclicDependency indicates if the task graph containing any cyclic dependencies.
 	HasCyclicDependency bool
 	// Runnable indicate if this task graph is runnable or not. It means the definitions are sorted in topoligical order and all of input dependencies are resolved.
 	Runnable bool
 }
 
-func NewSet(definitions []Definition) (*DefinitionSet, error) {
+func NewSet(definitions []UntypedDefinition) (*DefinitionSet, error) {
 	definitionIds := map[string]struct{}{}
 	for _, def := range definitions {
-		id := def.ID()
+		id := def.UntypedID()
 		if _, exist := definitionIds[id.String()]; exist {
 			return nil, fmt.Errorf("multiple definitions have the same ID %s", id)
 		}
@@ -63,26 +63,26 @@ func NewSet(definitions []Definition) (*DefinitionSet, error) {
 
 // Add a task definiton to current DefinitionSet.
 // Returns an error when duplicated task Id is assigned on the task.
-func (s *DefinitionSet) Add(newTask Definition) error {
+func (s *DefinitionSet) Add(newTask UntypedDefinition) error {
 	taskIdMap := map[string]interface{}{}
 	for _, task := range s.definitions {
-		taskIdMap[task.ID().String()] = struct{}{}
+		taskIdMap[task.UntypedID().String()] = struct{}{}
 	}
-	if _, exist := taskIdMap[newTask.ID().String()]; exist {
-		return fmt.Errorf("task definition id:%s is duplicated. Definition ID must be unique", newTask.ID())
+	if _, exist := taskIdMap[newTask.UntypedID().String()]; exist {
+		return fmt.Errorf("task definition id:%s is duplicated. Definition ID must be unique", newTask.UntypedID())
 	}
 	s.definitions = append(s.definitions, newTask)
 	return nil
 }
 
-func (s *DefinitionSet) GetAll() []Definition {
+func (s *DefinitionSet) GetAll() []UntypedDefinition {
 	return slices.Clone(s.definitions)
 }
 
 // Get returns a task definition queried with an id of the task definition.
-func (s *DefinitionSet) Get(id string) (Definition, error) {
+func (s *DefinitionSet) Get(id string) (UntypedDefinition, error) {
 	for _, task := range s.definitions {
-		if task.ID().String() == id {
+		if task.UntypedID().String() == id {
 			return task, nil
 		}
 	}
@@ -93,23 +93,23 @@ func (s *DefinitionSet) Get(id string) (Definition, error) {
 // The init task named as `subgraphId`-init has the dependency provided in the subgraphDependency argument. And the init task will be dependency of the tasks that had no dependency before calling this method.
 // The done task named as `subgraphId`-done has the dependency of the tasks that were not dependent from any other tasks.
 // The result task set will be resolvable with `[the init task] -> [the other tasks] -> [the done task]`
-func (s *DefinitionSet) WrapGraph(subgraphId taskid.TaskImplementationId, subgraphDependency []taskid.TaskReferenceId) (*DefinitionSet, error) {
-	initTaskId := fmt.Sprintf("%s-init", subgraphId)
-	doneTaskId := fmt.Sprintf("%s-done", subgraphId)
-	rewiredTasks := []Definition{}
+func (s *DefinitionSet) WrapGraph(subgraphId taskid.UntypedTaskImplementationID, subgraphDependency []taskid.UntypedTaskReference) (*DefinitionSet, error) {
+	initTaskId := taskid.NewImplementationID(taskid.NewTaskReference[any](fmt.Sprintf("%s-init", subgraphId.ReferenceIDString())), subgraphId.GetTaskImplementationHash())
+	doneTaskId := taskid.NewImplementationID(taskid.NewTaskReference[any](fmt.Sprintf("%s-done", subgraphId.ReferenceIDString())), subgraphId.GetTaskImplementationHash())
+	rewiredTasks := []UntypedDefinition{}
 	tasksNotDependentFromAnyMap := map[string]struct{}{}
 	for _, t := range s.definitions {
 		if len(t.Dependencies()) == 0 {
 			capturedTask := t
 			rewiredTask := &wrapGraphFirstTask{
 				task:         capturedTask,
-				dependencies: []taskid.TaskReferenceId{taskid.NewTaskReference(initTaskId)},
+				dependencies: []taskid.UntypedTaskReference{initTaskId.GetTaskReference()},
 			}
 			rewiredTasks = append(rewiredTasks, rewiredTask)
 		} else {
 			rewiredTasks = append(rewiredTasks, t)
 		}
-		tasksNotDependentFromAnyMap[t.ID().ReferenceId().String()] = struct{}{}
+		tasksNotDependentFromAnyMap[t.UntypedID().GetUntypedReference().String()] = struct{}{}
 	}
 	for _, t := range s.definitions {
 		for _, dep := range t.Dependencies() {
@@ -117,16 +117,16 @@ func (s *DefinitionSet) WrapGraph(subgraphId taskid.TaskImplementationId, subgra
 		}
 	}
 
-	doneTaskDependencies := []taskid.TaskReferenceId{
-		taskid.NewTaskReference(initTaskId),
+	doneTaskDependencies := []taskid.UntypedTaskReference{
+		initTaskId.GetTaskReference(),
 	}
 	for k := range tasksNotDependentFromAnyMap {
-		doneTaskDependencies = append(doneTaskDependencies, taskid.NewTaskReference(k))
+		doneTaskDependencies = append(doneTaskDependencies, taskid.NewTaskReference[any](k))
 	}
 	// Sort to make result stable
-	slices.SortFunc(doneTaskDependencies, func(a, b taskid.TaskReferenceId) int { return strings.Compare(a.String(), b.String()) })
-	initTask := NewDefinitionFromFunc(taskid.NewTaskImplementationId(initTaskId), subgraphDependency, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) { return nil, nil })
-	doneTask := NewDefinitionFromFunc(taskid.NewTaskImplementationId(doneTaskId), doneTaskDependencies, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) { return nil, nil })
+	slices.SortFunc(doneTaskDependencies, func(a, b taskid.UntypedTaskReference) int { return strings.Compare(a.String(), b.String()) })
+	initTask := NewDefinitionFromFunc(initTaskId, subgraphDependency, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) { return nil, nil })
+	doneTask := NewDefinitionFromFunc(doneTaskId, doneTaskDependencies, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) { return nil, nil })
 	rewiredTasks = append(rewiredTasks, initTask, doneTask)
 	return NewSet(rewiredTasks)
 }
@@ -135,20 +135,20 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 	// To check if there were no cyclic task path or missing inputs,
 	// perform the topological sorting algorithm known as Kahn's algorithm
 	// Reference: https://en.wikipedia.org/wiki/Topological_sorting
-	nonResolvedTasksMap := map[string]Definition{}
+	nonResolvedTasksMap := map[string]UntypedDefinition{}
 	currentMissingTaskDependencies := map[string]map[string]interface{}{}
 	currentMissingTaskSourceCount := map[string]int{}
 	taskCount := 0
 	for _, task := range s.definitions {
-		id := task.ID()
+		id := task.UntypedID()
 		dependencies := task.Dependencies()
 		if _, found := currentMissingTaskDependencies[id.String()]; found {
 			continue
 		}
 		currentMissingTaskDependencies[id.String()] = map[string]interface{}{}
 		sourceCount := 0
-		for _, source := range dependencies {
-			currentMissingTaskDependencies[id.String()][source.String()] = struct{}{}
+		for _, dependency := range dependencies {
+			currentMissingTaskDependencies[id.String()][dependency.ReferenceIDString()] = struct{}{}
 			sourceCount += 1
 		}
 		nonResolvedTasksMap[id.String()] = task
@@ -156,7 +156,7 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 		taskCount += 1
 	}
 
-	topologicalSortedTasks := []Definition{}
+	topologicalSortedTasks := []UntypedDefinition{}
 	for i := 0; i < taskCount; i++ {
 		var nextResolveTaskId string = "N/A"
 		nextResolvedTaskIdThreadUnsafeCandidate := "N/A"
@@ -173,7 +173,7 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 		if nextResolveTaskId != "N/A" {
 			nextTask := nonResolvedTasksMap[nextResolveTaskId]
 			delete(nonResolvedTasksMap, nextResolveTaskId)
-			removingDependencyId := nextTask.ID().ReferenceId().String()
+			removingDependencyId := nextTask.UntypedID().ReferenceIDString()
 			for taskId := range nonResolvedTasksMap {
 				if _, exist := currentMissingTaskDependencies[taskId][removingDependencyId]; exist {
 					delete(currentMissingTaskDependencies[taskId], removingDependencyId)
@@ -191,7 +191,7 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 				}
 			}
 			for _, task := range nonResolvedTasksMap {
-				delete(missingTaskIdsInMap, task.ID().String())
+				delete(missingTaskIdsInMap, task.UntypedID().ReferenceIDString())
 			}
 
 			// When there were no task runnable only with the missing sources,
@@ -211,9 +211,15 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 				}
 			}
 
-			missingSources := []taskid.TaskReferenceId{}
+			if !hasCyclicDependencies {
+				for _, task := range nonResolvedTasksMap {
+					delete(missingTaskIdsInMap, task.UntypedID().ReferenceIDString())
+				}
+			}
+
+			missingSources := []taskid.UntypedTaskReference{}
 			for source := range missingTaskIdsInMap {
-				missingSources = append(missingSources, taskid.NewTaskReference(source))
+				missingSources = append(missingSources, taskid.NewTaskReference[any](source))
 			}
 
 			return &SortTaskGraphResult{
@@ -228,7 +234,7 @@ func (s *DefinitionSet) sortTaskGraph() *SortTaskGraphResult {
 	return &SortTaskGraphResult{
 		Runnable:               true,
 		TopologicalSortedTasks: topologicalSortedTasks,
-		MissingDependencies:    []taskid.TaskReferenceId{},
+		MissingDependencies:    []taskid.UntypedTaskReference{},
 		HasCyclicDependency:    false,
 	}
 }
@@ -243,19 +249,20 @@ func (s *DefinitionSet) ResolveTask(availableDefinitionSet *DefinitionSet) (*Def
 	} else {
 		// the sourceTaskSet can't be topologically sorted with its own tasks.
 		// Try to add missing dependencies from availableDefinitionSet
-		complementedTask := []Definition{}
+		complementedTask := []UntypedDefinition{}
 		resolutionFailure := false
-		var missingTaskId taskid.TaskReferenceId
+		var missingTaskId taskid.UntypedTaskReference
 		for _, missingSource := range sortResult.MissingDependencies {
-			matched := []Definition{}
+			matched := []UntypedDefinition{}
 			for _, task := range availableDefinitionSet.definitions {
-				if task.ID().Match(missingSource) {
+				missingSourceReference := missingSource.ReferenceIDString()
+				if task.UntypedID().ReferenceIDString() == missingSourceReference {
 					matched = append(matched, task)
 				}
 			}
 			// sort matched tasks with selection priority for in case when there are 2 or more tasks can be usable for resolving required dependency
 			maxPriority := -1
-			var maxPriorityTaskDefinition Definition
+			var maxPriorityTaskDefinition UntypedDefinition
 			for _, task := range matched {
 				priority := typedmap.GetOrDefault(task.Labels(), LabelKeyTaskSelectionPriority, 0)
 				if priority >= maxPriority {
@@ -279,7 +286,7 @@ func (s *DefinitionSet) ResolveTask(availableDefinitionSet *DefinitionSet) (*Def
 			}
 			return sourceTaskSet.ResolveTask(availableDefinitionSet)
 		}
-		return nil, fmt.Errorf("Failed to resolve the task set.\n Missing %s", missingTaskId.String())
+		return nil, fmt.Errorf("Failed to resolve the task set.\n Missing %s\nAvailable tasks:\n%v", missingTaskId.ReferenceIDString(), dumpTaskIDList(availableDefinitionSet))
 	}
 }
 
@@ -299,22 +306,22 @@ func (s *DefinitionSet) DumpGraphviz() (string, error) {
 		if feature {
 			shape = "doublecircle"
 		}
-		result += fmt.Sprintf("%s [shape=\"%s\",label=\"%s\"]\n", graphVizValidId(definition.ID().String()), shape, definition.ID())
+		result += fmt.Sprintf("%s [shape=\"%s\",label=\"%s\"]\n", graphVizValidId(definition.UntypedID().String()), shape, definition.UntypedID())
 	}
 
 	for _, definition := range s.definitions {
 		if len(definition.Dependencies()) == 0 {
-			result += fmt.Sprintf("start -> %s\n", graphVizValidId(definition.ID().String()))
+			result += fmt.Sprintf("start -> %s\n", graphVizValidId(definition.UntypedID().String()))
 		}
 	}
-	sourceRelation := map[string]Definition{}
+	sourceRelation := map[string]UntypedDefinition{}
 	for _, definition := range s.definitions {
 		sources := definition.Dependencies()
 		for _, source := range sources {
-			sourceDefinition := sourceRelation[source.String()]
-			result += fmt.Sprintf("%s -> %s\n", graphVizValidId(sourceDefinition.ID().String()), graphVizValidId(definition.ID().String()))
+			sourceDefinition := sourceRelation[source.ReferenceIDString()]
+			result += fmt.Sprintf("%s -> %s\n", graphVizValidId(sourceDefinition.UntypedID().String()), graphVizValidId(definition.UntypedID().String()))
 		}
-		sourceRelation[definition.ID().ReferenceId().String()] = definition
+		sourceRelation[definition.UntypedID().ReferenceIDString()] = definition
 	}
 	result += "}"
 	return result, nil
@@ -333,21 +340,35 @@ func graphVizValidId(id string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(id, "-", "_"), "/", "_"), ".", "_"), "#", "_")
 }
 
+func dumpTaskIDList(taskSet *DefinitionSet) string {
+	taskIDs := []string{}
+	for _, task := range taskSet.definitions {
+		taskIDs = append(taskIDs, task.UntypedID().String())
+	}
+	slices.SortFunc(taskIDs, strings.Compare)
+	result := ""
+	for _, taskID := range taskIDs {
+		result += fmt.Sprintf("- %s\n", taskID)
+	}
+	return result
+}
+
 // wrapGraphFirstTask is an implementation of Task to rewrite its dependency for wrapping graphs as a sub graph.
 // This is only used in the WrapGraph method.
 type wrapGraphFirstTask struct {
-	task         Definition
-	dependencies []taskid.TaskReferenceId
+	task         UntypedDefinition
+	dependencies []taskid.UntypedTaskReference
 }
 
 // Dependencies implements Definition.
-func (w *wrapGraphFirstTask) Dependencies() []taskid.TaskReferenceId {
+func (w *wrapGraphFirstTask) Dependencies() []taskid.UntypedTaskReference {
 	return w.dependencies
 }
 
 // ID implements Definition.
-func (w *wrapGraphFirstTask) ID() taskid.TaskImplementationId {
-	return w.task.ID()
+func (w *wrapGraphFirstTask) ID() taskid.TaskImplementationID[any] {
+	untypedID := w.task.UntypedID()
+	return taskid.NewImplementationID(taskid.NewTaskReference[any](untypedID.GetUntypedReference().String()), untypedID.GetTaskImplementationHash())
 }
 
 // Labels implements Definition.
@@ -357,7 +378,15 @@ func (w *wrapGraphFirstTask) Labels() *typedmap.ReadonlyTypedMap {
 
 // Run implements Definition.
 func (w *wrapGraphFirstTask) Run(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
-	return w.task.Run(ctx, taskMode, v)
+	return w.task.UntypedRun(ctx, taskMode, v)
 }
 
-var _ Definition = (*wrapGraphFirstTask)(nil)
+func (w *wrapGraphFirstTask) UntypedRun(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	return w.Run(ctx, taskMode, v)
+}
+
+func (w *wrapGraphFirstTask) UntypedID() taskid.UntypedTaskImplementationID {
+	return w.task.UntypedID()
+}
+
+var _ Definition[any] = (*wrapGraphFirstTask)(nil)

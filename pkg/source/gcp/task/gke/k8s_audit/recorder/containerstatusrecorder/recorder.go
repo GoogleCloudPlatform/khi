@@ -25,12 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("containers", []string{}, func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
+	manager.AddRecorder("containers", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
 		var prevPod *corev1.Pod
 		if prevStateInGroup != nil {
 			prevPod = prevStateInGroup.(*corev1.Pod)

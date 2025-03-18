@@ -15,72 +15,16 @@
 package task
 
 import (
-	"context"
-	"fmt"
-	"sync"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-// localBlockableVariable is a wrapper of a variable to wait the variable to be set by dependent task unit.
-type localBlockableVariable struct {
-	id       string
-	value    any
-	waiter   chan interface{}
-	resolved bool
-}
-
-func newTaskVariable(id string) *localBlockableVariable {
-	result := &localBlockableVariable{
-		id:       id,
-		value:    nil,
-		waiter:   make(chan interface{}),
-		resolved: false,
-	}
-	return result
-}
-
-// Set releases the lock of the variable to read and store the value.
-// If the variable has already been set, an error is returned.
-func (v *localBlockableVariable) Set(value any) error {
-	if v.resolved {
-		return fmt.Errorf("task variable `%s` set twice time", v.id)
-	}
-	v.resolved = true
-	v.value = value
-	close(v.waiter)
-	return nil
-}
-
-// Wait waits the variable to be set and read it.
-// It will wait the value to be set when the variable wasn't set yet.
-func (v *localBlockableVariable) Wait(ctx context.Context) (any, error) {
-	select {
-	case <-v.waiter:
-		return v.value, nil
-	case <-ctx.Done():
-		return nil, context.Canceled
-	}
-}
-
-func (v *localBlockableVariable) Get() (any, error) {
-	if v.resolved {
-		return v.value, nil
-	} else {
-		return nil, fmt.Errorf("variable `%s` is not yet resolved", v.id)
-	}
-}
-
-func (v *localBlockableVariable) IsResolved() bool {
-	return v.resolved
-}
-
-// VariableSet contain the list of variables get/set by tasks.
 type VariableSet struct {
-	variables sync.Map
+	variables *typedmap.TypedMap
 }
 
 func NewVariableSet(initialVariables map[string]any) *VariableSet {
 	vs := &VariableSet{
-		variables: sync.Map{},
+		variables: &typedmap.TypedMap{},
 	}
 	for variableKey, data := range initialVariables {
 		vs.Set(variableKey, data)
@@ -88,52 +32,30 @@ func NewVariableSet(initialVariables map[string]any) *VariableSet {
 	return vs
 }
 
-// Get returns a value or waits the variables to be assigned from the other task.
-func (s *VariableSet) Wait(ctx context.Context, key string) (any, error) {
-	return s.getVariable(key).Wait(ctx)
-}
-
-// Get returns a value or waits the variables to be assigned from the other task.
-func (s *VariableSet) Get(key string) (any, error) {
-	return s.getVariable(key).Get()
-}
-
+// TODO: define a new type safe function
 func (s *VariableSet) Set(key string, value any) error {
-	return s.getVariable(key).Set(value)
+	typedmap.Set(s.variables, typedmap.NewTypedKey[any](key), value)
+	return nil
 }
 
 func (s *VariableSet) DeleteItems(selector func(key string) bool) {
 	keys := map[string]struct{}{}
-	s.variables.Range(func(key, value any) bool {
-		keyString := key.(string)
-		if selector(keyString) {
-			keys[keyString] = struct{}{}
+	for _, key := range s.variables.Keys() {
+		if selector(key) {
+			keys[key] = struct{}{}
 		}
-		return true
-	})
+	}
 	for k := range keys {
-		s.variables.Delete(k)
+		typedmap.Delete(s.variables, typedmap.NewTypedKey[any](k))
 	}
 }
 
-func (s *VariableSet) IsResolved(key string) bool {
-	return s.getVariable(key).IsResolved()
-}
-
-func (s *VariableSet) getVariable(key string) *localBlockableVariable {
-	variable, _ := s.variables.LoadOrStore(key, newTaskVariable(key))
-	return variable.(*localBlockableVariable)
-}
-
+// TODO: define a new type safe function
 // GetTypedVariableFromTaskVariable returns the specified variable from given variable set with type cast.
 func GetTypedVariableFromTaskVariable[T any](tv *VariableSet, variableId string, defaultValue T) (T, error) {
-	valueAny, err := tv.Get(variableId)
-	if err != nil {
-		return defaultValue, err
-	}
-	if value, convertible := valueAny.(T); convertible {
+	value, found := typedmap.Get(tv.variables, typedmap.NewTypedKey[T](variableId))
+	if !found {
 		return value, nil
-	} else {
-		return defaultValue, fmt.Errorf("the given value %v in %s couldn't be converted to %T", valueAny, variableId, *new(T))
 	}
+	return value, nil
 }

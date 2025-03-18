@@ -192,16 +192,18 @@ func TestGetOrDefault(t *testing.T) {
 }
 
 func TestTypeAssertionFailure(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Errorf("panic didn't happened on passing a different type")
+		}
+	}()
 	tm := NewTypedMap()
 	Set(tm, StringKey, "Taro")
 
 	// Try to retrieve as different type with the same underlying key
 	wrongKey := NewTypedKey[int]("string-key")
-	_, ok := Get(tm, wrongKey)
-
-	if ok {
-		t.Error("Expected type assertion to fail, but it succeeded")
-	}
+	Get(tm, wrongKey)
 }
 
 func TestConcurrentAccess(t *testing.T) {

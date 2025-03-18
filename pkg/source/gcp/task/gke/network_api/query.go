@@ -21,14 +21,14 @@ import (
 
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
-
-const GCPNetworkLogQueryTaskID = query.GKEQueryPrefix + "network-api"
 
 func GenerateGCPNetworkAPIQuery(taskMode int, negNames []string) []string {
 	nodeNamesWithNetworkEndpointGroups := []string{}
@@ -55,7 +55,7 @@ func queryFromNegNameFilter(negNameFilter string) string {
 `, negNameFilter)
 }
 
-var GCPNetworkLogQueryTask = query.NewQueryGeneratorTask(GCPNetworkLogQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []string{
+var GCPNetworkLogQueryTask = query.NewQueryGeneratorTask(network_api_taskid.GCPNetworkLogQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
 	k8saudittask.K8sAuditParseTaskID,
 }, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
 	builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(vs)
