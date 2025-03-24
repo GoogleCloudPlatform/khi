@@ -51,8 +51,11 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
   - （近日公開予定）ファイルによるログアップロード
 
 ## 実行方法
+
 ### Dockerイメージから実行
+
 #### 動作環境
+
 - Google Chrome（最新版）
 
 > [!IMPORTANT]
@@ -82,12 +85,14 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 <summary>動かしてみる (ソースから実行)</summary>
 
 #### 動作環境
+
 - Go 1.23.*
 - Node.js環境 22.13.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq`コマンド](https://jqlang.org/)
 
 #### 環境構築
+
 1. このリポジトリをダウンロードまたはクローンします。  
   例: `git clone https://github.com/GoogleCloudPlatform/khi.git`
 2. プロジェクトルートに移動します。  
@@ -95,6 +100,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 3. プロジェクトルートから `cd ./web && npm install` を実行します。
 
 #### KHIの実行
+
 1. [`gcloud` で認証します。](https://cloud.google.com/docs/authentication/gcloud)  
   例: ユーザーアカウントの認証情報を使用する場合は、`gcloud auth login` を実行します。
 2. プロジェクトルートから `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` を実行します。  
@@ -107,6 +113,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 > KHI自身は認証、認可の機能を提供しておらず、ローカルユーザからのみアクセスされることが想定されています。
 
 ### 権限設定
+
 ## マネージド環境毎の設定
 
 ### Google Cloud
@@ -117,18 +124,18 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 **必須権限**
 
-* `logging.logEntries.list`
+- `logging.logEntries.list`
 
 **推奨権限**
 
-* 対象のクラスタのタイプに対するリスト権限（例：GKEの場合 `container.clusters.list`）
+- 対象のクラスタのタイプに対するリスト権限（例：GKEの場合 `container.clusters.list`）
 
    ログフィルタ生成ダイアログの候補の出力に使用します。KHIの主機能の利用に影響はありません。
 
 ##### 設定手順
 
-* Compute Engine仮想マシン上など、サービスアカウントがアタッチされたGoogle Cloud環境でKHIを実行する場合、対応するリソースにアタッチされたサービスアカウントに上記権限を付与します。
-* ローカル環境やCloud Shellなど、ユーザアカウント権限でKHIを実行する場合、対応するユーザ上記権限を付与します。
+- Compute Engine仮想マシン上など、サービスアカウントがアタッチされたGoogle Cloud環境でKHIを実行する場合、対応するリソースにアタッチされたサービスアカウントに上記権限を付与します。
+- ローカル環境やCloud Shellなど、ユーザアカウント権限でKHIを実行する場合、対応するユーザ上記権限を付与します。
 
 > [!WARNING]
 > KHIは、Compute Engineインスタンス上で実行した際は必ずアタッチされたサービスアカウントを使用するなど、[ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc)が反映されません。
@@ -138,11 +145,11 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 
 **必須設定**
 
-* **必須な設定はありません。**
+- **必須な設定はありません。**
 
 **推奨設定**
 
-* Kubernetes Engine APIデータ書き込み監査ログ
+- Kubernetes Engine APIデータ書き込み監査ログ
 
 > [!TIP]
 > PodやNodeリソースの`.status`フィールドへのパッチリクエストが記録されており、

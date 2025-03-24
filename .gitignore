@@ -11,3 +11,5 @@ go-cover.output
 .devcontainer/.env
 *.khi
 .terraform/
+node_modules/
+package-lock.json

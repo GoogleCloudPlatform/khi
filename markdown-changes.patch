@@ -1,0 +1,453 @@
+diff --git a/.devcontainer/README.md b/.devcontainer/README.md
+index 823c67e..43f9797 100644
+--- a/.devcontainer/README.md
++++ b/.devcontainer/README.md
+@@ -41,4 +41,3 @@ ng --version
+ gcloud --version
+ kubectl version --client
+ ```
+-
+diff --git "a/.github/ISSUE_TEMPLATE/bug-report-\360\237\220\236.md" "b/.github/ISSUE_TEMPLATE/bug-report-\360\237\220\236.md"
+index 5db2aef..98daa4f 100644
+--- "a/.github/ISSUE_TEMPLATE/bug-report-\360\237\220\236.md"
++++ "b/.github/ISSUE_TEMPLATE/bug-report-\360\237\220\236.md"
+@@ -19,6 +19,7 @@ assignees: ''
+ <!-- A clear and concise description of what you expected to happen.-->
+ 
+ ### Debugging resources
++
+ **Reproductive steps**
+ <!-- 
+ 1. Go to '...'
+@@ -35,6 +36,6 @@ assignees: ''
+ 
+ ### Environments
+ 
+-**[Image version](https://github.com/GoogleCloudPlatform/khi/pkgs/container/khi) used**: 
++**[Image version](https://github.com/GoogleCloudPlatform/khi/pkgs/container/khi) used**:
+ 
+ - [ ] I use the latest Chrome when I observed this issue
+diff --git a/.github/workflows/pr-request.yaml b/.github/workflows/pr-request.yaml
+index 9846692..b27414a 100644
+--- a/.github/workflows/pr-request.yaml
++++ b/.github/workflows/pr-request.yaml
+@@ -27,7 +27,10 @@ jobs:
+         uses: actions/checkout@v4
+ 
+       - name: Run markdownlint
+-        uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265 # 19.1.0
++        # Pinned to a specific commit for security (v19.1.0)
++        uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265
++        with:
++          globs: "**/*.md"
+ 
+   backend-tests:
+     runs-on: ubuntu-latest
+diff --git a/.gitignore b/.gitignore
+index 6adb43b..662f929 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -11,3 +11,5 @@ go-cover.output
+ .devcontainer/.env
+ *.khi
+ .terraform/
++node_modules/
++package-lock.json
+diff --git a/README.ja.md b/README.ja.md
+index cc73987..5a8238a 100644
+--- a/README.ja.md
++++ b/README.ja.md
+@@ -51,8 +51,11 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視
+   - （近日公開予定）ファイルによるログアップロード
+ 
+ ## 実行方法
++
+ ### Dockerイメージから実行
++
+ #### 動作環境
++
+ - Google Chrome（最新版）
+ 
+ > [!IMPORTANT]
+@@ -82,12 +85,14 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視
+ <summary>動かしてみる (ソースから実行)</summary>
+ 
+ #### 動作環境
++
+ - Go 1.23.*
+ - Node.js環境 22.13.*
+ - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
+ - [`jq`コマンド](https://jqlang.org/)
+ 
+ #### 環境構築
++
+ 1. このリポジトリをダウンロードまたはクローンします。  
+   例: `git clone https://github.com/GoogleCloudPlatform/khi.git`
+ 2. プロジェクトルートに移動します。  
+@@ -95,6 +100,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視
+ 3. プロジェクトルートから `cd ./web && npm install` を実行します。
+ 
+ #### KHIの実行
++
+ 1. [`gcloud` で認証します。](https://cloud.google.com/docs/authentication/gcloud)  
+   例: ユーザーアカウントの認証情報を使用する場合は、`gcloud auth login` を実行します。
+ 2. プロジェクトルートから `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` を実行します。  
+@@ -107,6 +113,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視
+ > KHI自身は認証、認可の機能を提供しておらず、ローカルユーザからのみアクセスされることが想定されています。
+ 
+ ### 権限設定
++
+ ## マネージド環境毎の設定
+ 
+ ### Google Cloud
+@@ -117,18 +124,18 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視
+ 
+ **必須権限**
+ 
+-* `logging.logEntries.list`
++- `logging.logEntries.list`
+ 
+ **推奨権限**
+ 
+-* 対象のクラスタのタイプに対するリスト権限（例：GKEの場合 `container.clusters.list`）
++- 対象のクラスタのタイプに対するリスト権限（例：GKEの場合 `container.clusters.list`）
+ 
+    ログフィルタ生成ダイアログの候補の出力に使用します。KHIの主機能の利用に影響はありません。
+ 
+ ##### 設定手順
+ 
+-* Compute Engine仮想マシン上など、サービスアカウントがアタッチされたGoogle Cloud環境でKHIを実行する場合、対応するリソースにアタッチされたサービスアカウントに上記権限を付与します。
+-* ローカル環境やCloud Shellなど、ユーザアカウント権限でKHIを実行する場合、対応するユーザ上記権限を付与します。
++- Compute Engine仮想マシン上など、サービスアカウントがアタッチされたGoogle Cloud環境でKHIを実行する場合、対応するリソースにアタッチされたサービスアカウントに上記権限を付与します。
++- ローカル環境やCloud Shellなど、ユーザアカウント権限でKHIを実行する場合、対応するユーザ上記権限を付与します。
+ 
+ > [!WARNING]
+ > KHIは、Compute Engineインスタンス上で実行した際は必ずアタッチされたサービスアカウントを使用するなど、[ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc)が反映されません。
+@@ -138,11 +145,11 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視
+ 
+ **必須設定**
+ 
+-* **必須な設定はありません。**
++- **必須な設定はありません。**
+ 
+ **推奨設定**
+ 
+-* Kubernetes Engine APIデータ書き込み監査ログ
++- Kubernetes Engine APIデータ書き込み監査ログ
+ 
+ > [!TIP]
+ > PodやNodeリソースの`.status`フィールドへのパッチリクエストが記録されており、
+diff --git a/README.md b/README.md
+index 09aace1..45ffa62 100644
+--- a/README.md
++++ b/README.md
+@@ -34,7 +34,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
+ - Google Cloud
+   - [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
+   - [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
+-  - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
++  - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture)
+   - [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
+   - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
+   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
+@@ -87,23 +87,26 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
+ <summary>Get Started (Run from source)</summary>
+ 
+ #### Prerequisites
++
+ - Go 1.23.*
+ - Node.js environment 22.13.*
+ - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
+ - [`jq` command](https://jqlang.org/)
+ 
+ #### Initialization (one-time setup)
+-1. Download or clone this repository   
++
++1. Download or clone this repository
+   e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
+-1. Move to the project root   
++1. Move to the project root
+   e.g. `cd khi`
+ 1. Run `cd ./web && npm install` from the project root
+ 
+ #### Run KHI
++
+ 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
+   e.g. `gcloud auth login` if you use your user account credentials
+-1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
+-  Open `localhost:8080` and start working with KHI! 
++1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root
++  Open `localhost:8080` and start working with KHI!
+ 
+ </details>
+ 
+@@ -112,6 +115,7 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
+ > KHI itself is not providing any authentication or authorization features and KHI is intended to be accessed from its local user.
+ 
+ ### Authentication settings
++
+ ## Settings for managed environments
+ 
+ ### Google Cloud
+@@ -122,33 +126,32 @@ The following permissions are required or recommended.
+ 
+ **Required**
+ 
+-* `logging.logEntries.list`
++- `logging.logEntries.list`
+ 
+ **Recommended**
+ 
+-* Permissions to list clusters for cluster type (eg. `container.clusters.list` for GKE)
++- Permissions to list clusters for cluster type (eg. `container.clusters.list` for GKE)
+ 
+-   This permission is used to show autofill candidates for the log filter. KHI's main functionality is not affected without this permission. 
++   This permission is used to show autofill candidates for the log filter. KHI's main functionality is not affected without this permission.
+ 
++##### Setup
+ 
+-##### Setup 
++- Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
++- Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account.
+ 
+-* Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
+-* Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account. 
+ > [!WARNING]
+ > KHI does not respect [ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc) – running KHI on a Compute Engine Instances will always use the attached service account regardless of ADC.
+-> This specification is subject to change in the future. 
+-
++> This specification is subject to change in the future.
+ 
+ #### Audit Logging
+ 
+ **Required**
+ 
+-* **Nothing required**. KHI fully works with the default audit logging configuration.
++- **Nothing required**. KHI fully works with the default audit logging configuration.
+ 
+ **Recommended**
+ 
+-* Kubernetes Engine API Data access audit logs for `DATA_WRITE`
++- Kubernetes Engine API Data access audit logs for `DATA_WRITE`
+ 
+ > [!TIP]
+ > Enabling these will log every patch requests on Pod or Node `.status` field.
+@@ -156,6 +159,7 @@ The following permissions are required or recommended.
+ > KHI will still guess the last container status from the audited Pod deletion log even without these logs, however it requires the Pod to be deleted within the queried timeframe.
+ 
+ ##### Setup
++
+ 1. In the Google Cloud Console, [go to the Audit Logs](https://console.cloud.google.com/iam-admin/audit) page.
+ 1. In the Data Access audit logs configuration table, select  `Kubernetes Engine API` from the Service column.
+ 1. In the Log Types tab, select the `Data write` Data Access audit log type
+diff --git a/docs/code-of-conduct.md b/docs/code-of-conduct.md
+index ed82100..082a24c 100644
+--- a/docs/code-of-conduct.md
++++ b/docs/code-of-conduct.md
+@@ -69,13 +69,13 @@ dispute. If you are unable to resolve the matter for any reason, or if the
+ behavior is threatening or harassing, report it. We are dedicated to providing
+ an environment where participants feel welcome and safe.
+ 
+-Reports should be directed to _Kakeru Ishii (ikakeru@google.com)_, the
++Reports should be directed to _Kakeru Ishii (<ikakeru@google.com>)_, the
+ Project Steward(s) for _Kubernetes History Inspector_. It is the Project Steward’s duty to
+ receive and address reported violations of the code of conduct. They will then
+ work with a committee consisting of representatives from the Open Source
+ Programs Office and the Google Open Source Strategy team. If for any reason you
+ are uncomfortable reaching out to the Project Steward, please email
+-opensource@google.com.
++<opensource@google.com>.
+ 
+ We will investigate every complaint, but you may not receive a direct response.
+ We will use our discretion in determining when and how to follow up on reported
+@@ -90,4 +90,4 @@ harassment or threats to anyone's safety, we may take action without notice.
+ 
+ This Code of Conduct is adapted from the Contributor Covenant, version 1.4,
+ available at
+-https://www.contributor-covenant.org/version/1/4/code-of-conduct/
++<https://www.contributor-covenant.org/version/1/4/code-of-conduct/>
+diff --git a/docs/contributing.md b/docs/contributing.md
+index b82452f..1cc66ec 100644
+--- a/docs/contributing.md
++++ b/docs/contributing.md
+@@ -35,4 +35,4 @@ for this purpose.
+ 
+ ### Development
+ 
+-Please check our [development guide](./en/development-guide.md).
+\ No newline at end of file
++Please check our [development guide](./en/development-guide.md).
+diff --git a/docs/en/development-guide.md b/docs/en/development-guide.md
+index f680565..3dbad22 100644
+--- a/docs/en/development-guide.md
++++ b/docs/en/development-guide.md
+@@ -20,7 +20,7 @@ Our repository can't accept unsigned commits.
+ Run the following shell command to setup Git hook. It runs format or lint codes before commiting changes.
+ 
+ ```shell
+-$ make setup-hooks
++make setup-hooks
+ ```
+ 
+ ### Setup VSCode config
+@@ -65,10 +65,10 @@ You can run the server with VSCode. You can refer [this document](https://code.v
+ To develop frontend code, we usually start Angular dev server on port 4200 with the following code.
+ 
+ ```shell
+-$ make watch-web
++make watch-web
+ ```
+ 
+-Angular development server on KHI proxies requests to `localhost:4200/api` to `localhost:8080`. ([the proxy config](../../web/proxy.conf.mjs))
++This will build the frontend code with [the configuration to access APIs on `localhost:8080`](../../web/src/environments/environment.dev.ts).
+ You can use KHI with accessing `localhost:4200` instead of `localhost:8080`. Angular dev server automatically build and serve the new build when you change the frontend code.
+ 
+ ### Run test
+@@ -76,13 +76,13 @@ You can use KHI with accessing `localhost:4200` instead of `localhost:8080`. Ang
+ Run the following code to verify frontend and backend codes.
+ 
+ ```shell
+-$ make test
++make test
+ ```
+ 
+ When you want to run backend tests without Cloud Logging, run the following code.
+ 
+ ```shell
+-$ go test ./... -args -skip-cloud-logging=true
++go test ./... -args -skip-cloud-logging=true
+ ```
+ 
+ ## Auto generated codes
+@@ -97,15 +97,18 @@ Several frontend codes are automativally generated from backend codes.
+ These files are generated with [`scripts/frontend-codegen/main.go` Golang codes](../../scripts/frontend-codegen/main.go). It reads several Golang constant arrays and generate frontend codes with templates.
+ 
+ #### Markdown Linting
++
+ We use markdownlint-cli2 to enforce our documentation style and ensure consistency across our Markdown files.
+ 
+ ### Using markdownlint-cli2
++
+ The project already includes markdownlint-cli2 as a dev dependency, so you just need to install dependencies:
+ ```bash
+ npm install
+ ```
+ 
+ To lint Markdown files, run:
++
+ ```bash
+ make lint-markdown
+ ```
+diff --git a/docs/en/getting-started.md b/docs/en/getting-started.md
+index c8a4043..73f34b9 100644
+--- a/docs/en/getting-started.md
++++ b/docs/en/getting-started.md
+@@ -3,12 +3,12 @@
+ This tutorial will explain how to visualize the state changes of Kubernetes resources using Kubernetes History Inspector (KHI). Using Deployments as an example, you'll create, scale, roll out, and delete Pods, and then use KHI to see how these operations change the state of Pods and ReplicaSets.
+ 
+ Please see [User Guide](./user-guide.md) as well.
+- 
++
+ ### **Prerequisites**
+ 
+ * Available GKE cluster
+ * kubectl  
+-* Docker or podman   
++* Docker or podman
+ * gcloud
+ 
+ <details>
+@@ -127,7 +127,6 @@ By using KHI, you can automate the task of visualizing when, where, who, and wha
+ 
+ * By using KHI, you can understand how operations such as scaling out/in, and rolling out a Deployment affect the state of Pods and ReplicaSets.
+ 
+-
+ ### **Further Actions**
+ 
+ * Increase the number of Kinds / Namespaces.
+diff --git a/docs/en/user-guide.md b/docs/en/user-guide.md
+index f3f8731..80c6c0d 100644
+--- a/docs/en/user-guide.md
++++ b/docs/en/user-guide.md
+@@ -24,7 +24,7 @@ Once the query done, you can open the visualization result with hitting the `Ope
+ 
+ ## Understanding the visualization
+ 
+-After opening the log, you will see a colorful visualization. 
++After opening the log, you will see a colorful visualization.
+ This is the main view of KHI, and you can see the timeline diagram on the left side, which reveals the macroscopic behavior of resources in your cluster.
+ The right side is dedicated to details of each resource. You can see detailed information by selecting a resource in the timeline.
+ 
+@@ -80,4 +80,4 @@ You can also filter logs using a regular expression in the input field at the to
+ The Topology view provides a visual representation of the relationships between different Kubernetes resources.
+ This can be helpful for understanding the resource topology at a specific point in time within a log.
+ 
+-![User guide topology-view](./images/guide-topology-view.png)
+\ No newline at end of file
++![User guide topology-view](./images/guide-topology-view.png)
+diff --git a/docs/ja/user-guide.md b/docs/ja/user-guide.md
+index 584a0e7..ed064b5 100644
+--- a/docs/ja/user-guide.md
++++ b/docs/ja/user-guide.md
+@@ -79,4 +79,4 @@ KHIは補足的なタイムラインをサブリソースであるかのよう
+ リソース関連性可視化機能を使用すると、クラスタ内のKubernetesリソース間の関係性を特定のタイミングで視覚的に確認できます。
+ これにより、ログに記録された特定時点でのリソース同士の関連性を容易に把握することができます。
+ 
+-![User guide topology-view](./images/guide-topology-view.png)
+\ No newline at end of file
++![User guide topology-view](./images/guide-topology-view.png)
+diff --git a/package.json b/package.json
+index dcf7bc0..e39e1a1 100644
+--- a/package.json
++++ b/package.json
+@@ -7,5 +7,9 @@
+   "private": true,
+   "devDependencies": {
+     "markdownlint-cli2": "^0.12.1"
++  },
++  "scripts": {
++    "lint:markdown": "markdownlint-cli2",
++    "lint:markdown:fix": "markdownlint-cli2 --fix"
+   }
+ } 
+diff --git a/pkg/testutil/README.md b/pkg/testutil/README.md
+index 9ed8f4b..b9f9994 100644
+--- a/pkg/testutil/README.md
++++ b/pkg/testutil/README.md
+@@ -1,3 +1,3 @@
+ Test utilities used in KHI tests
+ 
+-If testuitl needs to depend on non testutil, these should be in dedicated subfolder in testutil.
+\ No newline at end of file
++If testuitl needs to depend on non testutil, these should be in dedicated subfolder in testutil.
+diff --git a/scripts/make/markdown-lint.mk b/scripts/make/markdown-lint.mk
+new file mode 100644
+index 0000000..7ff9b16
+--- /dev/null
++++ b/scripts/make/markdown-lint.mk
+@@ -0,0 +1,24 @@
++# Copyright 2024 Google LLC
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++# http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++.PHONY: lint-markdown lint-markdown-fix
++
++lint-markdown:
++	@echo "Linting all Markdown files with markdownlint-cli2..."
++	@npx markdownlint-cli2
++
++lint-markdown-fix:
++	@echo "Fixing Markdown files with markdownlint-cli2..."
++	@npx markdownlint-cli2 --fix
++	@echo "Automatic fixes applied. Please review changes before committing." 
+\ No newline at end of file
