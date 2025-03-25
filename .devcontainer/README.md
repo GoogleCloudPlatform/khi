@@ -41,4 +41,3 @@ ng --version
 gcloud --version
 kubectl version --client
 ```
-
