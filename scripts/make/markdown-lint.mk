@@ -12,28 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: markdownlint check-markdownlint lint-markdown lint-markdown-fix
+.PHONY: check-markdownlint lint-markdown lint-markdown-fix
 
-# Check if markdownlint-cli is installed
+# Check if markdownlint-cli2 is installed
 check-markdownlint:
-	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint-cli not found. Please install it with 'npm install -g markdownlint-cli'"; exit 1; }
+	@command -v npx >/dev/null 2>&1 || { echo "npx not found. Please install Node.js and npm"; exit 1; }
 
-# Default target: lint all markdown files
-markdownlint: check-markdownlint
-	@echo "Linting all Markdown files with markdownlint..."
-	@if [ ! -f ".markdownlint.json" ] && [ ! -f ".markdownlint.yaml" ] && [ ! -f ".markdownlint.yml" ]; then \
-		echo "{ \"default\": true, \"MD013\": false, \"MD033\": false }" > .markdownlint.json; \
-		echo "Created default .markdownlint.json configuration"; \
-	else \
-		echo "Using existing markdownlint configuration"; \
-	fi
-	@markdownlint "**/*.md" || exit 1
-
-lint-markdown:
+# Lint all markdown files
+lint-markdown: check-markdownlint
 	@echo "Linting all Markdown files with markdownlint-cli2..."
 	@npx markdownlint-cli2
 
-lint-markdown-fix:
+# Fix markdown files
+lint-markdown-fix: check-markdownlint
 	@echo "Fixing Markdown files with markdownlint-cli2..."
 	@npx markdownlint-cli2 --fix
 	@echo "Automatic fixes applied. Please review changes before committing." 
