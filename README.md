@@ -87,7 +87,7 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
 <summary>Get Started (Run from source)</summary>
 
 #### Prerequisites
-- Go 1.23.*
+- Go 1.24.*
 - Node.js environment 22.13.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq` command](https://jqlang.org/)
