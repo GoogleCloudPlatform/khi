@@ -25,11 +25,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-var GKEK8sEventLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/event-parser", &k8sEventParser{}, true)
+var GKEK8sEventLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/event-parser", &k8sEventParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
 
 type k8sEventParser struct {
 }

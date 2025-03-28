@@ -20,16 +20,14 @@ import (
 	"log/slog"
 	"strings"
 
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
-	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -171,7 +169,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs
 
 var _ parser.Parser = (*multiCloudAuditLogParser)(nil)
 
-var MultiCloudAuditLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/multicloud-audit-parser", &multiCloudAuditLogParser{}, true, inspection_task.InspectionTypeLabel(aws.InspectionTypeId, azure.InspectionTypeId))
+var MultiCloudAuditLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/multicloud-audit-parser", &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
 
 type multiCloudResource struct {
 	ClusterType  string // aws or azure

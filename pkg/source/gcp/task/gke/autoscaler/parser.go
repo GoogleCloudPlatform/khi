@@ -20,16 +20,14 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -227,4 +225,4 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.LogEntity, 
 
 var _ parser.Parser = (*autoscalerLogParser)(nil)
 
-var AutoscalerParserTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/autoscaler-parser", &autoscalerLogParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_task.InspectionTypeId))
+var AutoscalerParserTask = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/autoscaler-parser", &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

@@ -19,16 +19,14 @@ import (
 	"fmt"
 	"strings"
 
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -195,4 +193,4 @@ func getRelatedNodepool(l *log.LogEntity) (string, error) {
 
 var _ parser.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/gke-audit-parser", &gkeAuditLogParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_task.InspectionTypeId))
+var GKEAuditLogParseJob = parser.NewParserTaskFromParser(gcp_task.GCPPrefix+"feature/gke-audit-parser", &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
