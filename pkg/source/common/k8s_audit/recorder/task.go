@@ -24,9 +24,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/constants"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -130,8 +132,7 @@ func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, 
 	}
 	waiterTask := inspection_task.NewInspectionProcessor(r.taskID.String(), recorderTaskIds, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		return struct{}{}, nil
-	}, labelOpts...)
-
+	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, inspectiontype.GCPK8sClusterInspectionTypes...))
 	err := server.AddTaskDefinition(waiterTask)
 	return err
 }
