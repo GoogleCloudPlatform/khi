@@ -56,7 +56,7 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 		}
 
 		token := upload.DefaultUploadFileStore.GetUploadToken(upload.GenerateUploadIDWithTaskContext(ctx, b.id), b.verifier)
-		status, err := upload.DefaultUploadFileStore.GetResult(token)
+		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
 		if err != nil {
 			return nil, err
 		}
@@ -67,18 +67,19 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 				Hint:     "",
 			},
 			Token:  token,
-			Status: status.Status,
+			Status: uploadResult.Status,
 		}
 		b.SetupBaseFormField(&field.ParameterFormFieldBase)
 
-		field = setFormHintsFromUploadResult(status, field)
+		field = setFormHintsFromUploadResult(uploadResult, field)
 
 		formFields := m.LoadOrStore(form_metadata.FormFieldSetMetadataKey, &form_metadata.FormFieldSetMetadataFactory{}).(*form_metadata.FormFieldSet)
 		err = formFields.SetField(field)
 		if err != nil {
 			return nil, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
 		}
-		return nil, nil
+
+		return uploadResult, nil
 	}, labelOpts...)
 }
 

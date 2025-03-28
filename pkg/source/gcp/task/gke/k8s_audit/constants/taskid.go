@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package form
+package k8saudittask
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
-var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
-	MaxLineSizeInBytes: 1024 * 1024 * 1024,
-}).
-	WithDescription(`Upload JSONLine format kube-apiserver audit log`).
-	Build()
+const K8sAuditQueryTaskID = gcp_task.GCPPrefix + "query/k8s_audit"
+const K8sAuditParseTaskID = gcp_task.GCPPrefix + "/feature/audit-parser-v2"

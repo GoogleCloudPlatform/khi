@@ -12,44 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss
+package common
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2logconvert"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2manifestgenerate"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2timelinegrouping"
 )
 
-func Prepare(inspetionServer *inspection.InspectionTaskServer) error {
-	err := inspetionServer.AddInspectionType(OSSKubernetesLogFilesInspectionType)
+func Register(i *inspection.InspectionTaskServer) error {
+	err := i.AddTaskDefinition(v2commonlogparse.Task)
 	if err != nil {
 		return err
 	}
 
-	err = inspetionServer.AddTaskDefinition(parser.OSSK8sEventLogParserTask)
-	if err != nil {
-		return err
-	}
-	err = parser.RegisterK8sAuditTasks(inspetionServer)
-	if err != nil {
-		return err
-	}
-	err = inspetionServer.AddTaskDefinition(parser.OSSLogFileReader)
-	if err != nil {
-		return err
-	}
-	err = inspetionServer.AddTaskDefinition(parser.OSSEventLogFilter)
-	if err != nil {
-		return err
-	}
-	err = inspetionServer.AddTaskDefinition(parser.OSSNonEventLogFilter)
-	if err != nil {
-		return err
-	}
-	err = inspetionServer.AddTaskDefinition(form.AuditLogFilesForm)
+	err = i.AddTaskDefinition(v2timelinegrouping.Task)
 	if err != nil {
 		return err
 	}
 
+	err = i.AddTaskDefinition(v2manifestgenerate.Task)
+	if err != nil {
+		return err
+	}
+
+	err = i.AddTaskDefinition(v2logconvert.Task)
+	if err != nil {
+		return err
+	}
 	return nil
 }
