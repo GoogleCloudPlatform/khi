@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
