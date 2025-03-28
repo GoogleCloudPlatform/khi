@@ -18,22 +18,23 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-type InspectionProcessorFunc[T any] = func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (T, error)
+type InspectionProcessorFunc[T any] = func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (T, error)
 
-// NewInspectionProcessor generates a processor task.Definition with progress reporting feature
-func NewInspectionProcessor[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, processor InspectionProcessorFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
-	return task.NewProcessorTask(taskId, dependencies, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
-		md, err := GetMetadataSetFromVariable(v)
-		if err != nil {
-			return *new(T), err
-		}
-		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
+// NewInspectionTask generates a processor task.Definition with progress reporting feature
+func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, processor InspectionProcessorFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
+	return task.NewTask(taskId, dependencies, func(ctx context.Context) (T, error) {
+		taskMode := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskMode)
+		metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+		progress, found := typedmap.Get(metadataSet, progress.ProgressMetadataKey)
 		if !found {
 			return *new(T), fmt.Errorf("progress metadata not found")
 		}
@@ -42,51 +43,7 @@ func NewInspectionProcessor[T any](taskId taskid.TaskImplementationID[T], depend
 		if err != nil {
 			return *new(T), err
 		}
-		return processor(ctx, taskMode, v, taskProgress)
-
-	}, append([]task.LabelOpt{&ProgressReportableTaskLabelOptImpl{}}, labelOpts...)...)
-}
-
-// NewInspectionCachedProcessor generates a cached processor task.Definition with progress reporting feature
-func NewInspectionCachedProcessor[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, processor InspectionProcessorFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
-	return task.NewCachedProcessor(taskId, dependencies, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
-		md, err := GetMetadataSetFromVariable(v)
-		if err != nil {
-			return *new(T), err
-		}
-		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
-		if !found {
-			return *new(T), fmt.Errorf("progress metadata not found")
-		}
-		defer progress.ResolveTask(taskId.String())
-		taskProgress, err := progress.GetTaskProgress(taskId.String())
-		if err != nil {
-			return *new(T), err
-		}
-		return processor(ctx, taskMode, v, taskProgress)
-
-	}, append([]task.LabelOpt{&ProgressReportableTaskLabelOptImpl{}}, labelOpts...)...)
-}
-
-type InspectionProducerFunc[T any] = func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (T, error)
-
-// NewInspectionProducer generates a producer task.Definition with progress reporting feature
-func NewInspectionProducer[T any](taskId taskid.TaskImplementationID[T], producer InspectionProducerFunc[T], labelOpts ...task.LabelOpt) task.Definition[T] {
-	return task.NewProcessorTask(taskId, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (T, error) {
-		md, err := GetMetadataSetFromVariable(v)
-		if err != nil {
-			return *new(T), err
-		}
-		progress, found := typedmap.Get(md, progress.ProgressMetadataKey)
-		if !found {
-			return *new(T), fmt.Errorf("progress metadata not found")
-		}
-		defer progress.ResolveTask(taskId.String())
-		taskProgress, err := progress.GetTaskProgress(taskId.String())
-		if err != nil {
-			return *new(T), err
-		}
-		return producer(ctx, taskMode, taskProgress)
+		return processor(ctx, taskMode, taskProgress)
 
 	}, append([]task.LabelOpt{&ProgressReportableTaskLabelOptImpl{}}, labelOpts...)...)
 }

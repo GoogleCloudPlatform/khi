@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	k8s_event_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -63,7 +62,7 @@ func (*k8sEventParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*k8sEventParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) error {
+func (*k8sEventParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	if kind, err := l.GetString("jsonPayload.kind"); err != nil {
 		// Event exporter ingests cluster scoped logs without jsonPayload
 		if textPayload, err := l.GetString("textPayload"); err == nil {

@@ -34,11 +34,11 @@ type testTaskDefinition struct {
 }
 
 // Run implements Definition.
-func (d *testTaskDefinition) Run(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+func (d *testTaskDefinition) Run(ctx context.Context) (any, error) {
 	return nil, nil
 }
 
-func (d *testTaskDefinition) UntypedRun(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+func (d *testTaskDefinition) UntypedRun(ctx context.Context) (any, error) {
 	return nil, nil
 }
 

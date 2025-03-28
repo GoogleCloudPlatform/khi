@@ -25,7 +25,7 @@ import (
 
 func TestK8sEventParser_ParseSampleLog(t *testing.T) {
 	wantLogSummary := "【NodeRegistrationCheckerDidNotRunChecks】Fri Sep 13 01:49:48 UTC 2024 - **     Node ready and registered. **"
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_event/sample.yaml", &k8sEventParser{}, nil, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_event/sample.yaml", &k8sEventParser{}, nil)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -43,7 +43,7 @@ func TestK8sEventParser_ParseSampleLog(t *testing.T) {
 
 func TestK8sEventParser_ClusterScope(t *testing.T) {
 	wantLogSummary := "Event exporter started watching. Some events may have been lost up to this point."
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_event/cluster-scoped.yaml", &k8sEventParser{}, nil, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_event/cluster-scoped.yaml", &k8sEventParser{}, nil)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

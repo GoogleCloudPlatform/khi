@@ -18,20 +18,19 @@ import (
 	"context"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 var TimeZoneShiftInputTaskID = taskid.NewDefaultImplementationID[*time.Location](GCPPrefix + "input/timezone-shift")
 
-var TimeZoneShiftInputTask = inspection_task.NewInspectionProcessor(TimeZoneShiftInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (*time.Location, error) {
-	req, err := inspection_task.GetInspectionRequestFromVariable(v)
-	if err != nil {
-		return nil, err
-	}
-	if tzShiftAny, found := req.Values["timezoneShift"]; found {
+var TimeZoneShiftInputTask = inspection_task.NewInspectionTask(TimeZoneShiftInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*time.Location, error) {
+	req := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInput)
+	if tzShiftAny, found := req["timezoneShift"]; found {
 		if tzShiftFloat, convertible := tzShiftAny.(float64); convertible {
 			return time.FixedZone("Unknown", int(tzShiftFloat*3600)), nil
 		} else {
@@ -41,7 +40,3 @@ var TimeZoneShiftInputTask = inspection_task.NewInspectionProcessor(TimeZoneShif
 		return time.UTC, nil
 	}
 })
-
-func GetTimezoneShiftInput(tv *task.VariableSet) (*time.Location, error) {
-	return task.GetTypedVariableFromTaskVariable[*time.Location](tv, TimeZoneShiftInputTaskID.ReferenceIDString(), time.UTC)
-}

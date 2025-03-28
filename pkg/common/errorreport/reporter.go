@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"slices"
 	"sync"
 
 	"cloud.google.com/go/errorreporting"
@@ -70,8 +71,10 @@ func (r *Reporter) getErrorMessageWithMetadata(err error) error {
 	if len(metadata) > 0 {
 		// convert metadata map to bullet point list string
 		metadataList := ""
-		for k, v := range metadata {
-			metadataList += fmt.Sprintf("    * %s: %s\n", k, v)
+		keys := maps.Keys(metadata)
+		sortedKeys := slices.Sorted(keys)
+		for _, key := range sortedKeys {
+			metadataList += fmt.Sprintf("    * %s: %s\n", key, metadata[key])
 		}
 		message = fmt.Sprintf("%s\n  Metadata:\n%v", message, metadataList)
 	}

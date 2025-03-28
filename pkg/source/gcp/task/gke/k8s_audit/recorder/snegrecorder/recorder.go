@@ -21,12 +21,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("sneg-fields", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
+	manager.AddRecorder("sneg-fields", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
 		// record node name for querying compute engine api later.
 		builder.ClusterResource.NEGs.TouchResourceLease(currentLog.Operation.Name, currentLog.Log.Timestamp(), resourcelease.NewK8sResourceLeaseHolder(
 			currentLog.Operation.PluralKind,

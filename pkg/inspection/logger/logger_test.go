@@ -20,15 +20,14 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
+	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
-
-func debugTaskID(id string) taskid.TaskImplementationID[any] {
-	return taskid.NewDefaultImplementationID[any](id)
-}
 
 func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {
 	bufDefault := new(bytes.Buffer)
@@ -37,16 +36,19 @@ func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {
 	buf2 := new(bytes.Buffer)
 	buf2Handler := slog.NewTextHandler(buf2, nil)
 	lh := localInitInspectionLogger(slog.NewTextHandler(bufDefault, nil))
-	ctx := context.Background()
-	t1Ctx := context.WithValue(context.WithValue(context.WithValue(ctx, "tid", taskid.NewDefaultImplementationID[any]("task1")), "iid", "inspection1"), "rid", "r1")
-	t2Ctx := context.WithValue(context.WithValue(context.WithValue(ctx, "tid", taskid.NewDefaultImplementationID[any]("task2")), "iid", "inspection2"), "rid", "r2")
+
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	tid1 := taskid.NewDefaultImplementationID[any]("task1").(taskid.UntypedTaskImplementationID)
+	tid2 := taskid.NewDefaultImplementationID[any]("task2").(taskid.UntypedTaskImplementationID)
+	t1Ctx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, tid1)
+	t2Ctx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, tid2)
 	logger := slog.New(lh)
 
 	logger.Info("default info")
 	logger.InfoContext(ctx, "default info")
 	logger.InfoContext(t1Ctx, "unknown task")
-	lh.RegisterTaskLogger("inspection2", debugTaskID("task2"), "r2", buf2Handler)
-	lh.RegisterTaskLogger("inspection1", debugTaskID("task1"), "r1", buf1Handler)
+	lh.RegisterTaskLogger("fake-inspection-id", tid1, "fake-run-id", buf1Handler)
+	lh.RegisterTaskLogger("fake-inspection-id", tid2, "fake-run-id", buf2Handler)
 	logger.InfoContext(t1Ctx, "inspection1 task1 info")
 	logger.InfoContext(t2Ctx, "inspection2 task2 info")
 

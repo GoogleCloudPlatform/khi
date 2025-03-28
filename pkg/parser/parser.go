@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -44,7 +45,7 @@ type Parser interface {
 	TargetLogType() enum.LogType
 
 	// Parse a log. Return an error to decide skip to parse the log and delegate later parsers.
-	Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error
+	Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error
 
 	// Description returns comprehensive description of the parser.
 	// Parser tasks are registered as a `feature task` and the description is shown on the frontend.
@@ -61,19 +62,14 @@ type Parser interface {
 }
 
 func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Parser, isDefaultFeature bool, labelOpts ...task.LabelOpt) task.Definition[any] {
-	return inspection_task.NewInspectionProcessor(taskId, append(parser.Dependencies(), parser.LogTask(), inspection_task.BuilderGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) (any, error) {
-		if taskMode == inspection_task.TaskModeDryRun {
+	return inspection_task.NewInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask(), inspection_task.BuilderGeneratorTaskID), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+		if taskMode == inspection_task_interface.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
-		builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(v)
-		if err != nil {
-			return nil, err
-		}
-		logs, err := task.GetTypedVariableFromTaskVariable[[]*log.LogEntity](v, parser.LogTask().ReferenceIDString(), nil)
-		if err != nil {
-			return nil, err
-		}
+		builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
+		logs := task.GetTaskResult(ctx, parser.LogTask())
+
 		preparedLogCount := atomic.Int32{}
 		updator := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
 			current := preparedLogCount.Load()
@@ -81,7 +77,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Par
 			tp.Message = fmt.Sprintf("%d/%d", current, len(logs))
 		})
 		updator.Start(ctx)
-		err = builder.PrepareParseLogs(ctx, logs, func() {
+		err := builder.PrepareParseLogs(ctx, logs, func() {
 			preparedLogCount.Add(1)
 		})
 		if err != nil {
@@ -148,7 +144,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Par
 					defer errorreport.CheckAndReportPanic()
 					err = builder.ParseLogsByGroups(ctx, groupedLogs, func(logIndex int, l *log.LogEntity) *history.ChangeSet {
 						cs := history.NewChangeSet(l)
-						err := parser.Parse(ctx, l, cs, builder, v)
+						err := parser.Parse(ctx, l, cs, builder)
 						logCounterChannel <- struct{}{}
 						if err != nil {
 							yaml, err2 := l.Fields.ToYaml("")

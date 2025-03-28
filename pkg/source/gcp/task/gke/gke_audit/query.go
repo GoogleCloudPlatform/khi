@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -35,15 +36,9 @@ resource.labels.cluster_name="%s"`, projectName, clusterName)
 var GKEAuditQueryTask = query.NewQueryGeneratorTask(gke_audit_taskid.GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
-}, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
-	projectId, err := gcp_task.GetInputProjectIdFromTaskVariable(vs)
-	if err != nil {
-		return []string{}, err
-	}
-	clusterName, err := gcp_task.GetInputClusterNameFromTaskVariable(vs)
-	if err != nil {
-		return []string{}, err
-	}
+}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
 
-	return []string{GenerateGKEAuditQuery(projectId, clusterName)}, nil
+	return []string{GenerateGKEAuditQuery(projectID, clusterName)}, nil
 }, GenerateGKEAuditQuery("gcp-project-id", "gcp-cluster-name"))

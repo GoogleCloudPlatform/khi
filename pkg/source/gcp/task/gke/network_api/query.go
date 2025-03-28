@@ -19,23 +19,24 @@ import (
 	"fmt"
 	"strings"
 
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
-func GenerateGCPNetworkAPIQuery(taskMode int, negNames []string) []string {
+func GenerateGCPNetworkAPIQuery(taskMode inspection_task_interface.InspectionTaskMode, negNames []string) []string {
 	nodeNamesWithNetworkEndpointGroups := []string{}
 	for _, negName := range negNames {
 		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
 	}
-	if taskMode == inspection_task.TaskModeDryRun {
+	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return []string{queryFromNegNameFilter("-- neg name filters to be determined after audit log query")}
 	} else {
 		result := []string{}
@@ -57,10 +58,7 @@ func queryFromNegNameFilter(negNameFilter string) string {
 
 var GCPNetworkLogQueryTask = query.NewQueryGeneratorTask(network_api_taskid.GCPNetworkLogQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
 	k8saudittask.K8sAuditParseTaskID,
-}, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
-	builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(vs)
-	if err != nil {
-		return []string{}, err
-	}
+}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
 	return GenerateGCPNetworkAPIQuery(i, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
-}, GenerateGCPNetworkAPIQuery(inspection_task.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])
+}, GenerateGCPNetworkAPIQuery(inspection_task_interface.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])

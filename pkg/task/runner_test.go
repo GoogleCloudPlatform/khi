@@ -25,13 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context, taskMode int, v *VariableSet) (any, error)) UntypedDefinition {
+func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error)) UntypedDefinition {
 	deps := make([]taskid.UntypedTaskReference, len(dependencies))
 	for i, dep := range dependencies {
 		deps[i] = taskid.NewTaskReference[any](dep)
 	}
 
-	return NewDefinitionFromFunc(
+	return NewTask(
 		taskid.NewDefaultImplementationID[any](id),
 		deps,
 		runFunc,
@@ -40,7 +40,7 @@ func createMockTask(id string, dependencies []string, runFunc func(ctx context.C
 
 func TestLocalRunner_SingleTask(t *testing.T) {
 	taskResult := "task_result"
-	task := createMockTask("task1", nil, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
 		return taskResult, nil
 	})
 
@@ -57,21 +57,16 @@ func TestLocalRunner_SingleTask(t *testing.T) {
 		t.Fatalf("Failed to create runner: %v", err)
 	}
 
-	err = runner.Run(context.Background(), 0, nil)
+	err = runner.Run(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to run task: %v", err)
 	}
 
 	<-runner.Wait()
 
-	result, err := runner.Result()
-	if err != nil {
-		t.Fatalf("Failed to get result: %v", err)
-	}
-
-	val, err := GetTypedVariableFromTaskVariable(result, "task1", "")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	val, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+	if !found {
+		t.Errorf("Expected task result to be found")
 	}
 	if val != taskResult {
 		t.Errorf("Expected task result '%v', got '%v'", taskResult, val)
@@ -82,21 +77,21 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 	executionOrder := []string{}
 	var mu sync.Mutex
 
-	task1 := createMockTask("task1", nil, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
 		mu.Lock()
 		executionOrder = append(executionOrder, "task1")
 		mu.Unlock()
 		return "result1", nil
 	})
 
-	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
 		mu.Lock()
 		executionOrder = append(executionOrder, "task2")
 		mu.Unlock()
 
-		_, err := GetTypedVariableFromTaskVariable(v, "task1", "")
-		if err != nil {
-			t.Errorf("Expected no error, got %v", err)
+		task1Result := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+		if task1Result != "result1" {
+			panic("task1 result is not matching")
 		}
 		return "result2", nil
 	})
@@ -114,7 +109,7 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 		t.Fatalf("Failed to create runner: %v", err)
 	}
 
-	err = runner.Run(context.Background(), 0, nil)
+	err = runner.Run(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to run task: %v", err)
 	}
@@ -131,37 +126,32 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 		t.Errorf("Expected task2 to be executed second, got %s", executionOrder[1])
 	}
 
-	result, err := runner.Result()
-	if err != nil {
-		t.Fatalf("Failed to get result: %v", err)
+	task1Result, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+	if !found {
+		t.Errorf("Expected task result to be found")
+	}
+	if task1Result != "result1" {
+		t.Errorf("Expected task1 result 'result1', got '%v'", task1Result)
 	}
 
-	val1, err := GetTypedVariableFromTaskVariable(result, "task1", "")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	task2Result, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task2"))
+	if !found {
+		t.Errorf("Expected task result to be found")
 	}
-	if val1 != "result1" {
-		t.Errorf("Expected task1 result 'result1', got '%v'", val1)
-	}
-
-	val2, err := GetTypedVariableFromTaskVariable(result, "task2", "")
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	if val2 != "result2" {
-		t.Errorf("Expected task2 result 'result2', got '%v'", val2)
+	if task2Result != "result2" {
+		t.Errorf("Expected task2 result 'result2', got '%v'", task2Result)
 	}
 }
 
 func TestLocalRunner_TaskError(t *testing.T) {
 	expectedErr := errors.New("task error")
 
-	task1 := createMockTask("task1", nil, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
 		return nil, expectedErr
 	})
 
 	task2Executed := false
-	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
 		task2Executed = true
 		return "result2", nil
 	})
@@ -179,7 +169,7 @@ func TestLocalRunner_TaskError(t *testing.T) {
 		t.Fatalf("Failed to create runner: %v", err)
 	}
 
-	err = runner.Run(context.Background(), 0, nil)
+	err = runner.Run(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to run task: %v", err)
 	}
@@ -202,7 +192,7 @@ func TestLocalRunner_TaskError(t *testing.T) {
 func TestLocalRunner_ContextCancellation(t *testing.T) {
 	taskStarted := make(chan struct{})
 
-	task := createMockTask("task1", nil, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
+	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
 		close(taskStarted)
 
 		select {
@@ -228,7 +218,7 @@ func TestLocalRunner_ContextCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	err = runner.Run(ctx, 0, nil)
+	err = runner.Run(ctx)
 	if err != nil {
 		t.Fatalf("Failed to run task: %v", err)
 	}

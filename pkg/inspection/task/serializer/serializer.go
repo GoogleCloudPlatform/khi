@@ -20,8 +20,11 @@ import (
 	"path/filepath"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
@@ -33,29 +36,18 @@ import (
 
 var SerializerTaskID = taskid.NewDefaultImplementationID[*inspectiondata.FileSystemStore](inspection_task.InspectionTaskPrefix + "serialize")
 
-var SerializeTask = inspection_task.NewInspectionProcessor(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID, ioconfig.IOConfigTaskID, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
-	if taskMode == inspection_task.TaskModeDryRun {
+var SerializeTask = inspection_task.NewInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID, ioconfig.IOConfigTaskID, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
+	if taskMode == inspection_task_interface.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil
 	}
-	taskId, err := inspection_task.GetInspectionIdFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
-	ioConfig, err := ioconfig.GetIOConfigFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
-	builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
-	store := inspectiondata.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, taskId+".khi"))
+	inspectionID := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInspectionID)
+	metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+	ioConfig := task.GetTaskResult(ctx, ioconfig.IOConfigTaskID.GetTaskReference())
+	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
+	store := inspectiondata.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+
 	writer, err := store.GetWriter()
-	if err != nil {
-		return nil, err
-	}
-	metadataSet, err := inspection_task.GetMetadataSetFromVariable(v)
 	if err != nil {
 		return nil, err
 	}

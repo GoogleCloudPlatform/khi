@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -41,14 +42,9 @@ logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibil
 var AutoscalerQueryTask = query.NewQueryGeneratorTask(gke_autoscaler_taskid.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
-}, func(ctx context.Context, i int, vs *task.VariableSet) ([]string, error) {
-	projectId, err := gcp_task.GetInputProjectIdFromTaskVariable(vs)
-	if err != nil {
-		return []string{}, err
-	}
-	clusterName, err := gcp_task.GetInputClusterNameFromTaskVariable(vs)
-	if err != nil {
-		return []string{}, err
-	}
-	return []string{GenerateAutoscalerQuery(projectId, clusterName, true)}, nil
+}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
+
+	return []string{GenerateAutoscalerQuery(projectID, clusterName, true)}, nil
 }, GenerateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true))

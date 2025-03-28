@@ -23,11 +23,11 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
-	model_k8s "github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/rtype"
@@ -38,26 +38,18 @@ import (
 
 var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
 
-var Task = inspection_task.NewInspectionProcessor(k8saudittask.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
+var Task = inspection_task.NewInspectionTask(k8saudittask.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
 	inspection_task.ReaderFactoryGeneratorTaskID,
 	k8saudittask.TimelineGroupingTaskID,
 	gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID(),
-}, func(ctx context.Context, taskMode int, v *task.VariableSet, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
-	if taskMode == inspection_task.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
+	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	groups, err := task.GetTypedVariableFromTaskVariable[[]*types.TimelineGrouperResult](v, k8saudittask.TimelineGroupingTaskID.ReferenceIDString(), nil)
-	if err != nil {
-		return nil, err
-	}
-	mergeConfigRegistry, err := task.GetTypedVariableFromTaskVariable[*model_k8s.MergeConfigRegistry](v, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().ReferenceIDString(), nil)
-	if err != nil {
-		return nil, err
-	}
-	readerFactory, err := inspection_task.GetReaderFactoryFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
+	groups := task.GetTaskResult(ctx, k8saudittask.TimelineGroupingTaskID.GetTaskReference())
+	mergeConfigRegistry := task.GetTaskResult(ctx, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().GetTaskReference())
+	readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.GetTaskReference())
+
 	totalLogCount := 0
 	for _, group := range groups {
 		totalLogCount += len(group.PreParsedLogs)
@@ -68,7 +60,7 @@ var Task = inspection_task.NewInspectionProcessor(k8saudittask.ManifestGenerateT
 		tp.Percentage = float32(current) / float32(totalLogCount)
 		tp.Message = fmt.Sprintf("%d/%d", current, totalLogCount)
 	})
-	err = updator.Start(ctx)
+	err := updator.Start(ctx)
 	if err != nil {
 		return nil, err
 	}

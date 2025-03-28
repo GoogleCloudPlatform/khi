@@ -29,7 +29,6 @@ import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	serialport_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/serialport/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -74,7 +73,7 @@ func (*SerialPortLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*SerialPortLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) error {
+func (*SerialPortLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 
 	// Label field contains `.` in its key. the value needs to be retrived from the low level API.
 	nodeName := "unknown"

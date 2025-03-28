@@ -20,12 +20,14 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
 )
 
 var LoggerMetadataKey = metadata.NewMetadataKey[*Logger]("log")
@@ -161,12 +163,12 @@ func (l *Logger) MakeTaskLogger(ctx context.Context, minLevel slog.Level) *TaskL
 	if parameters.Debug.NoColor != nil && *parameters.Debug.NoColor {
 		stdoutWithColor = false
 	}
-	iidAny := ctx.Value("iid")
-	if iid, convertible := iidAny.(string); convertible {
-		tidAny := ctx.Value("tid")
-		if tid, convertible := tidAny.(taskid.UntypedTaskImplementationID); convertible {
-			ridAny := ctx.Value("rid")
-			if rid, convertible := ridAny.(string); convertible {
+	tid, err := khictx.GetValue(ctx, task_contextkey.TaskImplementationIDContextKey)
+	if err == nil {
+		iid, err := khictx.GetValue(ctx, inspection_task_contextkey.InspectionTaskInspectionID)
+		if err == nil {
+			rid, err := khictx.GetValue(ctx, inspection_task_contextkey.InspectionTaskRunID)
+			if err == nil {
 				lb := new(bytes.Buffer)
 				th := &TaskSlogHandler{
 					minLogLevel:   minLevel,
@@ -188,10 +190,10 @@ func (l *Logger) MakeTaskLogger(ctx context.Context, minLevel slog.Level) *TaskL
 				slog.Error("given context is not associated with any run id")
 			}
 		} else {
-			slog.Error("given context is not associated with any task id")
+			slog.Error("given context is not associated with any inspection id")
 		}
 	} else {
-		slog.Error("given context is not associated with any inspection id")
+		slog.Error("given context is not associated with any task id")
 	}
 	return nil
 }

@@ -21,8 +21,11 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
@@ -42,43 +45,31 @@ const GKEQueryPrefix = gcp_task.GCPPrefix + "query/gke/"
 // Query task will return @Skip when query builder decided to skip.
 const SkipQueryBody = "@Skip"
 
-type QueryGeneratorFunc = func(context.Context, int, *task.VariableSet) ([]string, error)
+type QueryGeneratorFunc = func(context.Context, inspection_task_interface.InspectionTaskMode) ([]string, error)
 
 var queryThreadPool = worker.NewPool(16)
 
 func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, generator QueryGeneratorFunc, sampleQuery string) task.Definition[[]*log.LogEntity] {
-	return inspection_task.NewInspectionProcessor(taskId, append(dependencies, gcp_task.InputProjectIdTaskID, gcp_task.InputStartTimeTaskID, gcp_task.InputEndTimeTaskID, inspection_task.ReaderFactoryGeneratorTaskID), func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+	return inspection_task.NewInspectionTask(taskId, append(dependencies, gcp_task.InputProjectIdTaskID, gcp_task.InputStartTimeTaskID, gcp_task.InputEndTimeTaskID, inspection_task.ReaderFactoryGeneratorTaskID), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err
 		}
-		projectId, err := gcp_task.GetInputProjectIdFromTaskVariable(v)
-		if err != nil {
-			return nil, err
-		}
-		metadata, err := inspection_task.GetMetadataSetFromVariable(v)
-		if err != nil {
-			return nil, err
-		}
-		readerFactory, err := inspection_task.GetReaderFactoryFromTaskVariable(v)
-		if err != nil {
-			return nil, err
-		}
-		queryStrings, err := generator(ctx, taskMode, v)
+
+		metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+
+		projectId := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.GetTaskReference())
+		startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.GetTaskReference())
+		endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.GetTaskReference())
+
+		queryStrings, err := generator(ctx, taskMode)
 		if err != nil {
 			return nil, err
 		}
 		if len(queryStrings) == 0 {
 			slog.InfoContext(ctx, fmt.Sprintf("Query generator `%s` decided to skip.", taskId))
 			return []*log.LogEntity{}, nil
-		}
-		startTime, err := gcp_task.GetInputStartTimeFromTaskVariable(v)
-		if err != nil {
-			return nil, err
-		}
-		endTime, err := gcp_task.GetInputEndTimeFromTaskVariable(v)
-		if err != nil {
-			return nil, err
 		}
 		queryInfo, found := typedmap.Get(metadata, query.QueryMetadataKey)
 		if !found {
@@ -99,7 +90,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 			queryInfo.SetQuery(taskId.String(), readableQueryNameForQueryIndex, finalQuery)
 			// TODO: not to store whole logs on memory to avoid OOM
 			// Run query only when thetask mode is for running
-			if taskMode == inspection_task.TaskModeRun {
+			if taskMode == inspection_task_interface.TaskModeRun {
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
 				queryLogs, queryErr := worker.Query(ctx, readerFactory, projectId, progress)
 				if queryErr != nil {
@@ -121,7 +112,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 				allLogs = append(allLogs, queryLogs...)
 			}
 		}
-		if taskMode == inspection_task.TaskModeRun {
+		if taskMode == inspection_task_interface.TaskModeRun {
 			slices.SortFunc(allLogs, func(a, b *log.LogEntity) int {
 				return int(a.Timestamp().Sub(b.Timestamp()))
 			})

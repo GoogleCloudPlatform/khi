@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 const priorityForControlPlaneGroup = gcp_task.FormBasePriority + 30000
@@ -40,14 +39,14 @@ var InputControlPlaneComponentNameFilterTask = form.NewInputFormDefinitionBuilde
 		"scheduler",
 	}).
 	WithUIDescription("Control plane component names to query(e.g. apiserver, controller-manager...etc)").
-	WithValidator(func(ctx context.Context, value string, variables *task.VariableSet) (string, error) {
+	WithValidator(func(ctx context.Context, value string) (string, error) {
 		result, err := queryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string, variables *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
+	WithConverter(func(ctx context.Context, value string) (*queryutil.SetFilterParseResult, error) {
 		result, err := queryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
@@ -55,7 +54,3 @@ var InputControlPlaneComponentNameFilterTask = form.NewInputFormDefinitionBuilde
 		return result, nil
 	}).
 	Build()
-
-func GetInputControlPlaneComponentNameFilterFromTaskVariable(tv *task.VariableSet) (*queryutil.SetFilterParseResult, error) {
-	return task.GetTypedVariableFromTaskVariable[*queryutil.SetFilterParseResult](tv, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.ReferenceIDString(), nil)
-}

@@ -18,14 +18,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -141,9 +142,11 @@ timestamp: 2024-01-01T00:00:00+09:00`
 		},
 		Code: 200,
 	}
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	res, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeRun, map[string]any{}, task_test.NewTaskDependencyValuePair(
+		k8saudittask.K8sAuditQueryTaskID.GetTaskReference(), logs,
+	))
 
-	res, err := testtask.RunSingleTask[[]*types.ResourceSpecificParserInput](Task, task.TaskModeRun,
-		testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}
@@ -191,8 +194,10 @@ timestamp: 2024-01-01T00:00:00+09:00`
 		Code: 200,
 	}
 
-	res, err := testtask.RunSingleTask[[]*types.ResourceSpecificParserInput](Task, task.TaskModeRun,
-		testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	res, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeRun, map[string]any{}, task_test.NewTaskDependencyValuePair(
+		k8saudittask.K8sAuditQueryTaskID.GetTaskReference(), logs,
+	))
 	if err != nil {
 		t.Errorf("%s", err.Error())
 	}

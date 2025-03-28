@@ -25,10 +25,7 @@ import (
 
 var BuilderGeneratorTaskID = taskid.NewDefaultImplementationID[*history.Builder](InspectionTaskPrefix + "builder-generator")
 
-var BuilderGeneratorTask = task.NewProcessorTask(BuilderGeneratorTaskID, []taskid.UntypedTaskReference{ioconfig.IOConfigTaskID}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*history.Builder, error) {
-	ioConfig, err := ioconfig.GetIOConfigFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
+var BuilderGeneratorTask = task.NewTask(BuilderGeneratorTaskID, []taskid.UntypedTaskReference{ioconfig.IOConfigTaskID}, func(ctx context.Context) (*history.Builder, error) {
+	ioConfig := task.GetTaskResult(ctx, ioconfig.IOConfigTaskID.GetTaskReference())
 	return history.NewBuilder(ioConfig), nil
 })

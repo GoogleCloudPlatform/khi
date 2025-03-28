@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package task_interface
 
 import (
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"context"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
+
+// TaskRunner receives the runnable DefinitionSet and run tasks with topological sorted order.
+type TaskRunner interface {
+	Run(ctx context.Context) error
+	Wait() <-chan interface{}
+	Result() (*typedmap.ReadonlyTypedMap, error)
+}

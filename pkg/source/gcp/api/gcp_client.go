@@ -27,9 +27,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var ErrorRateLimitExceeds = errors.New("ratelimit exceeds. retry it later")
@@ -133,7 +133,7 @@ func (pi *GCPClientImpl) Digest() string {
 	return "singleton"
 }
 
-var _ task.CachableDependency = (*GCPClientImpl)(nil)
+var _ cache.CacheDependency = (*GCPClientImpl)(nil)
 
 var _ GCPClient = (*GCPClientImpl)(nil)
 

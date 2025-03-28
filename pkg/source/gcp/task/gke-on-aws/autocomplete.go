@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -26,33 +27,40 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AutocompleteClusterNames = task.NewCachedProcessor(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "anthos-on-aws"), []taskid.UntypedTaskReference{
+var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "anthos-on-aws"), []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
-}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*gcp_task.AutocompleteClusterNameList, error) {
+}, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return nil, err
+		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
-	projectId, err := gcp_task.GetInputProjectIdFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
-	if projectId != "" {
-		clusterNames, err := client.GetAnthosAWSClusterNames(ctx, projectId)
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+
+	if projectID != "" {
+		clusterNames, err := client.GetAnthosAWSClusterNames(ctx, projectID)
 		if err != nil {
-			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectId, err))
-			return &gcp_task.AutocompleteClusterNameList{
-				ClusterNames: []string{},
-				Error:        "Failed to get the list from API",
+			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
+			return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+				DependencyDigest: projectID,
+				Value: &gcp_task.AutocompleteClusterNameList{
+					ClusterNames: []string{},
+					Error:        "Failed to get the list from API",
+				},
 			}, nil
 		}
-		return &gcp_task.AutocompleteClusterNameList{
-			ClusterNames: clusterNames,
-			Error:        "",
+		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+			DependencyDigest: projectID,
+			Value: &gcp_task.AutocompleteClusterNameList{
+				ClusterNames: clusterNames,
+				Error:        "",
+			},
 		}, nil
 	}
-	return &gcp_task.AutocompleteClusterNameList{
-		ClusterNames: []string{},
-		Error:        "Project ID is empty",
+	return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+		DependencyDigest: projectID,
+		Value: &gcp_task.AutocompleteClusterNameList{
+			ClusterNames: []string{},
+			Error:        "Project ID is empty",
+		},
 	}, nil
 }, inspection_task.InspectionTypeLabel(InspectionTypeId))

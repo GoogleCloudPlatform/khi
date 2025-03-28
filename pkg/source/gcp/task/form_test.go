@@ -15,30 +15,29 @@
 package task
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/form/test"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	form_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/form"
-	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-var testClusterNamePrefix = task_test.MockProcessorTaskFromTaskID(taskid.NewImplementationID(ClusterNamePrefixTaskID, "test"), "")
-
 func TestProjectIdInput(t *testing.T) {
-	form_test.TestTextForms(t, "gcp-project-id", InputProjectIdTask, []*form_test.FormTestCase{
+	testClusterNamePrefix := task_test.MockTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
+	form_task_test.TestTextForms(t, "gcp-project-id", InputProjectIdTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid project ID",
 			Input:         "foo-project",
@@ -137,11 +136,12 @@ func TestProjectIdInput(t *testing.T) {
 }
 
 func TestClusterNameInput(t *testing.T) {
-	mockClusterNamesTask1 := task_test.MockProcessorTaskFromTaskID(taskid.NewImplementationID(AutocompleteClusterNamesTaskID, "test"), &AutocompleteClusterNameList{
+	testClusterNamePrefix := task_test.MockTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
+	mockClusterNamesTask1 := task_test.MockTaskFromReferenceID(AutocompleteClusterNamesTaskID, &AutocompleteClusterNameList{
 		ClusterNames: []string{"foo-cluster", "bar-cluster"},
 		Error:        "",
-	})
-	form_test.TestTextForms(t, "cluster name", InputClusterNameTask, []*form_test.FormTestCase{
+	}, nil)
+	form_task_test.TestTextForms(t, "cluster name", InputClusterNameTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "with valid cluster name",
 			Input:         "foo-cluster",
@@ -216,12 +216,12 @@ func TestDurationInput(t *testing.T) {
 	expectedDescription := ""
 	expectedLabel := "Duration"
 	expectedSuggestions := []string{"1m", "10m", "1h", "3h", "12h", "24h"}
-	timezoneTaskUTC := task_test.MockProcessorTaskFromTaskID(TimeZoneShiftInputTaskID, time.UTC)
-	timezoneTaskJST := task_test.MockProcessorTaskFromTaskID(TimeZoneShiftInputTaskID, time.FixedZone("", 9*3600))
-	currentTimeTask1 := task_test.MockProcessorTaskFromTaskID(inspection_task.InspectionTimeProducer.ID(), time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC))
-	endTimeTask := task_test.MockProcessorTaskFromTaskID(InputEndTimeTask.ID(), time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC))
+	timezoneTaskUTC := task_test.MockTask(TimeZoneShiftInputTask, time.UTC, nil)
+	timezoneTaskJST := task_test.MockTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
+	currentTimeTask1 := task_test.MockTask(inspection_task.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
+	endTimeTask := task_test.MockTask(InputEndTimeTask, time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC), nil)
 
-	form_test.TestTextForms(t, "duration", InputDurationTask, []*form_test.FormTestCase{
+	form_task_test.TestTextForms(t, "duration", InputDurationTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid time duration",
 			Input:         "10m",
@@ -321,13 +321,13 @@ func TestInputEndtime(t *testing.T) {
 		t.Errorf("unexpected error\n%s", err)
 	}
 	expectedValue2, err := time.Parse(time.RFC3339, "2020-01-02T00:00:00Z")
-	timezoneTaskUTC := task_test.MockProcessorTaskFromTaskID(TimeZoneShiftInputTaskID, time.UTC)
-	timezoneTaskJST := task_test.MockProcessorTaskFromTaskID(TimeZoneShiftInputTaskID, time.FixedZone("", 9*3600))
+	timezoneTaskUTC := task_test.MockTask(TimeZoneShiftInputTask, time.UTC, nil)
+	timezoneTaskJST := task_test.MockTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
 
 	if err != nil {
 		t.Errorf("unexpected error\n%s", err)
 	}
-	form_test.TestTextForms(t, "endtime", InputEndTimeTask, []*form_test.FormTestCase{
+	form_task_test.TestTextForms(t, "endtime", InputEndTimeTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "with empty",
 			Input:         "",
@@ -386,10 +386,11 @@ func TestInputStartTime(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	startTime, err := testtask.RunSingleTask[time.Time](InputStartTimeTask, inspection_task.TaskModeDryRun,
-		testtask.PriorTaskResultFromID(InputDurationTaskID, duration),
-		testtask.PriorTaskResultFromID(InputEndTimeTaskID, endTime),
-		testtask.PriorTaskResultFromID(TimeZoneShiftInputTaskID, time.UTC),
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspection_task_interface.TaskModeDryRun, map[string]any{},
+		task_test.NewTaskDependencyValuePair(InputDurationTaskID.GetTaskReference(), duration),
+		task_test.NewTaskDependencyValuePair(InputEndTimeTaskID.GetTaskReference(), endTime),
+		task_test.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.GetTaskReference(), time.UTC),
 	)
 	if err != nil {
 		t.Errorf("unexpected error\n%v", err)
@@ -407,7 +408,7 @@ func TestInputStartTime(t *testing.T) {
 func TestInputKindName(t *testing.T) {
 	expectedDescription := ""
 	expectedLabel := "Kind"
-	form_test.TestTextForms(t, "kind", InputKindFilterTask, []*form_test.FormTestCase{
+	form_task_test.TestTextForms(t, "kind", InputKindFilterTask, []*form_task_test.TextFormTestCase{
 		{
 			Input: "",
 			ExpectedValue: &queryutil.SetFilterParseResult{
@@ -465,7 +466,7 @@ func TestInputKindName(t *testing.T) {
 func TestInputNamespaces(t *testing.T) {
 	expectedDescription := ""
 	expectedLabel := "Namespaces"
-	form_test.TestTextForms(t, "namespaces", InputNamespaceFilterTask, []*form_test.FormTestCase{
+	form_task_test.TestTextForms(t, "namespaces", InputNamespaceFilterTask, []*form_task_test.TextFormTestCase{
 		{
 			Input: "",
 			ExpectedValue: &queryutil.SetFilterParseResult{
@@ -526,7 +527,7 @@ func TestInputNamespaces(t *testing.T) {
 func TestNodeNameFiltertask(t *testing.T) {
 	wantLabelName := "Node names"
 	wantDescription := "A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster."
-	form_test.TestTextForms(t, "node-name", InputNodeNameFilterTask, []*form_test.FormTestCase{
+	form_task_test.TestTextForms(t, "node-name", InputNodeNameFilterTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With an empty input",
 			Input:         "",
@@ -597,7 +598,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 }
 
 func TestLocationInput(t *testing.T) {
-	form_test.TestTextForms(t, "gcp-location", InputLocationsTask, []*form_test.FormTestCase{
+	form_task_test.TestTextForms(t, "gcp-location", InputLocationsTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid location",
 			Input:         "asia-northeast1",

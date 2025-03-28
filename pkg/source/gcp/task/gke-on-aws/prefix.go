@@ -17,12 +17,12 @@ package aws
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AnthosOnAWSClusterNamePrefixTask = inspection_task.NewInspectionProducer(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "gke-on-aws"), func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (string, error) {
+var AnthosOnAWSClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "gke-on-aws"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "awsClusters/", nil
 }, inspection_task.InspectionTypeLabel(InspectionTypeId))

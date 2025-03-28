@@ -19,18 +19,17 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 )
 
 // ParseFromYamlLogFile returns the parsed ChangeSet from the yaml log file at the given path with specified parser.
-func ParseFromYamlLogFile(testFile string, parser parser.Parser, builder *history.Builder, variables *task.VariableSet) (*history.ChangeSet, error) {
+func ParseFromYamlLogFile(testFile string, parser parser.Parser, builder *history.Builder) (*history.ChangeSet, error) {
 	testutil.InitTestIO()
 	yamlStr := testutil.MustReadText(testFile)
 	l := log_test.MustLogEntity(yamlStr)
 	cs := history.NewChangeSet(l)
-	err := parser.Parse(context.Background(), l, cs, builder, variables)
+	err := parser.Parse(context.Background(), l, cs, builder)
 	if err != nil {
 		return nil, err
 	}

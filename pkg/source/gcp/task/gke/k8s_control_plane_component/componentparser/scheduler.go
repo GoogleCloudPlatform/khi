@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var ErrParserNoMatchingWithLog = errors.New("Parser didn't match with the given log")
@@ -32,7 +31,7 @@ var ErrParserNoMatchingWithLog = errors.New("Parser didn't match with the given 
 type SchedulerComponentParser struct{}
 
 // Process implements ControlPlaneComponentParser.
-func (s *SchedulerComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) (bool, error) {
+func (s *SchedulerComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
 	path, err := s.podRelatedLogsToResourcePath(ctx, l)
 	if err == nil {
 		cs.RecordEvent(path)

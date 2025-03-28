@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 type KindToKlogFieldPairData struct {
@@ -63,7 +62,7 @@ var kindToKLogFieldPairs = []*KindToKlogFieldPairData{
 type ControllerManagerComponentParser struct{}
 
 // Process implements ControlPlaneComponentParser.
-func (c *ControllerManagerComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) (bool, error) {
+func (c *ControllerManagerComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
 	mainMsg, err := l.MainMessage()
 	if err != nil {
 		mainMsg = ""

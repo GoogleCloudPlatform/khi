@@ -29,7 +29,6 @@ import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -66,7 +65,7 @@ func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	clusterName := l.GetStringOrDefault("resource.labels.cluster_name", "unknown")
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")

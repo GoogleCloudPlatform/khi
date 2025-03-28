@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/componentparser"
 	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -62,12 +61,12 @@ func (k *k8sControlPlaneComponentParser) LogTask() taskid.TaskReference[[]*log.L
 }
 
 // Parse implements parser.Parser.
-func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	component := l.GetStringOrDefault("resource.labels.component_name", "Unknown")
 	for i := 0; i < len(componentparser.ComponentParsers); i++ {
 		cp := componentparser.ComponentParsers[i]
 		if cp.ShouldProcess(component) {
-			next, err := cp.Process(ctx, l, cs, builder, variables)
+			next, err := cp.Process(ctx, l, cs, builder)
 			if err != nil {
 				return err
 			}

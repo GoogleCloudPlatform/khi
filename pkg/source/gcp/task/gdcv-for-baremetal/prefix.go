@@ -17,12 +17,12 @@ package baremetal
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AnthosOnBaremetalClusterNamePrefixTask = inspection_task.NewInspectionProducer(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "#gdcv-for-baremetal"), func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (string, error) {
+var AnthosOnBaremetalClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "gdcv-for-baremetal"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "", nil
 }, inspection_task.InspectionTypeLabel(InspectionTypeId))

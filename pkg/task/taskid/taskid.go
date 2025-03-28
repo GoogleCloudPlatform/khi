@@ -158,5 +158,18 @@ func NewDefaultImplementationID[TaskResult any](id string) TaskImplementationID[
 // For example, a log parser task could have different implementations for different log formats,
 // but all implementations would share the same TaskReference.
 func NewImplementationID[TaskResult any](baseReference TaskReference[TaskResult], implementationHash string) TaskImplementationID[TaskResult] {
+	if strings.Contains(implementationHash, "#") {
+		panic(fmt.Sprintf("implementation hash %s is invalid. It cannot contain '#' in NewImplementationID.\nThis is likely a bug in the KHI task implementation or an incorrect ID was provided in the taskid definition.\nPlease report a bug at https://github.com/GoogleCloudPlatform/khi/issues", implementationHash))
+	}
 	return taskImplementationIDImpl[TaskResult]{referenceId: baseReference.String(), implementationHash: implementationHash}
+}
+
+// ReinterpretTaskReference casts UntypedTaskReference to TaskReference[T]. Use this with caution.
+func ReinterpretTaskReference[T any](ref UntypedTaskReference) TaskReference[T] {
+	return ref.(TaskReference[T])
+}
+
+// ReinterpretTaskImplementationID casts UntypedImplementationID to TaskImplementationID[T]. Use this with caution.
+func ReinterpretTaskImplementationID[T any](id UntypedTaskImplementationID) TaskImplementationID[T] {
+	return id.(TaskImplementationID[T])
 }

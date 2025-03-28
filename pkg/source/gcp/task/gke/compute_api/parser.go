@@ -29,7 +29,6 @@ import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	gke_compute_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -65,7 +64,7 @@ func (*computeAPIParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")
 	operationId := l.GetStringOrDefault("operation.id", "unknown")

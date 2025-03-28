@@ -20,7 +20,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
+	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 
@@ -30,10 +33,6 @@ import (
 func TestConformance(t *testing.T) {
 	logger := NewLogger()
 	metadata_test.ConformanceMetadataTypeTest(t, logger)
-}
-
-func loggerCtx(ctx context.Context, iid string, tid string, rid string) context.Context {
-	return context.WithValue(context.WithValue(context.WithValue(ctx, "iid", iid), "tid", taskid.NewDefaultImplementationID[any](tid)), "rid", rid)
 }
 
 func testRecord(attrs ...slog.Attr) slog.Record {
@@ -47,8 +46,12 @@ func testRecord(attrs ...slog.Attr) slog.Record {
 func TestChildLoggers(t *testing.T) {
 	logger.InitGlobalKHILogger()
 	logger := NewLogger()
-	log1Ctx := loggerCtx(context.Background(), "inspect1", "task1", "rid1")
-	log2Ctx := loggerCtx(context.Background(), "inspect2", "task2", "rid2")
+
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	tid1 := taskid.NewDefaultImplementationID[any]("task1").(taskid.UntypedTaskImplementationID)
+	tid2 := taskid.NewDefaultImplementationID[any]("task2").(taskid.UntypedTaskImplementationID)
+	log1Ctx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, tid1)
+	log2Ctx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, tid2)
 	log1 := logger.MakeTaskLogger(log1Ctx, slog.LevelDebug)
 	if log1 == nil {
 		t.Errorf("failed to generate task logger for ctx1")

@@ -30,7 +30,6 @@ import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"gopkg.in/yaml.v3"
 )
@@ -67,7 +66,7 @@ func (*gceNetworkParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")
 	operationId := l.GetStringOrDefault("operation.id", "unknown")

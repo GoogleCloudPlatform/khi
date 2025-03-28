@@ -125,8 +125,8 @@ func (s *DefinitionSet) WrapGraph(subgraphId taskid.UntypedTaskImplementationID,
 	}
 	// Sort to make result stable
 	slices.SortFunc(doneTaskDependencies, func(a, b taskid.UntypedTaskReference) int { return strings.Compare(a.String(), b.String()) })
-	initTask := NewDefinitionFromFunc(initTaskId, subgraphDependency, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) { return nil, nil })
-	doneTask := NewDefinitionFromFunc(doneTaskId, doneTaskDependencies, func(ctx context.Context, taskMode int, v *VariableSet) (any, error) { return nil, nil })
+	initTask := NewTask(initTaskId, subgraphDependency, func(ctx context.Context) (any, error) { return nil, nil })
+	doneTask := NewTask(doneTaskId, doneTaskDependencies, func(ctx context.Context) (any, error) { return nil, nil })
 	rewiredTasks = append(rewiredTasks, initTask, doneTask)
 	return NewSet(rewiredTasks)
 }
@@ -377,12 +377,12 @@ func (w *wrapGraphFirstTask) Labels() *typedmap.ReadonlyTypedMap {
 }
 
 // Run implements Definition.
-func (w *wrapGraphFirstTask) Run(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
-	return w.task.UntypedRun(ctx, taskMode, v)
+func (w *wrapGraphFirstTask) Run(ctx context.Context) (any, error) {
+	return w.task.UntypedRun(ctx)
 }
 
-func (w *wrapGraphFirstTask) UntypedRun(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
-	return w.Run(ctx, taskMode, v)
+func (w *wrapGraphFirstTask) UntypedRun(ctx context.Context) (any, error) {
+	return w.Run(ctx)
 }
 
 func (w *wrapGraphFirstTask) UntypedID() taskid.UntypedTaskImplementationID {

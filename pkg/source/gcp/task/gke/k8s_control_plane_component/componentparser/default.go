@@ -20,14 +20,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 type DefaultK8sControlPlaneComponentParser struct {
 }
 
 // Process implements ControlPlaneComponentParser.
-func (d *DefaultK8sControlPlaneComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) (bool, error) {
+func (d *DefaultK8sControlPlaneComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
 	component := l.GetStringOrDefault("resource.labels.component_name", "Unknown")
 	clusterName := l.GetStringOrDefault("resource.labels.cluster_name", "Unknown")
 	msg, err := l.MainMessage()

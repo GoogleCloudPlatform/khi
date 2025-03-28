@@ -36,7 +36,7 @@ type IOConfig struct {
 	TemporaryFolder string
 }
 
-var ProductionIOConfig = task.NewCachedProcessor(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*IOConfig, error) {
+var ProductionIOConfig = task.NewTask(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*IOConfig, error) {
 	dataDestinationFolder := "./data"
 	if parameters.Common.DataDestinationFolder != nil {
 		dataDestinationFolder = *parameters.Common.DataDestinationFolder
@@ -59,7 +59,7 @@ var ProductionIOConfig = task.NewCachedProcessor(IOConfigTaskID, []taskid.Untype
 	}, nil
 })
 
-var TestIOConfig = task.NewCachedProcessor(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*IOConfig, error) {
+var TestIOConfig = task.NewTask(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*IOConfig, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -77,7 +77,3 @@ var TestIOConfig = task.NewCachedProcessor(IOConfigTaskID, []taskid.UntypedTaskR
 		TemporaryFolder: "/tmp/",
 	}, nil
 })
-
-func GetIOConfigFromTaskVariable(v *task.VariableSet) (*IOConfig, error) {
-	return task.GetTypedVariableFromTaskVariable[*IOConfig](v, IOConfigTaskID.ReferenceIDString(), nil)
-}

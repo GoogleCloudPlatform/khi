@@ -15,16 +15,19 @@
 package v2logconvert
 
 import (
+	"context"
 	"testing"
 
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -60,10 +63,11 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 		logs = append(logs, testlog.New(testlog.BaseYaml(baseLog)).With(opt...).MustBuildLogEntity(gcp_log.GCPCommonFieldExtractor{}))
 	}
 
-	_, err := testtask.RunSingleTask(Task, inspection_task.TaskModeRun,
-		testtask.PriorTaskResultFromID(inspection_task.BuilderGeneratorTaskID, builder),
-		testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs),
-	)
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	_, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeRun, map[string]any{},
+		task_test.NewTaskDependencyValuePair(inspection_task.BuilderGeneratorTaskID.GetTaskReference(), builder),
+		task_test.NewTaskDependencyValuePair(k8saudittask.K8sAuditQueryTaskID.GetTaskReference(), logs))
+
 	if err != nil {
 		t.Fatal(err.Error())
 	}

@@ -30,7 +30,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser/k8s"
 	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -83,7 +82,7 @@ func (*k8sNodeParser) GetSyslogIdentifier(l *log.LogEntity) string {
 }
 
 // Parse implements parser.Parser.
-func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) error {
+func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	if !l.HasKLogField("") {
 		mainMessage, err := l.MainMessage()
 		if err != nil {

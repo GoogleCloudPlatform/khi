@@ -30,7 +30,6 @@ import (
 	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
 	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api/multicloud_api_taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -67,7 +66,7 @@ func (*multiCloudAuditLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	resourceName := l.GetStringOrDefault("protoPayload.resourceName", "")
 	resource := parseResourceNameOfMulticloudAPI(resourceName)
 	isFirst := l.Has("operation.first")

@@ -18,34 +18,18 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
-
-func generateFakeVariableSet(taskId string, value string) *common_task.VariableSet {
-	requestMap := map[string]any{}
-	if value != "" {
-		requestMap[taskId] = value
-	}
-	m := typedmap.NewTypedMap()
-	typedmap.Set(m, form_metadata.FormFieldSetMetadataKey, form_metadata.NewFormFieldSet())
-	vs := common_task.NewVariableSet(map[string]any{
-		task.MetadataVariableName: m.AsReadonly(),
-		task.InspectionRequestVariableName: &task.InspectionRequest{
-			Values: requestMap,
-		},
-		common_task.TaskCacheTaskID: common_task.NewLocalTaskVariableCache(),
-	})
-
-	return vs
-}
 
 type testFormConfigurator = func(builder *TextFormDefinitionBuilder[string])
 
@@ -86,7 +70,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		{
 			Name: "A text form with validator",
 			FormConfigurator: func(builder *TextFormDefinitionBuilder[string]) {
-				builder.WithValidator(func(ctx context.Context, value string, variables *common_task.VariableSet) (string, error) {
+				builder.WithValidator(func(ctx context.Context, value string) (string, error) {
 					return "foo validation error", nil
 				})
 			},
@@ -102,7 +86,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		{
 			Name: "A text form with allow edit hand",
 			FormConfigurator: func(builder *TextFormDefinitionBuilder[string]) {
-				builder.WithAllowEditFunc(func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
+				builder.WithAllowEditFunc(func(ctx context.Context) (bool, error) {
 					return false, nil
 				})
 			},
@@ -117,7 +101,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		{
 			Name: "A text form with non allow edit hand but with parameter",
 			FormConfigurator: func(builder *TextFormDefinitionBuilder[string]) {
-				builder.WithAllowEditFunc(func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
+				builder.WithAllowEditFunc(func(ctx context.Context) (bool, error) {
 					return false, nil
 				}).WithDefaultValueConstant("foo-from-default", true)
 			},
@@ -133,7 +117,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		{
 			Name: "A text form with hint",
 			FormConfigurator: func(builder *TextFormDefinitionBuilder[string]) {
-				builder.WithHintFunc(func(ctx context.Context, value string, convertedValue any, variables *common_task.VariableSet) (string, form_metadata.FormFieldHintType, error) {
+				builder.WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.FormFieldHintType, error) {
 					return "foo-hint", form_metadata.HintTypeInfo, nil
 				})
 			},
@@ -149,7 +133,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 		{
 			Name: "A text form with allow edit but with parameter",
 			FormConfigurator: func(builder *TextFormDefinitionBuilder[string]) {
-				builder.WithAllowEditFunc(func(ctx context.Context, variables *common_task.VariableSet) (bool, error) {
+				builder.WithAllowEditFunc(func(ctx context.Context) (bool, error) {
 					return true, nil
 				}).WithDefaultValueConstant("foo-from-default", true)
 			},
@@ -194,8 +178,12 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			formFields := []form_metadata.FormField{}
 
 			// Execute task as DryRun mode
-			vs := generateFakeVariableSet("foo", testCase.RequestValue)
-			_, err := taskDef.Run(context.Background(), task.TaskModeDryRun, vs)
+			taskCtx := context.Background()
+			taskCtx = inspection_task_test.WithDefaultTestInspectionTaskContext(taskCtx)
+
+			_, _, err := inspection_task_test.RunInspectionTask(taskCtx, taskDef, inspection_task_interface.TaskModeDryRun, map[string]any{
+				"foo": testCase.RequestValue,
+			})
 			if testCase.ExpectedError != "" {
 				if err == nil {
 					t.Errorf("task was expected to be end with an error. But the task finished without an error")
@@ -207,11 +195,9 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				if err != nil {
 					t.Errorf("task was ended with unexpected error\n%s", err)
 				}
-				ms, err := task.GetMetadataSetFromVariable(vs)
-				if err != nil {
-					t.Errorf("unexpected error while getting metadata\n%v", err)
-				}
-				fields, found := typedmap.Get(ms, form_metadata.FormFieldSetMetadataKey)
+				metadata := khictx.MustGetValue(taskCtx, inspection_task_contextkey.InspectionRunMetadata)
+
+				fields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
 				if !found {
 					t.Fatal("FormFieldSet not found on metadata")
 				}
@@ -221,8 +207,12 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 
 			// Execute task as Run mode
 			if testCase.ExpectedError != "" {
-				vs = generateFakeVariableSet("foo", testCase.RequestValue)
-				_, err = taskDef.Run(context.Background(), task.TaskModeRun, vs)
+				taskCtx := context.Background()
+				taskCtx = inspection_task_test.WithDefaultTestInspectionTaskContext(taskCtx)
+				result, _, err := inspection_task_test.RunInspectionTask(taskCtx, taskDef, inspection_task_interface.TaskModeRun, map[string]any{
+					"foo": testCase.RequestValue,
+				})
+
 				if testCase.ExpectedError != "" {
 					if err == nil {
 						t.Errorf("task was expected to be end with an error. But the task finished without an error")
@@ -234,11 +224,12 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					if err != nil {
 						t.Errorf("task was ended with unexpected error\n%s", err)
 					}
-					ms, err := task.GetMetadataSetFromVariable(vs)
-					if err != nil {
-						t.Errorf("unexpected error while getting metadata\n%v", err)
+					if result != testCase.RequestValue {
+						t.Errorf("the result is not matching with the expected value\nexpected:%s\nactual:%s", testCase.RequestValue, result)
 					}
-					fields, found := typedmap.Get(ms, form_metadata.FormFieldSetMetadataKey)
+					metadata := khictx.MustGetValue(taskCtx, inspection_task_contextkey.InspectionRunMetadata)
+
+					fields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
 					if !found {
 						t.Fatal("FormFieldSet not found on metadata")
 					}

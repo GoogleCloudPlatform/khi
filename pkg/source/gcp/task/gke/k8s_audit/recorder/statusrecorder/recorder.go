@@ -25,14 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/manifestutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	goyaml "gopkg.in/yaml.v3"
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("resource-status", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, l *types.ResourceSpecificParserInput, prevState any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
+	manager.AddRecorder("resource-status", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, l *types.ResourceSpecificParserInput, prevState any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
 		var prevResourceStatus *model.K8sResourceContainingStatus
 		if prevState != nil {
 			prevResourceStatus = prevState.(*model.K8sResourceContainingStatus)

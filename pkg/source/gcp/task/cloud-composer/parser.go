@@ -30,7 +30,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -120,7 +119,7 @@ func (*AirflowSchedulerParser) LogTask() taskid.TaskReference[[]*log.LogEntity] 
 	return composer_taskid.ComposerSchedulerLogQueryTaskID.GetTaskReference()
 }
 
-func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 
 	ti, err := t.parseInternal(l)
 	if err != nil {
@@ -252,7 +251,7 @@ func (*AirflowWorkerParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
 }
 
 // Parse implements parser.Parser.
-func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	parsers := []airflowParserFn{
 		&airflowWorkerRunningHostFn{},
 		// &airflowWorkerMarkingStatusFn{},
@@ -400,7 +399,7 @@ func (*AirflowDagProcessorParser) LogTask() taskid.TaskReference[[]*log.LogEntit
 	return composer_taskid.ComposerDagProcessorManagerLogQueryTaskID.GetTaskReference()
 }
 
-func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	textPayload, err := l.GetString("textPayload")
 	if err != nil {
 		return fmt.Errorf("textPayload not found. maybe invalid log. please confirm the log %s", l.ID())

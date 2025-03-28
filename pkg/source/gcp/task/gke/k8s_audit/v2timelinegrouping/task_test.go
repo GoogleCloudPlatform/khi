@@ -15,27 +15,27 @@
 package v2timelinegrouping
 
 import (
+	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2commonlogparse"
-	base_task "github.com/GoogleCloudPlatform/khi/pkg/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testtask"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
-		result, err := testtask.RunSingleTask(Task, task.TaskModeDryRun,
-			testtask.PriorTaskResultFromID(taskid.NewDefaultImplementationID[*typedmap.ReadonlyTypedMap](task.MetadataVariableName), typedmap.NewTypedMap().AsReadonly()),
-			testtask.PriorTaskResultFromID(k8saudittask.CommonLogParseTaskID, nil))
+		ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+		result, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeDryRun, map[string]any{},
+			task_test.NewTaskDependencyValuePair(k8saudittask.CommonLogParseTaskID.GetTaskReference(), nil))
 		if err != nil {
 			t.Error(err)
 		}
@@ -74,9 +74,11 @@ timestamp: 2024-01-01T00:00:00+09:00`
 			logs = append(logs, tl.With(opt...).MustBuildLogEntity(&log.UnreachableCommonFieldExtractor{}))
 		}
 
-		result, err := testtask.RunMultipleTask[[]*types.TimelineGrouperResult](Task, []base_task.UntypedDefinition{v2commonlogparse.Task}, task.TaskModeRun,
-			testtask.PriorTaskResultFromID(taskid.NewDefaultImplementationID[*typedmap.ReadonlyTypedMap](task.MetadataVariableName), typedmap.NewTypedMap().AsReadonly()),
-			testtask.PriorTaskResultFromID(k8saudittask.K8sAuditQueryTaskID, logs))
+		ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+		result, _, err := inspection_task_test.RunInspectionTaskWithDependency(ctx, Task, []task.UntypedDefinition{
+			v2commonlogparse.Task,
+			task_test.MockTask(query.Task, logs, nil),
+		}, inspection_task_interface.TaskModeRun, map[string]any{})
 		if err != nil {
 			t.Error(err)
 		}

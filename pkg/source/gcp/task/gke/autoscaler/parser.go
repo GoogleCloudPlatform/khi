@@ -70,11 +70,9 @@ func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
-	clusterName, err := gcp_task.GetInputClusterNameFromTaskVariable(variables)
-	if err != nil {
-		return err
-	}
+func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
+
 	// scaleUp,scaleDown,nodePoolCreated,nodePoolDeleted
 	if l.Has("jsonPayload.decision") {
 		err := parseDecision(ctx, clusterName, l, cs, builder)

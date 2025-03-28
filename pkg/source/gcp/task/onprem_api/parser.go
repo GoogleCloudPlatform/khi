@@ -31,7 +31,6 @@ import (
 	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
 	multicloud_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
 	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -68,7 +67,7 @@ func (*onpremCloudAuditLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, variables *task.VariableSet) error {
+func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	resourceName := l.GetStringOrDefault("protoPayload.resourceName", "")
 	resource := parseResourceNameOfOnPremAPI(resourceName)
 	isFirst := l.Has("operation.first")

@@ -22,13 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
 )
 
 var ErrNoNewTokenResolved = errors.New("no new token resolved")
 
 type TokenStore interface {
-	task.CachableDependency
+	cache.CacheDependency
 	GetType() string
 	// GetToken returns the current token. It can come from cache or newly resolved from TokenResolver.
 	GetToken(ctx context.Context) (*Token, error)

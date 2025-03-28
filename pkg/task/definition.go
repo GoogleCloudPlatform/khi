@@ -44,7 +44,7 @@ type UntypedDefinition interface {
 	// Dependencies returns the set of Definition ids without the suffix beginning with #. Task runner will wait these dependent tasks to be done before running this task.
 	Dependencies() []taskid.UntypedTaskReference
 
-	UntypedRun(ctx context.Context, taskMode int, v *VariableSet) (any, error)
+	UntypedRun(ctx context.Context) (any, error)
 }
 
 // Definition represents a task definition that behaves as a factory of the task runner itself and contains metadata of dependency and labels.
@@ -59,19 +59,19 @@ type Definition[TaskResult any] interface {
 	// In the case, task Ids would be `B#1` and `B#2` and these could be depnd by specifying `B` in the Dependencies.
 	ID() taskid.TaskImplementationID[TaskResult]
 
-	Run(ctx context.Context, taskMode int, v *VariableSet) (TaskResult, error)
+	Run(ctx context.Context) (TaskResult, error)
 }
 
 type ConstantDefinitionImpl[TaskResult any] struct {
 	id           taskid.TaskImplementationID[TaskResult]
 	labels       *typedmap.ReadonlyTypedMap
 	dependencies []taskid.UntypedTaskReference
-	runFunc      func(ctx context.Context, taskMode int, v *VariableSet) (TaskResult, error)
+	runFunc      func(ctx context.Context) (TaskResult, error)
 }
 
 // Run implements Definition.
-func (c *ConstantDefinitionImpl[TaskResult]) Run(ctx context.Context, taskMode int, v *VariableSet) (TaskResult, error) {
-	return c.runFunc(ctx, taskMode, v)
+func (c *ConstantDefinitionImpl[TaskResult]) Run(ctx context.Context) (TaskResult, error) {
+	return c.runFunc(ctx)
 }
 
 // Dependencies implements Definition.
@@ -93,13 +93,13 @@ func (c *ConstantDefinitionImpl[TaskResult]) UntypedID() taskid.UntypedTaskImple
 	return c.ID()
 }
 
-func (c *ConstantDefinitionImpl[TaskResult]) UntypedRun(ctx context.Context, taskMode int, v *VariableSet) (any, error) {
-	return c.Run(ctx, taskMode, v)
+func (c *ConstantDefinitionImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
+	return c.Run(ctx)
 }
 
 var _ Definition[any] = (*ConstantDefinitionImpl[any])(nil)
 
-func NewDefinitionFromFunc[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], dependencies []taskid.UntypedTaskReference, runFunc func(ctx context.Context, taskMode int, v *VariableSet) (TaskResult, error), labelOpts ...LabelOpt) *ConstantDefinitionImpl[TaskResult] {
+func NewTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], dependencies []taskid.UntypedTaskReference, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *ConstantDefinitionImpl[TaskResult] {
 	labels := NewLabelSet(labelOpts...)
 	return &ConstantDefinitionImpl[TaskResult]{
 		id:           taskId,

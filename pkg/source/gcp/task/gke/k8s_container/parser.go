@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -61,7 +60,7 @@ func (*k8sContainerParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*k8sContainerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder, v *task.VariableSet) error {
+func (*k8sContainerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
 	namespace := l.GetStringOrDefault("resource.labels.namespace_name", "unknown")
 	podName := l.GetStringOrDefault("resource.labels.pod_name", "unknown")
 	containerName := l.GetStringOrDefault("resource.labels.container_name", "unknown")

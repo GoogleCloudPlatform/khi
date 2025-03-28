@@ -20,17 +20,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 // ReaderFactoryGeneratorTask generates the instance of Reader factory to be used in later task.
 var ReaderFactoryGeneratorTaskID = taskid.NewDefaultImplementationID[*structure.ReaderFactory](InspectionTaskPrefix + "reader-factory-generator")
 
-var ReaderFactoryGeneratorTask = task.NewProcessorTask(ReaderFactoryGeneratorTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode int, v *task.VariableSet) (*structure.ReaderFactory, error) {
+var ReaderFactoryGeneratorTask = task.NewTask(ReaderFactoryGeneratorTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*structure.ReaderFactory, error) {
 	return structure.NewReaderFactory(structuredatastore.NewLRUStructureDataStoreFactory()), nil
 })
-
-func GetReaderFactoryFromTaskVariable(v *task.VariableSet) (*structure.ReaderFactory, error) {
-	return common_task.GetTypedVariableFromTaskVariable[*structure.ReaderFactory](v, ReaderFactoryGeneratorTaskID.ReferenceIDString(), nil)
-}

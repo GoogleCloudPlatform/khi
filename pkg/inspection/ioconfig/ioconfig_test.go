@@ -15,21 +15,21 @@
 package ioconfig
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	task_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/task"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestTestIOConfigCanFindTheRoot(t *testing.T) {
-	vs, err := task_test.RunTaskGraph(TestIOConfig, 0, map[string]any{})
-	if err != nil {
-		t.Errorf("unxepected error %v", err)
-	}
-	ioConfig, err := GetIOConfigFromTaskVariable(vs)
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+
+	ioConfig, _, err := inspection_task_test.RunInspectionTask(ctx, TestIOConfig, inspection_task_interface.TaskModeRun, map[string]any{})
 	if err != nil {
 		t.Errorf("unxepected error %v", err)
 	}
@@ -43,11 +43,9 @@ func TestTestIOConfigCanFindTheRoot(t *testing.T) {
 }
 
 func TestProductionIOConfigConvertPathToAbs(t *testing.T) {
-	vs, err := task_test.RunTaskGraph(ProductionIOConfig, 0, map[string]any{})
-	if err != nil {
-		t.Errorf("unxepected error %v", err)
-	}
-	ioConfig, err := GetIOConfigFromTaskVariable(vs)
+	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+
+	ioConfig, _, err := inspection_task_test.RunInspectionTask(ctx, ProductionIOConfig, inspection_task_interface.TaskModeRun, map[string]any{})
 	if err != nil {
 		t.Errorf("unxepected error %v", err)
 	}

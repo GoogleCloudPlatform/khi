@@ -17,13 +17,13 @@ package composer_task
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var ComposerClusterNamePrefixTask = inspection_task.NewInspectionProducer(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "composer"), func(ctx context.Context, taskMode int, progress *progress.TaskProgress) (string, error) {
+var ComposerClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "composer"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "", nil
 }, inspection_task.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))

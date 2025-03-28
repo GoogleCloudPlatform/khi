@@ -27,7 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	goyaml "gopkg.in/yaml.v3"
@@ -51,7 +50,7 @@ type endpointsParseResult struct {
 }
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("endpointslices", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder, vs *task.VariableSet) (any, error) {
+	manager.AddRecorder("endpointslices", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *types.ResourceSpecificParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
 		var prevEndpointSlice *model.EndpointSlice
 		if prevStateInGroup != nil {
 			prevEndpointSlice = prevStateInGroup.(*model.EndpointSlice)

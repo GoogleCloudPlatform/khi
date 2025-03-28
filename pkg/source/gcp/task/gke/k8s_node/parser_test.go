@@ -260,7 +260,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameButNotWithContainerName(t *test
 		DataDestination: "/tmp/",
 		TemporaryFolder: "/tmp/",
 	})
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_only_pod_name.yaml", &k8sNodeParser{}, builder, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_only_pod_name.yaml", &k8sNodeParser{}, builder)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -296,7 +296,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameAndContainerName(t *testing.T) 
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, podResourceBinding)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, containerResourceBinding)
 
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_pod_and_container_name.yaml", &k8sNodeParser{}, builder, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_pod_and_container_name.yaml", &k8sNodeParser{}, builder)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -330,7 +330,7 @@ func TestK8sNodeParser_ParseContainerdRunPod(t *testing.T) {
 	podName := "kube-dns-58f547fd74-swzzt"
 	podResourceBinding := noderesource.NewPodResourceBinding(podSandboxID, podNamespace, podName)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, podResourceBinding)
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_run_pod_sandbox.yaml", &k8sNodeParser{}, builder, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_run_pod_sandbox.yaml", &k8sNodeParser{}, builder)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -364,7 +364,7 @@ func TestK8sNodeParser_ParseCreateContainer(t *testing.T) {
 	containerResourceBinding := podResourceBinding.NewContainerResourceBinding(containerID, containerName)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(wantNodeName, podResourceBinding)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(wantNodeName, containerResourceBinding)
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_create_container.yaml", &k8sNodeParser{}, builder, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_create_container.yaml", &k8sNodeParser{}, builder)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -403,7 +403,7 @@ func TestK8sNodeParser_ParseContainerdIncludingContainerIdOnly(t *testing.T) {
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, podResourceBinding)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, containerResourceBinding)
 
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_only_container_id.yaml", &k8sNodeParser{}, builder, nil)
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_only_container_id.yaml", &k8sNodeParser{}, builder)
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

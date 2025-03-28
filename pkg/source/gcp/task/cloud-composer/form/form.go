@@ -20,6 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -28,48 +29,45 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var AutocompleteComposerEnvironmentNames = task.NewCachedProcessor(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
 	gcp_task.InputLocationsTaskID,
 	gcp_task.InputProjectIdTaskID,
-}, func(ctx context.Context, taskMode int, v *task.VariableSet) ([]string, error) {
+}, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[[]string]) (inspection_cached_task.PreviousTaskResult[[]string], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return nil, err
+		return inspection_cached_task.PreviousTaskResult[[]string]{}, err
 	}
-	projectId, err := gcp_task.GetInputProjectIdFromTaskVariable(v)
-	if err != nil {
-		return nil, err
-	}
-	location, err := gcp_task.GetInputLocationsFromTaskVariable(v)
-	if err != nil {
-		return nil, err
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+	location := task.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.GetTaskReference())
+	dependencyDigest := fmt.Sprintf("%s-%s", projectID, location)
+
+	if prevValue.DependencyDigest == dependencyDigest {
+		return prevValue, nil
 	}
 
-	if projectId != "" && location != "" {
-		clusterNames, err := client.GetComposerEnvironmentNames(ctx, projectId, location)
+	if projectID != "" && location != "" {
+		clusterNames, err := client.GetComposerEnvironmentNames(ctx, projectID, location)
 		if err != nil {
-			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the composer environments in the (project,location) (%s, %s) \n%s", projectId, location, err))
-			return []string{}, nil
+			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the composer environments in the (project,location) (%s, %s) \n%s", projectID, location, err))
+			return inspection_cached_task.PreviousTaskResult[[]string]{
+				DependencyDigest: dependencyDigest,
+				Value:            []string{},
+			}, nil
 		}
-		return clusterNames, nil
+		return inspection_cached_task.PreviousTaskResult[[]string]{
+			DependencyDigest: dependencyDigest,
+			Value:            clusterNames,
+		}, nil
 	}
-	return []string{}, nil
+	return inspection_cached_task.PreviousTaskResult[[]string]{
+		DependencyDigest: dependencyDigest,
+		Value:            []string{},
+	}, nil
 })
-
-func GetAutocompleteComposerEnvironmentNamesTaskVariable(v *task.VariableSet) ([]string, error) {
-	return task.GetTypedVariableFromTaskVariable[[]string](v, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.ReferenceIDString(), nil)
-}
 
 var InputComposerEnvironmentNameTask = form.NewInputFormDefinitionBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
 	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID},
-).WithSuggestionsFunc(func(ctx context.Context, value string, variables *task.VariableSet, previousValues []string) ([]string, error) {
-	environments, err := GetAutocompleteComposerEnvironmentNamesTaskVariable(variables)
-	if err != nil {
-		return nil, err
-	}
+).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+	environments := task.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.GetTaskReference())
 	return common.SortForAutocomplete(value, environments), nil
 }).Build()
-
-func GetInputComposerEnvironmentVariable(tv *task.VariableSet) (string, error) {
-	return task.GetTypedVariableFromTaskVariable[string](tv, InputComposerEnvironmentNameTask.ID().ReferenceIDString(), "<INVALID>")
-}
