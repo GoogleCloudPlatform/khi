@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/constants"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -121,7 +120,7 @@ func (r *RecorderTaskManager) GetRecorderTaskName(recorderName string) string {
 	return fmt.Sprintf("%s/recorder/%s", r.taskID.ReferenceId(), recorderName)
 }
 
-func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, labelOpts ...task.LabelOpt) error {
+func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, inspectionTypes []string, labelOpts ...task.LabelOpt) error {
 	recorderTaskIds := []string{}
 	for _, recorder := range r.recorderTasks {
 		err := server.AddTaskDefinition(recorder)
@@ -132,7 +131,7 @@ func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, 
 	}
 	waiterTask := inspection_task.NewInspectionProcessor(r.taskID.String(), recorderTaskIds, func(ctx context.Context, taskMode int, v *task.VariableSet, progress *progress.TaskProgress) (any, error) {
 		return struct{}{}, nil
-	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, inspectiontype.GCPK8sClusterInspectionTypes...))
+	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, inspectionTypes...))
 	err := server.AddTaskDefinition(waiterTask)
 	return err
 }

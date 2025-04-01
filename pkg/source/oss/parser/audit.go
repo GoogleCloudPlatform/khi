@@ -93,7 +93,7 @@ var RegisterK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspecti
 		return err
 	}
 
-	err = manager.Register(inspectionServer, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, constant.OSSInspectionTypeID))
+	err = manager.Register(inspectionServer, []string{constant.OSSInspectionTypeID}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true))
 	if err != nil {
 		return err
 	}
