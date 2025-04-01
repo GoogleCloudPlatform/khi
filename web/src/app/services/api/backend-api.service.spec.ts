@@ -151,14 +151,14 @@ describe('BackendAPIImpl testing', () => {
 
   it('can call setEnabledFeatures', () => {
     const apiSpy = jasmine.createSpy();
-    api.setEnabledFeatures('test', []).subscribe(() => {
+    api.setEnabledFeatures('test', {}).subscribe(() => {
       apiSpy();
     });
     const req = httpTestingController.expectOne(
       '/api/v2/inspection/tasks/test/features',
     );
 
-    expect(req.request.method).toEqual('PUT');
+    expect(req.request.method).toEqual('PATCH');
     req.flush('ok');
 
     expect(apiSpy).toHaveBeenCalledOnceWith();
@@ -381,11 +381,19 @@ describe('InspectionTaskClient testing', () => {
   });
 
   it('sets the features list by calling setFeatures', () => {
-    taskClient.setFeatures(['feat1', 'feat2']);
-    expect(backendAPISpy.setEnabledFeatures).toHaveBeenCalledWith('test', [
-      'feat1',
-      'feat2',
-    ]);
+    taskClient.setFeatures(
+      Object.fromEntries([
+        ['feat1', true],
+        ['feat2', false],
+      ]),
+    );
+    expect(backendAPISpy.setEnabledFeatures).toHaveBeenCalledWith(
+      'test',
+      Object.fromEntries([
+        ['feat1', true],
+        ['feat2', false],
+      ]),
+    );
   });
 
   it('call run with right parameter set', (done) => {

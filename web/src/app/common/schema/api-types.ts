@@ -128,6 +128,16 @@ export interface PutInspectionTaskFeatureRequest {
 }
 
 /**
+ * Request schema of PATCH /api/v2/inspection/tasks/<task-id>/features .
+ */
+export interface PatchInspectionTaskFeatureRequest {
+  /**
+   * Map of features mapped against true if enabled
+   */
+  features: { [key: string]: boolean };
+}
+
+/**
  * Response schema of POST /api/v2/inspection/tasks/<inspection task id>/dryrun .
  */
 export type InspectionDryRunResponse = {
