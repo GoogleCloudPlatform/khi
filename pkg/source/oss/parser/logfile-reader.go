@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -105,6 +106,7 @@ var OSSLogFileReader = inspection_task.NewInspectionProcessor(
 
 			logs = append(logs, log)
 		}
+		slices.SortFunc(logs, func(a, b *log.LogEntity) int { return int(a.Timestamp().UnixNano() - b.Timestamp().UnixNano()) })
 		metadataSet, err := common_task.GetMetadataSetFromVariable(v)
 		if err != nil {
 			return nil, err
