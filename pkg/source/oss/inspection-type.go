@@ -24,7 +24,7 @@ import (
 var OSSKubernetesLogFilesInspectionType = inspection.InspectionType{
 	Id:          constant.OSSInspectionTypeID,
 	Name:        "OSS Kubernetes Log Files",
-	Description: "Parsers for logs uploaded as the raw log files.",
-	Icon:        "assets/icons/anthos.png", // TODO: change! place holder
+	Description: "Visualize OSS Kubernetes logs through the uploaded files",
+	Icon:        "assets/icons/k8s.png",
 	Priority:    math.MaxInt - 1000,
 }
