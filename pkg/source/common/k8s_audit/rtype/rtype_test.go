@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss
+package rtype
 
 import (
-	"math"
+	"fmt"
+	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-var OSSKubernetesLogFilesInspectionType = inspection.InspectionType{
-	Id:          constant.OSSInspectionTypeID,
-	Name:        "OSS Kubernetes Log Files",
-	Description: "Visualize OSS Kubernetes logs through the uploaded files",
-	Icon:        "assets/icons/k8s.png",
-	Priority:    math.MaxInt - 1000,
+func TestTypesAreFilled(t *testing.T) {
+	for i := 1; i <= RTypeUnusedEnd; i++ {
+		t.Run(fmt.Sprintf("check-%d-filled", i), func(t *testing.T) {
+			for _, value := range AtTypesOnGCPAuditLog {
+				if value == i {
+					return
+				}
+			}
+			t.Errorf("type(%d) is not included in the Types", i)
+		})
+	}
 }

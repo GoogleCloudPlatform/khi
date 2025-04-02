@@ -1,0 +1,105 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+kind: Event
+apiVersion: audit.k8s.io/v1
+level: RequestResponse
+auditID: 7a816f5c-b093-4f2f-8124-0c6083e41cd4
+stage: ResponseComplete
+requestURI: "/apis/coordination.k8s.io/v1/namespaces/kube-system/leases/kube-scheduler?timeout=5s"
+verb: update
+user:
+  username: system:kube-scheduler
+  groups:
+  - system:authenticated
+  extra:
+    authentication.kubernetes.io/credential-id:
+    - X509SHA256=983672d7e8253cbf01ff7832e1a848e2eed6af96d83c3a6e4ccc1c6a23820d8f
+sourceIPs:
+- 10.89.0.40
+userAgent: kube-scheduler/v1.32.2 (linux/arm64) kubernetes/67a30c0/leader-election
+objectRef:
+  resource: leases
+  namespace: kube-system
+  name: kube-scheduler
+  uid: 1246e48d-5376-4ced-af4b-eb67db1f3a97
+  apiGroup: coordination.k8s.io
+  apiVersion: v1
+  resourceVersion: '5808'
+responseStatus:
+  metadata: {}
+  code: 200
+requestObject:
+  kind: Lease
+  apiVersion: coordination.k8s.io/v1
+  metadata:
+    name: kube-scheduler
+    namespace: kube-system
+    uid: 1246e48d-5376-4ced-af4b-eb67db1f3a97
+    resourceVersion: '5808'
+    creationTimestamp: '2025-04-01T09:21:49Z'
+    managedFields:
+    - manager: kube-scheduler
+      operation: Update
+      apiVersion: coordination.k8s.io/v1
+      time: '2025-04-01T13:33:57Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:spec:
+          f:acquireTime: {}
+          f:holderIdentity: {}
+          f:leaseDurationSeconds: {}
+          f:leaseTransitions: {}
+          f:renewTime: {}
+  spec:
+    holderIdentity: kind-control-plane_36bc06ed-dc61-4c8f-ac53-92e6d5553659
+    leaseDurationSeconds: 15
+    acquireTime: '2025-04-01T09:21:49.329549Z'
+    renewTime: '2025-04-01T13:33:59.445411Z'
+    leaseTransitions: 0
+responseObject:
+  kind: Lease
+  apiVersion: coordination.k8s.io/v1
+  metadata:
+    name: kube-scheduler
+    namespace: kube-system
+    uid: 1246e48d-5376-4ced-af4b-eb67db1f3a97
+    resourceVersion: '5812'
+    creationTimestamp: '2025-04-01T09:21:49Z'
+    managedFields:
+    - manager: kube-scheduler
+      operation: Update
+      apiVersion: coordination.k8s.io/v1
+      time: '2025-04-01T13:33:59Z'
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:spec:
+          f:acquireTime: {}
+          f:holderIdentity: {}
+          f:leaseDurationSeconds: {}
+          f:leaseTransitions: {}
+          f:renewTime: {}
+  spec:
+    holderIdentity: kind-control-plane_36bc06ed-dc61-4c8f-ac53-92e6d5553659
+    leaseDurationSeconds: 15
+    acquireTime: '2025-04-01T09:21:49.329549Z'
+    renewTime: '2025-04-01T13:33:59.445411Z'
+    leaseTransitions: 0
+requestReceivedTimestamp: '2025-04-01T13:33:59.447869Z'
+stageTimestamp: '2025-04-01T13:33:59.457732Z'
+annotations:
+  authorization.k8s.io/decision: allow
+  authorization.k8s.io/reason: 'RBAC: allowed by ClusterRoleBinding "system:kube-scheduler"
+    of ClusterRole "system:kube-scheduler" to User "system:kube-scheduler"'
+job: audit

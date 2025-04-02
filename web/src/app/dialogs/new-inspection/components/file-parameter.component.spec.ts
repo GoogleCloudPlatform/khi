@@ -112,6 +112,7 @@ describe('FileParameterComponent', () => {
       of({
         done: false,
         completeRatio: 0.5,
+        completeRatioUnknown: false,
       });
 
     fixture.componentRef.setInput('parameter', {
@@ -134,6 +135,7 @@ describe('FileParameterComponent', () => {
       of({
         done: true,
         completeRatio: 1,
+        completeRatioUnknown: false,
       });
 
     fixture.componentRef.setInput('parameter', {
@@ -155,6 +157,7 @@ describe('FileParameterComponent', () => {
       of({
         done: false,
         completeRatio: 0.5,
+        completeRatioUnknown: false,
       });
     fixture.componentRef.setInput('parameter', {
       ...defaultFileParameterForm,

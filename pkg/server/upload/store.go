@@ -37,19 +37,6 @@ const (
 	UploadStatusCompleted UploadStatus = 3
 )
 
-// UploadResult holds the result of an upload operation.
-type UploadResult struct {
-	StoreProvider UploadFileStoreProvider
-	// Status is the current state of the upload.
-	Status UploadStatus
-	// UploadError contains any error that occurred during the upload process itself
-	UploadError error
-	// VerificationError contains any error returned by the UploadFileVerifier.
-	VerificationError error
-	// VerificationCount is the attempt count of the verification logic. This value is preventing the race condition in verification steps.
-	VerificationCount int
-}
-
 // UploadFileStore manages file uploads.
 type UploadFileStore struct {
 	StoreProvider UploadFileStoreProvider
@@ -75,6 +62,7 @@ func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier)
 	_, ok := s.results[token.GetID()]
 	if !ok {
 		s.results[token.GetID()] = UploadResult{
+			Token:  token,
 			Status: UploadStatusWaiting,
 		}
 	}
@@ -110,6 +98,7 @@ func (s *UploadFileStore) SetResultOnStartingUpload(token UploadToken) error {
 		return fmt.Errorf("upload result not found for token %s", token.GetID())
 	}
 	s.results[token.GetID()] = UploadResult{
+		Token:         token,
 		StoreProvider: s.StoreProvider,
 		Status:        UploadStatusUploading,
 	}
@@ -131,6 +120,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 	nextVerificationIndex := prev.VerificationCount + 1
 	if uploadError == nil {
 		s.results[token.GetID()] = UploadResult{
+			Token:             token,
 			StoreProvider:     s.StoreProvider,
 			Status:            UploadStatusVerifying,
 			UploadError:       uploadError,
@@ -138,6 +128,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 		}
 	} else {
 		s.results[token.GetID()] = UploadResult{
+			Token:             token,
 			StoreProvider:     s.StoreProvider,
 			Status:            UploadStatusWaiting,
 			UploadError:       uploadError,
@@ -159,6 +150,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 				return
 			}
 			s.results[token.GetID()] = UploadResult{
+				Token:             token,
 				StoreProvider:     s.StoreProvider,
 				Status:            UploadStatusCompleted,
 				UploadError:       current.UploadError,

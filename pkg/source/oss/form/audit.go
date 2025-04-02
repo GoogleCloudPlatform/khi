@@ -24,5 +24,3 @@ var AuditLogFilesForm = form.NewFileFormTaskBuilder("oss/audit-log-files", 1000,
 }).
 	WithDescription(`Upload JSONLine format kube-apiserver audit log`).
 	Build()
-
-var TestTextForm = form.NewTextFormTaskBuilder("oss/test-param", 1001, "test").Build()

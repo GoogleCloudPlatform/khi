@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/k8saudittask"
+	gcp_k8s_audit_constants "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/constants"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
@@ -69,7 +69,7 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 }
 
 var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []string{
-	k8saudittask.K8sAuditParseTaskID,
+	gcp_k8s_audit_constants.K8sAuditParseTaskID,
 	gcp_task.InputNodeNameFilterTaskID,
 }, func(ctx context.Context, taskMode int, vs *task.VariableSet) ([]string, error) {
 	builder, err := inspection_task.GetHistoryBuilderFromTaskVariable(vs)

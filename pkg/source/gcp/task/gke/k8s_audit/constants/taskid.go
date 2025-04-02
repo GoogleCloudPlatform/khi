@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss
+package k8saudittask
 
 import (
-	"math"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
+	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
-var OSSKubernetesLogFilesInspectionType = inspection.InspectionType{
-	Id:          constant.OSSInspectionTypeID,
-	Name:        "OSS Kubernetes Log Files",
-	Description: "Visualize OSS Kubernetes logs through the uploaded files",
-	Icon:        "assets/icons/k8s.png",
-	Priority:    math.MaxInt - 1000,
-}
+const K8sAuditQueryTaskID = gcp_task.GCPPrefix + "query/k8s_audit"
+const K8sAuditParseTaskID = gcp_task.GCPPrefix + "/feature/audit-parser-v2"
