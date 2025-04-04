@@ -124,55 +124,20 @@ mat-card.inspection-type
     justify-content: center
     margin: 20px
 
-.field-wrapper
-    margin: 10px 0px 0px 0px
-
-.field-text-type-form-field
-    width: 400px
-
-.field-label
-    margin: 0px 0px 5px 0px
-    font-weight: 600
-
-.field-description
-    margin: -10px 0px 2px 0px
-    font-size: 12px
-    line-height: 16px
-    padding: 4px 0px
-
-.field-validation-error
-    font-size: 12px
-    color: red
-
-.field-hint-wrapper
-    padding: 10px
-    display: grid
-    align-items: center
-    &.warning
-        background-color: #ffffab
-        mat-icon
-            color: orange
-    &.info
-        background-color: #ccFFFF
-        mat-icon
-            color: #33AAFF
-    grid-template-columns: 30px 1fr
-    margin: 10px 30px 0px 0px
-    .field-hint-text
-        margin: 0px
 .parameter-view
     height: 100%
     overflow: hidden
-.parameters-view-wrap
-    height: 100%
     display: grid
-    grid-template-rows: minmax(0,1fr) 80px
-    grid-template-columns: 1fr
-    overflow: hidden
-.parameters-content
-    overflow: hidden
-    display: grid
-    grid-template-columns: 50% 50%
+    grid-template-areas: "parameter metadata" "footer footer"
+    grid-template-rows: 1fr 100px
+    grid-template-columns: 1fr 1fr
+    .parameters-form-view
+        grid-area: parameter
+        margin: 0px 0px 0px -10px
+    .parameters-metadata-view
+        grid-area: metadata
+    .parameters-footer
+        grid-area: footer
 
 .parameters-footer
     margin: 10px 0px 0px 0px

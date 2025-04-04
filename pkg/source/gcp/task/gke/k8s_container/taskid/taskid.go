@@ -25,4 +25,4 @@ import (
 var InputContainerQueryNamespacesTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](gcp_task.GCPPrefix + "input/container-query-namespaces")
 var InputContainerQueryPodNamesTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](gcp_task.GCPPrefix + "input/container-query-podnames")
 var GKEContainerLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "k8s-container")
-var GKEContainerParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/container-parser")
+var GKEContainerParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/container-parser")

@@ -65,7 +65,7 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 	}, nil
 })
 
-var InputComposerEnvironmentNameTask = form.NewInputFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
+var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
 	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 	environments := task.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.GetTaskReference())

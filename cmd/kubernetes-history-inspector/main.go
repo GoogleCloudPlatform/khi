@@ -28,17 +28,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 
 	"cloud.google.com/go/profiler"
 )
@@ -81,8 +84,10 @@ func init() {
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
 
-	taskSetRegistrer = append(taskSetRegistrer, common.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, inspection_common.PrepareInspectionServer)
 	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
+	taskSetRegistrer = append(taskSetRegistrer, common.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {
@@ -152,11 +157,20 @@ func run() int {
 
 		slog.Info("Starting Kubernetes History Inspector server...")
 
+		uploadFileStoreFolder := "/tmp"
+
+		if parameters.Common.UploadFileStoreFolder != nil {
+			uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
+		}
+
+		upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+
 		config := server.ServerConfig{
 			ViewerMode:       *parameters.Server.ViewerMode,
 			StaticFolderPath: *parameters.Server.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *parameters.Server.BasePath,
+			UploadFileStore:  upload.DefaultUploadFileStore,
 		}
 		engine := server.CreateKHIServer(inspectionServer, &config)
 

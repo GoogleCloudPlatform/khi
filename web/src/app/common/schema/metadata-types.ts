@@ -42,21 +42,6 @@ export type InspectionMetadataError = {
   link: string;
 };
 
-export type InspectionMetadataFormFieldType = 'Text';
-
-export type InspectionMetadataFormField = {
-  id: string;
-  type: InspectionMetadataFormFieldType;
-  label: string;
-  description: string;
-  default: string;
-  allowEdit: string;
-  suggestions: string[];
-  validationError: string;
-  hint: string;
-  hintType: 'warning' | 'info';
-};
-
 export type InspectionMetadataHeader = {
   inspectionType: string;
   inspectionTypeIconPath: string;

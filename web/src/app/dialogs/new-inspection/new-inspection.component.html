@@ -102,152 +102,68 @@
     <!--Step3 : Input parameters-->
     <mat-step>
       <ng-template matStepLabel>Input parameters</ng-template>
-      <div class="parameter-view">
-        <ng-container
-          *ngIf="formViewModel | async; else waitForDryrun; let formViewModel"
-        >
-          <div class="parameters-view-wrap">
-            <div class="parameters-content">
-              <form
-                [formGroup]="formViewModel.formGroup"
-                class="allow-vertical-scroll"
-              >
-                <div
-                  *ngFor="
-                    let field of formViewModel.metadata.form;
-                    trackBy: fieldCollectionTrack
-                  "
-                  class="field-wrapper"
-                >
-                  <p class="field-label">{{ field.label }}</p>
-                  <p
-                    class="field-description"
-                    *ngIf="field.description !== ''"
-                    [innerHTML]="field.description | breakline"
-                  ></p>
-                  <mat-form-field
-                    appearance="outline"
-                    subscriptSizing="dynamic"
-                    class="field-text-type-form-field"
-                  >
-                    <mat-label>{{ field.label }}</mat-label>
-                    <input
-                      class="field-text-type-input"
-                      matInput
-                      type="text"
-                      [placeholder]="field.default"
-                      [formControlName]="field.id"
-                      [matAutocomplete]="auto"
-                    />
-                    <mat-autocomplete
-                      autoActiveFirstOption
-                      #auto="matAutocomplete"
-                    >
-                      <mat-option
-                        *ngFor="let option of field.suggestions"
-                        [value]="option"
-                      >
-                        {{ option }}
-                      </mat-option>
-                    </mat-autocomplete>
-                  </mat-form-field>
-                  <p
-                    class="field-validation-error"
-                    *ngIf="field.validationError !== ''"
-                  >
-                    {{ field.validationError }}
-                  </p>
-                  <div
-                    *ngIf="field.hint && field.hintType === 'warning'"
-                    class="field-hint-wrapper warning"
-                  >
-                    <mat-icon>warning</mat-icon>
-                    <p
-                      class="field-hint-text"
-                      [innerHTML]="field.hint | breakline"
-                    ></p>
-                  </div>
-                  <div
-                    *ngIf="field.hint && field.hintType === 'info'"
-                    class="field-hint-wrapper info"
-                  >
-                    <mat-icon>info</mat-icon>
-                    <p
-                      class="field-hint-text"
-                      [innerHTML]="field.hint | breakline"
-                    ></p>
-                  </div>
-                </div>
-              </form>
-              <div
-                class="parameters-metadata-view"
-                class="allow-vertical-scroll"
-              >
-                <mat-card
-                  class="query-section-card"
-                  *ngIf="formViewModel.metadata.query; let queries"
-                >
-                  <mat-card-header>
-                    <mat-card-title>Query</mat-card-title>
-                  </mat-card-header>
-                  <mat-card-content>
-                    <mat-card *ngFor="let query of queries" class="query-card">
-                      <mat-card-header>
-                        <mat-card-title>{{ query.name }}</mat-card-title>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <pre class="query-section-query-pre">{{
-                          query.query
-                        }}</pre>
-                      </mat-card-content>
-                    </mat-card>
-                  </mat-card-content>
-                </mat-card>
-                <mat-card *ngIf="formViewModel.metadata.plan; let plan">
-                  <mat-card-header>
-                    <mat-card-title>Inspection plan</mat-card-title>
-                  </mat-card-header>
-                  <mat-card-content>
-                    <p>
-                      Copy the following task execution plan and visualize it
-                      with graphviz.
-                    </p>
-                    <pre class="task-graph-pre">
-                        {{ plan.taskGraph }}
-                      </pre
-                    >
-                  </mat-card-content>
-                </mat-card>
-              </div>
-            </div>
-            <div class="parameters-footer">
-              <p
-                *ngIf="formViewModel.errorCount !== 0"
-                class="errmsg-parameters-error"
-              >
-                Fix the validation errors on the input parameters:
-                {{ formViewModel.errorCount }} /
-                {{ formViewModel.fieldCount }}
-              </p>
-              <button
-                [disabled]="formViewModel.errorCount !== 0"
-                mat-raised-button
-                color="primary"
-                (click)="run()"
-              >
-                Run
-              </button>
-            </div>
+      @if (parameterViewModel | async; as parameterViewModel) {
+        <div class="parameter-view">
+          <div class="parameters-form-view allow-vertical-scroll">
+            <khi-new-inspection-group-parameter
+              [parameter]="parameterViewModel.rootGroupForm"
+            ></khi-new-inspection-group-parameter>
           </div>
-        </ng-container>
-        <!--Progressbars shown during waiting for the form data observable-->
-        <ng-template #waitForDryrun>
-          <div class="loading-form-info">
-            <p>Waiting for loading form data</p>
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <div class="parameters-metadata-view allow-vertical-scroll">
+            <mat-card class="query-section-card">
+              <mat-card-header>
+                <mat-card-title>Query</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                @for (query of parameterViewModel.queries; track query.name) {
+                  <mat-card class="query-card">
+                    <mat-card-header>
+                      <mat-card-title>{{ query.name }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <pre class="query-section-query-pre">{{
+                        query.query
+                      }}</pre>
+                    </mat-card-content>
+                  </mat-card>
+                }
+              </mat-card-content>
+            </mat-card>
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>Inspection plan</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>
+                  Copy the following task execution plan and visualize it with
+                  graphviz.
+                </p>
+                <pre class="task-graph-pre">{{
+                  parameterViewModel.plan.taskGraph
+                }}</pre>
+              </mat-card-content>
+            </mat-card>
           </div>
-        </ng-template>
-      </div>
+          <div class="parameters-footer">
+            <p
+              *ngIf="parameterViewModel.errorFieldCount !== 0"
+              class="errmsg-parameters-error"
+            >
+              Fix the validation errors on the input parameters:
+              {{ parameterViewModel.errorFieldCount }} /
+              {{ parameterViewModel.fieldCount }}
+            </p>
+            <button
+              [disabled]="hadRun() || parameterViewModel.errorFieldCount !== 0"
+              mat-raised-button
+              color="primary"
+              (click)="onRunButtonClick()"
+            >
+              Run
+            </button>
+          </div>
+        </div>
+      }
     </mat-step>
   </mat-stepper>
 </mat-dialog-content>

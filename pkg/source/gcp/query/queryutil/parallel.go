@@ -138,9 +138,11 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 	wg.Wait()
 	close(logSink)
 	err := context.Cause(cancellableCtx)
-	if err != nil && !errors.Is(err, errors.New("query completed")) {
+	if err != nil {
+		cancel(err)
 		return nil, err
 	}
+	cancel(nil)
 	return logEntries, nil
 }
 

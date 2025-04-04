@@ -22,4 +22,4 @@ import (
 )
 
 var AutoscalerQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "autoscaler")
-var AutoscalerParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/autoscaler-parser")
+var AutoscalerParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/autoscaler-parser")

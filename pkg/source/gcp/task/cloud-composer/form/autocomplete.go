@@ -38,7 +38,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 	}
 
 	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-	if projectID == prevValue.DependencyDigest {
+	if projectID != "" && projectID == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
 

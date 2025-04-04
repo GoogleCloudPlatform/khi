@@ -22,4 +22,4 @@ import (
 )
 
 var GKEK8sEventLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "k8s-event")
-var GKEK8sEventLogParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/event-parser")
+var GKEK8sEventLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/event-parser")

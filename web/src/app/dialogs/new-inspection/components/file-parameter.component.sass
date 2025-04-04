@@ -1,0 +1,93 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "sass:color"
+@use '@angular/material' as mat
+
+$drop-area-color-inactive-base-color: lightgray
+$drop-area-color-tint-background: mat.m2-get-color-from-palette(mat.$m2-indigo-palette,50)
+$drop-area-color-tint-border: mat.m2-get-color-from-palette(mat.$m2-indigo-palette,400)
+$done-label-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette,400)
+
+.container
+    padding: 0px 10px 0px 0px    
+.form-body
+    margin: 0px 0px 0px 20px
+
+.drop-area-outer
+    margin: 5px 0px
+    width: 100%
+
+.drop-area
+    width: 100%
+    border: 3px dashed $drop-area-color-inactive-base-color
+    &:hover,&.dragging
+        cursor: pointer
+        border: 3px dashed $drop-area-color-tint-border
+        background-color: $drop-area-color-tint-background
+    .drop-area-inner
+        padding: 20px 0px
+        pointer-events: none // To prevent calling dragenter,dragleave when user hovers on child element.
+    .drop-area-hint
+        color: color.adjust($drop-area-color-inactive-base-color, $lightness: -20%)
+        font-weight: 500
+        text-align: center
+        user-select: none
+    .drop-area-hint-file-dialog
+        color: color.adjust($drop-area-color-inactive-base-color, $lightness: -10%)
+        font-size: 12px
+        font-weight: 500
+        text-align: center
+        user-select: none
+    .drop-area-hint-file-name
+        display: flex
+        align-items: center
+        justify-content: center
+        color: color.adjust($drop-area-color-inactive-base-color, $lightness: -10%)
+        font-size: 12px
+        font-weight: 500
+        user-select: none
+        mat-icon
+            transform: scale(0.7)
+        
+.label
+    font-weight: 600
+
+.description
+    margin: -10px 0px 2px 0px
+    font-size: 12px
+    line-height: 16px
+    padding: 4px 0px
+
+.footer-container
+    margin: 4px 0px
+    display: flex
+    .progress-label
+        margin: 0px 20px 0px 10px
+        color: dimgray
+        font-size: 12px
+    .progress-wrapper
+        display: flex
+        flex: 1
+        justify-content: flex-end
+        align-items: center
+.done-status-indicator
+    color: $done-label-color
+    display: flex
+    justify-content: flex-end
+    align-items: center
+    mat-icon
+        transform: scale(70%)

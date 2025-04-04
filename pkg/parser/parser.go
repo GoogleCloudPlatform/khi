@@ -61,8 +61,8 @@ type Parser interface {
 	Grouper() grouper.LogGrouper
 }
 
-func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Parser, isDefaultFeature bool, labelOpts ...task.LabelOpt) task.Task[any] {
-	return inspection_task.NewInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask(), inspection_task.BuilderGeneratorTaskID), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...task.LabelOpt) task.Task[struct{}] {
+	return inspection_task.NewInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask(), inspection_task.BuilderGeneratorTaskID), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (struct{}, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
@@ -81,7 +81,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Par
 			preparedLogCount.Add(1)
 		})
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		grouper := parser.Grouper()
 		groups := grouper.Group(logs)
@@ -166,12 +166,12 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[any], parser Par
 		}
 		err = wg.Wait()
 		if err != nil {
-			return nil, err
+			return struct{}{}, err
 		}
 		close(logCounterChannel)
 		return struct{}{}, nil
 	},
 		append([]task.LabelOpt{
-			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature),
+			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
 		}, labelOpts...)...)
 }

@@ -19,15 +19,13 @@ import (
 	"fmt"
 	"strings"
 
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gke_compute_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
@@ -110,4 +108,4 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 
 var _ parser.Parser = (*computeAPIParser)(nil)
 
-var ComputeAPIParserTask = parser.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspection_task.InspectionTypeLabel(gke.InspectionTypeId, composer_inspection_type.InspectionTypeId))
+var ComputeAPIParserTask = parser.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

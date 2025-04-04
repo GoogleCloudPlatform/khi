@@ -22,4 +22,4 @@ import (
 )
 
 var GKENodeLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "k8s-node")
-var GKENodeLogParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/nodelog-parser")
+var GKENodeLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/nodelog-parser")

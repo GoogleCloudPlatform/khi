@@ -179,7 +179,7 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	}
 
 	// Parse related tasks
-	err = k8s_audit.PrepareK8sAuditTasks(inspectionServer)
+	err = k8s_audit.RegisterK8sAuditTasks(inspectionServer)
 	if err != nil {
 		return err
 	}

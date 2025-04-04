@@ -34,7 +34,11 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewIm
 	if err != nil {
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
+
 	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+	if projectID != "" && projectID == prevValue.DependencyDigest {
+		return prevValue, nil
+	}
 
 	if projectID != "" {
 		clusterNames, err := client.GetClusterNames(ctx, projectID)

@@ -20,8 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +40,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
@@ -114,26 +117,26 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 		inspection_task.NewInspectionTask(debugTaskImplID("errorend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (any, error) {
 			return nil, fmt.Errorf("test error")
 		}, inspection_task.InspectionTypeLabel("foo", "bar", "qux")),
-		form.NewInputFormTaskBuilder(debugTaskImplID("foo-input"), 0, "A input field for foo").WithValidator(func(ctx context.Context, value string) (string, error) {
+		form.NewTextFormTaskBuilder(debugTaskImplID("foo-input"), 0, "A input field for foo").WithValidator(func(ctx context.Context, value string) (string, error) {
 			if value == "foo-input-invalid-value" {
 				return "invalid value", nil
 			}
 			return "", nil
 		}).Build(inspection_task.InspectionTypeLabel("foo")),
 		task_test.StubTask(gcp_task.TimeZoneShiftInputTask, time.UTC, nil),
-		form.NewInputFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
+		form.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
 		inspection_task.NewInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo1-value", nil
-		}, inspection_task.InspectionTypeLabel("foo"), inspection_task.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, false)),
+		}, inspection_task.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, false, "foo")),
 		inspection_task.NewInspectionTask(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo2-value", nil
-		}, inspection_task.InspectionTypeLabel("foo"), inspection_task.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, false)),
+		}, inspection_task.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, false, "foo")),
 		inspection_task.NewInspectionTask(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspection_task.InspectionTypeLabel("bar"), inspection_task.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, false)),
+		}, inspection_task.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, false, "bar")),
 		inspection_task.NewInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspection_task.InspectionTypeLabel("qux"), inspection_task.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, false)),
+		}, inspection_task.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, false, "qux")),
 		ioconfig.TestIOConfig,
 	}
 
@@ -327,7 +330,7 @@ func TestApiResponses(t *testing.T) {
 			RequestGenerator: func(t *testing.T, stat map[string]string) any {
 				return map[string]any{}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":""}],"query":[]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"","hintType":"none","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text"}],"query":[]}}`, "plan"),
 		},
 		{
 			// 008
@@ -340,7 +343,7 @@ func TestApiResponses(t *testing.T) {
 					"foo-input": "foo-input-value",
 				}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":""}],"query":[]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"","hintType":"none","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text"}],"query":[]}}`, "plan"),
 		},
 		{
 			// 009
@@ -353,7 +356,7 @@ func TestApiResponses(t *testing.T) {
 					"foo-input": "foo-input-invalid-value",
 				}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"allowEdit":true,"default":"","description":"","hint":"","hintType":"info","id":"foo-input","label":"A input field for foo","suggestions":null,"type":"Text","validationError":"invalid value"}],"query":[]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"invalid value","hintType":"error","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text"}],"query":[]}}`, "plan"),
 		}, {
 			// 010
 			// Attempting to access non started task result
@@ -852,6 +855,99 @@ func TestKHIServerRedirects(t *testing.T) {
 			gotRedirectTo := recorer.Result().Header.Get("Location")
 			if gotRedirectTo != tc.redirectTo {
 				t.Errorf("got redirect to %s, want %s", gotRedirectTo, tc.redirectTo)
+			}
+		})
+	}
+}
+
+func TestKHIDirectFileUpload(t *testing.T) {
+	testCases := []struct {
+		name              string
+		tokenID           string
+		content           string
+		maxUploadFileSize int
+		wantCode          int
+		wantErr           bool
+		wantErrMsg        string
+	}{
+		{
+			name:              "success",
+			tokenID:           "test-token-1",
+			content:           "test-content",
+			maxUploadFileSize: 1024 * 1024 * 1024,
+			wantCode:          200,
+			wantErr:           false,
+		},
+		{
+			name:              "file size exceeds the limit",
+			tokenID:           "test-token-2",
+			content:           strings.Repeat("a", 1024*1024*1024+1),
+			maxUploadFileSize: 1024 * 1024 * 1024,
+			wantCode:          400,
+			wantErr:           true,
+			wantErrMsg:        "file size exceeds the limit",
+		},
+		{
+			name:              "missing upload-token-id",
+			tokenID:           "",
+			content:           "test-content",
+			maxUploadFileSize: 1024 * 1024 * 1024,
+			wantCode:          400,
+			wantErr:           true,
+			wantErrMsg:        "missing upload-token-id",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger.InitGlobalKHILogger()
+			tempDir, err := os.MkdirTemp("", "uploadtest")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tempDir)
+			provider := upload.NewLocalUploadFileStoreProvider(tempDir)
+			store := upload.NewUploadFileStore(provider)
+			store.GetUploadToken(tc.tokenID, &upload.NopWaitUploadFileVerifier{})
+			serverConfig := ServerConfig{
+				ViewerMode:       false,
+				StaticFolderPath: "../../dist",
+				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
+				ServerBasePath:   "/foo",
+				UploadFileStore:  store,
+			}
+			inspectionServer, err := createTestInspectionServer()
+			if err != nil {
+				t.Fatalf("unexpected error %s", err)
+			}
+			engine := CreateKHIServer(inspectionServer, &serverConfig)
+			parameters.Server.MaxUploadFileSizeInBytes = testutil.P(tc.maxUploadFileSize)
+
+			var buf bytes.Buffer
+			writer := multipart.NewWriter(&buf)
+
+			fileWriter, err := writer.CreateFormFile("file", "test.log")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = fileWriter.Write([]byte(tc.content))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writer.WriteField("upload-token-id", tc.tokenID)
+			writer.Close()
+
+			recorder := httptest.NewRecorder()
+			req, _ := http.NewRequest("POST", "/foo/api/v2/upload", &buf)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			engine.ServeHTTP(recorder, req)
+			if recorder.Code != tc.wantCode {
+				t.Errorf("got response code %d(%s), want %d", recorder.Code, recorder.Body.String(), tc.wantCode)
+			}
+			if tc.wantErr {
+				if !strings.Contains(recorder.Body.String(), tc.wantErrMsg) {
+					t.Errorf("got error message %s, want %s", recorder.Body.String(), tc.wantErrMsg)
+				}
 			}
 		})
 	}

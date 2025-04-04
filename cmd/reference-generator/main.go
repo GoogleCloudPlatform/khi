@@ -25,8 +25,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/document/generator"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 )
 
 var taskSetRegistrer []inspection.PrepareInspectionServerFunc = make([]inspection.PrepareInspectionServerFunc, 0)
@@ -40,8 +42,10 @@ func fatal(err error, msg string) {
 }
 
 func init() {
-	taskSetRegistrer = append(taskSetRegistrer, common.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, inspection_common.PrepareInspectionServer)
 	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
+	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
+	taskSetRegistrer = append(taskSetRegistrer, common_k8saudit.Register)
 }
 
 func main() {

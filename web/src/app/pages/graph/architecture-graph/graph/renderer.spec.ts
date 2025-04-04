@@ -87,7 +87,6 @@ function $service(name: string, namespace: string): ServiceGraphData {
 describe('Graph renderer', () => {
   rendererIt(
     'Updating Graph Data should remove the previous svg node',
-    300,
     (renderer) => {
       expect(renderer.containerHTMLElement.querySelectorAll('svg').length).toBe(
         1,
@@ -123,60 +122,56 @@ describe('Graph renderer', () => {
     },
   );
 
-  rendererIt(
-    'Simple node data should be displayed correctly',
-    1000,
-    (renderer) => {
-      const mockData: GraphData = {
-        nodes: [
-          $node(
-            'node-foo',
-            $pod(
-              'kube-system',
-              'foo-sytem-very-very-very-very-long-pod-name',
-              $container('init-container-1', true, 'Completed', false),
-              $container('container-1', false, 'Running', true),
-            ),
-            $pod(
-              'kube-system',
-              'bar-sytem',
-              $container('init-container-2', true, 'Completed', false),
-              $container('container-2', false, 'Running', true),
-            ),
+  rendererIt('Simple node data should be displayed correctly', (renderer) => {
+    const mockData: GraphData = {
+      nodes: [
+        $node(
+          'node-foo',
+          $pod(
+            'kube-system',
+            'foo-sytem-very-very-very-very-long-pod-name',
+            $container('init-container-1', true, 'Completed', false),
+            $container('container-1', false, 'Running', true),
           ),
-          $node(
-            'node-bar',
-            $pod(
-              'kube-system',
-              'foo-sytem',
-              $container('init-container-1', true, 'Completed', false),
-              $container('container-1', false, 'Running', true),
-            ),
-            $pod(
-              'kube-system',
-              'bar-sytem',
-              $container('init-container-2', true, 'Completed', false),
-              $container('container-2', false, 'Running', true),
-            ),
+          $pod(
+            'kube-system',
+            'bar-sytem',
+            $container('init-container-2', true, 'Completed', false),
+            $container('container-2', false, 'Running', true),
           ),
-        ],
-        services: [
-          $service('foo-service', 'kube-system'),
-          $service('bar-service', 'qux-namespace'),
-        ],
-        graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0, 0),
-        podOwnerOwners: {
-          cronjob: [],
-          deployment: [],
-        },
-        podOwners: {
-          daemonset: [],
-          job: [],
-          replicaset: [],
-        },
-      };
+        ),
+        $node(
+          'node-bar',
+          $pod(
+            'kube-system',
+            'foo-sytem',
+            $container('init-container-1', true, 'Completed', false),
+            $container('container-1', false, 'Running', true),
+          ),
+          $pod(
+            'kube-system',
+            'bar-sytem',
+            $container('init-container-2', true, 'Completed', false),
+            $container('container-2', false, 'Running', true),
+          ),
+        ),
+      ],
+      services: [
+        $service('foo-service', 'kube-system'),
+        $service('bar-service', 'qux-namespace'),
+      ],
+      graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(0, 0),
+      podOwnerOwners: {
+        cronjob: [],
+        deployment: [],
+      },
+      podOwners: {
+        daemonset: [],
+        job: [],
+        replicaset: [],
+      },
+    };
 
-      renderer.updateGraphData(mockData);
-    },
-  );
+    renderer.updateGraphData(mockData);
+  });
 });

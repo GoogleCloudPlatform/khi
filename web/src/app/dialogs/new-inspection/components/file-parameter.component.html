@@ -1,0 +1,102 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+@let param = parameter();
+<div class="container">
+  <khi-new-inspection-parameter-header
+    [parameter]="param"
+  ></khi-new-inspection-parameter-header>
+  <div class="form-body">
+    <div class="drop-area-outer">
+      <button
+        class="drop-area"
+        (click)="onClickFileDialogOpen()"
+        (change)="onSelectedFileChangedFromDialog()"
+        (dragenter)="onFileDragEnter($event)"
+        (dragover)="onFileDragOver($event)"
+        (dragleave)="onFileDragLeave()"
+        (drop)="onFileDrop($event)"
+        [ngClass]="{ dragging: fileDraggingOverArea() }"
+      >
+        <div class="drop-area-inner">
+          <input #fileInput type="file" hidden />
+          <p class="drop-area-hint">Drop file here</p>
+          <p class="drop-area-hint-file-dialog">
+            (Or click here to open the file dialog)
+          </p>
+          @if (filename() !== "") {
+            <p class="drop-area-hint-file-name">
+              <mat-icon>docs</mat-icon> <span>{{ filename() }}</span>
+            </p>
+          }
+        </div>
+      </button>
+    </div>
+    <khi-new-inspection-parameter-hint
+      [parameter]="param"
+    ></khi-new-inspection-parameter-hint>
+    <div class="footer-container">
+      <div class="progress-wrapper">
+        @if (isSelectedFileUploading()) {
+          @let ratio = uploadRatio();
+          <!--The ratio may be undefined when the file size is not available.-->
+          @if (ratio === undefined) {
+            <mat-progress-spinner
+              color="primary"
+              diameter="30"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+          } @else {
+            <mat-progress-spinner
+              color="primary"
+              diameter="30"
+              mode="determinate"
+              [value]="ratio * 100"
+              [matTooltip]="ratio * 100 + '%'"
+            ></mat-progress-spinner>
+          }
+          <p class="progress-label upload-status-indicator-label">Uploading</p>
+        } @else {
+          @if (param.status === UploadStatus.Verifying) {
+            <mat-progress-spinner
+              color="accent"
+              diameter="30"
+              mode="indeterminate"
+            ></mat-progress-spinner>
+            <p class="progress-label verifying-status-indicator-label">
+              Verifying
+            </p>
+          }
+          @if (param.status === UploadStatus.Done) {
+            <div class="done-status-indicator">
+              <p class="progress-label done-status-indicator-label">
+                File uploaded
+              </p>
+            </div>
+          }
+        }
+      </div>
+      <button
+        class="upload-button"
+        mat-raised-button
+        color="primary"
+        (click)="onClickUploadButton()"
+        [disabled]="isSelectedFileUploaded()"
+      >
+        <mat-icon>upload_file</mat-icon>Upload
+      </button>
+    </div>
+  </div>
+</div>

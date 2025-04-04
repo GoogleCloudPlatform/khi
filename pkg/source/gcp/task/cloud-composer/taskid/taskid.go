@@ -32,6 +32,6 @@ var ComposerDagProcessorManagerLogQueryTaskID taskid.TaskImplementationID[[]*log
 var ComposerMonitoringLogQueryTaskID taskid.TaskImplementationID[[]*log.LogEntity] = taskid.NewDefaultImplementationID[[]*log.LogEntity](ComposerQueryPrefix + "monitoring")
 var ComposerWorkerLogQueryTaskID taskid.TaskImplementationID[[]*log.LogEntity] = taskid.NewDefaultImplementationID[[]*log.LogEntity](ComposerQueryPrefix + "worker")
 
-var AirflowSchedulerLogParserTaskID taskid.TaskImplementationID[any] = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "composer/scheduler")
-var AirflowDagProcessorManagerLogParserTaskID taskid.TaskImplementationID[any] = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "composer/worker")
-var AirflowWorkerLogParserTaskID taskid.TaskImplementationID[any] = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "composer/dagprocessor")
+var AirflowSchedulerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "composer/scheduler")
+var AirflowDagProcessorManagerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "composer/worker")
+var AirflowWorkerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "composer/dagprocessor")

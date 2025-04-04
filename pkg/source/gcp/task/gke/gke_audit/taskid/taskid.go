@@ -16,10 +16,12 @@ package gke_audit_taskid
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 var GKEAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "gke-audit")
-var GKEAuditParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/gke-audit-parser")
+var GKEAuditLogSourceTaskID = taskid.NewImplementationID(common_k8saudit_taskid.CommonAuitLogSource, "gcp")
+var GKEAuditParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/gke-audit-parser")

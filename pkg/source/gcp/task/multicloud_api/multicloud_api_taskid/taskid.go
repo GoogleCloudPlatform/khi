@@ -22,4 +22,4 @@ import (
 )
 
 var MultiCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "multicloud-api")
-var MultiCloudAPIParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/multicloud-audit-parser")
+var MultiCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/multicloud-audit-parser")

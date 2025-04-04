@@ -24,4 +24,4 @@ import (
 
 var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](gcp_task.GCPPrefix + "input/component-names")
 var GKEK8sControlPlaneComponentQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "k8s-controlplane")
-var GKEK8sControlPlaneComponentParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/controlplane-component-parser")
+var GKEK8sControlPlaneComponentParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/controlplane-component-parser")

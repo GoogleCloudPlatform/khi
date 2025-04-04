@@ -22,4 +22,4 @@ import (
 )
 
 var OnPremCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "onprem-api")
-var OnPremCloudAPIParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/onprem-audit-parser")
+var OnPremCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/onprem-audit-parser")

@@ -31,6 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
@@ -42,6 +43,7 @@ type ServerConfig struct {
 	StaticFolderPath string
 	ResourceMonitor  ResourceMonitor
 	ServerBasePath   string
+	UploadFileStore  *upload.UploadFileStore
 }
 
 func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
@@ -351,6 +353,54 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
+			ctx.String(http.StatusOK, "")
+		})
+
+		router.POST("/api/v2/upload", func(ctx *gin.Context) {
+			localUploadFileStoreProvider, convertible := serverConfig.UploadFileStore.StoreProvider.(*upload.LocalUploadFileStoreProvider)
+			if !convertible {
+				ctx.String(http.StatusBadRequest, "invalid operation. Current UploadFileStore.StoreProvider is not supporting to be written directly")
+				return
+			}
+			file, err := ctx.FormFile("file")
+			if err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+
+			id := ctx.Request.FormValue("upload-token-id")
+			if id == "" {
+				ctx.String(http.StatusBadRequest, "missing upload-token-id")
+				return
+			}
+
+			token := &upload.DirectUploadToken{ID: id}
+			if parameters.Server.MaxUploadFileSizeInBytes != nil && *parameters.Server.MaxUploadFileSizeInBytes < int(file.Size) {
+				ctx.String(http.StatusBadRequest, fmt.Sprintf("file size exceeds the limit (%d bytes)", *parameters.Server.MaxUploadFileSizeInBytes))
+				return
+			}
+
+			err = serverConfig.UploadFileStore.SetResultOnStartingUpload(token)
+			if err != nil {
+				ctx.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			multipart, err := file.Open()
+			if err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+			defer multipart.Close()
+
+			err = localUploadFileStoreProvider.Write(token, multipart)
+			if err != nil {
+				serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, err)
+				ctx.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+			serverConfig.UploadFileStore.SetResultOnCompletedUpload(token, nil)
+
 			ctx.String(http.StatusOK, "")
 		})
 	}

@@ -22,4 +22,4 @@ import (
 )
 
 var SerialPortLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "serialport")
-var SerialPortLogParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/serialport")
+var SerialPortLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/serialport")

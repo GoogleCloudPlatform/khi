@@ -15,43 +15,53 @@
 package k8s_audit
 
 import (
+	"context"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/bindingrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/commonrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/containerstatusrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/endpointslicerecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/noderecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/ownerreferencerecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/snegrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/recorder/statusrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2commonlogparse"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2logconvert"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2manifestgenerate"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/v2timelinegrouping"
+	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/containerstatusrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/endpointslicerecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/noderecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/ownerreferencerecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/snegrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/statusrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
+	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var PrepareK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspectionServer *inspection.InspectionTaskServer) error {
-	err := inspectionServer.AddTask(v2commonlogparse.Task)
+// GCPK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
+var GCPK8sAuditLogSourceTask = inspection_task.NewInspectionTask(gke_audit_taskid.GKEAuditLogSourceTaskID, []taskid.UntypedTaskReference{
+	gke_audit_taskid.GKEAuditLogQueryTaskID,
+}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*types.AuditLogParserLogSource, error) {
+	if taskMode == inspection_task_interface.TaskModeDryRun {
+		return nil, nil
+	}
+	logs := task.GetTaskResult(ctx, gke_audit_taskid.GKEAuditLogQueryTaskID.GetTaskReference())
+
+	return &types.AuditLogParserLogSource{
+		Logs:      logs,
+		Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
+	}, nil
+}, inspection_task.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
+
+var RegisterK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspectionServer *inspection.InspectionTaskServer) error {
+	err := inspectionServer.AddTask(GCPK8sAuditLogSourceTask)
 	if err != nil {
 		return err
 	}
 
-	err = inspectionServer.AddTask(v2timelinegrouping.Task)
-	if err != nil {
-		return err
-	}
-
-	err = inspectionServer.AddTask(v2manifestgenerate.Task)
-	if err != nil {
-		return err
-	}
-
-	err = inspectionServer.AddTask(v2logconvert.Task)
-	if err != nil {
-		return err
-	}
-	manager := recorder.NewTaskManager()
+	manager := recorder.NewAuditRecorderTaskManager(gke_k8saudit_taskid.K8sAuditParseTaskID, "gke")
 	err = commonrecorder.Register(manager)
 	if err != nil {
 		return err
@@ -76,15 +86,18 @@ var PrepareK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspectio
 	if err != nil {
 		return err
 	}
-	err = snegrecorder.Register(manager)
-	if err != nil {
-		return err
-	}
 	err = noderecorder.Register(manager)
 	if err != nil {
 		return err
 	}
-	err = manager.Register(inspectionServer)
+
+	// GKE specific resource
+	err = snegrecorder.Register(manager)
+	if err != nil {
+		return err
+	}
+
+	err = manager.Register(inspectionServer, inspectiontype.GCPK8sClusterInspectionTypes...)
 	if err != nil {
 		return err
 	}

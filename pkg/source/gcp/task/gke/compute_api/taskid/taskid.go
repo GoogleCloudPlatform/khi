@@ -21,5 +21,5 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var ComputeAPIParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/compute-api-parser")
+var ComputeAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/compute-api-parser")
 var ComputeAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "compute-api")

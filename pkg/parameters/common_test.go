@@ -37,6 +37,7 @@ func TestCommonParameters(t *testing.T) {
 				DataDestinationFolder: testutil.P("./data"),
 				TemporaryFolder:       testutil.P("/tmp"),
 				Version:               testutil.P(false),
+				UploadFileStoreFolder: testutil.P("./data/upload"),
 			},
 			before: func() {
 				os.Args = []string{os.Args[0]}
@@ -57,6 +58,58 @@ func TestCommonParameters(t *testing.T) {
 				t.Fatal(err)
 			}
 			if diff := cmp.Diff(tc.want, store); diff != "" {
+				t.Errorf("unexpected result (-want +got)\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCommonParametersPostProcess(t *testing.T) {
+	testCases := []struct {
+		name   string
+		before CommonParameters
+		want   CommonParameters
+	}{
+		{
+			name: "UploadFileStoreFolder is empty",
+			before: CommonParameters{
+				DataDestinationFolder: testutil.P("./data"),
+				TemporaryFolder:       testutil.P("/tmp"),
+				Version:               testutil.P(false),
+				UploadFileStoreFolder: testutil.P(""),
+			},
+			want: CommonParameters{
+				DataDestinationFolder: testutil.P("./data"),
+				TemporaryFolder:       testutil.P("/tmp"),
+				Version:               testutil.P(false),
+				UploadFileStoreFolder: testutil.P("./data/upload"),
+			},
+		},
+		{
+			name: "UploadFileStoreFolder is not empty",
+			before: CommonParameters{
+				DataDestinationFolder: testutil.P("./data"),
+				TemporaryFolder:       testutil.P("/tmp"),
+				Version:               testutil.P(false),
+				UploadFileStoreFolder: testutil.P("/foo/bar"),
+			},
+			want: CommonParameters{
+				DataDestinationFolder: testutil.P("./data"),
+				TemporaryFolder:       testutil.P("/tmp"),
+				Version:               testutil.P(false),
+				UploadFileStoreFolder: testutil.P("/foo/bar"),
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			prepareFlagParsingTest(t)
+			got := tc.before
+			err := got.PostProcess()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("unexpected result (-want +got)\n%s", diff)
 			}
 		})

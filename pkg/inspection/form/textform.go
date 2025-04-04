@@ -36,8 +36,8 @@ type TextFormValidator = func(ctx context.Context, value string) (string, error)
 // TextFormDefaultValueGenerator is a function type to generate the default value.
 type TextFormDefaultValueGenerator = func(ctx context.Context, previousValues []string) (string, error)
 
-// TextFormAllowEditProvider is a function type to compute if the field is allowed edit or not.
-type TextFormAllowEditProvider = func(ctx context.Context) (bool, error)
+// TextFormReadonlyProvider is a function type to compute if the field is allowed edit or not.
+type TextFormReadonlyProvider = func(ctx context.Context) (bool, error)
 
 // TextFormSuggestionsProvider is a function to return the list of strings shown in the autocomplete.
 // Return nil instead of emptry string array means the autocomplete is disabled for the field.
@@ -47,26 +47,21 @@ type TextFormSuggestionsProvider = func(ctx context.Context, value string, previ
 type TextFormValueConverter[T any] = func(ctx context.Context, value string) (T, error)
 
 // TextFormHintGenerator is a function type to generate a hint string
-type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any) (string, form_metadata.FormFieldHintType, error)
+type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error)
 
-// TextFormTaskBuilder is an utility to construct an instance of Task for input form field.
-// This will generate the Task instance with `Build()` method call after chaining several configuration methods.
+// TextFormTaskBuilder is an utility to construct an instance of task for input form field.
+// This will generate the task instance with `Build()` method call after chaining several configuration methods.
 type TextFormTaskBuilder[T any] struct {
-	id                  taskid.TaskImplementationID[T]
-	label               string
-	priority            int
-	dependencies        []taskid.UntypedTaskReference
-	uiDescription       string
-	documentDescription string
+	FormTaskBuilderBase[T]
 	defaultValue        TextFormDefaultValueGenerator
 	validator           TextFormValidator
-	allowEditProvider   TextFormAllowEditProvider
+	readonlyProvider    TextFormReadonlyProvider
 	suggestionsProvider TextFormSuggestionsProvider
 	hintGenerator       TextFormHintGenerator
 	converter           TextFormValueConverter[T]
 }
 
-// NewInputFormTaskBuilder constructs an instace of TextFormTaskBuilder.
+// NewTextFormTaskBuilder constructs an instace of TextFormDefinitionBuilder.
 // id,prioirity and label will be initialized with the value given in the argument. The other values are initialized with the following values.
 // dependencies : Initialized with an empty string array indicating this task is not depending on anything.
 // description: Initialized with an empty string.
@@ -75,20 +70,17 @@ type TextFormTaskBuilder[T any] struct {
 // allowEditProvider: Initialized with a function to return true.
 // suggestionsProvider: Initialized with a function to return nil.
 // converter: Initialized with a function to return the given value. This means no conversion applied and treated as a string.
-func NewInputFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority int, fieldLabel string) *TextFormTaskBuilder[T] {
+func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority int, fieldLabel string) *TextFormTaskBuilder[T] {
 	return &TextFormTaskBuilder[T]{
-		id:           id,
-		priority:     priority,
-		label:        fieldLabel,
-		dependencies: []taskid.UntypedTaskReference{},
+		FormTaskBuilderBase: NewFormTaskBuilderBase(id, priority, fieldLabel),
 		defaultValue: func(ctx context.Context, previousValues []string) (string, error) {
 			return "", nil
 		},
 		validator: func(ctx context.Context, value string) (string, error) {
 			return "", nil
 		},
-		allowEditProvider: func(ctx context.Context) (bool, error) {
-			return true, nil
+		readonlyProvider: func(ctx context.Context) (bool, error) {
+			return false, nil
 		},
 		suggestionsProvider: func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 			return nil, nil
@@ -97,24 +89,19 @@ func NewInputFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority 
 			var anyValue any = value // This is needed for forcible cast from string to T.
 			return anyValue.(T), nil
 		},
-		hintGenerator: func(ctx context.Context, value string, convertedValue any) (string, form_metadata.FormFieldHintType, error) {
-			return "", form_metadata.HintTypeInfo, nil
+		hintGenerator: func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
+			return "", form_metadata.Info, nil
 		},
 	}
 }
 
 func (b *TextFormTaskBuilder[T]) WithDependencies(dependencies []taskid.UntypedTaskReference) *TextFormTaskBuilder[T] {
-	b.dependencies = dependencies
+	b.FormTaskBuilderBase.WithDependencies(dependencies)
 	return b
 }
 
-func (b *TextFormTaskBuilder[T]) WithUIDescription(uiDescription string) *TextFormTaskBuilder[T] {
-	b.uiDescription = uiDescription
-	return b
-}
-
-func (b *TextFormTaskBuilder[T]) WithDocumentDescription(documentDescription string) *TextFormTaskBuilder[T] {
-	b.documentDescription = documentDescription
+func (b *TextFormTaskBuilder[T]) WithDescription(description string) *TextFormTaskBuilder[T] {
+	b.FormTaskBuilderBase.WithDescription(description)
 	return b
 }
 
@@ -139,8 +126,8 @@ func (b *TextFormTaskBuilder[T]) WithDefaultValueConstant(defValue string, prefe
 	})
 }
 
-func (b *TextFormTaskBuilder[T]) WithAllowEditFunc(allowEditFunc TextFormAllowEditProvider) *TextFormTaskBuilder[T] {
-	b.allowEditProvider = allowEditFunc
+func (b *TextFormTaskBuilder[T]) WithReadonlyFunc(readonlyFunc TextFormReadonlyProvider) *TextFormTaskBuilder[T] {
+	b.readonlyProvider = readonlyFunc
 	return b
 }
 
@@ -167,29 +154,30 @@ func (b *TextFormTaskBuilder[T]) WithConverter(converter TextFormValueConverter[
 
 func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common_task.Task[T] {
 	return common_task.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
-		taskMode := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskMode)
 		m := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
 		req := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInput)
-		cacheMap := khictx.MustGetValue(ctx, inspection_task_contextkey.GlobalSharedMap)
+		taskMode := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskMode)
+		globalSharedMap := khictx.MustGetValue(ctx, inspection_task_contextkey.GlobalSharedMap)
 
 		previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("text-form-pv-%s", b.id))
-		prevValue := typedmap.GetOrDefault(cacheMap, previousValueStoreKey, []string{})
+		prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})
 
-		allowEdit, err := b.allowEditProvider(ctx)
+		readonly, err := b.readonlyProvider(ctx)
 		if err != nil {
 			return *new(T), fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
 		}
-		field := form_metadata.FormField{}
-		field.AllowEdit = allowEdit
+		field := form_metadata.TextParameterFormField{}
+		field.Readonly = readonly
 
 		// Compute the default value of the form
 		var currentValue string
-		currentValue, err = b.defaultValue(ctx, prevValue)
+		defaultValue, err := b.defaultValue(ctx, prevValue)
 		if err != nil {
 			return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 		}
-		field.Default = currentValue
-		if valueRaw, exist := req[b.id.GetTaskReference().String()]; exist && allowEdit {
+		field.Default = defaultValue
+		currentValue = defaultValue
+		if valueRaw, exist := req[b.id.ReferenceIDString()]; exist && !readonly {
 			valueString, isString := valueRaw.(string)
 			if !isString {
 				return *new(T), fmt.Errorf("request parameter `%s` was not given in string in task %s", b.id, b.id)
@@ -197,12 +185,10 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 			currentValue = valueString
 		}
 
-		field.Id = b.id.GetTaskReference().String()
-		field.Type = "Text"
-		field.Priority = b.priority
-		field.Label = b.label
-		field.Description = b.uiDescription
-		field.HintType = form_metadata.HintTypeInfo
+		field.Type = form_metadata.Text
+		field.HintType = form_metadata.Info
+
+		b.SetupBaseFormField(&field.ParameterFormFieldBase)
 
 		suggestions, err := b.suggestionsProvider(ctx, currentValue, prevValue)
 		if err != nil {
@@ -221,25 +207,30 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 				return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 			}
 		}
-		field.ValidationError = validationErr
-		if field.ValidationError != "" && taskMode == inspection_task_interface.TaskModeRun {
-			return *new(T), fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, field.ValidationError)
+		if validationErr != "" && taskMode == inspection_task_interface.TaskModeRun {
+			return *new(T), fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, validationErr)
 		}
 
 		convertedValue, err := b.converter(ctx, currentValue)
 		if err != nil {
 			return *new(T), fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
 		}
-		if field.ValidationError == "" {
+		if validationErr != "" {
+			field.HintType = form_metadata.Error
+			field.Hint = validationErr
+		} else {
 			hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
 			if err != nil {
 				return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
+			}
+			if hint == "" {
+				hintType = form_metadata.None
 			}
 			field.Hint = hint
 			field.HintType = hintType
 			if taskMode == inspection_task_interface.TaskModeRun {
 				newValueHistory := append([]string{currentValue}, prevValue...)
-				typedmap.Set(cacheMap, previousValueStoreKey, newValueHistory)
+				typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
 			}
 		}
 		formFields, found := typedmap.Get(m, form_metadata.FormFieldSetMetadataKey)
@@ -253,6 +244,6 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 		return convertedValue, nil
 	}, append(labelOpts, label.NewFormTaskLabelOpt(
 		b.label,
-		b.documentDescription,
+		b.description,
 	))...)
 }

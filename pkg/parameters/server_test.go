@@ -44,6 +44,7 @@ func TestServerParameters(t *testing.T) {
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P("./web"),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 			},
 		},
 		{
@@ -59,6 +60,7 @@ func TestServerParameters(t *testing.T) {
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P("./web"),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 			},
 		},
 		{
@@ -74,6 +76,7 @@ func TestServerParameters(t *testing.T) {
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P("./web"),
+				MaxUploadFileSizeInBytes: testutil.P(1024 * 1024 * 1024),
 			},
 		},
 	}

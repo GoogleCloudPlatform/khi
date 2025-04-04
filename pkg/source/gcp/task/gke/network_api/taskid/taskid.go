@@ -22,4 +22,4 @@ import (
 )
 
 var GCPNetworkLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "network-api")
-var GCPNetworkLogParserTaskID = taskid.NewDefaultImplementationID[any](gcp_task.GCPPrefix + "feature/network-api-parser")
+var GCPNetworkLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/network-api-parser")
