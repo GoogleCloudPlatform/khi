@@ -11,6 +11,8 @@ alias ll='ls -la'
 
 # Add autocompletion
 source <(kubectl completion bash)
+source /usr/share/bash-completion/completions/git
+source /usr/share/google-cloud-sdk/completion.bash.inc
 
 # Better history handling
 HISTSIZE=10000

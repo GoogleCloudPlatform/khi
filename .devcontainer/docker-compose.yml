@@ -12,53 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-x-build-args: &build-args
-  # Version arguments
-  GO_VERSION: ${GO_VERSION}
-  NODE_VERSION: ${NODE_VERSION}
-  KUBECTL_VERSION: ${KUBECTL_VERSION}
-  
-  # Hash verification arguments
-  GO_SHA256: ${GO_SHA256}
-  NODE_AMD64_SHA256: ${NODE_AMD64_SHA256}
-  NODE_ARM64_SHA256: ${NODE_ARM64_SHA256}
-  KUBECTL_SHA256: ${KUBECTL_SHA256}
-
 services:
   dev-env:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        <<: *build-args
+        # import from .env
+        GO_VERSION: ${GO_VERSION}
+        NODE_VERSION: ${NODE_VERSION}
+        KUBECTL_VERSION: ${KUBECTL_VERSION}
+        GO_SHA256: ${GO_SHA256}
+        NODE_SHA256: ${NODE_SHA256}
+        KUBECTL_SHA256: ${KUBECTL_SHA256}
         UBUNTU_VERSION: "22.04"
-        USER_UID: ${USER_UID}
-        USER_GID: ${USER_GID}
         USERNAME: ${USERNAME}
-    network_mode: host
     volumes:
       # Project files
       - ../:/workspace:cached
       # Cache directories
-      - go-cache:/home/${USERNAME}/.cache/go-build
-      - go-mod-cache:/go/pkg/mod
+      - khi_go-cache:/home/${USERNAME}/.cache/go-build
+      - khi_go-mod-cache:/go/pkg/mod
+      - khi_node_modules:/home/${USERNAME}/web/node_modules
       # Development configurations
-      - ~/.ssh:/home/${USERNAME}/.ssh:cached
-      - ~/.gnupg:/home/${USERNAME}/.gnupg:cached
-      # Container runtime
-      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
-    environment:
-      # Go configuration
-      - GOPATH=/go
-      - GOMODCACHE=/go/pkg/mod
-      - GOCACHE=/home/${USERNAME}/.cache/go-build
-      # Node configuration
-      - NODE_ENV=development
-      # Path configuration
-      - PATH=/usr/local/go/bin:/go/bin:/usr/local/node/bin:${PATH}
-      # Build optimizations
-      - DOCKER_BUILDKIT=1
-
+      - ${HOME}/.ssh:/home/${USERNAME}/.ssh:ro
+      - ${HOME}/.gnupg:/home/${USERNAME}/.gnupg:ro
     security_opt:
       - seccomp=unconfined
     cap_add:
@@ -66,5 +44,6 @@ services:
     command: sleep infinity
 
 volumes:
-  go-cache:
-  go-mod-cache:
+  khi_go-cache:
+  khi_go-mod-cache:
+  khi_node_modules:

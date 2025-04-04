@@ -3,18 +3,24 @@
     "dockerComposeFile": "docker-compose.yml",
     "service": "dev-env",
     "workspaceFolder": "/workspace",
-
     "initializeCommand": {
         "check-prerequisites": "bash .devcontainer/setup-check.sh"
     },
-
     "postStartCommand": {
         "setup-dev": "bash .devcontainer/setup-dev.sh"
     },
-
-    "remoteUser": "${localEnv:USERNAME}",
-
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                // Dockerfile
+                "ms-azuretools.vscode-docker", 
+                // Go
+                "golang.go",
+                // Angular
+                "angular.ng-template"
+            ]
+        }
+    },
     "updateRemoteUserUID": true,
-
     "overrideCommand": false
 }
