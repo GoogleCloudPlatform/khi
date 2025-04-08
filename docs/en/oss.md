@@ -6,10 +6,10 @@ Kubernetes History Inspector (KHI) can visualize a wealth of information using K
 
 Before you start, ensure you have the following tools installed:
 
-*   [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/getting-started/installation)
-*   [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
-*   [Helm](https://helm.sh/docs/intro/install/)
-*   [LogCLI](https://grafana.com/docs/loki/latest/query/logcli/getting-started/) (for querying Loki)
+* [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/getting-started/installation)
+* [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+* [Helm](https://helm.sh/docs/intro/install/)
+* [LogCLI](https://grafana.com/docs/loki/latest/query/logcli/getting-started/) (for querying Loki)
 
 ## 1. Cluster Setup
 
@@ -37,8 +37,8 @@ rules:
 
 **Explanation:**
 
-*   `level: Metadata`: Logs request metadata (requesting user, timestamp, resource, verb, etc.) but not the request or response body.
-*   `level: RequestResponse`: Logs event metadata as well as the request and response bodies. This level provides the most detailed information, which is crucial for KHI to track resource details effectively in the timeline view. Using `Metadata` level extensively will result in less information being available in the KHI timeline.
+* `level: Metadata`: Logs request metadata (requesting user, timestamp, resource, verb, etc.) but not the request or response body.
+* `level: RequestResponse`: Logs event metadata as well as the request and response bodies. This level provides the most detailed information, which is crucial for KHI to track resource details effectively in the timeline view. Using `Metadata` level extensively will result in less information being available in the KHI timeline.
 
 **b. Create a Kind Configuration:**
 
@@ -284,13 +284,13 @@ logcli query '{job="audit"}' \
 
 **Explanation:**
 
-*   `'{job="audit"}'`: Selects logs with the label `job` set to `audit` (added by our Fluent Bit filter).
-*   `--org-id=KHI`: Specify the tenant ID we configured in Fluent Bit.
-*   `--timezone=UTC`: Use UTC timezone for timestamps.
-*   `--from`, `--to`: Define the time range for the query (adjust as needed). Use RFC3339 format (e.g., YYYY-MM-DDTHH:MM:SSZ).
-*   `--output=raw`: Output only the log lines without timestamps or labels.
-*   `--limit=0`: Retrieve all matching log lines (no limit).
-*   `--addr=http://localhost:8000`: The address of the port-forwarded Loki service.
+* `'{job="audit"}'`: Selects logs with the label `job` set to `audit` (added by our Fluent Bit filter).
+* `--org-id=KHI`: Specify the tenant ID we configured in Fluent Bit.
+* `--timezone=UTC`: Use UTC timezone for timestamps.
+* `--from`, `--to`: Define the time range for the query (adjust as needed). Use RFC3339 format (e.g., YYYY-MM-DDTHH:MM:SSZ).
+* `--output=raw`: Output only the log lines without timestamps or labels.
+* `--limit=0`: Retrieve all matching log lines (no limit).
+* `--addr=http://localhost:8000`: The address of the port-forwarded Loki service.
 
 ***Note:** We use `--output=raw` here because in this tutorial Fluent Bit was configured to send the raw JSON audit log line directly to Loki. If your logging pipeline parses the JSON and stores it as structured metadata within Loki (e.g., using Loki's JSON parser or pipeline stages), you cannot use `--output=raw`. In that case, you would need to query Loki and reconstruct the original JSONL format required by KHI yourself, potentially using `logcli` with a different output format (like `--output=json`) and processing the results with tools like `jq`.*
 
@@ -309,7 +309,7 @@ docker run --rm -p 127.0.0.1:8080:8080 asia-docker.pkg.dev/kubernetes-history-in
 
 You should see output indicating the server is running:
 
-```
+```bash
 global > INFO Initializing Kubernetes History Inspector...
 global > INFO Starting Kubernetes History Inspector server...
  Starting KHI server with listening 0.0.0.0:8080
@@ -326,24 +326,24 @@ Open your web browser and navigate to `http://localhost:8080`.
 
 **c. Create New Inspection:**
 
-1.  Click on "New Inspection".
-2.  Select "OSS Kubernetes Cluster" as the inspection type.
+1. Click on "New Inspection".
+2. Select "OSS Kubernetes Cluster" as the inspection type.
 
-![](./images/oss/new-inspection.png)
+![new-inspection](./images/oss/new-inspection.png)
 
 **d. Upload Log File and Run:**
 
-1.  In the "Input Parameters" section, under "File Upload", click "Browse" or drag-and-drop the `audit_log_export.jsonl` file you created. 
-2.  Click the "Run" button.
-3.  Wait for the inspection process to complete.
+1. In the "Input Parameters" section, under "File Upload", click "Browse" or drag-and-drop the `audit_log_export.jsonl` file you created.
+2. Click the "Run" button.
+3. Wait for the inspection process to complete.
 
-![](./images/oss/input-param.png) 
+![input-param](./images/oss/input-param.png)
 
 **e. Explore the Results:**
 
 Once the inspection is finished, click the "Open" button to view the results. Explore the different views, especially the "Timeline" view. You should be able to see the events related to the Nginx deployment creation, scaling, and deletion, illustrating how the cluster state changed over time.
 
-![](./images/oss/timeline.png)
+![timeline](./images/oss/timeline.png)
 
 ## 7. Cleanup
 
