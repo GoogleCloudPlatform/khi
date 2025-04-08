@@ -173,9 +173,9 @@ config:
         Skip_Long_Lines  On
     [INPUT]
         Name              tail
-        Tag               kubevar.audit # Specific tag for audit logs
-        Path              /mnt/audit/audit.log # Path where audit logs are mounted
-        Parser            json # Audit logs are in JSON format
+        Tag               kubevar.audit
+        Path              /mnt/audit/audit.log
+        Parser            json
         Read_from_Head    On
         DB                /var/log/flb_audit.db
         Mem_Buf_Limit     16MB
@@ -199,14 +199,11 @@ config:
   outputs: |
     [OUTPUT]
         Name            loki
-        Match           * # Send all logs
-        Host            loki-gateway.khi.svc.cluster.local # Loki service endpoint
+        Match           *
+        Host            loki-gateway.khi.svc.cluster.local
         Port            80
-        Tls             off
         Label_Keys      $job,$kubernetes_namespace_name, $kubernetes_pod_name, $kubernetes_container_name
-        Line_Format     json
         Tenant_Id       KHI
-        Auto_Kubernetes_Labels Off
 # Volume to mount the kind-node's audit log directory
 extraVolumes:
   - name: auditlog
@@ -306,7 +303,7 @@ Finally, let's use KHI to inspect the exported audit logs.
 Start the KHI server using Docker:
 
 ```bash
-# Make sure KHI can access the log file by mounting the current directory
+# You don't need to pass Google Cloud credentials to the container.
 docker run --rm -p 127.0.0.1:8080:8080 asia-docker.pkg.dev/kubernetes-history-inspector/release/khi:latest
 ```
 
