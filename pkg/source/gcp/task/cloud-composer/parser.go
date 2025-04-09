@@ -399,14 +399,12 @@ func (*AirflowDagProcessorParser) LogTask() taskid.TaskReference[[]*log.LogEntit
 }
 
 func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	textPayload, err := l.GetString("textPayload")
-	if err != nil {
-		return fmt.Errorf("textPayload not found. maybe invalid log. please confirm the log %s", l.ID())
-	}
+	textPayload, _ := l.GetString("textPayload")
 
 	dagFileProcessorStats := a.fromLogEntity(textPayload)
 	if dagFileProcessorStats == nil {
-		return fmt.Errorf("this is not a dag file processor stats log, skip")
+		// this is not a dag file processor stats log, skip
+		return nil
 	}
 	cs.RecordRevision(resourcepath.DagFileProcessorStats(dagFileProcessorStats), &history.StagingResourceRevision{
 		Verb:       enum.RevisionVerbComposerTaskInstanceStats,
