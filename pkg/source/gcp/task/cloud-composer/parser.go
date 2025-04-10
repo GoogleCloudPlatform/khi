@@ -27,28 +27,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	airflow "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow"
+	airflowscheduler "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow/airflow-scheduler"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var (
-	// \t<TaskInstance: $DAGID.$TASKID $RUNID map_index=$MAPINDEX [scheduled]>
-	// ref: https://github.com/apache/airflow/blob/2.7.3/airflow/models/taskinstance.py#L1179
-	airflowTiTemplate = regexp.MustCompile(`\s<TaskInstance:\s(?P<dagid>\w+)\.(?P<taskid>[\w.-]+)\s(?P<runid>\S+)\s(?:map_index=(?P<mapIndex>\d+)\s)?\[(?P<state>\w+)\]>`)
-
-	// Received executor event with state queued for task instance TaskInstanceKey(dag_id='khi_dag', task_id='add_one', run_id='scheduled__2023-11-30T05:00:00+00:00', try_number=1, map_index=0)
-	// ref: https://github.com/apache/airflow/blob/2.7.3/airflow/jobs/scheduler_job_runner.py#L685
-	airflowSchedulerReceivedEventTemplate = regexp.MustCompile(`Received executor event with state (?P<state>.+) for task instance TaskInstanceKey\(dag_id='(?P<dagid>.+)', task_id='(?P<taskid>.+)', run_id='(?P<runid>.+)',.*map_index=(?P<mapIndex>\d+)\)`)
-
-	// TaskInstance Finished: dag_id=DAGID, task_id=TASKID, run_id=RUNID, map_index=MAPINDEX, ..., state=STATE ...
-	// ref: https://github.com/apache/airflow/blob/2.7.3/airflow/jobs/scheduler_job_runner.py#L715
-	airflowSchedulerTaskFinishedTemplate = regexp.MustCompile(`TaskInstance Finished:\s+dag_id=(?P<dagid>\S+),\s+task_id=(?P<taskid>\S+),\s+run_id=(?P<runid>\S+),\s+map_index=(?P<mapIndex>\S+),\s+.*?state=(?P<state>\S+)(?:,\s+executor=.+?)?,\s+executor_state.+`)
-
-	// Detected zombie job: {'full_filepath': '...', 'processor_subdir': '...', 'msg': "{'DAG Id': 'DAG_ID', 'Task Id': 'TASK_ID', 'Run Id': 'RUN_ID', 'Hostname': 'WORKER', ...
-	// ref: https://github.com/apache/airflow/blob/2.7.3/airflow/jobs/scheduler_job_runner.py#L1746C55-L1746C62
-	airflowSchedulerZombieDetectedTemplate = regexp.MustCompile(`'DAG Id':\s*'(?P<dagid>[^']+)',\s*'Task Id':\s*'(?P<taskid>[^']+)',\s*'Run Id':\s*'(?P<runid>[^']+)',\s*('Map Index':\s*'(?P<mapIndex>[^']+)',\s*)?'Hostname':\s*'(?P<host>[^']+)'`)
-)
+var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(composer_taskid.AirflowSchedulerLogParserTaskID, airflowscheduler.NewAirflowSchedulerParser(composer_taskid.ComposerSchedulerLogQueryTaskID.GetTaskReference(), enum.LogTypeComposerEnvironment), true, []string{composer_inspection_type.InspectionTypeId})
 
 // convert Taskinstance status to (enum.RevisionVerb, enum.RevisionState)
 func tiStatusToVerb(ti *model.AirflowTaskInstance) (enum.RevisionVerb, enum.RevisionState) {
@@ -78,124 +64,6 @@ func tiStatusToVerb(ti *model.AirflowTaskInstance) (enum.RevisionVerb, enum.Revi
 	default:
 		return enum.RevisionVerbComposerTaskInstanceUnimplemented, enum.RevisionStateConditionUnknown
 	}
-}
-
-var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(composer_taskid.AirflowSchedulerLogParserTaskID, &AirflowSchedulerParser{}, false, []string{composer_inspection_type.InspectionTypeId})
-
-// Parse airflow-scheduler logs and make them into TaskInstances.
-// This parser will detect these lifecycles;
-// - scheduled
-// - queued
-// - success
-// - failed
-type AirflowSchedulerParser struct {
-}
-
-// TargetLogType implements parser.Parser.
-func (t *AirflowSchedulerParser) TargetLogType() enum.LogType {
-	return enum.LogTypeComposerEnvironment
-}
-
-var _ parser.Parser = &AirflowSchedulerParser{}
-
-func (*AirflowSchedulerParser) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
-}
-
-func (*AirflowSchedulerParser) Grouper() grouper.LogGrouper {
-	return grouper.AllDependentLogGrouper
-}
-
-func (*AirflowSchedulerParser) Description() string {
-	return `Airflow Scheduler logs contain information related to the scheduling of TaskInstances, making it an ideal source for understanding the lifecycle of TaskInstances.`
-}
-
-func (*AirflowSchedulerParser) GetParserName() string {
-	return "(Alpha) Composer / Airflow Scheduler"
-}
-
-func (*AirflowSchedulerParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return composer_taskid.ComposerSchedulerLogQueryTaskID.GetTaskReference()
-}
-
-func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-
-	ti, err := t.parseInternal(l)
-	if err != nil {
-		// return err
-		return nil
-	}
-
-	resourcePath := resourcepath.ComposerTaskInstance(ti)
-	verb, state := tiStatusToVerb(ti)
-	cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
-		Verb:       verb,
-		State:      state,
-		Requestor:  "airflow-scheduler",
-		ChangeTime: l.Timestamp(),
-		Partial:    false,
-		Body:       ti.ToYaml(),
-	})
-
-	summary, err := l.MainMessage()
-	if err == nil {
-		cs.RecordLogSummary(summary)
-	}
-	return nil
-}
-
-// parseInternal generates AirflowTaskInstance from the logEntity.
-// If the log does not contain information about ti, parseInternal throw non-nil error.
-func (t *AirflowSchedulerParser) parseInternal(l *log.LogEntity) (*model.AirflowTaskInstance, error) {
-
-	// TODO since all templates can generate same parametors(dagid,taskid,runid,state,mapIndex), I don't create `airflowParserFn`s for each template.
-	// TODO create a generic airflowParserFn which generate ti from a simple template.
-	// TODO b/342036438
-	template := []*regexp.Regexp{
-		airflowTiTemplate,
-		airflowSchedulerReceivedEventTemplate,
-		airflowSchedulerTaskFinishedTemplate,
-	}
-
-	textPayload, err := l.GetString("textPayload")
-	if err != nil {
-		return nil, fmt.Errorf("textPayload not found. maybe this is not composer log. please confirm the log")
-	}
-
-	// iterates through a list of regular expressions to match the log entity against.
-	for _, re := range template {
-
-		// If the log entity matches one of the regular expressions,
-		// the function extracts the following information from the log message
-		matches := re.FindStringSubmatch(textPayload)
-		if matches == nil {
-			continue
-		}
-		dagid := matches[re.SubexpIndex("dagid")]
-		taskid := matches[re.SubexpIndex("taskid")]
-		runid := matches[re.SubexpIndex("runid")]
-		state := matches[re.SubexpIndex("state")]
-		mapIndex := "-1" // optional, applied for only Dynamic DAG.
-		if matches[re.SubexpIndex("mapIndex")] != "" {
-			mapIndex = matches[re.SubexpIndex("mapIndex")]
-		}
-		return model.NewAirflowTaskInstance(dagid, taskid, runid, mapIndex, "", state), nil
-	}
-
-	matches := airflowSchedulerZombieDetectedTemplate.FindStringSubmatch(textPayload)
-	if matches == nil {
-		return nil, fmt.Errorf("this log entity is not for TaskInstance lifecycle. abort")
-	}
-	dagid := matches[airflowSchedulerZombieDetectedTemplate.SubexpIndex("dagid")]
-	taskid := matches[airflowSchedulerZombieDetectedTemplate.SubexpIndex("taskid")]
-	runid := matches[airflowSchedulerZombieDetectedTemplate.SubexpIndex("runid")]
-	state := model.TASKINSTANCE_ZOMBIE
-	host := matches[airflowSchedulerZombieDetectedTemplate.SubexpIndex("host")]
-	mapIndex := "-1"
-	if i := matches[airflowSchedulerZombieDetectedTemplate.SubexpIndex("mapIndex")]; i != "" {
-		mapIndex = i
-	}
-	return model.NewAirflowTaskInstance(dagid, taskid, runid, mapIndex, host, state), nil
 }
 
 var (
@@ -262,7 +130,7 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 			continue
 		}
 
-		r := resourcepath.ComposerTaskInstance(ti)
+		r := resourcepath.AirflowTaskInstance(ti)
 		verb, state := tiStatusToVerb(ti)
 		cs.RecordRevision(r, &history.StagingResourceRevision{
 			Verb:       verb,
@@ -274,7 +142,7 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 		})
 
 		worker := model.NewAirflowWorker(ti.Host())
-		cs.RecordEvent(resourcepath.ComposerAirflowWorker(worker))
+		cs.RecordEvent(resourcepath.AirflowWorker(worker))
 	}
 
 	summary, err := l.MainMessage()
@@ -310,7 +178,13 @@ func (fn *airflowWorkerRunningHostFn) fn(inputLog *log.LogEntity) (*model.Airflo
 	taskid := matches[airflowWorkerRunningHostTemplate.SubexpIndex("taskid")]
 	runid := matches[airflowWorkerRunningHostTemplate.SubexpIndex("runid")]
 	host := matches[airflowWorkerRunningHostTemplate.SubexpIndex("host")]
-	state := matches[airflowWorkerRunningHostTemplate.SubexpIndex("state")]
+	stateStr := matches[airflowWorkerRunningHostTemplate.SubexpIndex("state")] // Renamed original string variable
+	state, err := airflow.StringToTiState(stateStr)
+	if err != nil {
+		// Log or handle the error appropriately if the state string is unknown.
+		fmt.Printf("Warning: Could not convert Airflow state '%s' to Tistate: %v. Skipping log entry.\n", stateStr, err)
+		return nil, err // Return error to skip processing this log entry
+	}
 	mapIndex := "-1" // optional, applied for only Dynamic DAG.
 	if matches[airflowWorkerRunningHostTemplate.SubexpIndex("mapIndex")] != "" {
 		mapIndex = matches[airflowWorkerRunningHostTemplate.SubexpIndex("mapIndex")]
@@ -352,7 +226,14 @@ func (fn *airflowWorkerMarkingStatusFn) fn(inputLog *log.LogEntity) (*model.Airf
 	if matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("mapIndex")] != "" {
 		mapIndex = matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("mapIndex")]
 	}
-	taskInstance = model.NewAirflowTaskInstance(dagid, taskid, "unknown", mapIndex, workerId, state)
+	// Convert the string state to the required model.Tistate type
+	tiState, err := airflow.StringToTiState(state)
+	if err != nil {
+		// Log or handle the error appropriately if the state string is unknown.
+		fmt.Printf("Warning: Could not convert Airflow state '%s' to Tistate: %v. Skipping log entry.\n", state, err)
+		return nil, err // Return error to skip processing this log entry
+	}
+	taskInstance = model.NewAirflowTaskInstance(dagid, taskid, "unknown", mapIndex, workerId, tiState)
 	return taskInstance, nil
 }
 
