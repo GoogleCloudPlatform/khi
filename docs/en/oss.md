@@ -1,6 +1,6 @@
 # Using KHI with OSS Kubernetes Clusters - Example with Loki
 
-Kubernetes History Inspector (KHI) can visualize a wealth of information using Kubernetes audit logs alone. This tutorial demonstrates how to visualize the state of OSS Kubernetes cluster using [kind](https://kind.sigs.k8s.io/) and [Loki](https://grafana.com/oss/loki/) for log aggregation.
+Kubernetes History Inspector (KHI) can visualize a wealth of information using only `kube-apiserver` audit logs. This tutorial demonstrates how to visualize the state of Kubernetes resources with KHI by leveraging audit logs aggregated using [Loki](https://grafana.com/oss/loki/) within an easy-to-prepare Kubernetes environment set up via [kind](https://kind.sigs.k8s.io/).
 
 **Prerequisites:**
 
@@ -13,11 +13,11 @@ Before you start, ensure you have the following tools installed:
 
 ## 1. Cluster Setup
 
-First, we need to create a `kind` Kubernetes cluster with audit logging enabled.
+First, we'll start from creating a `kind` Kubernetes cluster with the audit logs enabled.
 
 **a. Create an Audit Policy:**
 
-Kubernetes audit logs record actions taken by users, administrators, and system components. We need an audit policy file to tell the Kubernetes API server what to log. Create a file named `audit-policy.yaml` in a new directory called `audit-policy` with the following content:
+`kube-apisever` records actions taken by users, administrators, and system components as its audit logs. The audit policy allow us to configure the `kube-apiserver` what to log. Create a file named `audit-policy.yaml` in a new directory called `audit-policy` with the following content:
 
 ```yaml
 # audit-policy/audit-policy.yaml
@@ -35,10 +35,10 @@ rules:
 - level: RequestResponse
 ```
 
-**Explanation:**
+**Audit levels:**
 
 * `level: Metadata`: Logs request metadata (requesting user, timestamp, resource, verb, etc.) but not the request or response body.
-* `level: RequestResponse`: Logs event metadata as well as the request and response bodies. This level provides the most detailed information, which is crucial for KHI to track resource details effectively in the timeline view. Using `Metadata` level extensively will result in less information being available in the KHI timeline.
+* `level: RequestResponse`: Logs the request and response bodies as well as the request metadata. This level provides the most detailed information.
 
 **b. Create a Kind Configuration:**
 
@@ -232,7 +232,7 @@ Wait for all Fluent Bit pods to become `Running`:
 kubectl get pods -n khi -l app.kubernetes.io/instance=fluentbit
 ```
 
-## 4. Generate Sample Operations
+## 4. Generate Sample Audit Logs from example operations
 
 To have some data to inspect, let's perform some basic operations on the cluster. For example, create, scale, and delete an Nginx deployment:
 
@@ -250,7 +250,7 @@ kubectl scale deployment nginx --replicas 1
 kubectl delete deployment nginx
 ```
 
-These actions will generate audit log entries that Fluent Bit will collect and send to Loki.
+The api server produces audit logs by the operations then Fluent bit collects them to forward them to Loki.
 
 ## 5. Export Audit Logs with LogCLI
 
