@@ -292,7 +292,8 @@ logcli query '{job="audit"}' \
 * `--limit=0`: Retrieve all matching log lines (no limit).
 * `--addr=http://localhost:8000`: The address of the port-forwarded Loki service.
 
-***Note:** We use `--output=raw` here because in this tutorial Fluent Bit was configured to send the raw JSON audit log line directly to Loki. If your logging pipeline parses the JSON and stores it as structured metadata within Loki (e.g., using Loki's JSON parser or pipeline stages), you cannot use `--output=raw`. In that case, you would need to query Loki and reconstruct the original JSONL format required by KHI yourself, potentially using `logcli` with a different output format (like `--output=json`) and processing the results with tools like `jq`.*
+> [!NOTE]  
+>  We use `--output=raw` here because in this tutorial Fluent Bit was configured to send the raw JSON audit log line directly to Loki. If your logging pipeline parses the JSON and stores it as structured metadata within Loki (e.g., using Loki's JSON parser or pipeline stages), you cannot use `--output=raw`. In that case, you would need to query Loki and reconstruct the original JSONL format required by KHI yourself, potentially using `logcli` with a different output format (like `--output=json`) and processing the results with tools like `jq`.*
 
 ## 6. Inspect with KHI
 
@@ -334,8 +335,9 @@ Open your web browser and navigate to `http://localhost:8080`.
 **d. Upload Log File and Run:**
 
 1. In the "Input Parameters" section, under "File Upload", click "Browse" or drag-and-drop the `audit_log_export.jsonl` file you created.
-2. Click the "Run" button.
-3. Wait for the inspection process to complete.
+2. Click "Upload" button, and wait for the file to be uploaded.
+3. Click the "Run" button.
+4. Wait for the inspection process to complete.
 
 ![input-param](./images/oss/input-param.png)
 
