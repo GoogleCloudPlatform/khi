@@ -40,7 +40,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - Other
-  - kube-apiserver audit logs as JSONlines (Coming soon)
+  - kube-apiserver audit logs as JSONlines ([Tutorial](./docs/en/oss.md))
 
 ### Logging backend
 
@@ -48,7 +48,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
   - Cloud Logging (For all clusters on Google Cloud)
 
 - Other
-  - Log file upload (Coming soon)
+  - Log file upload ([Tutorial](./docs/en/oss.md))
 
 ## Getting started
 
@@ -139,7 +139,6 @@ The following permissions are required or recommended.
 > KHI does not respect [ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc) – running KHI on a Compute Engine Instances will always use the attached service account regardless of ADC.
 > This specification is subject to change in the future. 
 
-
 #### Audit Logging
 
 **Required**
@@ -160,6 +159,10 @@ The following permissions are required or recommended.
 1. In the Data Access audit logs configuration table, select  `Kubernetes Engine API` from the Service column.
 1. In the Log Types tab, select the `Data write` Data Access audit log type
 1. Click "SAVE".
+
+### OSS Kubernetes
+
+Please check out [Using KHI with OSS Kubernetes Clusters - Example with Loki](./docs/en/oss.md).
 
 ## User Guide
 
