@@ -16,22 +16,25 @@ package resourcepath
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
-// composer#taskinstance#DAGID#RUNID#TASKID-MAPINDEX
-func ComposerTaskInstance(ti *model.AirflowTaskInstance) ResourcePath {
+// airflow#taskinstance#DAGID#RUNID#TASKID-MAPINDEX
+func AirflowTaskInstance(ti *model.AirflowTaskInstance) ResourcePath {
 	var detail = ti.TaskId()
 	if ti.MapIndex() != "-1" {
 		detail += "+" + ti.MapIndex()
 	}
-	return SubresourceLayerGeneralItem("Cloud Composer", "Task Instance", ti.DagId(), ti.RunId(), detail)
+	resourcepath := SubresourceLayerGeneralItem("Apache Airflow", "TaskInstance", ti.DagId(), ti.RunId(), detail)
+	resourcepath.ParentRelationship = enum.RelationshipAirflowTaskInstance
+	return resourcepath
 }
 
-// composer#airflow-worker#HOST
-func ComposerAirflowWorker(wo *model.AirflowWorker) ResourcePath {
-	return NameLayerGeneralItem("Cloud Composer", "Airflow Worker", "cluster-scope", wo.Host())
+// airflow#airflow-worker#HOST
+func AirflowWorker(wo *model.AirflowWorker) ResourcePath {
+	return NameLayerGeneralItem("Apache Airflow", "AirflowWorker", "cluster-scope", wo.Host())
 }
 
 func DagFileProcessorStats(stats *model.DagFileProcessorStats) ResourcePath {
-	return NameLayerGeneralItem("Cloud Composer", "Dag File Processor Stats", "cluster-scope", stats.DagFilePath())
+	return NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "cluster-scope", stats.DagFilePath())
 }

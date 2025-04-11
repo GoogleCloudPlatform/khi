@@ -29,6 +29,7 @@ const (
 	RelationshipManagedInstanceGroup  ParentRelationship = 9
 	RelationshipControlPlaneComponent ParentRelationship = 10
 	RelationshipSerialPort            ParentRelationship = 11
+	RelationshipAirflowTaskInstance   ParentRelationship = 12
 	relationshipUnusedEnd                                // Add items above. This field is used for counting items in this enum to test.
 )
 
@@ -444,6 +445,78 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				SourceLogType: LogTypeSerialPort,
 				Description:   "A serialport log from the node",
+			},
+		},
+	},
+	RelationshipAirflowTaskInstance: {
+		Visible:              true,
+		EnumKeyName:          "RelationshipAirflowTaskInstance",
+		Label:                "task",
+		LongName:             "@task(Operator, Sensor, etc)",
+		LabelColor:           "#FFFFFF",
+		LabelBackgroundColor: "#377e22",
+		Hint:                 "Task is the basic unit of execution in Airflow",
+		SortPriority:         1501,
+		GeneratableRevisions: []GeneratableRevisionInfo{
+			{
+				State:         RevisionStateComposerTiDeferred,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = deferred",
+			},
+			{
+				State:         RevisionStateComposerTiFailed,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = failed",
+			},
+			{
+				State:         RevisionStateComposerTiRemoved,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = removed",
+			},
+			{
+				State:         RevisionStateComposerTiRunning,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = running",
+			},
+			{
+				State:         RevisionStateComposerTiScheduled,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = scheduled",
+			},
+			{
+				State:         RevisionStateComposerTiSuccess,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = success",
+			},
+			{
+				State:         RevisionStateComposerTiQueued,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = queued",
+			},
+			{
+				State:         RevisionStateComposerTiUpForRetry,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = up_for_retry",
+			},
+			{
+				State:         RevisionStateComposerTiUpForReschedule,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = reschedule",
+			},
+			{
+				State:         RevisionStateComposerTiZombie,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = zombie",
+			},
+			{
+				State:         RevisionStateComposerTiUpstreamFailed,
+				SourceLogType: LogTypeComposerEnvironment,
+				Description:   "Ti.state = upstream_failed",
+			},
+			{
+				State:         RevisionStateComposerTiRestarting,
+				SourceLogType: LogTypeControlPlaneComponent,
+				Description:   "Ti.state = restarting",
 			},
 		},
 	},

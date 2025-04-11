@@ -18,26 +18,28 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type Tistate string
+
 const (
 	// ref: https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#task-instances
-	TASKINSTANCE_NONE              string = "none"
-	TASKINSTANCE_SCHEDULED         string = "scheduled"
-	TASKINSTANCE_QUEUED            string = "queued"
-	TASKINSTANCE_RUNNING           string = "running"
-	TASKINSTANCE_SUCCESS           string = "success"
-	TASKINSTANCE_SHUTDOWN          string = "shutdown"
-	TASKINSTANCE_RESTARTING        string = "restarting"
-	TASKINSTANCE_FAILED            string = "failed"
-	TASKINSTANCE_SKIPPED           string = "skipped"
-	TASKINSTANCE_UP_FOR_RETRY      string = "up_for_retry"
-	TASKINSTANCE_DEFERRED          string = "deferred"
-	TASKINSTANCE_UP_FOR_RESCHEDULE string = "up_for_reschedule"
-	TASKINSTANCE_REMOVED           string = "removed"
-	TASKINSTANCE_UPSTREAM_FAILED   string = "upstream_failed"
+	TASKINSTANCE_NONE              Tistate = "none"
+	TASKINSTANCE_SCHEDULED         Tistate = "scheduled"
+	TASKINSTANCE_QUEUED            Tistate = "queued"
+	TASKINSTANCE_RUNNING           Tistate = "running"
+	TASKINSTANCE_SUCCESS           Tistate = "success"
+	TASKINSTANCE_SHUTDOWN          Tistate = "shutdown"
+	TASKINSTANCE_RESTARTING        Tistate = "restarting"
+	TASKINSTANCE_FAILED            Tistate = "failed"
+	TASKINSTANCE_SKIPPED           Tistate = "skipped"
+	TASKINSTANCE_UP_FOR_RETRY      Tistate = "up_for_retry"
+	TASKINSTANCE_DEFERRED          Tistate = "deferred"
+	TASKINSTANCE_UP_FOR_RESCHEDULE Tistate = "up_for_reschedule"
+	TASKINSTANCE_REMOVED           Tistate = "removed"
+	TASKINSTANCE_UPSTREAM_FAILED   Tistate = "upstream_failed"
 
 	// Original States //
 	// Zombie status for KHI view
-	TASKINSTANCE_ZOMBIE string = "zombie"
+	TASKINSTANCE_ZOMBIE Tistate = "zombie"
 )
 
 // ref: https://github.com/apache/airflow/blob/main/airflow/models/taskinstance.py#L1187
@@ -47,10 +49,10 @@ type AirflowTaskInstance struct {
 	runId    string // primary key
 	mapIndex string // primary key
 	host     string
-	status   string
+	status   Tistate
 }
 
-func NewAirflowTaskInstance(dagId string, taskId string, runId string, mapIndex string, host string, status string) *AirflowTaskInstance {
+func NewAirflowTaskInstance(dagId string, taskId string, runId string, mapIndex string, host string, status Tistate) *AirflowTaskInstance {
 	return &AirflowTaskInstance{
 		dagId:    dagId,
 		taskId:   taskId,
@@ -81,7 +83,7 @@ func (a *AirflowTaskInstance) Host() string {
 	return a.host
 }
 
-func (a *AirflowTaskInstance) Status() string {
+func (a *AirflowTaskInstance) Status() Tistate {
 	return a.status
 }
 

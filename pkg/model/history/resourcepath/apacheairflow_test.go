@@ -23,8 +23,8 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-func TestComposerTaskInstance(t *testing.T) {
-	expectedParentRelationship := enum.RelationshipChild
+func TestAirflowTaskInstance(t *testing.T) {
+	expectedParentRelationship := enum.RelationshipAirflowTaskInstance
 	tests := []struct {
 		name string
 		ti   *model.AirflowTaskInstance
@@ -33,23 +33,23 @@ func TestComposerTaskInstance(t *testing.T) {
 		{
 			name: "basic",
 			ti:   model.NewAirflowTaskInstance("my_dag", "my_task", "my_run", "0", "my_host", "my_status"),
-			want: "Cloud Composer#Task Instance#my_dag#my_run#my_task+0",
+			want: "Apache Airflow#TaskInstance#my_dag#my_run#my_task+0",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := ComposerTaskInstance(test.ti)
+			got := AirflowTaskInstance(test.ti)
 			if got.Path != test.want {
-				t.Errorf("ComposerTaskInstance(%v).Path = %v, want %v", test.ti, got.Path, test.want)
+				t.Errorf("AirflowTaskInstance(%v).Path = %v, want %v", test.ti, got.Path, test.want)
 			}
 			if got.ParentRelationship != expectedParentRelationship {
-				t.Errorf("ComposerTaskInstance(%v).Parentrelationship = %v, want %v", test.ti, got.ParentRelationship, expectedParentRelationship)
+				t.Errorf("AirflowTaskInstance(%v).Parentrelationship = %v, want %v", test.ti, got.ParentRelationship, expectedParentRelationship)
 			}
 		})
 	}
 }
 
-func TestComposerAirflowWorker(t *testing.T) {
+func TestAirflowAirflowWorker(t *testing.T) {
 	expectedParentRelationship := enum.RelationshipChild
 	tests := []struct {
 		name string
@@ -59,17 +59,17 @@ func TestComposerAirflowWorker(t *testing.T) {
 		{
 			name: "basic",
 			wo:   model.NewAirflowWorker("my_host"),
-			want: "Cloud Composer#Airflow Worker#cluster-scope#my_host",
+			want: "Apache Airflow#AirflowWorker#cluster-scope#my_host",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got := ComposerAirflowWorker(test.wo)
+			got := AirflowWorker(test.wo)
 			if got.Path != test.want {
-				t.Errorf("ComposerAirflowWorker(%v).Path = %v, want %v", test.wo, got.Path, test.want)
+				t.Errorf("AirflowAirflowWorker(%v).Path = %v, want %v", test.wo, got.Path, test.want)
 			}
 			if got.ParentRelationship != expectedParentRelationship {
-				t.Errorf("ComposerAirflowWorker(%v).Parentrelationship = %v, want %v", test.wo, got.ParentRelationship, expectedParentRelationship)
+				t.Errorf("AirflowAirflowWorker(%v).Parentrelationship = %v, want %v", test.wo, got.ParentRelationship, expectedParentRelationship)
 			}
 		})
 	}
@@ -85,7 +85,7 @@ func TestDagFileProcessorStats(t *testing.T) {
 		{
 			name:  "basic",
 			stats: model.NewDagFileProcessorStats("my_dag_file_path", "my_dag_file_path", "10", "10"),
-			want:  "Cloud Composer#Dag File Processor Stats#cluster-scope#my_dag_file_path",
+			want:  "Apache Airflow#Dag File Processor Stats#cluster-scope#my_dag_file_path",
 		},
 	}
 	for _, test := range tests {
