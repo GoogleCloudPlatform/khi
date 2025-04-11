@@ -24,7 +24,7 @@ import (
 )
 
 func TestAirflowTaskInstance(t *testing.T) {
-	expectedParentRelationship := enum.RelationshipChild
+	expectedParentRelationship := enum.RelationshipAirflowTaskInstance
 	tests := []struct {
 		name string
 		ti   *model.AirflowTaskInstance
