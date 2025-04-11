@@ -16,6 +16,7 @@ package resourcepath
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 // airflow#taskinstance#DAGID#RUNID#TASKID-MAPINDEX
@@ -24,7 +25,9 @@ func AirflowTaskInstance(ti *model.AirflowTaskInstance) ResourcePath {
 	if ti.MapIndex() != "-1" {
 		detail += "+" + ti.MapIndex()
 	}
-	return SubresourceLayerGeneralItem("Apache Airflow", "TaskInstance", ti.DagId(), ti.RunId(), detail)
+	resourcepath := SubresourceLayerGeneralItem("Apache Airflow", "TaskInstance", ti.DagId(), ti.RunId(), detail)
+	resourcepath.ParentRelationship = enum.RelationshipAirflowTaskInstance
+	return resourcepath
 }
 
 // airflow#airflow-worker#HOST
