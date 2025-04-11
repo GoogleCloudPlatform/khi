@@ -81,9 +81,12 @@ export interface BackendAPI {
    * Expected called endpoint: PUT /api/v2/inspection/tasks/<task-id>/features
    *
    * @param taskId inspection task ID to set the selected feature
-   * @param featureIds list of feature Ids
+   * @param featureStatusMap Map of features mapped against true if enabled
    */
-  setEnabledFeatures(taskId: string, featureIds: string[]): Observable<void>;
+  setEnabledFeatures(
+    taskId: string,
+    featureStatusMap: { [key: string]: boolean },
+  ): Observable<void>;
 
   /**
    * Get the metadata of an inspection with taskId.

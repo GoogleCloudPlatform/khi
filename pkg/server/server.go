@@ -162,6 +162,26 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			}
 			ctx.String(http.StatusAccepted, "ok")
 		})
+		// PATCH /api/v2/inspection/tasks/<task-id>/features
+		router.PATCH("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
+			taskId := ctx.Param("taskId")
+			task := inspectionServer.GetTask(taskId)
+			if task == nil {
+				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				return
+			}
+			var reqBody PatchInspectionTaskFeatureRequest
+			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+			err := task.UpdateFeatureMap(reqBody.Features)
+			if err != nil {
+				ctx.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+			ctx.String(http.StatusAccepted, "ok")
+		})
 		// GET /api/v2/inspection/tasks/<task-id>/features
 		router.GET("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
 			taskId := ctx.Param("taskId")

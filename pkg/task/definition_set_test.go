@@ -472,6 +472,27 @@ func TestAddDefinitionToSet(t *testing.T) {
 	}
 }
 
+func TestRemoveDefinitionFromSet(t *testing.T) {
+	ds, err := NewSet([]UntypedDefinition{
+		newDebugDefinition("bar", []string{"qux", "quux"}),
+		newDebugDefinition("foo", []string{"qux", "quux"}),
+	})
+	if err != nil {
+		t.Errorf("unexpected err:%s", err)
+	}
+
+	err = ds.Remove("bar#default")
+	if err != nil {
+		t.Errorf("unexpected err:%s", err)
+	}
+
+	// Remove a task with non-existent ID
+	err = ds.Remove("bar#default")
+	if err == nil {
+		t.Errorf("expected error, but returned no error")
+	}
+}
+
 func TestNewSetWithDuplicatedID(t *testing.T) {
 	_, err := NewSet([]UntypedTask{
 		newDebugTask("bar", []string{"qux", "quux"}),

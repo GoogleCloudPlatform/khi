@@ -79,6 +79,27 @@ func (s *TaskSet) GetAll() []UntypedTask {
 	return slices.Clone(s.tasks)
 }
 
+// Remove a task definition from current DefinitionSet.
+// Returns error if the definition does not exist
+func (s *TaskSet) Remove(id string) error {
+	taskIdMap := map[string]interface{}{}
+	for _, task := range s.tasks {
+		taskIdMap[task.UntypedID().String()] = struct{}{}
+	}
+	if _, exist := taskIdMap[id]; !exist {
+		return fmt.Errorf("task definition id:%s is not found in this set", id)
+	}
+	n := 0
+	for _, task := range s.tasks {
+		if task.UntypedID().String() != id {
+			s.tasks[n] = task
+			n++
+		}
+	}
+	s.tasks = s.tasks[:n]
+	return nil
+}
+
 // Get returns a task with the given string task ID notation.
 func (s *TaskSet) Get(id string) (UntypedTask, error) {
 	for _, task := range s.tasks {
