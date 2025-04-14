@@ -120,11 +120,6 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 		})
 	}
 
-	summary, err := l.MainMessage()
-	if err == nil {
-		cs.RecordLogSummary(summary)
-	}
-
 	return nil
 }
 

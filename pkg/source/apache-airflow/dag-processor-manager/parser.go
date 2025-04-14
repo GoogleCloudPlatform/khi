@@ -110,6 +110,11 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.LogEntity,
 // Sample: /home/airflow/gcs/dags/main.py 40441 4.06s 64 0 6.93s 2024-05-02T05:14:54
 func (a *AirflowDagProcessorParser) fromLogEntity(log string) *model.DagFileProcessorStats {
 
+	// TODO add support for `last_num_of_db_queries` (available from 2.10)
+	// The current implementation is based on a fixed number of 6 columns, but this will change to 7 fom 2.10.
+	// the implementation needs to support both 6 and 7 columns. Considering future updates, it would be advisable to make the number of columns dynamically adjustable.
+	// Fortunately DagProcessorManhager also outputs the column headers to the log. This hint can make adjustments.
+
 	// remove a string "DAG_PROCESSOR_MANAGER_LOG:" from the string(Cloud Composer 3 support)
 	log = strings.TrimPrefix(log, "DAG_PROCESSOR_MANAGER_LOG:")
 
