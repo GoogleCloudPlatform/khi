@@ -337,9 +337,25 @@ var InputNodeNameFilterTask = form.NewTextFormTaskBuilder(InputNodeNameFilterTas
 
 var InputLocationsTaskID = taskid.NewDefaultImplementationID[string](GCPPrefix + "input/location")
 
-var InputLocationsTask = form.NewTextFormTaskBuilder(InputLocationsTaskID, PriorityForResourceIdentifierGroup+4500, "Location").WithDescription(
-	"A location(regions) containing the environments to inspect",
-).Build()
+var InputLocationsTask = form.NewTextFormTaskBuilder(InputLocationsTaskID, PriorityForResourceIdentifierGroup+4500, "Location").
+	WithDependencies([]taskid.UntypedTaskReference{AutocompleteLocationTaskID}).
+	WithDescription(
+		"The location(region) to specify the resource exist(s|ed)",
+	).
+	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
+		if len(previousValues) > 0 {
+			return previousValues[0], nil
+		}
+		return "", nil
+	}).
+	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
+		if len(previousValues) > 0 { // no need to call twice; should be the same
+			return previousValues, nil
+		}
+		regions := task.GetTaskResult(ctx, AutocompleteLocationTaskID.GetTaskReference())
+		return regions, nil
+	}).
+	Build()
 
 func toTimeDurationWithTimezone(startTime time.Time, endTime time.Time, timezone *time.Location, withTimezone bool) string {
 	timeFormat := "2006-01-02T15:04:05"

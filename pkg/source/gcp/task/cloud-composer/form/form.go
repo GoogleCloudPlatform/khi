@@ -17,7 +17,6 @@ package composer_form
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
@@ -48,7 +47,7 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 	if projectID != "" && location != "" {
 		clusterNames, err := client.GetComposerEnvironmentNames(ctx, projectID, location)
 		if err != nil {
-			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the composer environments in the (project,location) (%s, %s) \n%s", projectID, location, err))
+			// Failed to read the composer environments in the (project,location)
 			return inspection_cached_task.PreviousTaskResult[[]string]{
 				DependencyDigest: dependencyDigest,
 				Value:            []string{},
@@ -65,7 +64,7 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 	}, nil
 })
 
-var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+5000, "Composer Environment Name").WithDependencies(
+var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
 	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 	environments := task.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.GetTaskReference())

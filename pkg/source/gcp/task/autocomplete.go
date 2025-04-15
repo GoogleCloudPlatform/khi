@@ -15,6 +15,12 @@
 package task
 
 import (
+	"context"
+	"fmt"
+
+	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
+	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -24,3 +30,40 @@ type AutocompleteClusterNameList struct {
 	ClusterNames []string
 	Error        string
 }
+
+var AutocompleteLocationTaskID taskid.TaskImplementationID[[]string] = taskid.NewDefaultImplementationID[[]string](GCPPrefix + "autocomplete/location")
+
+// default implementation for "Location" field
+var AutocompleteLocationTask = inspection_cached_task.NewCachedTask(AutocompleteLocationTaskID,
+	[]taskid.UntypedTaskReference{
+		InputProjectIdTaskID, // for API restriction
+	},
+	func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[[]string]) (inspection_cached_task.PreviousTaskResult[[]string], error) {
+		client, err := api.DefaultGCPClientFactory.NewClient()
+		if err != nil {
+			return inspection_cached_task.PreviousTaskResult[[]string]{}, err
+		}
+		projectID := task.GetTaskResult(ctx, InputProjectIdTaskID.GetTaskReference())
+		dependencyDigest := fmt.Sprintf("location-%s", projectID)
+
+		if prevValue.DependencyDigest == dependencyDigest {
+			return prevValue, nil
+		}
+
+		defaultResult := inspection_cached_task.PreviousTaskResult[[]string]{
+			DependencyDigest: dependencyDigest,
+			Value:            []string{},
+		}
+
+		if projectID == "" {
+			return defaultResult, nil
+		}
+
+		regions, err := client.ListRegions(ctx, projectID)
+		if err != nil {
+			return defaultResult, nil
+		}
+		result := defaultResult
+		result.Value = regions
+		return result, nil
+	})
