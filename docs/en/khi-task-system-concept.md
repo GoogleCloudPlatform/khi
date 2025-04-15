@@ -275,14 +275,14 @@ taskSet := task.NewTaskSet([]task.UntypedDefinition{
 Typically, a `TaskSet` cannot be executed directly. It needs to be processed through topological sorting and have necessary dependent tasks added to construct an executable graph.
 
 ```go
-taskSet := task.NewTaskSet([]task.UntypedDefinition{
-    Task1,
-    Task2
-})
 dependencyTaskSet := task.NewTaskSet([]task.UntypedDefinition{
     DependencyTask1,
     DependencyTask2,
     DependencyTask3
+})
+taskSet := task.NewTaskSet([]task.UntypedDefinition{
+    Task1,
+    Task2
 })
 
 resolvedTaskSet, err := taskSet.ResolveTask(dependencyTaskSet)
@@ -334,3 +334,23 @@ _, err := taskRunner.Result() // make sure the task graph ended without error
 
 result := task.GetTaskResultFromLocalRunner(taskRunner, TaskID)
 ```
+
+## Inspection tasks
+
+The task mechanism explained so far is not solely dependent on KHI's log analysis purpose.
+However, KHI analyzes various types of logs while maintaining extensibility through a log processing task graph mechanism implemented on top of this system specifically for KHI.
+
+### Relationship between UI Flow and Task Graph in KHI
+
+When using KHI, users follow a workflow like the one shown below:
+
+![](./images/inspection-task-structure.png)
+
+Various tasks used for actual log processing are registered to the `InspectionServer` during KHI's initialization.
+When a user clicks the `New Inspection` button, they first need to select an `Inspection Type`. KHI then filters the registered tasks to include only those that can operate with the selected `Inspection Type`. This includes not only the tasks that users can enable or disable but also all tasks used in their dependency relationships.
+Next, users select log types, which internally in KHI are represented as a list of special tasks called Feature tasks. KHI displays only those tasks that are Feature tasks and are available for the selected Inspection type, allowing users to choose whether to include each task.
+
+To execute the tasks selected by the user, KHI first resolves dependencies using the set of available tasks filtered by the Inspection Type, performs topological sorting, and constructs a task graph.
+When executing a task graph for log analysis, KHI passes a JSON-serializable value called `Metadata` through the context. This `Metadata` can be accessed from outside the execution at any point during task execution.
+For example, when a task is performing time-consuming processing, it can edit the Progress metadata stored in this `Metadata`. When the frontend retrieves the task list, this `Metadata` is read, and the progress status is displayed on the frontend.
+The same applies to form editing. Each task executed in Dryrun mode during form editing embeds the information needed for the frontend to display the form in the `Metadata`. The frontend retrieves this information to render the actual frontend.
