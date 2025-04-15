@@ -43,14 +43,14 @@ A Directed Acyclic Graph (DAG) is a graph that flows in one direction without cy
 
 ### The task type
 
-In the DAG task system used by KHI, each task is created to implement the `task.Definition[T]` interface.
-(See `pkg/task/definition.go` for detailed implementation.)
+In the DAG task system used by KHI, each task is created to implement the `task.Task[T]` interface.
+(See `pkg/task/task.go` for detailed implementation.)
 
 This interface is defined roughly as the following type:
-(In reality, elements where you don't need to worry about the TaskResult type are implemented in the `UntypedDefinition` interface, and there is a slightly more complex type definition to handle any `task.Definition[T]` uniformly, but the following fields are sufficient for a general understanding.)
+(In reality, elements where you don't need to worry about the TaskResult type are implemented in the `UntypedTask` interface, and there is a slightly more complex type definition to handle any `task.Task[T]` uniformly, but the following fields are sufficient for a general understanding.)
 
 ```go
-type Definition[TaskResult any] interface {
+type Task[TaskResult any] interface {
     // ID returns the unique identifier of the task.
 	ID() taskid.TaskImplementationID[TaskResult]
 
@@ -162,7 +162,7 @@ The context must be the exact context value passed to the task function itself.
 #### Getting a value outside from task graph
 
 In KHI, values are passed to the task graph by including them in the context.
-Additionally, to perform common operations in KHI task definitions in a type-safe manner, we use functions defined in the `khictx` package.
+Additionally, to treat values provided in the context in a type-safe manner, we use functions defined in the `khictx` package.
 
 ```go
 contextValueID := typedmap.NewTypedKey[string]("a-string-value") // This is a key associating string value.
@@ -265,7 +265,7 @@ When extending KHI, you typically don't need to be concerned with the execution 
 In KHI, multiple tasks are grouped and executed together as a `TaskSet` type.
 
 ```go
-taskSet := task.NewTaskSet([]task.UntypedDefinition{
+taskSet := task.NewTaskSet([]task.UntypedTask{
     Task1,
     Task2,
     Task3
@@ -275,12 +275,12 @@ taskSet := task.NewTaskSet([]task.UntypedDefinition{
 Typically, a `TaskSet` cannot be executed directly. It needs to be processed through topological sorting and have necessary dependent tasks added to construct an executable graph.
 
 ```go
-dependencyTaskSet := task.NewTaskSet([]task.UntypedDefinition{
+dependencyTaskSet := task.NewTaskSet([]task.UntypedTask{
     DependencyTask1,
     DependencyTask2,
     DependencyTask3
 })
-taskSet := task.NewTaskSet([]task.UntypedDefinition{
+taskSet := task.NewTaskSet([]task.UntypedTask{
     Task1,
     Task2
 })
@@ -354,3 +354,169 @@ To execute the tasks selected by the user, KHI first resolves dependencies using
 When executing a task graph for log analysis, KHI passes a JSON-serializable value called `Metadata` through the context. This `Metadata` can be accessed from outside the execution at any point during task execution.
 For example, when a task is performing time-consuming processing, it can edit the Progress metadata stored in this `Metadata`. When the frontend retrieves the task list, this `Metadata` is read, and the progress status is displayed on the frontend.
 The same applies to form editing. Each task executed in Dryrun mode during form editing embeds the information needed for the frontend to display the form in the `Metadata`. The frontend retrieves this information to render the actual frontend.
+
+### Registering tasks on the inspection task server
+
+During initialization, KHI registers tasks used for log parsing and Inspection Types.
+These registrations occur by receiving the `InspectionTaskServer` and calling the `AddTask` method, as shown in `pkg/inspection/common/task_registerer.go`.
+The methods performing these registrations are registered to `taskSetRegisterer` in the `init()` function within `cmd/kubernetes-history-inspector/main.go`.
+
+To add your own custom tasks, create your own Go file under the `cmd/kubernetes-history-inspector` directory, implement the `init()` function there, and add your defined tasks to the `taskSetRegisterer` from there.
+
+### Labels on inspection tasks
+
+When discussing tasks earlier, we did not go into depth about Labels, but each task in KHI has a map of labels.
+KHI utilize this feature to select specific set of tasks from the set of all tasks registered on KHI.
+
+#### InspectionType Label
+
+The InspectionType label applied to tasks has a value of []string type. These are arrays of InspectionType IDs, and they determine whether a task is included as a candidate for dependency relationships based on the following criteria when a user selects an Inspection Type in the UI:
+
+* The task does not have an InspectionType label (interpreted as a task that can be used with any InspectionType)
+* The task includes the ID of the user-selected InspectionType as one of its InspectionType labels
+
+For example, you can define tasks with these labels as follows:
+
+```go
+var IntGeneratorTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/int-generator")
+
+var IntGeneratorTask = task.NewTask(IntGeneratorTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (int, error) {
+	return 1, nil
+}, task.InspectionTypeLabel("gcp-gke","gcp-gdcv-for-baremetal")) // This task is only available when user selected GKE or GDCV for Baremetal on the inspection type selection
+
+var DoubleIntTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/double-int")
+
+var DoubleIntTask = task.NewTask(DoubleIntTaskID, []taskid.UntypedTaskReference{IntGeneratorTaskID.GetTaskReference()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error) {
+	intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorTaskID.GetTaskReference())
+	return intGeneratorResult * 2, nil
+}) // This task is available for any inspection type
+
+```
+
+#### FeatureTask Label
+
+In KHI, tasks that users can enable or disable are called Feature tasks. These are also just regular tasks, but with specific labels attached to them.
+Since Feature tasks need to be selected by users in the UI, they are given additional labels such as title and description. These can be assigned all at once using the `task.FeatureTaskLabel` function.
+
+
+```go
+
+var ContainerdLogFeatureTaskID = taskid.NewDefaultImplementationID[[]Log]("example.khi.google.com/containerd-log-feature")
+
+var ContainerdLogFeatureTask = task.NewTask(ContainerdLogFeatureTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) ([]Log, error) {
+	// Get logs from containerd
+	return logs, nil
+}, task.FeatureTaskLabel("title","description",/*Log type*/,/*is default feature or not */, "gcp-gke","gcp-gdcv-for-baremetal"))
+
+```
+
+When implementing a new parser, you will often need to register tasks with labels generated by this `FeatureTaskLabel` function.
+Note that in FeatureTaskLabel, the InspectionType must be specified as a required variadic parameter at the end.
+
+### Task mode
+
+KHI runs tasks for inspection in `run` or `dryrun` mode. Once the graph is built, KHI periodically runs the task graph as `dryrun` mode during user editing the form values. Tasks only running on the `run` mode need to read this task mode from the context value to skip processing when it is in `dryrun` mode.
+
+```go
+taskMode := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskMode)
+// taskMode hould be inspection_task_interface.TaskModeDryRun or inspection_task_interface.TaskModeRun
+```
+
+Users typically don't need to get task mode from the context with using `inspection_task.NewInspectionTask()` which is a wrapper of `task.NewTask`.
+
+```go
+var Task = inspection_task.NewInspectionTask(TestTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.TaskMode) (Result, error) {
+	if taskMode == inspection_task_interface.TaskModeDryRun { // Skip the task processing when the mode is dryrun.
+		return nil, nil
+	}
+	// ...
+})
+```
+
+### The task metadata
+
+Each task in KHI can output various additional information beyond just the task results.
+For example, this might include queries used for log collection or logs output by the task.
+
+In KHI, data that is not the main output of a task is managed in a single map called Metadata. When a task graph is executed, an empty map is initially passed, and each task adds values as needed.
+Metadata can be read even while a task is executing. This is important because, for example, progress bar values are continuously written by tasks and need to be retrievable as task metadata even during execution.
+
+To get the metadata map, you can retrieve it from the context using `khictx` as follows:
+
+```go
+metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+```
+
+Developers performing normal extensions do not need to be aware of the existence of metadata. Typically, these are wrapped by various utilities, and values are set automatically.
+
+#### Input fields
+
+One major use of Metadata is for forms when creating log filters.
+Each task writes the metadata required for its form to the form metadata, which the frontend receives to render the form.
+
+However, users do not need to understand the specifics of handling metadata. For example, if it's a text form, use `form.NewTextFormTaskBuilder`.
+
+Below is a practical example of a form task for entering a Duration value. Since forms are also tasks, they can have prerequisite tasks.
+
+```go
+var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
+	WithDependencies([]taskid.UntypedTaskReference{
+		common_task.InspectionTimeTaskID,
+		InputEndTimeTaskID,
+		TimeZoneShiftInputTaskID,
+	}).
+	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
+	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
+		if len(previousValues) > 0 {
+			return previousValues[0], nil
+		} else {
+			return "1h", nil
+		}
+	}).
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
+		inspectionTime := task.GetTaskResult(ctx, common_task.InspectionTimeTaskID.GetTaskReference())
+		endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.GetTaskReference())
+		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.GetTaskReference())
+
+		duration := convertedValue.(time.Duration)
+		startTime := endTime.Add(-duration)
+		startToNow := inspectionTime.Sub(startTime)
+		hintString := ""
+		if startToNow > time.Hour*24*30 {
+			hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
+		}
+		if duration > time.Hour*3 {
+			hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
+		}
+		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
+		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
+		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
+		return hintString, form_metadata.Info, nil
+	}).
+	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
+	WithValidator(func(ctx context.Context, value string) (string, error) {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return err.Error(), nil
+		}
+		if d <= 0 {
+			return "duration must be positive", nil
+		}
+		return "", nil
+	}).
+	WithConverter(func(ctx context.Context, value string) (time.Duration, error) {
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return 0, err
+		}
+		return d, nil
+	}).
+	Build()
+```
+
+These form field configurations are stored in the form metadata.
+
+```go
+metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+formFields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
+```
