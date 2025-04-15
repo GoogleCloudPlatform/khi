@@ -25,6 +25,26 @@ type MockApiClient struct {
 	ListLogEntriesFunc  func(ctx context.Context, projectId string, filter string, logSink chan any) error
 }
 
+// GetClusters implements api.GCPClient.
+func (m *MockApiClient) GetClusters(ctx context.Context, projectId string) ([]api.Cluster, error) {
+	return []api.Cluster{
+		{
+			Name: "gke-cluster-foo",
+		},
+		{
+			Name: "composer-environment-foo",
+			ResourceLabels: map[string]string{
+				"goog-composer-environment": "dev",
+			},
+		},
+	}, nil
+}
+
+// ListRegions implements api.GCPClient.
+func (m *MockApiClient) ListRegions(ctx context.Context, projectId string) ([]string, error) {
+	return []string{"us-central1", "us-east1"}, nil
+}
+
 // GetAnthosAWSClusterNames implements api.GCPClient.
 func (m *MockApiClient) GetAnthosAWSClusterNames(ctx context.Context, projectId string) ([]string, error) {
 	if m.GetClusterNamesFunc == nil {

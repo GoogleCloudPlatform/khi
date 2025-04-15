@@ -158,16 +158,30 @@ func (c *GCPClientImpl) CreateGCPHttpRequest(ctx context.Context, method string,
  * Get the list of GKE cluster names.
  */
 func (c *GCPClientImpl) GetClusterNames(ctx context.Context, projectId string) ([]string, error) {
-	type gkeCluster struct {
-		Name string `json:"name"`
+
+	clusters, err := c.GetClusters(ctx, projectId)
+	if err != nil {
+		return nil, err
 	}
-	type clusterListResponse struct {
-		Clusters      []*gkeCluster `json:"clusters"`
-		NextPageToken string        `json:"nextPageToken"`
-	}
+
 	var result []string
+	for _, cluster := range clusters {
+		result = append(result, cluster.Name)
+	}
+	return result, nil
+}
+
+// Get all GKE clusters from container.googleapis.com
+// ref: https://cloud.google.com/kubernetes-engine/docs/reference/rest/v1/projects.locations.clusters/list
+func (c *GCPClientImpl) GetClusters(ctx context.Context, projectId string) ([]Cluster, error) {
+
+	type clusterListResponse struct {
+		Clusters      []*Cluster `json:"clusters"`
+		NextPageToken string     `json:"nextPageToken"`
+	}
 	pc := NewPageClient[clusterListResponse](c.BaseClient)
 	clusterListResponses, err := pc.GetAll(ctx, func(hasToken bool, nextPageToken string) (*http.Request, error) {
+		// location="-" is a special literal to express "all locations"
 		endpoint := fmt.Sprintf("https://container.googleapis.com/v1/projects/%s/locations/-/clusters", projectId)
 		if nextPageToken != "-" {
 			endpoint += "?pageToken=" + nextPageToken
@@ -179,12 +193,13 @@ func (c *GCPClientImpl) GetClusterNames(ctx context.Context, projectId string) (
 	if err != nil {
 		return nil, err
 	}
+
+	var result []Cluster
 	for _, response := range clusterListResponses {
 		for i := 0; i < len(response.Clusters); i++ {
-			result = append(result, response.Clusters[i].Name)
+			result = append(result, *response.Clusters[i])
 		}
 	}
-
 	return result, nil
 }
 
@@ -534,6 +549,45 @@ func (c *GCPClientImpl) GetComposerEnvironmentNames(ctx context.Context, project
 			}
 			nextPageToken = response.NextPageToken
 		}
+	}
+
+	return result, nil
+}
+
+// Get all regions(locations) from compute.googleapis.com
+// ref: https://cloud.google.com/compute/docs/reference/rest/v1/regions/list
+// Note: No filters are applid to the list operation. Literary "all" regions will return.(.items[].status be ignored)
+func (c *GCPClientImpl) ListRegions(ctx context.Context, projectId string) ([]string, error) {
+
+	if projectId == "" {
+		return nil, fmt.Errorf("projectId is empty")
+	}
+
+	type item struct {
+		Name string `json:"name"`
+	}
+	type listRegionRespnse struct {
+		Items []item `json:"items"`
+	}
+
+	endpoint := fmt.Sprintf("https://compute.googleapis.com/compute/v1/projects/%s/regions", projectId)
+	req, err := c.CreateGCPHttpRequest(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GCP HTTP request: %w", err)
+	}
+
+	client := httpclient.NewJsonResponseHttpClient[listRegionRespnse](c.BaseClient)
+	response, httpResponse, err := client.DoWithContext(ctx, req)
+	if httpResponse != nil && httpResponse.Body != nil {
+		defer httpResponse.Body.Close()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get JSON response: %w", err)
+	}
+
+	var result []string
+	for _, item := range response.Items {
+		result = append(result, item.Name)
 	}
 
 	return result, nil
