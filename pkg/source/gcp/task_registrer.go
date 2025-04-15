@@ -47,6 +47,11 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 		return err
 	}
 
+	err = inspectionServer.AddTask(task.AutocompleteLocationTask)
+	if err != nil {
+		return nil
+	}
+
 	err = inspectionServer.AddTask(gke.AutocompleteClusterNames)
 	if err != nil {
 		return err

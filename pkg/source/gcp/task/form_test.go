@@ -628,16 +628,17 @@ func TestLocationInput(t *testing.T) {
 			Name:          "With valid location",
 			Input:         "asia-northeast1",
 			ExpectedValue: "asia-northeast1",
-			Dependencies:  []task.UntypedTask{},
+			Dependencies:  []task.UntypedTask{AutocompleteLocationTask, InputProjectIdTask},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/location",
 					Type:        "Text",
 					Label:       "Location",
-					Description: "A location(regions) containing the environments to inspect",
+					Description: "The location(region) to specify the resource exist(s|ed)",
 					HintType:    form.None,
 				},
-				Readonly: false,
+				Suggestions: []string{},
+				Readonly:    false,
 			},
 		},
 	})
