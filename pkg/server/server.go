@@ -314,7 +314,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
-			defer result.ResultStore.Close()
+			defer inspectionDataReader.Close()
 			fileSize, err := result.ResultStore.GetInspectionResultSizeInBytes()
 			if err != nil {
 				ctx.String(http.StatusInternalServerError, err.Error())

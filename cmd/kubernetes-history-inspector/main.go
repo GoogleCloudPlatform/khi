@@ -257,6 +257,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
+			defer reader.Close()
 			file, err := os.OpenFile(*parameters.Job.ExportDestination, os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to open the destination file \n%s", err.Error()))

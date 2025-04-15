@@ -51,15 +51,12 @@ var SerializeTask = inspection_task.NewInspectionTask(SerializerTaskID, []taskid
 	if err != nil {
 		return nil, err
 	}
+	defer writer.Close()
 	resultMetadata, err := metadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, filter.NewEqualFilter(metadata.LabelKeyIncludedInResultBinaryFlag, true, false))
 	if err != nil {
 		return nil, err
 	}
 	fileSize, err := builder.Finalize(ctx, resultMetadata, writer, progress)
-	if err != nil {
-		return nil, err
-	}
-	err = store.Close()
 	if err != nil {
 		return nil, err
 	}

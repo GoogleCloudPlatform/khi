@@ -35,15 +35,15 @@ func TestFileSystemResultRepository(t *testing.T) {
 		if writeErr != nil {
 			t.Errorf("writeErr: want nil, got %s", writeErr)
 		}
+		defer writer.Close()
 		writer.Write(testInspectionData)
-		repo.Close()
 		received, readErr := repo.GetReader()
-		var readTarget = make([]byte, 5)
+		readTarget := make([]byte, 5)
 		_, err := received.Read(readTarget)
 		if err != nil {
 			t.Errorf("unexpected errir %s", err)
 		}
-		repo.Close()
+		defer received.Close()
 
 		if readErr != nil {
 			t.Errorf("readErr: want nil, got %s", readErr)
