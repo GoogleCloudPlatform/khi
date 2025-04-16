@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
@@ -212,7 +212,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
-			result, err := currentTask.DryRun(ctx, &task.InspectionRequest{
+			result, err := currentTask.DryRun(ctx, &inspection_task.InspectionRequest{
 				Values: reqBody,
 			})
 			if err != nil {
@@ -234,7 +234,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
-			err := currentTask.Run(ctx, &task.InspectionRequest{
+			err := currentTask.Run(ctx, &inspection_task.InspectionRequest{
 				Values: reqBody,
 			})
 			if err != nil {

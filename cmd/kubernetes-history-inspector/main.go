@@ -30,7 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -236,7 +236,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
-			err = t.Run(context.Background(), &task.InspectionRequest{
+			err = t.Run(context.Background(), &inspection_task.InspectionRequest{
 				Values: values,
 			})
 			if err != nil {

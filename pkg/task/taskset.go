@@ -46,7 +46,9 @@ type SortTaskGraphResult struct {
 	Runnable bool
 }
 
-func NewSet(tasks []UntypedTask) (*TaskSet, error) {
+// NewTaskSet creates a new TaskSet with the given tasks.
+// Returns an error if there are duplicate task IDs.
+func NewTaskSet(tasks []UntypedTask) (*TaskSet, error) {
 	taskIDs := map[string]struct{}{}
 	for _, def := range tasks {
 		id := def.UntypedID()
@@ -149,7 +151,7 @@ func (s *TaskSet) WrapGraph(subgraphId taskid.UntypedTaskImplementationID, subgr
 	initTask := NewTask(initTaskId, subgraphDependency, func(ctx context.Context) (any, error) { return nil, nil })
 	doneTask := NewTask(doneTaskId, doneTaskDependencies, func(ctx context.Context) (any, error) { return nil, nil })
 	rewiredTasks = append(rewiredTasks, initTask, doneTask)
-	return NewSet(rewiredTasks)
+	return NewTaskSet(rewiredTasks)
 }
 
 func (s *TaskSet) sortTaskGraph() *SortTaskGraphResult {

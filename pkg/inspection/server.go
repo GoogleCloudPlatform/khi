@@ -64,7 +64,7 @@ type InspectionTaskServer struct {
 }
 
 func NewServer() (*InspectionTaskServer, error) {
-	ns, err := task.NewSet([]task.UntypedTask{})
+	ns, err := task.NewTaskSet([]task.UntypedTask{})
 	if err != nil {
 		return nil, err
 	}

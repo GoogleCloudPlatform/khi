@@ -19,7 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
@@ -41,7 +40,7 @@ import (
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.GetTaskReference(),
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*types.AuditLogParserLogSource, error) {
+}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*types.AuditLogParserLogSource, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}

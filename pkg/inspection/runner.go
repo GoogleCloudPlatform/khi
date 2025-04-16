@@ -142,7 +142,7 @@ func (i *InspectionTaskRunner) SetFeatureList(featureList []string) error {
 		}
 		featureTasks = append(featureTasks, featureTask)
 	}
-	featureTaskSet, err := task.NewSet(featureTasks)
+	featureTaskSet, err := task.NewTaskSet(featureTasks)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (i *InspectionTaskRunner) resolveTaskGraph() (*task.TaskSet, error) {
 	usedTasks := []task.UntypedTask{}
 	usedTasks = append(usedTasks, i.featureTasks.GetAll()...)
 	usedTasks = append(usedTasks, i.requiredTasks.GetAll()...)
-	initialTaskSet, err := task.NewSet(usedTasks)
+	initialTaskSet, err := task.NewTaskSet(usedTasks)
 	if err != nil {
 		return nil, err
 	}

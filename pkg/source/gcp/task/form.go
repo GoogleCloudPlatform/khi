@@ -30,8 +30,7 @@ import (
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -130,7 +129,7 @@ var InputDurationTaskID = taskid.NewDefaultImplementationID[time.Duration](GCPPr
 
 var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
 	WithDependencies([]taskid.UntypedTaskReference{
-		common_task.InspectionTimeTaskID,
+		inspection_task.InspectionTimeTaskID,
 		InputEndTimeTaskID,
 		TimeZoneShiftInputTaskID,
 	}).
@@ -143,7 +142,7 @@ var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, Priorit
 		}
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, common_task.InspectionTimeTaskID.GetTaskReference())
+		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.GetTaskReference())
 		endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.GetTaskReference())
 		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.GetTaskReference())
 
@@ -186,7 +185,7 @@ var InputEndTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefix 
 
 var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityForQueryTimeGroup+5000, "End time").
 	WithDependencies([]taskid.UntypedTaskReference{
-		common_task.InspectionTimeTaskID,
+		inspection_task.InspectionTimeTaskID,
 		TimeZoneShiftInputTaskID,
 	}).
 	WithDescription(`The endtime of query. Please input it in the format of RFC3339
@@ -198,13 +197,13 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
 		}
-		inspectionTime := task.GetTaskResult(ctx, common_task.InspectionTimeTaskID.GetTaskReference())
+		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.GetTaskReference())
 		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.GetTaskReference())
 
 		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, common_task.InspectionTimeTaskID.GetTaskReference())
+		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.GetTaskReference())
 
 		specifiedTime := convertedValue.(time.Time)
 		if inspectionTime.Sub(specifiedTime) < 0 {
@@ -226,10 +225,10 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 
 var InputStartTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefix + "input/start-time")
 
-var InputStartTimeTask = common_task.NewInspectionTask(InputStartTimeTaskID, []taskid.UntypedTaskReference{
+var InputStartTimeTask = inspection_task.NewInspectionTask(InputStartTimeTaskID, []taskid.UntypedTaskReference{
 	InputEndTimeTaskID,
 	InputDurationTaskID,
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (time.Time, error) {
+}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (time.Time, error) {
 	endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.GetTaskReference())
 	duration := task.GetTaskResult(ctx, InputDurationTaskID.GetTaskReference())
 	startTime := endTime.Add(-duration)

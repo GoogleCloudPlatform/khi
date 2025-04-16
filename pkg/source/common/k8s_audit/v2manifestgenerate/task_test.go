@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
@@ -201,7 +201,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 					Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 				}, nil),
 				gcp_task.GCPDefaultK8sResourceMergeConfigTask,
-				task.ReaderFactoryGeneratorTask,
+				inspection_task.ReaderFactoryGeneratorTask,
 			}, inspection_task_interface.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Error(err)

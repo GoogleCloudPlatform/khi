@@ -196,7 +196,7 @@ func assertResolveTask(t *testing.T, tasks []UntypedTask, availableTasks []Untyp
 
 	// Create task sets
 	taskSet := &TaskSet{tasks: tasks}
-	availableSet, err := NewSet(availableTasks)
+	availableSet, err := NewTaskSet(availableTasks)
 	if err != nil {
 		t.Fatalf("Failed to create available task set: %v", err)
 	}
@@ -298,7 +298,7 @@ test_init_default -> test_done_default
 
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("testcase-%d", i), func(t *testing.T) {
-			originalSet, err := NewSet(testCase.Tasks)
+			originalSet, err := NewTaskSet(testCase.Tasks)
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}
@@ -325,7 +325,7 @@ test_init_default -> test_done_default
 			COUNT := 0
 			var prev *TaskSet
 			for i := 0; i < COUNT; i++ {
-				originalSet, err := NewSet(testCase.Tasks)
+				originalSet, err := NewTaskSet(testCase.Tasks)
 				if err != nil {
 					t.Errorf("unexpected error %v", err)
 				}
@@ -455,7 +455,7 @@ hoge_default -> foo_default
 }
 
 func TestAddDefinitionToSet(t *testing.T) {
-	ds, err := NewSet([]UntypedTask{})
+	ds, err := NewTaskSet([]UntypedTask{})
 	if err != nil {
 		t.Errorf("unexpected err:%s", err)
 	}
@@ -473,7 +473,7 @@ func TestAddDefinitionToSet(t *testing.T) {
 }
 
 func TestRemoveDefinitionFromSet(t *testing.T) {
-	ds, err := NewSet([]UntypedTask{
+	ds, err := NewTaskSet([]UntypedTask{
 		newDebugTask("bar", []string{"qux", "quux"}),
 		newDebugTask("foo", []string{"qux", "quux"}),
 	})
@@ -494,7 +494,7 @@ func TestRemoveDefinitionFromSet(t *testing.T) {
 }
 
 func TestNewSetWithDuplicatedID(t *testing.T) {
-	_, err := NewSet([]UntypedTask{
+	_, err := NewTaskSet([]UntypedTask{
 		newDebugTask("bar", []string{"qux", "quux"}),
 		newDebugTask("bar", []string{"qux", "quux"}),
 	})
