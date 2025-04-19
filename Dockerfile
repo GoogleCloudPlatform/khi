@@ -25,11 +25,13 @@ COPY . ${ROOT}
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(cat ./VERSION)" -o /built/khi cmd/kubernetes-history-inspector/*.go
 RUN mkdir /built/data
 COPY ./dist /built/web
+RUN mkdir -m 1777 /app.tmp
 
 FROM scratch
 WORKDIR /go/src/app
 COPY --from=builder /built /go/src/app
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app.tmp /tmp
 
 ENV GOMEMLIMIT=10000MiB
 ENV KHI_FRONTEND_ASSET_FOLDER=/go/src/app/web
