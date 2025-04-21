@@ -24,6 +24,7 @@ import {
   Subject,
   take,
   takeUntil,
+  withLatestFrom,
 } from 'rxjs';
 
 /**
@@ -42,6 +43,12 @@ export interface ParameterStore {
    * When the specified id is not available parameter for now, it waits the value to be available.
    */
   watch<T>(id: string): Observable<T>;
+
+  /**
+   * Get the observable to monitor the dirtiness of the field.
+   * true is emitted after user modified the field.
+   */
+  watchDirty(id: string): Observable<boolean>;
 
   /**
    * Watch the all parameters.
@@ -64,8 +71,25 @@ export class DefaultParameterStore implements ParameterStore {
 
   readonly currentParameters = new ReplaySubject<{ [id: string]: unknown }>(1);
 
+  readonly currentDefaultParameters = new ReplaySubject<{
+    [id: string]: unknown;
+  }>(1);
+
+  private dirtyFields = this.currentParameters.pipe(
+    takeUntil(this.destroyed),
+    withLatestFrom(this.currentDefaultParameters),
+    map(
+      ([parameters, defaultParameters]) =>
+        new Set(
+          Object.keys(parameters).filter(
+            (key) => parameters[key] !== defaultParameters[key],
+          ),
+        ),
+    ),
+  );
   constructor() {
     this.currentParameters.next({});
+    this.currentDefaultParameters.next({});
   }
   watchAll(): Observable<{ [id: string]: unknown }> {
     return this.currentParameters.pipe(
@@ -85,6 +109,14 @@ export class DefaultParameterStore implements ParameterStore {
     );
   }
 
+  watchDirty(id: string): Observable<boolean> {
+    return this.dirtyFields.pipe(
+      takeUntil(this.destroyed),
+      map((dirtyFields) => dirtyFields.has(id)),
+      distinctUntilChanged(),
+    );
+  }
+
   set(id: string, value: unknown): void {
     this.currentParameters
       .pipe(
@@ -100,12 +132,30 @@ export class DefaultParameterStore implements ParameterStore {
       });
   }
 
+  /**
+   * Update the default values for parameters.
+   * If the current value is same as the previous default values, the parameter is updated with the newer default values.
+   * If not, the parameter value is kept because it was updated by the user.
+   */
   setDefaultValues(defaultValues: { [id: string]: unknown }): void {
     this.currentParameters
-      .pipe(takeUntil(this.destroyed), take(1))
-      .subscribe((parameters) => {
-        this.currentParameters.next({ ...defaultValues, ...parameters });
+      .pipe(
+        takeUntil(this.destroyed),
+        take(1),
+        withLatestFrom(this.dirtyFields),
+      )
+      .subscribe(([parameters, dirtyFields]) => {
+        const nextParameter: { [id: string]: unknown } = {};
+        for (const id of Object.keys({ ...parameters, ...defaultValues })) {
+          if (dirtyFields.has(id)) {
+            nextParameter[id] = parameters[id];
+          } else {
+            nextParameter[id] = defaultValues[id];
+          }
+        }
+        this.currentParameters.next(nextParameter);
       });
+    this.currentDefaultParameters.next(defaultValues);
   }
 
   /**
