@@ -24,6 +24,9 @@
       }
     }
     <p class="label">{{ param.label }}</p>
+    @if (store.watchDirty(param.id) | async) {
+      <mat-icon class="dirty" [matTooltip]="dirtyIconTooltip">edit</mat-icon>
+    }
   </div>
   <p class="description" [innerHTML]="param.description | breakline"></p>
 </div>
