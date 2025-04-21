@@ -19,9 +19,24 @@
 
 $separator-color:  mat.m2-get-color-from-palette(mat.$m2-gray-palette,100)
 
-.children
-    padding: 0px 0px 0px 10px
-
+.container
+    .header
+        display: grid
+        grid-template-areas: "expander header"
+        grid-template-columns: auto 1fr
+        .expander
+            display: none
+    .children
+        padding: 0px 0px 0px 10px
+        overflow: hidden
+    &.collapsable
+        .header
+            .expander
+                display: block
+            &:hover
+                background-color: lightgray
+                cursor: pointer
+    
 .separator
     height: 4px
     width: 20px

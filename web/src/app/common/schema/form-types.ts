@@ -73,6 +73,17 @@ export interface GroupParameterFormField extends ParameterFormFieldBase {
    * List of child parameters.
    */
   children: ParameterFormField[];
+
+  /**
+   * If this group is collapsible or not.
+   */
+  collapsible: boolean;
+
+  /**
+   * If this group is collapsed by default.
+   * `collapsible` must be true when this value is true.
+   */
+  collapsedByDefault: boolean;
 }
 
 /**

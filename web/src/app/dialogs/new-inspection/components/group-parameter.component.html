@@ -15,12 +15,22 @@
 -->
 
 @let param = parameter();
-<div class="container">
-  <khi-new-inspection-parameter-header
-    [parameter]="param"
-    [showValidationStatus]="false"
-  ></khi-new-inspection-parameter-header>
-  <div class="children">
+<div class="container" [ngClass]="{ collapsable: param.collapsible }">
+  <div class="header" (click)="toggle()">
+    <button
+      class="expander"
+      mat-icon-button
+      color="primary"
+      [@expander-animation]="childrenStatus()"
+    >
+      <mat-icon>expand_more</mat-icon>
+    </button>
+    <khi-new-inspection-parameter-header
+      [parameter]="param"
+      [showValidationStatus]="false"
+    ></khi-new-inspection-parameter-header>
+  </div>
+  <div class="children" [@children-animation]="childrenStatus()">
     @for (parameter of param.children; track parameter.id) {
       @if (!$first) {
         <div class="separator"></div>

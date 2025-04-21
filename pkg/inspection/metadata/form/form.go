@@ -78,6 +78,12 @@ type GroupParameterFormField struct {
 	ParameterFormFieldBase
 	// Children is the children of this field.
 	Children []ParameterFormField `json:"children"`
+
+	// Collapsible is true when user can collapse or expand the grouped fields.
+	Collapsible bool `json:"collapsible"`
+
+	// CollapsedByDefault is true when the form is collapsed at first time when the form shows up.
+	CollapsedByDefault bool `json:"collapsedByDefault"`
 }
 
 // TextParameterFormField represents Text type parameter specific data.
