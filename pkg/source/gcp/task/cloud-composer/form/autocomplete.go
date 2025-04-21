@@ -16,6 +16,7 @@ package composer_form
 
 import (
 	"context"
+	"fmt"
 
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -41,7 +42,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 
 	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
 	environment := task.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.GetTaskReference())
-	dependencyDigest := environment
+	dependencyDigest := fmt.Sprintf("%s-%s", projectID, environment)
 
 	// when the user is inputing these information, abort
 	isWIP := projectID == "" || environment == ""
