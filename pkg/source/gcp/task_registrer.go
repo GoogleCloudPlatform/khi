@@ -47,12 +47,12 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	if err != nil {
 		return err
 	}
-  
-  err = inspectionServer.AddTask(gcpcommon.HeaderSuggestedFileNameTask)
+
+	err = inspectionServer.AddTask(gcpcommon.HeaderSuggestedFileNameTask)
 	if err != nil {
 		return err
 	}
-  
+
 	err = inspectionServer.AddTask(gke.AutocompleteClusterNames)
 	if err != nil {
 		return err
@@ -77,11 +77,11 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	if err != nil {
 		return err
 	}
-  
-  err = inspectionServer.AddTask(task.AutocompleteLocationTask)
+
+	err = inspectionServer.AddTask(task.AutocompleteLocationTask)
 	if err != nil {
 		return nil
-  }
+	}
 
 	// Form input related tasks
 	err = inspectionServer.AddTask(task.TimeZoneShiftInputTask)
