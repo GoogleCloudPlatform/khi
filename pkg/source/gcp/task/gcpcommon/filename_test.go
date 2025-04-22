@@ -44,7 +44,7 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 			ClusterName:       "test-cluster",
 			StartTime:         time.Date(2023, time.January, 1, 10, 0, 0, 0, time.UTC),
 			EndTime:           time.Date(2023, time.January, 1, 11, 0, 0, 0, time.UTC),
-			SuggestedFileName: "test-cluster-01011100-01011000.khi",
+			SuggestedFileName: "test-cluster-2023_01_01_1000-2023_01_01_1100.khi",
 		},
 	}
 

@@ -53,5 +53,5 @@ var HeaderSuggestedFileNameTask = inspection_task.NewInspectionTask(HeaderSugges
 }, inspection_task.NewRequiredTaskLabel(), inspection_task.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
 
 func getSuggestedFileName(clusterName string, startTime, endTime time.Time) string {
-	return fmt.Sprintf("%s-%s-%s.khi", clusterName, endTime.Format("01021504"), startTime.Format("01021504"))
+	return fmt.Sprintf("%s-%s-%s.khi", clusterName, startTime.Format("2006_01_02_1504"), endTime.Format("2006_01_02_1504"))
 }
