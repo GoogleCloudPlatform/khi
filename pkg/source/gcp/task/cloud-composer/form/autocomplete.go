@@ -17,7 +17,6 @@ package composer_form
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -29,44 +28,69 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
+// This is an implementation for gcp_task.AutocompleteClusterNamesTaskID
+// the task returns GKE cluster name where the provided Composer environment is running
 var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID,
+	composer_taskid.InputComposerEnvironmentTaskID,
 }, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
+
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
 	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-	if projectID != "" && projectID == prevValue.DependencyDigest {
-		return prevValue, nil
-	}
+	environment := task.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.GetTaskReference())
+	dependencyDigest := fmt.Sprintf("%s-%s", projectID, environment)
 
-	if projectID != "" {
-		clusterNames, err := client.GetClusterNames(ctx, projectID)
-		if err != nil {
-			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
-			return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
-				DependencyDigest: projectID,
-				Value: &gcp_task.AutocompleteClusterNameList{
-					ClusterNames: []string{},
-					Error:        "Failed to get the list from API",
-				},
-			}, nil
-		}
+	// when the user is inputing these information, abort
+	isWIP := projectID == "" || environment == ""
+	if isWIP {
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
-			DependencyDigest: projectID,
+			DependencyDigest: dependencyDigest,
 			Value: &gcp_task.AutocompleteClusterNameList{
-				ClusterNames: clusterNames,
-				Error:        "",
+				ClusterNames: []string{},
+				Error:        "Project ID or Composer environment name is empty",
 			},
 		}, nil
 	}
+
+	if environment != "" && dependencyDigest == prevValue.DependencyDigest {
+		return prevValue, nil
+	}
+
+	// fetch all GKE clusters in the project
+	clusters, err := client.GetClusters(ctx, projectID)
+	if err != nil {
+		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+			DependencyDigest: dependencyDigest,
+			Value: &gcp_task.AutocompleteClusterNameList{
+				ClusterNames: []string{},
+				Error:        "Failed to fetch the list GKE cluster. Please confirm if the Project ID is correct, or retry later",
+			},
+		}, nil
+	}
+
+	// pickup Cluster if cluster.ResourceLabels contains `goog-composer-environment={environment}`
+	// = the gke cluster where the composer is running
+	for _, cluster := range clusters {
+		if cluster.ResourceLabels["goog-composer-environment"] == environment {
+			return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+				DependencyDigest: dependencyDigest,
+				Value: &gcp_task.AutocompleteClusterNameList{
+					ClusterNames: []string{cluster.Name},
+				},
+			}, nil
+		}
+	}
+
 	return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
-		DependencyDigest: projectID,
+		DependencyDigest: dependencyDigest,
 		Value: &gcp_task.AutocompleteClusterNameList{
 			ClusterNames: []string{},
-			Error:        "Project ID is empty",
+			Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
+			Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
 		},
 	}, nil
 }, inspection_task.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))

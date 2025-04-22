@@ -33,6 +33,12 @@ func NewJsonResponseHttpClient[T any](client HTTPClient[*http.Response]) *JSONRe
 }
 
 func (p *JSONReponseHttpClient[T]) DoWithContext(ctx context.Context, request *http.Request) (*T, *http.Response, error) {
+
+	// In the current implementation, `JSONReponseHttpClient.DoWithContext` returns an `http.Response`,
+	// so the client's user is expected to close the Response.Body (as required by `golangci-lint:bodyclose`).
+	// But what is typically needed is the object deserialized from the JSON and the error (`err`).
+	// TODO as a cleanup, refine the role and interface of this Client.
+
 	response, err := p.client.DoWithContext(ctx, request)
 	if err != nil {
 		return nil, response, err
