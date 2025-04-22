@@ -16,7 +16,7 @@ package task
 
 // HasDependency check if 2 tasks have dependency between them when the task graph was resolved with given task set.
 func HasDependency(taskSet *TaskSet, dependencyFrom UntypedTask, dependencyTo UntypedTask) (bool, error) {
-	sourceSet, err := NewSet([]UntypedTask{dependencyFrom})
+	sourceSet, err := NewTaskSet([]UntypedTask{dependencyFrom})
 	if err != nil {
 		return false, err
 	}

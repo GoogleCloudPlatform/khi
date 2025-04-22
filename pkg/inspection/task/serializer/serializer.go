@@ -36,7 +36,7 @@ import (
 
 var SerializerTaskID = taskid.NewDefaultImplementationID[*inspectiondata.FileSystemStore](inspection_task.InspectionTaskPrefix + "serialize")
 
-var SerializeTask = inspection_task.NewInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID, ioconfig.IOConfigTaskID, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
+var SerializeTask = inspection_task.NewProgressReportableInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID, ioconfig.IOConfigTaskID, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil
@@ -51,15 +51,12 @@ var SerializeTask = inspection_task.NewInspectionTask(SerializerTaskID, []taskid
 	if err != nil {
 		return nil, err
 	}
+	defer writer.Close()
 	resultMetadata, err := metadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, filter.NewEqualFilter(metadata.LabelKeyIncludedInResultBinaryFlag, true, false))
 	if err != nil {
 		return nil, err
 	}
 	fileSize, err := builder.Finalize(ctx, resultMetadata, writer, progress)
-	if err != nil {
-		return nil, err
-	}
-	err = store.Close()
 	if err != nil {
 		return nil, err
 	}

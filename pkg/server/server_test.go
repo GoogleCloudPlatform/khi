@@ -105,7 +105,7 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 			DataDestination: "/tmp/",
 			TemporaryFolder: "/tmp/",
 		}), nil),
-		inspection_task.NewInspectionTask(debugTaskImplID("neverend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("neverend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			tp.Update(0.5, "test")
 			select {
 			case <-time.After(time.Hour * time.Duration(1000000)):
@@ -114,7 +114,7 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 				return nil, nil
 			}
 		}, inspection_task.InspectionTypeLabel("foo", "bar", "qux")),
-		inspection_task.NewInspectionTask(debugTaskImplID("errorend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (any, error) {
+		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("errorend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (any, error) {
 			return nil, fmt.Errorf("test error")
 		}, inspection_task.InspectionTypeLabel("foo", "bar", "qux")),
 		form.NewTextFormTaskBuilder(debugTaskImplID("foo-input"), 0, "A input field for foo").WithValidator(func(ctx context.Context, value string) (string, error) {
@@ -125,16 +125,16 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 		}).Build(inspection_task.InspectionTypeLabel("foo")),
 		task_test.StubTask(gcp_task.TimeZoneShiftInputTask, time.UTC, nil),
 		form.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspection_task.InspectionTypeLabel("bar")),
-		inspection_task.NewInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo1-value", nil
 		}, inspection_task.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, false, "foo")),
-		inspection_task.NewInspectionTask(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-foo2-value", nil
 		}, inspection_task.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, false, "foo")),
-		inspection_task.NewInspectionTask(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
 		}, inspection_task.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, false, "bar")),
-		inspection_task.NewInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
 		}, inspection_task.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, false, "qux")),
 		ioconfig.TestIOConfig,
@@ -357,7 +357,8 @@ func TestApiResponses(t *testing.T) {
 				}
 			},
 			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"invalid value","hintType":"error","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text"}],"query":[]}}`, "plan"),
-		}, {
+		},
+		{
 			// 010
 			// Attempting to access non started task result
 			ExpectedCode:  400,
@@ -367,6 +368,14 @@ func TestApiResponses(t *testing.T) {
 		},
 		{
 			// 011
+			// Attempting to access non started task result
+			ExpectedCode:  400,
+			RequestMethod: "HEAD",
+			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/data",
+			BodyValidator: bodyCompareWithStringExpectedValue("this task is not yet started"),
+		},
+		{
+			// 012
 			// Attempting to access non started task metadata
 			ExpectedCode:  400,
 			RequestMethod: "GET",
@@ -374,7 +383,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue("this task is not yet started"),
 		},
 		{
-			// 012
+			// 013
 			// Attempting to cancel non started task result
 			ExpectedCode:  400,
 			RequestMethod: "POST",
@@ -382,7 +391,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue("this task is not yet started"),
 		},
 		{
-			// 013
+			// 014
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/run",
@@ -395,20 +404,20 @@ func TestApiResponses(t *testing.T) {
 			WaitAfter:     time.Second,
 		},
 		{
-			// 014
+			// 015
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks",
 			BodyValidator: taskCompare("task-1", `{"error":{"errorMessages":[]},"progress":{"phase":"DONE","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"2 of 2 tasks complete","percentage":1}}}`, "header"),
 		},
 		{
-			// 015
+			// 016
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/metadata",
 		},
 		{
-			// 016
+			// 017
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/data",
@@ -419,7 +428,19 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 017
+			// 018
+			ExpectedCode:  200,
+			RequestMethod: "HEAD",
+			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/data",
+			BodyValidator: func(t *testing.T, body string, stat map[string]string) {
+				if len(body) > 0 {
+					// RFC 9110 (https://www.ietf.org/rfc/rfc9110.txt) - 9.3.2. HEAD
+					t.Errorf("HEAD shouldn't have any body data\n%s", body)
+				}
+			},
+		},
+		{
+			// 019
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/data?start=1",
@@ -430,7 +451,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 018
+			// 020
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/data?start=1&maxSize=1",
@@ -441,13 +462,13 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 019
+			// 021
 			ExpectedCode:  400,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-1>/cancel",
 		},
 		{
-			// 020
+			// 022
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/types/bar",
@@ -461,7 +482,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 021
+			// 023
 			ExpectedCode:  202,
 			RequestMethod: "PUT",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-2>/features",
@@ -475,7 +496,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue(`ok`),
 		},
 		{
-			// 022
+			// 024
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-2>/run",
@@ -486,40 +507,48 @@ func TestApiResponses(t *testing.T) {
 			WaitAfter:     time.Second,
 		},
 		{
-			// 023
+			// 025
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks",
 			BodyValidator: taskCompare("task-2", `{"error":{"errorMessages":[]},"progress":{"phase":"RUNNING","progresses":[{"id":"neverend#default","indeterminate":false,"label":"neverend#default","message":"test","percentage":0.5}],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"0 of 3 tasks complete","percentage":0}}}`, "header"),
 		},
 		{
-			// 024
+			// 026
 			ExpectedCode:  400,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-2>/data",
 			BodyValidator: bodyCompareWithStringExpectedValue("this task runner hasn't finished yet"),
 		},
 		{
-			// 025
+			// 027
+			ExpectedCode:  400,
+			RequestMethod: "HEAD",
+			RequestPath:   "/foo/api/v2/inspection/tasks/<task-2>/data",
+			BodyValidator: bodyCompareWithStringExpectedValue("this task runner hasn't finished yet"),
+		},
+		{
+			// 028
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-2>/metadata",
 		},
 		{
-			// 026
+			// 029
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-2>/cancel",
 			WaitAfter:     time.Second,
 		},
 		{
-			// 027
+			// 030
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks",
 			BodyValidator: taskCompare("task-2", `{"error":{"errorMessages":[]},"progress":{"phase":"CANCELLED","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"1 of 3 tasks complete","percentage":0.33333334}}}`, "header"),
-		}, {
-			// 028
+		},
+		{
+			// 031
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/types/qux",
@@ -533,7 +562,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 029
+			// 032
 			ExpectedCode:  202,
 			RequestMethod: "PUT",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-3>/features",
@@ -547,7 +576,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue(`ok`),
 		},
 		{
-			// 030
+			// 033
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/inspection/tasks/<task-3>/run",
@@ -558,14 +587,14 @@ func TestApiResponses(t *testing.T) {
 			WaitAfter:     time.Second,
 		},
 		{
-			// 031
+			// 034
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/inspection/tasks",
 			BodyValidator: taskCompare("task-3", `{"error":{"errorMessages":[]},"progress":{"phase":"ERROR","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"1 of 3 tasks complete","percentage":0.33333334}}}`, "header"),
 		},
 		{
-			// 032
+			// 035
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/popup",
@@ -580,7 +609,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 033
+			// 036
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/popup",
@@ -594,7 +623,7 @@ func TestApiResponses(t *testing.T) {
 			),
 		},
 		{
-			// 034
+			// 037
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/popup/validate",
@@ -611,7 +640,7 @@ func TestApiResponses(t *testing.T) {
 			),
 		},
 		{
-			// 035
+			// 038
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/popup/validate",
@@ -628,7 +657,7 @@ func TestApiResponses(t *testing.T) {
 			),
 		},
 		{
-			// 036
+			// 039
 			ExpectedCode:  400,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/popup/validate",
@@ -641,7 +670,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue("given id is not matching with the current popup"),
 		},
 		{
-			// 037
+			// 040
 			ExpectedCode:  400,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/popup/answer",
@@ -654,7 +683,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue("given id is not matching with the current popup"),
 		},
 		{
-			// 038
+			// 041
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v2/popup/answer",
@@ -670,14 +699,14 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 039
+			// 042
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/popup",
 			BodyValidator: bodyCompareWithStringExpectedValue(""),
 		},
 		{
-			// 040
+			// 043
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v2/config",

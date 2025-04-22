@@ -13,4 +13,3 @@ go-cover.output
 .terraform/
 
 node_modules
-package-lock.json

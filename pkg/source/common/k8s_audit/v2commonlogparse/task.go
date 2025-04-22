@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var Task = inspection_task.NewInspectionTask(common_k8saudit_taskid.CommonLogParseTaskID, []taskid.UntypedTaskReference{
+var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.CommonLogParseTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonAuitLogSource,
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*types.AuditLogParserInput, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {

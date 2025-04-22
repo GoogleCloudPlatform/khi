@@ -43,6 +43,10 @@ type PutInspectionTaskFeatureRequest struct {
 	Features []string `json:"features"`
 }
 
+type PatchInspectionTaskFeatureRequest struct {
+	Features map[string]bool `json:"features"`
+}
+
 type PutInspectionTaskFeatureResponse struct {
 }
 

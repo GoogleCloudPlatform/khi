@@ -41,7 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var OSSLogFileReader = inspection_task.NewInspectionTask(
+var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFileReader,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.GetTaskReference(),
@@ -112,7 +112,7 @@ var OSSLogFileReader = inspection_task.NewInspectionTask(
 	},
 )
 
-var OSSEventLogFilter = inspection_task.NewInspectionTask(
+var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
@@ -134,7 +134,7 @@ var OSSEventLogFilter = inspection_task.NewInspectionTask(
 		return eventLogs, nil
 	})
 
-var OSSNonEventLogFilter = inspection_task.NewInspectionTask(
+var OSSNonEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),

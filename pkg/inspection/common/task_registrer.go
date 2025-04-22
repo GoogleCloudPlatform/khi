@@ -17,11 +17,11 @@ package inspection_common
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 )
 
 func PrepareInspectionServer(rootServer *inspection.InspectionTaskServer) error {
-	err := rootServer.AddTask(task.InspectionTimeProducer)
+	err := rootServer.AddTask(inspection_task.InspectionTimeProducer)
 	if err != nil {
 		return err
 	}
@@ -31,12 +31,12 @@ func PrepareInspectionServer(rootServer *inspection.InspectionTaskServer) error 
 		return err
 	}
 
-	err = rootServer.AddTask(task.BuilderGeneratorTask)
+	err = rootServer.AddTask(inspection_task.BuilderGeneratorTask)
 	if err != nil {
 		return err
 	}
 
-	err = rootServer.AddTask(task.ReaderFactoryGeneratorTask)
+	err = rootServer.AddTask(inspection_task.ReaderFactoryGeneratorTask)
 	if err != nil {
 		return err
 	}

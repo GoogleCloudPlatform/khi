@@ -19,7 +19,7 @@ import {
   GetInspectionTypesResponse,
   CreateInspectionTaskResponse,
   GetInspectionTaskFeatureResponse,
-  PutInspectionTaskFeatureRequest,
+  PatchInspectionTaskFeatureRequest,
   InspectionFeature,
   InspectionDryRunResponse,
   GetInspectionTasksResponse,
@@ -149,12 +149,15 @@ export class BackendAPIImpl implements BackendAPI {
     return this.http.get<GetInspectionTaskFeatureResponse>(url);
   }
 
-  public setEnabledFeatures(taskId: string, featureIds: string[]) {
+  public setEnabledFeatures(
+    taskId: string,
+    featureMap: { [key: string]: boolean },
+  ) {
     const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/features`;
-    const request: PutInspectionTaskFeatureRequest = {
-      features: featureIds,
+    const request: PatchInspectionTaskFeatureRequest = {
+      features: featureMap,
     };
-    return this.http.put(url, request, {
+    return this.http.patch(url, request, {
       responseType: 'text',
     }) as Observable<unknown> as Observable<void>;
   }
@@ -328,9 +331,9 @@ export class InspectionTaskClient {
       .subscribe((features) => this.features.next(features));
   }
 
-  public setFeatures(featureIds: string[]) {
+  public setFeatures(featuresMap: { [key: string]: boolean }) {
     return this.api
-      .setEnabledFeatures(this.taskId, featureIds)
+      .setEnabledFeatures(this.taskId, featuresMap)
       .subscribe(() => {
         this.downloadFeatureList();
       });

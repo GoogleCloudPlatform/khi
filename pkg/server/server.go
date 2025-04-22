@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
@@ -162,6 +162,26 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			}
 			ctx.String(http.StatusAccepted, "ok")
 		})
+		// PATCH /api/v2/inspection/tasks/<task-id>/features
+		router.PATCH("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
+			taskId := ctx.Param("taskId")
+			task := inspectionServer.GetTask(taskId)
+			if task == nil {
+				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				return
+			}
+			var reqBody PatchInspectionTaskFeatureRequest
+			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+			err := task.UpdateFeatureMap(reqBody.Features)
+			if err != nil {
+				ctx.String(http.StatusInternalServerError, err.Error())
+				return
+			}
+			ctx.String(http.StatusAccepted, "ok")
+		})
 		// GET /api/v2/inspection/tasks/<task-id>/features
 		router.GET("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
 			taskId := ctx.Param("taskId")
@@ -192,7 +212,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
-			result, err := currentTask.DryRun(ctx, &task.InspectionRequest{
+			result, err := currentTask.DryRun(ctx, &inspection_task.InspectionRequest{
 				Values: reqBody,
 			})
 			if err != nil {
@@ -214,7 +234,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
-			err := currentTask.Run(ctx, &task.InspectionRequest{
+			err := currentTask.Run(ctx, &inspection_task.InspectionRequest{
 				Values: reqBody,
 			})
 			if err != nil {
@@ -254,7 +274,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.JSON(http.StatusOK, result)
 		})
 
-		router.GET("/api/v2/inspection/tasks/:taskId/data", func(ctx *gin.Context) {
+		inspectionTaskDataHandler := func(ctx *gin.Context) {
 			taskId := ctx.Param("taskId")
 			currentTask := inspectionServer.GetTask(taskId)
 			if currentTask == nil {
@@ -294,14 +314,24 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
+			defer inspectionDataReader.Close()
 			fileSize, err := result.ResultStore.GetInspectionResultSizeInBytes()
 			if err != nil {
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
-			ctx.DataFromReader(http.StatusOK, int64(math.Min(float64(maxSize), float64(fileSize-int(rangeStart)))), "application/octet-stream", inspectionDataReader, map[string]string{})
-			result.ResultStore.Close()
-		})
+			contentType := "application/octet-stream"
+			contentLength := int64(math.Min(float64(maxSize), float64(fileSize-int(rangeStart))))
+			if ctx.Request.Method == http.MethodHead {
+				ctx.Header("Content-Type", contentType)
+				ctx.Header("Content-Length", strconv.Itoa(int(contentLength)))
+				ctx.Status(http.StatusOK)
+			} else {
+				ctx.DataFromReader(http.StatusOK, contentLength, contentType, inspectionDataReader, map[string]string{})
+			}
+		}
+		router.HEAD("/api/v2/inspection/tasks/:taskId/data", inspectionTaskDataHandler)
+		router.GET("/api/v2/inspection/tasks/:taskId/data", inspectionTaskDataHandler)
 
 		router.GET("/api/v2/popup", func(ctx *gin.Context) {
 			currentPopup := popup.Instance.GetCurrentPopup()

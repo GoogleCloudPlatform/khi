@@ -40,7 +40,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - その他環境
-  - （近日公開予定）JSONlines形式のkube-apiserver監査ログ
+  - JSONlines形式のkube-apiserver監査ログ ([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](./docs/en/oss.md))
 
 ### ログバックエンド
 
@@ -48,7 +48,7 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
   - Cloud Logging（Google Cloud上のすべてのクラスタ）
 
 - その他環境
-  - （近日公開予定）ファイルによるログアップロード
+  - ファイルによるログアップロード([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](./docs/en/oss.md))
 
 ## 実行方法
 ### Dockerイメージから実行
@@ -155,6 +155,10 @@ Kubernetes History Inspector (KHI) は、Kubernetesクラスタのログ可視�
 1. 「データアクセス監査ログの構成」以下の、「サービス」列から「Kubernetes Engine API」を選択します。
 1. 「ログタイプ」タブで、「データ書き込み」を選択します。
 1. 「保存」をクリックします。
+
+### OSS Kubernetes
+
+[Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ](./docs/en/oss.md)を参照してください。
 
 ## ユーザーガイド
 

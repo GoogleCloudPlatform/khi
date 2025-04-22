@@ -15,19 +15,16 @@
 package inspectiondata
 
 import (
-	"fmt"
 	"io"
 	"os"
-	"sync"
 )
 
 // Store persists and read the inspection result.
 // The result data format is determined by Serializer, thus Store just regard them as []byte.
 type Store interface {
-	GetWriter() (io.Writer, error)
-	GetReader() (io.Reader, error)
-	GetRangeReader(start, maxLength int64) (io.Reader, error)
-	Close() error
+	GetWriter() (io.WriteCloser, error)
+	GetReader() (io.ReadCloser, error)
+	GetRangeReader(start, maxLength int64) (io.ReadCloser, error)
 	GetInspectionResultSizeInBytes() (int, error)
 }
 
@@ -35,8 +32,6 @@ type Store interface {
 // It persist task result as a file in the data folder and read it from there.
 type FileSystemStore struct {
 	filePath string
-	lock     sync.Mutex
-	file     *os.File
 }
 
 var _ Store = (*FileSystemStore)(nil)
@@ -44,48 +39,40 @@ var _ Store = (*FileSystemStore)(nil)
 func NewFileSystemInspectionResultRepository(filePath string) *FileSystemStore {
 	return &FileSystemStore{
 		filePath: filePath,
-		lock:     sync.Mutex{},
 	}
 }
 
-func (r *FileSystemStore) GetWriter() (io.Writer, error) {
-	r.lock.Lock()
+func (r *FileSystemStore) GetWriter() (io.WriteCloser, error) {
 	file, err := os.Create(r.filePath)
 	if err != nil {
 		return nil, err
 	}
-	r.file = file
-	return r.file, nil
+	return file, nil
 }
 
-func (r *FileSystemStore) GetReader() (io.Reader, error) {
-	r.lock.Lock()
+func (r *FileSystemStore) GetReader() (io.ReadCloser, error) {
 	file, err := os.Open(r.filePath)
 	if err != nil {
 		return nil, err
 	}
-	r.file = file
-	return r.file, nil
+	return file, nil
 }
 
 // GetRangeReader returns a reader only reading specified range.
-func (r *FileSystemStore) GetRangeReader(start int64, maxLength int64) (io.Reader, error) {
-	r.lock.Lock()
-	file, err := os.Open(r.filePath)
+func (r *FileSystemStore) GetRangeReader(start int64, maxLength int64) (io.ReadCloser, error) {
+	f, err := os.Open(r.filePath)
 	if err != nil {
 		return nil, err
 	}
-	r.file = file
-	return io.NewSectionReader(file, start, maxLength), nil
-}
-
-func (r *FileSystemStore) Close() error {
-	if r.file != nil {
-		err := r.file.Close()
-		r.lock.Unlock()
-		return err
-	}
-	return fmt.Errorf("no file open yet")
+	reader := io.NewSectionReader(f, start, maxLength)
+	// io.NewSectionReader doesn't implement Close, we want close `file`.
+	return struct {
+		io.Reader
+		io.Closer
+	}{
+		reader,
+		f,
+	}, nil
 }
 
 func (r *FileSystemStore) GetInspectionResultSizeInBytes() (int, error) {

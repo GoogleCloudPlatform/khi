@@ -26,7 +26,7 @@ func Subset[T any](taskSet *TaskSet, mapFilter filter.TypedMapFilter[T]) *TaskSe
 	}
 
 	filteredTasks := filter.FilterTypedMapCollection(taskSet.GetAll(), getMap, mapFilter)
-	result, _ := NewSet(filteredTasks)
+	result, _ := NewTaskSet(filteredTasks)
 	return result
 }
 

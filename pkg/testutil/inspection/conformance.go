@@ -38,11 +38,11 @@ func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, pr
 
 	for _, targetTask := range testServer.GetAllRegisteredTasks() {
 		t.Run(fmt.Sprintf("%s-only-contains-%s-must-be-resolvable", label, targetTask.UntypedID().String()), func(t *testing.T) {
-			availableSet, err := task.NewSet(testServer.GetAllRegisteredTasks())
+			availableSet, err := task.NewTaskSet(testServer.GetAllRegisteredTasks())
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}
-			originalSet, err := task.NewSet([]task.UntypedTask{targetTask})
+			originalSet, err := task.NewTaskSet([]task.UntypedTask{targetTask})
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}

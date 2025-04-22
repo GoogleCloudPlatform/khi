@@ -81,15 +81,15 @@
             </mat-card-content>
           </mat-card>
         </div>
-        <div
-          class="features-footer"
-          *ngIf="currentEnabledFeatures | async; let features"
-        >
-          <p *ngIf="features.size === 0" class="errmsg-no-selected-feature">
+        <div class="features-footer">
+          <p
+            *ngIf="(featuresEnabled | async) === false"
+            class="errmsg-no-selected-feature"
+          >
             Select at least a feature
           </p>
           <button
-            [disabled]="features.size === 0"
+            [disabled]="(featuresEnabled | async) === false"
             mat-flat-button
             color="primary"
             matStepperNext

@@ -45,7 +45,7 @@ func TestLocalRunner_SingleTask(t *testing.T) {
 		return taskResult, nil
 	})
 
-	taskSet, err := NewSet([]UntypedTask{task})
+	taskSet, err := NewTaskSet([]UntypedTask{task})
 	if err != nil {
 		t.Fatalf("Failed to create task set: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 		return "result2", nil
 	})
 
-	taskSet, err := NewSet([]UntypedTask{task1, task2})
+	taskSet, err := NewTaskSet([]UntypedTask{task1, task2})
 	if err != nil {
 		t.Fatalf("Failed to create task set: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestLocalRunner_TaskError(t *testing.T) {
 		return "result2", nil
 	})
 
-	taskSet, err := NewSet([]UntypedTask{task1, task2})
+	taskSet, err := NewTaskSet([]UntypedTask{task1, task2})
 	if err != nil {
 		t.Fatalf("Failed to create task set: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestLocalRunner_ContextCancellation(t *testing.T) {
 		}
 	})
 
-	taskSet, err := NewSet([]UntypedTask{task})
+	taskSet, err := NewTaskSet([]UntypedTask{task})
 	if err != nil {
 		t.Fatalf("Failed to create task set: %v", err)
 	}

@@ -21,6 +21,7 @@ import (
 	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gcpcommon"
 	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
 	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
@@ -46,12 +47,12 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	if err != nil {
 		return err
 	}
-
-	err = inspectionServer.AddTask(task.AutocompleteLocationTask)
+  
+  err = inspectionServer.AddTask(gcpcommon.HeaderSuggestedFileNameTask)
 	if err != nil {
-		return nil
+		return err
 	}
-
+  
 	err = inspectionServer.AddTask(gke.AutocompleteClusterNames)
 	if err != nil {
 		return err
@@ -76,6 +77,11 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	if err != nil {
 		return err
 	}
+  
+  err = inspectionServer.AddTask(task.AutocompleteLocationTask)
+	if err != nil {
+		return nil
+  }
 
 	// Form input related tasks
 	err = inspectionServer.AddTask(task.TimeZoneShiftInputTask)

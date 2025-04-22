@@ -205,7 +205,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 
 // getDependentQueryTasks returns the list of query tasks required by the feature task.
 func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, featureTask task.UntypedTask) ([]task.UntypedTask, error) {
-	resolveSource, err := task.NewSet([]task.UntypedTask{featureTask})
+	resolveSource, err := task.NewTaskSet([]task.UntypedTask{featureTask})
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +218,7 @@ func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, feature
 
 // getDependentFormTasks returns the list of form tasks required by the feature task.
 func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureTask task.UntypedTask) ([]task.UntypedTask, error) {
-	resolveSource, err := task.NewSet([]task.UntypedTask{featureTask})
+	resolveSource, err := task.NewTaskSet([]task.UntypedTask{featureTask})
 	if err != nil {
 		return nil, err
 	}

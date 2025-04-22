@@ -59,11 +59,11 @@ func RunTask[T any](baseContext context.Context, task task.Task[T], taskDependen
 func RunTaskWithDependency[T any](baseContext context.Context, mainTask task.Task[T], dependencies []task.UntypedTask) (T, error) {
 	taskCtx := prepareTaskContext(baseContext, mainTask)
 
-	taskSet, err := task.NewSet([]task.UntypedTask{mainTask})
+	taskSet, err := task.NewTaskSet([]task.UntypedTask{mainTask})
 	if err != nil {
 		return *new(T), err
 	}
-	allTaskSet, err := task.NewSet(dependencies)
+	allTaskSet, err := task.NewTaskSet(dependencies)
 	if err != nil {
 		return *new(T), err
 	}

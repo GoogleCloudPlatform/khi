@@ -63,7 +63,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		common_k8saudit_taskid.LogConvertTaskID,
 		common_k8saudit_taskid.ManifestGenerateTaskID,
 	}
-	newTask := inspection_task.NewInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
+	newTask := inspection_task.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return struct{}{}, nil
 		}
@@ -128,7 +128,7 @@ func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, 
 		}
 		recorderTaskIds = append(recorderTaskIds, recorder.UntypedID().GetUntypedReference())
 	}
-	waiterTask := inspection_task.NewInspectionTask(r.taskID, recorderTaskIds, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (struct{}, error) {
+	waiterTask := inspection_task.NewInspectionTask(r.taskID, recorderTaskIds, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (struct{}, error) {
 		return struct{}{}, nil
 	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, inspectionTypes...))
 	err := server.AddTask(waiterTask)
