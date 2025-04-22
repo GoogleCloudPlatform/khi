@@ -52,11 +52,10 @@ export class BackendConnectionServiceImpl implements BackendConnectionService {
    */
   static readonly LIST_INSPECTION_TYPES_RETRY_TIME = 1000;
 
-  private inspectionTypesObservable = interval(
-    BackendConnectionServiceImpl.LIST_INSPECTION_TYPES_RETRY_TIME,
-  ).pipe(
-    exhaustMap(() => this.backendApi.getInspectionTypes()),
-    retry(),
+  private inspectionTypesObservable = this.backendApi.getInspectionTypes().pipe(
+    retry({
+      delay: BackendConnectionServiceImpl.LIST_INSPECTION_TYPES_RETRY_TIME,
+    }),
     shareReplay({
       bufferSize: 1,
       // refCount is explcitly false to prevent waiting the next poll when a new subscriber added when there is no subscriber registered.
