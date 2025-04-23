@@ -206,7 +206,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
-			taskId, err := inspectionServer.CreateInspection(*parameters.Job.InspectionType)
+			inspectionID, err := inspectionServer.CreateInspection(*parameters.Job.InspectionType)
 			if err != nil {
 				slog.Error(fmt.Sprintf("Failed to create an inspection with type %s\n%s", *parameters.Job.InspectionType, err.Error()))
 				exitCh <- 1
@@ -214,7 +214,7 @@ func run() int {
 			}
 
 			features := strings.Split(*parameters.Job.InspectionFeatures, ",")
-			t := inspectionServer.GetTask(taskId)
+			t := inspectionServer.GetInspection(inspectionID)
 			// When the features env has `ALL`, it enables every features being available
 			if len(features) == 1 && strings.ToUpper(features[0]) == "ALL" {
 				availableFeatures, err := t.FeatureList()

@@ -17,8 +17,8 @@
 import { Observable } from 'rxjs';
 import {
   GetConfigResponse,
-  GetInspectionTaskFeatureResponse,
-  GetInspectionTasksResponse,
+  GetInspectionFeatureResponse,
+  GetInspectionResponse,
   GetInspectionTypesResponse,
   InspectionDryRunRequest,
   InspectionDryRunResponse,
@@ -28,7 +28,7 @@ import {
   PopupAnswerValidationResult,
   PopupFormRequest,
 } from '../../common/schema/api-types';
-import { InspectionTaskClient } from './backend-api.service';
+import { InspectionClient } from './backend-api.service';
 import { InjectionToken } from '@angular/core';
 import { UploadToken } from 'src/app/common/schema/form-types';
 import { HttpEvent } from '@angular/common/http';
@@ -43,110 +43,115 @@ export const BACKEND_API = new InjectionToken<BackendAPI>('BACKEND_API');
 export interface BackendAPI {
   /**
    * Get configuration applied on this frontend.
-   * Expected called endpoint: GET /api/v2/config
+   * Expected called endpoint: GET /api/v3/config
    */
   getConfig(): Observable<GetConfigResponse>;
   /**
    * Get the list of inspection types.
-   * Expected called endpoint: GET /api/v2/inspection/types
+   * Expected called endpoint: GET /api/v3/inspection/types
    */
   getInspectionTypes(): Observable<GetInspectionTypesResponse>;
 
   /**
    * List the status of tasks.
-   * Expected called endpoint: GET /api/v2/inspection/tasks
+   * Expected called endpoint: GET /api/v3/inspection
    */
-  getTaskStatuses(): Observable<GetInspectionTasksResponse>;
+  getInspections(): Observable<GetInspectionResponse>;
 
   /**
    * Create an inspection.
-   * Expected called endpoint: POST /api/v2/inspection/types/<inspection-type>
+   * Expected called endpoint: POST /api/v3/inspection/types/<inspection-type>
    *
    * This function will return a http client for operating the generated task instead of returning the API response directly.
    *
    * @param inspectionTypeId the type of inspection id listed in the result of `getInspectionTypes()`
    */
-  createInspection(inspectionTypeId: string): Observable<InspectionTaskClient>;
+  createInspection(inspectionTypeId: string): Observable<InspectionClient>;
 
   /**
    * List the features selectable of this task.
-   * Expected called endpoint: GET /api/v2/inspection/tasks/<task-id>/features
+   * Expected called endpoint: GET /api/v3/inspection/<inspection-id>/features
    *
-   * @param taskId inspection task ID to list the feature
+   * @param inspectionID inspection ID to list the feature
    */
-  getFeatureList(taskId: string): Observable<GetInspectionTaskFeatureResponse>;
+  getFeatureList(
+    inspectionID: string,
+  ): Observable<GetInspectionFeatureResponse>;
 
   /**
    * Set the selected features of this task.
-   * Expected called endpoint: PUT /api/v2/inspection/tasks/<task-id>/features
+   * Expected called endpoint: PUT /api/v3/inspection/<inspection-id>/features
    *
-   * @param taskId inspection task ID to set the selected feature
+   * @param inspectionID inspection ID to set the selected feature
    * @param featureStatusMap Map of features mapped against true if enabled
    */
   setEnabledFeatures(
-    taskId: string,
+    inspectionID: string,
     featureStatusMap: { [key: string]: boolean },
   ): Observable<void>;
 
   /**
    * Get the metadata of an inspection with taskId.
-   * Expected called endpoint: GET /api/v2/inspection/tasks/<task-id>/metadata
+   * Expected called endpoint: GET /api/v3/inspection/<inspection-id>/metadata
    *
-   * @param taskId inspection task ID to download the metadata
+   * @param inspectionID inspection ID to download the metadata
    */
   getInspectionMetadata(
-    taskId: string,
+    inspectionID: string,
   ): Observable<InspectionMetadataOfRunResult>;
 
   /**
    * Request running a task.
-   * Expected called endpoint: POST /api/v2/inspection/tasks/<task-id>/run
+   * Expected called endpoint: POST /api/v3/inspection/<inspection-id>/run
    *
-   * @param taskId inspection taskId to run
+   * @param inspectionID inspection taskId to run
    * @param request parameter of the task
    */
-  runTask(taskId: string, request: InspectionRunRequest): Observable<void>;
+  runInspection(
+    inspectionID: string,
+    request: InspectionRunRequest,
+  ): Observable<void>;
 
   /**
    * Request dry run a task.
-   * Expected called endpoint: POST /api/v2/inspection/tasks/<task-id>/dryrun
-   * @param taskId inspection taskId to dryrun
+   * Expected called endpoint: POST /api/v3/inspection/<inspection-id>/dryrun
+   * @param inspectionID inspection taskId to dryrun
    * @param request parameter of the task
    */
-  dryRunTask(
-    taskId: string,
+  dryRunInspection(
+    inspectionID: string,
     request: InspectionDryRunRequest,
   ): Observable<InspectionDryRunResponse>;
 
   /**
    * Get the inspection data with taskId.
-   * Expected called endpoint: GET /api/v2/inspection/tasks/<task-id>/data
+   * Expected called endpoint: GET /api/v3/inspection/<inspection-id>/data
    *
-   * @param taskId inspection task ID to download the result.
+   * @param inspectionID inspection ID to download the result.
    * @param reporter task progress reporter.
    */
   getInspectionData(
-    taskId: string,
+    inspectionID: string,
     reporter: DownloadProgressReporter,
   ): Observable<Blob | null>;
 
   /**
    * Cancel the inspection task.
-   * Expected called endpoint: POST /api/v2/inspection/tasks/<task-id>/cancel
+   * Expected called endpoint: POST /api/v3/inspection/<inspection-id>/cancel
    *
-   * @param taskId inspection task ID to cancel
+   * @param inspectionID inspection ID to cancel
    */
-  cancelInspection(taskId: string): Observable<void>;
+  cancelInspection(inspectionID: string): Observable<void>;
 
   /**
    * Get the current popup request.
-   * Expected called endpoint: GET /api/v2/popup
+   * Expected called endpoint: GET /api/v3/popup
    */
   getPopup(): Observable<PopupFormRequest | null>;
 
   /**
    * Validate the request for the current popup
-   * Expected called endpoint: POST /api/v2/popup/validate
+   * Expected called endpoint: POST /api/v3/popup/validate
    */
   validatePopupAnswer(
     answer: PopupAnswerResponse,
@@ -154,7 +159,7 @@ export interface BackendAPI {
 
   /**
    * Answer the current request for the popup
-   * Expected called endpoint: POST /api/v2/popup/answer
+   * Expected called endpoint: POST /api/v3/popup/answer
    */
   answerPopup(answer: PopupAnswerResponse): Observable<void>;
 

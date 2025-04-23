@@ -17,12 +17,12 @@
 import { Injectable } from '@angular/core';
 import {
   GetInspectionTypesResponse,
-  CreateInspectionTaskResponse,
-  GetInspectionTaskFeatureResponse,
-  PatchInspectionTaskFeatureRequest,
+  CreateInspectionResponse,
+  GetInspectionFeatureResponse,
+  PatchInspectionFeatureRequest,
   InspectionFeature,
   InspectionDryRunResponse,
-  GetInspectionTasksResponse,
+  GetInspectionResponse,
   InspectionDryRunRequest,
   InspectionRunRequest,
   PopupAnswerResponse,
@@ -70,6 +70,8 @@ import { UploadToken } from 'src/app/common/schema/form-types';
   providedIn: 'root',
 })
 export class BackendAPIImpl implements BackendAPI {
+  private readonly API_BASE_PATH = '/api/v3';
+
   private readonly MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE = 16 * 1024 * 1024;
 
   /**
@@ -85,9 +87,9 @@ export class BackendAPIImpl implements BackendAPI {
     private http: HttpClient,
     private readonly viewState: ViewStateService,
   ) {
-    this.baseUrl = BackendAPIImpl.getServerBasePath();
+    this.baseUrl = BackendAPIImpl.getServerBasePath() + this.API_BASE_PATH;
 
-    const getConfigUrl = this.baseUrl + '/api/v2/config';
+    const getConfigUrl = this.baseUrl + '/config';
     this.getConfigObservable = this.http
       .get<GetConfigResponse>(getConfigUrl)
       .pipe(
@@ -117,44 +119,40 @@ export class BackendAPIImpl implements BackendAPI {
   }
 
   public getInspectionTypes() {
-    const url = this.baseUrl + '/api/v2/inspection/types';
+    const url = this.baseUrl + '/inspection/types';
     return this.http.get<GetInspectionTypesResponse>(url);
   }
 
-  public getTaskStatuses() {
-    const url = this.baseUrl + '/api/v2/inspection/tasks';
-    return this.http.get<GetInspectionTasksResponse>(url);
+  public getInspections() {
+    const url = this.baseUrl + '/inspection';
+    return this.http.get<GetInspectionResponse>(url);
   }
 
   public createInspection(
     inspectionTypeId: string,
-  ): Observable<InspectionTaskClient> {
-    const url = this.baseUrl + '/api/v2/inspection/types/' + inspectionTypeId;
+  ): Observable<InspectionClient> {
+    const url = this.baseUrl + '/inspection/types/' + inspectionTypeId;
     return this.http
-      .post<CreateInspectionTaskResponse>(url, null)
+      .post<CreateInspectionResponse>(url, null)
       .pipe(
         map(
           (response) =>
-            new InspectionTaskClient(
-              this,
-              response.inspectionId,
-              this.viewState,
-            ),
+            new InspectionClient(this, response.inspectionID, this.viewState),
         ),
       );
   }
 
-  public getFeatureList(taskId: string) {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/features`;
-    return this.http.get<GetInspectionTaskFeatureResponse>(url);
+  public getFeatureList(inspectionID: string) {
+    const url = this.baseUrl + `/inspection/${inspectionID}/features`;
+    return this.http.get<GetInspectionFeatureResponse>(url);
   }
 
   public setEnabledFeatures(
-    taskId: string,
+    inspectionID: string,
     featureMap: { [key: string]: boolean },
   ) {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/features`;
-    const request: PatchInspectionTaskFeatureRequest = {
+    const url = this.baseUrl + `/inspection/${inspectionID}/features`;
+    const request: PatchInspectionFeatureRequest = {
       features: featureMap,
     };
     return this.http.patch(url, request, {
@@ -162,30 +160,33 @@ export class BackendAPIImpl implements BackendAPI {
     }) as Observable<unknown> as Observable<void>;
   }
 
-  public getInspectionMetadata(taskId: string) {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/metadata`;
+  public getInspectionMetadata(inspectionID: string) {
+    const url = this.baseUrl + `/inspection/${inspectionID}/metadata`;
     return this.http.get<InspectionMetadataOfRunResult>(url);
   }
 
-  public runTask(
-    taskId: string,
+  public runInspection(
+    inspectionID: string,
     request: InspectionRunRequest,
   ): Observable<void> {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/run`;
+    const url = this.baseUrl + `/inspection/${inspectionID}/run`;
     return this.http
       .post(url, request, { responseType: 'text' })
       .pipe(map(() => void 0));
   }
 
-  public dryRunTask(
-    taskId: string,
+  public dryRunInspection(
+    inspectionID: string,
     request: InspectionDryRunRequest,
   ): Observable<InspectionDryRunResponse> {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/dryrun`;
+    const url = this.baseUrl + `/inspection/${inspectionID}/dryrun`;
     return this.http.post<InspectionDryRunResponse>(url, request);
   }
 
-  public getInspectionData(taskId: string, reporter: DownloadProgressReporter) {
+  public getInspectionData(
+    inspectionID: string,
+    reporter: DownloadProgressReporter,
+  ) {
     const receivedBuffers = [] as ArrayBuffer[];
     let loadedBytes = 0;
     const responseSubject = new ReplaySubject<Blob | null>(1);
@@ -214,7 +215,7 @@ export class BackendAPIImpl implements BackendAPI {
             new HttpRequest<ArrayBuffer>(
               'GET',
               this.getRangedDataURL(
-                taskId,
+                inspectionID,
                 loadedBytes,
                 this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
               ),
@@ -237,7 +238,7 @@ export class BackendAPIImpl implements BackendAPI {
       new HttpRequest<ArrayBuffer>(
         'GET',
         this.getRangedDataURL(
-          taskId,
+          inspectionID,
           0,
           this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
         ),
@@ -250,32 +251,32 @@ export class BackendAPIImpl implements BackendAPI {
   }
 
   private getRangedDataURL(
-    taskId: string,
+    inspectionID: string,
     startInBytes: number,
     maxSizeInBytes: number,
   ): string {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/data`;
+    const url = this.baseUrl + `/inspection/${inspectionID}/data`;
     return url + `?start=${startInBytes}&maxSize=${maxSizeInBytes}`;
   }
 
   public getPopup(): Observable<PopupFormRequest | null> {
-    const url = this.baseUrl + `/api/v2/popup`;
+    const url = this.baseUrl + `/popup`;
     return this.http.get<PopupFormRequest | null>(url);
   }
 
   public validatePopupAnswer(
     answer: PopupAnswerResponse,
   ): Observable<PopupAnswerValidationResult> {
-    const url = this.baseUrl + `/api/v2/popup/validate`;
+    const url = this.baseUrl + `/popup/validate`;
     return this.http.post<PopupAnswerValidationResult>(url, answer);
   }
   public answerPopup(answer: PopupAnswerResponse): Observable<void> {
-    const url = this.baseUrl + `/api/v2/popup/answer`;
+    const url = this.baseUrl + `/popup/answer`;
     return this.http.post(url, answer).pipe(map(() => {}));
   }
 
-  public cancelInspection(taskId: string) {
-    const url = this.baseUrl + `/api/v2/inspection/tasks/${taskId}/cancel`;
+  public cancelInspection(inspectionID: string) {
+    const url = this.baseUrl + `/inspection/${inspectionID}/cancel`;
     return this.http
       .post(url, null, { responseType: 'text' })
       .pipe(map(() => {}));
@@ -285,7 +286,7 @@ export class BackendAPIImpl implements BackendAPI {
     token: UploadToken,
     file: File,
   ): Observable<HttpEvent<unknown>> {
-    const url = this.baseUrl + `/api/v2/upload`;
+    const url = this.baseUrl + `/upload`;
     const formData = new FormData();
     formData.append('upload-token-id', token.id);
     formData.append('file', file, file.name);
@@ -296,7 +297,7 @@ export class BackendAPIImpl implements BackendAPI {
   }
 }
 
-export class InspectionTaskClient {
+export class InspectionClient {
   private static DRYRUN_DEBOUNCE_DURATION = 100;
 
   public features = new ReplaySubject<InspectionFeature[]>(1);
@@ -311,14 +312,14 @@ export class InspectionTaskClient {
   );
 
   public dryRunResult = this.dryRunParameter.pipe(
-    debounceTime(InspectionTaskClient.DRYRUN_DEBOUNCE_DURATION),
+    debounceTime(InspectionClient.DRYRUN_DEBOUNCE_DURATION),
     switchMap((param) => this.dryrunDirect(param)),
     shareReplay(1),
   );
 
   constructor(
     private readonly api: BackendAPI,
-    public readonly taskId: string,
+    public readonly inspectionID: string,
     private readonly viewState: ViewStateService,
   ) {
     this.downloadFeatureList();
@@ -326,14 +327,14 @@ export class InspectionTaskClient {
 
   public downloadFeatureList() {
     return this.api
-      .getFeatureList(this.taskId)
+      .getFeatureList(this.inspectionID)
       .pipe(map((r) => r.features))
       .subscribe((features) => this.features.next(features));
   }
 
   public setFeatures(featuresMap: { [key: string]: boolean }) {
     return this.api
-      .setEnabledFeatures(this.taskId, featuresMap)
+      .setEnabledFeatures(this.inspectionID, featuresMap)
       .subscribe(() => {
         this.downloadFeatureList();
       });
@@ -342,7 +343,7 @@ export class InspectionTaskClient {
   public run(request: InspectionRunRequest) {
     return this.getRunParameter(request).pipe(
       switchMap((request) => {
-        return this.api.runTask(this.taskId, request);
+        return this.api.runInspection(this.inspectionID, request);
       }),
       map(() => {}),
     );
@@ -358,7 +359,9 @@ export class InspectionTaskClient {
    */
   public dryrunDirect(request: InspectionDryRunRequest) {
     return this.getRunParameter(request).pipe(
-      switchMap((request) => this.api.dryRunTask(this.taskId, request)),
+      switchMap((request) =>
+        this.api.dryRunInspection(this.inspectionID, request),
+      ),
     );
   }
 
@@ -384,15 +387,15 @@ export class BackendAPIUtil {
    */
   public static downloadInspectionDataAsFile(
     api: BackendAPI,
-    taskId: string,
+    inspectionID: string,
     progress: ProgressDialogStatusUpdator,
   ) {
     progress.show();
-    return api.getInspectionMetadata(taskId).pipe(
+    return api.getInspectionMetadata(inspectionID).pipe(
       switchMap((metadata) =>
         forkJoin([
           of(metadata),
-          api.getInspectionData(taskId, (done) => {
+          api.getInspectionData(inspectionID, (done) => {
             const fileSize = metadata.header.fileSize ?? 0;
             progress.updateProgress({
               message: `Downloading inspection data (${ProgressUtil.formatPogressMessageByBytes(done, fileSize)})`,

@@ -26,7 +26,7 @@ import { of, ReplaySubject, Subject } from 'rxjs';
 import { By } from '@angular/platform-browser';
 import {
   GetConfigResponse,
-  GetInspectionTasksResponse,
+  GetInspectionResponse,
 } from 'src/app/common/schema/api-types';
 import {
   EXTENSION_STORE,
@@ -36,7 +36,7 @@ import {
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogComponent>;
   let backendConnectionSpy: jasmine.SpyObj<BackendConnectionService>;
-  let taskListSubject: Subject<GetInspectionTasksResponse>;
+  let taskListSubject: Subject<GetInspectionResponse>;
   beforeEach(async () => {
     taskListSubject = new ReplaySubject(1);
     backendConnectionSpy = jasmine.createSpyObj<BackendConnectionService>(
@@ -92,7 +92,7 @@ describe('StartupDialogComponent', () => {
 
   it('should show empty list with hint message when given task list is empty', fakeAsync(() => {
     taskListSubject.next({
-      tasks: {
+      inspections: {
         a: {
           header: {
             inspectionType: 'foo',

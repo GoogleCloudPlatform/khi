@@ -24,34 +24,34 @@ type ServerStat struct {
 	TotalMemoryAvailable int `json:"totalMemoryAvailable"`
 }
 
-// GetInspectionTypesResponse is the type of the response for /api/v2/inspection/types
+// GetInspectionTypesResponse is the type of the response for /api/v3/inspection/types
 type GetInspectionTypesResponse struct {
 	Types []*inspection.InspectionType `json:"types"`
 }
 
-// GetInspectionTasksResponse is the type of the response for /api/v2/inspection/tasks
-type GetInspectionTasksResponse struct {
-	Tasks      map[string]SerializedMetadata `json:"tasks"`
-	ServerStat *ServerStat                   `json:"serverStat"`
+// GetInspectionsResponse is the type of the response for /api/v3/inspection
+type GetInspectionsResponse struct {
+	Inspections map[string]SerializedMetadata `json:"inspections"`
+	ServerStat  *ServerStat                   `json:"serverStat"`
 }
 
-type PostInspectionTaskResponse struct {
-	InspectionId string `json:"inspectionId"`
+type PostInspectionResponse struct {
+	InspectionID string `json:"inspectionID"`
 }
 
-type PutInspectionTaskFeatureRequest struct {
+type PutInspectionFeatureRequest struct {
 	Features []string `json:"features"`
 }
 
-type PatchInspectionTaskFeatureRequest struct {
+type PatchInspectionFeatureRequest struct {
 	Features map[string]bool `json:"features"`
 }
 
-type PutInspectionTaskFeatureResponse struct {
+type PutInspectionFeatureResponse struct {
 }
 
-type GetInspectionTaskFeatureResponse struct {
+type GetInspectionFeatureResponse struct {
 	Features []inspection.FeatureListItem `json:"features"`
 }
 
-type PostInspectionTaskDryRunRequest = map[string]any
+type PostInspectionDryRunRequest = map[string]any

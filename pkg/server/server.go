@@ -86,24 +86,24 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 		}
 		ctx.Writer.Write([]byte(replacedIndexHtml))
 	})
-	// GET /api/v2/config
+	// GET /api/v3/config
 	// Returns configuration map used in frontend.
-	router.GET("/api/v2/config", func(ctx *gin.Context) {
+	router.GET("/api/v3/config", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, config.NewGetConfigResponseFromParameters())
 	})
 
 	if !serverConfig.ViewerMode {
-		// GET /api/v2/inspection/types
+		// GET /api/v3/inspection/types
 		// Returns the list of inspection types available on the inspection server.
-		router.GET("/api/v2/inspection/types", func(ctx *gin.Context) {
+		router.GET("/api/v3/inspection/types", func(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, &GetInspectionTypesResponse{
 				Types: inspectionServer.GetAllInspectionTypes(),
 			})
 		})
 
-		// GET /api/v2/inspection/tasks
+		// GET /api/v3/inspection
 		// Returns the all started inspections on the inspection server.
-		router.GET("/api/v2/inspection/tasks", func(ctx *gin.Context) {
+		router.GET("/api/v3/inspection", func(ctx *gin.Context) {
 			inspections := inspectionServer.GetAllRunners()
 			responseInspections := map[string]SerializedMetadata{}
 			for _, inspection := range inspections {
@@ -123,34 +123,34 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				}
 			}
 
-			ctx.JSON(http.StatusOK, &GetInspectionTasksResponse{
-				Tasks: responseInspections,
+			ctx.JSON(http.StatusOK, &GetInspectionsResponse{
+				Inspections: responseInspections,
 				ServerStat: &ServerStat{
 					TotalMemoryAvailable: serverConfig.ResourceMonitor.GetUsedMemory(),
 				},
 			})
 		})
 
-		// POST /api/v2/inspection/tasks
-		router.POST("/api/v2/inspection/types/:typeId", func(ctx *gin.Context) {
-			typeId := ctx.Param("typeId")
-			inspectionId, err := inspectionServer.CreateInspection(typeId)
+		// POST /api/v3/inspection/tasks
+		router.POST("/api/v3/inspection/types/:typeID", func(ctx *gin.Context) {
+			typeID := ctx.Param("typeID")
+			inspectionId, err := inspectionServer.CreateInspection(typeID)
 			if err != nil {
 				// only the not found error is expected here
 				ctx.String(http.StatusNotFound, err.Error())
 				return
 			}
-			ctx.JSON(http.StatusAccepted, &PostInspectionTaskResponse{InspectionId: inspectionId})
+			ctx.JSON(http.StatusAccepted, &PostInspectionResponse{InspectionID: inspectionId})
 		})
-		// PUT /api/v2/inspection/tasks/<task-id>/features
-		router.PUT("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			task := inspectionServer.GetTask(taskId)
+		// PUT /api/v3/inspection/<inspection-id>/features
+		router.PUT("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			task := inspectionServer.GetInspection(inspectionID)
 			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
-			var reqBody PutInspectionTaskFeatureRequest
+			var reqBody PutInspectionFeatureRequest
 			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
@@ -162,15 +162,15 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			}
 			ctx.String(http.StatusAccepted, "ok")
 		})
-		// PATCH /api/v2/inspection/tasks/<task-id>/features
-		router.PATCH("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			task := inspectionServer.GetTask(taskId)
+		// PATCH /api/v3/inspection/<inspection-id>/features
+		router.PATCH("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			task := inspectionServer.GetInspection(inspectionID)
 			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
-			var reqBody PatchInspectionTaskFeatureRequest
+			var reqBody PatchInspectionFeatureRequest
 			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
@@ -182,12 +182,12 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			}
 			ctx.String(http.StatusAccepted, "ok")
 		})
-		// GET /api/v2/inspection/tasks/<task-id>/features
-		router.GET("/api/v2/inspection/tasks/:taskId/features", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			task := inspectionServer.GetTask(taskId)
+		// GET /api/v3/inspection/<inspection-id>/features
+		router.GET("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			task := inspectionServer.GetInspection(inspectionID)
 			if task == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
 			features, err := task.FeatureList()
@@ -195,19 +195,19 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
-			ctx.JSON(http.StatusOK, GetInspectionTaskFeatureResponse{
+			ctx.JSON(http.StatusOK, GetInspectionFeatureResponse{
 				Features: features,
 			})
 		})
 
-		router.POST("/api/v2/inspection/tasks/:taskId/dryrun", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			currentTask := inspectionServer.GetTask(taskId)
+		router.POST("/api/v3/inspection/:inspectionID/dryrun", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			currentTask := inspectionServer.GetInspection(inspectionID)
 			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
-			var reqBody PostInspectionTaskDryRunRequest
+			var reqBody PostInspectionDryRunRequest
 			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
@@ -222,14 +222,14 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.JSON(http.StatusOK, result)
 		})
 
-		router.POST("/api/v2/inspection/tasks/:taskId/run", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			currentTask := inspectionServer.GetTask(taskId)
+		router.POST("/api/v3/inspection/:inspectionID/run", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			currentTask := inspectionServer.GetInspection(inspectionID)
 			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
-			var reqBody PostInspectionTaskDryRunRequest
+			var reqBody PostInspectionDryRunRequest
 			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
@@ -244,11 +244,11 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.String(http.StatusAccepted, "ok")
 		})
 
-		router.POST("/api/v2/inspection/tasks/:taskId/cancel", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			currentTask := inspectionServer.GetTask(taskId)
+		router.POST("/api/v3/inspection/:inspectionID/cancel", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			currentTask := inspectionServer.GetInspection(inspectionID)
 			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
 			err := currentTask.Cancel()
@@ -259,11 +259,11 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.String(http.StatusOK, "ok")
 		})
 
-		router.GET("/api/v2/inspection/tasks/:taskId/metadata", func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			currentTask := inspectionServer.GetTask(taskId)
+		router.GET("/api/v3/inspection/:inspectionID/metadata", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			currentTask := inspectionServer.GetInspection(inspectionID)
 			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
 			result, err := currentTask.Metadata()
@@ -275,10 +275,10 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 		})
 
 		inspectionTaskDataHandler := func(ctx *gin.Context) {
-			taskId := ctx.Param("taskId")
-			currentTask := inspectionServer.GetTask(taskId)
+			inspectionID := ctx.Param("inspectionID")
+			currentTask := inspectionServer.GetInspection(inspectionID)
 			if currentTask == nil {
-				ctx.String(http.StatusNotFound, fmt.Sprintf("task %s was not found", taskId))
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspecton %s was not found", inspectionID))
 				return
 			}
 
@@ -330,10 +330,10 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.DataFromReader(http.StatusOK, contentLength, contentType, inspectionDataReader, map[string]string{})
 			}
 		}
-		router.HEAD("/api/v2/inspection/tasks/:taskId/data", inspectionTaskDataHandler)
-		router.GET("/api/v2/inspection/tasks/:taskId/data", inspectionTaskDataHandler)
+		router.HEAD("/api/v3/inspection/:inspectionID/data", inspectionTaskDataHandler)
+		router.GET("/api/v3/inspection/:inspectionID/data", inspectionTaskDataHandler)
 
-		router.GET("/api/v2/popup", func(ctx *gin.Context) {
+		router.GET("/api/v3/popup", func(ctx *gin.Context) {
 			currentPopup := popup.Instance.GetCurrentPopup()
 			if currentPopup == nil {
 				ctx.String(http.StatusOK, "")
@@ -342,7 +342,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.JSON(http.StatusOK, currentPopup)
 		})
 
-		router.POST("/api/v2/popup/validate", func(ctx *gin.Context) {
+		router.POST("/api/v3/popup/validate", func(ctx *gin.Context) {
 			request := &popup.PopupAnswerResponse{}
 			if err := ctx.ShouldBindJSON(request); err != nil {
 				ctx.String(http.StatusBadRequest, err.Error())
@@ -364,7 +364,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.JSON(http.StatusOK, result)
 		})
 
-		router.POST("/api/v2/popup/answer", func(ctx *gin.Context) {
+		router.POST("/api/v3/popup/answer", func(ctx *gin.Context) {
 			request := &popup.PopupAnswerResponse{}
 			if err := ctx.ShouldBindJSON(request); err != nil {
 				ctx.String(http.StatusBadRequest, err.Error())
@@ -386,7 +386,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 			ctx.String(http.StatusOK, "")
 		})
 
-		router.POST("/api/v2/upload", func(ctx *gin.Context) {
+		router.POST("/api/v3/upload", func(ctx *gin.Context) {
 			localUploadFileStoreProvider, convertible := serverConfig.UploadFileStore.StoreProvider.(*upload.LocalUploadFileStoreProvider)
 			if !convertible {
 				ctx.String(http.StatusBadRequest, "invalid operation. Current UploadFileStore.StoreProvider is not supporting to be written directly")

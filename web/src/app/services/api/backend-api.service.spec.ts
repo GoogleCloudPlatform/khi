@@ -20,13 +20,13 @@ import {
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { BackendAPIImpl, InspectionTaskClient } from './backend-api.service';
+import { BackendAPIImpl, InspectionClient } from './backend-api.service';
 import { ViewStateService } from '../view-state.service';
 import {
-  CreateInspectionTaskResponse,
+  CreateInspectionResponse,
   GetConfigResponse,
-  GetInspectionTaskFeatureResponse,
-  GetInspectionTasksResponse,
+  GetInspectionFeatureResponse,
+  GetInspectionResponse,
   GetInspectionTypesResponse,
   InspectionDryRunRequest,
   InspectionDryRunResponse,
@@ -54,8 +54,8 @@ describe('BackendAPIImpl testing', () => {
   });
 
   it('read server-base-path from meta tag', () => {
-    document.head.innerHTML += `<meta id="server-base-path" content="/api/v2">`;
-    expect(BackendAPIImpl.getServerBasePath()).toEqual('/api/v2');
+    document.head.innerHTML += `<meta id="server-base-path" content="/api/v3">`;
+    expect(BackendAPIImpl.getServerBasePath()).toEqual('/api/v3');
     document.getElementById('server-base-path')?.remove();
     expect(BackendAPIImpl.getServerBasePath()).toEqual('');
   });
@@ -74,7 +74,7 @@ describe('BackendAPIImpl testing', () => {
         viewerMode: true,
       });
     });
-    const req = httpTestingController.expectOne('/api/v2/config');
+    const req = httpTestingController.expectOne('/api/v3/config');
     expect(req.request.method).toEqual('GET');
     req.flush(testData);
   });
@@ -94,39 +94,39 @@ describe('BackendAPIImpl testing', () => {
     api.getInspectionTypes().subscribe((data) => {
       expect(data).toEqual(testData);
     });
-    const req = httpTestingController.expectOne('/api/v2/inspection/types');
+    const req = httpTestingController.expectOne('/api/v3/inspection/types');
 
     expect(req.request.method).toEqual('GET');
     req.flush(testData);
   });
 
   it('can call getTaskStatuses', () => {
-    const testData: GetInspectionTasksResponse = {
-      tasks: {},
+    const testData: GetInspectionResponse = {
+      inspections: {},
       serverStat: {
         totalMemoryAvailable: 10,
       },
     };
 
-    api.getTaskStatuses().subscribe((data) => {
+    api.getInspections().subscribe((data) => {
       expect(data).toEqual(testData);
     });
-    const req = httpTestingController.expectOne('/api/v2/inspection/tasks');
+    const req = httpTestingController.expectOne('/api/v3/inspection');
 
     expect(req.request.method).toEqual('GET');
     req.flush(testData);
   });
 
   it('can call createInspection', () => {
-    const testData: CreateInspectionTaskResponse = {
-      inspectionId: 'test',
+    const testData: CreateInspectionResponse = {
+      inspectionID: 'test',
     };
 
     api.createInspection('test-inspection-type').subscribe((result) => {
-      expect(result.taskId).toEqual('test');
+      expect(result.inspectionID).toEqual('test');
     });
     const req = httpTestingController.expectOne(
-      '/api/v2/inspection/types/test-inspection-type',
+      '/api/v3/inspection/types/test-inspection-type',
     );
 
     expect(req.request.method).toEqual('POST');
@@ -134,7 +134,7 @@ describe('BackendAPIImpl testing', () => {
   });
 
   it('can call downloadFeatureList', () => {
-    const testData: GetInspectionTaskFeatureResponse = {
+    const testData: GetInspectionFeatureResponse = {
       features: [],
     };
 
@@ -142,7 +142,7 @@ describe('BackendAPIImpl testing', () => {
       expect(data).toEqual(testData);
     });
     const req = httpTestingController.expectOne(
-      '/api/v2/inspection/tasks/test/features',
+      '/api/v3/inspection/test/features',
     );
 
     expect(req.request.method).toEqual('GET');
@@ -155,7 +155,7 @@ describe('BackendAPIImpl testing', () => {
       apiSpy();
     });
     const req = httpTestingController.expectOne(
-      '/api/v2/inspection/tasks/test/features',
+      '/api/v3/inspection/test/features',
     );
 
     expect(req.request.method).toEqual('PATCH');
@@ -188,7 +188,7 @@ describe('BackendAPIImpl testing', () => {
       expect(data).toEqual(testData);
     });
     const req = httpTestingController.expectOne(
-      '/api/v2/inspection/tasks/test/metadata',
+      '/api/v3/inspection/test/metadata',
     );
 
     expect(req.request.method).toEqual('GET');
@@ -200,10 +200,8 @@ describe('BackendAPIImpl testing', () => {
       test: 'foo',
     };
 
-    api.runTask('test', testParameters).subscribe(() => {});
-    const req = httpTestingController.expectOne(
-      '/api/v2/inspection/tasks/test/run',
-    );
+    api.runInspection('test', testParameters).subscribe(() => {});
+    const req = httpTestingController.expectOne('/api/v3/inspection/test/run');
 
     expect(req.request.method).toEqual('POST');
     expect(req.request.body).toEqual(testParameters);
@@ -224,12 +222,12 @@ describe('BackendAPIImpl testing', () => {
       },
     };
 
-    api.dryRunTask('test', testParameters).subscribe((response) => {
+    api.dryRunInspection('test', testParameters).subscribe((response) => {
       expect(response).toBe(testResponse);
       done();
     });
     const req = httpTestingController.expectOne(
-      '/api/v2/inspection/tasks/test/dryrun',
+      '/api/v3/inspection/test/dryrun',
     );
 
     expect(req.request.method).toEqual('POST');
@@ -240,7 +238,7 @@ describe('BackendAPIImpl testing', () => {
   it('can call cancelInspection', () => {
     api.cancelInspection('test').subscribe(() => {});
     const req = httpTestingController.expectOne(
-      '/api/v2/inspection/tasks/test/cancel',
+      '/api/v3/inspection/test/cancel',
     );
     expect(req.request.method).toEqual('POST');
 
@@ -261,7 +259,7 @@ describe('BackendAPIImpl testing', () => {
       expect(data).toBe(testResponse);
       done();
     });
-    const req = httpTestingController.expectOne('/api/v2/popup');
+    const req = httpTestingController.expectOne('/api/v3/popup');
 
     expect(req.request.method).toBe('GET');
     req.flush(testResponse);
@@ -281,7 +279,7 @@ describe('BackendAPIImpl testing', () => {
       expect(data).toBe(testResponse);
       done();
     });
-    const req = httpTestingController.expectOne('/api/v2/popup/validate');
+    const req = httpTestingController.expectOne('/api/v3/popup/validate');
 
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toBe(testRequest);
@@ -297,7 +295,7 @@ describe('BackendAPIImpl testing', () => {
     api.answerPopup(testRequest).subscribe(() => {
       done();
     });
-    const req = httpTestingController.expectOne('/api/v2/popup/answer');
+    const req = httpTestingController.expectOne('/api/v3/popup/answer');
 
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toBe(testRequest);
@@ -306,7 +304,7 @@ describe('BackendAPIImpl testing', () => {
 });
 
 describe('InspectionTaskClient testing', () => {
-  let taskClient: InspectionTaskClient;
+  let taskClient: InspectionClient;
   let backendAPISpy: jasmine.SpyObj<BackendAPI>;
 
   beforeEach(() => {
@@ -318,8 +316,8 @@ describe('InspectionTaskClient testing', () => {
       'getFeatureList',
       'setEnabledFeatures',
       'getInspectionMetadata',
-      'runTask',
-      'dryRunTask',
+      'runInspection',
+      'dryRunInspection',
     ]);
     backendAPISpy.getFeatureList.and.returnValue(
       of({
@@ -340,8 +338,8 @@ describe('InspectionTaskClient testing', () => {
       }),
     );
     backendAPISpy.setEnabledFeatures.and.returnValue(of(undefined));
-    backendAPISpy.runTask.and.returnValue(of(undefined));
-    backendAPISpy.dryRunTask.and.returnValue(
+    backendAPISpy.runInspection.and.returnValue(of(undefined));
+    backendAPISpy.dryRunInspection.and.returnValue(
       of({
         metadata: {
           query: [],
@@ -352,7 +350,7 @@ describe('InspectionTaskClient testing', () => {
         },
       }),
     );
-    taskClient = new InspectionTaskClient(
+    taskClient = new InspectionClient(
       backendAPISpy as unknown as BackendAPI,
       'test',
       new ViewStateService(),
@@ -402,7 +400,7 @@ describe('InspectionTaskClient testing', () => {
         test: 'foo',
       })
       .subscribe(() => {
-        expect(backendAPISpy.runTask).toHaveBeenCalledWith('test', {
+        expect(backendAPISpy.runInspection).toHaveBeenCalledWith('test', {
           test: 'foo',
 
           timezoneShift: -new Date().getTimezoneOffset() / 60, // This parameter should come from view state
@@ -426,7 +424,7 @@ describe('InspectionTaskClient testing', () => {
         test: 'foo',
       })
       .subscribe((response) => {
-        expect(backendAPISpy.dryRunTask).toHaveBeenCalledWith('test', {
+        expect(backendAPISpy.dryRunInspection).toHaveBeenCalledWith('test', {
           test: 'foo',
 
           timezoneShift: -new Date().getTimezoneOffset() / 60, // This parameter should come from view state

@@ -59,8 +59,8 @@ type InspectionTaskServer struct {
 	RootTaskSet *task.TaskSet
 	// inspectionTypes are kinds of tasks. Users will select this at first to filter togglable feature tasks.
 	inspectionTypes []*InspectionType
-	// tasks are generated tasks
-	tasks map[string]*InspectionTaskRunner
+	// inspections are generated inspection task runers
+	inspections map[string]*InspectionTaskRunner
 }
 
 func NewServer() (*InspectionTaskServer, error) {
@@ -71,7 +71,7 @@ func NewServer() (*InspectionTaskServer, error) {
 	return &InspectionTaskServer{
 		RootTaskSet:     ns,
 		inspectionTypes: make([]*InspectionType, 0),
-		tasks:           map[string]*InspectionTaskRunner{},
+		inspections:     map[string]*InspectionTaskRunner{},
 	}, nil
 }
 
@@ -106,13 +106,13 @@ func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, 
 	if err != nil {
 		return "", err
 	}
-	s.tasks[inspectionTask.ID] = inspectionTask
+	s.inspections[inspectionTask.ID] = inspectionTask
 	return inspectionTask.ID, nil
 }
 
 // Inspection returns an instance of an Inspection queried with given inspection ID.
-func (s *InspectionTaskServer) GetTask(taskId string) *InspectionTaskRunner {
-	return s.tasks[taskId]
+func (s *InspectionTaskServer) GetInspection(inspectionID string) *InspectionTaskRunner {
+	return s.inspections[inspectionID]
 }
 
 func (s *InspectionTaskServer) GetAllInspectionTypes() []*InspectionType {
@@ -130,7 +130,7 @@ func (s *InspectionTaskServer) GetInspectionType(inspectionTypeId string) *Inspe
 
 func (s *InspectionTaskServer) GetAllRunners() []*InspectionTaskRunner {
 	inspections := []*InspectionTaskRunner{}
-	for _, value := range s.tasks {
+	for _, value := range s.inspections {
 		inspections = append(inspections, value)
 	}
 	return inspections

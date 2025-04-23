@@ -16,7 +16,7 @@
 
 import { Observable } from 'rxjs';
 import {
-  GetInspectionTasksResponse,
+  GetInspectionResponse,
   GetInspectionTypesResponse,
 } from 'src/app/common/schema/api-types';
 
@@ -32,5 +32,5 @@ export interface BackendConnectionService {
   /**
    * Return an observable to monitor the task lists on the backend.
    */
-  tasks(): Observable<GetInspectionTasksResponse>;
+  tasks(): Observable<GetInspectionResponse>;
 }

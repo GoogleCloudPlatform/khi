@@ -78,7 +78,7 @@ func ConformanceTestForInspectionTypes(t *testing.T, preps []inspection.PrepareI
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
 			}
-			features, err := testServer.GetTask(taskId).FeatureList()
+			features, err := testServer.GetInspection(taskId).FeatureList()
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
 			}

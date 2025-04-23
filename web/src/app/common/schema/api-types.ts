@@ -30,7 +30,7 @@ import {
 } from './metadata-types';
 
 /**
- * Representing a config of this frontend. A returned value type for GET /api/v2/config.
+ * Representing a config of this frontend. A returned value type for GET /api/v3/config.
  */
 export interface GetConfigResponse {
   // ViewerMode is a flag indicating if the server is the viewer mode and not accepting creating a new inspection request.
@@ -63,7 +63,7 @@ export interface InspectionType {
 }
 
 /**
- * The response schema of GET /api/v2/inspection/types .
+ * The response schema of GET /api/v3/inspection/types .
  */
 export interface GetInspectionTypesResponse {
   /**
@@ -73,13 +73,13 @@ export interface GetInspectionTypesResponse {
 }
 
 /**
- * The response schema of POST /api/v2/inspection/types/<InspectionType.id> .
+ * The response schema of POST /api/v3/inspection/types/<InspectionType.id> .
  */
-export interface CreateInspectionTaskResponse {
+export interface CreateInspectionResponse {
   /**
-   * ID of the inspection task created.
+   * ID of the inspection created.
    */
-  inspectionId: string;
+  inspectionID: string;
 }
 
 /**
@@ -108,19 +108,19 @@ export interface InspectionFeature {
 }
 
 /**
- * Response schema of GET /api/v2/inspection/tasks/<task-id>/features .
+ * Response schema of GET /api/v3/inspection/<inspection-id>/features .
  */
-export interface GetInspectionTaskFeatureResponse {
+export interface GetInspectionFeatureResponse {
   /**
-   * List of features for the inspection task.
+   * List of features for the inspection.
    */
   features: InspectionFeature[];
 }
 
 /**
- * Request schema of PUT /api/v2/inspection/tasks/<task-id>/features .
+ * Request schema of PUT /api/v3/inspection/<inspection-id>/features .
  */
-export interface PutInspectionTaskFeatureRequest {
+export interface PutInspectionFeatureRequest {
   /**
    * List of IDs to be enabled.
    */
@@ -128,9 +128,9 @@ export interface PutInspectionTaskFeatureRequest {
 }
 
 /**
- * Request schema of PATCH /api/v2/inspection/tasks/<task-id>/features .
+ * Request schema of PATCH /api/v3/inspection/<inspection-id>/features .
  */
-export interface PatchInspectionTaskFeatureRequest {
+export interface PatchInspectionFeatureRequest {
   /**
    * Map of features mapped against true if enabled
    */
@@ -138,7 +138,7 @@ export interface PatchInspectionTaskFeatureRequest {
 }
 
 /**
- * Response schema of POST /api/v2/inspection/tasks/<inspection task id>/dryrun .
+ * Response schema of POST /api/v3/inspection/<inspection-id>/dryrun .
  */
 export type InspectionDryRunResponse = {
   /**
@@ -152,52 +152,52 @@ export type InspectionDryRunResponse = {
 /**
  * Representing a set of parameters given to the inspection task graph.
  */
-type InspectionTaskGraphArgument = { [key: string]: unknown };
+type InspectionArgument = { [key: string]: unknown };
 
 /**
- * Request schema of POST /api/v2/inspection/tasks/<inspection task id>/dryrun .
+ * Request schema of POST /api/v3/inspection/<inspection-id>/dryrun .
  */
-export type InspectionDryRunRequest = InspectionTaskGraphArgument;
+export type InspectionDryRunRequest = InspectionArgument;
 
 /**
- * Request schema of POST /api/v/inspection/tasks/<inspection task id>/run .
+ * Request schema of POST /api/v3/inspection/<inspection-id>/run .
  */
-export type InspectionRunRequest = InspectionTaskGraphArgument;
+export type InspectionRunRequest = InspectionArgument;
 
 /**
- * Set of metadata generated for a task not having run yet.
+ * Set of metadata generated for a inspection.
  */
 export type InspectionMetadataInDryrun = {
   /**
-   * List of form fields to be filled to run this inspection task.
+   * List of form fields to be filled to run this inspection.
    */
   form: ParameterFormField[];
 
   /**
-   * List of queries to be run with this inspection task.
+   * List of queries to be run with this inspection.
    */
   query: InspectionMetadataQuery[];
 
   /**
-   * The inspection task graph to be run with inspection task.
+   * The inspection task graph in string representation.
    */
   plan: InspectionMetadataPlan;
 };
 
 /**
- * Set of metadata generated for tasks in the task list.
+ * Set of metadata generated for tasks in the inspection.
  */
-export type InspectionMetadataInTaskList = {
+export type InspectionMetadataInInspectionList = {
   /**
-   * Current progress of this inspection task.
+   * Current progress of this inspection.
    */
   progress: InspectionMetadataProgress;
   /**
-   * Summary of this inspection task like name, data size ...etc.
+   * Summary of this inspection like name, data size ...etc.
    */
   header: InspectionMetadataHeader;
   /**
-   * Set of error logs for this inspection task.
+   * Set of error logs for this inspection.
    */
   error: InspectionMetadataErrorSet;
 };
@@ -211,30 +211,30 @@ export type InspectionMetadataOfRunResult = {
    */
   header: InspectionMetadataHeader;
   /**
-   * List of queries having run with this inspection task.
+   * List of queries having run with this inspection.
    */
   query: InspectionMetadataQuery[];
   /**
-   * The inspection task graph having run with inspection task.
+   * The inspection task graph in string representation.
    */
   plan: InspectionMetadataPlan;
   /**
-   * The logs generated from the inspection task itself.
+   * The logs generated from the inspection itself.
    */
   log: InspectionMetadataLog[];
 
   /**
-   * Set of error logs for this inspection task.
+   * Set of error logs for this inspection.
    */
   error: InspectionMetadataErrorSet;
 };
 
 /**
- * Response schema of /api/v2/inspection/tasks .
+ * Response schema of /api/v3/inspection .
  */
-export type GetInspectionTasksResponse = {
-  tasks: {
-    [taskId: string]: InspectionMetadataInTaskList;
+export type GetInspectionResponse = {
+  inspections: {
+    [inspectionId: string]: InspectionMetadataInInspectionList;
   };
   serverStat: {
     totalMemoryAvailable: number;
@@ -244,7 +244,7 @@ export type GetInspectionTasksResponse = {
 export type PopupFormType = 'text' | 'popup_redirect';
 
 /**
- * PopupFormRequest is a type returned on the endpoint GET /api/v2/popup.
+ * PopupFormRequest is a type returned on the endpoint GET /api/v3/popup.
  * Note this request is from backend with polling. Thus this is also a response in HTTP.
  */
 export interface PopupFormRequest {
@@ -263,7 +263,7 @@ export interface PopupFormRequest {
 }
 
 /**
- * PopupAnswerResponse is a type replied to the server with the endpoint POST /api/v2/popup/answer or POST /api/v2/popup/validate
+ * PopupAnswerResponse is a type replied to the server with the endpoint POST /api/v3/popup/answer or POST /api/v3/popup/validate
  */
 export interface PopupAnswerResponse {
   id: string;
@@ -271,7 +271,7 @@ export interface PopupAnswerResponse {
 }
 
 /**
- * PopupValidationResult is a type returned from server on POST /api/v2/popup/validate
+ * PopupValidationResult is a type returned from server on POST /api/v3/popup/validate
  */
 export interface PopupAnswerValidationResult {
   id: string;

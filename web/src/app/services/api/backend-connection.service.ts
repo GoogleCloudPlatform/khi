@@ -27,7 +27,7 @@ import { BACKEND_API, BackendAPI } from './backend-api-interface';
 import { BackendConnectionService } from './backend-connection-interface';
 import {
   GetInspectionTypesResponse,
-  GetInspectionTasksResponse,
+  GetInspectionResponse,
 } from 'src/app/common/schema/api-types';
 
 /**
@@ -66,7 +66,7 @@ export class BackendConnectionServiceImpl implements BackendConnectionService {
   private taskProgressObservable = interval(
     BackendConnectionServiceImpl.PROGRESS_POLLING_INTERVAL,
   ).pipe(
-    exhaustMap(() => this.backendApi.getTaskStatuses()),
+    exhaustMap(() => this.backendApi.getInspections()),
     tap({
       error: (err) => {
         console.warn(
@@ -87,7 +87,7 @@ export class BackendConnectionServiceImpl implements BackendConnectionService {
   inspectionTypes(): Observable<GetInspectionTypesResponse> {
     return this.inspectionTypesObservable;
   }
-  tasks(): Observable<GetInspectionTasksResponse> {
+  tasks(): Observable<GetInspectionResponse> {
     return this.taskProgressObservable;
   }
 }

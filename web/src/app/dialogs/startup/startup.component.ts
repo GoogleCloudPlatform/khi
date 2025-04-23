@@ -108,13 +108,13 @@ export class StartupDialogComponent {
     this.tasks,
   ]).pipe(
     map(([, tp]) => {
-      const keys = Object.keys(tp.tasks).sort(
+      const keys = Object.keys(tp.inspections).sort(
         (a, b) =>
-          tp.tasks[a].header.inspectTimeUnixSeconds -
-          tp.tasks[b].header.inspectTimeUnixSeconds,
+          tp.inspections[a].header.inspectTimeUnixSeconds -
+          tp.inspections[b].header.inspectTimeUnixSeconds,
       );
       return keys.map((key) => {
-        const taskMetadata = tp.tasks[key];
+        const taskMetadata = tp.inspections[key];
         return {
           id: key,
           label: taskMetadata.header.inspectionType,
