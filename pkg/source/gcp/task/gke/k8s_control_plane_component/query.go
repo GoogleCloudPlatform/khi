@@ -41,7 +41,7 @@ var GKEK8sControlPlaneLogQueryTask = query.NewQueryGeneratorTask(k8s_control_pla
 	gcp_task.InputProjectIdTaskID,
 	gcp_task.InputClusterNameTaskID,
 	k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
 	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
 	projectId := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
 	controlplaneComponentNameFilter := task.GetTaskResult(ctx, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.GetTaskReference())

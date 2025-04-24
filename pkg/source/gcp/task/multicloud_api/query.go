@@ -38,7 +38,7 @@ protoPayload.resourceName:"%s"
 
 var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(multicloud_api_taskidvar.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
 	gcp_task.InputClusterNameTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
 	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
 
 	return []string{GenerateMultiCloudAPIQuery(clusterName)}, nil

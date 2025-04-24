@@ -59,7 +59,7 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 
 var ComputeAPIQueryTask = query.NewQueryGeneratorTask(gke_compute_api_taskid.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
 	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
 
 	return GenerateComputeAPIQuery(i, builder.ClusterResource.GetNodes()), nil

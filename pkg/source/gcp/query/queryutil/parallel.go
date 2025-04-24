@@ -53,7 +53,7 @@ func NewParallelQueryWorker(pool *worker.Pool, apiClient api.GCPClient, baseQuer
 	}
 }
 
-func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structure.ReaderFactory, projectId string, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structure.ReaderFactory, resourceNames []string, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
 	timeSegments := divideTimeSegments(p.startTime, p.endTime, p.workerCount)
 	percentages := make([]float32, p.workerCount)
 	logSink := make(chan *log.LogEntity)
@@ -103,7 +103,7 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 			defer wg.Done()
 			go func() {
 				threadCount.Add(1)
-				err := p.apiClient.ListLogEntries(cancellableCtx, projectId, query, subLogSink)
+				err := p.apiClient.ListLogEntries(cancellableCtx, resourceNames, query, subLogSink)
 				if err != nil && !errors.Is(err, context.Canceled) {
 					slog.WarnContext(cancellableCtx, fmt.Sprintf("query thread failed with an error\n%s", err))
 					cancel(err)

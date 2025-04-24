@@ -36,6 +36,7 @@ var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
 		gcp_task.InputProjectIdTaskID,
 		composer_taskid.InputComposerEnvironmentTaskID,
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-scheduler"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-scheduler"),
 )
@@ -48,6 +49,7 @@ var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
 		gcp_task.InputProjectIdTaskID,
 		composer_taskid.InputComposerEnvironmentTaskID,
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("dag-processor-manager"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "dag-processor-manager"),
 )
@@ -60,6 +62,7 @@ var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
 		gcp_task.InputProjectIdTaskID,
 		composer_taskid.InputComposerEnvironmentTaskID,
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-monitoring"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-monitoring"),
 )
@@ -72,6 +75,7 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 		gcp_task.InputProjectIdTaskID,
 		composer_taskid.InputComposerEnvironmentTaskID,
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-worker"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
 )

@@ -15,6 +15,8 @@
 package typedmap
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -396,4 +398,36 @@ func TestReadonlyTypedMapKeys(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestGetOrSetFuncIsThreadSafe(t *testing.T) {
+	waitAttempts := sync.WaitGroup{}
+	for i := 0; i < 100; i++ {
+		waitAttempts.Add(1)
+		go func() {
+			callCount := atomic.Int32{}
+			tm := NewTypedMap()
+			key := NewTypedKey[string]("key")
+			waitParallelAccess := sync.WaitGroup{}
+			for c := 0; c < 100; c++ {
+				waitParallelAccess.Add(1)
+				go func() {
+					result := GetOrSetFunc(tm, key, func() string {
+						callCount.Add(1)
+						return "foo"
+					})
+					if result != "foo" {
+						t.Errorf("GetOrSetFunc returned %s, want foo", result)
+					}
+					waitParallelAccess.Done()
+				}()
+			}
+			waitParallelAccess.Wait()
+			if callCount.Load() != 1 {
+				t.Errorf("GetOrSetFunc was called %d times, want 1", callCount.Load())
+			}
+			waitAttempts.Done()
+		}()
+	}
+	waitAttempts.Wait()
 }

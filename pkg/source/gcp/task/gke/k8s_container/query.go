@@ -91,7 +91,7 @@ var GKEContainerQueryTask = query.NewQueryGeneratorTask(gke_k8s_container_taskid
 	gcp_task.InputClusterNameTaskID,
 	gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID,
 	gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
 	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
 	namespacesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.GetTaskReference())
 	podNamesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.GetTaskReference())

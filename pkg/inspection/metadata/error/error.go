@@ -15,8 +15,6 @@
 package error
 
 import (
-	"fmt"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -55,20 +53,6 @@ func (e *ErrorMessageSet) AddErrorMessage(newError *ErrorMessage) {
 		}
 	}
 	e.ErrorMessages = append(e.ErrorMessages, newError)
-}
-
-func NewPermissionErrorMessage(projectId string) *ErrorMessage {
-	return &ErrorMessage{
-		ErrorId: 0,
-		Message: fmt.Sprintf("Permission error to read logs from project `%s`", projectId),
-	}
-}
-
-func NewNotFoundErrorMessage(projectId string) *ErrorMessage {
-	return &ErrorMessage{
-		ErrorId: 1,
-		Message: fmt.Sprintf("Project `%s` not found", projectId),
-	}
 }
 
 func NewUnauthorizedErrorMessage() *ErrorMessage {
