@@ -121,6 +121,3 @@ WORKDIR /workspace
 
 # Copy and setup .bashrc
 COPY --chown=${USERNAME}:${USERNAME} .bashrc /home/${USERNAME}/.bashrc
-
-# Install Development Dependencies
-RUN npm install -g @angular/cli
