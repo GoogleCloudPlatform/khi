@@ -74,7 +74,6 @@ RUN set -ex \
     && ln -s /usr/local/node/bin/npm /usr/local/bin/npm \
     && ln -s /usr/local/node/bin/npx /usr/local/bin/npx \
     && apt-get clean \
-    && npm install -g npm@latest \
     # Install gcloud CLI
     && echo "Installing gcloud CLI..." \
     && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
