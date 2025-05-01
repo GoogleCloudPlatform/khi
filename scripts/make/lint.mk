@@ -37,11 +37,8 @@ check-format-web: prepare-frontend
 
 .PHONY: lint-markdown
 lint-markdown:
-	@echo "Checking Markdown files with markdownlint-cli2..."
-	@npx markdownlint-cli2
+	npx markdownlint-cli2
 
 .PHONY: lint-markdown-fix
 lint-markdown-fix:
-	@echo "Fixing Markdown files with markdownlint-cli2..."
-	@npx markdownlint-cli2 --fix
-	@echo "Automatic fixes applied. Please review changes before committing."
+	npx markdownlint-cli2 --fix

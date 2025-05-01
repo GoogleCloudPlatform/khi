@@ -13,6 +13,7 @@
 Following feature tasks are depending on this parameter:
 
 {{range $index,$feature := $form.UsedFeatures }}
+
 * [{{$feature.Name}}](./features.md#{{$feature.Name | anchor}})
 {{- end}}
 <!-- END GENERATED PART: form-used-feature-{{$form.ID}} -->

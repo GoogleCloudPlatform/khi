@@ -293,7 +293,7 @@ logcli query '{job="audit"}' \
 * `--addr=http://localhost:8000`: The address of the port-forwarded Loki service.
 
 > [!NOTE]  
->  We use `--output=raw` here because in this tutorial Fluent Bit was configured to send the raw JSON audit log line directly to Loki. If your logging pipeline parses the JSON and stores it as structured metadata within Loki (e.g., using Loki's JSON parser or pipeline stages), you cannot use `--output=raw`. In that case, you would need to query Loki and reconstruct the original JSONL format required by KHI yourself, potentially using `logcli` with a different output format (like `--output=json`) and processing the results with tools like `jq`.*
+> We use `--output=raw` here because in this tutorial Fluent Bit was configured to send the raw JSON audit log line directly to Loki. If your logging pipeline parses the JSON and stores it as structured metadata within Loki (e.g., using Loki's JSON parser or pipeline stages), you cannot use `--output=raw`. In that case, you would need to query Loki and reconstruct the original JSONL format required by KHI yourself, potentially using `logcli` with a different output format (like `--output=json`) and processing the results with tools like `jq`.*
 
 ## 6. Inspect with KHI
 

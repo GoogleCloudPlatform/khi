@@ -14,16 +14,16 @@ This directory contains configuration for a containerized development environmen
 
 1. Build and start the container:
 
-```bash
-docker compose -f .devcontainer/docker-compose.yml up -d
-```
+    ```bash
+    docker compose -f .devcontainer/docker-compose.yml up -d
+    ```
 
 2. Enter the container and run setup script:
 
-```bash
-docker compose -f .devcontainer/docker-compose.yml exec dev-env bash
-/workspace/.devcontainer/setup-dev.sh
-```
+    ```bash
+    docker compose -f .devcontainer/docker-compose.yml exec dev-env bash
+    /workspace/.devcontainer/setup-dev.sh
+    ```
 
 ## Verifying Setup
 
@@ -41,4 +41,3 @@ ng --version
 gcloud --version
 kubectl version --client
 ```
-

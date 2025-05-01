@@ -21,7 +21,7 @@
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-{{$feature.ID}} -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -48,6 +48,7 @@ Sample query:
 
 Following log queries are used with this feature.
 {{range $index,$query := $feature.IndirectQueryDependency}}
+
 * ![{{$query.LogTypeColorCode}}](https://placehold.co/15x15/{{$query.LogTypeColorCode}}/{{$query.LogTypeColorCode}}.png){{$query.LogTypeLabel}}
 {{- end}}
 <!-- END GENERATED PART: feature-element-depending-indirect-query-header-{{$feature.ID}} -->
@@ -59,6 +60,7 @@ Following log queries are used with this feature.
 
 This feature is supported in the following inspection types.
 {{range $index,$type := $feature.AvailableInspectionTypes}}
+
 * [{{$type.Name}}](./inspection-type.md#{{$type.Name | anchor}})
 {{- end}}
 <!-- END GENERATED PART: feature-element-available-inspection-type-{{$feature.ID}} -->
