@@ -68,5 +68,54 @@ describe('DefaultParameterStore', () => {
         await lastValueFrom(parameterStore.watch('foo').pipe(take(1))),
       ).toBe('qux');
     });
+
+    it('update the value if the previous value is same as the default value', async () => {
+      parameterStore.setDefaultValues({ foo: 'bar' });
+      parameterStore.set('foo', 'bar');
+      parameterStore.setDefaultValues({ foo: 'qux' });
+
+      expect(
+        await lastValueFrom(parameterStore.watch('foo').pipe(take(1))),
+      ).toBe('qux');
+    });
+  });
+
+  describe('watchDirty', () => {
+    it("becomes false when the value hasn't set", async () => {
+      parameterStore.setDefaultValues({ foo: 'bar' });
+
+      expect(
+        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
+      ).toBe(false);
+    });
+
+    it('becomes false when the value has set', async () => {
+      parameterStore.setDefaultValues({ foo: 'bar' });
+      parameterStore.set('foo', 'qux');
+
+      expect(
+        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
+      ).toBe(true);
+    });
+
+    it('becomes false when the previous value returned to the same as the default value', async () => {
+      parameterStore.setDefaultValues({ foo: 'bar' });
+      parameterStore.set('foo', 'qux');
+      parameterStore.set('foo', 'bar');
+
+      expect(
+        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
+      ).toBe(false);
+    });
+
+    it('becomes false when the default value was updated and it matched the current value', async () => {
+      parameterStore.setDefaultValues({ foo: 'bar' });
+      parameterStore.set('foo', 'qux');
+      parameterStore.setDefaultValues({ foo: 'qux' });
+
+      expect(
+        await lastValueFrom(parameterStore.watchDirty('foo').pipe(take(1))),
+      ).toBe(false);
+    });
   });
 });

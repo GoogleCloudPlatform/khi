@@ -140,6 +140,10 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	}
 
 	// Query related tasks
+	err = inspectionServer.AddTask(task.QueryResourceNameInputTask)
+	if err != nil {
+		return err
+	}
 	err = inspectionServer.AddTask(k8sauditquery.Task)
 	if err != nil {
 		return err

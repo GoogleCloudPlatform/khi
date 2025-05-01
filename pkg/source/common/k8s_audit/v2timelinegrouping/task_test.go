@@ -38,7 +38,7 @@ func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
 		ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
 		result, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeDryRun, map[string]any{},
-			task_test.NewTaskDependencyValuePair(common_k8saudit_taskid.CommonLogParseTaskID.GetTaskReference(), nil))
+			task_test.NewTaskDependencyValuePair(common_k8saudit_taskid.CommonLogParseTaskID.Ref(), nil))
 		if err != nil {
 			t.Error(err)
 		}

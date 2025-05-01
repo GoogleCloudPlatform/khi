@@ -596,7 +596,7 @@ func (c *GCPClientImpl) ListRegions(ctx context.Context, projectId string) ([]st
 /**
  * Query logs with specified filter
  */
-func (c *GCPClientImpl) ListLogEntries(ctx context.Context, projectId string, filter string, logSink chan any) error {
+func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan any) error {
 	type logEntriesListRequest struct {
 		ResourceNames []string `json:"resourceNames"`
 		Filter        string   `json:"filter"`
@@ -627,7 +627,7 @@ func (c *GCPClientImpl) ListLogEntries(ctx context.Context, projectId string, fi
 			}
 		default:
 			requestBody := logEntriesListRequest{
-				ResourceNames: []string{fmt.Sprintf("projects/%s", projectId)},
+				ResourceNames: resourceNames,
 				Filter:        filter,
 				OrderBy:       "timestamp asc",
 				PageSize:      int64(math.Min(float64(MAXIMUM_PAGE_SIZE), float64(c.MaxLogEntries-entryIndex))), // logging API can take 1000 entries at most.

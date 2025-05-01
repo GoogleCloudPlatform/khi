@@ -17,7 +17,11 @@ globs:
   - "**/*.md"
 ignores:
   - "**/node_modules/**"
+  - "docs/en/reference/**"
+  - "docs/template/**"
+  - SECURITY.md
 config:
   default: true
   MD013: false  # Line length
+  MD028: false  # No blanks blockquote (It raises falsy error on series of callouts)
   MD033: false  # Inline HTML 

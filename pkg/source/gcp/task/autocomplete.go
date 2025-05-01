@@ -36,14 +36,14 @@ var AutocompleteLocationTaskID taskid.TaskImplementationID[[]string] = taskid.Ne
 // default implementation for "Location" field
 var AutocompleteLocationTask = inspection_cached_task.NewCachedTask(AutocompleteLocationTaskID,
 	[]taskid.UntypedTaskReference{
-		InputProjectIdTaskID, // for API restriction
+		InputProjectIdTaskID.Ref(), // for API restriction
 	},
 	func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[[]string]) (inspection_cached_task.PreviousTaskResult[[]string], error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return inspection_cached_task.PreviousTaskResult[[]string]{}, err
 		}
-		projectID := task.GetTaskResult(ctx, InputProjectIdTaskID.GetTaskReference())
+		projectID := task.GetTaskResult(ctx, InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
 
 		if prevValue.DependencyDigest == dependencyDigest {

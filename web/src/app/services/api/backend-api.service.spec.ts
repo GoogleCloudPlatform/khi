@@ -195,6 +195,46 @@ describe('BackendAPIImpl testing', () => {
     req.flush(testData);
   });
 
+  it('can call getInspectionData', () => {
+    const fileSize = 42;
+    const testMetadata: InspectionMetadataOfRunResult = {
+      header: {
+        inspectionType: 'test',
+        inspectionTypeIconPath: 'test',
+        inspectTimeUnixSeconds: 10,
+        startTimeUnixSeconds: 10,
+        endTimeUnixSeconds: 10,
+        suggestedFilename: 'test',
+        fileSize: 42,
+      },
+      query: [],
+      plan: {
+        taskGraph: '',
+      },
+      log: [],
+      error: {
+        errorMessages: [],
+      },
+    };
+    api
+      .getInspectionData('test', () => {})
+      .subscribe((data) => {
+        expect(data.fileName).toEqual('test');
+        expect(data.content).toEqual(testData);
+      });
+    const testData = new Blob([new ArrayBuffer(fileSize)]);
+    const req0 = httpTestingController.expectOne(
+      '/api/v3/inspection/test/metadata',
+    );
+    expect(req0.request.method).toEqual('GET');
+    req0.flush(testMetadata);
+    const req1 = httpTestingController.expectOne(
+      `/api/v3/inspection/test/data?start=0&maxSize=${fileSize}`,
+    );
+    expect(req1.request.method).toEqual('GET');
+    req1.flush(testData);
+  });
+
   it('can call runTask', () => {
     const testParameters: InspectionRunRequest = {
       test: 'foo',

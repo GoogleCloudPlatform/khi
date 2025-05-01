@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { Component, input } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { BreaklinePipe } from 'src/app/common/breakline.pipe';
 import {
   ParameterFormFieldBase,
   ParameterHintType,
 } from 'src/app/common/schema/form-types';
+import { PARAMETER_STORE } from './service/parameter-store';
+import { CommonModule } from '@angular/common';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 /**
  * Component of common parameter headers used in new inspection dialog.
@@ -29,10 +32,13 @@ import {
   selector: 'khi-new-inspection-parameter-header',
   templateUrl: './parameter-header.component.html',
   styleUrls: ['./parameter-header.component.sass'],
-  imports: [BreaklinePipe, MatIconModule],
+  imports: [CommonModule, BreaklinePipe, MatIconModule, MatTooltipModule],
 })
 export class ParameterHeaderComponent {
   readonly ParameterHintType = ParameterHintType;
+
+  readonly dirtyIconTooltip =
+    "This field modified once and won't follow the default value when KHI updated the default dynamatically.";
   /**
    * The spec of this text type parameter.
    */
@@ -42,4 +48,6 @@ export class ParameterHeaderComponent {
    * If the status of validation should show on header or not.
    */
   showValidationStatus = input(true);
+
+  store = inject(PARAMETER_STORE);
 }

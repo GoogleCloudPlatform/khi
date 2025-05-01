@@ -40,12 +40,12 @@ import (
 
 // GCPK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var GCPK8sAuditLogSourceTask = inspection_task.NewInspectionTask(gke_k8saudit_taskid.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
-	gke_k8saudit_taskid.K8sAuditQueryTaskID,
+	gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*types.AuditLogParserLogSource, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	logs := task.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.GetTaskReference())
+	logs := task.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref())
 
 	return &types.AuditLogParserLogSource{
 		Logs:      logs,

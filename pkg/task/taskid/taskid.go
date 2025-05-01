@@ -40,6 +40,8 @@ type UntypedTaskReference interface {
 	String() string
 	// ReferenceIDString returns the reference ID portion without any implementation hash.
 	ReferenceIDString() string
+	// isTaskReference is a marker to prevent TaskImplementationID implementing this interface.
+	isTaskReference() bool
 }
 
 // TaskReference defines a typed reference to a task that produces a specific result type.
@@ -70,8 +72,8 @@ type UntypedTaskImplementationID interface {
 // The type parameter ensures that implementations maintain type safety with their references.
 type TaskImplementationID[TaskResult any] interface {
 	UntypedTaskImplementationID
-	// GetTaskReference returns the typed reference associated with this implementation ID.
-	GetTaskReference() TaskReference[TaskResult]
+	// Ref returns the typed reference associated with this implementation ID.
+	Ref() TaskReference[TaskResult]
 }
 
 // taskReferenceImpl implements the TaskReference interface for a specific result type.
@@ -101,9 +103,9 @@ func (t taskImplementationIDImpl[TaskResult]) String() string {
 	return t.referenceId + "#" + t.implementationHash
 }
 
-// GetTaskReference returns a TaskReference associated with this implementation ID.
+// Ref returns a TaskReference associated with this implementation ID.
 // This allows accessing the reference from the implementation, enabling type-safe dependencies.
-func (t taskImplementationIDImpl[TaskResult]) GetTaskReference() TaskReference[TaskResult] {
+func (t taskImplementationIDImpl[TaskResult]) Ref() TaskReference[TaskResult] {
 	return taskReferenceImpl[TaskResult]{id: t.referenceId}
 }
 
@@ -111,6 +113,10 @@ func (t taskImplementationIDImpl[TaskResult]) GetTaskReference() TaskReference[T
 // For taskReferenceImpl, this is the same as String().
 func (t taskReferenceImpl[TaskResult]) ReferenceIDString() string {
 	return t.String()
+}
+
+func (t taskReferenceImpl[TaskResult]) isTaskReference() bool {
+	return true
 }
 
 // ReferenceIDString returns only the reference ID portion of the implementation ID, without the hash.
@@ -127,7 +133,7 @@ func (t taskImplementationIDImpl[TaskResult]) GetTaskImplementationHash() string
 // GetUntypedReference returns the reference ID associated with this implementation ID as an UntypedTaskReference.
 // This allows working with references without knowledge of their specific result types.
 func (t taskImplementationIDImpl[TaskResult]) GetUntypedReference() UntypedTaskReference {
-	return t.GetTaskReference()
+	return t.Ref()
 }
 
 // NewTaskReference creates a new TaskReference with the specified ID.

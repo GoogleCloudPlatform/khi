@@ -22,7 +22,7 @@ import (
 
 type MockApiClient struct {
 	GetClusterNamesFunc func(ctx context.Context, projectId string) ([]string, error)
-	ListLogEntriesFunc  func(ctx context.Context, projectId string, filter string, logSink chan any) error
+	ListLogEntriesFunc  func(ctx context.Context, resourceNames []string, filter string, logSink chan any) error
 }
 
 // GetClusters implements api.GCPClient.
@@ -94,12 +94,12 @@ func (m *MockApiClient) GetComposerEnvironmentNames(ctx context.Context, project
 }
 
 // ListLogEntries implements api.GCPClient.
-func (m *MockApiClient) ListLogEntries(ctx context.Context, projectId string, filter string, logSink chan any) error {
+func (m *MockApiClient) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan any) error {
 	if m.ListLogEntriesFunc == nil {
 		close(logSink)
 		return nil
 	}
-	return m.ListLogEntriesFunc(ctx, projectId, filter, logSink)
+	return m.ListLogEntriesFunc(ctx, resourceNames, filter, logSink)
 }
 
 var _ api.GCPClient = (*MockApiClient)(nil)

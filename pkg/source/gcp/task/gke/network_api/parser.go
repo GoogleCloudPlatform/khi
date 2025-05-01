@@ -56,7 +56,7 @@ func (*gceNetworkParser) GetParserName() string {
 
 // LogTask implements parser.Parser.
 func (*gceNetworkParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return network_api_taskid.GCPNetworkLogQueryTaskID.GetTaskReference()
+	return network_api_taskid.GCPNetworkLogQueryTaskID.Ref()
 }
 
 func (*gceNetworkParser) Grouper() grouper.LogGrouper {

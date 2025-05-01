@@ -29,15 +29,15 @@ import (
 )
 
 var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
-	gcp_task.InputLocationsTaskID,
-	gcp_task.InputProjectIdTaskID,
+	gcp_task.InputLocationsTaskID.Ref(),
+	gcp_task.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[[]string]) (inspection_cached_task.PreviousTaskResult[[]string], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return inspection_cached_task.PreviousTaskResult[[]string]{}, err
 	}
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-	location := task.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.GetTaskReference())
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	location := task.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, location)
 
 	if prevValue.DependencyDigest == dependencyDigest {
@@ -65,8 +65,8 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 })
 
 var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
-	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID},
+	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref()},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-	environments := task.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.GetTaskReference())
+	environments := task.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref())
 	return common.SortForAutocomplete(value, environments), nil
 }).Build()

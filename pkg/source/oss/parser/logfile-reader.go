@@ -44,15 +44,15 @@ import (
 var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFileReader,
 	[]taskid.UntypedTaskReference{
-		oss_taskid.OSSAPIServerAuditLogFileInputTask.GetTaskReference(),
-		inspection_task.ReaderFactoryGeneratorTaskID.GetTaskReference(),
+		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
+		inspection_task.ReaderFactoryGeneratorTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return []*log.LogEntity{}, nil
 		}
-		result := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.GetTaskReference())
-		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.GetTaskReference())
+		result := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
+		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.Ref())
 
 		reader, err := result.GetReader()
 		if err != nil {
@@ -120,7 +120,7 @@ var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return []*log.LogEntity{}, nil
 		}
-		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.GetTaskReference())
+		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
 
 		var eventLogs []*log.LogEntity
 
@@ -143,7 +143,7 @@ var OSSNonEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 			return []*log.LogEntity{}, nil
 		}
 
-		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.GetTaskReference())
+		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
 
 		var auditLogs []*log.LogEntity
 

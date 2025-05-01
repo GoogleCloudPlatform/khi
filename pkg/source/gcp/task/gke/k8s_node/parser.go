@@ -67,7 +67,7 @@ func (*k8sNodeParser) Dependencies() []taskid.UntypedTaskReference {
 }
 
 func (*k8sNodeParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return k8s_node_taskid.GKENodeLogQueryTaskID.GetTaskReference()
+	return k8s_node_taskid.GKENodeLogQueryTaskID.Ref()
 }
 
 func (*k8sNodeParser) Grouper() grouper.LogGrouper {

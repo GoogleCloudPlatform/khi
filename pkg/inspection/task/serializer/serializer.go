@@ -36,15 +36,15 @@ import (
 
 var SerializerTaskID = taskid.NewDefaultImplementationID[*inspectiondata.FileSystemStore](inspection_task.InspectionTaskPrefix + "serialize")
 
-var SerializeTask = inspection_task.NewProgressReportableInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID, ioconfig.IOConfigTaskID, inspection_task.BuilderGeneratorTaskID}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
+var SerializeTask = inspection_task.NewProgressReportableInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID.Ref(), ioconfig.IOConfigTaskID.Ref(), inspection_task.BuilderGeneratorTaskID.Ref()}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil
 	}
 	inspectionID := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInspectionID)
 	metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
-	ioConfig := task.GetTaskResult(ctx, ioconfig.IOConfigTaskID.GetTaskReference())
-	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
+	ioConfig := task.GetTaskResult(ctx, ioconfig.IOConfigTaskID.Ref())
+	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
 	store := inspectiondata.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
 
 	writer, err := store.GetWriter()

@@ -66,7 +66,7 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
 	_, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeRun, map[string]any{},
-		task_test.NewTaskDependencyValuePair(inspection_task.BuilderGeneratorTaskID.GetTaskReference(), builder),
+		task_test.NewTaskDependencyValuePair(inspection_task.BuilderGeneratorTaskID.Ref(), builder),
 		task_test.NewTaskDependencyValuePair(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
 			Logs:      logs,
 			Extractor: nil,

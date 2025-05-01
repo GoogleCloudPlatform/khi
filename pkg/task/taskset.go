@@ -126,7 +126,7 @@ func (s *TaskSet) WrapGraph(subgraphId taskid.UntypedTaskImplementationID, subgr
 			capturedTask := t
 			rewiredTask := &wrapGraphFirstTask{
 				task:         capturedTask,
-				dependencies: []taskid.UntypedTaskReference{initTaskId.GetTaskReference()},
+				dependencies: []taskid.UntypedTaskReference{initTaskId.Ref()},
 			}
 			rewiredTasks = append(rewiredTasks, rewiredTask)
 		} else {
@@ -141,7 +141,7 @@ func (s *TaskSet) WrapGraph(subgraphId taskid.UntypedTaskImplementationID, subgr
 	}
 
 	doneTaskDependencies := []taskid.UntypedTaskReference{
-		initTaskId.GetTaskReference(),
+		initTaskId.Ref(),
 	}
 	for k := range tasksNotDependentFromAnyMap {
 		doneTaskDependencies = append(doneTaskDependencies, taskid.NewTaskReference[any](k))

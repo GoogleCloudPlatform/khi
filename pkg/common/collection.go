@@ -102,3 +102,18 @@ func SortForAutocomplete(input string, elements []string) []string {
 
 	return append(append(result, prefixMatches...), prefixNonMatches...)
 }
+
+// SameStringSet checks if the set of elements are same or not.
+func SameStringSet(a, b []string) bool {
+	a = DedupStringArray(a)
+	b = DedupStringArray(b)
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}

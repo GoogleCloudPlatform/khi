@@ -44,7 +44,7 @@ func (p *autoscalerLogParser) TargetLogType() enum.LogType {
 // Dependencies implements parser.Parser.
 func (*autoscalerLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		gcp_task.InputClusterNameTaskID,
+		gcp_task.InputClusterNameTaskID.Ref(),
 	}
 }
 
@@ -60,7 +60,7 @@ func (*autoscalerLogParser) GetParserName() string {
 
 // LogTask implements parser.Parser.
 func (*autoscalerLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return gke_autoscaler_taskid.AutoscalerQueryTaskID.GetTaskReference()
+	return gke_autoscaler_taskid.AutoscalerQueryTaskID.Ref()
 }
 
 func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
@@ -69,7 +69,7 @@ func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
 
 // Parse implements parser.Parser.
 func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 
 	// scaleUp,scaleDown,nodePoolCreated,nodePoolDeleted
 	if l.Has("jsonPayload.decision") {

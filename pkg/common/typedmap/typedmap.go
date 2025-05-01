@@ -45,6 +45,7 @@ type ReadableTypedMap interface {
 // TypedMap is a thread-safe map with type-safe operations.
 type TypedMap struct {
 	container sync.Map
+	lockers   sync.Map
 }
 
 // ReadonlyTypedMap is a read-only view of a TypedMap.
@@ -71,6 +72,16 @@ func NewTypedMap() *TypedMap {
 func (m *TypedMap) AsReadonly() *ReadonlyTypedMap {
 	return &ReadonlyTypedMap{
 		source: m,
+	}
+}
+
+// lockKey acquire the lock for the specified key and return a release function
+func (m *TypedMap) lockKey(key string) func() {
+	mutexAny, _ := m.lockers.LoadOrStore(key, &sync.Mutex{})
+	mutex := mutexAny.(*sync.Mutex)
+	mutex.Lock()
+	return func() {
+		mutex.Unlock()
 	}
 }
 
@@ -137,14 +148,27 @@ func GetOrDefault[T any](m ReadableTypedMap, key TypedKey[T], defaultValue T) T 
 	return v
 }
 
+// GetOrSetFunc retrieves a value and set the value with the result of the given function if not found.
+func GetOrSetFunc[T any](m *TypedMap, key TypedKey[T], genFunc func() T) T {
+	defer m.lockKey(key.key)()
+	v, found := Get(m, key)
+	if !found {
+		v = genFunc()
+		m.container.Store(key.key, v)
+	}
+	return v
+}
+
 // Set stores a value.
 // The key's type parameter must match the value's type.
 func Set[T any](m *TypedMap, key TypedKey[T], value T) {
+	defer m.lockKey(key.key)()
 	m.container.Store(key.key, value)
 }
 
 // Delete removes the value associated with the given key.
 // The key's type parameter indicates which type of value to delete.
 func Delete[T any](m *TypedMap, key TypedKey[T]) {
+	defer m.lockKey(key.key)()
 	m.container.Delete(key.key)
 }

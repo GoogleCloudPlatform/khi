@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package error
+package gcp_taskid
 
 import (
-	"testing"
-
-	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	gcp_types "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-func TestProgressConformance(t *testing.T) {
-	metadata_test.ConformanceMetadataTypeTest(t, &ErrorMessageSet{
-		[]*ErrorMessage{
-			{},
-		},
-	})
-}
+var LoggingFilterResourceNameInputTaskID = taskid.NewDefaultImplementationID[*gcp_types.ResourceNamesInput]("logging-filter-resource-name-input")

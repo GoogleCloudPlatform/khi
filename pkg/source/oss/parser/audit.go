@@ -39,12 +39,12 @@ import (
 
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
-	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.GetTaskReference(),
+	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*types.AuditLogParserLogSource, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	logs := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.GetTaskReference())
+	logs := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())
 
 	return &types.AuditLogParserLogSource{
 		Logs:      logs,

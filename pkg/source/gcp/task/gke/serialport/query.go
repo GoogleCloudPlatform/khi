@@ -70,11 +70,11 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 }
 
 var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(serialport_taskid.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
-	gke_k8saudit_taskid.K8sAuditParseTaskID,
-	gcp_task.InputNodeNameFilterTaskID,
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
-	nodeNameSubstrings := task.GetTaskResult(ctx, gcp_task.InputNodeNameFilterTaskID.GetTaskReference())
+	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
+	gcp_task.InputNodeNameFilterTaskID.Ref(),
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
+	nodeNameSubstrings := task.GetTaskResult(ctx, gcp_task.InputNodeNameFilterTaskID.Ref())
 
 	return GenerateSerialPortQuery(taskMode, builder.ClusterResource.GetNodes(), nodeNameSubstrings), nil
 }, GenerateSerialPortQuery(inspection_task_interface.TaskModeRun, []string{

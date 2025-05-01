@@ -28,14 +28,14 @@ import (
 )
 
 var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "gke"), []taskid.UntypedTaskReference{
-	gcp_task.InputProjectIdTaskID,
+	gcp_task.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
 	if projectID != "" && projectID == prevValue.DependencyDigest {
 		return prevValue, nil
 	}

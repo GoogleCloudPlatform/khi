@@ -13,7 +13,6 @@ The project ID containing logs of the cluster to query
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes Audit Log](./features.md#kubernetes-audit-log)
 * [Kubernetes Event Logs](./features.md#kubernetes-event-logs)
 * [Kubernetes Node Logs](./features.md#kubernetes-node-logs)
@@ -40,7 +39,6 @@ The cluster name to gather logs.
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes Audit Log](./features.md#kubernetes-audit-log)
 * [Kubernetes Event Logs](./features.md#kubernetes-event-logs)
 * [Kubernetes Node Logs](./features.md#kubernetes-node-logs)
@@ -63,7 +61,6 @@ The duration of time range to gather logs. Supported time units are `h`,`m` or `
 ### Features using this parameter
 
 Following feature tasks are depending on this parameter:
-
 
 * [Kubernetes Audit Log](./features.md#kubernetes-audit-log)
 * [Kubernetes Event Logs](./features.md#kubernetes-event-logs)
@@ -91,7 +88,6 @@ The endtime of the time range to gather logs.  The start time of the time range 
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes Audit Log](./features.md#kubernetes-audit-log)
 * [Kubernetes Event Logs](./features.md#kubernetes-event-logs)
 * [Kubernetes Node Logs](./features.md#kubernetes-node-logs)
@@ -118,7 +114,6 @@ The kinds of resources to gather logs. `@default` is a alias of set of kinds tha
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes Audit Log](./features.md#kubernetes-audit-log)
 * [Compute API Logs](./features.md#compute-api-logs)
 * [GCE Network Logs](./features.md#gce-network-logs)
@@ -127,13 +122,11 @@ Following feature tasks are depending on this parameter:
 <!-- BEGIN GENERATED PART: form-element-header-cloud.google.com/input/location -->
 ## Location
 
-
 <!-- END GENERATED PART: form-element-header-cloud.google.com/input/location -->
 <!-- BEGIN GENERATED PART: form-used-feature-cloud.google.com/input/location -->
 ### Features using this parameter
 
 Following feature tasks are depending on this parameter:
-
 
 * [(Alpha) Composer / Airflow Scheduler](./features.md#alpha-composer--airflow-scheduler)
 * [(Alpha) Cloud Composer / Airflow Worker](./features.md#alpha-cloud-composer--airflow-worker)
@@ -148,7 +141,6 @@ The namespace of resources to gather logs. Specify `@all_cluster_scoped` to gath
 ### Features using this parameter
 
 Following feature tasks are depending on this parameter:
-
 
 * [Kubernetes Audit Log](./features.md#kubernetes-audit-log)
 * [Kubernetes Event Logs](./features.md#kubernetes-event-logs)
@@ -166,7 +158,6 @@ A space-separated list of node name substrings used to collect node-related logs
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes Node Logs](./features.md#kubernetes-node-logs)
 * [Node serial port logs](./features.md#node-serial-port-logs)
 <!-- END GENERATED PART: form-used-feature-cloud.google.com/input/node-name-filter -->
@@ -180,7 +171,6 @@ The namespace of Pods to gather container logs. Specify `@managed` to gather log
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes container logs](./features.md#kubernetes-container-logs)
 <!-- END GENERATED PART: form-used-feature-cloud.google.com/input/container-query-namespaces -->
 <!-- BEGIN GENERATED PART: form-element-header-cloud.google.com/input/container-query-podnames -->
@@ -193,12 +183,10 @@ The substring of Pod name to gather container logs. Specify `@any` to gather log
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes container logs](./features.md#kubernetes-container-logs)
 <!-- END GENERATED PART: form-used-feature-cloud.google.com/input/container-query-podnames -->
 <!-- BEGIN GENERATED PART: form-element-header-cloud.google.com/input/component-names -->
 ## Control plane component names
-
 
 <!-- END GENERATED PART: form-element-header-cloud.google.com/input/component-names -->
 <!-- BEGIN GENERATED PART: form-used-feature-cloud.google.com/input/component-names -->
@@ -206,19 +194,16 @@ Following feature tasks are depending on this parameter:
 
 Following feature tasks are depending on this parameter:
 
-
 * [Kubernetes Control plane component logs](./features.md#kubernetes-control-plane-component-logs)
 <!-- END GENERATED PART: form-used-feature-cloud.google.com/input/component-names -->
 <!-- BEGIN GENERATED PART: form-element-header-cloud.google.com/input/composer/environment_name -->
 ## Composer Environment Name
-
 
 <!-- END GENERATED PART: form-element-header-cloud.google.com/input/composer/environment_name -->
 <!-- BEGIN GENERATED PART: form-used-feature-cloud.google.com/input/composer/environment_name -->
 ### Features using this parameter
 
 Following feature tasks are depending on this parameter:
-
 
 * [(Alpha) Composer / Airflow Scheduler](./features.md#alpha-composer--airflow-scheduler)
 * [(Alpha) Cloud Composer / Airflow Worker](./features.md#alpha-cloud-composer--airflow-worker)

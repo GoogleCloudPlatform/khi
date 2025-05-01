@@ -55,7 +55,7 @@ func (o *OSSK8sEventFromK8sAudit) Grouper() grouper.LogGrouper {
 
 // LogTask implements parser.Parser.
 func (o *OSSK8sEventFromK8sAudit) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID.GetTaskReference()
+	return oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID.Ref()
 }
 
 // Parse implements parser.Parser.

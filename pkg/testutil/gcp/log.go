@@ -43,5 +43,5 @@ func IsValidLogQuery(t *testing.T, query string) error {
 timestamp >= "2024-01-01T00:00:00Z"
 timestamp <= "2024-01-01T00:00:01Z"`, query)
 
-	return gcpApi.ListLogEntries(context.Background(), "kubernetes-history-inspector", query, make(chan any))
+	return gcpApi.ListLogEntries(context.Background(), []string{"projects/kubernetes-history-inspector"}, query, make(chan any))
 }

@@ -36,6 +36,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
@@ -47,21 +48,80 @@ const SkipQueryBody = "@Skip"
 
 type QueryGeneratorFunc = func(context.Context, inspection_task_interface.InspectionTaskMode) ([]string, error)
 
+// DefaultResourceNamesGenerator returns the default resource names used for querying Cloud Logging.
+type DefaultResourceNamesGenerator interface {
+	// GetDependentTasks returns the list of taks references needed for generating resource names.
+	GetDependentTasks() []taskid.UntypedTaskReference
+	// GenerateResourceNames returns the list of resource names.
+	GenerateResourceNames(ctx context.Context) ([]string, error)
+}
+
+type ProjectIDDefaultResourceNamesGenerator struct{}
+
+// GenerateResourceNames implements DefaultResourceNamesGenerator.
+func (p *ProjectIDDefaultResourceNamesGenerator) GenerateResourceNames(ctx context.Context) ([]string, error) {
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// GetDependentTasks implements DefaultResourceNamesGenerator.
+func (p *ProjectIDDefaultResourceNamesGenerator) GetDependentTasks() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		gcp_task.InputProjectIdTaskID.Ref(),
+	}
+}
+
+var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(nil)
+
 var queryThreadPool = worker.NewPool(16)
 
-func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, generator QueryGeneratorFunc, sampleQuery string) task.Task[[]*log.LogEntity] {
-	return inspection_task.NewProgressReportableInspectionTask(taskId, append(dependencies, gcp_task.InputProjectIdTaskID, gcp_task.InputStartTimeTaskID, gcp_task.InputEndTimeTaskID, inspection_task.ReaderFactoryGeneratorTaskID), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) task.Task[[]*log.LogEntity] {
+	return inspection_task.NewProgressReportableInspectionTask(taskId, append(
+		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
+		gcp_task.InputStartTimeTaskID.Ref(),
+		gcp_task.InputEndTimeTaskID.Ref(),
+		inspection_task.ReaderFactoryGeneratorTaskID.Ref(),
+		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
+	), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err
 		}
 
 		metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+		resourceNames := task.GetTaskResult(ctx, gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref())
+		taskInput := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInput)
 
-		projectId := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.GetTaskReference())
-		startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.GetTaskReference())
-		endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.GetTaskReference())
+		defaultResourceNames, err := resourceNamesGenerator.GenerateResourceNames(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		resourceNames.UpdateDefaultResourceNamesForQuery(taskId.ReferenceIDString(), defaultResourceNames)
+		queryResourceNamePair := resourceNames.GetResourceNamesForQuery(taskId.ReferenceIDString())
+		resourceNamesFromInput := defaultResourceNames
+		inputStr, found := taskInput[queryResourceNamePair.GetInputID()]
+		if found {
+			resourceNamesFromInput = strings.Split(inputStr.(string), " ")
+			resourceNamesList := []string{}
+			hadError := false
+			for _, resourceNameFromInput := range resourceNamesFromInput {
+				resourceNameWithoutSurroundingSpace := strings.TrimSpace(resourceNameFromInput)
+				err := api.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
+				if err != nil {
+					hadError = true
+					break
+				}
+				resourceNamesList = append(resourceNamesList, resourceNameWithoutSurroundingSpace)
+			}
+			if !hadError {
+				resourceNamesFromInput = resourceNamesList
+			}
+		}
+
+		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.Ref())
+		startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
+		endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
 
 		queryStrings, err := generator(ctx, taskMode)
 		if err != nil {
@@ -92,7 +152,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 			// Run query only when thetask mode is for running
 			if taskMode == inspection_task_interface.TaskModeRun {
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
-				queryLogs, queryErr := worker.Query(ctx, readerFactory, projectId, progress)
+				queryLogs, queryErr := worker.Query(ctx, readerFactory, resourceNamesFromInput, progress)
 				if queryErr != nil {
 					errorMessageSet, found := typedmap.Get(metadata, error_metadata.ErrorMessageSetMetadataKey)
 					if !found {
@@ -101,11 +161,18 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 					if strings.HasPrefix(queryErr.Error(), "401:") {
 						errorMessageSet.AddErrorMessage(error_metadata.NewUnauthorizedErrorMessage())
 					}
+					// TODO: these errors are shown to frontend but it's not well implemented.
 					if strings.HasPrefix(queryErr.Error(), "403:") {
-						errorMessageSet.AddErrorMessage(error_metadata.NewPermissionErrorMessage(projectId))
+						errorMessageSet.AddErrorMessage(&error_metadata.ErrorMessage{
+							ErrorId: 0,
+							Message: queryErr.Error(),
+						})
 					}
 					if strings.HasPrefix(queryErr.Error(), "404:") {
-						errorMessageSet.AddErrorMessage(error_metadata.NewNotFoundErrorMessage(projectId))
+						errorMessageSet.AddErrorMessage(&error_metadata.ErrorMessage{
+							ErrorId: 0,
+							Message: queryErr.Error(),
+						})
 					}
 					return nil, queryErr
 				}

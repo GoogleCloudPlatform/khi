@@ -88,13 +88,13 @@ func generatePodNamesFilter(podNamesFilter *queryutil.SetFilterParseResult) stri
 }
 
 var GKEContainerQueryTask = query.NewQueryGeneratorTask(gke_k8s_container_taskid.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
-	gcp_task.InputClusterNameTaskID,
-	gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID,
-	gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
-	namespacesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.GetTaskReference())
-	podNamesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.GetTaskReference())
+	gcp_task.InputClusterNameTaskID.Ref(),
+	gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref(),
+	gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref(),
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	namespacesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref())
+	podNamesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref())
 
 	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
 }, GenerateK8sContainerQuery("gcp-cluster-name", &queryutil.SetFilterParseResult{

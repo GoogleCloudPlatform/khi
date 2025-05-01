@@ -27,6 +27,10 @@ import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { MatIconHarness } from '@angular/material/icon/testing';
 import { ParameterHintType } from 'src/app/common/schema/form-types';
+import {
+  DefaultParameterStore,
+  PARAMETER_STORE,
+} from './service/parameter-store';
 describe('ParameterHeaderComponent', () => {
   let fixture: ComponentFixture<ParameterHeaderComponent>;
   let harnessLoader: HarnessLoader;
@@ -43,6 +47,12 @@ describe('ParameterHeaderComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [BrowserAnimationsModule],
+      providers: [
+        {
+          provide: PARAMETER_STORE,
+          useValue: new DefaultParameterStore(),
+        },
+      ],
     }).compileComponents();
     const matIconRegistry = TestBed.inject(MatIconRegistry);
     matIconRegistry.setDefaultFontSetClass('material-symbols-outlined');

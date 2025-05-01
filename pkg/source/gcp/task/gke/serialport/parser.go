@@ -63,7 +63,7 @@ func (*SerialPortLogParser) Dependencies() []taskid.UntypedTaskReference {
 }
 
 func (*SerialPortLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return serialport_taskid.SerialPortLogQueryTaskID.GetTaskReference()
+	return serialport_taskid.SerialPortLogQueryTaskID.Ref()
 }
 
 func (*SerialPortLogParser) Grouper() grouper.LogGrouper {

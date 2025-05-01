@@ -31,29 +31,21 @@ import {
   InspectionMetadataOfRunResult,
   GetConfigResponse,
 } from '../../common/schema/api-types';
-import {
-  HttpClient,
-  HttpEvent,
-  HttpEventType,
-  HttpRequest,
-  HttpResponse,
-} from '@angular/common/http';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import {
   Observable,
   ReplaySubject,
   Subject,
   concat,
   debounceTime,
-  filter,
-  forkJoin,
-  last,
   map,
   mergeMap,
   of,
+  range,
+  reduce,
   retry,
   shareReplay,
   switchMap,
-  takeWhile,
   withLatestFrom,
 } from 'rxjs';
 import { ViewStateService } from '../view-state.service';
@@ -73,6 +65,7 @@ export class BackendAPIImpl implements BackendAPI {
   private readonly API_BASE_PATH = '/api/v3';
 
   private readonly MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE = 16 * 1024 * 1024;
+  private readonly INSPECTION_DATA_DOWNLOAD_CONCURRENCY = 10;
 
   /**
    * The base address of the backend server.
@@ -187,76 +180,58 @@ export class BackendAPIImpl implements BackendAPI {
     inspectionID: string,
     reporter: DownloadProgressReporter,
   ) {
-    const receivedBuffers = [] as ArrayBuffer[];
-    let loadedBytes = 0;
-    const responseSubject = new ReplaySubject<Blob | null>(1);
-    const partialRequestsSubject = new Subject<HttpRequest<ArrayBuffer>>();
-    partialRequestsSubject
-      .pipe(
-        mergeMap((request) =>
-          this.http.request<ArrayBuffer>(request).pipe(
-            filter((event) => event.type === HttpEventType.Response),
-            map((response) => response as HttpResponse<ArrayBuffer>),
-            last(),
+    // accumulator holds donwnloaded bytes for reporter
+    let done = 0;
+    return this.getInspectionMetadata(inspectionID).pipe(
+      switchMap((metadata) => {
+        const totalSize = metadata.header.fileSize ?? 0;
+        const chunks = Math.ceil(
+          totalSize / this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
+        );
+        return range(0, chunks).pipe(
+          map((index) => {
+            const startInBytes =
+              index * this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE;
+            const maxSizeInBytes = Math.min(
+              this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
+              totalSize - startInBytes,
+            );
+            const params = `start=${startInBytes}&maxSize=${maxSizeInBytes}`;
+            return { index, params };
+          }),
+          mergeMap(({ index, params }) => {
+            const url = this.baseUrl + `/inspection/${inspectionID}/data`;
+            return this.http
+              .get(`${url}?${params}`, { responseType: 'blob' })
+              .pipe(
+                map((blob) => {
+                  done += blob.size;
+                  reporter(totalSize, done);
+                  return { index, blob };
+                }),
+              );
+          }, this.INSPECTION_DATA_DOWNLOAD_CONCURRENCY),
+          reduce(
+            (acc: Blob[], downloadResult: { index: number; blob: Blob }) => {
+              acc[downloadResult.index] = downloadResult.blob;
+              return acc;
+            },
+            [],
           ),
-        ),
-        takeWhile((response) => {
-          if (!response.body)
-            throw new Error('unexpected response. body is null.');
-          return response.body.byteLength > 0;
-        }),
-      )
-      .subscribe({
-        next: (chunk) => {
-          receivedBuffers.push(chunk.body!);
-          loadedBytes += chunk.body!.byteLength;
-          // request the next chunk
-          partialRequestsSubject.next(
-            new HttpRequest<ArrayBuffer>(
-              'GET',
-              this.getRangedDataURL(
-                inspectionID,
-                loadedBytes,
-                this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
-              ),
-              null,
-              { responseType: 'arraybuffer' },
-            ),
-          );
-          reporter(loadedBytes);
-        },
-        complete: () => {
-          responseSubject.next(
-            new Blob(receivedBuffers, { type: 'application/octet-stream' }),
-          );
-          responseSubject.complete();
-        },
-      });
-
-    // request the initial chunk
-    partialRequestsSubject.next(
-      new HttpRequest<ArrayBuffer>(
-        'GET',
-        this.getRangedDataURL(
-          inspectionID,
-          0,
-          this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
-        ),
-        null,
-        { responseType: 'arraybuffer' },
-      ),
+          map((blobs) => {
+            const fileName = metadata.header.suggestedFilename;
+            const content = new Blob(blobs);
+            if (content.size != totalSize) {
+              // The downloaded file is very likely broken if the inspection API works well.
+              throw new Error(
+                `Downloaded size: ${content.size} != Content-Length: ${totalSize}`,
+              );
+            }
+            return { fileName, content };
+          }),
+        );
+      }),
     );
-
-    return responseSubject;
-  }
-
-  private getRangedDataURL(
-    inspectionID: string,
-    startInBytes: number,
-    maxSizeInBytes: number,
-  ): string {
-    const url = this.baseUrl + `/inspection/${inspectionID}/data`;
-    return url + `?start=${startInBytes}&maxSize=${maxSizeInBytes}`;
   }
 
   public getPopup(): Observable<PopupFormRequest | null> {
@@ -391,32 +366,26 @@ export class BackendAPIUtil {
     progress: ProgressDialogStatusUpdator,
   ) {
     progress.show();
-    return api.getInspectionMetadata(inspectionID).pipe(
-      switchMap((metadata) =>
-        forkJoin([
-          of(metadata),
-          api.getInspectionData(inspectionID, (done) => {
-            const fileSize = metadata.header.fileSize ?? 0;
-            progress.updateProgress({
-              message: `Downloading inspection data (${ProgressUtil.formatPogressMessageByBytes(done, fileSize)})`,
-              percent: (done / fileSize) * 100,
-              mode: 'determinate',
-            });
-          }),
-        ]),
-      ),
-      map(([metadata, blob]) => {
-        if (blob === null) return;
-        const link = document.createElement('a');
-        link.download = metadata.header.suggestedFilename;
-        link.href = window.URL.createObjectURL(blob);
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        progress.dismiss();
-        return metadata.header.suggestedFilename;
-      }),
-    );
+    return api
+      .getInspectionData(inspectionID, (fileSize, done) => {
+        progress.updateProgress({
+          message: `Downloading inspection data (${ProgressUtil.formatPogressMessageByBytes(done, fileSize)})`,
+          percent: (done / fileSize) * 100,
+          mode: 'determinate',
+        });
+      })
+      .pipe(
+        map(({ fileName, content }) => {
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = window.URL.createObjectURL(content);
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          progress.dismiss();
+          return fileName;
+        }),
+      );
   }
 }

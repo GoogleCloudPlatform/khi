@@ -26,19 +26,19 @@ import (
 
 var AirflowSchedulerLogParseJob = parser.NewParserTaskFromParser(
 	composer_taskid.AirflowSchedulerLogParserTaskID,
-	airflowscheduler.NewAirflowSchedulerParser(composer_taskid.ComposerSchedulerLogQueryTaskID.GetTaskReference(), enum.LogTypeComposerEnvironment),
+	airflowscheduler.NewAirflowSchedulerParser(composer_taskid.ComposerSchedulerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	true,
 	[]string{composer_inspection_type.InspectionTypeId},
 )
 var AirflowWorkerLogParseJob = parser.NewParserTaskFromParser(
 	composer_taskid.AirflowWorkerLogParserTaskID,
-	airflowworker.NewAirflowWorkerParser(composer_taskid.ComposerWorkerLogQueryTaskID.GetTaskReference(), enum.LogTypeComposerEnvironment),
+	airflowworker.NewAirflowWorkerParser(composer_taskid.ComposerWorkerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	true,
 	[]string{composer_inspection_type.InspectionTypeId},
 )
 var AirflowDagProcessorLogParseJob = parser.NewParserTaskFromParser(
 	composer_taskid.AirflowDagProcessorManagerLogParserTaskID,
-	airflowdagprocessor.NewAirflowDagProcessorParser("/home/airflow/gcs/dags/", composer_taskid.ComposerDagProcessorManagerLogQueryTaskID.GetTaskReference(), enum.LogTypeComposerEnvironment),
+	airflowdagprocessor.NewAirflowDagProcessorParser("/home/airflow/gcs/dags/", composer_taskid.ComposerDagProcessorManagerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	true,
 	[]string{composer_inspection_type.InspectionTypeId},
 )

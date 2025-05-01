@@ -7,6 +7,8 @@ FILES=$(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g')
 make add-licenses
 make format
 make lint
+make lint-markdown-fix
+make lint-markdown
 
 # Add changed files to stage again because make format can change these files
 echo "$FILES" | xargs git add

@@ -39,16 +39,16 @@ import (
 var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
 
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
-	inspection_task.ReaderFactoryGeneratorTaskID,
-	common_k8saudit_taskid.TimelineGroupingTaskID,
-	gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID(),
+	inspection_task.ReaderFactoryGeneratorTaskID.Ref(),
+	common_k8saudit_taskid.TimelineGroupingTaskID.Ref(),
+	gcp_task.K8sResourceMergeConfigTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	groups := task.GetTaskResult(ctx, common_k8saudit_taskid.TimelineGroupingTaskID.GetTaskReference())
-	mergeConfigRegistry := task.GetTaskResult(ctx, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().GetTaskReference())
-	readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.GetTaskReference())
+	groups := task.GetTaskResult(ctx, common_k8saudit_taskid.TimelineGroupingTaskID.Ref())
+	mergeConfigRegistry := task.GetTaskResult(ctx, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().Ref())
+	readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.Ref())
 
 	totalLogCount := 0
 	for _, group := range groups {

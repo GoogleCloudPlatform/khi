@@ -32,13 +32,13 @@ import (
 )
 
 var Task = query.NewQueryGeneratorTask(gke_k8saudit_taskid.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
-	gcp_task.InputClusterNameTaskID,
-	gcp_task.InputKindFilterTaskID,
-	gcp_task.InputNamespaceFilterTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
-	kindFilter := task.GetTaskResult(ctx, gcp_task.InputKindFilterTaskID.GetTaskReference())
-	namespaceFilter := task.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.GetTaskReference())
+	gcp_task.InputClusterNameTaskID.Ref(),
+	gcp_task.InputKindFilterTaskID.Ref(),
+	gcp_task.InputNamespaceFilterTaskID.Ref(),
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	kindFilter := task.GetTaskResult(ctx, gcp_task.InputKindFilterTaskID.Ref())
+	namespaceFilter := task.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())
 
 	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
 }, GenerateK8sAuditQuery(

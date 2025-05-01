@@ -37,8 +37,8 @@ protoPayload.resourceName:"%s"
 }
 
 var OnPremAPIQueryTask = query.NewQueryGeneratorTask(onprem_api_taskid.OnPremCloudAPIQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
-	gcp_task.InputClusterNameTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
+	gcp_task.InputClusterNameTaskID.Ref(),
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 	return []string{GenerateOnPremAPIQuery(clusterName)}, nil
 }, GenerateOnPremAPIQuery("baremetalClusters/my-cluster"))

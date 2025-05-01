@@ -19,14 +19,23 @@
 
 $verified-icon-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette,400)
 $error-icon-color: mat.m2-get-color-from-palette(mat.$m2-red-palette,400)
+$dirty-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400)
+
+$dirty-icon-size: 15px
 
 .label-row
-    display: flex
+    display: grid
+    grid-template-areas: "validation title dirty"
+    gap: 3px
+    justify-content: start
     align-items: center
-    mat-icon
-        margin: 0px 4px
-        transform: scale(80%)
 
+    .dirty
+        color: $dirty-icon-color
+        width: $dirty-icon-size
+        height: $dirty-icon-size
+        font-size: $dirty-icon-size
+    
 .label
     flex: 1
     font-weight: 600

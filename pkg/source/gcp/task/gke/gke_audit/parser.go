@@ -55,7 +55,7 @@ func (*gkeAuditLogParser) GetParserName() string {
 
 // LogTask implements parser.Parser.
 func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return gke_audit_taskid.GKEAuditLogQueryTaskID.GetTaskReference()
+	return gke_audit_taskid.GKEAuditLogQueryTaskID.Ref()
 }
 
 func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {

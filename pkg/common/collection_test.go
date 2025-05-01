@@ -115,3 +115,53 @@ func TestSortByStringDistance(t *testing.T) {
 		}
 	}
 }
+
+func TestSameStringSet(t *testing.T) {
+	testCases := []struct {
+		name     string
+		a        []string
+		b        []string
+		expected bool
+	}{
+		{
+			name:     "same set",
+			a:        []string{"a", "b", "c"},
+			b:        []string{"a", "b", "c"},
+			expected: true,
+		},
+		{
+			name:     "same set with different order",
+			a:        []string{"a", "b", "c"},
+			b:        []string{"c", "b", "a"},
+			expected: true,
+		},
+		{
+			name:     "same set with duplicate",
+			a:        []string{"a", "b", "c", "c"},
+			b:        []string{"c", "b", "a"},
+			expected: true,
+		},
+		{
+			name:     "different set",
+			a:        []string{"a", "b", "c"},
+			b:        []string{"a", "b", "d"},
+			expected: false,
+		},
+		{
+			name:     "different set with different length",
+			a:        []string{"a", "b", "c"},
+			b:        []string{"a", "b"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := SameStringSet(tc.a, tc.b)
+			if result != tc.expected {
+				t.Errorf("SameStringSet(%v, %v) = %v, want %v", tc.a, tc.b, result, tc.expected)
+			}
+		})
+	}
+
+}

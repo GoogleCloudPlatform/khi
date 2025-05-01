@@ -34,7 +34,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 - Google Cloud
   - [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine/docs/concepts/kubernetes-engine-overview)
   - [Cloud Composer](https://cloud.google.com/composer/docs/composer-3/composer-overview)
-  - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture) 
+  - [GKE on AWS](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/aws/concepts/architecture)
   - [GKE on Azure](https://cloud.google.com/kubernetes-engine/multi-cloud/docs/azure/concepts/architecture)
   - [GDCV for Baremetal](https://cloud.google.com/kubernetes-engine/distributed-cloud/bare-metal/docs/concepts/about-bare-metal)
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
@@ -57,6 +57,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 #### Supported environment
 
 - Latest Google Chrome
+- `docker` command
 
 > [!IMPORTANT]
 > We only test KHI with on the latest version of Google Chrome.
@@ -72,9 +73,10 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 > If you want to run KHI with the other environment where the metadata server is not available,
 > you can pass the access token via the program argument.
 >
+>```bash
+>docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
 >```
->$ docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
->```
+>
 
 > [!NOTE]
 > The container image source may change in the near future. #21
@@ -87,23 +89,26 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
 <summary>Get Started (Run from source)</summary>
 
 #### Prerequisites
+
 - Go 1.24.*
 - Node.js environment 22.13.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq` command](https://jqlang.org/)
 
 #### Initialization (one-time setup)
-1. Download or clone this repository   
+
+1. Download or clone this repository
   e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
-1. Move to the project root   
+1. Move to the project root
   e.g. `cd khi`
 1. Run `cd ./web && npm install` from the project root
 
-#### Run KHI
+#### Build KHI from source and run
+
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
   e.g. `gcloud auth login` if you use your user account credentials
-1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root   
-  Open `localhost:8080` and start working with KHI! 
+1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root
+  Open `localhost:8080` and start working with KHI!
 
 </details>
 
@@ -112,6 +117,7 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
 > KHI itself is not providing any authentication or authorization features and KHI is intended to be accessed from its local user.
 
 ### Authentication settings
+
 ## Settings for managed environments
 
 ### Google Cloud
@@ -120,45 +126,36 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
 
 The following permissions are required or recommended.
 
-**Required**
+- **Required**
+  - `logging.logEntries.list`
+- **Recommended**
+  - Permissions to list clusters for cluster type (eg. `container.clusters.list` for GKE)
+    This permission is used to show autofill candidates for the log filter. KHI's main functionality is not affected without this permission.
+- **Setting**
+  - Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
+  - Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account.
 
-* `logging.logEntries.list`
-
-**Recommended**
-
-* Permissions to list clusters for cluster type (eg. `container.clusters.list` for GKE)
-
-   This permission is used to show autofill candidates for the log filter. KHI's main functionality is not affected without this permission. 
-
-
-##### Setup 
-
-* Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
-* Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account. 
 > [!WARNING]
 > KHI does not respect [ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc) – running KHI on a Compute Engine Instances will always use the attached service account regardless of ADC.
-> This specification is subject to change in the future. 
+> This specification is subject to change in the future.
 
 #### Audit Logging
 
-**Required**
-
-* **Nothing required**. KHI fully works with the default audit logging configuration.
-
-**Recommended**
-
-* Kubernetes Engine API Data access audit logs for `DATA_WRITE`
+- **No required configuration**
+  KHI fully works with the default audit logging configuration.
+- **Recommended**
+  - Kubernetes Engine API Data access audit logs for `DATA_WRITE`
 
 > [!TIP]
 > Enabling these will log every patch requests on Pod or Node `.status` field.
 > KHI will use this to display detailed container status.
 > KHI will still guess the last container status from the audited Pod deletion log even without these logs, however it requires the Pod to be deleted within the queried timeframe.
 
-##### Setup
-1. In the Google Cloud Console, [go to the Audit Logs](https://console.cloud.google.com/iam-admin/audit) page.
-1. In the Data Access audit logs configuration table, select  `Kubernetes Engine API` from the Service column.
-1. In the Log Types tab, select the `Data write` Data Access audit log type
-1. Click "SAVE".
+- **Setup**
+  1. In the Google Cloud Console, [go to the Audit Logs](https://console.cloud.google.com/iam-admin/audit) page.
+  1. In the Data Access audit logs configuration table, select  `Kubernetes Engine API` from the Service column.
+  1. In the Log Types tab, select the `Data write` Data Access audit log type
+  1. Click "SAVE".
 
 ### OSS Kubernetes
 

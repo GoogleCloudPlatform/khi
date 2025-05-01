@@ -57,7 +57,7 @@ func (*onpremCloudAuditLogParser) GetParserName() string {
 
 // LogTask implements parser.Parser.
 func (*onpremCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return multicloud_api_taskid.OnPremCloudAPIQueryTaskID.GetTaskReference()
+	return multicloud_api_taskid.OnPremCloudAPIQueryTaskID.Ref()
 }
 
 func (*onpremCloudAuditLogParser) Grouper() grouper.LogGrouper {

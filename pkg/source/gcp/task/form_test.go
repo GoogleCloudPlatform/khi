@@ -400,9 +400,9 @@ func TestInputStartTime(t *testing.T) {
 
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
 	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspection_task_interface.TaskModeDryRun, map[string]any{},
-		task_test.NewTaskDependencyValuePair(InputDurationTaskID.GetTaskReference(), duration),
-		task_test.NewTaskDependencyValuePair(InputEndTimeTaskID.GetTaskReference(), endTime),
-		task_test.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.GetTaskReference(), time.UTC),
+		task_test.NewTaskDependencyValuePair(InputDurationTaskID.Ref(), duration),
+		task_test.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
+		task_test.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.Ref(), time.UTC),
 	)
 	if err != nil {
 		t.Errorf("unexpected error\n%v", err)

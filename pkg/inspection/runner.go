@@ -302,11 +302,13 @@ func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 }
 
 func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.InspectionRequest) (*InspectionDryRunResult, error) {
+	slog.DebugContext(ctx, "starting resolving task graph")
 	runnableTaskGraph, err := i.resolveTaskGraph()
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return nil, err
 	}
+	slog.DebugContext(ctx, "end resolving task graph")
 
 	runner, err := task.NewLocalRunner(runnableTaskGraph)
 	if err != nil {

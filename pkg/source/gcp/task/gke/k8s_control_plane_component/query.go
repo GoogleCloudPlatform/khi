@@ -38,13 +38,13 @@ resource.labels.project_id="%s"
 }
 
 var GKEK8sControlPlaneLogQueryTask = query.NewQueryGeneratorTask(k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentQueryTaskID, "K8s control plane logs", enum.LogTypeControlPlaneComponent, []taskid.UntypedTaskReference{
-	gcp_task.InputProjectIdTaskID,
-	gcp_task.InputClusterNameTaskID,
-	k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
-	projectId := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-	controlplaneComponentNameFilter := task.GetTaskResult(ctx, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.GetTaskReference())
+	gcp_task.InputProjectIdTaskID.Ref(),
+	gcp_task.InputClusterNameTaskID.Ref(),
+	k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.Ref(),
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	projectId := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	controlplaneComponentNameFilter := task.GetTaskResult(ctx, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.Ref())
 
 	return []string{GenerateK8sControlPlaneQuery(clusterName, projectId, controlplaneComponentNameFilter)}, nil
 }, GenerateK8sControlPlaneQuery("gcp-cluster-name", "gcp-project-id", &queryutil.SetFilterParseResult{

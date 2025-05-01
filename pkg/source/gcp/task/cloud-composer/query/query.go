@@ -33,9 +33,10 @@ var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/Airflow Scheduler",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID,
-		composer_taskid.InputComposerEnvironmentTaskID,
+		gcp_task.InputProjectIdTaskID.Ref(),
+		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-scheduler"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-scheduler"),
 )
@@ -45,9 +46,10 @@ var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/DAG Processor Manager",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID,
-		composer_taskid.InputComposerEnvironmentTaskID,
+		gcp_task.InputProjectIdTaskID.Ref(),
+		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("dag-processor-manager"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "dag-processor-manager"),
 )
@@ -57,9 +59,10 @@ var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/Airflow Monitoring",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID,
-		composer_taskid.InputComposerEnvironmentTaskID,
+		gcp_task.InputProjectIdTaskID.Ref(),
+		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-monitoring"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-monitoring"),
 )
@@ -69,9 +72,10 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/Airflow Worker",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID,
-		composer_taskid.InputComposerEnvironmentTaskID,
+		gcp_task.InputProjectIdTaskID.Ref(),
+		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
+	&query.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-worker"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
 )
@@ -82,8 +86,8 @@ func createGenerator(componentName string) func(ctx context.Context, i inspectio
 	// resource.labels.environment_name="ENVIRONMENT_NAME"
 	// log_name=projects/PROJECT_ID/logs/COMPONENT_NAME
 	return func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-		projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-		environmentName := task.GetTaskResult(ctx, composer_form.InputComposerEnvironmentNameTask.ID().GetTaskReference())
+		projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+		environmentName := task.GetTaskResult(ctx, composer_form.InputComposerEnvironmentNameTask.ID().Ref())
 		return []string{generateQueryForComponent(environmentName, projectID, componentName)}, nil
 	}
 }

@@ -69,6 +69,7 @@ describe('RequestUserActionPopup in dialog context', () => {
     });
     const dialogs = await loader.getAllHarnesses(MatDialogHarness);
     expect(dialogs.length).toBe(1);
+    matDialog.closeAll();
   }
 
   it('should be instanciated with type=text', async () => {

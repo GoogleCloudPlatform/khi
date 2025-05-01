@@ -53,9 +53,9 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 
 			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(t.Context())
 			inspection_task_test.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_task_interface.TaskModeRun, map[string]any{},
-				task_test.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.GetTaskReference(), tc.ClusterName),
-				task_test.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.GetTaskReference(), tc.StartTime),
-				task_test.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.GetTaskReference(), tc.EndTime),
+				task_test.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
+				task_test.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.Ref(), tc.StartTime),
+				task_test.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.Ref(), tc.EndTime),
 			)
 
 			metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)

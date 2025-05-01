@@ -33,6 +33,7 @@ import {
   DefaultParameterStore,
   PARAMETER_STORE,
 } from './service/parameter-store';
+import { By } from '@angular/platform-browser';
 
 describe('GroupParameterComponent', () => {
   let fixture: ComponentFixture<GroupParameterComponent>;
@@ -76,6 +77,8 @@ describe('GroupParameterComponent', () => {
       type: ParameterInputType.Group,
       label: 'group',
       hintType: ParameterHintType.None,
+      collapsible: false,
+      collapsedByDefault: false,
       children: [
         {
           type: ParameterInputType.Text,
@@ -118,5 +121,52 @@ describe('GroupParameterComponent', () => {
     } as GroupParameterFormField);
     fixture.detectChanges();
     expect(fixture.componentInstance).toBeTruthy();
+
+    const containerElement = fixture.debugElement.query(By.css('.container'));
+    expect(containerElement.classes['collapsable']).toBeFalsy();
+  });
+
+  it('becomes collapsable when `collapsable` = true', () => {
+    fixture.componentRef.setInput('parameter', {
+      type: ParameterInputType.Group,
+      label: 'group',
+      description: 'this is a test description',
+      collapsible: true,
+      collapsedByDefault: true,
+      hintType: ParameterHintType.None,
+      children: [
+        {
+          type: ParameterInputType.Text,
+          label: 'text-form-1',
+          hintType: ParameterHintType.None,
+        },
+      ],
+    } as GroupParameterFormField);
+    fixture.detectChanges();
+
+    const containerElement = fixture.debugElement.query(By.css('.container'));
+    expect(containerElement.classes['collapsable']).toBeTruthy();
+    expect(fixture.componentInstance.childrenStatus()).toBe('collapsed');
+  });
+
+  it('expands by default when `collapsedByDefault` = false', () => {
+    fixture.componentRef.setInput('parameter', {
+      type: ParameterInputType.Group,
+      label: 'group',
+      description: 'this is a test description',
+      collapsible: true,
+      collapsedByDefault: false,
+      hintType: ParameterHintType.None,
+      children: [
+        {
+          type: ParameterInputType.Text,
+          label: 'text-form-1',
+          hintType: ParameterHintType.None,
+        },
+      ],
+    } as GroupParameterFormField);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.childrenStatus()).toBe('expanded');
   });
 });

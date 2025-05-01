@@ -72,13 +72,13 @@ func generateK8sEventNamespaceFilter(filter *queryutil.SetFilterParseResult) str
 }
 
 var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(k8s_event_taskid.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
-	gcp_task.InputProjectIdTaskID,
-	gcp_task.InputClusterNameTaskID,
-	gcp_task.InputNamespaceFilterTaskID,
-}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-	namespaceFilter := task.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.GetTaskReference())
+	gcp_task.InputProjectIdTaskID.Ref(),
+	gcp_task.InputClusterNameTaskID.Ref(),
+	gcp_task.InputNamespaceFilterTaskID.Ref(),
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	namespaceFilter := task.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())
 
 	return []string{GenerateK8sEventQuery(clusterName, projectID, namespaceFilter)}, nil
 }, GenerateK8sEventQuery(

@@ -27,7 +27,7 @@ Gather kubernetes audit logs and visualize resource modifications.
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com//feature/audit-parser-v2 -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -46,7 +46,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="k8s_cluster"
 resource.labels.cluster_name="gcp-cluster-name"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
@@ -88,7 +88,7 @@ Gather kubernetes event logs and visualize these on the associated resource time
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/event-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -102,7 +102,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 logName="projects/gcp-project-id/logs/events"
 resource.labels.cluster_name="gcp-cluster-name"
 -- No namespace filter
@@ -141,7 +141,7 @@ Gather node components(e.g docker/container) logs. Log volume can be huge when t
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/nodelog-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -157,7 +157,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="k8s_node"
 -logName="projects/gcp-project-id/logs/events"
 resource.labels.cluster_name="gcp-cluster-name"
@@ -199,7 +199,7 @@ Gather stdout/stderr logs of containers on the cluster to visualize them on the 
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/container-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -213,7 +213,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="k8s_container"
 resource.labels.cluster_name="gcp-cluster-name"
 resource.labels.namespace_name=("default")
@@ -252,7 +252,7 @@ Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/gke-audit-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -267,7 +267,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type=("gke_cluster" OR "gke_nodepool")
 logName="projects/gcp-project-id/logs/cloudaudit.googleapis.com%2Factivity"
 resource.labels.cluster_name="gcp-cluster-name"
@@ -303,7 +303,7 @@ Gather Compute API audit logs to show the timings of the provisioning of resourc
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/compute-api-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -318,7 +318,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="gce_instance"
 -protoPayload.methodName:("list" OR "get" OR "watch")
 protoPayload.resourceName:(instances/gke-test-cluster-node-1 OR instances/gke-test-cluster-node-2)
@@ -362,7 +362,7 @@ Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/network-api-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -377,7 +377,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="gce_network"
 -protoPayload.methodName:("list" OR "get" OR "watch")
 protoPayload.resourceName:(networkEndpointGroups/neg-id-1 OR networkEndpointGroups/neg-id-2)
@@ -419,7 +419,7 @@ Gather Anthos Multicloud audit log including cluster creation,deletion and upgra
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/multicloud-audit-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -433,7 +433,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="audited_resource"
 resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
@@ -469,7 +469,7 @@ Gather logs related to cluster autoscaler behavior to show them on the timelines
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/autoscaler-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -484,7 +484,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="k8s_cluster"
 resource.labels.project_id="gcp-project-id"
 resource.labels.cluster_name="gcp-cluster-name"
@@ -520,7 +520,7 @@ Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenro
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/onprem-audit-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -534,7 +534,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
@@ -571,7 +571,7 @@ Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-ma
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/controlplane-component-parser -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -586,7 +586,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="gcp-cluster-name"
 resource.labels.project_id="gcp-project-id"
@@ -629,7 +629,7 @@ Gather serialport logs of GKE nodes. This helps detailed investigation on VM boo
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/feature/serialport -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -643,7 +643,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 LOG_ID("serialconsole.googleapis.com%2Fserial_port_1_output") OR
 LOG_ID("serialconsole.googleapis.com%2Fserial_port_2_output") OR
 LOG_ID("serialconsole.googleapis.com%2Fserial_port_3_output") OR
@@ -690,7 +690,7 @@ Airflow Scheduler logs contain information related to the scheduling of TaskInst
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/scheduler -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -703,7 +703,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="cloud_composer_environment"
 resource.labels.environment_name="sample-composer-environment"
 log_name=projects/test-project/logs/airflow-scheduler
@@ -737,7 +737,7 @@ Airflow Worker logs contain information related to the execution of TaskInstance
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/worker -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -750,7 +750,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="cloud_composer_environment"
 resource.labels.environment_name="sample-composer-environment"
 log_name=projects/test-project/logs/airflow-worker
@@ -784,7 +784,7 @@ The DagProcessorManager logs contain information for investigating the number of
 <!-- BEGIN GENERATED PART: feature-element-output-timelines-cloud.google.com/composer/dagprocessor -->
 ### Output timelines
 
-This feature can generates following timeline relationship of timelines. 
+This feature can generates following timeline relationship of timelines.
 
 |Timeline relationships|Short name on chip|Description|
 |:-:|:-:|:-:|
@@ -797,7 +797,7 @@ This feature can generates following timeline relationship of timelines.
 
 Sample query:
 
-```ada 
+```ada
 resource.type="cloud_composer_environment"
 resource.labels.environment_name="sample-composer-environment"
 log_name=projects/test-project/logs/dag-processor-manager

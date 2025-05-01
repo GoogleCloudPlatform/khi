@@ -393,37 +393,36 @@ export class InspectionDataLoaderService {
     return result;
   }
 
-  public async loadInspectionDataFromBackend(taskId: string) {
+  public async loadInspectionDataFromBackend(inspectionID: string) {
     this.progress.show();
     this.progress.updateProgress({
       message: 'Downloading inspection data...',
       percent: 0,
       mode: 'determinate',
     });
-    const metadata = await lastValueFrom(
-      this.backendService.getInspectionMetadata(taskId),
-    );
-    const allSize = metadata.header.fileSize ?? 0;
-    const data = await lastValueFrom(
-      this.backendService.getInspectionData(taskId, (done) => {
-        this.progress.updateProgress({
-          message: `Downloading inspection data...(${ProgressUtil.formatPogressMessageByBytes(
-            done,
-            allSize,
-          )})`,
-          percent: (done / allSize) * 100,
-          mode: 'determinate',
-        });
-      }),
-    );
-    this.progress.dismiss();
-    if (data === null) {
-      alert(
-        `Failed to load the inspection data. The inspection data may exceed 500MB. \nPlease try query with shorter duration.`,
+    try {
+      const data = await lastValueFrom(
+        this.backendService.getInspectionData(inspectionID, (allSize, done) => {
+          this.progress.updateProgress({
+            message: `Downloading inspection data...(${ProgressUtil.formatPogressMessageByBytes(
+              done,
+              allSize,
+            )})`,
+            percent: (done / allSize) * 100,
+            mode: 'determinate',
+          });
+        }),
       );
-      return;
+      this.progress.dismiss();
+      this.loadInspectionDataDirect(await data.content.arrayBuffer());
+    } catch (e) {
+      console.error(e);
+      // Since the file size could be large, there could be a several reasons to fail including browser limtations.
+      // Smaller file size should always be an option.
+      alert(
+        `Failed to load the inspection data. Please try query with shorter duration.`,
+      );
     }
-    this.loadInspectionDataDirect(await data.arrayBuffer());
   }
 
   private verifyMagicBytes(source: ArrayBuffer): boolean {

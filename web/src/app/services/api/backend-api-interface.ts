@@ -35,8 +35,13 @@ import { HttpEvent } from '@angular/common/http';
 
 /**
  * A function type to report the progress of download.
+ * @param allBytes
+ * @param doneBytes downloaded bytes for each calls
  */
-export type DownloadProgressReporter = (doneBytes: number) => void;
+export type DownloadProgressReporter = (
+  allBytes: number,
+  doneBytes: number,
+) => void;
 
 export const BACKEND_API = new InjectionToken<BackendAPI>('BACKEND_API');
 
@@ -124,16 +129,18 @@ export interface BackendAPI {
   ): Observable<InspectionDryRunResponse>;
 
   /**
-   * Get the inspection data with taskId.
-   * Expected called endpoint: GET /api/v3/inspection/<inspection-id>/data
+   * Download the inspection data with specified inspectionID in parallel.
+   * Expected called endpoint:
+   *   GET /api/v3/inspection/<inspection-id>/metadata
+   *   GET /api/v3/inspection/<inspection-id>/data
    *
-   * @param inspectionID inspection ID to download the result.
+   * @param inspectionID inspection ID to download the data.
    * @param reporter task progress reporter.
    */
   getInspectionData(
     inspectionID: string,
     reporter: DownloadProgressReporter,
-  ): Observable<Blob | null>;
+  ): Observable<{ fileName: string; content: Blob }>;
 
   /**
    * Cancel the inspection task.

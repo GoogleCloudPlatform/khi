@@ -129,9 +129,9 @@ var InputDurationTaskID = taskid.NewDefaultImplementationID[time.Duration](GCPPr
 
 var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
 	WithDependencies([]taskid.UntypedTaskReference{
-		inspection_task.InspectionTimeTaskID,
-		InputEndTimeTaskID,
-		TimeZoneShiftInputTaskID,
+		inspection_task.InspectionTimeTaskID.Ref(),
+		InputEndTimeTaskID.Ref(),
+		TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
@@ -142,9 +142,9 @@ var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, Priorit
 		}
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.GetTaskReference())
-		endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.GetTaskReference())
-		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.GetTaskReference())
+		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
+		endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
+		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
 
 		duration := convertedValue.(time.Duration)
 		startTime := endTime.Add(-duration)
@@ -185,8 +185,8 @@ var InputEndTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefix 
 
 var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityForQueryTimeGroup+5000, "End time").
 	WithDependencies([]taskid.UntypedTaskReference{
-		inspection_task.InspectionTimeTaskID,
-		TimeZoneShiftInputTaskID,
+		inspection_task.InspectionTimeTaskID.Ref(),
+		TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription(`The endtime of query. Please input it in the format of RFC3339
 (example: 2006-01-02T15:04:05-07:00)`).
@@ -197,13 +197,13 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
 		}
-		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.GetTaskReference())
-		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.GetTaskReference())
+		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
+		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
 
 		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.GetTaskReference())
+		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
 
 		specifiedTime := convertedValue.(time.Time)
 		if inspectionTime.Sub(specifiedTime) < 0 {
@@ -226,11 +226,11 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 var InputStartTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefix + "input/start-time")
 
 var InputStartTimeTask = inspection_task.NewInspectionTask(InputStartTimeTaskID, []taskid.UntypedTaskReference{
-	InputEndTimeTaskID,
-	InputDurationTaskID,
+	InputEndTimeTaskID.Ref(),
+	InputDurationTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (time.Time, error) {
-	endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.GetTaskReference())
-	duration := task.GetTaskResult(ctx, InputDurationTaskID.GetTaskReference())
+	endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
+	duration := task.GetTaskResult(ctx, InputDurationTaskID.Ref())
 	startTime := endTime.Add(-duration)
 	// Add starttime and endtime on the header metadata
 	metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
@@ -337,7 +337,7 @@ var InputNodeNameFilterTask = form.NewTextFormTaskBuilder(InputNodeNameFilterTas
 var InputLocationsTaskID = taskid.NewDefaultImplementationID[string](GCPPrefix + "input/location")
 
 var InputLocationsTask = form.NewTextFormTaskBuilder(InputLocationsTaskID, PriorityForResourceIdentifierGroup+4500, "Location").
-	WithDependencies([]taskid.UntypedTaskReference{AutocompleteLocationTaskID}).
+	WithDependencies([]taskid.UntypedTaskReference{AutocompleteLocationTaskID.Ref()}).
 	WithDescription(
 		"The location(region) to specify the resource exist(s|ed)",
 	).
@@ -351,7 +351,7 @@ var InputLocationsTask = form.NewTextFormTaskBuilder(InputLocationsTaskID, Prior
 		if len(previousValues) > 0 { // no need to call twice; should be the same
 			return previousValues, nil
 		}
-		regions := task.GetTaskResult(ctx, AutocompleteLocationTaskID.GetTaskReference())
+		regions := task.GetTaskResult(ctx, AutocompleteLocationTaskID.Ref())
 		return regions, nil
 	}).
 	Build()

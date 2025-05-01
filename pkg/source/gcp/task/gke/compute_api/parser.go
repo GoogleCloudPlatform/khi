@@ -55,7 +55,7 @@ func (*computeAPIParser) GetParserName() string {
 
 // LogTask implements parser.Parser.
 func (*computeAPIParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return gke_compute_api_taskid.ComputeAPIQueryTaskID.GetTaskReference()
+	return gke_compute_api_taskid.ComputeAPIQueryTaskID.Ref()
 }
 func (*computeAPIParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper

@@ -56,7 +56,7 @@ func (*multiCloudAuditLogParser) GetParserName() string {
 
 // LogTask implements parser.Parser.
 func (*multiCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
-	return multicloud_api_taskid.MultiCloudAPIQueryTaskID.GetTaskReference()
+	return multicloud_api_taskid.MultiCloudAPIQueryTaskID.Ref()
 }
 
 func (*multiCloudAuditLogParser) Grouper() grouper.LogGrouper {

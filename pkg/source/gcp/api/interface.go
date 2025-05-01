@@ -26,8 +26,8 @@ type GCPClient interface {
 	GetAnthosOnBaremetalClusterNames(ctx context.Context, projectId string) ([]string, error)
 	GetAnthosOnVMWareClusterNames(ctx context.Context, projectId string) ([]string, error)
 	GetComposerEnvironmentNames(ctx context.Context, projectId string, location string) ([]string, error)
+	ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan any) error
 	ListRegions(ctx context.Context, projectId string) ([]string, error)
-	ListLogEntries(ctx context.Context, projectId string, filter string, logSink chan any) error
 }
 
 type RefreshableToken interface {

@@ -31,8 +31,8 @@ import (
 // This is an implementation for gcp_task.AutocompleteClusterNamesTaskID
 // the task returns GKE cluster name where the provided Composer environment is running
 var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
-	gcp_task.InputProjectIdTaskID,
-	composer_taskid.InputComposerEnvironmentTaskID,
+	gcp_task.InputProjectIdTaskID.Ref(),
+	composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
 
 	client, err := api.DefaultGCPClientFactory.NewClient()
@@ -40,8 +40,8 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.GetTaskReference())
-	environment := task.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.GetTaskReference())
+	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	environment := task.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, environment)
 
 	// when the user is inputing these information, abort

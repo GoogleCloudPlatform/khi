@@ -36,16 +36,16 @@ var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](
 // HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
 // This name is used in frontend to save the inspection data as a file.
 var HeaderSuggestedFileNameTask = inspection_task.NewInspectionTask(HeaderSuggestedFileNameTaskID, []taskid.UntypedTaskReference{
-	gcp_task.InputStartTimeTaskID,
-	gcp_task.InputEndTimeTaskID,
-	gcp_task.InputClusterNameTaskID,
+	gcp_task.InputStartTimeTaskID.Ref(),
+	gcp_task.InputEndTimeTaskID.Ref(),
+	gcp_task.InputClusterNameTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (struct{}, error) {
 	metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
 
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.GetTaskReference())
-	endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.GetTaskReference())
-	startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.GetTaskReference())
+	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
+	startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
 
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
 

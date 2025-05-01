@@ -59,16 +59,16 @@ func NewAuditRecorderTaskManager(taskID taskid.TaskImplementationID[struct{}], r
 
 func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.UntypedTaskReference, recorder RecorderFunc, logGroupFilter LogGroupFilterFunc, logFilter LogFilterFunc) {
 	dependenciesBase := []taskid.UntypedTaskReference{
-		inspection_task.BuilderGeneratorTaskID,
-		common_k8saudit_taskid.LogConvertTaskID,
-		common_k8saudit_taskid.ManifestGenerateTaskID,
+		inspection_task.BuilderGeneratorTaskID.Ref(),
+		common_k8saudit_taskid.LogConvertTaskID.Ref(),
+		common_k8saudit_taskid.ManifestGenerateTaskID.Ref(),
 	}
 	newTask := inspection_task.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return struct{}{}, nil
 		}
-		builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
-		groupedLogs := task.GetTaskResult(ctx, common_k8saudit_taskid.ManifestGenerateTaskID.GetTaskReference())
+		builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
+		groupedLogs := task.GetTaskResult(ctx, common_k8saudit_taskid.ManifestGenerateTaskID.Ref())
 
 		filteredLogs, allCount := filterMatchedGroupedLogs(ctx, groupedLogs, logGroupFilter)
 		processedLogCount := atomic.Int32{}

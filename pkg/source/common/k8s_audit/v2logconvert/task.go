@@ -29,13 +29,13 @@ import (
 )
 
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{
-	inspection_task.BuilderGeneratorTask.ID(),
+	inspection_task.BuilderGeneratorTaskID.Ref(),
 	common_k8saudit_taskid.CommonAuitLogSource,
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (struct{}, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return struct{}{}, nil
 	}
-	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.GetTaskReference())
+	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
 	logs := task.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}
