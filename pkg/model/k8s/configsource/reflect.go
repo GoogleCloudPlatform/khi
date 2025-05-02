@@ -54,39 +54,47 @@ func resolveTypeRecursive(path string, current reflect.Type, resolver *merger.Me
 				continue
 			}
 			jsonSegments := strings.Split(json, ",")
-			if slices.Contains[[]string](jsonSegments, "inline") {
+			if slices.Contains(jsonSegments, "inline") {
 				err := resolveTypeRecursive(path, field.Type, resolver)
 				if err != nil {
 					return err
 				}
-			}
-			jsonName := jsonSegments[0]
-			jsonFieldPath := fmt.Sprintf("%s.%s", path, jsonName)
-			if fieldKind == reflect.Slice || fieldKind == reflect.Array {
-				patchStrategy, ok := field.Tag.Lookup("patchStrategy")
-				if !ok || patchStrategy != "merge" {
-					resolver.MergeStrategies[jsonFieldPath] = merger.MergeStrategyReplace
-				} else {
-					resolver.MergeStrategies[jsonFieldPath] = merger.MergeStrategyMerge
-					patchMergeKey, ok := field.Tag.Lookup("patchMergeKey")
-					if ok {
-						resolver.MergeKeys[jsonFieldPath] = patchMergeKey
+			} else {
+				jsonName := jsonSegments[0]
+				jsonFieldPath := fmt.Sprintf("%s.%s", path, jsonName)
+				if path == "" {
+					jsonFieldPath = jsonName
+				}
+				if jsonName == "-" {
+					continue
+				}
+				if fieldKind == reflect.Slice || fieldKind == reflect.Array {
+					patchStrategy, ok := field.Tag.Lookup("patchStrategy")
+					if !ok || patchStrategy != "merge" {
+						resolver.MergeStrategies[jsonFieldPath] = merger.MergeStrategyReplace
 					} else {
-						resolver.MergeKeys[jsonFieldPath] = ""
+						resolver.MergeStrategies[jsonFieldPath] = merger.MergeStrategyMerge
+						patchMergeKey, ok := field.Tag.Lookup("patchMergeKey")
+						if ok {
+							resolver.MergeKeys[jsonFieldPath] = patchMergeKey
+						} else {
+							resolver.MergeKeys[jsonFieldPath] = ""
+						}
 					}
-				}
-				err := resolveTypeRecursive(jsonFieldPath+"[]", field.Type.Elem(), resolver)
-				if err != nil {
-					return err
-				}
-			} else if fieldKind == reflect.Struct || fieldKind == reflect.Ptr {
-				fieldType := field.Type
-				if fieldKind == reflect.Ptr {
-					fieldType = field.Type.Elem()
-				}
-				err := resolveTypeRecursive(jsonFieldPath, fieldType, resolver)
-				if err != nil {
-					return err
+					err := resolveTypeRecursive(jsonFieldPath+".[]", field.Type.Elem(), resolver)
+					if err != nil {
+						return err
+					}
+
+				} else if fieldKind == reflect.Struct || fieldKind == reflect.Ptr {
+					fieldType := field.Type
+					if fieldKind == reflect.Ptr {
+						fieldType = field.Type.Elem()
+					}
+					err := resolveTypeRecursive(jsonFieldPath, fieldType, resolver)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
