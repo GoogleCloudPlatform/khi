@@ -1,0 +1,60 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  - name: 'node:22'
+    args:
+      - '-c'
+      - |
+        cd ./web
+        npm ci
+    id: dependency_web
+    waitFor:
+      - '-'
+    entrypoint: /bin/bash
+  - name: 'golang:1.24'
+    args:
+      - '-c'
+      - |
+        echo ${TAG_NAME} > VERSION
+        apt-get update && apt-get install jq -y
+        make prepare-frontend
+    id: pre_build_web
+    waitFor:
+      - dependency_web
+    entrypoint: /bin/bash
+  - name: 'node:18'
+    args:
+      - '-c'
+      - |
+        make build-web
+    id: build_web
+    waitFor:
+      - pre_build_web
+    entrypoint: /bin/bash
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - '-c'
+      - |
+        docker buildx create --driver docker-container --name container --use
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t asia.gcr.io/kubernetes-history-inspector/release:latest -t asia.gcr.io/kubernetes-history-inspector/release:${TAG_NAME} --push .
+    id: build_container
+    waitFor:
+      - build_web
+    entrypoint: /bin/bash
+options:
+  machineType: E2_HIGHCPU_32
+  logging: CLOUD_LOGGING_ONLY
+serviceAccount: >-
+  projects/kubernetes-history-inspector/serviceAccounts/oss-khi-cicd@kubernetes-history-inspector.iam.gserviceaccount.com

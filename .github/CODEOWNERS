@@ -1,6 +1,7 @@
 
 # Github Actions
 .github/ @kyasbal
+.cloudbuild/ @kyasbal
 
 # Golang related files
 cmd/ @kyasbal @RyuSA @jyane
