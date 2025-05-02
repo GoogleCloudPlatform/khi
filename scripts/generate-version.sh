@@ -13,6 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+PROD_ENV_FILES=$(ls ./web/src/environments/environment.prod*.ts)
+DEV_ENV_FILES=$(ls ./web/src/environments/environment.dev*.ts)
 
-echo "export const VERSION=\"$(cat VERSION)\"" > ./web/src/environments/version.prod.ts
-echo "export const VERSION=\"$(cat VERSION)@$(git log -1 --pretty=format:%h )\"" > ./web/src/environments/version.dev.ts
+PROD_ENV_NAMES=$(echo $PROD_ENV_FILES| jq -R -s -c '[split(" ")[]|capture(".web/src/environments/environment.(?<env>.*).ts")|.env]')
+DEV_ENV_NAMES=$(echo $DEV_ENV_FILES| jq -R -s -c '[split(" ")[]|capture(".web/src/environments/environment.(?<env>.*).ts")|.env]')
+
+PROD_VERSION_CONTENT=$(echo "export const VERSION=\"$(cat VERSION)\"")
+DEV_VERSION_CONTENT=$(echo "export const VERSION=\"$(cat VERSION)@$(git log -1 --pretty=format:%h )\"")
+
+for PROD_ENV in $(echo $PROD_ENV_NAMES | jq -r '.[]'); do
+    echo "$PROD_VERSION_CONTENT" > ./web/src/environments/version.${PROD_ENV}.ts
+done
+
+for DEV_ENV in $(echo $DEV_ENV_NAMES | jq -r '.[]'); do
+    echo "$DEV_VERSION_CONTENT" > ./web/src/environments/version.${DEV_ENV}.ts
+done
