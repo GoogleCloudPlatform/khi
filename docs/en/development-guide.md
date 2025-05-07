@@ -145,4 +145,4 @@ It will deploy the image on `asia.gcr.io/kubernetes-history-inspector/develop:$S
 
 > [!NOTE]
 > The image is only for the last check. Please check the code is right on your environment first.
-> A build may takes an hour.
+> A build may take an hour.
