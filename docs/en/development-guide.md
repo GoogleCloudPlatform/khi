@@ -131,7 +131,7 @@ These tag creations are restricted only for our repository admins.
     * `asia.gcr.io/kubernetes-history-inspector/release:beta`
     * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
 * Release
-  * Name tag with `x.y.z` then it will be deployed at the following address:
+  * Name tag with `vx.y.z` then it will be deployed at the following address:
     * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z`
     * `asia.gcr.io/kubernetes-history-inspector/release:latest`
 
