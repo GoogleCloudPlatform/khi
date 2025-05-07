@@ -42,6 +42,10 @@ func (n *StandardScalarNode[T]) Children() NodeChildrenIterator {
 	return func(func(key NodeChildrenKey, value Node) bool) {}
 }
 
+func (n *StandardScalarNode[T]) Len() int {
+	return 0
+}
+
 // MarshalJSON implements json.Marshaler.
 func (n *StandardScalarNode[T]) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
@@ -117,6 +121,10 @@ func (n *StandardSequenceNode) Children() NodeChildrenIterator {
 			}
 		}
 	}
+}
+
+func (n *StandardSequenceNode) Len() int {
+	return len(n.value)
 }
 
 // MarshalYAML implements yaml.Marshaler.
@@ -198,6 +206,10 @@ func (n *StandardMapNode) Children() NodeChildrenIterator {
 	}
 }
 
+func (n *StandardMapNode) Len() int {
+	return len(n.keys)
+}
+
 // MarshalYAML implements yaml.Marshaler.
 func (n *StandardMapNode) MarshalYAML() (interface{}, error) {
 	mapNode := &yaml.Node{
@@ -261,6 +273,14 @@ var _ Node = (*StandardMapNode)(nil)
 var _ yaml.Marshaler = (*StandardMapNode)(nil)
 var _ json.Marshaler = (*StandardMapNode)(nil)
 
+// NewEmptyMapNode returns an empty map node.
+func NewEmptyMapNode() Node {
+	return &StandardMapNode{
+		keys:   make([]string, 0),
+		values: make([]Node, 0),
+	}
+}
+
 // getYAMLMarshaler returns the yaml.Marshaller from Node interface.
 func getYAMLMarshaler(node Node) (yaml.Marshaler, error) {
 	standardRootNode, err := cloneStandardNodeFromNode(node)
@@ -293,7 +313,7 @@ func cloneStandardNodeFromNode(node Node) (Node, error) {
 		}, nil
 	case SequenceNodeType:
 		sequence := StandardSequenceNode{
-			value: make([]Node, 0),
+			value: make([]Node, 0, node.Len()),
 		}
 		for _, child := range node.Children() {
 			child, err := cloneStandardNodeFromNode(child)
@@ -305,8 +325,8 @@ func cloneStandardNodeFromNode(node Node) (Node, error) {
 		return &sequence, nil
 	case MapNodeType:
 		mapNode := StandardMapNode{
-			keys:   make([]string, 0),
-			values: make([]Node, 0),
+			keys:   make([]string, 0, node.Len()),
+			values: make([]Node, 0, node.Len()),
 		}
 		for key, child := range node.Children() {
 			mapNode.keys = append(mapNode.keys, key.Key)

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -54,7 +55,7 @@ func (*computeAPIParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*computeAPIParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*computeAPIParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_compute_api_taskid.ComputeAPIQueryTaskID.Ref()
 }
 func (*computeAPIParser) Grouper() grouper.LogGrouper {
@@ -62,16 +63,20 @@ func (*computeAPIParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
+func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonLogFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	if err != nil {
+		return err
+	}
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")
-	operationId := l.GetStringOrDefault("operation.id", "unknown")
-	methodName := l.GetStringOrDefault("protoPayload.methodName", "unknown")
+	operationId := l.ReadStringOrDefault("operation.id", "unknown")
+	methodName := l.ReadStringOrDefault("protoPayload.methodName", "unknown")
 	methodNameSplitted := strings.Split(methodName, ".")
-	resourceName := l.GetStringOrDefault("protoPayload.resourceName", "unknown")
+	resourceName := l.ReadStringOrDefault("protoPayload.resourceName", "unknown")
 	resourceNameSplitted := strings.Split(resourceName, "/")
 	instanceName := resourceNameSplitted[len(resourceNameSplitted)-1]
-	principal := l.GetStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
+	principal := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
 	nodeResourcePath := resourcepath.Node(instanceName)
 	// If this was an operation, it will be recorded as operation data
 	if !(isLast && isFirst) && (isLast || isFirst) {
@@ -81,14 +86,14 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 			state = enum.RevisionStateOperationFinished
 			verb = enum.RevisionVerbOperationFinish
 		}
-		requestBody, _ := l.GetChildYamlOf("protoPayload.request") // ignore the error to set the empty body when the field is not available in the log.
+		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
 		operationPath := resourcepath.Operation(nodeResourcePath, methodNameSplitted[len(methodNameSplitted)-1], operationId)
 		cs.RecordRevision(operationPath, &history.StagingResourceRevision{
-			Body:       requestBody,
+			Body:       string(requestBodyRaw),
 			Verb:       verb,
 			State:      state,
 			Requestor:  principal,
-			ChangeTime: l.Timestamp(),
+			ChangeTime: commonLogFieldSet.Timestamp,
 			Partial:    false,
 		})
 	}

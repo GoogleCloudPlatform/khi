@@ -22,4 +22,4 @@ import (
 )
 
 var ComputeAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/compute-api-parser")
-var ComputeAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "compute-api")
+var ComputeAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "compute-api")

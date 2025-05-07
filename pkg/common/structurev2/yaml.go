@@ -58,7 +58,7 @@ func fromYAMLNode(node *yaml.Node) (Node, error) {
 }
 
 func fromSequenceYAMLNode(node *yaml.Node) (Node, error) {
-	children := []Node{}
+	children := make([]Node, 0, len(node.Content))
 	for _, content := range node.Content {
 		child, err := fromYAMLNode(content)
 		if err != nil {
@@ -70,8 +70,8 @@ func fromSequenceYAMLNode(node *yaml.Node) (Node, error) {
 }
 
 func fromMappingYAMLNode(node *yaml.Node) (Node, error) {
-	keys := []string{}
-	values := []Node{}
+	keys := make([]string, 0, len(node.Content)/2)
+	values := make([]Node, 0, len(node.Content)/2)
 	for i, content := range node.Content {
 		if i%2 == 0 { // yaml.Node holds its map key-values as the sequence of a structure like key1,value1,key2,value2,...etc
 			keys = append(keys, content.Value)

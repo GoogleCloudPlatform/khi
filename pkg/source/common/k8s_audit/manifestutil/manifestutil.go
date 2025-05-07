@@ -16,11 +16,9 @@ package manifestutil
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
@@ -34,19 +32,14 @@ const (
 )
 
 // ParseDeletionStatus returns the current deletion status and deletion time of this resource.
-func ParseDeletionStatus(ctx context.Context, resourceBodyReader *structure.Reader, operation *model.KubernetesObjectOperation) DeletionStatus {
+func ParseDeletionStatus(ctx context.Context, resourceBodyReader *structurev2.NodeReader, operation *model.KubernetesObjectOperation) DeletionStatus {
 	gracefulSeconds := -1
 	var deletionTime *time.Time = nil
 	if resourceBodyReader != nil {
 		gracefulSeconds = resourceBodyReader.ReadIntOrDefault("metadata.deletionGracePeriodSeconds", -1)
-		deletionTimeString, err := resourceBodyReader.ReadTimeAsString("metadata.deletionTimestamp")
-		if err == nil && deletionTimeString != "" {
-			t, err := time.Parse(time.RFC3339, deletionTimeString)
-			if err == nil {
-				deletionTime = &t
-			} else {
-				slog.WarnContext(ctx, fmt.Sprintf("invalid deletion timestamp %s found. ignoreing", deletionTimeString))
-			}
+		deletionTimeInstance, err := resourceBodyReader.ReadTimestamp("metadata.deletionTimestamp")
+		if err == nil && deletionTimeInstance.Sub(time.Time{}) > 0 {
+			deletionTime = &deletionTimeInstance
 		}
 	}
 
@@ -69,7 +62,7 @@ func ParseDeletionStatus(ctx context.Context, resourceBodyReader *structure.Read
 }
 
 // ParseCreationTime returns the creation time from the resource body.
-func ParseCreationTime(resourceBodyReader *structure.Reader, defaultTime time.Time) time.Time {
+func ParseCreationTime(resourceBodyReader *structurev2.NodeReader, defaultTime time.Time) time.Time {
 	if resourceBodyReader != nil {
 		creationTimestamp, err := getCreationTimeFromManifest(resourceBodyReader)
 		if err != nil {
@@ -80,7 +73,7 @@ func ParseCreationTime(resourceBodyReader *structure.Reader, defaultTime time.Ti
 	return defaultTime
 }
 
-func getCreationTimeFromManifest(resourceBodyReader *structure.Reader) (time.Time, error) {
+func getCreationTimeFromManifest(resourceBodyReader *structurev2.NodeReader) (time.Time, error) {
 	creationTimestamp, err := resourceBodyReader.ReadString("metadata.creationTimestamp")
 	if err != nil {
 		return time.Time{}, err

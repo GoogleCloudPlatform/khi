@@ -17,18 +17,19 @@ package grouper
 import (
 	common_grouper "github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/google/uuid"
 )
 
-var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.LogEntity, string](func(log *log.LogEntity) string {
-	return log.ID()
+var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.Log, string](func(l *log.Log) string {
+	return uuid.NewString()
 })
 
-var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.LogEntity, string](func(log *log.LogEntity) string {
+var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.Log, string](func(log *log.Log) string {
 	return ""
 })
 
 func NewSingleStringFieldKeyLogGrouper(keyPath string) LogGrouper {
-	return common_grouper.NewBasicGrouper[*log.LogEntity, string](func(log *log.LogEntity) string {
-		return log.GetStringOrDefault(keyPath, "")
+	return common_grouper.NewBasicGrouper[*log.Log, string](func(log *log.Log) string {
+		return log.ReadStringOrDefault(keyPath, "")
 	})
 }

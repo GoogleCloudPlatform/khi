@@ -26,18 +26,18 @@ import (
 type GCPAuditLogFieldExtractor struct{}
 
 // ExtractFields implements common.AuditLogFieldExtractor.
-func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.LogEntity) (*types.AuditLogParserInput, error) {
-	resourceName, err := l.GetString("protoPayload.resourceName")
+func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*types.AuditLogParserInput, error) {
+	resourceName, err := l.ReadString("protoPayload.resourceName")
 	if err != nil {
 		return nil, err
 	}
 
-	methodName, err := l.GetString("protoPayload.methodName")
+	methodName, err := l.ReadString("protoPayload.methodName")
 	if err != nil {
 		return nil, err
 	}
 
-	userEmail := l.GetStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
+	userEmail := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
 
 	operation := k8s.ParseKubernetesOperation(resourceName, methodName)
 	// /status subresource contains the actual content of the parent.
@@ -47,11 +47,11 @@ func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Lo
 		operation.SubResourceName = ""
 	}
 
-	responseErrorCode := l.GetIntOrDefault("protoPayload.status.code", 0)
-	responseErrorMessage := l.GetStringOrDefault("protoPayload.status.message", "")
+	responseErrorCode := l.ReadIntOrDefault("protoPayload.status.code", 0)
+	responseErrorMessage := l.ReadStringOrDefault("protoPayload.status.message", "")
 
 	requestType := rtype.RTypeUnknown
-	request, _ := l.Fields.ReaderSingle("protoPayload.request")
+	request, _ := l.GetReader("protoPayload.request")
 	if request != nil && request.Has("@type") {
 		rtypeInStr := request.ReadStringOrDefault("@type", "")
 		if rt, found := rtype.AtTypesOnGCPAuditLog[rtypeInStr]; found {
@@ -60,7 +60,7 @@ func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Lo
 	}
 
 	responseType := rtype.RTypeUnknown
-	response, _ := l.Fields.ReaderSingle("protoPayload.response")
+	response, _ := l.GetReader("protoPayload.response")
 	if response != nil && response.Has("@type") {
 		rtypeInStr := response.ReadStringOrDefault("@type", "")
 		if rt, found := rtype.AtTypesOnGCPAuditLog[rtypeInStr]; found {

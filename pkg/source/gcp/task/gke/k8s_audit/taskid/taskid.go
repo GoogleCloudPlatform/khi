@@ -21,6 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var K8sAuditQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](gcp_task.GCPPrefix + "query/k8s_audit")
+var K8sAuditQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gcp_task.GCPPrefix + "query/k8s_audit")
 var K8sAuditParseTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "/feature/audit-parser-v2")
 var GKEK8sAuditLogSourceTaskID = taskid.NewImplementationID(common_k8saudit_taskid.CommonAuitLogSource, "gcp")

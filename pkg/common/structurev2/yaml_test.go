@@ -15,6 +15,8 @@
 package structurev2
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -361,5 +363,63 @@ mapping:
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkScalarNodes(b *testing.B) {
+	scalarCount := 1000
+	scalarNodeDest := make([]Node, scalarCount)
+	inputYAML := "\"test\""
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < scalarCount; j++ {
+			node, err := FromYAML(inputYAML)
+			if err != nil {
+				b.Fatal(err.Error())
+			}
+			scalarNodeDest[j] = node
+		}
+	}
+}
+
+func BenchmarkSequenceNode(b *testing.B) {
+	sequenceCountPerElement := 1000
+	sequenceCount := 100
+	sequenceNodeDest := make([]Node, sequenceCount)
+	yamlBuilder := strings.Builder{}
+	for i := 0; i < sequenceCountPerElement; i++ {
+		yamlBuilder.WriteString("- test\n")
+	}
+	inputYAML := yamlBuilder.String()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < sequenceCount; j++ {
+			node, err := FromYAML(inputYAML)
+			if err != nil {
+				b.Fatal(err.Error())
+			}
+			sequenceNodeDest[j] = node
+		}
+	}
+}
+
+func BenchmarkMapNode(b *testing.B) {
+	mapValueCountPerElement := 1000
+	mapCount := 100
+	mapNodeDest := make([]Node, mapCount)
+	yamlBuilder := strings.Builder{}
+	for i := 0; i < mapValueCountPerElement; i++ {
+		yamlBuilder.WriteString(fmt.Sprintf("key%d: test\n", i))
+	}
+	inputYAML := yamlBuilder.String()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < mapCount; j++ {
+			node, err := FromYAML(inputYAML)
+			if err != nil {
+				b.Fatal(err.Error())
+			}
+			mapNodeDest[j] = node
+		}
 	}
 }

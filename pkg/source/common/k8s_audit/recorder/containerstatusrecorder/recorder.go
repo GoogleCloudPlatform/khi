@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -41,10 +43,12 @@ func Register(manager *recorder.RecorderTaskManager) error {
 	return nil
 }
 
-func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.AuditLogParserInput, prevPodStatus *corev1.Pod, cs *history.ChangeSet, builder *history.Builder) (*corev1.Pod, error) {
+func recordChangeSetForLog(ctx context.Context, resourcePath string, l *types.AuditLogParserInput, prevPodStatus *corev1.Pod, cs *history.ChangeSet, builder *history.Builder) (*corev1.Pod, error) {
 	const errorTimestampInUnix = -62135596800 // Unix time for 0001-01-01T00:00:00Z
+	commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
+
 	var pod corev1.Pod
-	err := log.ResourceBodyReader.ReadReflectK8sManifest("", &pod)
+	err := structurev2.ReadReflectK8sRuntimeObject(l.ResourceBodyReader, "", &pod)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +62,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 		}
 	}
 
-	deletionStatus := manifestutil.ParseDeletionStatus(ctx, log.ResourceBodyReader, log.Operation)
+	deletionStatus := manifestutil.ParseDeletionStatus(ctx, l.ResourceBodyReader, l.Operation)
 	isDeletionRequest := deletionStatus == manifestutil.DeletionStatusDeleted
 	statuses := []corev1.ContainerStatus{}
 	statuses = append(statuses, pod.Status.ContainerStatuses...)
@@ -69,8 +73,8 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 			return &pod, err
 		}
 		isInitContainer := i >= len(pod.Status.ContainerStatuses)
-		cpath := resourcepath.Container(log.Operation.Namespace, log.Operation.Name, status.Name)
-		changed := builder.ClusterResource.ContainerStatuses.IsNewChange(log.Operation.Namespace, log.Operation.Name, status.Name, status)
+		cpath := resourcepath.Container(l.Operation.Namespace, l.Operation.Name, status.Name)
+		changed := builder.ClusterResource.ContainerStatuses.IsNewChange(l.Operation.Namespace, l.Operation.Name, status.Name, status)
 		tb := builder.GetTimelineBuilder(cpath.Path)
 		last := tb.GetLatestRevision()
 		if changed {
@@ -79,7 +83,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 				// Current container is running
 				running := status.State.Running
 				time := running.StartedAt.Time
-				if last != nil && time.Sub(last.ChangeTime) > 0 && log.Log.Timestamp().Sub(time) > 0 && status.Ready {
+				if last != nil && time.Sub(last.ChangeTime) > 0 && commonFieldSet.Timestamp.Sub(time) > 0 && status.Ready {
 					cs.RecordRevision(cpath, &history.StagingResourceRevision{
 						Verb:       enum.RevisionVerbContainerNonReady,
 						Body:       string(statusYaml),
@@ -90,7 +94,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 					})
 				}
 				if status.Ready {
-					readinessChangeTime := log.Log.Timestamp()
+					readinessChangeTime := commonFieldSet.Timestamp
 					if !isInitContainer && last != nil && containersReadyTime.Sub(last.ChangeTime) > 0 {
 						readinessChangeTime = containersReadyTime
 					}
@@ -108,7 +112,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 						Body:       string(statusYaml),
 						Requestor:  "",
 						Partial:    false,
-						ChangeTime: log.Log.Timestamp(),
+						ChangeTime: commonFieldSet.Timestamp,
 						State:      enum.RevisionStateContainerRunningNonReady,
 					})
 
@@ -120,7 +124,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 					// Pod termination status can have errornous timestamp when it can't be determined.
 					// We still don't know the exact time that happening but it should be in between last change time and current log time.
 					// Use timestamp log in the case.
-					terminated.FinishedAt.Time = log.Log.Timestamp()
+					terminated.FinishedAt.Time = commonFieldSet.Timestamp
 				}
 				if last == nil || terminated.FinishedAt.Time.Sub(last.ChangeTime) > 0 { // If this is the first log for the container or termination time is later than the last revision change timing.
 					verb := enum.RevisionVerbContainerSuccess
@@ -146,7 +150,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 					Body:       string(statusYaml),
 					Requestor:  "",
 					Partial:    false,
-					ChangeTime: log.Log.Timestamp(),
+					ChangeTime: commonFieldSet.Timestamp,
 					State:      enum.RevisionStateContainerWaiting,
 				})
 			}
@@ -158,7 +162,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 				Body:       "",
 				Requestor:  "",
 				Partial:    false,
-				ChangeTime: log.Log.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				State:      enum.RevisionStateDeleted,
 			})
 		}

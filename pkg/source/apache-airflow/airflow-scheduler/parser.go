@@ -68,11 +68,11 @@ var (
 // - success
 // - failed
 type AirflowSchedulerParser struct {
-	queryTaskId   taskid.TaskReference[[]*log.LogEntity]
+	queryTaskId   taskid.TaskReference[[]*log.Log]
 	targetLogType enum.LogType
 }
 
-func NewAirflowSchedulerParser(queryTaskId taskid.TaskReference[[]*log.LogEntity], targetLogType enum.LogType) *AirflowSchedulerParser {
+func NewAirflowSchedulerParser(queryTaskId taskid.TaskReference[[]*log.Log], targetLogType enum.LogType) *AirflowSchedulerParser {
 	return &AirflowSchedulerParser{queryTaskId: queryTaskId, targetLogType: targetLogType}
 }
 
@@ -99,12 +99,13 @@ func (*AirflowSchedulerParser) GetParserName() string {
 	return "Airflow Scheduler"
 }
 
-func (a *AirflowSchedulerParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (a *AirflowSchedulerParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return a.queryTaskId
 }
 
-func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-
+func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonField, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
 	ti, err := t.parseInternal(l)
 	if err != nil {
 		return err
@@ -119,13 +120,12 @@ func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.LogEntity, cs
 		Verb:       verb,
 		State:      state,
 		Requestor:  "airflow-scheduler",
-		ChangeTime: l.Timestamp(),
+		ChangeTime: commonField.Timestamp,
 		Partial:    false,
 		Body:       ti.ToYaml(),
 	})
 
-	summary, _ := l.MainMessage()
-	cs.RecordLogSummary(summary)
+	cs.RecordLogSummary(mainMessage.MainMessage)
 	cs.RecordEvent(resourcePath)
 
 	return nil
@@ -133,7 +133,7 @@ func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.LogEntity, cs
 
 // parseInternal generates AirflowTaskInstance from the logEntity.
 // If the log does not contain information about ti, parseInternal throw non-nil error.
-func (t *AirflowSchedulerParser) parseInternal(l *log.LogEntity) (*model.AirflowTaskInstance, error) {
+func (t *AirflowSchedulerParser) parseInternal(l *log.Log) (*model.AirflowTaskInstance, error) {
 
 	// TODO since all templates can generate same parametors(dagid,taskid,runid,state,mapIndex), I don't create `airflowParserFn`s for each template.
 	// TODO create a generic airflowParserFn which generate ti from a simple template.
@@ -143,9 +143,9 @@ func (t *AirflowSchedulerParser) parseInternal(l *log.LogEntity) (*model.Airflow
 		airflowSchedulerTaskFinishedTemplate,
 	}
 
-	textPayload, err := l.GetString("textPayload")
+	textPayload, err := l.ReadString("textPayload")
 	if err != nil {
-		return nil, fmt.Errorf("textPayload not found. maybe this is not airflow log. please confirm the log. ID: %s", l.ID())
+		return nil, fmt.Errorf("textPayload not found. maybe this is not airflow log. please confirm the log. ID: %s", l.ID)
 	}
 
 	// iterates through a list of regular expressions to match the log entity against.

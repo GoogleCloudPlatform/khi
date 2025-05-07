@@ -31,11 +31,11 @@ import (
 
 type AirflowDagProcessorParser struct {
 	dagFilePath   string
-	logTask       taskid.TaskReference[[]*log.LogEntity]
+	logTask       taskid.TaskReference[[]*log.Log]
 	targetLogType enum.LogType
 }
 
-func NewAirflowDagProcessorParser(dagFilePath string, logTask taskid.TaskReference[[]*log.LogEntity], targetLogType enum.LogType) *AirflowDagProcessorParser {
+func NewAirflowDagProcessorParser(dagFilePath string, logTask taskid.TaskReference[[]*log.Log], targetLogType enum.LogType) *AirflowDagProcessorParser {
 	return &AirflowDagProcessorParser{
 		dagFilePath:   dagFilePath,
 		logTask:       logTask,
@@ -67,14 +67,18 @@ func (*AirflowDagProcessorParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-func (a *AirflowDagProcessorParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (a *AirflowDagProcessorParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return a.logTask
 }
 
-func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	textPayload, _ := l.MainMessage()
+func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
+	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	if err != nil {
+		cs.RecordLogSummary(mainMessage.MainMessage)
+	}
 
-	dagFileProcessorStats := a.fromLogEntity(textPayload)
+	dagFileProcessorStats := a.fromLogEntity(mainMessage.MainMessage)
 	if dagFileProcessorStats == nil {
 		// this is not a dag file processor stats log, skip
 		return nil
@@ -83,7 +87,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.LogEntity,
 		Verb:       enum.RevisionVerbComposerTaskInstanceStats,
 		State:      enum.RevisionStateConditionTrue,
 		Requestor:  "dag-processor-manager",
-		ChangeTime: l.Timestamp(),
+		ChangeTime: commonField.Timestamp,
 		Partial:    false,
 		Body: fmt.Sprintf("dags: %s\nerrors: %s",
 			dagFileProcessorStats.NumberOfDags(), dagFileProcessorStats.NumberOfErrors()),

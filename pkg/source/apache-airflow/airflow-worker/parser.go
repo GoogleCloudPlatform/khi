@@ -48,11 +48,11 @@ var (
 var _ parser.Parser = &AirflowWorkerParser{}
 
 type AirflowWorkerParser struct {
-	queryTaskId   taskid.TaskReference[[]*log.LogEntity]
+	queryTaskId   taskid.TaskReference[[]*log.Log]
 	targetLogType enum.LogType
 }
 
-func NewAirflowWorkerParser(queryTaskId taskid.TaskReference[[]*log.LogEntity], targetLogType enum.LogType) *AirflowWorkerParser {
+func NewAirflowWorkerParser(queryTaskId taskid.TaskReference[[]*log.Log], targetLogType enum.LogType) *AirflowWorkerParser {
 	return &AirflowWorkerParser{
 		queryTaskId:   queryTaskId,
 		targetLogType: targetLogType,
@@ -85,22 +85,25 @@ func (*AirflowWorkerParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (a *AirflowWorkerParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (a *AirflowWorkerParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return a.queryTaskId
 }
 
 // Parse implements parser.Parser.
-func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
+func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	parsers := []airflowParserFn{
 		&airflowWorkerRunningHostFn{},
 		&airflowWorkerMarkingStatusFn{},
 	}
 
-	host, _ := l.GetString("labels.worker_id")
+	host, _ := l.ReadString("labels.worker_id")
 	worker := model.NewAirflowWorker(host)
 	cs.RecordEvent(resourcepath.AirflowWorker(worker))
-	summary, _ := l.MainMessage()
-	cs.RecordLogSummary(summary)
+	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
+	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	if err != nil {
+		cs.RecordLogSummary(mainMessage.MainMessage)
+	}
 
 	for _, p := range parsers {
 		ti, err := p.fn(l)
@@ -114,7 +117,7 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 			Verb:       verb,
 			State:      state,
 			Requestor:  "airflow-worker",
-			ChangeTime: l.Timestamp(),
+			ChangeTime: commonField.Timestamp,
 			Partial:    false,
 			Body:       ti.ToYaml(),
 		})
@@ -128,20 +131,20 @@ type airflowWorkerRunningHostFn struct{}
 
 var _ airflowParserFn = (*airflowWorkerRunningHostFn)(nil)
 
-func (fn *airflowWorkerRunningHostFn) fn(inputLog *log.LogEntity) (*model.AirflowTaskInstance, error) {
-	textPayload, err := inputLog.MainMessage()
+func (fn *airflowWorkerRunningHostFn) fn(inputLog *log.Log) (*model.AirflowTaskInstance, error) {
+	mainMessage, err := log.GetFieldSet(inputLog, &log.MainMessageFieldSet{})
 	if err != nil {
-		return nil, fmt.Errorf("textPayload not found. maybe invalid log. please confirm the log %s", inputLog.ID())
+		return nil, fmt.Errorf("textPayload not found. maybe invalid log. please confirm the log %s", inputLog.ID)
 	}
 
 	// if textPayload does not start from "Running ...", return nil error
 	// this early return is for parformance(regex is too slow)
-	if !strings.HasPrefix(textPayload, "Running ") {
+	if !strings.HasPrefix(mainMessage.MainMessage, "Running ") {
 		return nil, fmt.Errorf("this log entity is not for TaskInstance lifecycle. abort")
 	}
 
 	var taskInstance *model.AirflowTaskInstance
-	matches := airflowWorkerRunningHostTemplate.FindStringSubmatch(textPayload)
+	matches := airflowWorkerRunningHostTemplate.FindStringSubmatch(mainMessage.MainMessage)
 	if matches == nil {
 		return nil, fmt.Errorf("this log entity is not for TaskInstance lifecycle. abort")
 	}
@@ -169,22 +172,21 @@ type airflowWorkerMarkingStatusFn struct{}
 
 var _ airflowParserFn = (*airflowWorkerMarkingStatusFn)(nil)
 
-func (fn *airflowWorkerMarkingStatusFn) fn(inputLog *log.LogEntity) (*model.AirflowTaskInstance, error) {
-
-	textPayload, err := inputLog.MainMessage()
+func (fn *airflowWorkerMarkingStatusFn) fn(inputLog *log.Log) (*model.AirflowTaskInstance, error) {
+	mainMessage, err := log.GetFieldSet(inputLog, &log.MainMessageFieldSet{})
 	if err != nil {
-		return nil, fmt.Errorf("textPayload not found. maybe invalid log. please confirm the log %s", inputLog.ID())
+		return nil, fmt.Errorf("textPayload not found. maybe invalid log. please confirm the log %s", inputLog.ID)
 	}
 
 	var taskInstance *model.AirflowTaskInstance
-	matches := airflowWorkerMarkingStatusTemplate.FindStringSubmatch(textPayload)
+	matches := airflowWorkerMarkingStatusTemplate.FindStringSubmatch(mainMessage.MainMessage)
 	if matches == nil {
 		return nil, fmt.Errorf("this entity is not for TaskInstance lifecycle. abort")
 	}
 
-	workerId, err := inputLog.GetString("labels.worker_id") // TODO remove Cloud Logging Dependency
+	workerId, err := inputLog.ReadString("labels.worker_id") // TODO remove Cloud Logging Dependency
 	if err != nil {
-		return nil, fmt.Errorf("worker_id not found. maybe invalid log. please confirm the log %s", inputLog.ID())
+		return nil, fmt.Errorf("worker_id not found. maybe invalid log. please confirm the log %s", inputLog.ID)
 	}
 
 	dagid := matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("dagid")]
@@ -215,5 +217,5 @@ func (fn *airflowWorkerMarkingStatusFn) fn(inputLog *log.LogEntity) (*model.Airf
 type airflowParserFn interface {
 	// fn must return non-nil AirflowTaskInstance if the inputLog indicates a task instance.
 	// if there are any errors(i.e textPayload not found), please return nil as AirflowTaskInstance.
-	fn(inputLog *log.LogEntity) (*model.AirflowTaskInstance, error)
+	fn(inputLog *log.Log) (*model.AirflowTaskInstance, error)
 }
