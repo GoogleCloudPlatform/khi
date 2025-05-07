@@ -119,3 +119,30 @@ To automatically fix markdownlint issues:
 ```bash
 make lint-markdown-fix
 ```
+
+## Releasing container image
+
+KHI automates the container image deployment process.
+After creating a dedicated tag by creating a release on GitHub, the container will be built automatically and pushed on the repository.
+These tag creations are restricted only for our repository admins.
+
+* Pre-release
+  * Name tag with `vx.y.z-beta` then it will be deployed at the following addresses:
+    * `asia.gcr.io/kubernetes-history-inspector/release:beta`
+    * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
+* Release
+  * Name tag with `x.y.z` then it will be deployed at the following address:
+    * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z`
+    * `asia.gcr.io/kubernetes-history-inspector/release:latest`
+
+> [!NOTE]
+> The deployment process begins after the release entry being created. It may take an hour to push the image on the repository.
+
+### Using on-demand build for pull request code
+
+Repository admins can run `github-deploy-ondemand` check on a Pull request.
+It will deploy the image on `asia.gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA`.
+
+> [!NOTE]
+> The image is only for the last check. Please check the code is right on your environment first.
+> A build may takes an hour.
