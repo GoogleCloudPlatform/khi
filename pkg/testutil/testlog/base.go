@@ -17,23 +17,18 @@ package testlog
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/parser/yaml/yamlutil"
-	"gopkg.in/yaml.v3"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 )
 
-func BaseYaml(yamlStr string) TestLogOpt {
-	return func(original *yaml.Node) (*yaml.Node, error) {
+// YAML function returns a TestLogOpt generating the structure node with given YAML string.
+func YAML(yamlStr string) TestLogOpt {
+	return func(original structurev2.Node) (structurev2.Node, error) {
 		if original != nil {
 			return nil, fmt.Errorf("BaseYaml expects no previous TestLogOpt is given. But an instance of node was given")
 		}
 		if yamlStr == "" {
-			return yamlutil.NewEmptyMapNode(), nil
+			return structurev2.NewEmptyMapNode(), nil
 		}
-		var node yaml.Node
-		err := yaml.Unmarshal([]byte(yamlStr), &node)
-		if err != nil {
-			return nil, err
-		}
-		return &node, err
+		return structurev2.FromYAML(yamlStr)
 	}
 }

@@ -27,7 +27,7 @@ import (
 // A parser ingest a log.LogEntry and returns a ChangeSet. ChangeSet contains multiple changes against the history.
 // This change is applied atomically, when the parser returns an error, no partial changes would be written.
 type ChangeSet struct {
-	associatedLog                *log.LogEntity
+	associatedLog                *log.Log
 	revisions                    map[string][]*StagingResourceRevision
 	events                       map[string][]*ResourceEvent
 	resourceRelationshipRewrites map[string]enum.ParentRelationship
@@ -37,7 +37,7 @@ type ChangeSet struct {
 	aliases                      map[string][]string
 }
 
-func NewChangeSet(l *log.LogEntity) *ChangeSet {
+func NewChangeSet(l *log.Log) *ChangeSet {
 	return &ChangeSet{
 		associatedLog:                l,
 		revisions:                    make(map[string][]*StagingResourceRevision),
@@ -97,7 +97,7 @@ func (cs *ChangeSet) GetRevisions(resourcePath resourcepath.ResourcePath) []*Sta
 
 func (cs *ChangeSet) RecordEvent(resourcePath resourcepath.ResourcePath) {
 	event := ResourceEvent{
-		Log: cs.associatedLog.ID(),
+		Log: cs.associatedLog.ID,
 	}
 	if _, exist := cs.events[resourcePath.Path]; !exist {
 		cs.events[resourcePath.Path] = make([]*ResourceEvent, 0)
@@ -165,12 +165,12 @@ func (cs *ChangeSet) FlushToHistory(builder *Builder) ([]string, error) {
 
 	// Write log related properties
 	if cs.logSummaryRewrite != "" {
-		builder.setLogSummary(cs.associatedLog.ID(), cs.logSummaryRewrite)
+		builder.setLogSummary(cs.associatedLog.ID, cs.logSummaryRewrite)
 	}
 	if cs.logSeverityRewrite != enum.SeverityUnknown {
-		builder.setLogSeverity(cs.associatedLog.ID(), cs.logSeverityRewrite)
+		builder.setLogSeverity(cs.associatedLog.ID, cs.logSeverityRewrite)
 	}
-	builder.setLogAnnotations(cs.associatedLog.ID(), cs.annotations)
+	builder.setLogAnnotations(cs.associatedLog.ID, cs.annotations)
 
 	// Write the alias relationships
 	for source, destinations := range cs.aliases {

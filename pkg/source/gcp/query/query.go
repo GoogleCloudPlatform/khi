@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
+	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
@@ -75,14 +76,13 @@ var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(
 
 var queryThreadPool = worker.NewPool(16)
 
-func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) task.Task[[]*log.LogEntity] {
+func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) task.Task[[]*log.Log] {
 	return inspection_task.NewProgressReportableInspectionTask(taskId, append(
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
 		gcp_task.InputStartTimeTaskID.Ref(),
 		gcp_task.InputEndTimeTaskID.Ref(),
-		inspection_task.ReaderFactoryGeneratorTaskID.Ref(),
 		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
-	), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+	), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err
@@ -119,7 +119,6 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 			}
 		}
 
-		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.Ref())
 		startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
 		endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
 
@@ -129,14 +128,14 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 		}
 		if len(queryStrings) == 0 {
 			slog.InfoContext(ctx, fmt.Sprintf("Query generator `%s` decided to skip.", taskId))
-			return []*log.LogEntity{}, nil
+			return []*log.Log{}, nil
 		}
 		queryInfo, found := typedmap.Get(metadata, query.QueryMetadataKey)
 		if !found {
 			return nil, fmt.Errorf("query metadata was not found")
 		}
 
-		allLogs := []*log.LogEntity{}
+		allLogs := []*log.Log{}
 		for queryIndex, queryString := range queryStrings {
 			// Record query information in metadat a
 			readableQueryNameForQueryIndex := readableQueryName
@@ -152,7 +151,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 			// Run query only when thetask mode is for running
 			if taskMode == inspection_task_interface.TaskModeRun {
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
-				queryLogs, queryErr := worker.Query(ctx, readerFactory, resourceNamesFromInput, progress)
+				queryLogs, queryErr := worker.Query(ctx, resourceNamesFromInput, progress)
 				if queryErr != nil {
 					errorMessageSet, found := typedmap.Get(metadata, error_metadata.ErrorMessageSetMetadataKey)
 					if !found {
@@ -179,9 +178,17 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 				allLogs = append(allLogs, queryLogs...)
 			}
 		}
+
+		for _, l := range allLogs {
+			l.SetFieldSetReader(&gcp_log.GCPCommonFieldSetReader{})
+			l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
+		}
+
 		if taskMode == inspection_task_interface.TaskModeRun {
-			slices.SortFunc(allLogs, func(a, b *log.LogEntity) int {
-				return int(a.Timestamp().Sub(b.Timestamp()))
+			slices.SortFunc(allLogs, func(a, b *log.Log) int {
+				commonFieldSetForA, _ := log.GetFieldSet(a, &log.CommonFieldSet{}) // errors are safely ignored because this field set is required in previous steps
+				commonFieldSetForB, _ := log.GetFieldSet(b, &log.CommonFieldSet{})
+				return int(commonFieldSetForA.Timestamp.Sub(commonFieldSetForB.Timestamp))
 			})
 			for _, l := range allLogs {
 				l.LogType = logType
@@ -189,6 +196,6 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.LogEntity],
 			return allLogs, err
 		}
 
-		return []*log.LogEntity{}, err
+		return []*log.Log{}, err
 	}, label.NewQueryTaskLabelOpt(logType, sampleQuery))
 }

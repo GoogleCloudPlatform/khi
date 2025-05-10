@@ -26,7 +26,7 @@ type ControlPlaneComponentParser interface {
 	// ShouldProcess return if the component must be processed by this parser or not
 	ShouldProcess(component_name string) bool
 	// Process handle the given logs to ingest to the ChangeSet. This method return false if the logs shouldn't be processed in the later parsers.
-	Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error)
+	Process(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) (bool, error)
 }
 
 var ComponentParsers []ControlPlaneComponentParser = []ControlPlaneComponentParser{

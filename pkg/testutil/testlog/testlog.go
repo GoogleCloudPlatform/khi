@@ -15,15 +15,11 @@
 package testlog
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredata"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
-	"gopkg.in/yaml.v3"
 )
 
-type TestLogOpt = func(original *yaml.Node) (*yaml.Node, error)
+type TestLogOpt = func(original structurev2.Node) (structurev2.Node, error)
 
 // TestLog is a type to generate mock log data effectively for test.
 type TestLog struct {
@@ -46,8 +42,8 @@ func (b *TestLog) With(additionalOpts ...TestLogOpt) *TestLog {
 	}
 }
 
-func (b *TestLog) BuildReader() (*structure.Reader, error) {
-	var node *yaml.Node
+func (b *TestLog) BuildReader() (*structurev2.NodeReader, error) {
+	var node structurev2.Node
 	var err error
 	for _, opt := range b.opts {
 		node, err = opt(node)
@@ -55,12 +51,7 @@ func (b *TestLog) BuildReader() (*structure.Reader, error) {
 			return nil, err
 		}
 	}
-	sd, err := structuredata.DataFromYamlNode(node)
-	if err != nil {
-		return nil, err
-	}
-	directStore := adapter.Direct(sd)
-	return directStore.GetReaderBackedByStore(&structuredatastore.OnMemoryStructureDataStore{})
+	return structurev2.NewNodeReader(node), nil
 }
 
 func (b *TestLog) MustBuildYamlString() string {
@@ -68,17 +59,24 @@ func (b *TestLog) MustBuildYamlString() string {
 	if err != nil {
 		panic(err)
 	}
-	yamlStr, err := reader.ToYaml("")
+	serializedRaw, err := reader.Serialize("", &structurev2.YAMLNodeSerializer{})
 	if err != nil {
 		panic(err)
 	}
-	return yamlStr
+	return string(serializedRaw)
 }
 
-func (b *TestLog) MustBuildLogEntity(le log.CommonLogFieldExtractor) *log.LogEntity {
+func (b *TestLog) MustBuildLogEntity(fieldSetReaders ...log.FieldSetReader) *log.Log {
 	reader, err := b.BuildReader()
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
-	return log.NewLogEntity(reader, le)
+	l := log.NewLog(reader)
+	for _, fieldSetReader := range fieldSetReaders {
+		err := l.SetFieldSetReader(fieldSetReader)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+	return l
 }

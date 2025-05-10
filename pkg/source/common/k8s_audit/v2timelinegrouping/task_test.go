@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	common_k8saudit_fieldextactor "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/fieldextractor"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
@@ -33,6 +32,17 @@ import (
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
+
+type stubAuditLogFieldExtractor struct {
+	Extractor func(ctx context.Context, log *log.Log) (*types.AuditLogParserInput, error)
+}
+
+// ExtractFields implements types.AuditLogFieldExtractor.
+func (f *stubAuditLogFieldExtractor) ExtractFields(ctx context.Context, log *log.Log) (*types.AuditLogParserInput, error) {
+	return f.Extractor(ctx, log)
+}
+
+var _ types.AuditLogFieldExtractor = (*stubAuditLogFieldExtractor)(nil)
 
 func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
@@ -71,10 +81,10 @@ timestamp: 2024-01-01T00:00:00+09:00`
 			"core/v1#pod#default#foo": 2,
 			"core/v1#pod#default#bar": 1,
 		}
-		tl := testlog.New(testlog.BaseYaml(baseLog))
-		logs := []*log.LogEntity{}
+		tl := testlog.New(testlog.YAML(baseLog))
+		logs := []*log.Log{}
 		for _, opt := range logOpts {
-			logs = append(logs, tl.With(opt...).MustBuildLogEntity(&log.UnreachableCommonFieldExtractor{}))
+			logs = append(logs, tl.With(opt...).MustBuildLogEntity())
 		}
 
 		ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
@@ -82,9 +92,9 @@ timestamp: 2024-01-01T00:00:00+09:00`
 			v2commonlogparse.Task,
 			task_test.StubTaskFromReferenceID(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
 				Logs: logs,
-				Extractor: &common_k8saudit_fieldextactor.StubFieldExtractor{
-					Extractor: func(ctx context.Context, log *log.LogEntity) (*types.AuditLogParserInput, error) {
-						resourceName := log.GetStringOrDefault("protoPayload.resourceName", "")
+				Extractor: &stubAuditLogFieldExtractor{
+					Extractor: func(ctx context.Context, log *log.Log) (*types.AuditLogParserInput, error) {
+						resourceName := log.ReadStringOrDefault("protoPayload.resourceName", "")
 						if resourceName == "core/v1/namespaces/default/pods/foo" {
 							return &types.AuditLogParserInput{
 								Log: log,

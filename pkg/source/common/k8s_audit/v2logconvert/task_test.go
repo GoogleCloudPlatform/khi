@@ -59,9 +59,9 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 			testlog.StringField("timestamp", "2024-01-01T00:02:00+09:00"),
 		},
 	}
-	logs := []*log.LogEntity{}
+	logs := []*log.Log{}
 	for _, opt := range logOpts {
-		logs = append(logs, testlog.New(testlog.BaseYaml(baseLog)).With(opt...).MustBuildLogEntity(gcp_log.GCPCommonFieldExtractor{}))
+		logs = append(logs, testlog.New(testlog.YAML(baseLog)).With(opt...).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}, &gcp_log.GCPMainMessageFieldSetReader{}))
 	}
 
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
@@ -76,7 +76,7 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 		t.Fatal(err.Error())
 	}
 	for i := 0; i < len(logs); i++ {
-		logId := logs[i].ID()
+		logId := logs[i].ID
 		_, err := builder.GetLog(logId)
 		if err != nil {
 			t.Errorf("failed to get log %s", logId)

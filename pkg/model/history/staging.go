@@ -37,7 +37,7 @@ type StagingResourceRevision struct {
 	State      enum.RevisionState
 }
 
-func (r *StagingResourceRevision) commit(binaryBuilder *binarychunk.Builder, l *log.LogEntity) (*ResourceRevision, error) {
+func (r *StagingResourceRevision) commit(binaryBuilder *binarychunk.Builder, l *log.Log) (*ResourceRevision, error) {
 	bodyRef, err := binaryBuilder.Write([]byte(r.Body))
 	if err != nil {
 		return nil, err
@@ -46,12 +46,8 @@ func (r *StagingResourceRevision) commit(binaryBuilder *binarychunk.Builder, l *
 	if err != nil {
 		return nil, err
 	}
-	logId := l.ID()
-	if r.Inferred {
-		logId = ""
-	}
 	return &ResourceRevision{
-		Log:        logId,
+		Log:        l.ID,
 		Requestor:  requestorRef,
 		Verb:       r.Verb,
 		Body:       bodyRef,

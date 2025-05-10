@@ -16,14 +16,10 @@ package parser
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"slices"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -33,7 +29,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
@@ -45,14 +40,12 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFileReader,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
-		inspection_task.ReaderFactoryGeneratorTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+	func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
-			return []*log.LogEntity{}, nil
+			return []*log.Log{}, nil
 		}
 		result := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
-		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.Ref())
 
 		reader, err := result.GetReader()
 		if err != nil {
@@ -66,46 +59,44 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 		}
 
 		logLines := strings.Split(string(logData), "\n")
-		var logs []*log.LogEntity
+		var logs []*log.Log
 
 		for _, line := range logLines {
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
 
-			var jsonData map[string]interface{}
-			if err := json.Unmarshal([]byte(line), &jsonData); err != nil {
-				slog.WarnContext(ctx, fmt.Sprintf("Failed to parse JSON line: %v", err))
-				continue
+			l, err := log.NewLogFromYAMLString(line)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read a log: %w", err)
 			}
 
-			yamlData, err := yaml.Marshal(jsonData)
+			err = l.SetFieldSetReader(&oss_log.OSSK8sAuditLogCommonFieldSetReader{})
 			if err != nil {
-				slog.WarnContext(ctx, fmt.Sprintf("Failed to convert to YAML: %v", err))
-				continue
+				return nil, err
 			}
-
-			logReader, err := readerFactory.NewReader(adapter.Yaml(string(yamlData)))
-			if err != nil {
-				slog.WarnContext(ctx, fmt.Sprintf("Failed to parse YAML as the structure data: %v", err))
-				continue
-			}
-			log := log.NewLogEntity(logReader, &oss_log.OSSAuditLogFieldExtractor{})
 
 			// TODO: we may need to consider processing logs not with ResponseComplete stage. All logs not on the ResponseComplete stage will be ignored for now.
-			if log.GetStringOrDefault("stage", "") != "ResponseComplete" {
+			if l.ReadStringOrDefault("stage", "") != "ResponseComplete" {
 				continue
 			}
 
-			logs = append(logs, log)
+			logs = append(logs, l)
 		}
-		slices.SortFunc(logs, func(a, b *log.LogEntity) int { return int(a.Timestamp().UnixNano() - b.Timestamp().UnixNano()) })
+		slices.SortFunc(logs, func(a, b *log.Log) int {
+			logACommonField := log.MustGetFieldSet(a, &log.CommonFieldSet{})
+			logBCommonField := log.MustGetFieldSet(b, &log.CommonFieldSet{})
+			return int(logACommonField.Timestamp.UnixNano() - logBCommonField.Timestamp.UnixNano())
+		})
 		metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
 		header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
 
 		if len(logs) > 0 {
-			header.StartTimeUnixSeconds = logs[0].Timestamp().Unix()
-			header.EndTimeUnixSeconds = logs[len(logs)-1].Timestamp().Unix()
+			startLogCommonField := log.MustGetFieldSet(logs[0], &log.CommonFieldSet{})
+			lastLogCommonField := log.MustGetFieldSet(logs[len(logs)-1], &log.CommonFieldSet{})
+
+			header.StartTimeUnixSeconds = startLogCommonField.Timestamp.Unix()
+			header.EndTimeUnixSeconds = lastLogCommonField.Timestamp.Unix()
 		}
 
 		return logs, nil
@@ -116,16 +107,16 @@ var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+	}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
-			return []*log.LogEntity{}, nil
+			return []*log.Log{}, nil
 		}
 		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
 
-		var eventLogs []*log.LogEntity
+		var eventLogs []*log.Log
 
 		for _, l := range logs {
-			if l.GetStringOrDefault("kind", "") == "Event" && l.GetStringOrDefault("responseObject.kind", "") == "Event" {
+			if l.ReadStringOrDefault("kind", "") == "Event" && l.ReadStringOrDefault("responseObject.kind", "") == "Event" {
 				l.LogType = enum.LogTypeEvent
 				eventLogs = append(eventLogs, l)
 			}
@@ -138,18 +129,18 @@ var OSSNonEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+	}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
-			return []*log.LogEntity{}, nil
+			return []*log.Log{}, nil
 		}
 
 		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
 
-		var auditLogs []*log.LogEntity
+		var auditLogs []*log.Log
 
 		for _, l := range logs {
-			verb := l.GetStringOrDefault("verb", "")
-			if l.GetStringOrDefault("kind", "") == "Event" && l.GetStringOrDefault("responseObject.kind", "") != "Event" && l.Fields.Has("objectRef") {
+			verb := l.ReadStringOrDefault("verb", "")
+			if l.ReadStringOrDefault("kind", "") == "Event" && l.ReadStringOrDefault("responseObject.kind", "") != "Event" && l.Has("objectRef") {
 				if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
 					continue
 				}

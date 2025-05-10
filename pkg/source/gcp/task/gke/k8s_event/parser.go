@@ -54,7 +54,7 @@ func (*k8sEventParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (*k8sEventParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*k8sEventParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return k8s_event_taskid.GKEK8sEventLogQueryTaskID.Ref()
 }
 
@@ -63,11 +63,11 @@ func (*k8sEventParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*k8sEventParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	if kind, err := l.GetString("jsonPayload.kind"); err != nil {
+func (*k8sEventParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	if kind, err := l.ReadString("jsonPayload.kind"); err != nil {
 		// Event exporter ingests cluster scoped logs without jsonPayload
-		if textPayload, err := l.GetString("textPayload"); err == nil {
-			clusterName := l.GetStringOrDefault("resource.labels.cluster_name", "Unknown")
+		if textPayload, err := l.ReadString("textPayload"); err == nil {
+			clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "Unknown")
 			cs.RecordEvent(resourcepath.Cluster(clusterName))
 			cs.RecordLogSummary(textPayload)
 			return nil
@@ -76,19 +76,19 @@ func (*k8sEventParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.
 	} else if kind != "Event" {
 		return fmt.Errorf("skipping kind:%s", kind)
 	}
-	apiVersion := l.GetStringOrDefault("jsonPayload.involvedObject.apiVersion", "v1")
+	apiVersion := l.ReadStringOrDefault("jsonPayload.involvedObject.apiVersion", "v1")
 
-	kind := l.GetStringOrDefault("jsonPayload.involvedObject.kind", "Unknown")
+	kind := l.ReadStringOrDefault("jsonPayload.involvedObject.kind", "Unknown")
 
-	name := l.GetStringOrDefault("jsonPayload.involvedObject.name", "Unknown")
+	name := l.ReadStringOrDefault("jsonPayload.involvedObject.name", "Unknown")
 
-	namespace := l.GetStringOrDefault("jsonPayload.involvedObject.namespace", "cluster-scope")
+	namespace := l.ReadStringOrDefault("jsonPayload.involvedObject.namespace", "cluster-scope")
 	if !strings.Contains(apiVersion, "/") {
 		apiVersion = "core/" + apiVersion
 	}
 
 	cs.RecordEvent(resourcepath.NameLayerGeneralItem(apiVersion, strings.ToLower(kind), namespace, name))
-	cs.RecordLogSummary(fmt.Sprintf("【%s】%s", l.GetStringOrDefault("jsonPayload.reason", "Unknown"), l.GetStringOrDefault("jsonPayload.message", "")))
+	cs.RecordLogSummary(fmt.Sprintf("【%s】%s", l.ReadStringOrDefault("jsonPayload.reason", "Unknown"), l.ReadStringOrDefault("jsonPayload.message", "")))
 	return nil
 }
 

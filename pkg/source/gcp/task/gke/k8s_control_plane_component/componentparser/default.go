@@ -26,13 +26,12 @@ type DefaultK8sControlPlaneComponentParser struct {
 }
 
 // Process implements ControlPlaneComponentParser.
-func (d *DefaultK8sControlPlaneComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
-	component := l.GetStringOrDefault("resource.labels.component_name", "Unknown")
-	clusterName := l.GetStringOrDefault("resource.labels.cluster_name", "Unknown")
-	msg, err := l.MainMessage()
-	if err == nil {
-		cs.RecordLogSummary(msg)
-	}
+func (d *DefaultK8sControlPlaneComponentParser) Process(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
+	component := l.ReadStringOrDefault("resource.labels.component_name", "Unknown")
+	clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "Unknown")
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+
+	cs.RecordLogSummary(mainMessageFieldSet.MainMessage)
 	cs.RecordEvent(resourcepath.ControlplaneComponent(clusterName, component))
 	return false, nil
 }

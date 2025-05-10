@@ -28,21 +28,21 @@ import (
 type OSSJSONLAuditLogFieldExtractor struct{}
 
 // ExtractFields implements common.AuditLogFieldExtractor.
-func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.LogEntity) (*types.AuditLogParserInput, error) {
-	apiGroup := l.Fields.ReadStringOrDefault("objectRef.apiGroup", "core")
-	apiVersion := l.Fields.ReadStringOrDefault("objectRef.apiVersion", "unknown")
-	kind := l.Fields.ReadStringOrDefault("objectRef.resource", "unknown")
-	namespace := l.Fields.ReadStringOrDefault("objectRef.namespace", "cluster-scope")
-	name := l.Fields.ReadStringOrDefault("objectRef.name", "unknown")
-	subresource := l.Fields.ReadStringOrDefault("objectRef.subresource", "")
-	verb := l.Fields.ReadStringOrDefault("verb", "")
+func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*types.AuditLogParserInput, error) {
+	apiGroup := l.ReadStringOrDefault("objectRef.apiGroup", "core")
+	apiVersion := l.ReadStringOrDefault("objectRef.apiVersion", "unknown")
+	kind := l.ReadStringOrDefault("objectRef.resource", "unknown")
+	namespace := l.ReadStringOrDefault("objectRef.namespace", "cluster-scope")
+	name := l.ReadStringOrDefault("objectRef.name", "unknown")
+	subresource := l.ReadStringOrDefault("objectRef.subresource", "")
+	verb := l.ReadStringOrDefault("verb", "")
 
 	if subresource == "status" {
 		subresource = "" // status subresource response should contain the full body data of its parent
 	}
 	if name == "unknown" && verb == "create" {
 		// the name may be generated from the server side.
-		name = l.Fields.ReadStringOrDefault("responseObject.metadata.name", "unknown")
+		name = l.ReadStringOrDefault("responseObject.metadata.name", "unknown")
 	}
 
 	k8sOp := model.KubernetesObjectOperation{
@@ -54,18 +54,18 @@ func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *l
 		Verb:            verbStringToEnum(verb),
 	}
 
-	requestor := l.Fields.ReadStringOrDefault("user.username", "unknown")
+	requestor := l.ReadStringOrDefault("user.username", "unknown")
 
-	responseCode := l.Fields.ReadIntOrDefault("responseStatus.code", 0)
-	responseMessage := l.Fields.ReadStringOrDefault("responseStatus.message", "")
+	responseCode := l.ReadIntOrDefault("responseStatus.code", 0)
+	responseMessage := l.ReadStringOrDefault("responseStatus.message", "")
 
 	// response, request can be nil when the fields are missing, error can be ignorable.
-	response, _ := l.Fields.ReaderSingle("responseObject")
+	response, _ := l.GetReader("responseObject")
 	responseType := rtype.RTypeUnknown
 	if response != nil {
 		responseType = rtype.RtypeFromOSSK8sObject(response)
 	}
-	request, _ := l.Fields.ReaderSingle("requestObject")
+	request, _ := l.GetReader("requestObject")
 	requestType := rtype.RTypeUnknown
 	if request != nil {
 		requestType = rtype.RtypeFromOSSK8sObject(request)

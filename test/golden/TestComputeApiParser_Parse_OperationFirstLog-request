@@ -1,19 +1,34 @@
 '@type': type.googleapis.com/compute.instances.insert
 disks:
-- autoDelete: true
-  boot: true
-  deviceName: persistent-disk-0
-  initializeParams:
-    diskSizeGb: "100"
-    diskType: projects/project-number/zones/us-central1-a/diskTypes/pd-balanced
-    guestOsFeatures:
-    - type: UEFI_COMPATIBLE
-    labels:
+    - autoDelete: true
+      boot: true
+      deviceName: persistent-disk-0
+      initializeParams:
+        diskSizeGb: "100"
+        diskType: projects/project-number/zones/us-central1-a/diskTypes/pd-balanced
+        guestOsFeatures:
+            - type: UEFI_COMPATIBLE
+        labels:
+            - key: goog-gke-cluster-id-base32
+              value: j36svzpvgnhsdmmro2njkhjderq75mzq63feennunqg5tju7nbma
+            - key: goog-gke-node
+              value: ""
+            - key: goog-gke-volume
+              value: ""
+            - key: goog-k8s-cluster-location
+              value: us-central1-a
+            - key: goog-k8s-cluster-name
+              value: gke-basic-1
+            - key: goog-k8s-node-pool-name
+              value: default
+        onUpdateAction: RECREATE_DISK_IF_SOURCE_CHANGED
+        sourceImage: https://www.googleapis.com/compute/v1/projects/gke-node-images/global/images/gke-1296-gke1326000-cos-109-17800-218-69-c-pre
+      mode: READ_WRITE
+      type: PERSISTENT
+labels:
     - key: goog-gke-cluster-id-base32
       value: j36svzpvgnhsdmmro2njkhjderq75mzq63feennunqg5tju7nbma
     - key: goog-gke-node
-      value: ""
-    - key: goog-gke-volume
       value: ""
     - key: goog-k8s-cluster-location
       value: us-central1-a
@@ -21,51 +36,36 @@ disks:
       value: gke-basic-1
     - key: goog-k8s-node-pool-name
       value: default
-    onUpdateAction: RECREATE_DISK_IF_SOURCE_CHANGED
-    sourceImage: https://www.googleapis.com/compute/v1/projects/gke-node-images/global/images/gke-1296-gke1326000-cos-109-17800-218-69-c-pre
-  mode: READ_WRITE
-  type: PERSISTENT
-labels:
-- key: goog-gke-cluster-id-base32
-  value: j36svzpvgnhsdmmro2njkhjderq75mzq63feennunqg5tju7nbma
-- key: goog-gke-node
-  value: ""
-- key: goog-k8s-cluster-location
-  value: us-central1-a
-- key: goog-k8s-cluster-name
-  value: gke-basic-1
-- key: goog-k8s-node-pool-name
-  value: default
 machineType: projects/project-number/zones/us-central1-a/machineTypes/e2-standard-8
 name: gke-gke-basic-1-default-5e5b794d-2m33
 networkInterfaces:
-- accessConfigs:
-  - name: external-nat
-    networkTier: PREMIUM
-    type: ONE_TO_ONE_NAT
-  aliasIpRanges:
-  - ipCidrRange: /24
-    subnetworkRangeName: gke-gke-basic-1-pods-4efd2ae5
-  name: nic0
-  network: https://www.googleapis.com/compute/v1/projects/project-id/global/networks/gke-basic-1-vpc
-  stackType: IPV4_ONLY
-  subnetwork: https://www.googleapis.com/compute/v1/projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
+    - accessConfigs:
+        - name: external-nat
+          networkTier: PREMIUM
+          type: ONE_TO_ONE_NAT
+      aliasIpRanges:
+        - ipCidrRange: /24
+          subnetworkRangeName: gke-gke-basic-1-pods-4efd2ae5
+      name: nic0
+      network: https://www.googleapis.com/compute/v1/projects/project-id/global/networks/gke-basic-1-vpc
+      stackType: IPV4_ONLY
+      subnetwork: https://www.googleapis.com/compute/v1/projects/project-id/regions/us-central1/subnetworks/gke-basic-1-subnet
 networkPerformanceConfig:
-  totalEgressBandwidthTier: DEFAULT
+    totalEgressBandwidthTier: DEFAULT
 requestId: 1cb27ecf-1d4a-30a3-afe9-35d1a538bcbd
 scheduling:
-  automaticRestart: true
-  onHostMaintenance: MIGRATE
-  preemptible: false
-  provisioningModel: STANDARD
+    automaticRestart: true
+    onHostMaintenance: MIGRATE
+    preemptible: false
+    provisioningModel: STANDARD
 serviceAccounts:
-- email: default
-  scopes:
-  - https://www.googleapis.com/auth/cloud-platform
+    - email: default
+      scopes:
+        - https://www.googleapis.com/auth/cloud-platform
 shieldedInstanceConfig:
-  enableIntegrityMonitoring: true
-  enableSecureBoot: false
-  enableVtpm: true
+    enableIntegrityMonitoring: true
+    enableSecureBoot: false
+    enableVtpm: true
 tags:
-  tags:
-  - gke-gke-basic-1-4efd2ae5-node
+    tags:
+        - gke-gke-basic-1-4efd2ae5-node

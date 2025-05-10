@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/noderesource"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
@@ -66,7 +65,7 @@ func (*k8sNodeParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (*k8sNodeParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*k8sNodeParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return k8s_node_taskid.GKENodeLogQueryTaskID.Ref()
 }
 
@@ -74,8 +73,8 @@ func (*k8sNodeParser) Grouper() grouper.LogGrouper {
 	return grouper.NewSingleStringFieldKeyLogGrouper("resource.labels.node_name")
 }
 
-func (*k8sNodeParser) GetSyslogIdentifier(l *log.LogEntity) string {
-	syslogIdentiefier := l.GetStringOrDefault("jsonPayload.SYSLOG_IDENTIFIER", "Unknown")
+func (*k8sNodeParser) GetSyslogIdentifier(l *log.Log) string {
+	syslogIdentiefier := l.ReadStringOrDefault("jsonPayload.SYSLOG_IDENTIFIER", "Unknown")
 	if strings.HasPrefix(syslogIdentiefier, "(") && strings.HasSuffix(syslogIdentiefier, ")") { // dockerd can be "(dockerd)" in SYSLOG_IDENTIFIER field.
 		syslogIdentiefier = strings.TrimPrefix(strings.TrimSuffix(syslogIdentiefier, ")"), "(")
 	}
@@ -83,17 +82,15 @@ func (*k8sNodeParser) GetSyslogIdentifier(l *log.LogEntity) string {
 }
 
 // Parse implements parser.Parser.
-func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	if !l.HasKLogField("") {
-		mainMessage, err := l.MainMessage()
-		if err != nil {
-			return err
-		}
-		cs.RecordLogSummary(mainMessage)
+func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonMessageFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+	if !mainMessageFieldSet.HasKLogField("") {
+		cs.RecordLogSummary(mainMessageFieldSet.MainMessage)
 		return nil
 	}
 
-	nodeName := l.GetStringOrDefault("resource.labels.node_name", "")
+	nodeName := l.ReadStringOrDefault("resource.labels.node_name", "")
 	if nodeName == "" {
 		return fmt.Errorf("parser couldn't lookup the node name")
 	}
@@ -103,11 +100,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 	}
 	cs.RecordLogSummary(summary)
 
-	severity := enum.SeverityUnknown
-	mainMessage, err := l.MainMessage()
-	if err == nil {
-		severity = k8s.ExractKLogSeverity(mainMessage)
-	}
+	severity := mainMessageFieldSet.KLogSeverity()
 
 	cs.RecordLogSeverity(severity)
 
@@ -116,7 +109,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 	nodeComponentPath := resourcepath.NodeComponent(nodeName, syslogIdentifier)
 	if syslogIdentifier == "Unknown" {
 		// Check if the log is for kube-proxy. If it was true, the log event will be generated on the Pod resource.
-		logName := l.GetStringOrDefault("logName", "")
+		logName := l.ReadStringOrDefault("logName", "")
 		if strings.HasSuffix(logName, "kube-proxy") {
 			kubeProxyPodPath := resourcepath.Pod("kube-system", fmt.Sprintf("kube-proxy-%s", nodeName))
 			cs.RecordEvent(kubeProxyPodPath)
@@ -125,7 +118,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 	}
 
 	if syslogIdentifier == "containerd" {
-		msg, err := l.KLogField("msg")
+		msg, err := mainMessageFieldSet.KLogField("msg")
 		if err != nil {
 			return err
 		}
@@ -139,13 +132,13 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		supportsLifetimeParse = true
 	}
 	if syslogIdentifier == "dockerd" {
-		msg, err := l.KLogField("msg")
+		msg, err := mainMessageFieldSet.KLogField("msg")
 		if err != nil {
 			return err
 		}
@@ -155,7 +148,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		if msg == DockerdTerminatingMsg {
@@ -164,13 +157,13 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbDelete,
 					State:      enum.RevisionStateDeleted,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		supportsLifetimeParse = true
 	}
 	if syslogIdentifier == "configure.sh" {
-		msg, err := l.KLogField("")
+		msg, err := mainMessageFieldSet.KLogField("")
 		if err != nil {
 			return err
 		}
@@ -180,7 +173,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		if msg == ConfigureShTerminatingMsg {
@@ -189,13 +182,13 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbDelete,
 					State:      enum.RevisionStateDeleted,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		supportsLifetimeParse = true
 	}
 	if syslogIdentifier == "configure-helper.sh" {
-		msg, err := l.KLogField("")
+		msg, err := mainMessageFieldSet.KLogField("")
 		if err != nil {
 			return err
 		}
@@ -205,7 +198,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		if msg == ConfigureHelperShTerminatingMsg {
@@ -214,13 +207,13 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbDelete,
 					State:      enum.RevisionStateDeleted,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 		supportsLifetimeParse = true
 	}
 	if syslogIdentifier == "kubelet" {
-		klogExitCode, err := l.KLogField("exitCode")
+		klogExitCode, err := mainMessageFieldSet.KLogField("exitCode")
 		if err == nil && klogExitCode != "" && klogExitCode != "0" {
 			if klogExitCode == "137" {
 				cs.RecordLogSeverity(enum.SeverityError)
@@ -239,19 +232,19 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateInferred,
 					Requestor:  syslogIdentifier,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonMessageFieldSet.Timestamp,
 				})
 		}
 	}
 
 	cs.RecordEvent(nodeComponentPath)
 
-	klognode, err := l.KLogField("node")
+	klognode, err := mainMessageFieldSet.KLogField("node")
 	if err == nil && klognode != "" {
 		cs.RecordEvent(resourcepath.Node(klognode))
 	}
 
-	resourceBindings := builder.ClusterResource.NodeResourceLogBinder.GetBoundResourcesForLogBody(nodeName, mainMessage)
+	resourceBindings := builder.ClusterResource.NodeResourceLogBinder.GetBoundResourcesForLogBody(nodeName, mainMessageFieldSet.MainMessage)
 	for _, rb := range resourceBindings {
 		cs.RecordEvent(rb.GetResourcePath())
 		summary = rb.RewriteLogSummary(summary)
@@ -260,7 +253,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 		cs.RecordLogSummary(summary)
 	} else {
 		// When this log can't be associated with resource by container id or pod sandbox id, try to get it from klog fields.
-		podNameWithNamespace, err := l.KLogField("pod")
+		podNameWithNamespace, err := mainMessageFieldSet.KLogField("pod")
 		if err == nil && podNameWithNamespace != "" {
 			podNameSplitted := strings.Split(podNameWithNamespace, "/")
 			podNamespace := "unknown"
@@ -269,7 +262,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 				podNamespace = podNameSplitted[0]
 				podName = podNameSplitted[1]
 			}
-			containerName, err := l.KLogField("containerName")
+			containerName, err := mainMessageFieldSet.KLogField("containerName")
 			if err == nil && containerName != "" {
 				cs.RecordEvent(resourcepath.Container(podNamespace, podName, containerName))
 				cs.RecordLogSummary(fmt.Sprintf("%s【%s】", summary, toReadableContainerName(podNamespace, podName, containerName)))
@@ -282,21 +275,22 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.LogEntity, cs *history
 	return nil
 }
 
-func parseDefaultSummary(l *log.LogEntity) (string, error) {
+func parseDefaultSummary(l *log.Log) (string, error) {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 	subinfo := ""
-	klogmain, err := l.KLogField("")
+	klogmain, err := mainMessageFieldSet.KLogField("")
 	if err != nil {
 		return "", err
 	}
-	errorMsg, err := l.KLogField("error")
+	errorMsg, err := mainMessageFieldSet.KLogField("error")
 	if err == nil && errorMsg != "" {
 		subinfo = fmt.Sprintf("error=%s", errorMsg)
 	}
-	probeType, err := l.KLogField("probeType")
+	probeType, err := mainMessageFieldSet.KLogField("probeType")
 	if err == nil && probeType != "" {
 		subinfo = fmt.Sprintf("probeType=%s", probeType)
 	}
-	eventMsg, err := l.KLogField("event")
+	eventMsg, err := mainMessageFieldSet.KLogField("event")
 	if err == nil && eventMsg != "" {
 		if eventMsg[0] == '&' || eventMsg[0] == '{' {
 			if strings.Contains(eventMsg, "Type:") {
@@ -306,15 +300,15 @@ func parseDefaultSummary(l *log.LogEntity) (string, error) {
 			subinfo = eventMsg
 		}
 	}
-	klogstatus, err := l.KLogField("status")
+	klogstatus, err := mainMessageFieldSet.KLogField("status")
 	if err == nil && klogstatus != "" {
 		subinfo = fmt.Sprintf("status=%s", klogstatus)
 	}
-	klogExitCode, err := l.KLogField("exitCode")
+	klogExitCode, err := mainMessageFieldSet.KLogField("exitCode")
 	if err == nil && klogExitCode != "" {
 		subinfo = fmt.Sprintf("exitCode=%s", klogExitCode)
 	}
-	klogGracePeriod, err := l.KLogField("gracePeriod")
+	klogGracePeriod, err := mainMessageFieldSet.KLogField("gracePeriod")
 	if err == nil && klogGracePeriod != "" {
 		subinfo = fmt.Sprintf("gracePeriod=%ss", klogGracePeriod)
 	}
@@ -325,7 +319,7 @@ func parseDefaultSummary(l *log.LogEntity) (string, error) {
 	}
 }
 
-func (*k8sNodeParser) handleContainerdSandboxLogs(ctx context.Context, l *log.LogEntity, nodeName string, mainMessage string, builder *history.Builder, cs *history.ChangeSet, summary string) error {
+func (*k8sNodeParser) handleContainerdSandboxLogs(ctx context.Context, l *log.Log, nodeName string, mainMessage string, builder *history.Builder, cs *history.ChangeSet, summary string) error {
 	// Pod sandbox related logs
 	if strings.HasPrefix(mainMessage, "RunPodSandbox") {
 		podSandbox, err := parseRunPodSandboxLog(mainMessage)

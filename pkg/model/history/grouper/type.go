@@ -19,4 +19,4 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
 
-type LogGrouper = common_grouper.Grouper[*log.LogEntity, string]
+type LogGrouper = common_grouper.Grouper[*log.Log, string]

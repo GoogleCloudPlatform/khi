@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -55,7 +56,7 @@ func (*gceNetworkParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*gceNetworkParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*gceNetworkParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return network_api_taskid.GCPNetworkLogQueryTaskID.Ref()
 }
 
@@ -64,18 +65,19 @@ func (*gceNetworkParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
+func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")
-	operationId := l.GetStringOrDefault("operation.id", "unknown")
-	methodName := l.GetStringOrDefault("protoPayload.methodName", "unknown")
+	operationId := l.ReadStringOrDefault("operation.id", "unknown")
+	methodName := l.ReadStringOrDefault("protoPayload.methodName", "unknown")
 	methodNameSplitted := strings.Split(methodName, ".")
-	resourceName := l.GetStringOrDefault("protoPayload.resourceName", "unknown")
+	resourceName := l.ReadStringOrDefault("protoPayload.resourceName", "unknown")
 	resourceNameSplitted := strings.Split(resourceName, "/")
 	negName := resourceNameSplitted[len(resourceNameSplitted)-1]
-	principal := l.GetStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
+	principal := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
 	var negResourcePath resourcepath.ResourcePath
-	lease, err := builder.ClusterResource.NEGs.GetResourceLeaseHolderAt(negName, l.Timestamp())
+	lease, err := builder.ClusterResource.NEGs.GetResourceLeaseHolderAt(negName, commonFieldSet.Timestamp)
 	if err == nil {
 		negResourcePath = resourcepath.NetworkEndpointGroup(lease.Holder.Namespace, negName)
 	} else {
@@ -93,7 +95,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 			Verb:       enum.RevisionVerbCreate,
 			State:      state,
 			Requestor:  principal,
-			ChangeTime: l.Timestamp(),
+			ChangeTime: commonFieldSet.Timestamp,
 			Partial:    false,
 		})
 	default:
@@ -103,7 +105,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 		method := methodNameSplitted[len(methodNameSplitted)-1]
 		if method == "detachNetworkEndpoints" || method == "attachNetworkEndpoints" {
 			isDetach := strings.HasPrefix(method, "detach")
-			requestBody, err := l.GetChildYamlOf("protoPayload.request")
+			requestBody, err := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{})
 			if err != nil {
 				return err
 			}
@@ -113,7 +115,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 				return err
 			}
 			for _, endpoint := range negRequest.NetworkEndpoints {
-				lease, err := builder.ClusterResource.IPs.GetResourceLeaseHolderAt(endpoint.IpAddress, l.Timestamp())
+				lease, err := builder.ClusterResource.IPs.GetResourceLeaseHolderAt(endpoint.IpAddress, commonFieldSet.Timestamp)
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
 					continue
@@ -132,7 +134,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.LogEntity, cs *histor
 						Verb:       verb,
 						State:      state,
 						Requestor:  principal,
-						ChangeTime: l.Timestamp(),
+						ChangeTime: commonFieldSet.Timestamp,
 						Partial:    false,
 					})
 				}

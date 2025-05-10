@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
-	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 
@@ -33,7 +32,7 @@ import (
 )
 
 func TestRecordLogSummary(t *testing.T) {
-	log := log_test.MockLogWithId("foo")
+	log := testlog.NewEmptyLogWithID("foo")
 	cs := NewChangeSet(log)
 	cs.RecordLogSummary("bar")
 	if cs.logSummaryRewrite != "bar" {
@@ -42,7 +41,7 @@ func TestRecordLogSummary(t *testing.T) {
 }
 
 func TestRecordLogSeverity(t *testing.T) {
-	log := log_test.MockLogWithId("foo")
+	log := testlog.NewEmptyLogWithID("foo")
 	cs := NewChangeSet(log)
 	cs.RecordLogSeverity(enum.SeverityWarning)
 	if cs.logSeverityRewrite != enum.SeverityWarning {
@@ -51,7 +50,7 @@ func TestRecordLogSeverity(t *testing.T) {
 }
 
 func TestRecordEvents(t *testing.T) {
-	log := log_test.MockLogWithId("foo")
+	log := testlog.NewEmptyLogWithID("foo")
 	cs := NewChangeSet(log)
 	cs.RecordEvent(resourcepath.KindLayerGeneralItem("A", "B"))
 	cs.RecordEvent(resourcepath.KindLayerGeneralItem("A", "C"))
@@ -64,7 +63,7 @@ func TestRecordEvents(t *testing.T) {
 }
 
 func TestGetEvents(t *testing.T) {
-	log := log_test.MockLogWithId("foo")
+	log := testlog.NewEmptyLogWithID("foo")
 	cs := NewChangeSet(log)
 	cs.RecordEvent(resourcepath.KindLayerGeneralItem("A", "B"))
 	testCases := []struct {
@@ -99,7 +98,7 @@ func TestGetEvents(t *testing.T) {
 }
 
 func TestRecordRevisions(t *testing.T) {
-	log := log_test.MockLogWithId("foo")
+	log := testlog.NewEmptyLogWithID("foo")
 	cs := NewChangeSet(log)
 	cs.RecordRevision(resourcepath.KindLayerGeneralItem("A", "B"), &StagingResourceRevision{
 		Inferred: true,
@@ -122,7 +121,7 @@ func TestRecordRevisions(t *testing.T) {
 }
 
 func TestGetRevisions(t *testing.T) {
-	log := log_test.MockLogWithId("foo")
+	log := testlog.NewEmptyLogWithID("foo")
 	cs := NewChangeSet(log)
 	cs.RecordRevision(resourcepath.KindLayerGeneralItem("A", "B"), &StagingResourceRevision{
 		Body: "AB1",
@@ -173,11 +172,11 @@ func TestChangesetFlushIsThreadSafe(t *testing.T) {
 	groupCount := 100
 	logCountPerGroup := 100
 	builder := NewBuilder(&ioconfig.IOConfig{})
-	lt := testlog.New(testlog.BaseYaml(""))
-	l := [][]*log.LogEntity{}
-	allLogs := []*log.LogEntity{}
+	lt := testlog.New(testlog.YAML(""))
+	l := [][]*log.Log{}
+	allLogs := []*log.Log{}
 	for i := 0; i < groupCount; i++ {
-		l = append(l, make([]*log.LogEntity, 0))
+		l = append(l, make([]*log.Log, 0))
 	}
 	for li := 0; li < logCountPerGroup; li++ {
 		for i := 0; i < groupCount; i++ {
@@ -187,7 +186,7 @@ func TestChangesetFlushIsThreadSafe(t *testing.T) {
 			l[i] = append(l[i], lt.With(
 				testlog.StringField("insertId", fmt.Sprintf("id-group%d-%d", i, li)),
 				testlog.StringField("timestamp", fmt.Sprintf("2024-01-01T%02d:%02d:%02dZ", hour, minute, seconds)),
-			).MustBuildLogEntity(gcp_log.GCPCommonFieldExtractor{}))
+			).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}))
 		}
 	}
 	for _, group := range l {

@@ -17,7 +17,7 @@ package autoscaler
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 )
 
 type decision struct {
@@ -163,27 +163,27 @@ func (m mig) Id() string {
 	return fmt.Sprintf("%s/%s/%s", m.Nodepool, m.Zone, m.Name)
 }
 
-func parseDecisionFromReader(decisionReader *structure.Reader) (*decision, error) {
+func parseDecisionFromReader(decisionReader *structurev2.NodeReader) (*decision, error) {
 	var result decision
-	err := decisionReader.ReadReflect("", &result)
+	err := structurev2.ReadReflect(decisionReader, "", &result)
 	if err != nil {
 		return nil, err
 	}
 	return &result, err
 }
 
-func parseNoDecisionFromReader(noDecisionReader *structure.Reader) (*noDecisionStatus, error) {
+func parseNoDecisionFromReader(noDecisionReader *structurev2.NodeReader) (*noDecisionStatus, error) {
 	var result noDecisionStatus
-	err := noDecisionReader.ReadReflect("", &result)
+	err := structurev2.ReadReflect(noDecisionReader, "", &result)
 	if err != nil {
 		return nil, err
 	}
 	return &result, err
 }
 
-func parseResultInfoFromReader(resultInfoReader *structure.Reader) (*resultInfo, error) {
+func parseResultInfoFromReader(resultInfoReader *structurev2.NodeReader) (*resultInfo, error) {
 	var result resultInfo
-	err := resultInfoReader.ReadReflect("", &result)
+	err := structurev2.ReadReflect(resultInfoReader, "", &result)
 	if err != nil {
 		return nil, err
 	}

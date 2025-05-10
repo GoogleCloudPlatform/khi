@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
@@ -43,5 +44,5 @@ func IsValidLogQuery(t *testing.T, query string) error {
 timestamp >= "2024-01-01T00:00:00Z"
 timestamp <= "2024-01-01T00:00:01Z"`, query)
 
-	return gcpApi.ListLogEntries(context.Background(), []string{"projects/kubernetes-history-inspector"}, query, make(chan any))
+	return gcpApi.ListLogEntries(context.Background(), []string{"projects/kubernetes-history-inspector"}, query, make(chan *log.Log))
 }
