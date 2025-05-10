@@ -81,7 +81,6 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
 		gcp_task.InputStartTimeTaskID.Ref(),
 		gcp_task.InputEndTimeTaskID.Ref(),
-		inspection_task.ReaderFactoryGeneratorTaskID.Ref(),
 		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
 	), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
@@ -120,7 +119,6 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			}
 		}
 
-		readerFactory := task.GetTaskResult(ctx, inspection_task.ReaderFactoryGeneratorTaskID.Ref())
 		startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
 		endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
 
@@ -153,7 +151,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			// Run query only when thetask mode is for running
 			if taskMode == inspection_task_interface.TaskModeRun {
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
-				queryLogs, queryErr := worker.Query(ctx, readerFactory, resourceNamesFromInput, progress)
+				queryLogs, queryErr := worker.Query(ctx, resourceNamesFromInput, progress)
 				if queryErr != nil {
 					errorMessageSet, found := typedmap.Get(metadata, error_metadata.ErrorMessageSetMetadataKey)
 					if !found {
@@ -182,8 +180,8 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		}
 
 		for _, l := range allLogs {
-			log.ReadFieldSet(l, &gcp_log.GCPCommonFieldSetReader{})
-			log.ReadFieldSet(l, &gcp_log.GCPMainMessageFieldSetReader{})
+			l.SetFieldSetReader(&gcp_log.GCPCommonFieldSetReader{})
+			l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
 		}
 
 		if taskMode == inspection_task_interface.TaskModeRun {

@@ -23,7 +23,7 @@ import (
 )
 
 func TestTestLogWith(t *testing.T) {
-	tl := New(BaseYaml(`foo: bar`))
+	tl := New(YAML(`foo: bar`))
 	expectedTl1 := `foo: bar1
 `
 	expectedTl2 := `foo: bar2

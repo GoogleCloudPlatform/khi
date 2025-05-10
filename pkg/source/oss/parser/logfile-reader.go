@@ -71,7 +71,7 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 				return nil, fmt.Errorf("failed to read a log: %w", err)
 			}
 
-			err = log.ReadFieldSet(l, &oss_log.OSSK8sAuditLogCommonFieldSetReader{})
+			err = l.SetFieldSetReader(&oss_log.OSSK8sAuditLogCommonFieldSetReader{})
 			if err != nil {
 				return nil, err
 			}

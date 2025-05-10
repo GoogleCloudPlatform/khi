@@ -94,34 +94,34 @@ func fromScalarYAMLNode(node *yaml.Node) (Node, error) {
 	// https://github.com/go-yaml/yaml/blob/944c86a7d29391925ed6ac33bee98a0516f1287a/resolve.go#L71-L80
 	switch node.Tag {
 	case "!!null":
-		return MakeStandardScalarNode[any](nil), nil
+		return NewStandardScalarNode[any](nil), nil
 	case "!!bool":
 		boolValue, err := strconv.ParseBool(node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return MakeStandardScalarNode(boolValue), nil
+		return NewStandardScalarNode(boolValue), nil
 	case "!!str":
-		return MakeStandardScalarNode(node.Value), nil
+		return NewStandardScalarNode(node.Value), nil
 	case "!!int":
 		intValue, err := strconv.Atoi(node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return MakeStandardScalarNode(intValue), nil
+		return NewStandardScalarNode(intValue), nil
 	case "!!float":
 		floatValue, err := strconv.ParseFloat(node.Value, 64)
 		if err != nil {
 			return nil, err
 		}
-		return MakeStandardScalarNode(floatValue), nil
+		return NewStandardScalarNode(floatValue), nil
 	case "!!timestamp":
 		timestampValue, err := time.Parse(time.RFC3339, node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return MakeStandardScalarNode(timestampValue), nil
+		return NewStandardScalarNode(timestampValue), nil
 	default:
-		return MakeStandardScalarNode(node.Value), nil
+		return NewStandardScalarNode(node.Value), nil
 	}
 }

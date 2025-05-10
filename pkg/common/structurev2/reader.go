@@ -211,7 +211,7 @@ func ReadReflectK8sRuntimeObject[T runtime.Object](r *NodeReader, fieldPath stri
 	deserializer := codecFactory.UniversalDeserializer()
 	_, _, err = deserializer.Decode(rawJSON, nil, target)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to decode JSON as runtime.Object: \n source: %s\nerror:%s", string(rawJSON), err.Error())
 	}
 	return nil
 }

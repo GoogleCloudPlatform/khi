@@ -55,7 +55,7 @@ func mergeNode(fieldPath []string, prev Node, patch Node, inheritingMergeConfig 
 	var mergeConfig MergeConfiguration
 	if patch != nil {
 		var err error
-		patchWithoutDirectives, mergeConfig, err = handleStrategicMergePatchDirectives(fieldPath, patch, inheritingMergeConfig)
+		patchWithoutDirectives, mergeConfig, err = handleStrategicMergePatchDirectives(patch, inheritingMergeConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +127,7 @@ func mergeSequenceNode(fieldPath []string, prev Node, patch Node, config MergeCo
 
 	switch sequenceChildNodeType {
 	case ScalarNodeType:
-		return mergeScalarSequenceNode(fieldPath, prev, patch, config)
+		return mergeScalarSequenceNode(prev, patch, config)
 	case SequenceNodeType:
 		return mergeSequenceSequenceNode(fieldPath, prev, patch, config)
 	case MapNodeType:
@@ -137,7 +137,7 @@ func mergeSequenceNode(fieldPath []string, prev Node, patch Node, config MergeCo
 	}
 }
 
-func mergeScalarSequenceNode(fieldPath []string, prev Node, patch Node, config MergeConfiguration) (Node, error) {
+func mergeScalarSequenceNode(prev Node, patch Node, config MergeConfiguration) (Node, error) {
 	sequenceNode := StandardSequenceNode{}
 
 	copyFrom := patch
@@ -148,7 +148,7 @@ func mergeScalarSequenceNode(fieldPath []string, prev Node, patch Node, config M
 	if config.setElementOrderDirectiveList != nil { // When $setElementOrder is used for primitive list, the order list become the sequence itself. https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md#list-of-primitives
 		sequenceNode.value = make([]Node, 0, len(config.setElementOrderDirectiveList))
 		for _, value := range config.setElementOrderDirectiveList {
-			sequenceNode.value = append(sequenceNode.value, MakeStandardScalarNode(value))
+			sequenceNode.value = append(sequenceNode.value, NewStandardScalarNode(value))
 		}
 		return &sequenceNode, nil
 	}
@@ -273,7 +273,7 @@ func mergeMapSequenceNodeWithMergeStrategy(fieldPath []string, mergeKey string, 
 						unique.Make(mergeKey),
 					},
 					values: []Node{
-						MakeStandardScalarNode(itemKey),
+						NewStandardScalarNode(itemKey),
 					},
 				}
 			} else {
@@ -347,7 +347,7 @@ func mergeMapNode(fieldPath []string, prev Node, patch Node, config MergeConfigu
 			}
 			if itemKey == "" { // the sequence is primitive list
 				for _, itemKeyValue := range itemKeyValues {
-					sequenceNodeInferredFromDirective.value = append(sequenceNodeInferredFromDirective.value, MakeStandardScalarNode(itemKeyValue))
+					sequenceNodeInferredFromDirective.value = append(sequenceNodeInferredFromDirective.value, NewStandardScalarNode(itemKeyValue))
 				}
 			} else {
 				for _, itemKeyValue := range itemKeyValues {
@@ -356,7 +356,7 @@ func mergeMapNode(fieldPath []string, prev Node, patch Node, config MergeConfigu
 							unique.Make(itemKey),
 						},
 						values: []Node{
-							MakeStandardScalarNode(itemKeyValue),
+							NewStandardScalarNode(itemKeyValue),
 						},
 					})
 				}
@@ -482,7 +482,7 @@ func getMapElements(node Node) (mapElements map[string]Node, orderedKeys []strin
 
 // handleStrategicMergePatchDirectives reads the strategic patch directives like $patch, $deleteFromPrimitiveList, $setElementOrder ...etc defined in https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md#list-of-maps-2
 // It reads a structured data representing the patch request and merge configuration, and returns new patch structured data omitting these specific fields and updated merge configuration with these directives.
-func handleStrategicMergePatchDirectives(fieldPath []string, patch Node, parentConfig MergeConfiguration) (newPatch Node, newConfig MergeConfiguration, err error) {
+func handleStrategicMergePatchDirectives(patch Node, parentConfig MergeConfiguration) (newPatch Node, newConfig MergeConfiguration, err error) {
 	if patch.Type() != MapNodeType {
 		return patch, parentConfig, nil
 	}

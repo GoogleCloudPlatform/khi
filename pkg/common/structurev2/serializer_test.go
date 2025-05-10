@@ -39,12 +39,12 @@ func TestYAMLNodeSerializer(t *testing.T) {
 			Input: &StandardMapNode{
 				keys: toInternedStringArray([]string{"nil", "bool", "int", "float", "string", "time"}),
 				values: []Node{
-					MakeStandardScalarNode[any](nil),
-					MakeStandardScalarNode(true),
-					MakeStandardScalarNode(42),
-					MakeStandardScalarNode(3.14),
-					MakeStandardScalarNode("foo"),
-					MakeStandardScalarNode(time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)),
+					NewStandardScalarNode[any](nil),
+					NewStandardScalarNode(true),
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14),
+					NewStandardScalarNode("foo"),
+					NewStandardScalarNode(time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)),
 				},
 			},
 			Expected: `nil: null
@@ -60,8 +60,8 @@ time: 2022-01-01T00:00:00Z
 			Input: &StandardMapNode{
 				keys: toInternedStringArray([]string{"foo", "bar"}),
 				values: []Node{
-					MakeStandardScalarNode(42),
-					MakeStandardScalarNode(3.14)},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14)},
 			},
 			Expected: `foo: 42
 bar: 3.140000
@@ -71,8 +71,8 @@ bar: 3.140000
 			Name: "simple sequence",
 			Input: &StandardSequenceNode{
 				value: []Node{
-					MakeStandardScalarNode(42),
-					MakeStandardScalarNode(3.14)},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14)},
 			},
 			Expected: `- 42
 - 3.140000
@@ -86,13 +86,13 @@ bar: 3.140000
 					&StandardMapNode{
 						keys: toInternedStringArray([]string{"baz", "qux"}),
 						values: []Node{
-							MakeStandardScalarNode(42),
-							MakeStandardScalarNode(3.14)},
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14)},
 					},
 					&StandardSequenceNode{
 						value: []Node{
-							MakeStandardScalarNode(42),
-							MakeStandardScalarNode(3.14)},
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14)},
 					},
 				},
 			},
@@ -131,12 +131,12 @@ func TestJSONNodeSerializer(t *testing.T) {
 			Input: &StandardMapNode{
 				keys: toInternedStringArray([]string{"nil", "bool", "int", "float", "string", "time"}),
 				values: []Node{
-					MakeStandardScalarNode[any](nil),
-					MakeStandardScalarNode(true),
-					MakeStandardScalarNode(42),
-					MakeStandardScalarNode(3.14),
-					MakeStandardScalarNode("foo"),
-					MakeStandardScalarNode(time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)),
+					NewStandardScalarNode[any](nil),
+					NewStandardScalarNode(true),
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14),
+					NewStandardScalarNode("foo"),
+					NewStandardScalarNode(time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)),
 				},
 			},
 			Expected: `{"nil":null,"bool":true,"int":42,"float":3.14,"string":"foo","time":"2022-01-01T00:00:00Z"}`,
@@ -146,8 +146,8 @@ func TestJSONNodeSerializer(t *testing.T) {
 			Input: &StandardMapNode{
 				keys: toInternedStringArray([]string{"foo", "bar"}),
 				values: []Node{
-					MakeStandardScalarNode(42),
-					MakeStandardScalarNode(3.14)},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14)},
 			},
 			Expected: `{"foo":42,"bar":3.14}`,
 		},
@@ -155,8 +155,8 @@ func TestJSONNodeSerializer(t *testing.T) {
 			Name: "simple sequence",
 			Input: &StandardSequenceNode{
 				value: []Node{
-					MakeStandardScalarNode(42),
-					MakeStandardScalarNode(3.14),
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14),
 				},
 			},
 			Expected: `[42,3.14]`,
@@ -169,19 +169,29 @@ func TestJSONNodeSerializer(t *testing.T) {
 					&StandardMapNode{
 						keys: toInternedStringArray([]string{"baz", "qux"}),
 						values: []Node{
-							MakeStandardScalarNode(42),
-							MakeStandardScalarNode(3.14),
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14),
 						},
 					},
 					&StandardSequenceNode{
 						value: []Node{
-							MakeStandardScalarNode(42),
-							MakeStandardScalarNode(3.14),
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14),
 						},
 					},
 				},
 			},
 			Expected: `{"foo":{"baz":42,"qux":3.14},"bar":[42,3.14]}`,
+		},
+		{
+			Name: "map containing \" in key and values",
+			Input: &StandardMapNode{
+				keys: toInternedStringArray([]string{"foo\"bar"}),
+				values: []Node{
+					NewStandardScalarNode("qux\"quux"),
+				},
+			},
+			Expected: `{"foo\"bar":"qux\"quux"}`,
 		},
 	}
 

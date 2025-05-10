@@ -33,9 +33,9 @@ type FieldSet interface {
 	Kind() string
 }
 
-type FieldSetReader[T FieldSet] interface {
+type FieldSetReader interface {
 	// Read attempts to read the log fields into its field.
-	Read(reader *structurev2.NodeReader) (T, error)
+	Read(reader *structurev2.NodeReader) (FieldSet, error)
 
 	// FieldSetKind identifies the set of fields. It must be same if the result type has same fields.
 	FieldSetKind() string
@@ -69,13 +69,13 @@ func NewLogFromYAMLString(yaml string) (*Log, error) {
 	return NewLog(structurev2.NewNodeReader(node)), nil
 }
 
-// ReadFieldSet reads set of fields with the FieldSetReader and keep it in the log.
-func ReadFieldSet[T FieldSet](l *Log, reader FieldSetReader[T]) error {
+// SetFieldSetReader reads set of fields with the FieldSetReader and keep it in the log.
+func (l *Log) SetFieldSetReader(reader FieldSetReader) error {
 	fieldSet, err := reader.Read(l.NodeReader)
 	if err != nil {
 		return err
 	}
-	typedmap.Set(l.fields, typedmap.NewTypedKey[T](reader.FieldSetKind()), fieldSet)
+	typedmap.Set(l.fields, typedmap.NewTypedKey[FieldSet](reader.FieldSetKind()), fieldSet)
 	return nil
 }
 

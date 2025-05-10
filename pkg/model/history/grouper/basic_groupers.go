@@ -20,16 +20,16 @@ import (
 	"github.com/google/uuid"
 )
 
-var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.Log, string](func(l *log.Log) string {
+var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper(func(l *log.Log) string {
 	return uuid.NewString()
 })
 
-var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.Log, string](func(log *log.Log) string {
+var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper(func(log *log.Log) string {
 	return ""
 })
 
 func NewSingleStringFieldKeyLogGrouper(keyPath string) LogGrouper {
-	return common_grouper.NewBasicGrouper[*log.Log, string](func(log *log.Log) string {
+	return common_grouper.NewBasicGrouper(func(log *log.Log) string {
 		return log.ReadStringOrDefault(keyPath, "")
 	})
 }

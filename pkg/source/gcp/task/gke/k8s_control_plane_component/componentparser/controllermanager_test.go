@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"testing"
 
-	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 func getControlPlaneComponentLogForTesting(message string) string {
@@ -94,7 +95,7 @@ func TestEventLogToResourcePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &ControllerManagerComponentParser{}
-			l := log_test.MustLogEntity(tc.inputLog)
+			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
 			path, err := parser.eventLogToResourcePath(l)
 			if tc.expectedError {
 				if err == nil {
@@ -148,7 +149,7 @@ func TestControllerLogToResourcePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &ControllerManagerComponentParser{}
-			l := log_test.MustLogEntity(tc.inputLog)
+			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
 			paths, err := parser.controllerLogToResourcePath(l)
 			if tc.expectedError {
 				if err == nil {
@@ -194,7 +195,7 @@ func TestKindLogToResourcePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &ControllerManagerComponentParser{}
-			l := log_test.MustLogEntity(tc.inputLog)
+			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
 			path, err := parser.kindLogToResourcePath(context.Background(), l)
 			if tc.expectedError {
 				if err == nil {

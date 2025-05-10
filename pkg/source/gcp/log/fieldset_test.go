@@ -46,7 +46,7 @@ timestamp: 2025-01-02T01:02:03.000Z`,
 			if err != nil {
 				t.Fatalf("failed to parse log from yaml: %v", err)
 			}
-			log.ReadFieldSet(l, &GCPCommonFieldSetReader{})
+			l.SetFieldSetReader(&GCPCommonFieldSetReader{})
 			gcpCommonField, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 			if err != nil {
 				t.Fatalf("failed to extract gcp common fields: %v", err)
@@ -88,7 +88,7 @@ func TestGCPMainMessageFieldSet(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse log from yaml: %v", err)
 			}
-			log.ReadFieldSet(l, &GCPMainMessageFieldSetReader{})
+			l.SetFieldSetReader(&GCPMainMessageFieldSetReader{})
 			gcpMainMessageField, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
 			if err != nil {
 				t.Fatalf("failed to extract gcp main message field: %v", err)

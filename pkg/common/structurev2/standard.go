@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 	"unique"
 
@@ -28,7 +29,7 @@ import (
 
 // StandardScalarNode is a leaf of structured data implemting Node interface.
 type StandardScalarNode[T comparable] struct {
-	value unique.Handle[T]
+	value T
 }
 
 func (n *StandardScalarNode[T]) Type() NodeType {
@@ -36,7 +37,7 @@ func (n *StandardScalarNode[T]) Type() NodeType {
 }
 
 func (n *StandardScalarNode[T]) NodeScalarValue() (any, error) {
-	return n.value.Value(), nil
+	return n.value, nil
 }
 
 func (n *StandardScalarNode[T]) Children() NodeChildrenIterator {
@@ -102,9 +103,10 @@ func (n *StandardScalarNode[T]) MarshalYAML() (interface{}, error) {
 	return yamlNode, nil
 }
 
-func MakeStandardScalarNode[T comparable](value T) *StandardScalarNode[T] {
+// NewStandardScalarNode instanciate the value of StandardScalarNode from the given value.
+func NewStandardScalarNode[T comparable](value T) *StandardScalarNode[T] {
 	return &StandardScalarNode[T]{
-		value: unique.Make(value),
+		value: value,
 	}
 }
 
@@ -262,7 +264,7 @@ func (n *StandardMapNode) MarshalJSON() ([]byte, error) {
 		if i.Index > 0 {
 			buf.WriteString(",")
 		}
-		key := fmt.Sprintf("\"%s\"", i.Key)
+		key := fmt.Sprintf("\"%s\"", escapeJSONString(i.Key))
 		buf.WriteString(key)
 		buf.WriteString(":")
 		marshaller, ok := child.(json.Marshaler)
@@ -320,7 +322,7 @@ func cloneStandardNodeFromNode(node Node) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return MakeStandardScalarNode(scalarValue), nil
+		return NewStandardScalarNode(scalarValue), nil
 	case SequenceNodeType:
 		sequence := StandardSequenceNode{
 			value: make([]Node, 0, node.Len()),
@@ -350,4 +352,70 @@ func cloneStandardNodeFromNode(node Node) (Node, error) {
 	default:
 		return nil, fmt.Errorf("unknown node type: %v", node.Type())
 	}
+}
+
+// WithScalarField add a new scalar value node at the specified field path.
+func WithScalarField[T comparable](node Node, fieldPath []string, value T) (Node, error) {
+	if node.Type() != MapNodeType {
+		return nil, fmt.Errorf("unsupported node type %d found. WithScalarField can't add a scalar field on non-map node", node.Type())
+	}
+	newMapNode := StandardMapNode{
+		keys:   make([]unique.Handle[string], 0, node.Len()+1),
+		values: make([]Node, 0, node.Len()+1),
+	}
+	if len(fieldPath) == 1 {
+
+		found := false
+		for key, child := range node.Children() {
+			if key.Key == fieldPath[0] {
+				found = true
+				newMapNode.keys = append(newMapNode.keys, unique.Make(fieldPath[0]))
+				newMapNode.values = append(newMapNode.values, NewStandardScalarNode(value))
+			} else {
+				newMapNode.keys = append(newMapNode.keys, unique.Make(key.Key))
+				clonedChild, err := cloneStandardNodeFromNode(child)
+				if err != nil {
+					return nil, err
+				}
+				newMapNode.values = append(newMapNode.values, clonedChild)
+			}
+		}
+		if !found {
+			newMapNode.keys = append(newMapNode.keys, unique.Make(fieldPath[0]))
+			newMapNode.values = append(newMapNode.values, NewStandardScalarNode(value))
+		}
+	} else {
+		found := false
+		for key, child := range node.Children() {
+			if key.Key == fieldPath[0] {
+				found = true
+				newMapNode.keys = append(newMapNode.keys, unique.Make(fieldPath[0]))
+				child, err := WithScalarField(child, fieldPath[1:], value)
+				if err != nil {
+					return nil, err
+				}
+				newMapNode.values = append(newMapNode.values, child)
+			} else {
+				newMapNode.keys = append(newMapNode.keys, unique.Make(key.Key))
+				clonedChild, err := cloneStandardNodeFromNode(child)
+				if err != nil {
+					return nil, err
+				}
+				newMapNode.values = append(newMapNode.values, clonedChild)
+			}
+		}
+		if !found {
+			newMapNode.keys = append(newMapNode.keys, unique.Make(fieldPath[0]))
+			child, err := WithScalarField(NewEmptyMapNode(), fieldPath[1:], value)
+			if err != nil {
+				return nil, err
+			}
+			newMapNode.values = append(newMapNode.values, child)
+		}
+	}
+	return &newMapNode, nil
+}
+
+func escapeJSONString(rawString string) string {
+	return strings.ReplaceAll(rawString, "\"", "\\\"")
 }

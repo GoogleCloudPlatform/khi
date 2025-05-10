@@ -19,14 +19,15 @@ import (
 	"unique"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestStandardSequenceNodeChildren(t *testing.T) {
 	input := []string{"a", "b", "c"}
 	node := StandardSequenceNode{value: []Node{
-		MakeStandardScalarNode("a"),
-		MakeStandardScalarNode("b"),
-		MakeStandardScalarNode("c"),
+		NewStandardScalarNode("a"),
+		NewStandardScalarNode("b"),
+		NewStandardScalarNode("c"),
 	}}
 	for key, value := range node.Children() {
 		childValue, err := value.NodeScalarValue()
@@ -52,9 +53,9 @@ func TestStandardMappingNodeChildren(t *testing.T) {
 		"c": 2,
 	}
 	node := StandardMapNode{values: []Node{
-		MakeStandardScalarNode(1),
-		MakeStandardScalarNode(2),
-		MakeStandardScalarNode(3),
+		NewStandardScalarNode(1),
+		NewStandardScalarNode(2),
+		NewStandardScalarNode(3),
 	}, keys: []unique.Handle[string]{
 		unique.Make("b"),
 		unique.Make("a"),
@@ -74,5 +75,69 @@ func TestStandardMappingNodeChildren(t *testing.T) {
 		if key.Index != indices[key.Key] {
 			t.Errorf("expected %d, got %d", indices[key.Key], key.Index)
 		}
+	}
+}
+
+func TestWithScalarField(t *testing.T) {
+	testCases := []struct {
+		Name         string
+		InputYAML    string
+		FieldPath    []string
+		Value        string
+		ExpectedYAML string
+	}{
+		{
+			Name:      "basic",
+			InputYAML: `foo: bar`,
+			FieldPath: []string{"qux"},
+			Value:     "quux",
+			ExpectedYAML: `foo: bar
+qux: quux
+`,
+		},
+		{
+			Name:      "nested",
+			InputYAML: `foo: bar`,
+			FieldPath: []string{"qux", "quux"},
+			Value:     "quuux",
+			ExpectedYAML: `foo: bar
+qux:
+    quux: quuux
+`,
+		},
+		{
+			Name: "nested with existing map",
+			InputYAML: `foo: bar
+qux:
+    quux: quux
+`,
+			FieldPath: []string{"qux", "quuux"},
+			Value:     "quuuux",
+			ExpectedYAML: `foo: bar
+qux:
+    quux: quux
+    quuux: quuuux
+`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			node, err := FromYAML(tc.InputYAML)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			node, err = WithScalarField(node, tc.FieldPath, tc.Value)
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			yamlStr, err := NewNodeReader(node).Serialize("", &YAMLNodeSerializer{})
+			if err != nil {
+				t.Fatal(err.Error())
+			}
+			if diff := cmp.Diff(string(yamlStr), tc.ExpectedYAML); diff != "" {
+				t.Errorf("Yaml string mismatch (-want +got):\n%s", diff)
+			}
+		})
+
 	}
 }

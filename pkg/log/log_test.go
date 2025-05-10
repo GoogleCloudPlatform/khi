@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type TestFieldSet struct {
@@ -25,7 +27,7 @@ type TestFieldSet struct {
 }
 
 // FieldSetKind implements FieldReader.
-func (t *TestFieldSet) FieldSetKind() string {
+func (t *TestFieldSet) Kind() string {
 	return "test"
 }
 
@@ -34,13 +36,13 @@ var _ FieldSet = (*TestFieldSet)(nil)
 type TestFieldSetReader struct {
 }
 
-var _ FieldSetReader[*TestFieldSet] = (*TestFieldSetReader)(nil)
+var _ FieldSetReader = (*TestFieldSetReader)(nil)
 
 func (t *TestFieldSetReader) FieldSetKind() string {
-	return (&TestFieldSet{}).FieldSetKind()
+	return (&TestFieldSet{}).Kind()
 }
 
-func (t *TestFieldSetReader) Read(reader *structurev2.NodeReader) (*TestFieldSet, error) {
+func (t *TestFieldSetReader) Read(reader *structurev2.NodeReader) (FieldSet, error) {
 	testField, err := reader.ReadString("test_field")
 	if err != nil {
 		return nil, err
@@ -58,9 +60,9 @@ func TestGetField(t *testing.T) {
 	nodeReader := structurev2.NewNodeReader(yamlNode)
 
 	l := NewLog(nodeReader)
-	ReadFieldSet(l, &TestFieldSetReader{})
+	l.SetFieldSetReader(&TestFieldSetReader{})
 
-	f, err := GetFieldSet[*TestFieldSet](l, &TestFieldSet{})
+	f, err := GetFieldSet(l, &TestFieldSet{})
 	if err != nil {
 		t.Errorf("GetField() error = %v", err)
 	}
@@ -68,7 +70,7 @@ func TestGetField(t *testing.T) {
 		t.Errorf("GetField() = %v, want %v", f.TestField, "foo")
 	}
 
-	f2, err := GetFieldSet[*TestFieldSet](l, &TestFieldSet{})
+	f2, err := GetFieldSet(l, &TestFieldSet{})
 	if err != nil {
 		t.Errorf("GetField() error = %v", err)
 	}

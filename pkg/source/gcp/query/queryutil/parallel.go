@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
@@ -51,7 +50,7 @@ func NewParallelQueryWorker(pool *worker.Pool, apiClient api.GCPClient, baseQuer
 	}
 }
 
-func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structure.ReaderFactory, resourceNames []string, progress *progress.TaskProgress) ([]*log.Log, error) {
+func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *progress.TaskProgress) ([]*log.Log, error) {
 	timeSegments := divideTimeSegments(p.startTime, p.endTime, p.workerCount)
 	percentages := make([]float32, p.workerCount)
 	logSink := make(chan *log.Log)
@@ -108,12 +107,12 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 				}
 			}()
 			for l := range subLogSink {
-				err := log.ReadFieldSet(l, &gcp_log.GCPCommonFieldSetReader{})
+				err := l.SetFieldSetReader(&gcp_log.GCPCommonFieldSetReader{})
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("failed to read CommonFieldSet from obtained log %s", err.Error()))
 					continue
 				}
-				err = log.ReadFieldSet(l, &gcp_log.GCPMainMessageFieldSetReader{})
+				err = l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("failed to read MainMessageFieldSet from obtained log %s", err.Error()))
 					continue

@@ -16,10 +16,22 @@ package log
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
+
+var jsonPayloadMessageFieldNames = []string{
+	"MESSAGE",
+	"message",
+	"msg",
+	"log",
+}
 
 type GCPCommonFieldSetReader struct{}
 
@@ -27,19 +39,15 @@ func (c *GCPCommonFieldSetReader) FieldSetKind() string {
 	return (&log.CommonFieldSet{}).Kind()
 }
 
-func (c *GCPCommonFieldSetReader) Read(reader *structurev2.NodeReader) (*log.CommonFieldSet, error) {
-	var err error
+func (c *GCPCommonFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
 	result := &log.CommonFieldSet{}
 	result.DisplayID = reader.ReadStringOrDefault("insertId", "unknown")
-	result.Timestamp, err = reader.ReadTimestamp("timestamp")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read timestmap from given log")
-	}
+	result.Timestamp = reader.ReadTimestampOrDefault("timestamp", time.Time{})
 	result.Severity = gcpSeverityToKHISeverity(reader.ReadStringOrDefault("severity", "unknown"))
 	return result, nil
 }
 
-var _ log.FieldSetReader[*log.CommonFieldSet] = &GCPCommonFieldSetReader{}
+var _ log.FieldSetReader = (*GCPCommonFieldSetReader)(nil)
 
 // GCPMainMessageFieldSetReader read its main message from the content of log stored on Cloud Logging.
 // It treats fields as its main message in the order: `textPayload` > `jsonPayload.****` (**** would be `message`, `msg`...etc)
@@ -49,7 +57,7 @@ func (g *GCPMainMessageFieldSetReader) FieldSetKind() string {
 	return (&log.MainMessageFieldSet{}).Kind()
 }
 
-func (g *GCPMainMessageFieldSetReader) Read(reader *structurev2.NodeReader) (*log.MainMessageFieldSet, error) {
+func (g *GCPMainMessageFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
 	result := &log.MainMessageFieldSet{}
 	textPayload, err := reader.ReadString("textPayload")
 	if err == nil {
@@ -65,4 +73,34 @@ func (g *GCPMainMessageFieldSetReader) Read(reader *structurev2.NodeReader) (*lo
 		}
 	}
 	return &log.MainMessageFieldSet{}, nil
+}
+
+var _ log.FieldSetReader = (*GCPMainMessageFieldSetReader)(nil)
+
+// gcpSeverityToKHISeverity convert the `severity` field in Cloud Logging log to the enum.Severity used in KHI.
+func gcpSeverityToKHISeverity(severity string) enum.Severity {
+	// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
+	severity = strings.ToUpper(severity)
+	switch severity {
+	case "DEFAULT":
+		return enum.SeverityInfo
+	case "DEBUG":
+		return enum.SeverityInfo
+	case "INFO":
+		return enum.SeverityInfo
+	case "NOTICE":
+		return enum.SeverityInfo
+	case "WARNING":
+		return enum.SeverityWarning
+	case "ERROR":
+		return enum.SeverityError
+	case "CRITICAL":
+		return enum.SeverityFatal
+	case "ALERT":
+		return enum.SeverityFatal
+	case "EMERGENCY":
+		return enum.SeverityFatal
+	default:
+		return enum.SeverityUnknown
+	}
 }

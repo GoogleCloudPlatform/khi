@@ -92,5 +92,5 @@ func fromGoSlice(path []string, source []any, mapKeyOrderProvider GoMapKeyOrderP
 }
 
 func fromGoScalar(source any) (Node, error) {
-	return MakeStandardScalarNode(source), nil
+	return NewStandardScalarNode(source), nil
 }

@@ -30,7 +30,7 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) FieldSetKind() string {
 }
 
 // Read implements log.FieldSetReader.
-func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structurev2.NodeReader) (*log.CommonFieldSet, error) {
+func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
 	var err error
 	result := &log.CommonFieldSet{}
 	result.DisplayID = reader.ReadStringOrDefault("auditID", "unknown")
@@ -42,4 +42,4 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structurev2.NodeReader
 	return result, nil
 }
 
-var _ log.FieldSetReader[*log.CommonFieldSet] = (*OSSK8sAuditLogCommonFieldSetReader)(nil)
+var _ log.FieldSetReader = (*OSSK8sAuditLogCommonFieldSetReader)(nil)
