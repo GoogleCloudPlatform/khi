@@ -30,6 +30,7 @@ import (
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
@@ -68,6 +69,11 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 			l, err := log.NewLogFromYAMLString(line)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read a log: %w", err)
+			}
+
+			err = log.ReadFieldSet(l, &oss_log.OSSK8sAuditLogCommonFieldSetReader{})
+			if err != nil {
+				return nil, err
 			}
 
 			// TODO: we may need to consider processing logs not with ResponseComplete stage. All logs not on the ResponseComplete stage will be ignored for now.

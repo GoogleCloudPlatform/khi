@@ -16,6 +16,7 @@ package structurev2
 
 import (
 	"testing"
+	"unique"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -23,9 +24,9 @@ import (
 func TestStandardSequenceNodeChildren(t *testing.T) {
 	input := []string{"a", "b", "c"}
 	node := StandardSequenceNode{value: []Node{
-		&StandardScalarNode[string]{value: "a"},
-		&StandardScalarNode[string]{value: "b"},
-		&StandardScalarNode[string]{value: "c"},
+		MakeStandardScalarNode("a"),
+		MakeStandardScalarNode("b"),
+		MakeStandardScalarNode("c"),
 	}}
 	for key, value := range node.Children() {
 		childValue, err := value.NodeScalarValue()
@@ -51,10 +52,14 @@ func TestStandardMappingNodeChildren(t *testing.T) {
 		"c": 2,
 	}
 	node := StandardMapNode{values: []Node{
-		&StandardScalarNode[int]{value: 1},
-		&StandardScalarNode[int]{value: 2},
-		&StandardScalarNode[int]{value: 3},
-	}, keys: []string{"b", "a", "c"}}
+		MakeStandardScalarNode(1),
+		MakeStandardScalarNode(2),
+		MakeStandardScalarNode(3),
+	}, keys: []unique.Handle[string]{
+		unique.Make("b"),
+		unique.Make("a"),
+		unique.Make("c"),
+	}}
 	for key, value := range node.Children() {
 		childValueAny, err := value.NodeScalarValue()
 		if err != nil {

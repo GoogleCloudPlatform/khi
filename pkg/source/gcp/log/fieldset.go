@@ -16,13 +16,10 @@ package log
 
 import (
 	"fmt"
-	"sync/atomic"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
-
-var globalLogID = atomic.Int32{}
 
 type GCPCommonFieldSetReader struct{}
 

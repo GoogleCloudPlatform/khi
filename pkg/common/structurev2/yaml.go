@@ -18,6 +18,7 @@ import (
 	"errors"
 	"strconv"
 	"time"
+	"unique"
 
 	"gopkg.in/yaml.v3"
 )
@@ -70,20 +71,22 @@ func fromSequenceYAMLNode(node *yaml.Node) (Node, error) {
 }
 
 func fromMappingYAMLNode(node *yaml.Node) (Node, error) {
-	keys := make([]string, 0, len(node.Content)/2)
-	values := make([]Node, 0, len(node.Content)/2)
+	result := &StandardMapNode{
+		keys:   make([]unique.Handle[string], 0, len(node.Content)/2),
+		values: make([]Node, 0, len(node.Content)/2),
+	}
 	for i, content := range node.Content {
 		if i%2 == 0 { // yaml.Node holds its map key-values as the sequence of a structure like key1,value1,key2,value2,...etc
-			keys = append(keys, content.Value)
+			result.keys = append(result.keys, unique.Make(content.Value))
 		} else {
 			child, err := fromYAMLNode(content)
 			if err != nil {
 				return nil, err
 			}
-			values = append(values, child)
+			result.values = append(result.values, child)
 		}
 	}
-	return &StandardMapNode{keys: keys, values: values}, nil
+	return result, nil
 }
 
 func fromScalarYAMLNode(node *yaml.Node) (Node, error) {
@@ -91,34 +94,34 @@ func fromScalarYAMLNode(node *yaml.Node) (Node, error) {
 	// https://github.com/go-yaml/yaml/blob/944c86a7d29391925ed6ac33bee98a0516f1287a/resolve.go#L71-L80
 	switch node.Tag {
 	case "!!null":
-		return &StandardScalarNode[any]{value: nil}, nil
+		return MakeStandardScalarNode[any](nil), nil
 	case "!!bool":
 		boolValue, err := strconv.ParseBool(node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[bool]{value: boolValue}, nil
+		return MakeStandardScalarNode(boolValue), nil
 	case "!!str":
-		return &StandardScalarNode[string]{value: node.Value}, nil
+		return MakeStandardScalarNode(node.Value), nil
 	case "!!int":
 		intValue, err := strconv.Atoi(node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[int]{value: intValue}, nil
+		return MakeStandardScalarNode(intValue), nil
 	case "!!float":
 		floatValue, err := strconv.ParseFloat(node.Value, 64)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[float64]{value: floatValue}, nil
+		return MakeStandardScalarNode(floatValue), nil
 	case "!!timestamp":
 		timestampValue, err := time.Parse(time.RFC3339, node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[time.Time]{value: timestampValue}, nil
+		return MakeStandardScalarNode(timestampValue), nil
 	default:
-		return &StandardScalarNode[string]{value: node.Value}, nil
+		return MakeStandardScalarNode(node.Value), nil
 	}
 }
