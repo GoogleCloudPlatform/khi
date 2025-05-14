@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,31 +14,17 @@
  * limitations under the License.
  */
 
-.root
-    height: 100vh
-    width: 100vw
-    display: grid
-    grid-template-areas: "title" "graph"
-    grid-template-rows: auto minmax(0, 1fr)
-    grid-template-columns: minmax(0,1fr)
-    overflow: hidden
-    diagram-viewport
-        grid-area: graph
-.minimap-container
-    position: fixed
-    right: 30px
-    bottom: 30px
-    padding: 10px
-    background-color: gray
+import { Component, input } from '@angular/core';
+import { DiagramElementDirective } from '../diagram-element.directive';
+import { LOD } from '../lod.service';
 
-.container
-    padding: 100px
-    width: 2000px
-    display: flex
-    gap: 100px
-
-.lod-0
-    background-color: yellow
-
-.lod-1
-    background-color: purple
+@Component({
+  selector: 'sample-diagram-element',
+  templateUrl: './sample-diagram-element.component.html',
+  styleUrl: './sample-diagram-element.component.sass',
+  imports: [DiagramElementDirective],
+})
+export class SampleDiagramElementComponent {
+  lod = LOD;
+  id = input.required<string>();
+}

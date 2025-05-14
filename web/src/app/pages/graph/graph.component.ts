@@ -17,12 +17,42 @@
 import { Component } from '@angular/core';
 import { GraphMenuComponent } from 'src/app/header/graph-menu.component';
 import { TitleBarComponent } from 'src/app/header/titlebar.component';
-import { ArchitectureGraphComponent } from './architecture-graph/architecture-graph.component';
+import { DiagramViewportComponent } from '../../services/diagram/diagram-viewport.component';
+import { DiagramViewportService } from 'src/app/services/diagram/diagram-viewport.service';
+import { MinimapComponent } from '../../services/diagram/minimap.component';
+import {
+  DIAGRAM_ELEMENT_ROLE,
+  DiagramElementDirective,
+  DiagramElementRole,
+  MAX_LOD,
+} from 'src/app/services/diagram/diagram-element.directive';
+import { CommonModule } from '@angular/common';
+import { SampleDiagramElementComponent } from 'src/app/services/diagram/diagram-element/sample-diagram-element.component';
+import { LOD } from 'src/app/services/diagram/lod.service';
 
 @Component({
   selector: 'graph-root',
   templateUrl: './graph.component.html',
   styleUrls: ['./graph.component.sass'],
-  imports: [TitleBarComponent, GraphMenuComponent, ArchitectureGraphComponent],
+  imports: [
+    CommonModule,
+    TitleBarComponent,
+    GraphMenuComponent,
+    DiagramElementDirective,
+    DiagramViewportComponent,
+    MinimapComponent,
+    SampleDiagramElementComponent,
+  ],
+  providers: [
+    DiagramViewportService,
+    {
+      provide: DIAGRAM_ELEMENT_ROLE,
+      useValue: DiagramElementRole.CONTENT,
+    },
+    {
+      provide: MAX_LOD,
+      useValue: LOD.UNLIMITED,
+    },
+  ],
 })
 export class GraphComponent {}

@@ -18,7 +18,46 @@
   <khi-title pageName="Diagram view">
     <khi-graph-menu></khi-graph-menu>
   </khi-title>
-  <div class="graph-wrapper">
-    <graph-architecture-graph></graph-architecture-graph>
+  <diagram-viewport>
+    <div class="container">
+      <sample-diagram-element id="foo1" />
+      <sample-diagram-element id="bar1" />
+      <sample-diagram-element id="qux1" />
+      <sample-diagram-element id="quux1" />
+    </div>
+    <div class="container">
+      <sample-diagram-element id="foo2" />
+      <sample-diagram-element id="bar2" />
+      <sample-diagram-element id="qux2" />
+      <sample-diagram-element id="quux2" />
+    </div>
+    <div class="container">
+      <sample-diagram-element id="foo3" />
+      <sample-diagram-element id="bar3" />
+      <sample-diagram-element id="qux3" />
+      <sample-diagram-element id="quux3" />
+    </div>
+  </diagram-viewport>
+  <div class="minimap-container">
+    <diagram-minimap [width]="300">
+      <div class="container">
+        <sample-diagram-element id="foo1" />
+        <sample-diagram-element id="bar1" />
+        <sample-diagram-element id="qux1" />
+        <sample-diagram-element id="quux1" />
+      </div>
+      <div class="container">
+        <sample-diagram-element id="foo2" />
+        <sample-diagram-element id="bar2" />
+        <sample-diagram-element id="qux2" />
+        <sample-diagram-element id="quux2" />
+      </div>
+      <div class="container">
+        <sample-diagram-element id="foo3" />
+        <sample-diagram-element id="bar3" />
+        <sample-diagram-element id="qux3" />
+        <sample-diagram-element id="quux3" />
+      </div>
+    </diagram-minimap>
   </div>
 </div>

@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2025 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,31 +14,22 @@
  * limitations under the License.
  */
 
-.root
-    height: 100vh
-    width: 100vw
-    display: grid
-    grid-template-areas: "title" "graph"
-    grid-template-rows: auto minmax(0, 1fr)
-    grid-template-columns: minmax(0,1fr)
-    overflow: hidden
-    diagram-viewport
-        grid-area: graph
-.minimap-container
-    position: fixed
-    right: 30px
-    bottom: 30px
-    padding: 10px
-    background-color: gray
+/**
+ * Level Of Details of a diagram element.
+ */
+export enum LOD {
+  /**
+   * Only draws the container element.
+   * This is used when the element is not in the visible area, or it's drawn in the minimap.
+   */
+  CONTAINER_ONLY = 0,
+  /**
+   * Show everything
+   */
+  DETAILED = 1,
 
-.container
-    padding: 100px
-    width: 2000px
-    display: flex
-    gap: 100px
-
-.lod-0
-    background-color: yellow
-
-.lod-1
-    background-color: purple
+  /**
+   * Only used for the default value of MaxLOD.
+   */
+  UNLIMITED = 1000,
+}

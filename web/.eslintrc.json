@@ -15,18 +15,18 @@
       ],
       "rules": {
         "@angular-eslint/directive-selector": [
-          "error",
+          "warn",
           {
             "type": "attribute",
-            "prefix": ["graph", "khi"],
+            "prefix": ["graph", "khi", "diagram"], // `graph` is deprecated. use diagram instead.
             "style": "camelCase"
           }
         ],
         "@angular-eslint/component-selector": [
-          "error",
+          "warn",
           {
             "type": "element",
-            "prefix": ["graph", "khi"],
+            "prefix": ["graph", "khi", "diagram"],
             "style": "kebab-case"
           }
         ],

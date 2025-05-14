@@ -1,0 +1,27 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div diagramElement [id]="id()" #element="diagramElement" class="container">
+  @if (element.lod() > lod.CONTAINER_ONLY) {
+    <h1>Node</h1>
+
+    <p>
+      Lorem ipsum, dolor sit amet consectetur adipisicing elit. Reprehenderit
+      atque quo fuga quam blanditiis, nihil consequuntur velit cum ratione dicta
+      natus non, eius culpa, aut rem amet optio. Facere, perferendis!
+    </p>
+  }
+</div>
