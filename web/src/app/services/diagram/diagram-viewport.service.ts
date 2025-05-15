@@ -25,7 +25,6 @@ import { LOD } from './lod.service';
 
 /**
  * A data type representing the viewport area status.
- * content
  */
 export interface DiagramViewportState {
   contentWidth: number;
@@ -68,6 +67,9 @@ export class DiagramViewportService {
 
   private lodSubjects: { [id: string]: Subject<LOD> } = {};
 
+  /**
+   * Notifies viewport state changes to subscribers.
+   */
   public notifyViewportChange(
     contentWidth: number,
     contentHeight: number,
@@ -88,6 +90,9 @@ export class DiagramViewportService {
     });
   }
 
+  /**
+   * Monitor the LOD of the specified element.
+   */
   public monitorLOD(id: string): Observable<LOD> {
     if (!this.lodSubjects[id]) {
       this.lodSubjects[id] = new ReplaySubject<LOD>(1);
@@ -95,6 +100,9 @@ export class DiagramViewportService {
     return this.lodSubjects[id].pipe(distinctUntilChanged());
   }
 
+  /**
+   * Notify changed LOD of the specified element.
+   */
   public notifyLOD(id: string, lod: LOD) {
     if (!this.lodSubjects[id]) {
       this.lodSubjects[id] = new ReplaySubject<LOD>(1);
@@ -102,7 +110,10 @@ export class DiagramViewportService {
     this.lodSubjects[id].next(lod);
   }
 
-  public unregisterLOD(id: string) {
+  /**
+   * Remove specified diagram element.
+   */
+  public removeDiagramElement(id: string) {
     delete this.lodSubjects[id];
   }
 }

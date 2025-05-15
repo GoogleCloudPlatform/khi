@@ -32,7 +32,8 @@ import { fromEvent, Subject, takeUntil } from 'rxjs';
 const scalingStep = 0.03;
 
 /**
- * Viewport for the
+ * Viewport for the diagram view.
+ * It supports XY scrolling and reports visible area info and content size info to the DiagramViewportService.
  */
 @Component({
   selector: 'diagram-viewport',
@@ -46,11 +47,13 @@ const scalingStep = 0.03;
 })
 export class DiagramViewportComponent implements AfterViewInit, OnDestroy {
   private readonly destroy = new Subject();
-  contentHostElement = viewChild<ElementRef<HTMLDivElement>>('contentHost');
-  viewportService = inject(DiagramViewportService);
-  scalingFactor = signal(1);
+  private readonly contentHostElement =
+    viewChild<ElementRef<HTMLDivElement>>('contentHost');
+  private readonly viewportService = inject(DiagramViewportService);
 
-  styleTransform = computed(() => `scale(${this.scalingFactor()})`);
+  readonly scalingFactor = signal(1);
+
+  readonly styleTransform = computed(() => `scale(${this.scalingFactor()})`);
 
   constructor(private readonly hostElement: ViewContainerRef) {}
 

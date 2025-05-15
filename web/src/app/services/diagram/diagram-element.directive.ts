@@ -111,7 +111,7 @@ export class DiagramElementDirective implements OnInit, OnDestroy {
     this.destroyed.next(undefined);
     this.destroyed.complete();
     if (this.role === DiagramElementRole.CONTENT) {
-      this.viewportService.unregisterLOD(this.id());
+      this.viewportService.removeDiagramElement(this.id());
     }
   }
 }
