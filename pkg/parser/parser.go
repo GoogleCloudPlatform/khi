@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -45,14 +46,14 @@ type Parser interface {
 	TargetLogType() enum.LogType
 
 	// Parse a log. Return an error to decide skip to parse the log and delegate later parsers.
-	Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error
+	Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error
 
 	// Description returns comprehensive description of the parser.
 	// Parser tasks are registered as a `feature task` and the description is shown on the frontend.
 	Description() string
 
-	// LogTask returns the task Id generating []*log.LogEntity
-	LogTask() taskid.TaskReference[[]*log.LogEntity]
+	// LogTask returns the task Id generating []*log.Log
+	LogTask() taskid.TaskReference[[]*log.Log]
 
 	// Dependencies returns the list of task Ids excluding the log task
 	Dependencies() []taskid.UntypedTaskReference
@@ -142,14 +143,17 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 				threadCount += 1
 				wg.Go(func() error { // TODO: replace this with pkg/common/worker/pool
 					defer errorreport.CheckAndReportPanic()
-					err = builder.ParseLogsByGroups(ctx, groupedLogs, func(logIndex int, l *log.LogEntity) *history.ChangeSet {
+					err = builder.ParseLogsByGroups(ctx, groupedLogs, func(logIndex int, l *log.Log) *history.ChangeSet {
 						cs := history.NewChangeSet(l)
 						err := parser.Parse(ctx, l, cs, builder)
 						logCounterChannel <- struct{}{}
 						if err != nil {
-							yaml, err2 := l.Fields.ToYaml("")
+							var yaml string
+							yamlBytes, err2 := l.Serialize("", &structurev2.YAMLNodeSerializer{})
 							if err2 != nil {
 								yaml = "ERROR!! failed to dump in yaml"
+							} else {
+								yaml = string(yamlBytes)
 							}
 							slog.WarnContext(ctx, fmt.Sprintf("parser end with an error\n%s", err))
 							slog.DebugContext(ctx, yaml)

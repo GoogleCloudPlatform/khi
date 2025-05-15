@@ -1,20 +1,20 @@
 autopilot: {}
 autoscaling:
-  autoprovisioningNodePoolDefaults: {}
-  autoscalingProfile: BALANCED
+    autoprovisioningNodePoolDefaults: {}
+    autoscalingProfile: BALANCED
 binaryAuthorization: {}
 initialClusterVersion: 1.29.6
 legacyAbac: {}
 loggingConfig:
-  componentConfig:
-    enableComponents:
-    - SYSTEM_COMPONENTS
-    - APISERVER
-    - CONTROLLER_MANAGER
-    - SCHEDULER
-    - WORKLOADS
+    componentConfig:
+        enableComponents:
+            - SYSTEM_COMPONENTS
+            - APISERVER
+            - CONTROLLER_MANAGER
+            - SCHEDULER
+            - WORKLOADS
 maintenancePolicy:
-  window: {}
+    window: {}
 masterAuthorizedNetworksConfig: {}
 name: gke-basic-1
 network: projects/project-id/global/networks/gke-basic-1-vpc

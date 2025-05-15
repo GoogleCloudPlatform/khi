@@ -18,6 +18,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -42,9 +44,10 @@ func Register(manager *recorder.RecorderTaskManager) error {
 	return nil
 }
 
-func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.AuditLogParserInput, prevStatus *model.K8sResourceContainingStatus, cs *history.ChangeSet, builder *history.Builder) (*model.K8sResourceContainingStatus, error) {
+func recordChangeSetForLog(ctx context.Context, resourcePath string, l *types.AuditLogParserInput, prevStatus *model.K8sResourceContainingStatus, cs *history.ChangeSet, builder *history.Builder) (*model.K8sResourceContainingStatus, error) {
+	commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
 	var resourceContainingStatus model.K8sResourceContainingStatus
-	err := log.ResourceBodyReader.ReadReflect("", &resourceContainingStatus)
+	err := structurev2.ReadReflect(l.ResourceBodyReader, "", &resourceContainingStatus)
 	if err != nil {
 		return prevStatus, err
 	}
@@ -53,7 +56,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 		return &resourceContainingStatus, nil
 	}
 
-	deletionStatus := manifestutil.ParseDeletionStatus(ctx, log.ResourceBodyReader, log.Operation)
+	deletionStatus := manifestutil.ParseDeletionStatus(ctx, l.ResourceBodyReader, l.Operation)
 	isDeletionRequest := deletionStatus == manifestutil.DeletionStatusDeleted
 	for _, condition := range resourceContainingStatus.Status.Conditions {
 		lastTransitionTime, err := time.Parse(time.RFC3339, condition.LastTransitionTime)
@@ -70,14 +73,14 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 			conditionTime = lastProbeTime
 		}
 		// Ignore if the transition time was older than the last revision
-		statusPath := resourcepath.Status(resourcepath.FromK8sOperation(*log.Operation), condition.Type)
-		if log.Operation.SubResourceName != "" {
+		statusPath := resourcepath.Status(resourcepath.FromK8sOperation(*l.Operation), condition.Type)
+		if l.Operation.SubResourceName != "" {
 			parentOp := model.KubernetesObjectOperation{
-				APIVersion: log.Operation.APIVersion,
-				PluralKind: log.Operation.PluralKind,
-				Namespace:  log.Operation.Namespace,
-				Name:       log.Operation.Name,
-				Verb:       log.Operation.Verb,
+				APIVersion: l.Operation.APIVersion,
+				PluralKind: l.Operation.PluralKind,
+				Namespace:  l.Operation.Namespace,
+				Name:       l.Operation.Name,
+				Verb:       l.Operation.Verb,
 			}
 			statusPath = resourcepath.Status(resourcepath.FromK8sOperation(parentOp), condition.Type)
 		}
@@ -87,7 +90,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 		if latest != nil {
 			latestTime = latest.ChangeTime
 		} else {
-			creationTime := manifestutil.ParseCreationTime(log.ResourceBodyReader, time.Time{})
+			creationTime := manifestutil.ParseCreationTime(l.ResourceBodyReader, time.Time{})
 
 			if err == nil && conditionTime.Sub(creationTime) != 0 {
 				cs.RecordRevision(statusPath, &history.StagingResourceRevision{
@@ -123,8 +126,8 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 				Verb:       enum.RevisionVerbDelete,
 				Body:       "",
 				Partial:    false,
-				Requestor:  log.Requestor,
-				ChangeTime: log.Log.Timestamp(),
+				Requestor:  l.Requestor,
+				ChangeTime: commonFieldSet.Timestamp,
 				State:      enum.RevisionStateDeleted,
 			})
 		}

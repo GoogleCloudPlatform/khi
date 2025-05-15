@@ -20,6 +20,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -60,9 +62,10 @@ func Register(manager *recorder.RecorderTaskManager) error {
 	return nil
 }
 
-func recordChangeSetForLog(ctx context.Context, log *types.AuditLogParserInput, prevEndpointSlices *model.EndpointSlice, cs *history.ChangeSet, builder *history.Builder) (*model.EndpointSlice, error) {
+func recordChangeSetForLog(ctx context.Context, l *types.AuditLogParserInput, prevEndpointSlices *model.EndpointSlice, cs *history.ChangeSet, builder *history.Builder) (*model.EndpointSlice, error) {
+	commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
 	var endpointSlice model.EndpointSlice
-	err := log.ResourceBodyReader.ReadReflect("", &endpointSlice)
+	err := structurev2.ReadReflect(l.ResourceBodyReader, "", &endpointSlice)
 	if err != nil {
 		return nil, err
 	}
@@ -91,18 +94,18 @@ func recordChangeSetForLog(ctx context.Context, log *types.AuditLogParserInput, 
 		// records Ips used in Pods. IP can be read from Pod manifest, but it can be ignored when users didn't turn on DATA_WRITE audit log, but endpoint slice update will be recorded always.
 		if endpointParseResult.isEndpointForPod {
 			for _, address := range endpoint.Addresses {
-				builder.ClusterResource.IPs.TouchResourceLease(address, log.Log.Timestamp(), resourcelease.NewK8sResourceLeaseHolder(endpoint.TargetRef.Kind, endpoint.TargetRef.Namespace, endpoint.TargetRef.Name))
+				builder.ClusterResource.IPs.TouchResourceLease(address, commonFieldSet.Timestamp, resourcelease.NewK8sResourceLeaseHolder(endpoint.TargetRef.Kind, endpoint.TargetRef.Namespace, endpoint.TargetRef.Name))
 			}
 		}
 
 		// record conditions as subresource of pod.
 		if endpointParseResult.hasCoditionChanged && endpointParseResult.isEndpointForPod {
-			podEndpointSliceResourcePath := resourcepath.PodEndpointSlice(log.Operation.Namespace, log.Operation.Name, endpoint.TargetRef.Namespace, endpoint.TargetRef.Name)
+			podEndpointSliceResourcePath := resourcepath.PodEndpointSlice(l.Operation.Namespace, l.Operation.Name, endpoint.TargetRef.Namespace, endpoint.TargetRef.Name)
 			cs.RecordRevision(podEndpointSliceResourcePath, &history.StagingResourceRevision{
 				Body:       endpointParseResult.manifest,
 				State:      endpointParseResult.state,
 				Verb:       endpointParseResult.verb,
-				ChangeTime: log.Log.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 			})
 		}
 	}
@@ -117,13 +120,13 @@ func recordChangeSetForLog(ctx context.Context, log *types.AuditLogParserInput, 
 				continue
 			}
 			if prevEndpoint.TargetRef != nil {
-				podEndpointSliceResourcePath := resourcepath.PodEndpointSlice(log.Operation.Namespace, log.Operation.Name, prevEndpoint.TargetRef.Namespace, prevEndpoint.TargetRef.Name)
+				podEndpointSliceResourcePath := resourcepath.PodEndpointSlice(l.Operation.Namespace, l.Operation.Name, prevEndpoint.TargetRef.Namespace, prevEndpoint.TargetRef.Name)
 				// Only process endpoints not included in current endpoint slices
 				cs.RecordRevision(podEndpointSliceResourcePath, &history.StagingResourceRevision{
 					Body:       "# This endpoint removed from endpoint list of the EndpointSlice",
 					State:      enum.RevisionStateDeleted,
 					Verb:       enum.RevisionVerbDelete,
-					ChangeTime: log.Log.Timestamp(),
+					ChangeTime: commonFieldSet.Timestamp,
 				})
 			}
 		}
@@ -134,12 +137,12 @@ func recordChangeSetForLog(ctx context.Context, log *types.AuditLogParserInput, 
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("failed to parse an endpoint\n%s", err.Error()))
 		} else {
-			serviceEndpointSliceResourcePath := resourcepath.ServiceEndpointSlice(log.Operation.Namespace, log.Operation.Name, relatedServiceName)
+			serviceEndpointSliceResourcePath := resourcepath.ServiceEndpointSlice(l.Operation.Namespace, l.Operation.Name, relatedServiceName)
 			cs.RecordRevision(serviceEndpointSliceResourcePath, &history.StagingResourceRevision{
 				Body:       endpointsParseResults.manifest,
 				State:      endpointsParseResults.state,
 				Verb:       endpointsParseResults.verb,
-				ChangeTime: log.Log.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 			})
 		}
 	}

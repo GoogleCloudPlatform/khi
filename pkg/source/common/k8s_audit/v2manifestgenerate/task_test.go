@@ -19,13 +19,13 @@ import (
 	"testing"
 
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2timelinegrouping"
+	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 
@@ -127,7 +127,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 			},
 			{
 				testlog.StringField("protoPayload.request.qux", "qux2"),
-				testlog.StringField("protoPayload.status.code", "1"),
+				testlog.IntField("protoPayload.status.code", 1),
 			},
 			{
 				testlog.StringField("protoPayload.request.quux", "quux1"),
@@ -186,10 +186,10 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			logs := []*log.LogEntity{}
-			logBase := testlog.New(testlog.BaseYaml(tc.baseLog))
+			logs := []*log.Log{}
+			logBase := testlog.New(testlog.YAML(tc.baseLog))
 			for _, logOpts := range tc.logOpts {
-				logs = append(logs, logBase.With(logOpts...).MustBuildLogEntity(&log.UnreachableCommonFieldExtractor{}))
+				logs = append(logs, logBase.With(logOpts...).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}, &gcp_log.GCPMainMessageFieldSetReader{}))
 			}
 
 			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
@@ -201,7 +201,6 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 					Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 				}, nil),
 				gcp_task.GCPDefaultK8sResourceMergeConfigTask,
-				inspection_task.ReaderFactoryGeneratorTask,
 			}, inspection_task_interface.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Error(err)
@@ -213,7 +212,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 			if len(timeline.PreParsedLogs) != len(tc.expectedBodyOpts) {
 				t.Errorf("unexpected log count: %d but expected %d", len(timeline.PreParsedLogs), len(tc.expectedBodyOpts))
 			}
-			expectedBody := testlog.New(testlog.BaseYaml(tc.expectedBodyBase))
+			expectedBody := testlog.New(testlog.YAML(tc.expectedBodyBase))
 			for i, log := range timeline.PreParsedLogs {
 				if tc.expectedComment[i] != "" {
 					if diff := cmp.Diff(tc.expectedComment[i], log.ResourceBodyYaml); diff != "" {

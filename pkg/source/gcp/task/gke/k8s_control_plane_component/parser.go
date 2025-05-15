@@ -57,13 +57,13 @@ func (k *k8sControlPlaneComponentParser) Grouper() grouper.LogGrouper {
 }
 
 // LogTask implements parser.Parser.
-func (k *k8sControlPlaneComponentParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (k *k8sControlPlaneComponentParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentQueryTaskID.Ref()
 }
 
 // Parse implements parser.Parser.
-func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	component := l.GetStringOrDefault("resource.labels.component_name", "Unknown")
+func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	component := l.ReadStringOrDefault("resource.labels.component_name", "Unknown")
 	for i := 0; i < len(componentparser.ComponentParsers); i++ {
 		cp := componentparser.ComponentParsers[i]
 		if cp.ShouldProcess(component) {

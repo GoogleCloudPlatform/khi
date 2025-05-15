@@ -17,33 +17,33 @@ package types
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 )
 
 type AuditLogParserLogSource struct {
-	Logs      []*log.LogEntity
+	Logs      []*log.Log
 	Extractor AuditLogFieldExtractor
 }
 
 // AuditLogParserInput is a type passed to ResourceSpecificParser from the prestep parser.
 type AuditLogParserInput struct {
 	// Current Log. Do not depend Log.Fields directly to avoid reading fields specific to log backend.
-	Log *log.LogEntity
+	Log *log.Log
 	// Requestor field of the log
 	Requestor string
 	// Kubernetes operation read from resource name and method name
 	Operation *model.KubernetesObjectOperation
 	// The request field of this log. This can be nil depending on the audit policy.
-	Request     *structure.Reader
+	Request     *structurev2.NodeReader
 	RequestType rtype.Type
 	// The response field of this log. This can be nil depending on the audit policy.
-	Response     *structure.Reader
+	Response     *structurev2.NodeReader
 	ResponseType rtype.Type
 	// Current resource body changed by this request.
-	ResourceBodyReader *structure.Reader
+	ResourceBodyReader *structurev2.NodeReader
 	ResourceBodyYaml   string
 	// The response code from the API server.
 	IsErrorResponse      bool
@@ -62,5 +62,5 @@ type TimelineGrouperResult struct {
 
 // AuditLogFieldMapper handles log specific field mappings before passing AuditLogParserInput to the later parser steps.
 type AuditLogFieldExtractor interface {
-	ExtractFields(ctx context.Context, log *log.LogEntity) (*AuditLogParserInput, error)
+	ExtractFields(ctx context.Context, log *log.Log) (*AuditLogParserInput, error)
 }

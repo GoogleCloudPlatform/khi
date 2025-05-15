@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -59,7 +60,7 @@ func (*autoscalerLogParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*autoscalerLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*autoscalerLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_autoscaler_taskid.AutoscalerQueryTaskID.Ref()
 }
 
@@ -68,16 +69,19 @@ func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
+func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 
 	// scaleUp,scaleDown,nodePoolCreated,nodePoolDeleted
 	if l.Has("jsonPayload.decision") {
 		err := parseDecision(ctx, clusterName, l, cs, builder)
 		if err != nil {
-			yaml, err := l.Fields.ToYaml("")
+			var yaml string
+			yamlBytes, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
 			if err != nil {
 				yaml = "ERROR!! Failed to dump in YAML"
+			} else {
+				yaml = string(yamlBytes)
 			}
 			return fmt.Errorf("Failed to parse decision log:\nERROR:%s\n\n:SOURCE LOG:\n%s", err, yaml)
 		}
@@ -98,8 +102,8 @@ func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *h
 	return nil
 }
 
-func parseDecision(ctx context.Context, clusterName string, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	jsonDecisionReader, err := l.Fields.ReaderSingle("jsonPayload.decision")
+func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	jsonDecisionReader, err := l.GetReader("jsonPayload.decision")
 	if err != nil {
 		return err
 	}
@@ -163,8 +167,8 @@ func parseDecision(ctx context.Context, clusterName string, l *log.LogEntity, cs
 	return nil
 }
 
-func parseNoDecision(ctx context.Context, clusterName string, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	jsonNoDecisionReader, err := l.Fields.ReaderSingle("jsonPayload.noDecisionStatus")
+func parseNoDecision(ctx context.Context, clusterName string, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	jsonNoDecisionReader, err := l.GetReader("jsonPayload.noDecisionStatus")
 	if err != nil {
 		return err
 	}
@@ -199,8 +203,8 @@ func parseNoDecision(ctx context.Context, clusterName string, l *log.LogEntity, 
 	return nil
 }
 
-func parseResultInfo(ctx context.Context, clusterName string, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	jsonResultInfoReader, err := l.Fields.ReaderSingle("jsonPayload.resultInfo")
+func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	jsonResultInfoReader, err := l.GetReader("jsonPayload.resultInfo")
 	if err != nil {
 		return err
 	}

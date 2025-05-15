@@ -504,7 +504,7 @@ bar: qux
 			}
 			reader := NewNodeReader(got)
 
-			yamlMergedResult, err := reader.Serialize(&YAMLNodeSerializer{})
+			yamlMergedResult, err := reader.Serialize("", &YAMLNodeSerializer{})
 			if err != nil {
 				t.Fatalf("failed to serialize result to yaml %v", err)
 			}

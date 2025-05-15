@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 )
 
 func TestStringField(t *testing.T) {
@@ -32,7 +33,7 @@ func TestStringField(t *testing.T) {
 		{
 			name: "rewriting root level field",
 			opts: []TestLogOpt{
-				BaseYaml(`foo: bar
+				YAML(`foo: bar
 qux: quux`),
 				StringField("qux", "quux2"),
 			},
@@ -44,7 +45,7 @@ qux: quux2
 		{
 			name: "rewriting non existing root level field",
 			opts: []TestLogOpt{
-				BaseYaml(`foo: bar`),
+				YAML(`foo: bar`),
 				StringField("qux", "quux"),
 			},
 			outputYaml: `foo: bar
@@ -55,24 +56,24 @@ qux: quux
 		{
 			name: "rewriting deeper level field",
 			opts: []TestLogOpt{
-				BaseYaml(`foo:
+				YAML(`foo:
   bar: quux`),
 				StringField("foo.bar", "quux2"),
 			},
 			outputYaml: `foo:
-  bar: quux2
+    bar: quux2
 `,
 			expectError: false,
 		},
 		{
 			name: "rewriting non existing deeper level field",
 			opts: []TestLogOpt{
-				BaseYaml(`qux: foo`),
+				YAML(`qux: foo`),
 				StringField("foo.bar", "quux2"),
 			},
 			outputYaml: `qux: foo
 foo:
-  bar: quux2
+    bar: quux2
 `,
 			expectError: false,
 		},
@@ -89,11 +90,11 @@ foo:
 				if err != nil {
 					t.Fatal(err.Error())
 				}
-				yamlStr, err := reader.ToYaml("")
+				yamlStr, err := reader.Serialize("", &structurev2.YAMLNodeSerializer{})
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}
-				if diff := cmp.Diff(yamlStr, tc.outputYaml); diff != "" {
+				if diff := cmp.Diff(string(yamlStr), tc.outputYaml); diff != "" {
 					t.Errorf("Yaml string mismatch (-want +got):\n%s", diff)
 				}
 			}

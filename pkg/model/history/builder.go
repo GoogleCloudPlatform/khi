@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -37,7 +38,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type BuilderLogWalker = func(logIndex int, l *log.LogEntity) *ChangeSet
+type BuilderLogWalker = func(logIndex int, l *log.Log) *ChangeSet
 
 // Builder builds History from ChangeSet obtained from parsers.
 type Builder struct {
@@ -247,7 +248,7 @@ func (builder *Builder) rewriteRelationship(path string, relationship enum.Paren
 }
 
 // PrepareParseLogs will prepare this builder to be ready to handle parsing logs by groups.
-func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.LogEntity, onLogPorcessed func()) error {
+func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.Log, onLogPorcessed func()) error {
 	parallelism := 16
 	errGrp := errgroup.Group{}
 
@@ -257,31 +258,35 @@ func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.
 			logs := []*SerializableLog{}
 			for logIndex := shard; logIndex < len(entireLogs); logIndex += parallelism {
 				onLogPorcessed()
-				log := entireLogs[logIndex]
-				logId := log.ID()
+				l := entireLogs[logIndex]
+				logId := l.ID
+				commonField, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+				if err != nil {
+					return fmt.Errorf("failed to read CommonFieldSet of the given logs\n %s", err.Error())
+				}
 				serializableLogs := builder.logIdToSerializableLog.AcquireShard(logId)
 				if _, found := serializableLogs[logId]; found {
 					builder.logIdToSerializableLog.ReleaseShard(logId)
 					slog.WarnContext(ctx, fmt.Sprintf("duplicated consumed log %s", logId))
 					continue
 				}
-				yaml := log.LogBody()
+				yaml, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
+				if err != nil {
+					builder.logIdToSerializableLog.ReleaseShard(logId)
+					return err
+				}
 				bodyRef, err := builder.binaryChunk.Write([]byte(yaml))
 				if err != nil {
 					builder.logIdToSerializableLog.ReleaseShard(logId)
 					return err
 				}
-				severity, err := log.Severity()
-				if err != nil {
-					severity = enum.SeverityUnknown
-				}
 				sl := &SerializableLog{
 					ID:          logId,
-					DisplayId:   log.GetStringOrDefault("insertId", "unknown"),
+					DisplayId:   commonField.DisplayID,
 					Body:        bodyRef,
-					Timestamp:   log.Timestamp(),
-					Type:        log.LogType,
-					Severity:    severity,
+					Timestamp:   commonField.Timestamp,
+					Type:        l.LogType,
+					Severity:    commonField.Severity,
 					Annotations: make([]any, 0),
 				}
 				logs = append(logs, sl)
@@ -297,7 +302,7 @@ func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.
 	return errGrp.Wait()
 }
 
-func (builder *Builder) ParseLogsByGroups(ctx context.Context, groupedLogs []*log.LogEntity, logWalker BuilderLogWalker) error {
+func (builder *Builder) ParseLogsByGroups(ctx context.Context, groupedLogs []*log.Log, logWalker BuilderLogWalker) error {
 	for i, l := range groupedLogs {
 		select {
 		case <-ctx.Done():

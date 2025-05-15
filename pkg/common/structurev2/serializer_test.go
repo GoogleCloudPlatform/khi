@@ -17,7 +17,16 @@ package structurev2
 import (
 	"testing"
 	"time"
+	"unique"
 )
+
+func toInternedStringArray(original []string) []unique.Handle[string] {
+	result := make([]unique.Handle[string], len(original))
+	for i := 0; i < len(original); i++ {
+		result[i] = unique.Make(original[i])
+	}
+	return result
+}
 
 func TestYAMLNodeSerializer(t *testing.T) {
 	testCase := []struct {
@@ -28,14 +37,14 @@ func TestYAMLNodeSerializer(t *testing.T) {
 		{
 			Name: "scalar types",
 			Input: &StandardMapNode{
-				keys: []string{"nil", "bool", "int", "float", "string", "time"},
+				keys: toInternedStringArray([]string{"nil", "bool", "int", "float", "string", "time"}),
 				values: []Node{
-					&StandardScalarNode[any]{value: nil},
-					&StandardScalarNode[bool]{value: true},
-					&StandardScalarNode[int]{value: 42},
-					&StandardScalarNode[float64]{value: 3.14},
-					&StandardScalarNode[string]{value: "foo"},
-					&StandardScalarNode[time.Time]{value: time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)},
+					NewStandardScalarNode[any](nil),
+					NewStandardScalarNode(true),
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14),
+					NewStandardScalarNode("foo"),
+					NewStandardScalarNode(time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)),
 				},
 			},
 			Expected: `nil: null
@@ -49,11 +58,10 @@ time: 2022-01-01T00:00:00Z
 		{
 			Name: "simple map",
 			Input: &StandardMapNode{
-				keys: []string{"foo", "bar"},
+				keys: toInternedStringArray([]string{"foo", "bar"}),
 				values: []Node{
-					&StandardScalarNode[int]{value: 42},
-					&StandardScalarNode[float64]{value: 3.14},
-				},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14)},
 			},
 			Expected: `foo: 42
 bar: 3.140000
@@ -63,9 +71,8 @@ bar: 3.140000
 			Name: "simple sequence",
 			Input: &StandardSequenceNode{
 				value: []Node{
-					&StandardScalarNode[int]{value: 42},
-					&StandardScalarNode[float64]{value: 3.14},
-				},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14)},
 			},
 			Expected: `- 42
 - 3.140000
@@ -74,20 +81,18 @@ bar: 3.140000
 		{
 			Name: "complex nested type",
 			Input: &StandardMapNode{
-				keys: []string{"foo", "bar"},
+				keys: toInternedStringArray([]string{"foo", "bar"}),
 				values: []Node{
 					&StandardMapNode{
-						keys: []string{"baz", "qux"},
+						keys: toInternedStringArray([]string{"baz", "qux"}),
 						values: []Node{
-							&StandardScalarNode[int]{value: 42},
-							&StandardScalarNode[float64]{value: 3.14},
-						},
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14)},
 					},
 					&StandardSequenceNode{
 						value: []Node{
-							&StandardScalarNode[int]{value: 4},
-							&StandardScalarNode[float64]{value: 3.14},
-						},
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14)},
 					},
 				},
 			},
@@ -95,7 +100,7 @@ bar: 3.140000
     baz: 42
     qux: 3.140000
 bar:
-    - 4
+    - 42
     - 3.140000
 `,
 		},
@@ -104,7 +109,7 @@ bar:
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
 			reader := NewNodeReader(tc.Input)
-			serialized, err := reader.Serialize(&YAMLNodeSerializer{})
+			serialized, err := reader.Serialize("", &YAMLNodeSerializer{})
 			if err != nil {
 				t.Errorf("failed to serialize the given node structure: %s", err.Error())
 			}
@@ -124,14 +129,14 @@ func TestJSONNodeSerializer(t *testing.T) {
 		{
 			Name: "scalar types",
 			Input: &StandardMapNode{
-				keys: []string{"nil", "bool", "int", "float", "string", "time"},
+				keys: toInternedStringArray([]string{"nil", "bool", "int", "float", "string", "time"}),
 				values: []Node{
-					&StandardScalarNode[any]{value: nil},
-					&StandardScalarNode[bool]{value: true},
-					&StandardScalarNode[int]{value: 42},
-					&StandardScalarNode[float64]{value: 3.14},
-					&StandardScalarNode[string]{value: "foo"},
-					&StandardScalarNode[time.Time]{value: time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)},
+					NewStandardScalarNode[any](nil),
+					NewStandardScalarNode(true),
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14),
+					NewStandardScalarNode("foo"),
+					NewStandardScalarNode(time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)),
 				},
 			},
 			Expected: `{"nil":null,"bool":true,"int":42,"float":3.14,"string":"foo","time":"2022-01-01T00:00:00Z"}`,
@@ -139,11 +144,10 @@ func TestJSONNodeSerializer(t *testing.T) {
 		{
 			Name: "simple map",
 			Input: &StandardMapNode{
-				keys: []string{"foo", "bar"},
+				keys: toInternedStringArray([]string{"foo", "bar"}),
 				values: []Node{
-					&StandardScalarNode[int]{value: 42},
-					&StandardScalarNode[float64]{value: 3.14},
-				},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14)},
 			},
 			Expected: `{"foo":42,"bar":3.14}`,
 		},
@@ -151,8 +155,8 @@ func TestJSONNodeSerializer(t *testing.T) {
 			Name: "simple sequence",
 			Input: &StandardSequenceNode{
 				value: []Node{
-					&StandardScalarNode[int]{value: 42},
-					&StandardScalarNode[float64]{value: 3.14},
+					NewStandardScalarNode(42),
+					NewStandardScalarNode(3.14),
 				},
 			},
 			Expected: `[42,3.14]`,
@@ -160,31 +164,41 @@ func TestJSONNodeSerializer(t *testing.T) {
 		{
 			Name: "complex nested type",
 			Input: &StandardMapNode{
-				keys: []string{"foo", "bar"},
+				keys: toInternedStringArray([]string{"foo", "bar"}),
 				values: []Node{
 					&StandardMapNode{
-						keys: []string{"baz", "qux"},
+						keys: toInternedStringArray([]string{"baz", "qux"}),
 						values: []Node{
-							&StandardScalarNode[int]{value: 42},
-							&StandardScalarNode[float64]{value: 3.14},
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14),
 						},
 					},
 					&StandardSequenceNode{
 						value: []Node{
-							&StandardScalarNode[int]{value: 4},
-							&StandardScalarNode[float64]{value: 3.14},
+							NewStandardScalarNode(42),
+							NewStandardScalarNode(3.14),
 						},
 					},
 				},
 			},
-			Expected: `{"foo":{"baz":42,"qux":3.14},"bar":[4,3.14]}`,
+			Expected: `{"foo":{"baz":42,"qux":3.14},"bar":[42,3.14]}`,
+		},
+		{
+			Name: "map containing \" in key and values",
+			Input: &StandardMapNode{
+				keys: toInternedStringArray([]string{"foo\"bar"}),
+				values: []Node{
+					NewStandardScalarNode("qux\"quux"),
+				},
+			},
+			Expected: `{"foo\"bar":"qux\"quux"}`,
 		},
 	}
 
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
 			reader := NewNodeReader(tc.Input)
-			serialized, err := reader.Serialize(&JSONNodeSerializer{})
+			serialized, err := reader.Serialize("", &JSONNodeSerializer{})
 			if err != nil {
 				t.Errorf("failed to serialize the given node structure: %s", err.Error())
 			}

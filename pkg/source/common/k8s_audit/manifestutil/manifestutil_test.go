@@ -90,7 +90,7 @@ func TestParseDeletionStatus(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			reader, err := testlog.New(testlog.BaseYaml(tc.inputYaml)).BuildReader()
+			reader, err := testlog.New(testlog.YAML(tc.inputYaml)).BuildReader()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -127,7 +127,7 @@ func TestParseCreationTime(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			reader, err := testlog.New(testlog.BaseYaml(tc.inputYaml)).BuildReader()
+			reader, err := testlog.New(testlog.YAML(tc.inputYaml)).BuildReader()
 			if err != nil {
 				t.Fatal(err)
 			}

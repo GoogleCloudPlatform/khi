@@ -36,10 +36,5 @@ func PrepareInspectionServer(rootServer *inspection.InspectionTaskServer) error 
 		return err
 	}
 
-	err = rootServer.AddTask(inspection_task.ReaderFactoryGeneratorTask)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }

@@ -15,10 +15,15 @@
 package structurev2
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
 // ErrFieldNotFound is returned when a requested field is not found in the node structure.
@@ -30,12 +35,12 @@ type NodeReaderChildrenIterator = func(func(key NodeChildrenKey, value NodeReade
 // NodeReader provides a convenient way to read values from a node structure.
 // It offers type-safe accessor methods and path navigation capabilities.
 type NodeReader struct {
-	node Node
+	Node
 }
 
 // NewNodeReader creates a new NodeReader instance from a given Node.
 func NewNodeReader(node Node) *NodeReader {
-	return &NodeReader{node: node}
+	return &NodeReader{node}
 }
 
 // Has checks if a field exists at the specified path in the node structure.
@@ -51,19 +56,23 @@ func (n *NodeReader) GetReader(fieldPath string) (*NodeReader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &NodeReader{node: node}, nil
+	return &NodeReader{node}, nil
 }
 
 // Serialize serializes the structured data with the given NodeSerializer.
-func (n *NodeReader) Serialize(serializer NodeSerializer) ([]byte, error) {
-	return serializer.Serialize(n.node)
+func (n *NodeReader) Serialize(fieldPath string, serializer NodeSerializer) ([]byte, error) {
+	node, err := n.getNode(fieldPath)
+	if err != nil {
+		return nil, err
+	}
+	return serializer.Serialize(node)
 }
 
 // Children returns an iterator for navigating through readers of the children of this node.
 func (n *NodeReader) Children() NodeReaderChildrenIterator {
 	return func(callback func(key NodeChildrenKey, value NodeReader) bool) {
-		for key, value := range n.node.Children() {
-			if !callback(key, NodeReader{node: value}) {
+		for key, value := range n.Node.Children() {
+			if !callback(key, NodeReader{value}) {
 				return
 			}
 		}
@@ -97,7 +106,17 @@ func (n *NodeReader) ReadFloat(fieldPath string) (float64, error) {
 // ReadTimestamp retrieves a timestamp value from the specified field path.
 // Returns an error if the field doesn't exist or cannot be cast to a time.Time.
 func (n *NodeReader) ReadTimestamp(fieldPath string) (time.Time, error) {
-	return getScalarValueAt[time.Time](fieldPath, n)
+	var t time.Time
+	var err error
+	t, err = getScalarValueAt[time.Time](fieldPath, n)
+	if err != nil {
+		tStr, err := getScalarValueAt[string](fieldPath, n)
+		if err != nil {
+			return time.Time{}, err
+		}
+		return common.ParseTime(tStr)
+	}
+	return t, err
 }
 
 // ReadStringOrDefault retrieves a string value from the specified field path.
@@ -121,7 +140,20 @@ func (n *NodeReader) ReadFloatOrDefault(fieldPath string, defaultValue float64) 
 // ReadTimestampOrDefault retrieves a timestamp value from the specified field path.
 // Returns the provided default value if the field doesn't exist or an error occurs.
 func (n *NodeReader) ReadTimestampOrDefault(fieldPath string, defaultValue time.Time) time.Time {
-	return getScalarValueOrDefaultAt(fieldPath, defaultValue, n)
+	var t time.Time
+	var err error
+	t, err = getScalarValueAt[time.Time](fieldPath, n)
+	if err != nil {
+		tStr, err := getScalarValueAt[string](fieldPath, n)
+		if err != nil {
+			return defaultValue
+		}
+		t, err = common.ParseTime(tStr)
+		if err != nil {
+			return defaultValue
+		}
+	}
+	return t
 }
 
 // ReadBoolOrDefault retrieves a boolean value from the specified field path.
@@ -132,10 +164,10 @@ func (n *NodeReader) ReadBoolOrDefault(fieldPath string, defaultValue bool) bool
 
 func (n *NodeReader) getNode(fieldPath string) (Node, error) {
 	if fieldPath == "" {
-		return n.node, nil
+		return n.Node, nil
 	}
 	pathSegments := parseFieldPath(fieldPath)
-	currentNode := n.node
+	currentNode := n.Node
 	for pathCursor := 0; pathCursor < len(pathSegments); pathCursor++ {
 		found := false
 		for key, value := range currentNode.Children() {
@@ -150,6 +182,38 @@ func (n *NodeReader) getNode(fieldPath string) (Node, error) {
 		}
 	}
 	return currentNode, nil
+}
+
+// ReadReflect unmarshal the strutured data into a given type after the gicen fieldPath.
+// TODO: ReadReflect currently marshals and unmarshals the strtucred data into the target.
+//
+//	There should be room to improve this behavior regarding the performance.
+func ReadReflect[T any](r *NodeReader, fieldPath string, target T) error {
+	rawJSON, err := r.Serialize(fieldPath, &JSONNodeSerializer{})
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(rawJSON, &target)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ReadReflectK8sRuntimeObject unmarshal the structured data into a type implementing runtime.Object.
+func ReadReflectK8sRuntimeObject[T runtime.Object](r *NodeReader, fieldPath string, target T) error {
+	rawJSON, err := r.Serialize(fieldPath, &JSONNodeSerializer{})
+	if err != nil {
+		return err
+	}
+	scheme := runtime.NewScheme()
+	codecFactory := serializer.NewCodecFactory(scheme)
+	deserializer := codecFactory.UniversalDeserializer()
+	_, _, err = deserializer.Decode(rawJSON, nil, target)
+	if err != nil {
+		return fmt.Errorf("failed to decode JSON as runtime.Object: \n source: %s\nerror:%s", string(rawJSON), err.Error())
+	}
+	return nil
 }
 
 // parseFieldPath splits a field path string according to specified rules.

@@ -17,12 +17,13 @@ package api_test
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
 
 type MockApiClient struct {
 	GetClusterNamesFunc func(ctx context.Context, projectId string) ([]string, error)
-	ListLogEntriesFunc  func(ctx context.Context, resourceNames []string, filter string, logSink chan any) error
+	ListLogEntriesFunc  func(ctx context.Context, resourceNames []string, filter string, logSink chan *log.Log) error
 }
 
 // GetClusters implements api.GCPClient.
@@ -94,7 +95,7 @@ func (m *MockApiClient) GetComposerEnvironmentNames(ctx context.Context, project
 }
 
 // ListLogEntries implements api.GCPClient.
-func (m *MockApiClient) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan any) error {
+func (m *MockApiClient) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan *log.Log) error {
 	if m.ListLogEntriesFunc == nil {
 		close(logSink)
 		return nil

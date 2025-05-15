@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -56,7 +57,7 @@ func (*onpremCloudAuditLogParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*onpremCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*onpremCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return multicloud_api_taskid.OnPremCloudAPIQueryTaskID.Ref()
 }
 
@@ -65,15 +66,16 @@ func (*onpremCloudAuditLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	resourceName := l.GetStringOrDefault("protoPayload.resourceName", "")
+func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	resourceName := l.ReadStringOrDefault("protoPayload.resourceName", "")
 	resource := parseResourceNameOfOnPremAPI(resourceName)
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")
-	operationId := l.GetStringOrDefault("operation.id", "unknown")
-	methodName := l.GetStringOrDefault("protoPayload.methodName", "unknown")
-	principal := l.GetStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
-	code := l.GetStringOrDefault("protoPayload.status.code", "0")
+	operationId := l.ReadStringOrDefault("operation.id", "unknown")
+	methodName := l.ReadStringOrDefault("protoPayload.methodName", "unknown")
+	principal := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
+	code := l.ReadStringOrDefault("protoPayload.status.code", "0")
+	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	isSucceedRequest := code == "0"
 	var operationResourcePath resourcepath.ResourcePath
 	if resource.NodepoolName == "" {
@@ -81,7 +83,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 		clusterResourcePath := resourcepath.Cluster(resource.ClusterName)
 		if filterMethodNameOperation(methodName, "Create", "Cluster") && isFirst && isSucceedRequest {
 			// Cluster info is stored at protoPayload.request.(aws|azure)Cluster
-			body, err := l.GetChildYamlOf(fmt.Sprintf("protoPayload.request.%sCluster", resource.ClusterType))
+			bodyRaw, err := l.Serialize(fmt.Sprintf("protoPayload.request.%sCluster", resource.ClusterType), &structurev2.YAMLNodeSerializer{})
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the cluster info from the log\n%v", err))
 			}
@@ -89,14 +91,14 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 				Verb:       enum.RevisionVerbCreate,
 				State:      enum.RevisionStateExisting,
 				Requestor:  principal,
-				ChangeTime: l.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				Partial:    false,
-				Body:       body,
+				Body:       string(bodyRaw),
 			})
 		}
 		if filterMethodNameOperation(methodName, "Enroll", "Cluster") && !isFirst && isSucceedRequest {
 			// Cluster info is stored at protoPayload.request.(aws|azure)Cluster
-			body, err := l.GetChildYamlOf("protoPayload.response")
+			bodyRaw, err := l.Serialize("protoPayload.response", &structurev2.YAMLNodeSerializer{})
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the cluster info from the log\n%v", err))
 			}
@@ -104,9 +106,9 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 				Verb:       enum.RevisionVerbCreate,
 				State:      enum.RevisionStateExisting,
 				Requestor:  principal,
-				ChangeTime: l.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				Partial:    false,
-				Body:       body,
+				Body:       string(bodyRaw),
 			})
 		}
 		if filterMethodNameOperation(methodName, "Delete", "Cluster") && isFirst && isSucceedRequest {
@@ -114,7 +116,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 				Verb:       enum.RevisionVerbDelete,
 				State:      enum.RevisionStateDeleted,
 				Requestor:  principal,
-				ChangeTime: l.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				Partial:    false,
 				Body:       "",
 			})
@@ -124,7 +126,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 				Verb:       enum.RevisionVerbDelete,
 				State:      enum.RevisionStateDeleted,
 				Requestor:  principal,
-				ChangeTime: l.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				Partial:    false,
 				Body:       "",
 			})
@@ -137,7 +139,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 		nodepoolResourcePath := resourcepath.Nodepool(resource.ClusterName, resource.NodepoolName)
 		if filterMethodNameOperation(methodName, "Create", "NodePool") && isFirst && isSucceedRequest {
 			// NodePool info is stored at protoPayload.request.(aws|azure)NodePool
-			body, err := l.GetChildYamlOf("protoPayload.request")
+			bodyRaw, err := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{})
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the nodepool info from the log\n%v", err))
 			}
@@ -145,9 +147,9 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 				Verb:       enum.RevisionVerbCreate,
 				State:      enum.RevisionStateExisting,
 				Requestor:  principal,
-				ChangeTime: l.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				Partial:    false,
-				Body:       body,
+				Body:       string(bodyRaw),
 			})
 		}
 		if filterMethodNameOperation(methodName, "Delete", "NodePool") && isFirst && isSucceedRequest {
@@ -155,7 +157,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 				Verb:       enum.RevisionVerbDelete,
 				State:      enum.RevisionStateDeleted,
 				Requestor:  principal,
-				ChangeTime: l.Timestamp(),
+				ChangeTime: commonFieldSet.Timestamp,
 				Partial:    false,
 				Body:       "",
 			})
@@ -178,7 +180,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, c
 			Verb:       verb,
 			State:      state,
 			Requestor:  principal,
-			ChangeTime: l.Timestamp(),
+			ChangeTime: commonFieldSet.Timestamp,
 			Partial:    false,
 		})
 	}

@@ -37,6 +37,7 @@ type Node interface {
 	Type() NodeType
 	NodeScalarValue() (any, error)
 	Children() NodeChildrenIterator
+	Len() int
 }
 
 // NodeChildrenElement represents an item of Chidlren of a Node.

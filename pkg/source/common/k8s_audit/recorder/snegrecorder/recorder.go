@@ -17,6 +17,7 @@ package snegrecorder
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
@@ -26,8 +27,9 @@ import (
 
 func Register(manager *recorder.RecorderTaskManager) error {
 	manager.AddRecorder("sneg-fields", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *types.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
+		commonFieldSet := log.MustGetFieldSet(currentLog.Log, &log.CommonFieldSet{})
 		// record node name for querying compute engine api later.
-		builder.ClusterResource.NEGs.TouchResourceLease(currentLog.Operation.Name, currentLog.Log.Timestamp(), resourcelease.NewK8sResourceLeaseHolder(
+		builder.ClusterResource.NEGs.TouchResourceLease(currentLog.Operation.Name, commonFieldSet.Timestamp, resourcelease.NewK8sResourceLeaseHolder(
 			currentLog.Operation.PluralKind,
 			currentLog.Operation.Namespace,
 			currentLog.Operation.Name,

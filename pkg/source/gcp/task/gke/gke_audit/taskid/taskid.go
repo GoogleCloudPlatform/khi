@@ -21,5 +21,5 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var GKEAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "gke-audit")
+var GKEAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "gke-audit")
 var GKEAuditParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/gke-audit-parser")

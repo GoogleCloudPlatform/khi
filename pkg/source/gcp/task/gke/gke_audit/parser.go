@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -54,7 +55,7 @@ func (*gkeAuditLogParser) GetParserName() string {
 }
 
 // LogTask implements parser.Parser.
-func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_audit_taskid.GKEAuditLogQueryTaskID.Ref()
 }
 
@@ -63,14 +64,18 @@ func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	clusterName := l.GetStringOrDefault("resource.labels.cluster_name", "unknown")
+func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	if err != nil {
+		return err
+	}
+	clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	isFirst := l.Has("operation.first")
 	isLast := l.Has("operation.last")
-	operationId := l.GetStringOrDefault("operation.id", "unknown")
-	methodName := l.GetStringOrDefault("protoPayload.methodName", "unknown")
-	principal := l.GetStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
-	statusCode := l.GetIntOrDefault("protoPayload.status.code", 0)
+	operationId := l.ReadStringOrDefault("operation.id", "unknown")
+	methodName := l.ReadStringOrDefault("protoPayload.methodName", "unknown")
+	principal := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
+	statusCode := l.ReadIntOrDefault("protoPayload.status.code", 0)
 	shouldRecordResourceRevision := statusCode == 0
 	var operationResourcePath resourcepath.ResourcePath
 
@@ -80,7 +85,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 		clusterResourcePath := resourcepath.Cluster(clusterName)
 		if shouldRecordResourceRevision {
 			if strings.HasSuffix(methodName, "CreateCluster") {
-				body, _ := l.GetChildYamlOf("protoPayload.request.cluster") // Ignore the error and use "" as the body of the cluster setting when the field is not available.
+				bodyRaw, _ := l.Serialize("protoPayload.request.cluster", &structurev2.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the cluster setting when the field is not available.
 				state := enum.RevisionStateExisting
 				if isFirst {
 					state = enum.RevisionStateProvisioning
@@ -89,9 +94,9 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 					Verb:       enum.RevisionVerbCreate,
 					State:      state,
 					Requestor:  principal,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonFieldSet.Timestamp,
 					Partial:    false,
-					Body:       body,
+					Body:       string(bodyRaw),
 				})
 			}
 			if strings.HasSuffix(methodName, "DeleteCluster") {
@@ -103,7 +108,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 					Verb:       enum.RevisionVerbDelete,
 					State:      state,
 					Requestor:  principal,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonFieldSet.Timestamp,
 					Partial:    false,
 					Body:       "",
 				})
@@ -119,7 +124,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 		nodepoolResourcePath := resourcepath.Nodepool(clusterName, nodepoolName)
 		if shouldRecordResourceRevision {
 			if strings.HasSuffix(methodName, "CreateNodePool") {
-				body, _ := l.GetChildYamlOf("protoPayload.request.nodePool") // Ignore the error and use "" as the body of the nodepool setting when the field is not available.
+				bodyRaw, _ := l.Serialize("protoPayload.request.nodePool", &structurev2.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the nodepool setting when the field is not available.
 				state := enum.RevisionStateExisting
 				if isFirst {
 					state = enum.RevisionStateProvisioning
@@ -128,9 +133,9 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 					Verb:       enum.RevisionVerbCreate,
 					State:      state,
 					Requestor:  principal,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonFieldSet.Timestamp,
 					Partial:    false,
-					Body:       body,
+					Body:       string(bodyRaw),
 				})
 			}
 			if strings.HasSuffix(methodName, "DeleteNodePool") {
@@ -142,7 +147,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 					Verb:       enum.RevisionVerbDelete,
 					State:      state,
 					Requestor:  principal,
-					ChangeTime: l.Timestamp(),
+					ChangeTime: commonFieldSet.Timestamp,
 					Partial:    false,
 					Body:       "",
 				})
@@ -156,7 +161,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 
 	// If this was an operation, it will be recorded as operation data
 	if !(isLast && isFirst) && (isLast || isFirst) && shouldRecordResourceRevision {
-		requestBody, _ := l.GetChildYamlOf("protoPayload.request") // ignore the error to set the empty body when the field is not available in the log.
+		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
 		state := enum.RevisionStateOperationStarted
 		verb := enum.RevisionVerbOperationStart
 		if isLast {
@@ -167,9 +172,9 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 			Verb:       verb,
 			State:      state,
 			Requestor:  principal,
-			ChangeTime: l.Timestamp(),
+			ChangeTime: commonFieldSet.Timestamp,
 			Partial:    false,
-			Body:       requestBody,
+			Body:       string(requestBodyRaw),
 		})
 	}
 
@@ -184,12 +189,12 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *his
 	return nil
 }
 
-func getRelatedNodepool(l *log.LogEntity) (string, error) {
-	nodepoolName, err := l.GetString("resource.labels.nodepool_name")
+func getRelatedNodepool(l *log.Log) (string, error) {
+	nodepoolName, err := l.ReadString("resource.labels.nodepool_name")
 	if err == nil {
 		return nodepoolName, nil
 	}
-	return l.GetString("protoPayload.request.update.desiredNodePoolId")
+	return l.ReadString("protoPayload.request.update.desiredNodePoolId")
 }
 
 var _ parser.Parser = (*gkeAuditLogParser)(nil)

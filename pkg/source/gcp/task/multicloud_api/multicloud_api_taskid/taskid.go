@@ -21,5 +21,5 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var MultiCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](query.GKEQueryPrefix + "multicloud-api")
+var MultiCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "multicloud-api")
 var MultiCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/multicloud-audit-parser")
