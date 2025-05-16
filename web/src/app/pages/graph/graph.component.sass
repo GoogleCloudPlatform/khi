@@ -24,12 +24,17 @@
     overflow: hidden
     diagram-viewport
         grid-area: graph
+    diagram-svg-viewport-overlay
+        grid-area: graph
+        z-index: 1000
+        pointer-events: none
 .minimap-container
     position: fixed
     right: 30px
     bottom: 30px
     padding: 10px
     background-color: gray
+    z-index: 3000
 
 .container
     padding: 100px

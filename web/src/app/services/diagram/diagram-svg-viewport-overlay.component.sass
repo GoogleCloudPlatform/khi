@@ -14,18 +14,3 @@
  * limitations under the License.
  */
 
-import { Component, input } from '@angular/core';
-import { DiagramElementDirective } from '../diagram-element.directive';
-import { LOD } from '../lod.service';
-import { DiagramWaypointAreaDirective } from '../waypoint-area.directive';
-
-@Component({
-  selector: 'sample-diagram-element',
-  templateUrl: './sample-diagram-element.component.html',
-  styleUrl: './sample-diagram-element.component.sass',
-  imports: [DiagramElementDirective, DiagramWaypointAreaDirective],
-})
-export class SampleDiagramElementComponent {
-  lod = LOD;
-  id = input.required<string>();
-}

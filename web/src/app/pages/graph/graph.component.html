@@ -38,6 +38,15 @@
       <sample-diagram-element id="quux3" />
     </div>
   </diagram-viewport>
+  <diagram-svg-viewport-overlay>
+    <svg:g
+      diagram-svg-arrow
+      [waypoints]="sampleWaypoints"
+      [headShape]="ArrowShape.Circle"
+      [tailShape]="ArrowShape.Arrow"
+      [tailRotate]="90"
+    ></svg:g>
+  </diagram-svg-viewport-overlay>
   <div class="minimap-container">
     <diagram-minimap [width]="300">
       <div class="container">

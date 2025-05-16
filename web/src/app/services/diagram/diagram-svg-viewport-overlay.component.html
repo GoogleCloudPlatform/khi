@@ -14,21 +14,13 @@
  limitations under the License.
 -->
 
-<div
-  diagramElement
-  diagramWaypointArea
-  [id]="id()"
-  [waypointAreaID]="id()"
-  #element="diagramElement"
-  class="container"
+@let vpRect = viewportRect();
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  #svgElement
+  [attr.width]="vpRect.width"
+  [attr.height]="vpRect.height"
+  [attr.viewBox]="viewBox()"
 >
-  @if (element.lod() > lod.CONTAINER_ONLY) {
-    <h1>Node</h1>
-
-    <p>
-      Lorem ipsum, dolor sit amet consectetur adipisicing elit. Reprehenderit
-      atque quo fuga quam blanditiis, nihil consequuntur velit cum ratione dicta
-      natus non, eius culpa, aut rem amet optio. Facere, perferendis!
-    </p>
-  }
-</div>
+  <ng-content></ng-content>
+</svg>

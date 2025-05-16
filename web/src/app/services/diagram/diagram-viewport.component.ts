@@ -85,7 +85,7 @@ export class DiagramViewportComponent implements AfterViewInit, OnDestroy {
         contentHostElement.nativeElement.getBoundingClientRect();
 
       const s = this.scalingFactor();
-      const minScale = Math.max(
+      const minScale = Math.min(
         viewportRect.width / contentHostRect.width,
         viewportRect.height / contentHostRect.height,
       );
@@ -114,6 +114,7 @@ export class DiagramViewportComponent implements AfterViewInit, OnDestroy {
 
   private reportVisibleArea() {
     const contentHost = this.contentHostElement();
+    const scale = this.scalingFactor();
     if (contentHost) {
       const contentHostRect = contentHost.nativeElement.getBoundingClientRect();
       const viewportElement = this.hostElement.element
@@ -122,9 +123,9 @@ export class DiagramViewportComponent implements AfterViewInit, OnDestroy {
       const scrollY = viewportElement.scrollTop;
       const scrollX = viewportElement.scrollLeft;
       this.viewportService.notifyViewportChange(
-        contentHostRect.width,
-        contentHostRect.height,
-        this.scalingFactor(),
+        contentHostRect.width / scale,
+        contentHostRect.height / scale,
+        scale,
         scrollX / contentHostRect.width,
         scrollY / contentHostRect.height,
         Math.min(

@@ -29,6 +29,13 @@ import {
 import { CommonModule } from '@angular/common';
 import { SampleDiagramElementComponent } from 'src/app/services/diagram/diagram-element/sample-diagram-element.component';
 import { LOD } from 'src/app/services/diagram/lod.service';
+import { DiagramSVGViewportOverlayComponent } from '../../services/diagram/diagram-svg-viewport-overlay.component';
+import { WaypointManagerService } from 'src/app/services/diagram/waypoint-manager.service';
+import {
+  ArrowShape,
+  DiagramSVGArrowComponent,
+  WayPoint,
+} from 'src/app/services/diagram/diagram-element/diagram-svg-arrow.component';
 
 @Component({
   selector: 'graph-root',
@@ -42,6 +49,8 @@ import { LOD } from 'src/app/services/diagram/lod.service';
     DiagramViewportComponent,
     MinimapComponent,
     SampleDiagramElementComponent,
+    DiagramSVGViewportOverlayComponent,
+    DiagramSVGArrowComponent,
   ],
   providers: [
     DiagramViewportService,
@@ -53,6 +62,30 @@ import { LOD } from 'src/app/services/diagram/lod.service';
       provide: MAX_LOD,
       useValue: LOD.UNLIMITED,
     },
+    {
+      provide: WaypointManagerService,
+      useClass: WaypointManagerService,
+    },
   ],
 })
-export class GraphComponent {}
+export class GraphComponent {
+  ArrowShape = ArrowShape;
+
+  sampleWaypoints: WayPoint[] = [
+    {
+      areaID: 'foo1',
+      anchorX: 1,
+      anchorY: 0.5,
+    },
+    {
+      areaID: 'qux2',
+      anchorX: 1,
+      anchorY: 0.5,
+    },
+    {
+      areaID: 'foo3',
+      anchorX: 1,
+      anchorY: 0.5,
+    },
+  ];
+}

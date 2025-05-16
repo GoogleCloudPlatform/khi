@@ -79,7 +79,7 @@ export class MinimapComponent {
 
   minimapContentScaleTransform = computed(() => {
     const state = this.viewportState();
-    return `scale(${Math.min(this.width() / state.contentWidth, this.height() / state.contentHeight) * state.contentScale})`;
+    return `scale(${Math.min(this.width() / state.contentWidth, this.height() / state.contentHeight)})`;
   });
 
   /**
