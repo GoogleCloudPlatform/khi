@@ -40,16 +40,17 @@ export const DIAGRAM_ELEMENT_ROLE = new InjectionToken<DiagramElementRole>(
  * This decides if the element should decide its LOD or receive LOD from the other with the same ID.
  */
 export enum DiagramElementRole {
+  Invalid = 0,
   /**
    * The element of this children is in the minimap.
    * These read LODs from another element with CONTENT role and same ID.
    */
-  MINIMAP = 0,
+  Minimap = 1,
   /**
    * The element of this children is in the actual diagram contents.
    * It calculates its LOD and notify it to the other with same ID via DiagramViewportService.
    */
-  CONTENT = 1,
+  Content = 2,
 }
 
 export const MAX_LOD = new InjectionToken<LOD>('MAX_LOD');
@@ -80,7 +81,7 @@ export class DiagramElementDirective implements OnInit, OnDestroy {
   constructor(private el: ElementRef<HTMLElement>) {}
 
   ngOnInit() {
-    if (this.role === DiagramElementRole.CONTENT) {
+    if (this.role === DiagramElementRole.Content) {
       // Use intersection observer to monitor if the element is inside of the visible area or not.
       const observer = new IntersectionObserver((elements) => {
         const isIntersecting = elements[0].isIntersecting;
@@ -110,7 +111,7 @@ export class DiagramElementDirective implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroyed.next(undefined);
     this.destroyed.complete();
-    if (this.role === DiagramElementRole.CONTENT) {
+    if (this.role === DiagramElementRole.Content) {
       this.viewportService.removeDiagramElement(this.id());
     }
   }

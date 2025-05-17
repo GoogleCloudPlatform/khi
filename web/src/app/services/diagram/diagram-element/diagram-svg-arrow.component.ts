@@ -153,7 +153,7 @@ export class DiagramSVGArrowComponent {
    */
   readonly headPosition = computed(() => {
     const waypoints = this.waypointCoordinates();
-    if (!waypoints || waypoints.length == 0) {
+    if (!waypoints || waypoints.length === 0) {
       return new DOMPoint();
     }
     return waypoints[0];
@@ -165,7 +165,7 @@ export class DiagramSVGArrowComponent {
    */
   readonly tailPosition = computed(() => {
     const waypoints = this.waypointCoordinates();
-    if (!waypoints || waypoints.length == 0) {
+    if (!waypoints || waypoints.length === 0) {
       return new DOMPoint();
     }
     return waypoints[waypoints.length - 1];

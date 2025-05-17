@@ -53,6 +53,7 @@ describe('GraphComponent', () => {
   it('should create the app', () => {
     const fixture = TestBed.createComponent(GraphComponent);
     const app = fixture.componentInstance;
+    fixture.detectChanges();
     expect(app).toBeTruthy();
   });
 });

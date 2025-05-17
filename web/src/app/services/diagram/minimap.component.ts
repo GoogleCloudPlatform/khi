@@ -47,7 +47,7 @@ import { LOD } from './lod.service';
   providers: [
     {
       provide: DIAGRAM_ELEMENT_ROLE,
-      useValue: DiagramElementRole.MINIMAP,
+      useValue: DiagramElementRole.Minimap,
     },
     {
       provide: MAX_LOD,

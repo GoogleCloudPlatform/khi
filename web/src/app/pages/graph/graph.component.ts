@@ -56,7 +56,7 @@ import {
     DiagramViewportService,
     {
       provide: DIAGRAM_ELEMENT_ROLE,
-      useValue: DiagramElementRole.CONTENT,
+      useValue: DiagramElementRole.Content,
     },
     {
       provide: MAX_LOD,

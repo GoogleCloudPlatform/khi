@@ -78,7 +78,7 @@ export class DiagramWaypointAreaDirective implements AfterViewInit, OnDestroy {
    * Only registers if the element has CONTENT role (not to capture element locations in minimap)
    */
   ngAfterViewInit(): void {
-    if (this.role === DiagramElementRole.CONTENT) {
+    if (this.role === DiagramElementRole.Content) {
       this.waypointManager.registerWaypointArea(this.waypointAreaID(), this);
     }
   }
@@ -88,7 +88,7 @@ export class DiagramWaypointAreaDirective implements AfterViewInit, OnDestroy {
    * Only performs cleanup if the element has CONTENT role (not to capture element locations in minimap)
    */
   ngOnDestroy(): void {
-    if (this.role === DiagramElementRole.CONTENT) {
+    if (this.role === DiagramElementRole.Content) {
       this.destroyed.next(undefined);
       this.waypointManager.unregisterWaypointArea(this.waypointAreaID());
     }
