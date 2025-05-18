@@ -1,0 +1,93 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Pod container styling
+.pod-container
+  width: 380px
+  background-color: var(--pod-element-bg)
+  border: 1px solid var(--pod-element-border)
+  border-radius: 6px
+  overflow: hidden
+  margin-bottom: 10px
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05)
+  position: relative
+
+.pod-type-label
+    position: absolute
+    top: -2px
+    right: 0px
+    padding: 4px 10px 3px 10px
+    color: white
+    background-color: var(--pod-element-border)
+    border-radius: 4px
+    p
+        margin: 0px
+// Pod header styling
+.pod-header
+  padding: 8px 10px
+  color: var(--pod-element-fg)
+  height: 1.7rem
+  
+  .pod-name
+    height: 1rem
+    font-weight: bold
+    font-size: 0.7rem
+    
+  .pod-namespace
+    text-decoration: underline
+    height: 0.7rem
+    font-size: 0.5rem
+    opacity: 0.9
+    margin: 0px 0px 3px 0px
+
+// Containers section
+.containers-list
+  padding: 8px 10px
+
+// Container item
+.container-item
+  background-color: var(--container-element-bg)
+  border: 1px solid var(--container-element-border)
+  margin-bottom: 6px
+  height: 5rem
+  position: relative
+  overflow: hidden
+  color: var(--container-element-fg)
+  
+  
+  .container-header
+    padding: 4px 8px
+    
+    .container-name
+      font-weight: bold
+      font-size: 0.85rem
+  
+  .container-details
+    padding: 4px 8px
+    display: flex
+    flex-direction: column
+    
+    .container-image, .container-id
+      font-size: 0.75rem
+      margin: 2px 0
+
+.container-type-label
+    position: absolute
+    top: -2px
+    right: 0px
+    padding: 4px 10px 3px 10px
+    color: white
+    background-color: var(--container-element-border)
+    p
+        margin: 0px

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { GraphMenuComponent } from 'src/app/header/graph-menu.component';
 import { TitleBarComponent } from 'src/app/header/titlebar.component';
 import { DiagramViewportComponent } from '../../services/diagram/diagram-viewport.component';
@@ -22,20 +22,17 @@ import { DiagramViewportService } from 'src/app/services/diagram/diagram-viewpor
 import { MinimapComponent } from '../../services/diagram/minimap.component';
 import {
   DIAGRAM_ELEMENT_ROLE,
-  DiagramElementDirective,
   DiagramElementRole,
   MAX_LOD,
 } from 'src/app/services/diagram/diagram-element.directive';
 import { CommonModule } from '@angular/common';
-import { SampleDiagramElementComponent } from 'src/app/services/diagram/diagram-element/sample-diagram-element.component';
 import { LOD } from 'src/app/services/diagram/lod.service';
 import { DiagramSVGViewportOverlayComponent } from '../../services/diagram/diagram-svg-viewport-overlay.component';
 import { WaypointManagerService } from 'src/app/services/diagram/waypoint-manager.service';
-import {
-  ArrowShape,
-  DiagramSVGArrowComponent,
-  WayPoint,
-} from 'src/app/services/diagram/diagram-element/diagram-svg-arrow.component';
+import { DiagramK8sRootComponent } from '../../services/diagram/diagram-root/diagram-k8s-root.component';
+import { DiagramK8sSVGRootComponent } from 'src/app/services/diagram/diagram-root/diagram-k8s-svg-root.component';
+import { DiagramModel } from 'src/app/services/diagram/diagram-model-types';
+import { SAMPLE_DIAGRAM } from 'src/app/services/diagram/sample-diagram-models';
 
 @Component({
   selector: 'graph-root',
@@ -45,12 +42,11 @@ import {
     CommonModule,
     TitleBarComponent,
     GraphMenuComponent,
-    DiagramElementDirective,
     DiagramViewportComponent,
     MinimapComponent,
-    SampleDiagramElementComponent,
     DiagramSVGViewportOverlayComponent,
-    DiagramSVGArrowComponent,
+    DiagramK8sRootComponent,
+    DiagramK8sSVGRootComponent,
   ],
   providers: [
     DiagramViewportService,
@@ -69,23 +65,5 @@ import {
   ],
 })
 export class GraphComponent {
-  ArrowShape = ArrowShape;
-
-  sampleWaypoints: WayPoint[] = [
-    {
-      areaID: 'foo1',
-      anchorX: 1,
-      anchorY: 0.5,
-    },
-    {
-      areaID: 'qux2',
-      anchorX: 1,
-      anchorY: 0.5,
-    },
-    {
-      areaID: 'foo3',
-      anchorX: 1,
-      anchorY: 0.5,
-    },
-  ];
+  model = input<DiagramModel>(SAMPLE_DIAGRAM);
 }

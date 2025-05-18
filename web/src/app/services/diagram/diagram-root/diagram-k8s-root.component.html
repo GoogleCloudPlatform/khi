@@ -1,0 +1,72 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="diagram-wrapper">
+  @let currentModel = model();
+
+  <!-- Upper tier resources (reversed to show correct hierarchy) -->
+  <div class="upper-resources-wrapper">
+    @for (
+      upperLayer of currentModel.upper.slice().reverse();
+      track $index;
+      let i = $index
+    ) {
+      <div class="resource-layer upper-layer">
+        @for (resource of upperLayer; track resource.id) {
+          <diagram-general-k8s-element
+            [resource]="resource"
+          ></diagram-general-k8s-element>
+        }
+      </div>
+      <diagram-path-spacer
+        [id]="'upper-spacer-' + (currentModel.upper.length - 1 - i)"
+        direction="horizontal"
+      ></diagram-path-spacer>
+    }
+  </div>
+
+  <!-- Node tier -->
+  <div class="nodes-wrapper">
+    @for (node of currentModel.nodes; track node.id) {
+      <diagram-path-spacer
+        [id]="'node-' + node.id + '-l'"
+        direction="vertical"
+      ></diagram-path-spacer>
+      <diagram-node-element [node]="node"></diagram-node-element>
+      <diagram-path-spacer
+        [id]="'node-' + node.id + '-r'"
+        direction="vertical"
+      ></diagram-path-spacer>
+    }
+  </div>
+
+  <!-- Lower tier resources (order is correct as is) -->
+  <div class="lower-resources-wrapper">
+    @for (lowerLayer of currentModel.lower; track $index; let i = $index) {
+      <diagram-path-spacer
+        [id]="'lower-spacer-' + i"
+        direction="horizontal"
+      ></diagram-path-spacer>
+      <div class="resource-layer lower-layer">
+        @for (resource of lowerLayer; track resource.id) {
+          <diagram-general-k8s-element
+            [resource]="resource"
+          ></diagram-general-k8s-element>
+        }
+      </div>
+    }
+  </div>
+</div>

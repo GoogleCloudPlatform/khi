@@ -16,7 +16,12 @@
 
 <div class="container">
   <div class="minimap">
-    <div class="content" [style.transform]="minimapContentScaleTransform()">
+    <div
+      class="content"
+      [style.transform]="minimapContentScaleTransform()"
+      [style.width.px]="viewportState().contentWidth"
+      [style.height.px]="viewportState().contentHeight"
+    >
       <ng-content></ng-content>
     </div>
     <div

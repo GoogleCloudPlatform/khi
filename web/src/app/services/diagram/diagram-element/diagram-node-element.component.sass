@@ -1,0 +1,50 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Node container styling
+.node-container
+  width: 400px
+  background-color: white
+  border: 2px solid var(--node-element-border)
+  border-radius: 8px
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)
+  overflow: hidden
+  padding: 20px
+  position: relative
+  .node-header
+    height: 20px
+    .node-title
+        color: var(--node-element-label)
+
+.node-type-label
+    position: absolute
+    top: -2px
+    right: 0px
+    padding: 4px 10px 3px 10px
+    color: white
+    background-color: var(--node-element-border)
+    border-radius: 4px
+    p
+        margin: 0px
+
+// Pods section styling
+.pods-wrapper
+  margin-top: 15px
+
+// Pods list styling
+.pods-list
+  display: flex
+  flex-direction: column
+  gap: 12px
+  padding-right: 8px

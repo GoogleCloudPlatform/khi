@@ -19,6 +19,7 @@
   stroke="black"
   fill="transparent"
   [attr.stroke-width]="thickness() * viewportScale()"
+  [attr.stroke-dasharray]="strokeDashArray()"
 ></svg:polyline>
 @let hs = headShape();
 @if (hs !== ArrowShape.None) {

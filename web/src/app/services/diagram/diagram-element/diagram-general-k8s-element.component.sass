@@ -1,0 +1,54 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// General K8s resource container styling
+.k8s-resource-container
+  width: 360px
+  min-height: 100px
+  background-color: var(--general-k8s-element-bg)
+  border: 1px solid var(--general-k8s-element-border)
+  border-radius: 6px
+  overflow: hidden
+  margin-bottom: 10px
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05)
+  position: relative
+
+// Resource type label styling
+.resource-type-label
+  position: absolute
+  top: -2px
+  right: 0px
+  padding: 4px 10px 3px 10px
+  color: white
+  background-color: var(--general-k8s-element-border)
+  border-radius: 4px
+  p
+    margin: 0px
+
+// Resource header styling
+.resource-header
+  padding: 8px 10px
+  color: var(--general-k8s-element-fg)
+  height: 1.7rem
+  
+  .resource-title
+    height: 1rem
+    font-weight: bold
+    font-size: 0.7rem
+    
+  .resource-namespace
+    height: 0.7rem
+    font-size: 0.5rem
+    opacity: 0.9
+    margin: 0px 0px 3px 0px

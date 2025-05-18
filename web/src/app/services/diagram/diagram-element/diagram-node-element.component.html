@@ -1,0 +1,45 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+@let currentNode = node();
+<div
+  diagramElement
+  diagramWaypointArea
+  [id]="currentNode.id"
+  [waypointAreaID]="currentNode.id"
+  #element="diagramElement"
+  class="node-container"
+>
+  @let lod = element.lod();
+  <div class="node-type-label">
+    <p>Node</p>
+  </div>
+  <div class="node-header">
+    @if (lod > LOD.CONTAINER_ONLY) {
+      <h2 class="node-title">{{ currentNode.name }}</h2>
+    }
+  </div>
+
+  <div class="pods-wrapper">
+    <div class="pods-list">
+      @for (pod of currentNode.pods; track pod.id) {
+        <diagram-pod-element
+          [pod]="pod"
+          [id]="getPodElementId(pod.id)"
+        ></diagram-pod-element>
+      }
+    </div>
+  </div>
+</div>

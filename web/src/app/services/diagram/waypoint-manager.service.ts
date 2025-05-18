@@ -34,6 +34,11 @@ export interface WaypointAreaViewportSpace {
   height: number;
 }
 
+export interface OptionalPosition {
+  x?: number;
+  y?: number;
+}
+
 /**
  * WaypointManagerService manages the points on diagrams.
  * Arrows or lines uses the named points to draw.
@@ -45,21 +50,28 @@ export class WaypointManagerService {
   /**
    * monitorWaypoint get the observable to monitor a point at the specified area.
    * positionInArea is [0,1] normalized DOMPoint locates the relative location in the area. [0,0] means top left, [0,1] means bottom left for example.
+   * monitorWaypoint returns undefined for a dimention when the dimention in the gievn positionInArea is undefined. The coordinate would be determined regarding the other positions.
    */
   monitorWaypoint(
     areaID: string,
-    positionInArea: DOMPointReadOnly,
-  ): Observable<DOMPointReadOnly> {
+    positionInArea: OptionalPosition,
+  ): Observable<OptionalPosition> {
     if (this.waypointAreaSubjects[areaID] === undefined) {
       this.waypointAreaSubjects[areaID] = new ReplaySubject<DOMRect>(1);
     }
     return this.waypointAreaSubjects[areaID].pipe(
       map(
         (rect) =>
-          new DOMPointReadOnly(
-            rect.x + positionInArea.x * rect.width,
-            rect.y + positionInArea.y * rect.height,
-          ),
+          ({
+            x:
+              positionInArea.x !== undefined
+                ? rect.x + positionInArea.x * rect.width
+                : undefined,
+            y:
+              positionInArea.y !== undefined
+                ? rect.y + positionInArea.y * rect.height
+                : undefined,
+          }) as OptionalPosition,
       ),
       distinctUntilChanged((a, b) => a.x === b.x && a.y === b.y),
     );

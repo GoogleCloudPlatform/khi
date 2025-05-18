@@ -1,0 +1,53 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+@let currentPod = pod();
+<div
+  diagramElement
+  diagramWaypointArea
+  [id]="currentPod.id"
+  [waypointAreaID]="currentPod.id"
+  #element="diagramElement"
+  class="pod-container"
+>
+  <div class="pod-type-label">
+    <p>Pod</p>
+  </div>
+  @let lod = element.lod();
+  <div class="pod-header">
+    @if (lod > LOD.CONTAINER_ONLY) {
+      <div class="pod-namespace">NS: {{ currentPod.namespace }}</div>
+      <div class="pod-name">{{ currentPod.name }}</div>
+    }
+  </div>
+
+  <div class="containers-list">
+    @for (container of currentPod.containers; track container.id) {
+      <div class="container-item">
+        <div class="container-type-label">
+          <p>Container</p>
+        </div>
+        @if (lod > LOD.CONTAINER_ONLY) {
+          <div class="container-header">
+            <span class="container-name">{{ container.name }}</span>
+          </div>
+          <div class="container-details">
+            <span class="container-image">Image: {{ container.image }}</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

@@ -1,5 +1,5 @@
 <!--
- Copyright 2024 Google LLC
+ Copyright 2025 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,20 +13,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 -->
-
-<div class="root">
-  <khi-title pageName="Diagram view">
-    <khi-graph-menu></khi-graph-menu>
-  </khi-title>
-  <diagram-viewport>
-    <diagram-k8s-root [model]="model()"></diagram-k8s-root>
-  </diagram-viewport>
-  <diagram-svg-viewport-overlay>
-    <svg:g diagram-k8s-svg-root [model]="model()"></svg:g>
-  </diagram-svg-viewport-overlay>
-  <div class="minimap-container">
-    <diagram-minimap [width]="300">
-      <diagram-k8s-root [model]="model()"></diagram-k8s-root>
-    </diagram-minimap>
+@let currentResource = resource();
+<div
+  diagramElement
+  diagramWaypointArea
+  [id]="currentResource.id"
+  [waypointAreaID]="currentResource.id"
+  #element="diagramElement"
+  class="k8s-resource-container"
+>
+  <div class="resource-type-label">
+    <p>{{ getKindName() }}</p>
+  </div>
+  <div class="resource-header">
+    <div class="resource-title">{{ currentResource.name }}</div>
+    @if (hasNamespace()) {
+      <div class="resource-namespace">Namespace: {{ namespace() }}</div>
+    }
   </div>
 </div>

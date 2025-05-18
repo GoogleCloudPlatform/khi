@@ -60,7 +60,7 @@ export class MinimapComponent {
 
   maskContainer = viewChild<ElementRef<HTMLDivElement>>('maskContainer');
 
-  private viewportState = toSignal(this.diagramViewportService.viewportState, {
+  viewportState = toSignal(this.diagramViewportService.viewportState, {
     initialValue: {
       contentWidth: 1,
       contentHeight: 1,

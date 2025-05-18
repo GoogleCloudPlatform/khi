@@ -16,8 +16,11 @@
 
 import { Component, computed, inject, input } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { combineLatest, switchMap } from 'rxjs';
-import { WaypointManagerService } from '../waypoint-manager.service';
+import { combineLatest, map, switchMap } from 'rxjs';
+import {
+  OptionalPosition,
+  WaypointManagerService,
+} from '../waypoint-manager.service';
 import { DiagramViewportService } from '../diagram-viewport.service';
 
 /**
@@ -29,14 +32,31 @@ export enum ArrowShape {
   Arrow = 'arrow',
 }
 
+export enum LinePattern {
+  Line = 'line',
+  Dashed = 'dashed',
+  Dotted = 'dotted',
+}
+
+export enum WaypointComplementType {
+  Previous = 0,
+  Next = 1,
+}
+
 /**
  * Defines the waypoint information for connecting arrows
  * Contains area ID and anchor position coordinates
  */
 export interface WayPoint {
   areaID: string;
-  anchorX: number;
-  anchorY: number;
+  anchorX?: number;
+  anchorY?: number;
+  complementType?: WaypointComplementType;
+}
+
+interface CalculatingWayPoint {
+  current: OptionalPosition;
+  config: WayPoint;
 }
 
 @Component({
@@ -74,9 +94,9 @@ export class DiagramSVGArrowComponent {
 
   /**
    * The size of the arrow head shape
-   * Default value is 10
+   * Default value is 5
    */
-  readonly headSize = input<number>(10);
+  readonly headSize = input<number>(5);
 
   /**
    * Rotation angle in degrees for the arrow head
@@ -92,15 +112,32 @@ export class DiagramSVGArrowComponent {
 
   /**
    * The size of the arrow tail shape
-   * Default value is 10
+   * Default value is 5
    */
-  readonly tailSize = input<number>(10);
+  readonly tailSize = input<number>(5);
 
   /**
    * Rotation angle in degrees for the arrow tail
    * Default value is 0 (no rotation)
    */
   readonly tailRotate = input<number>(0);
+
+  readonly linePattern = input<LinePattern>(LinePattern.Line);
+
+  readonly strokeDashArray = computed(() => {
+    const pattern = this.linePattern();
+    const scale = this.viewportScale();
+    switch (pattern) {
+      case LinePattern.Line:
+        return undefined;
+      case LinePattern.Dashed:
+        return `${scale * 5} ${scale * 5}`;
+      case LinePattern.Dotted:
+        return `${scale * 2} ${scale * 2}`;
+      default:
+        return undefined;
+    }
+  });
 
   /**
    * Signal tracking the actual coordinates of each waypoint
@@ -111,13 +148,66 @@ export class DiagramSVGArrowComponent {
       switchMap((waypoints) =>
         combineLatest(
           waypoints.map((p) =>
-            this.waypointManager.monitorWaypoint(
-              p.areaID,
-              new DOMPoint(p.anchorX, p.anchorY),
-            ),
+            this.waypointManager
+              .monitorWaypoint(p.areaID, { x: p.anchorX, y: p.anchorY })
+              .pipe(
+                map(
+                  (calculatedPoint) =>
+                    ({
+                      current: calculatedPoint,
+                      config: p,
+                    }) as CalculatingWayPoint,
+                ),
+              ),
           ),
         ),
       ),
+      map((resolvedWaypoints) => {
+        const result = new Array<DOMPoint>(resolvedWaypoints.length);
+        resolvedWaypoints.forEach((v, i) => {
+          if (v.current.x === undefined || v.current.y === undefined) {
+            if (v.config.complementType === undefined) {
+              throw new Error(
+                'complement type must be specified when the coordinate complemented from the other',
+              );
+            }
+            if (
+              i === 0 &&
+              v.config.complementType === WaypointComplementType.Previous
+            ) {
+              throw new Error(
+                "the first waypoint requests complementing the coordinate with the previous value, but it doesn't exist",
+              );
+            }
+            if (
+              i === resolvedWaypoints.length - 1 &&
+              v.config.complementType === WaypointComplementType.Next
+            ) {
+              throw new Error(
+                "the last waypoint requests complementing the coordinate with the next value, but it doesn't exist",
+              );
+            }
+            const complementFrom =
+              v.config.complementType === WaypointComplementType.Previous
+                ? i - 1
+                : i + 1;
+            if (v.current.x === undefined) {
+              result[i] = new DOMPoint(
+                resolvedWaypoints[complementFrom].current.x,
+                v.current.y,
+              );
+            } else {
+              result[i] = new DOMPoint(
+                v.current.x,
+                resolvedWaypoints[complementFrom].current.y,
+              );
+            }
+          } else {
+            result[i] = new DOMPoint(v.current.x, v.current.y);
+          }
+        });
+        return result;
+      }),
     ),
   );
 
@@ -148,10 +238,10 @@ export class DiagramSVGArrowComponent {
   });
 
   /**
-   * Computed signal that determines the position of the arrow head
+   * Computed signal that determines the position of the arrow tail
    * Returns the first waypoint's coordinates or default point if none exist
    */
-  readonly headPosition = computed(() => {
+  readonly tailPosition = computed(() => {
     const waypoints = this.waypointCoordinates();
     if (!waypoints || waypoints.length === 0) {
       return new DOMPoint();
@@ -160,10 +250,10 @@ export class DiagramSVGArrowComponent {
   });
 
   /**
-   * Computed signal that determines the position of the arrow tail
+   * Computed signal that determines the position of the arrow head
    * Returns the last waypoint's coordinates or default point if none exist
    */
-  readonly tailPosition = computed(() => {
+  readonly headPosition = computed(() => {
     const waypoints = this.waypointCoordinates();
     if (!waypoints || waypoints.length === 0) {
       return new DOMPoint();
