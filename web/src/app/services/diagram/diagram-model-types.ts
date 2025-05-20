@@ -91,11 +91,19 @@ export const DiagramElementKindMap: Record<DiagramElementType, string> = {
   [DiagramElementType.Ingress]: 'Ingress',
 };
 
+export interface DiagramModel {
+  frames: DiagramFrame[];
+}
+
 /**
- * Main data model for the Kubernetes diagram
+ * Main data model for the Kubernetes diagram representing a single frame on the diagram.
  * Contains the complete structure of resources and their relationships
  */
-export interface DiagramModel {
+export interface DiagramFrame {
+  /**
+   * The timestamp of this frame.
+   */
+  ts: number;
   /**
    * Upper general kubernetes elements shown over node list.
    * Lists with lower index placed closer to the list of nodes.

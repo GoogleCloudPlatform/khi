@@ -1,0 +1,61 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="diagram-control-container">
+  <div class="time-display">
+    {{ formatTime(currentTime()) }}
+  </div>
+
+  <div class="controls">
+    <button
+      class="control-button previous"
+      (click)="onPreviousFrameClick()"
+      aria-label="Previous frame"
+    >
+      <span class="material-symbols-outlined">skip_previous</span>
+    </button>
+
+    <button
+      class="control-button play-pause"
+      (click)="onPlayPauseClick()"
+      aria-label="Play or pause"
+    >
+      <span class="material-symbols-outlined">
+        {{ animationPlaying() ? "pause" : "play_arrow" }}
+      </span>
+    </button>
+
+    <button
+      class="control-button next"
+      (click)="onNextFrameClick()"
+      aria-label="Next frame"
+    >
+      <span class="material-symbols-outlined">skip_next</span>
+    </button>
+  </div>
+
+  <div class="seekbar-container">
+    <input
+      type="range"
+      min="0"
+      [max]="maxFrameCount()"
+      [value]="currentTimePercentage()"
+      (input)="onSeekbarChange($event)"
+      class="seekbar"
+      aria-label="Timeline position"
+    />
+  </div>
+</div>

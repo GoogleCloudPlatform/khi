@@ -19,6 +19,7 @@ import {
   KHIWindowPacket,
   WindowConnectionProvider,
 } from './window-connector.service';
+import { environment } from 'src/environments/environment';
 
 const KHI_APPLICATION_TOKEN = 'kubernetes-history-inspector';
 
@@ -48,9 +49,17 @@ export class BroadcastChannelWindowConnectionProvider
       const data = message.data;
       this.messageReceiver.next(data);
     });
+    if (environment.debugInterWindowMessages) {
+      this.receive().subscribe((data) =>
+        console.debug('[received message]', data.type, data),
+      );
+    }
   }
 
   send(data: KHIWindowPacket<unknown>): void {
+    if (environment.debugInterWindowMessages) {
+      console.debug('[sending message]', data.type, data);
+    }
     this.channel.postMessage({
       packet: data,
       applicationToken: KHI_APPLICATION_TOKEN,

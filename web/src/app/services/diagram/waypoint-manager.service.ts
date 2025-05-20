@@ -50,7 +50,7 @@ export class WaypointManagerService {
   /**
    * monitorWaypoint get the observable to monitor a point at the specified area.
    * positionInArea is [0,1] normalized DOMPoint locates the relative location in the area. [0,0] means top left, [0,1] means bottom left for example.
-   * monitorWaypoint returns undefined for a dimention when the dimention in the gievn positionInArea is undefined. The coordinate would be determined regarding the other positions.
+   * monitorWaypoint returns undefined for a dimention when the dimention in the given positionInArea is undefined. The coordinate would be determined regarding the other positions.
    */
   monitorWaypoint(
     areaID: string,

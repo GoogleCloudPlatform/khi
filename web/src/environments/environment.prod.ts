@@ -18,6 +18,7 @@ import { PublicKHIExtension } from 'src/app/extensions/public/module';
 
 export const environment = {
   production: true,
+  debugInterWindowMessages: false,
   bugReportUrl:
     'https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue',
   documentUrl: 'https://github.com/GoogleCloudPlatform/khi',

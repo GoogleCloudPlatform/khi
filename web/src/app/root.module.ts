@@ -93,6 +93,7 @@ import {
   FILE_UPLOADER,
   KHIServerFileUploader,
 } from './dialogs/new-inspection/components/service/file-uploader';
+import { DiagramMessageServer } from './services/frame-connection/frames/diagram-message-server.service';
 
 @NgModule({
   declarations: [RootComponent],
@@ -117,6 +118,7 @@ import {
     ...ProgressDialogService.providers(),
     InspectionDataLoaderService,
     DiffPageDataSourceServer,
+    DiagramMessageServer,
     GraphPageDataSourceServer,
     GraphPageDataSource,
 
@@ -190,6 +192,7 @@ import {
   bootstrap: [RootComponent],
 })
 export class RootModule {
+  private readonly digramMessageServer = inject(DiagramMessageServer);
   constructor(
     injector: Injector,
     @Inject(EXTENSION_STORE) extensionStore: ExtensionStore,
@@ -206,5 +209,6 @@ export class RootModule {
       extension.initializeExtension(extensionStore);
     });
     notificationManager.initialize();
+    this.digramMessageServer.start();
   }
 }

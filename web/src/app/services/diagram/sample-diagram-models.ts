@@ -18,7 +18,7 @@ import {
   BasicDiagramNamespacedElement,
   ContainerDiagramElement,
   DiagramElementType,
-  DiagramModel,
+  DiagramFrame,
   DiagramPathType,
   NodeDiagramElement,
   PathElement,
@@ -314,7 +314,8 @@ const lowerPaths: PathElement[][] = [
 ];
 
 // Sample diagram model with hierarchical structure and connections
-export const SAMPLE_DIAGRAM: DiagramModel = {
+export const SAMPLE_DIAGRAM: DiagramFrame = {
+  ts: 0,
   // Upper tier (controllers)
   upper: [
     [webReplicaSet, cacheReplicaSet, dbStatefulSet], // Level 0: closest to nodes

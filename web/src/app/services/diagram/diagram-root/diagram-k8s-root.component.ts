@@ -15,7 +15,7 @@
  */
 
 import { Component, input } from '@angular/core';
-import { DiagramModel } from '../diagram-model-types';
+import { DiagramFrame } from '../diagram-model-types';
 import { DiagramNodeElementComponent } from '../diagram-element/diagram-node-element.component';
 import { DiagramGeneralK8sElementComponent } from '../diagram-element/diagram-general-k8s-element.component';
 import { DiagramPathSpacerComponent } from '../diagram-element/diagram-path-spacer.component';
@@ -42,5 +42,5 @@ export class DiagramK8sRootComponent {
    * The diagram data model to render
    * Contains Kubernetes resources organized in hierarchical tiers
    */
-  model = input.required<DiagramModel>();
+  model = input.required<DiagramFrame>();
 }

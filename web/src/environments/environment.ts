@@ -16,6 +16,7 @@
 
 export const environment = {
   production: false,
+  debugInterWindowMessages: false,
   bugReportUrl: '',
   documentUrl: '',
   pluginModules: [],

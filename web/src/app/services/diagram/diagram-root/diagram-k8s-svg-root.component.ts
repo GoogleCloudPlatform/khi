@@ -16,7 +16,7 @@
 
 import { Component, computed, input } from '@angular/core';
 import {
-  DiagramModel,
+  DiagramFrame,
   DiagramPathType,
   PathElement,
 } from '../diagram-model-types';
@@ -187,7 +187,7 @@ export class DiagramK8sSVGRootComponent {
   /**
    * The diagram model to render
    */
-  model = input.required<DiagramModel>();
+  model = input.required<DiagramFrame>();
 
   /**
    * Creates waypoints array for upper path elements

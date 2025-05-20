@@ -18,15 +18,25 @@
   <khi-title pageName="Diagram view">
     <khi-graph-menu></khi-graph-menu>
   </khi-title>
-  <diagram-viewport>
-    <diagram-k8s-root [model]="model()"></diagram-k8s-root>
-  </diagram-viewport>
-  <diagram-svg-viewport-overlay>
-    <svg:g diagram-k8s-svg-root [model]="model()"></svg:g>
-  </diagram-svg-viewport-overlay>
-  <div class="minimap-container">
-    <diagram-minimap [width]="300">
-      <diagram-k8s-root [model]="model()"></diagram-k8s-root>
-    </diagram-minimap>
-  </div>
+  @let current = currentFrame();
+  @if (!current) {
+    <p>
+      failed to load diagram data from the main page. try reloading the page.
+    </p>
+  } @else {
+    <diagram-viewport>
+      <diagram-k8s-root [model]="current"></diagram-k8s-root>
+    </diagram-viewport>
+    <diagram-svg-viewport-overlay>
+      <svg:g diagram-k8s-svg-root [model]="current"></svg:g>
+    </diagram-svg-viewport-overlay>
+    <div class="minimap-container">
+      <diagram-minimap [width]="300">
+        <diagram-k8s-root [model]="current"></diagram-k8s-root>
+      </diagram-minimap>
+    </div>
+    <div class="diagram-control">
+      <diagram-control></diagram-control>
+    </div>
+  }
 </div>

@@ -14,16 +14,26 @@
  * limitations under the License.
  */
 
+import { DiagramFrame } from 'src/app/services/diagram/diagram-model-types';
+import { KHIWindowRPCType } from 'src/app/services/frame-connection/window-connector.service';
 import { ResourceTimeline } from 'src/app/store/timeline';
 
-export const DIFF_PAGE_OPEN = 'DIFF_PAGE_OPEN';
 export const UPDATE_SELECTED_RESOURCE_MESSAGE_KEY = 'UPDATE_SELECTED_RESOURCE';
 export const UPDATE_GRAPH_DATA = 'UPDATE_GRAPH_DATA';
 export const GRAPH_PAGE_OPEN = 'GRAPH_PAGE_OPEN';
+
+/**
+ * A RPC to notify a diff page opened and obtain the resource information.
+ */
+export const DIFF_PAGE_OPEN = new KHIWindowRPCType<
+  object,
+  DiffPageOpenResponse
+>('DIFF_PAGE_OPEN');
+
 /**
  * Main window broadcast this message when another resource was selected.
  */
-export interface UpdateSelectedResourceMessage {
+export interface DiffPageOpenResponse {
   timeline: ResourceTimeline;
   logIndex: number;
 }
@@ -33,4 +43,41 @@ export interface UpdateSelectedResourceMessage {
 export interface DiffPageViewModel {
   timeline: ResourceTimeline;
   logIndex: number;
+}
+
+/**
+ * RPC type for getting metadata used in the diagram page.
+ * When no inspection data opened at the time, main page returns null.
+ */
+export const QUERY_CURRENT_INSPECTION_METADATA = new KHIWindowRPCType<
+  object,
+  QueryCurrentInspectionMetadataResponse | null
+>('QUERY_CURRENT_INSPECTION_DATA');
+
+export interface QueryCurrentInspectionMetadataResponse {
+  startTime: number;
+  endTime: number;
+}
+
+/**
+ * RPC type for getting the diagram model for specified time.
+ * Main page returns null when no inspection data opened at the time.
+ */
+export const QUERY_DIAGRAM_DATA = new KHIWindowRPCType<
+  QueryDiagramDataRequest,
+  QueryDiagramDataResponse | null
+>('QUERY_DIAGRAM_DATA');
+
+/**
+ * Request body type for QUERY_DIAGRAM_DATA message.
+ */
+export interface QueryDiagramDataRequest {
+  ts: number;
+}
+
+/**
+ * Response body type for QUERY_DIAGRAM_DATA message.
+ */
+export interface QueryDiagramDataResponse {
+  model: DiagramFrame;
 }

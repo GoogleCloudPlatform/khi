@@ -1,0 +1,117 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+.diagram-control-container
+  display: flex
+  flex-direction: column
+  align-items: center
+  background-color: rgba(245, 245, 245, 0.9)
+  border-radius: 4px
+  padding: 10px
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1)
+  width: 100%
+  max-width: 800px
+  margin: 0 auto
+
+.time-display
+  font-family: 'Roboto Mono', monospace
+  font-size: 14px
+  color: #333
+  margin-bottom: 10px
+  padding: 4px 8px
+  background-color: rgba(255, 255, 255, 0.8)
+  border-radius: 3px
+  min-width: 160px
+  text-align: center
+
+.controls
+  display: flex
+  justify-content: center
+  gap: 16px
+  margin: 5px 0
+  width: 100%
+
+  .control-button
+    display: flex
+    align-items: center
+    justify-content: center
+    width: 40px
+    height: 40px
+    background-color: #fff
+    border: 1px solid #ddd
+    border-radius: 50%
+    cursor: pointer
+    transition: all 0.2s ease
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1)
+    outline: none
+    
+    &:hover
+      background-color: #f5f5f5
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15)
+    
+    &:active
+      transform: scale(0.95)
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1)
+    
+    &.play-pause
+      width: 48px
+      height: 48px
+      background-color: #4285f4
+      color: white
+      
+      &:hover
+        background-color: #3b78e7
+      
+      .material-symbols-outlined
+        font-size: 24px
+    
+    &.previous, &.next
+      .material-symbols-outlined
+        font-size: 20px
+        color: #5f6368
+
+.seekbar-container
+  width: 100%
+  padding: 10px 0
+  margin-top: 5px
+
+.seekbar
+  -webkit-appearance: none
+  width: 100%
+  height: 6px
+  background: #ddd
+  outline: none
+  border-radius: 3px
+  
+  &::-webkit-slider-thumb
+    -webkit-appearance: none
+    appearance: none
+    width: 16px
+    height: 16px
+    border-radius: 50%
+    background: #4285f4
+    cursor: pointer
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2)
+  
+  &::-moz-range-thumb
+    width: 16px
+    height: 16px
+    border: none
+    border-radius: 50%
+    background: #4285f4
+    cursor: pointer
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2)

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, input } from '@angular/core';
+import { AfterViewInit, Component, inject } from '@angular/core';
 import { GraphMenuComponent } from 'src/app/header/graph-menu.component';
 import { TitleBarComponent } from 'src/app/header/titlebar.component';
 import { DiagramViewportComponent } from '../../services/diagram/diagram-viewport.component';
@@ -31,8 +31,9 @@ import { DiagramSVGViewportOverlayComponent } from '../../services/diagram/diagr
 import { WaypointManagerService } from 'src/app/services/diagram/waypoint-manager.service';
 import { DiagramK8sRootComponent } from '../../services/diagram/diagram-root/diagram-k8s-root.component';
 import { DiagramK8sSVGRootComponent } from 'src/app/services/diagram/diagram-root/diagram-k8s-svg-root.component';
-import { DiagramModel } from 'src/app/services/diagram/diagram-model-types';
-import { SAMPLE_DIAGRAM } from 'src/app/services/diagram/sample-diagram-models';
+import { DiagramControlComponent } from 'src/app/services/diagram/diagram-control/diagram-control.component';
+import { DiagramModelFrameStore } from 'src/app/services/diagram/diagram-model-frame-store';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'graph-root',
@@ -47,9 +48,12 @@ import { SAMPLE_DIAGRAM } from 'src/app/services/diagram/sample-diagram-models';
     DiagramSVGViewportOverlayComponent,
     DiagramK8sRootComponent,
     DiagramK8sSVGRootComponent,
+    DiagramControlComponent,
   ],
   providers: [
     DiagramViewportService,
+    DiagramModelFrameStore,
+    WaypointManagerService,
     {
       provide: DIAGRAM_ELEMENT_ROLE,
       useValue: DiagramElementRole.Content,
@@ -58,12 +62,14 @@ import { SAMPLE_DIAGRAM } from 'src/app/services/diagram/sample-diagram-models';
       provide: MAX_LOD,
       useValue: LOD.UNLIMITED,
     },
-    {
-      provide: WaypointManagerService,
-      useClass: WaypointManagerService,
-    },
   ],
 })
-export class GraphComponent {
-  model = input<DiagramModel>(SAMPLE_DIAGRAM);
+export class GraphComponent implements AfterViewInit {
+  diagramModelFrameStore = inject(DiagramModelFrameStore);
+
+  currentFrame = toSignal(this.diagramModelFrameStore.currentDiagramFrame);
+
+  ngAfterViewInit(): void {
+    this.diagramModelFrameStore.requestDiagramModel(100);
+  }
 }

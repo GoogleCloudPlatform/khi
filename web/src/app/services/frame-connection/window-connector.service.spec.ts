@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+import { delay, firstValueFrom, of, toArray } from 'rxjs';
 import { InMemoryWindowConnectionProvider } from './window-connection-provider.service';
 import {
   KHIWindowPacket,
+  KHIWindowRPCType,
   WindowConnectorService,
 } from './window-connector.service';
 
@@ -110,5 +112,31 @@ describe('WindowConnectorService', () => {
 
     expect(connector1Packets.length).toBe(0);
     expect(connector2Packets.length).toBe(0);
+  });
+
+  it('should successfully call remote procedure and get response', async () => {
+    const connectionProvider = new InMemoryWindowConnectionProvider();
+
+    const serverConnector = new WindowConnectorService(connectionProvider);
+    await serverConnector.createSession(1);
+    const calculateSumRPCKey = new KHIWindowRPCType<
+      { a: number; b: number },
+      number
+    >('calculate-sum');
+
+    serverConnector.serveRPC(calculateSumRPCKey, (req) => {
+      return of(req.a + req.b).pipe(delay(300));
+    });
+
+    const clientConnector = new WindowConnectorService(connectionProvider);
+    await clientConnector.joinSession(1, 'Diagram');
+
+    const results = await firstValueFrom(
+      clientConnector
+        .callRPC(calculateSumRPCKey, { a: 5, b: 3 })
+        .pipe(toArray()),
+    );
+
+    expect(results).toEqual([8]);
   });
 });
