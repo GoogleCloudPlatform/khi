@@ -17,9 +17,8 @@ package apacheairflow
 import (
 	"testing"
 
-	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/stretchr/testify/assert"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -109,7 +108,7 @@ func TestAirflowSchedulerParser(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(subt *testing.T) {
-			entity := log_test.MustLogEntity(test.text)
+			entity := testlog.MustLogFromYAML(test.text)
 			if entity == nil {
 				t.Fatalf("entity is nil")
 			}

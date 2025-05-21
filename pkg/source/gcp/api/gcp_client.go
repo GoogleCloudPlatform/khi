@@ -29,7 +29,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
 
 var ErrorRateLimitExceeds = errors.New("ratelimit exceeds. retry it later")
@@ -596,7 +598,7 @@ func (c *GCPClientImpl) ListRegions(ctx context.Context, projectId string) ([]st
 /**
  * Query logs with specified filter
  */
-func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan any) error {
+func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan *log.Log) error {
 	type logEntriesListRequest struct {
 		ResourceNames []string `json:"resourceNames"`
 		Filter        string   `json:"filter"`
@@ -604,12 +606,6 @@ func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []stri
 		PageSize      int64    `json:"pageSize"`
 		PageToken     string   `json:"pageToken,omitempty"`
 	}
-
-	type logEntriesListResponse struct {
-		Entries       []any  `json:"entries"`
-		NextPageToken string `json:"nextPageToken"`
-	}
-
 	defer close(logSink)
 
 	ENDPOINT := "https://logging.googleapis.com/v2/entries:list"
@@ -641,26 +637,40 @@ func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []stri
 			if err != nil {
 				return err
 			}
-			client := httpclient.NewJsonResponseHttpClient[logEntriesListResponse](c.BaseClient)
-			response, httpResponse, err := client.DoWithContext(ctx, req)
-			if httpResponse != nil && httpResponse.Body != nil {
-				defer httpResponse.Body.Close()
-			}
+			httpResponse, err := c.BaseClient.DoWithContext(ctx, req)
 			if err != nil {
 				if httpResponse != nil {
 					slog.ErrorContext(ctx, fmt.Sprintf("Unretriable error found: %d:%s", httpResponse.StatusCode, httpResponse.Status))
+					httpResponse.Body.Close()
 				}
 				return err
 			}
-			for _, entry := range response.Entries {
-				logSink <- entry
+			defer httpResponse.Body.Close()
+			rawResponse, err := io.ReadAll(httpResponse.Body)
+			if err != nil {
+				return err
 			}
 
-			if response.NextPageToken == "" {
+			yamlNode, err := structurev2.FromYAML(string(rawResponse))
+			if err != nil {
+				return fmt.Errorf("failed to parse a log as YAML. %s", err.Error())
+			}
+			responseYAMLNodeReader := structurev2.NewNodeReader(yamlNode)
+			entriesReader, err := responseYAMLNodeReader.GetReader("entries")
+			if err != nil {
 				queryEnd = true
 				break
 			}
-			nextPageToken = response.NextPageToken
+
+			for _, yamlNode := range entriesReader.Children() {
+				logSink <- log.NewLog(&yamlNode)
+			}
+
+			nextPageToken, err = responseYAMLNodeReader.ReadString("nextPageToken")
+			if err != nil {
+				queryEnd = true
+				break
+			}
 			pageCount += 1
 		}
 		if queryEnd {

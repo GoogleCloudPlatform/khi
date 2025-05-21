@@ -18,6 +18,7 @@ import (
 	"errors"
 	"strconv"
 	"time"
+	"unique"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,6 +26,16 @@ import (
 var ErrMultipleDocumentNodeFound = errors.New("multiple document node found in a yaml. FromYAML only supports a single document node")
 var ErrAliasNodeNotSupported = errors.New("alias node is not supported in a yaml. FromYAML does not support alias node")
 var ErrUnknownYAMLNodeKind = errors.New("unknown yaml node kind")
+
+const (
+	// Subset of YAML tags needed to identify its scalar type.
+	yamlTagNull      = "!!null"
+	yamlTagBool      = "!!bool"
+	yamlTagString    = "!!str"
+	yamlTagInt       = "!!int"
+	yamlTagFloat     = "!!float"
+	yamlTagTimestamp = "!!timestamp"
+)
 
 func FromYAML(yamlStr string) (Node, error) {
 	// Parse yaml string as yaml.Node instead of `any` type to keep the order of the map keys in the original YAML.
@@ -58,7 +69,7 @@ func fromYAMLNode(node *yaml.Node) (Node, error) {
 }
 
 func fromSequenceYAMLNode(node *yaml.Node) (Node, error) {
-	children := []Node{}
+	children := make([]Node, 0, len(node.Content))
 	for _, content := range node.Content {
 		child, err := fromYAMLNode(content)
 		if err != nil {
@@ -70,55 +81,57 @@ func fromSequenceYAMLNode(node *yaml.Node) (Node, error) {
 }
 
 func fromMappingYAMLNode(node *yaml.Node) (Node, error) {
-	keys := []string{}
-	values := []Node{}
+	result := &StandardMapNode{
+		keys:   make([]unique.Handle[string], 0, len(node.Content)/2),
+		values: make([]Node, 0, len(node.Content)/2),
+	}
 	for i, content := range node.Content {
 		if i%2 == 0 { // yaml.Node holds its map key-values as the sequence of a structure like key1,value1,key2,value2,...etc
-			keys = append(keys, content.Value)
+			result.keys = append(result.keys, unique.Make(content.Value))
 		} else {
 			child, err := fromYAMLNode(content)
 			if err != nil {
 				return nil, err
 			}
-			values = append(values, child)
+			result.values = append(result.values, child)
 		}
 	}
-	return &StandardMapNode{keys: keys, values: values}, nil
+	return result, nil
 }
 
 func fromScalarYAMLNode(node *yaml.Node) (Node, error) {
 	// Scalar yaml.Node holds its value as string but Tag field contains its type.
 	// https://github.com/go-yaml/yaml/blob/944c86a7d29391925ed6ac33bee98a0516f1287a/resolve.go#L71-L80
 	switch node.Tag {
-	case "!!null":
-		return &StandardScalarNode[any]{value: nil}, nil
-	case "!!bool":
+	case yamlTagNull:
+		return NewStandardScalarNode[any](nil), nil
+	case yamlTagBool:
 		boolValue, err := strconv.ParseBool(node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[bool]{value: boolValue}, nil
-	case "!!str":
-		return &StandardScalarNode[string]{value: node.Value}, nil
-	case "!!int":
+		return NewStandardScalarNode(boolValue), nil
+	case yamlTagString:
+		return NewStandardScalarNode(node.Value), nil
+	case yamlTagInt:
 		intValue, err := strconv.Atoi(node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[int]{value: intValue}, nil
-	case "!!float":
+		return NewStandardScalarNode(intValue), nil
+	case yamlTagFloat:
 		floatValue, err := strconv.ParseFloat(node.Value, 64)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[float64]{value: floatValue}, nil
-	case "!!timestamp":
+		return NewStandardScalarNode(floatValue), nil
+	case yamlTagTimestamp:
 		timestampValue, err := time.Parse(time.RFC3339, node.Value)
 		if err != nil {
 			return nil, err
 		}
-		return &StandardScalarNode[time.Time]{value: timestampValue}, nil
+		return NewStandardScalarNode(timestampValue), nil
 	default:
-		return &StandardScalarNode[string]{value: node.Value}, nil
+		return NewStandardScalarNode(node.Value), nil
 	}
 }

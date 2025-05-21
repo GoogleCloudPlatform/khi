@@ -1,16 +1,16 @@
 config:
-  loggingConfig: {}
-  machineType: e2-standard-8
-  oauthScopes:
-  - https://www.googleapis.com/auth/cloud-platform
+    loggingConfig: {}
+    machineType: e2-standard-8
+    oauthScopes:
+        - https://www.googleapis.com/auth/cloud-platform
 initialNodeCount: 3
 locations:
-- us-central1-a
+    - us-central1-a
 management:
-  autoRepair: true
+    autoRepair: true
 name: default
 networkConfig: {}
 upgradeSettings:
-  maxSurge: 1
-  strategy: SURGE
+    maxSurge: 1
+    strategy: SURGE
 version: 1.29.6

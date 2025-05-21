@@ -54,17 +54,17 @@ func (o *OSSK8sEventFromK8sAudit) Grouper() grouper.LogGrouper {
 }
 
 // LogTask implements parser.Parser.
-func (o *OSSK8sEventFromK8sAudit) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (o *OSSK8sEventFromK8sAudit) LogTask() taskid.TaskReference[[]*log.Log] {
 	return oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID.Ref()
 }
 
 // Parse implements parser.Parser.
-func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	apiVersion := l.Fields.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "core/v1")
-	kind := strings.ToLower(l.Fields.ReadStringOrDefault("responseObject.involvedObject.kind", "unknown"))
-	namespace := l.Fields.ReadStringOrDefault("responseObject.involvedObject.namespace", "cluster-scope")
-	name := l.Fields.ReadStringOrDefault("responseObject.involvedObject.name", "unknown")
-	subresource := l.Fields.ReadStringOrDefault("responseObject.involvedObject.subresource", "")
+func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	apiVersion := l.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "core/v1")
+	kind := strings.ToLower(l.ReadStringOrDefault("responseObject.involvedObject.kind", "unknown"))
+	namespace := l.ReadStringOrDefault("responseObject.involvedObject.namespace", "cluster-scope")
+	name := l.ReadStringOrDefault("responseObject.involvedObject.name", "unknown")
+	subresource := l.ReadStringOrDefault("responseObject.involvedObject.subresource", "")
 
 	if subresource == "" {
 		cs.RecordEvent(resourcepath.NameLayerGeneralItem(apiVersion, kind, namespace, name))
@@ -72,8 +72,8 @@ func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.LogEntity, c
 		cs.RecordEvent(resourcepath.SubresourceLayerGeneralItem(apiVersion, kind, namespace, name, subresource))
 	}
 
-	reason := l.Fields.ReadStringOrDefault("responseObject.reason", "???")
-	message := l.Fields.ReadStringOrDefault("responseObject.message", "")
+	reason := l.ReadStringOrDefault("responseObject.reason", "???")
+	message := l.ReadStringOrDefault("responseObject.message", "")
 	cs.RecordLogSummary(fmt.Sprintf("【%s】%s", reason, message))
 	return nil
 }

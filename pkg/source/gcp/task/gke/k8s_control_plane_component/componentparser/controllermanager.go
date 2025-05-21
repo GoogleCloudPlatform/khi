@@ -62,11 +62,9 @@ var kindToKLogFieldPairs = []*KindToKlogFieldPairData{
 type ControllerManagerComponentParser struct{}
 
 // Process implements ControlPlaneComponentParser.
-func (c *ControllerManagerComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
-	mainMsg, err := l.MainMessage()
-	if err != nil {
-		mainMsg = ""
-	}
+func (c *ControllerManagerComponentParser) Process(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+	mainMsg := mainMessageFieldSet.MainMessage
 	// Event logs emitted from controller manager
 	// The event message could start from Event occurred" or "Event occurred"
 	if strings.HasPrefix(strings.TrimPrefix(mainMsg, "\""), "Event occurred\"") {
@@ -97,16 +95,17 @@ func (c *ControllerManagerComponentParser) ShouldProcess(component_name string) 
 
 var _ ControlPlaneComponentParser = (*ControllerManagerComponentParser)(nil)
 
-func (*ControllerManagerComponentParser) kindLogToResourcePath(ctx context.Context, l *log.LogEntity) (resourcepath.ResourcePath, error) {
-	if !l.HasKLogField("kind") {
+func (*ControllerManagerComponentParser) kindLogToResourcePath(ctx context.Context, l *log.Log) (resourcepath.ResourcePath, error) {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+	if !mainMessageFieldSet.HasKLogField("kind") {
 		return resourcepath.ResourcePath{}, fmt.Errorf("kind field wasn't found from the log")
 	}
-	kind, err := l.KLogField("kind")
+	kind, err := mainMessageFieldSet.KLogField("kind")
 	if err != nil {
 		return resourcepath.ResourcePath{}, fmt.Errorf("kind field not found from the log")
 	}
 	kind = strings.ToLower(kind)
-	key, err := l.KLogField("key")
+	key, err := mainMessageFieldSet.KLogField("key")
 	if err != nil || key == "" {
 		return resourcepath.ResourcePath{}, fmt.Errorf("key field not found from the log")
 	}
@@ -129,10 +128,11 @@ func (*ControllerManagerComponentParser) kindLogToResourcePath(ctx context.Conte
 
 // controllerLogToResourcePath returns the list of resource path parsed by controller specific klog parser
 // Example format: "Too few replicas" replicaSet="kube-system/kube-dns-68b67b4c6f" need=2 creating=1
-func (*ControllerManagerComponentParser) controllerLogToResourcePath(l *log.LogEntity) ([]resourcepath.ResourcePath, error) {
+func (*ControllerManagerComponentParser) controllerLogToResourcePath(l *log.Log) ([]resourcepath.ResourcePath, error) {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 	result := []resourcepath.ResourcePath{}
 	for _, pair := range kindToKLogFieldPairs {
-		field, err := l.KLogField(pair.KLogField)
+		field, err := mainMessageFieldSet.KLogField(pair.KLogField)
 		if err != nil || field == "" {
 			continue
 		}
@@ -151,10 +151,11 @@ func (*ControllerManagerComponentParser) controllerLogToResourcePath(l *log.LogE
 
 // eventLogToResourcePath returns the resource path with checking fields in KLog format of the given log entry.
 // Example format: "Event occurred" object="gmp-system/collector" fieldPath="" kind="DaemonSet" apiVersion="apps/v1" type="Normal" reason="SuccessfulCreate" message="Created pod: collector-fwbmm"
-func (*ControllerManagerComponentParser) eventLogToResourcePath(l *log.LogEntity) (resourcepath.ResourcePath, error) {
+func (*ControllerManagerComponentParser) eventLogToResourcePath(l *log.Log) (resourcepath.ResourcePath, error) {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 	var namespace string
 	var name string
-	obj, err := l.KLogField("object")
+	obj, err := mainMessageFieldSet.KLogField("object")
 	if err != nil || obj == "" {
 		return resourcepath.ResourcePath{}, fmt.Errorf("failed to read object from klog")
 	}
@@ -166,11 +167,11 @@ func (*ControllerManagerComponentParser) eventLogToResourcePath(l *log.LogEntity
 		namespace = "cluster-scope"
 		name = obj
 	}
-	kind, err := l.KLogField("kind")
+	kind, err := mainMessageFieldSet.KLogField("kind")
 	if err != nil || kind == "" {
 		return resourcepath.ResourcePath{}, fmt.Errorf("failed to read kind from klog")
 	}
-	apiVersion, err := l.KLogField("apiVersion")
+	apiVersion, err := mainMessageFieldSet.KLogField("apiVersion")
 	if err != nil || apiVersion == "" {
 		return resourcepath.ResourcePath{}, fmt.Errorf("failed to read apiVersion from klog")
 	}

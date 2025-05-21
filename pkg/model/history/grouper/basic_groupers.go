@@ -19,16 +19,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
 
-var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.LogEntity, string](func(log *log.LogEntity) string {
-	return log.ID()
+var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper(func(l *log.Log) string {
+	return l.ID
 })
 
-var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper[*log.LogEntity, string](func(log *log.LogEntity) string {
+var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper(func(log *log.Log) string {
 	return ""
 })
 
 func NewSingleStringFieldKeyLogGrouper(keyPath string) LogGrouper {
-	return common_grouper.NewBasicGrouper[*log.LogEntity, string](func(log *log.LogEntity) string {
-		return log.GetStringOrDefault(keyPath, "")
+	return common_grouper.NewBasicGrouper(func(log *log.Log) string {
+		return log.ReadStringOrDefault(keyPath, "")
 	})
 }

@@ -26,9 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser/yaml/yamlutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
@@ -53,11 +50,11 @@ func NewParallelQueryWorker(pool *worker.Pool, apiClient api.GCPClient, baseQuer
 	}
 }
 
-func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structure.ReaderFactory, resourceNames []string, progress *progress.TaskProgress) ([]*log.LogEntity, error) {
+func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *progress.TaskProgress) ([]*log.Log, error) {
 	timeSegments := divideTimeSegments(p.startTime, p.endTime, p.workerCount)
 	percentages := make([]float32, p.workerCount)
-	logSink := make(chan *log.LogEntity)
-	logEntries := []*log.LogEntity{}
+	logSink := make(chan *log.Log)
+	logEntries := []*log.Log{}
 	wg := sync.WaitGroup{}
 	queryStartTime := time.Now()
 	threadCount := atomic.Int32{}
@@ -97,7 +94,7 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 		end := timeSegments[i+1]
 		includeEnd := i == len(timeSegments)-1
 		query := fmt.Sprintf("%s\n%s", p.baseQuery, TimeRangeQuerySection(begin, end, includeEnd))
-		subLogSink := make(chan any)
+		subLogSink := make(chan *log.Log)
 		wg.Add(1)
 		p.pool.Run(func() {
 			defer wg.Done()
@@ -109,22 +106,24 @@ func (p *ParallelQueryWorker) Query(ctx context.Context, readerFactory *structur
 					cancel(err)
 				}
 			}()
-			for logEntryAny := range subLogSink {
-				yamlString, err := yamlutil.MarshalToYamlString(logEntryAny)
+			for l := range subLogSink {
+				err := l.SetFieldSetReader(&gcp_log.GCPCommonFieldSetReader{})
 				if err != nil {
-					slog.WarnContext(ctx, "failed to parse a log as YAML. Skipping.")
+					slog.WarnContext(ctx, fmt.Sprintf("failed to read CommonFieldSet from obtained log %s", err.Error()))
 					continue
 				}
-				logReader, err := readerFactory.NewReader(adapter.Yaml(yamlString))
+				err = l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
 				if err != nil {
-					slog.WarnContext(ctx, fmt.Sprintf("failed to create reader for log entry\n%s", err))
+					slog.WarnContext(ctx, fmt.Sprintf("failed to read MainMessageFieldSet from obtained log %s", err.Error()))
 					continue
 				}
-				commonLogFieldCache := log.NewCachedLogFieldExtractor(gcp_log.GCPCommonFieldExtractor{})
-				commonLogFieldCache.SetLogBodyCacheDirect(yamlString)
-				logEntry := log.NewLogEntity(logReader, commonLogFieldCache)
-				percentages[workerIndex] = float32(logEntry.Timestamp().Sub(begin)) / float32(end.Sub(begin))
-				logSink <- logEntry
+				commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+				if err != nil {
+					slog.WarnContext(ctx, fmt.Sprintf("failed to read GCPCommonFieldSet from obtained log %s", err.Error()))
+					continue
+				}
+				percentages[workerIndex] = float32(commonFieldSet.Timestamp.Sub(begin)) / float32(end.Sub(begin))
+				logSink <- l
 			}
 			percentages[workerIndex] = 1
 			threadCount.Add(-1)
