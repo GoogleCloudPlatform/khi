@@ -46,7 +46,7 @@ complex:
 		t.Fatalf("Failed to parse YAML: %v", err)
 	}
 
-	reader := &NodeReader{node: node}
+	reader := &NodeReader{Node: node}
 
 	t.Run("ReadString", func(t *testing.T) {
 		value, err := reader.ReadString("string_value")

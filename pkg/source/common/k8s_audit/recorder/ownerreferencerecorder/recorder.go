@@ -37,11 +37,11 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *types.
 	if !log.ResourceBodyReader.Has("metadata.ownerReferences") {
 		return nil
 	}
-	ownerReferencesReaders, err := log.ResourceBodyReader.Reader("metadata.ownerReferences[]")
+	ownerReferencesReaders, err := log.ResourceBodyReader.GetReader("metadata.ownerReferences")
 	if err != nil {
 		return nil
 	}
-	for _, referenceReader := range ownerReferencesReaders {
+	for _, referenceReader := range ownerReferencesReaders.Children() {
 		kind, err := referenceReader.ReadString("kind")
 		if err != nil {
 			continue

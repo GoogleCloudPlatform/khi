@@ -31,7 +31,7 @@ var ErrParserNoMatchingWithLog = errors.New("Parser didn't match with the given 
 type SchedulerComponentParser struct{}
 
 // Process implements ControlPlaneComponentParser.
-func (s *SchedulerComponentParser) Process(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
+func (s *SchedulerComponentParser) Process(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
 	path, err := s.podRelatedLogsToResourcePath(ctx, l)
 	if err == nil {
 		cs.RecordEvent(path)
@@ -44,10 +44,11 @@ func (s *SchedulerComponentParser) ShouldProcess(component_name string) bool {
 	return component_name == "scheduler"
 }
 
-func (s *SchedulerComponentParser) podRelatedLogsToResourcePath(ctx context.Context, l *log.LogEntity) (resourcepath.ResourcePath, error) {
-	hasPodField := l.HasKLogField("pod")
+func (s *SchedulerComponentParser) podRelatedLogsToResourcePath(ctx context.Context, l *log.Log) (resourcepath.ResourcePath, error) {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+	hasPodField := mainMessageFieldSet.HasKLogField("pod")
 	if hasPodField {
-		pod, err := l.KLogField("pod")
+		pod, err := mainMessageFieldSet.KLogField("pod")
 		if err != nil {
 			return resourcepath.ResourcePath{}, ErrParserNoMatchingWithLog
 		}

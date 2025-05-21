@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -26,20 +26,20 @@ import (
 func TestAllDependentLogGrouper(t *testing.T) {
 	tests := []struct {
 		name     string
-		logs     []*log.LogEntity
+		logs     []*log.Log
 		wantKeys map[string]struct{}
 	}{
 		{
 			name:     "empty logs",
-			logs:     []*log.LogEntity{},
+			logs:     []*log.Log{},
 			wantKeys: map[string]struct{}{},
 		},
 		{
 			name: "simple case",
-			logs: []*log.LogEntity{
-				log_test.MockLogWithId("id1"),
-				log_test.MockLogWithId("id2"),
-				log_test.MockLogWithId("id3"),
+			logs: []*log.Log{
+				testlog.NewEmptyLogWithID("id1"),
+				testlog.NewEmptyLogWithID("id2"),
+				testlog.NewEmptyLogWithID("id3"),
 			},
 			wantKeys: map[string]struct{}{
 				"": {},
@@ -66,20 +66,20 @@ func TestAllDependentLogGrouper(t *testing.T) {
 func TestAllIndependentLogGrouper(t *testing.T) {
 	tests := []struct {
 		name     string
-		logs     []*log.LogEntity
+		logs     []*log.Log
 		wantKeys map[string]struct{}
 	}{
 		{
 			name:     "empty logs",
-			logs:     []*log.LogEntity{},
+			logs:     []*log.Log{},
 			wantKeys: map[string]struct{}{},
 		},
 		{
 			name: "simple case",
-			logs: []*log.LogEntity{
-				log_test.MockLogWithId("id1"),
-				log_test.MockLogWithId("id2"),
-				log_test.MockLogWithId("id3"),
+			logs: []*log.Log{
+				testlog.NewEmptyLogWithID("id1"),
+				testlog.NewEmptyLogWithID("id2"),
+				testlog.NewEmptyLogWithID("id3"),
 			},
 			wantKeys: map[string]struct{}{
 				"id1": {},
@@ -108,20 +108,20 @@ func TestAllIndependentLogGrouper(t *testing.T) {
 func TestSingleStringFieldKeyLogGrouper(t *testing.T) {
 	tests := []struct {
 		name     string
-		logs     []*log.LogEntity
+		logs     []*log.Log
 		wantKeys map[string]struct{}
 	}{
 		{
 			name:     "empty logs",
-			logs:     []*log.LogEntity{},
+			logs:     []*log.Log{},
 			wantKeys: map[string]struct{}{},
 		},
 		{
 			name: "multiple logs",
-			logs: []*log.LogEntity{
-				log_test.MustLogEntity("textPayload: log message 1\nkey: groupA"),
-				log_test.MustLogEntity("textPayload: log message 2\nkey: groupB"),
-				log_test.MustLogEntity("textPayload: log message 3\nkey: groupA"),
+			logs: []*log.Log{
+				testlog.MustLogFromYAML("textPayload: log message 1\nkey: groupA"),
+				testlog.MustLogFromYAML("textPayload: log message 2\nkey: groupB"),
+				testlog.MustLogFromYAML("textPayload: log message 3\nkey: groupA"),
 			},
 			wantKeys: map[string]struct{}{
 				"groupA": {},

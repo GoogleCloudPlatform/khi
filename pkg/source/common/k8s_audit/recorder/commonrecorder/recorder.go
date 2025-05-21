@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -46,27 +47,28 @@ func Register(manager *recorder.RecorderTaskManager) error {
 	return nil
 }
 
-func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevState *commonRecorderStatus, log *types.AuditLogParserInput, cs *history.ChangeSet) (*commonRecorderStatus, error) {
-	resourcePath := resourcepath.FromK8sOperation(*log.Operation)
-	if log.IsErrorResponse {
+func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevState *commonRecorderStatus, l *types.AuditLogParserInput, cs *history.ChangeSet) (*commonRecorderStatus, error) {
+	commonField := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
+	resourcePath := resourcepath.FromK8sOperation(*l.Operation)
+	if l.IsErrorResponse {
 		cs.RecordEvent(resourcePath)
 		cs.RecordLogSeverity(enum.SeverityError)
-		cs.RecordLogSummary(fmt.Sprintf("【%s】%s", log.ResponseErrorMessage, log.RequestTarget))
+		cs.RecordLogSummary(fmt.Sprintf("【%s】%s", l.ResponseErrorMessage, l.RequestTarget))
 		return prevState, nil
 	}
-	if !log.GeneratedFromDeleteCollectionOperation {
-		logSummary := fmt.Sprintf("%s on %s.%s.%s(%s in %s)", enum.RevisionVerbs[log.Operation.Verb].Label, log.Operation.Namespace, log.Operation.Name, log.Operation.SubResourceName, log.Operation.PluralKind, log.Operation.APIVersion)
+	if !l.GeneratedFromDeleteCollectionOperation {
+		logSummary := fmt.Sprintf("%s on %s.%s.%s(%s in %s)", enum.RevisionVerbs[l.Operation.Verb].Label, l.Operation.Namespace, l.Operation.Name, l.Operation.SubResourceName, l.Operation.PluralKind, l.Operation.APIVersion)
 		cs.RecordLogSummary(logSummary)
 	}
 
-	if log.Operation.Verb == enum.RevisionVerbDeleteCollection {
+	if l.Operation.Verb == enum.RevisionVerbDeleteCollection {
 		return prevState, nil
 	}
 
 	if prevState.IsFirstRevision {
-		creationTime := manifestutil.ParseCreationTime(log.ResourceBodyReader, log.Log.Timestamp())
+		creationTime := manifestutil.ParseCreationTime(l.ResourceBodyReader, commonField.Timestamp)
 		minimumDeltaToRecordInferredRevision := time.Second * 10
-		if log.Log.Timestamp().Sub(creationTime) > minimumDeltaToRecordInferredRevision {
+		if commonField.Timestamp.Sub(creationTime) > minimumDeltaToRecordInferredRevision {
 			cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
 				Verb: enum.RevisionVerbCreate,
 				Body: `# Resource existence is inferred from '.metadata.creationTimestamp' of later logs.
@@ -80,7 +82,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevS
 		}
 	}
 
-	deletionStatus := manifestutil.ParseDeletionStatus(ctx, log.ResourceBodyReader, log.Operation)
+	deletionStatus := manifestutil.ParseDeletionStatus(ctx, l.ResourceBodyReader, l.Operation)
 	state := enum.RevisionStateExisting
 	if deletionStatus == manifestutil.DeletionStatusDeleting {
 		state = enum.RevisionStateDeleting
@@ -88,11 +90,11 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevS
 		state = enum.RevisionStateDeleted
 	}
 	cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
-		Verb:       log.Operation.Verb,
-		Body:       log.ResourceBodyYaml,
+		Verb:       l.Operation.Verb,
+		Body:       l.ResourceBodyYaml,
 		Partial:    false,
-		Requestor:  log.Requestor,
-		ChangeTime: log.Log.Timestamp(),
+		Requestor:  l.Requestor,
+		ChangeTime: commonField.Timestamp,
 		State:      state,
 	})
 

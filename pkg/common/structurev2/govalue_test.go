@@ -188,7 +188,7 @@ func TestAlphabeticalGoMapKeyOrderProvider(t *testing.T) {
 		"b": 2,
 	}
 
-	keys, err := provider.GetOrderedKeys("test.path", input)
+	keys, err := provider.GetOrderedKeys([]string{"test", "path"}, input)
 
 	if err != nil {
 		t.Fatalf("GetOrderedKeys returned error: %v", err)
@@ -207,39 +207,6 @@ func TestAlphabeticalGoMapKeyOrderProvider(t *testing.T) {
 
 		if keys[i] != expectedKey {
 			t.Errorf("Expected key %q at index %d, got %q", expectedKey, i, keys[i])
-		}
-	}
-}
-
-func TestAppendPath(t *testing.T) {
-	testCases := []struct {
-		base      string
-		nextLayer string
-		expected  string
-	}{
-		{
-			base:      "",
-			nextLayer: "key",
-			expected:  ".key",
-		},
-		{
-			base:      "base",
-			nextLayer: "key",
-			expected:  "base.key",
-		},
-		{
-			base:      "base",
-			nextLayer: "key.with.dots",
-			expected:  "base.key\\.with\\.dots",
-		},
-	}
-
-	for _, tc := range testCases {
-		result := appendPath(tc.base, tc.nextLayer)
-
-		if result != tc.expected {
-			t.Errorf("appendPath(%q, %q) = %q, expected %q",
-				tc.base, tc.nextLayer, result, tc.expected)
 		}
 	}
 }

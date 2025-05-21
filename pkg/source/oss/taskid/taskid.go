@@ -26,9 +26,9 @@ const OSSTaskPrefix = "khi.google.com/oss/"
 
 var OSSK8sAuditLogSourceTaskID = taskid.NewImplementationID(common_k8saudit_taskid.CommonAuitLogSource, "oss")
 var OSSAPIServerAuditLogFileInputTask = taskid.NewDefaultImplementationID[upload.UploadResult](OSSTaskPrefix + "form/kube-apiserver-audit-log-files")
-var OSSAPIServerAuditLogFileReader = taskid.NewDefaultImplementationID[[]*log.LogEntity](OSSTaskPrefix + "log-reader")
-var OSSAPIServerAuditLogFilterAuditTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](OSSTaskPrefix + "log-filter/audit")
-var OSSAPIServerAuditLogFilterNonAuditTaskID = taskid.NewDefaultImplementationID[[]*log.LogEntity](OSSTaskPrefix + "log-filter/non-audit")
-var OSSAuditLogFileReader = taskid.NewDefaultImplementationID[[]*log.LogEntity](OSSTaskPrefix + "log-reader")
+var OSSAPIServerAuditLogFileReader = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-reader")
+var OSSAPIServerAuditLogFilterAuditTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-filter/audit")
+var OSSAPIServerAuditLogFilterNonAuditTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-filter/non-audit")
+var OSSAuditLogFileReader = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-reader")
 var OSSK8sAuditLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "audit-parser")
 var OSSK8sEventLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-parser")

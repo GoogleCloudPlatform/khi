@@ -16,22 +16,48 @@ package history
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
+
+type testCommonFieldSetReader struct {
+}
+
+// FieldSetKind implements log.FieldSetReader.
+func (t *testCommonFieldSetReader) FieldSetKind() string {
+	return (&log.CommonFieldSet{}).Kind()
+}
+
+// Read implements log.FieldSetReader.
+func (t *testCommonFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
+	result := &log.CommonFieldSet{}
+	result.DisplayID = reader.ReadStringOrDefault("insertId", "unknown")
+	result.Severity = enum.SeverityUnknown
+	ts, err := reader.ReadTimestamp("timestamp")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read timestmap from given log")
+	}
+	result.Timestamp = ts
+	return result, nil
+
+}
+
+var _ log.FieldSetReader = (*testCommonFieldSetReader)(nil)
 
 func TestHistoryEnsureResourceHistory(t *testing.T) {
 	t.Run("generates resource histories when it is absent", func(t *testing.T) {
@@ -132,12 +158,15 @@ func TestGetLog(t *testing.T) {
 
 	t.Run("returns an log when the specified log id was found", func(t *testing.T) {
 		builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
-		builder.PrepareParseLogs(context.Background(), []*log.LogEntity{
-			log_test.MustLogEntity(`insertId: foo
+		err := builder.PrepareParseLogs(context.Background(), []*log.Log{
+			testlog.MustLogFromYAML(`insertId: foo
 severity: INFO
 textPayload: fooTextPayload
-timestamp: "2024-01-01T00:00:00Z"`),
+timestamp: "2024-01-01T00:00:00Z"`, &testCommonFieldSetReader{}),
 		}, func() {})
+		if err != nil {
+			t.Fatal(err.Error())
+		}
 
 		logExpected := builder.history.Logs[0]
 
@@ -157,7 +186,6 @@ func TestPrepareParseLogs(t *testing.T) {
 		LogBody           string
 		ExpectedDisplayId string
 		ExpectedLogType   enum.LogType
-		ExpectedSeverity  enum.Severity
 	}{
 		{
 			Name: "Must fill the default parameters for SerializableLog",
@@ -167,25 +195,17 @@ textPayload: fooTextPayload
 timestamp: "2024-01-01T00:00:00Z"`,
 			ExpectedDisplayId: "foo",
 			ExpectedLogType:   enum.LogTypeUnknown,
-			ExpectedSeverity:  enum.SeverityInfo,
-		},
-		{
-			Name: "Set the unknown severity when the given severity is not supported without returning an error",
-			LogBody: `insertId: foo
-severity: FOOOOOOO
-textPayload: fooTextPayload
-timestamp: "2024-01-01T00:00:00Z"`,
-			ExpectedDisplayId: "foo",
-			ExpectedLogType:   enum.LogTypeUnknown,
-			ExpectedSeverity:  enum.SeverityUnknown,
 		},
 	}
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
 			builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
-			builder.PrepareParseLogs(context.Background(), []*log.LogEntity{
-				log_test.MustLogEntity(tc.LogBody),
+			err := builder.PrepareParseLogs(context.Background(), []*log.Log{
+				testlog.MustLogFromYAML(tc.LogBody, &testCommonFieldSetReader{}),
 			}, func() {})
+			if err != nil {
+				t.Fatal(err.Error())
+			}
 
 			sl := builder.history.Logs[0]
 
@@ -195,10 +215,6 @@ timestamp: "2024-01-01T00:00:00Z"`,
 			if sl.Type != tc.ExpectedLogType {
 				t.Errorf("LogType is not matching")
 			}
-			if sl.Severity != tc.ExpectedSeverity {
-				t.Errorf("Severity is not matching")
-			}
-
 		})
 	}
 }
