@@ -63,6 +63,48 @@ func TestAllDependentLogGrouper(t *testing.T) {
 	}
 }
 
+func TestAllIndependentLogGrouper(t *testing.T) {
+	tests := []struct {
+		name     string
+		logs     []*log.Log
+		wantKeys map[string]struct{}
+	}{
+		{
+			name:     "empty logs",
+			logs:     []*log.Log{},
+			wantKeys: map[string]struct{}{},
+		},
+		{
+			name: "simple case",
+			logs: []*log.Log{
+				testlog.NewEmptyLogWithID("id1"),
+				testlog.NewEmptyLogWithID("id2"),
+				testlog.NewEmptyLogWithID("id3"),
+			},
+			wantKeys: map[string]struct{}{
+				"id1": {},
+				"id2": {},
+				"id3": {},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := AllIndependentLogGrouper
+			got := g.Group(tt.logs)
+			if len(got) != len(tt.wantKeys) {
+				t.Errorf("Key length mismatch")
+			}
+			for wantKey := range tt.wantKeys {
+				_, found := got[wantKey]
+				if !found {
+					t.Errorf("key %s was not found in the result", wantKey)
+				}
+			}
+		})
+	}
+}
+
 func TestSingleStringFieldKeyLogGrouper(t *testing.T) {
 	tests := []struct {
 		name     string

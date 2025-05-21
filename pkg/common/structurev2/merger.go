@@ -153,7 +153,11 @@ func mergeScalarSequenceNode(prev Node, patch Node, config MergeConfiguration) (
 		return &sequenceNode, nil
 	}
 
-	sequenceNode.value = make([]Node, 0, copyFrom.Len()-len(config.deleteFromPrimitiveListDirectiveList))
+	suggestedSequenceAllocSize := copyFrom.Len() - len(config.deleteFromPrimitiveListDirectiveList)
+	if suggestedSequenceAllocSize < 0 {
+		suggestedSequenceAllocSize = 0
+	}
+	sequenceNode.value = make([]Node, 0, suggestedSequenceAllocSize)
 	for _, value := range copyFrom.Children() {
 		// if the element is included in the parent $deleteFromPrimitiveList, then the element is ignored.
 		if len(config.deleteFromPrimitiveListDirectiveList) > 0 {

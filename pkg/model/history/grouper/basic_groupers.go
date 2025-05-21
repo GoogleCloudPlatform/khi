@@ -17,11 +17,10 @@ package grouper
 import (
 	common_grouper "github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/google/uuid"
 )
 
 var AllIndependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper(func(l *log.Log) string {
-	return uuid.NewString()
+	return l.ID
 })
 
 var AllDependentLogGrouper LogGrouper = common_grouper.NewBasicGrouper(func(log *log.Log) string {

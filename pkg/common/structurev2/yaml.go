@@ -27,6 +27,16 @@ var ErrMultipleDocumentNodeFound = errors.New("multiple document node found in a
 var ErrAliasNodeNotSupported = errors.New("alias node is not supported in a yaml. FromYAML does not support alias node")
 var ErrUnknownYAMLNodeKind = errors.New("unknown yaml node kind")
 
+const (
+	// Subset of YAML tags needed to identify its scalar type.
+	yamlTagNull      = "!!null"
+	yamlTagBool      = "!!bool"
+	yamlTagString    = "!!str"
+	yamlTagInt       = "!!int"
+	yamlTagFloat     = "!!float"
+	yamlTagTimestamp = "!!timestamp"
+)
+
 func FromYAML(yamlStr string) (Node, error) {
 	// Parse yaml string as yaml.Node instead of `any` type to keep the order of the map keys in the original YAML.
 	var root yaml.Node
@@ -93,29 +103,29 @@ func fromScalarYAMLNode(node *yaml.Node) (Node, error) {
 	// Scalar yaml.Node holds its value as string but Tag field contains its type.
 	// https://github.com/go-yaml/yaml/blob/944c86a7d29391925ed6ac33bee98a0516f1287a/resolve.go#L71-L80
 	switch node.Tag {
-	case "!!null":
+	case yamlTagNull:
 		return NewStandardScalarNode[any](nil), nil
-	case "!!bool":
+	case yamlTagBool:
 		boolValue, err := strconv.ParseBool(node.Value)
 		if err != nil {
 			return nil, err
 		}
 		return NewStandardScalarNode(boolValue), nil
-	case "!!str":
+	case yamlTagString:
 		return NewStandardScalarNode(node.Value), nil
-	case "!!int":
+	case yamlTagInt:
 		intValue, err := strconv.Atoi(node.Value)
 		if err != nil {
 			return nil, err
 		}
 		return NewStandardScalarNode(intValue), nil
-	case "!!float":
+	case yamlTagFloat:
 		floatValue, err := strconv.ParseFloat(node.Value, 64)
 		if err != nil {
 			return nil, err
 		}
 		return NewStandardScalarNode(floatValue), nil
-	case "!!timestamp":
+	case yamlTagTimestamp:
 		timestampValue, err := time.Parse(time.RFC3339, node.Value)
 		if err != nil {
 			return nil, err
