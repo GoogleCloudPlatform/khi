@@ -214,7 +214,7 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 	},
 	RevisionStateComposerTiZombie: {
 		EnumKeyName:     "RevisionStateComposerTiZombie",
-		BackgroundColor: "#696969",
+		BackgroundColor: "#4b0082",
 		CSSSelector:     "composer_ti_zombie",
 		Label:           "Task instance is being zombie",
 	},

@@ -104,8 +104,8 @@ func (a *AirflowSchedulerParser) LogTask() taskid.TaskReference[[]*log.Log] {
 }
 
 func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	commonField, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
+	mainMessage, _ := log.GetFieldSet(l, &log.MainMessageFieldSet{})
 	ti, err := t.parseInternal(l)
 	if err != nil {
 		return err
@@ -127,6 +127,12 @@ func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.Log, cs *hist
 
 	cs.RecordLogSummary(mainMessage.MainMessage)
 	cs.RecordEvent(resourcePath)
+
+	// if the ti status is zombie, record it on worker
+	if ti.Status() == model.TASKINSTANCE_ZOMBIE && ti.Host() != "" {
+		host := model.NewAirflowWorker(ti.Host())
+		cs.RecordEvent(resourcepath.AirflowWorker(host))
+	}
 
 	return nil
 }

@@ -100,10 +100,8 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 	worker := model.NewAirflowWorker(host)
 	cs.RecordEvent(resourcepath.AirflowWorker(worker))
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
-	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
-	if err != nil {
-		cs.RecordLogSummary(mainMessage.MainMessage)
-	}
+	mainMessage, _ := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	cs.RecordLogSummary(mainMessage.MainMessage)
 
 	for _, p := range parsers {
 		ti, err := p.fn(l)
