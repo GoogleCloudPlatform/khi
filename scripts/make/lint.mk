@@ -25,7 +25,7 @@ format-go:
 
 .PHONY=format-web
 format-web: prepare-frontend
-	cd web && npx prettier --ignore-path .gitignore --write "./**/*.+(scss|ts|json|html)"
+	cd web && npx prettier --ignore-path .gitignore --write "./**/*.+(ts|json|html)"
 
 .PHONY=check-format-go
 check-format-go:
@@ -33,7 +33,7 @@ check-format-go:
 
 .PHONY=check-format-web
 check-format-web: prepare-frontend
-	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(scss|ts|json|html)"
+	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html)"
 
 .PHONY: lint-markdown
 lint-markdown:
