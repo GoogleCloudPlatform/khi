@@ -1,7 +1,7 @@
 <p style="text-align: center;">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/en/images/logo-dark.svg">
-    <img alt="Kubernetes History Inspector" src="./docs/en/images/logo-light.svg" width="50%">
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo-dark.svg">
+    <img alt="Kubernetes History Inspector" src="./docs/images/logo-light.svg" width="50%">
   </picture>
 </p>
 
@@ -11,6 +11,15 @@ Language: [English](./README.md) | 日本語
 
 Kubernetes History Inspector (KHI) は、Kubernetes クラスタのログ可視化ツールです。
 大量のログをインタラクティブなタイムラインビューなどで可視化し、Kubernetes クラスタ内の複数のコンポーネントにまたがる複雑な問題のトラブルシューティングを強力にサポートします。
+
+## スクリーンショット
+
+クラスタ内へのエージェント等のインストールの必要なし、ログを読み込ませるだけでトラブルシューティングに役立つ強力な可視化を提供します。
+
+|タイムライン画面|クラスタダイアグラム|
+|---|---|
+|![Timeline view](./docs/images/timeline.png)|![Cluster diagram](./docs/images/cluster-diagram.png)|
+|監査ログ等から特定期間の複数リソースに対する変更、ステータス等の遷移をわかりやすくタイムライン、差分として表示。|監査ログから復元した特定タイミングのリソースの関係性をわかりやすく可視化。|
 
 ## 機能と特徴
 

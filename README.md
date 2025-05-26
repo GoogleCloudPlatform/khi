@@ -1,7 +1,7 @@
 <p style="text-align: center;">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/en/images/logo-dark.svg">
-    <img alt="Kubernetes History Inspector" src="./docs/en/images/logo-light.svg" width="50%">
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/images/logo-dark.svg">
+    <img alt="Kubernetes History Inspector" src="./docs/images/logo-light.svg" width="50%">
   </picture>
 </p>
 
@@ -11,6 +11,15 @@ Language: English | [日本語](./README.ja.md)
 
 Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
 This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
+
+## Screenshots
+
+Any agents are not needed on your cluster. KHI provides these visualizations for troubleshooting just by loading logs on Kubernetes.
+
+|Timeline view|Cluster diagram view|
+|---|---|
+|![Timeline view](./docs/images/timeline.png)|![Cluster diagram](./docs/images/cluster-diagram.png)|
+|Visualize timings of resource status changes with timeline chart or diffs of manifests from kubernetes audit logs.|Visualize relationships among K8s resources just from k8s audit logs.|
 
 ## KHI features and characteristics
 
