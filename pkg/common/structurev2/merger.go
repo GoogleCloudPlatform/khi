@@ -148,7 +148,11 @@ func mergeScalarSequenceNode(prev Node, patch Node, config MergeConfiguration) (
 	if config.setElementOrderDirectiveList != nil { // When $setElementOrder is used for primitive list, the order list become the sequence itself. https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md#list-of-primitives
 		sequenceNode.value = make([]Node, 0, len(config.setElementOrderDirectiveList))
 		for _, value := range config.setElementOrderDirectiveList {
-			sequenceNode.value = append(sequenceNode.value, NewStandardScalarNode(value))
+			newItemValueNode, err := cloneStandardNodeFromNode(value.OriginalNode)
+			if err != nil {
+				return nil, err
+			}
+			sequenceNode.value = append(sequenceNode.value, newItemValueNode)
 		}
 		return &sequenceNode, nil
 	}
@@ -161,7 +165,7 @@ func mergeScalarSequenceNode(prev Node, patch Node, config MergeConfiguration) (
 	for _, value := range copyFrom.Children() {
 		// if the element is included in the parent $deleteFromPrimitiveList, then the element is ignored.
 		if len(config.deleteFromPrimitiveListDirectiveList) > 0 {
-			value, err := getScalarAs[string](value)
+			value, err := getScalarAsString(value)
 			if err != nil {
 				return nil, err
 			}
@@ -260,7 +264,7 @@ func mergeMapSequenceNodeWithMergeStrategy(fieldPath []string, mergeKey string, 
 	// Add element count only appeared in the directive
 	if config.setElementOrderDirectiveList != nil {
 		for _, fieldKey := range config.setElementOrderDirectiveList {
-			uniqueKeys[fieldKey] = struct{}{}
+			uniqueKeys[fieldKey.StringKey] = struct{}{}
 		}
 	}
 	sequenceNode.value = make([]Node, 0, len(uniqueKeys))
@@ -268,16 +272,20 @@ func mergeMapSequenceNodeWithMergeStrategy(fieldPath []string, mergeKey string, 
 	if config.setElementOrderDirectiveList != nil {
 		for _, itemKey := range config.setElementOrderDirectiveList {
 			var mergedNode Node
-			prev := prevValues[itemKey]
-			patch := patchValues[itemKey]
+			prev := prevValues[itemKey.StringKey]
+			patch := patchValues[itemKey.StringKey]
 			if prev == nil && patch == nil {
 				// if the item is not found in prev structure and patch but the order is given, add an object with the item key.
+				itemValue, err := cloneStandardNodeFromNode(itemKey.OriginalNode)
+				if err != nil {
+					return nil, err
+				}
 				mergedNode = &StandardMapNode{
 					keys: []unique.Handle[string]{
 						unique.Make(mergeKey),
 					},
 					values: []Node{
-						NewStandardScalarNode(itemKey),
+						itemValue,
 					},
 				}
 			} else {
@@ -351,16 +359,24 @@ func mergeMapNode(fieldPath []string, prev Node, patch Node, config MergeConfigu
 			}
 			if itemKey == "" { // the sequence is primitive list
 				for _, itemKeyValue := range itemKeyValues {
-					sequenceNodeInferredFromDirective.value = append(sequenceNodeInferredFromDirective.value, NewStandardScalarNode(itemKeyValue))
+					newItemValueNode, err := cloneStandardNodeFromNode(itemKeyValue.OriginalNode)
+					if err != nil {
+						return nil, err
+					}
+					sequenceNodeInferredFromDirective.value = append(sequenceNodeInferredFromDirective.value, newItemValueNode)
 				}
 			} else {
 				for _, itemKeyValue := range itemKeyValues {
+					newItemValueNode, err := cloneStandardNodeFromNode(itemKeyValue.OriginalNode)
+					if err != nil {
+						return nil, err
+					}
 					sequenceNodeInferredFromDirective.value = append(sequenceNodeInferredFromDirective.value, &StandardMapNode{
 						keys: []unique.Handle[string]{
 							unique.Make(itemKey),
 						},
 						values: []Node{
-							NewStandardScalarNode(itemKeyValue),
+							newItemValueNode,
 						},
 					})
 				}
@@ -454,7 +470,7 @@ func getSequenceElementsWithFieldKey(fieldPath []string, node Node, fieldKey str
 			var itemKey string
 			for keyInChild, valueOfKeyInChild := range value.Children() {
 				if keyInChild.Key == fieldKey {
-					itemKey, err = getScalarAs[string](valueOfKeyInChild)
+					itemKey, err = getScalarAsString(valueOfKeyInChild)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -520,11 +536,11 @@ func handleStrategicMergePatchDirectives(patch Node, parentConfig MergeConfigura
 			}
 			primitiveList := map[string]struct{}{}
 			for _, child := range value.Children() {
-				value, err := getScalarAs[string](child)
+				value, err := newkeyItemFromScalarNode(child)
 				if err != nil {
 					return nil, MergeConfiguration{}, err
 				}
-				primitiveList[value] = struct{}{}
+				primitiveList[value.StringKey] = struct{}{}
 			}
 			if newConfig.deleteFromPrimitiveListDirectiveList == nil {
 				newConfig.deleteFromPrimitiveListDirectiveListForChildren = map[string]map[string]struct{}{}
@@ -536,7 +552,7 @@ func handleStrategicMergePatchDirectives(patch Node, parentConfig MergeConfigura
 			}
 			retainKeysList := map[string]struct{}{}
 			for _, child := range value.Children() {
-				value, err := getScalarAs[string](child)
+				value, err := getScalarAsString(child)
 				if err != nil {
 					return nil, MergeConfiguration{}, err
 				}
@@ -550,19 +566,19 @@ func handleStrategicMergePatchDirectives(patch Node, parentConfig MergeConfigura
 			if value.Type() != SequenceNodeType {
 				return nil, MergeConfiguration{}, fmt.Errorf("$retainKeys must be a sequence node")
 			}
-			setElementOrderList := make([]string, 0, value.Len())
+			setElementOrderList := make([]keyItem, 0, value.Len())
 			for _, child := range value.Children() {
 				switch child.Type() {
 				case ScalarNodeType: // https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md#list-of-primitives
-					value, err := getScalarAs[string](child)
+					value, err := newkeyItemFromScalarNode(child)
 					if err != nil {
 						return nil, MergeConfiguration{}, err
 					}
 					setElementOrderList = append(setElementOrderList, value)
 				case MapNodeType: // https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md#list-of-maps-2
-					var keyValue string
+					var keyValue keyItem
 					for _, value := range child.Children() {
-						keyValue, err = getScalarAs[string](value)
+						keyValue, err = newkeyItemFromScalarNode(value)
 						if err != nil {
 							return nil, MergeConfiguration{}, err
 						}
@@ -574,7 +590,7 @@ func handleStrategicMergePatchDirectives(patch Node, parentConfig MergeConfigura
 				}
 			}
 			if newConfig.setElementOrderListForChildren == nil {
-				newConfig.setElementOrderListForChildren = map[string][]string{}
+				newConfig.setElementOrderListForChildren = map[string][]keyItem{}
 			}
 			newConfig.setElementOrderListForChildren[strings.TrimPrefix(key.Key, "$setElementOrder/")] = setElementOrderList
 		default:

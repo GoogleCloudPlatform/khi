@@ -20,6 +20,26 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 )
 
+// keyItem represents a node used as a key for merge or patch merge directives.
+// It must be hashable as a string value, but also needs to retain its type.
+type keyItem struct {
+	StringKey    string
+	OriginalNode Node
+}
+
+// newkeyItemFromScalarNode returns keyItem instance from a scalar node.
+// It may returns error when the scalar type is not convertible to a string value.
+func newkeyItemFromScalarNode(node Node) (keyItem, error) {
+	stringKey, err := getScalarAsString(node)
+	if err != nil {
+		return keyItem{}, err
+	}
+	return keyItem{
+		StringKey:    stringKey,
+		OriginalNode: node,
+	}, nil
+}
+
 // MergeConfiguration contains configurations of merging a previous node and patch node.
 // This configuration is modified throughout walking every nodes during the merging.
 type MergeConfiguration struct {
@@ -43,13 +63,13 @@ type MergeConfiguration struct {
 	retainKeysDirectiveList map[string]struct{}
 	// setElementOrderDirectveList is the ordered list of keys of current array.
 	// This field is used for supporting $setElementOrder directive.
-	setElementOrderDirectiveList []string
+	setElementOrderDirectiveList []keyItem
 
 	// These directives are found on the parent map and activated on it's child field.
 	// Directive configurations are captured on parsing the parent map and stored in these field once to pass them in `deleteFromPrimitiveListDirectiveList`, `retainKeysDirectiveList` or `setElementOrderDirectiveList`.
 	deleteFromPrimitiveListDirectiveListForChildren map[string]map[string]struct{}
 	retainKeysDirectiveListForChildren              map[string]map[string]struct{}
-	setElementOrderListForChildren                  map[string][]string
+	setElementOrderListForChildren                  map[string][]keyItem
 }
 
 // GetArrayMergeStrategyAndKey returns the strategy of merging a sequence of maps and the key field name used for merging.

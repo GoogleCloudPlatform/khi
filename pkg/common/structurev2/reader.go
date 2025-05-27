@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -283,4 +284,29 @@ func getScalarAs[T any](scalarNode Node) (T, error) {
 		return value, nil
 	}
 	return *new(T), fmt.Errorf("failed to cast value %v to type %T", anyValue, *new(T))
+}
+
+// getScalarAsString get the scalar node value as string.
+func getScalarAsString(scalarNode Node) (string, error) {
+	result, err := getScalarAs[string](scalarNode)
+	if err == nil {
+		return result, nil
+	}
+	resultInt, err := getScalarAs[int](scalarNode)
+	if err == nil {
+		return strconv.Itoa(resultInt), nil
+	}
+	resultBool, err := getScalarAs[bool](scalarNode)
+	if err == nil {
+		return strconv.FormatBool(resultBool), nil
+	}
+	resultTime, err := getScalarAs[time.Time](scalarNode)
+	if err == nil {
+		return resultTime.String(), nil
+	}
+	resultFloat, err := getScalarAs[float64](scalarNode)
+	if err == nil {
+		return strconv.FormatFloat(resultFloat, 'f', -1, 64), nil
+	}
+	return "", fmt.Errorf("failed to cast value %v to type string", scalarNode)
 }

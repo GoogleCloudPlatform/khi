@@ -149,6 +149,21 @@ quux: 3
 `,
 		},
 		{
+			Name: "$deleteFromPrimitiveList on an int array",
+			Prev: `foo:
+- 1
+- 2
+- 3
+`,
+			Patch: `$deleteFromPrimitiveList/foo:
+  - 1
+  - 3
+`,
+			Expected: `foo:
+    - 2
+`,
+		},
+		{
 			Name: "$retainKeys on a map",
 			Prev: `foo:
   apple: 1
@@ -162,6 +177,22 @@ quux: 3
 			Expected: `foo:
     apple: 1
     grape: 3
+`,
+		},
+		{
+			Name: "$retainKeys on a map with int key",
+			Prev: `foo:
+  1: apple
+  2: banana
+  3: grape
+`,
+			Patch: `$retainKeys/foo:
+  - 1
+  - 3
+`,
+			Expected: `foo:
+    "1": apple
+    "3": grape
 `,
 		},
 		{
@@ -214,6 +245,37 @@ quux: 3
 			},
 		},
 		{
+			Name: "merge sequence of map with merge strategy and int item key without $setElementOrder directive",
+			Prev: `foo:
+- key: 1
+  value: apple
+- key: 2
+  value: banana
+`,
+			Patch: `foo:
+- key: 3
+  value: grape
+- key: 1
+  value: pinapple
+`,
+			Expected: `foo:
+    - key: 2
+      value: banana
+    - key: 3
+      value: grape
+    - key: 1
+      value: pinapple
+`,
+			ArrayMergeStrategy: &merger.MergeConfigResolver{
+				MergeStrategies: map[string]merger.MergeArrayStrategy{
+					"foo": merger.MergeStrategyMerge,
+				},
+				MergeKeys: map[string]string{
+					"foo": "key",
+				},
+			},
+		},
+		{
 			Name: "$setElementOrder with maps",
 			Prev: `foo:
 - key: apple
@@ -246,6 +308,38 @@ quux: 3
 			},
 		},
 		{
+			Name: "$setElementOrder with maps and int item key",
+			Prev: `foo:
+- key: 1
+  value: apple
+- key: 2
+  value: banana
+- key: 3
+  value: grape
+`,
+			Patch: `$setElementOrder/foo:
+  - key: 2
+  - key: 3
+  - key: 1
+`,
+			Expected: `foo:
+    - key: 2
+      value: banana
+    - key: 3
+      value: grape
+    - key: 1
+      value: apple
+`,
+			ArrayMergeStrategy: &merger.MergeConfigResolver{
+				MergeStrategies: map[string]merger.MergeArrayStrategy{
+					"foo": merger.MergeStrategyMerge,
+				},
+				MergeKeys: map[string]string{
+					"foo": "key",
+				},
+			},
+		},
+		{
 			Name: "$setElementOrder item not found in the prev map should be complemented",
 			Prev: `foo:
 - key: apple
@@ -264,6 +358,35 @@ quux: 3
       value: 2
     - key: apple
       value: 1
+`,
+			ArrayMergeStrategy: &merger.MergeConfigResolver{
+				MergeStrategies: map[string]merger.MergeArrayStrategy{
+					"foo": merger.MergeStrategyMerge,
+				},
+				MergeKeys: map[string]string{
+					"foo": "key",
+				},
+			},
+		},
+		{
+			Name: "$setElementOrder item not found in the prev map should be complemented for int item eky",
+			Prev: `foo:
+- key: 2
+  value: apple
+- key: 3
+  value: banana
+`,
+			Patch: `$setElementOrder/foo:
+  - key: 1
+  - key: 2
+  - key: 3
+`,
+			Expected: `foo:
+    - key: 1
+    - key: 2
+      value: apple
+    - key: 3
+      value: banana
 `,
 			ArrayMergeStrategy: &merger.MergeConfigResolver{
 				MergeStrategies: map[string]merger.MergeArrayStrategy{
@@ -450,6 +573,26 @@ bar: qux
 			Expected: `foo:
     - key: apple
     - key: banana
+`,
+			ArrayMergeStrategy: &merger.MergeConfigResolver{
+				MergeStrategies: map[string]merger.MergeArrayStrategy{
+					"foo": merger.MergeStrategyMerge,
+				},
+				MergeKeys: map[string]string{
+					"foo": "key",
+				},
+			},
+		},
+		{
+			Name: "merge sequence of map with $setElementOrder and int key but the array is not found in prev and patch",
+			Prev: ``,
+			Patch: `$setElementOrder/foo:
+  - key: 1
+  - key: 2
+`,
+			Expected: `foo:
+    - key: 1
+    - key: 2
 `,
 			ArrayMergeStrategy: &merger.MergeConfigResolver{
 				MergeStrategies: map[string]merger.MergeArrayStrategy{
