@@ -25,3 +25,4 @@ config:
   MD013: false  # Line length
   MD028: false  # No blanks blockquote (It raises falsy error on series of callouts)
   MD033: false  # Inline HTML 
+  MD041: false  # First line in a file should be a top-level heading

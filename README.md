@@ -7,14 +7,14 @@
 
 Language: English | [日本語](./README.ja.md)
 
+<hr/>
+
 # Kubernetes History Inspector
 
 Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
 This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
 
-## Screenshots
-
-Any agents are not needed on your cluster. KHI provides these visualizations for troubleshooting just by loading logs on Kubernetes.
+Any agents are not needed on your cluster. KHI provides following visualizations for troubleshooting just by loading logs on Kubernetes.
 
 |Timeline view|Cluster diagram view|
 |---|---|
