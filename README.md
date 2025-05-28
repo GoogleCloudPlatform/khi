@@ -19,7 +19,7 @@ Any agents are not needed on your cluster. KHI provides following visualizations
 |Timeline view|Cluster diagram view|
 |---|---|
 |![Timeline view](./docs/images/timeline.png)|![Cluster diagram](./docs/images/cluster-diagram.png)|
-|Visualize timings of resource status changes with timeline chart or diffs of manifests from kubernetes audit logs.|Visualize relationships among K8s resources just from k8s audit logs.|
+|Visualize timings of resource status changes with timeline chart or diffs of manifests from kubernetes audit logs.|Visualize relationships among k8s resources just from kube-apiserver audit logs.|
 
 ## KHI features and characteristics
 

@@ -19,7 +19,7 @@ Kubernetes History Inspector (KHI) は、Kubernetes クラスタのログ可視�
 |タイムライン画面|クラスタダイアグラム|
 |---|---|
 |![Timeline view](./docs/images/timeline.png)|![Cluster diagram](./docs/images/cluster-diagram.png)|
-|監査ログ等から特定期間の複数リソースに対する変更、ステータス等の遷移をわかりやすくタイムライン、差分として表示。|監査ログから復元した特定タイミングのリソースの関係性をわかりやすく可視化。|
+|監査ログ等から特定期間の複数リソースに対する変更、ステータス等の遷移をわかりやすくタイムライン、差分として表示。|kube-apiserverの監査ログから復元した特定タイミングのリソースの関係性をわかりやすく可視化。|
 
 ## 機能と特徴
 
