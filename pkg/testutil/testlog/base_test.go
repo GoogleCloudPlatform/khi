@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 )
 
 func TestBaseYamlTestLogOpt(t *testing.T) {
@@ -45,18 +46,18 @@ func TestBaseYamlTestLogOpt(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tl := New(BaseYaml(tc.inputYaml))
+			tl := New(YAML(tc.inputYaml))
 			reader, err := tl.BuildReader()
 			if tc.expectError {
 				if err == nil {
 					t.Errorf("Expecting an error but no error returned.")
 				}
 			} else {
-				yamlStr, err := reader.ToYaml("")
+				yamlStr, err := reader.Serialize("", &structurev2.YAMLNodeSerializer{})
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}
-				if diff := cmp.Diff(yamlStr, tc.outputYaml); diff != "" {
+				if diff := cmp.Diff(string(yamlStr), tc.outputYaml); diff != "" {
 					t.Errorf("Yaml string mismatch (-want +got):\n%s", diff)
 				}
 			}

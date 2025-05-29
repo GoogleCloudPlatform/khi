@@ -19,18 +19,25 @@ import "errors"
 type NodeType int
 
 const (
-	ScalarNodeType   = 0
-	SequenceNodeType = 1
-	MapNodeType      = 2
+	InvalidNodeType = 0
+	// ScalarNodeType is a NodeType for scalar values.
+	// The scalar type currently supported is nil,bool,string,int,float and time.Time.
+	ScalarNodeType = 1
+	// SequenceNdoeType is a NodeType for sequence(array, slices) values.
+	SequenceNodeType = 2
+	// MapNodeType is a NodeType for map(dictionary) values. It needs to retain the order of keys.
+	MapNodeType = 3
 )
 
 // NodeChildrenIterator is a type to represent the iterator returned from the Children method of Node interface.
 type NodeChildrenIterator = func(func(key NodeChildrenKey, value Node) bool)
 
+// Node interfce is a recursive data structure representing structured data.
 type Node interface {
 	Type() NodeType
 	NodeScalarValue() (any, error)
 	Children() NodeChildrenIterator
+	Len() int
 }
 
 // NodeChildrenElement represents an item of Chidlren of a Node.

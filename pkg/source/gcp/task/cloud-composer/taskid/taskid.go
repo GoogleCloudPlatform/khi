@@ -27,10 +27,10 @@ var AutocompleteClusterNamesTaskID taskid.TaskImplementationID[*gcp_task.Autocom
 var AutocompleteComposerEnvironmentNamesTaskID taskid.TaskImplementationID[[]string] = taskid.NewDefaultImplementationID[[]string](gcp_task.GCPPrefix + "autocomplete/composer-environment-names")
 var InputComposerEnvironmentTaskID taskid.TaskImplementationID[string] = taskid.NewDefaultImplementationID[string](gcp_task.GCPPrefix + "input/composer/environment_name")
 
-var ComposerSchedulerLogQueryTaskID taskid.TaskImplementationID[[]*log.LogEntity] = taskid.NewDefaultImplementationID[[]*log.LogEntity](ComposerQueryPrefix + "scheduler")
-var ComposerDagProcessorManagerLogQueryTaskID taskid.TaskImplementationID[[]*log.LogEntity] = taskid.NewDefaultImplementationID[[]*log.LogEntity](ComposerQueryPrefix + "dag-processor-manager")
-var ComposerMonitoringLogQueryTaskID taskid.TaskImplementationID[[]*log.LogEntity] = taskid.NewDefaultImplementationID[[]*log.LogEntity](ComposerQueryPrefix + "monitoring")
-var ComposerWorkerLogQueryTaskID taskid.TaskImplementationID[[]*log.LogEntity] = taskid.NewDefaultImplementationID[[]*log.LogEntity](ComposerQueryPrefix + "worker")
+var ComposerSchedulerLogQueryTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](ComposerQueryPrefix + "scheduler")
+var ComposerDagProcessorManagerLogQueryTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](ComposerQueryPrefix + "dag-processor-manager")
+var ComposerMonitoringLogQueryTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](ComposerQueryPrefix + "monitoring")
+var ComposerWorkerLogQueryTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](ComposerQueryPrefix + "worker")
 
 var AirflowSchedulerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "composer/scheduler")
 var AirflowDagProcessorManagerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "composer/worker")

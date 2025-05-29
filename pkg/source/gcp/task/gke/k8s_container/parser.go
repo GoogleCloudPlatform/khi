@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -52,7 +53,7 @@ func (*k8sContainerParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (*k8sContainerParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*k8sContainerParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_k8s_container_taskid.GKEContainerLogQueryTaskID.Ref()
 }
 
@@ -61,10 +62,12 @@ func (*k8sContainerParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*k8sContainerParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-	namespace := l.GetStringOrDefault("resource.labels.namespace_name", "unknown")
-	podName := l.GetStringOrDefault("resource.labels.pod_name", "unknown")
-	containerName := l.GetStringOrDefault("resource.labels.container_name", "unknown")
+func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+	mainMessage := mainMessageFieldSet.MainMessage
+	namespace := l.ReadStringOrDefault("resource.labels.namespace_name", "unknown")
+	podName := l.ReadStringOrDefault("resource.labels.pod_name", "unknown")
+	containerName := l.ReadStringOrDefault("resource.labels.container_name", "unknown")
 	if namespace == "" {
 		namespace = "unknown"
 	}
@@ -74,11 +77,14 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.LogEntity, cs *hist
 	if containerName == "" {
 		containerName = "unknown"
 	}
-	mainMessage, err := l.MainMessage()
-	if err != nil {
-		yaml, err := l.Fields.ToYaml("")
+
+	if mainMessage == "" {
+		var yaml string
+		yamlRaw, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
 		if err != nil {
 			yaml = "!!ERROR failed to dump in yaml"
+		} else {
+			yaml = string(yamlRaw)
 		}
 		slog.WarnContext(ctx, fmt.Sprintf("Failed to extract main message from container log.\nError: %s\n\nLog content: %s", err.Error(), yaml))
 		mainMessage = "(unknown)"

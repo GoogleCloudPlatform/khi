@@ -24,6 +24,7 @@ import (
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
@@ -65,8 +66,8 @@ func createDeletionRequestsByDeleteColection(groups []*types.TimelineGrouperResu
 	for _, group := range groups {
 		// delete collection only happens for namespace layer
 		if strings.HasSuffix(group.TimelineResourcePath, "#") {
-			for _, log := range group.PreParsedLogs {
-				if log.Operation.Verb == enum.RevisionVerbDeleteCollection {
+			for _, l := range group.PreParsedLogs {
+				if l.Operation.Verb == enum.RevisionVerbDeleteCollection {
 					for _, childGroup := range groups {
 						// find any timelines under current timeline
 						if childGroup.TimelineResourcePath != group.TimelineResourcePath && strings.HasPrefix(childGroup.TimelineResourcePath, group.TimelineResourcePath) {
@@ -78,17 +79,19 @@ func createDeletionRequestsByDeleteColection(groups []*types.TimelineGrouperResu
 								Name:       refLog.Operation.Name,
 								Verb:       enum.RevisionVerbDelete,
 							}
-							if refLog.Log.Timestamp().Sub(log.Log.Timestamp()) > 0 {
+							refLogCommonField := log.MustGetFieldSet(refLog.Log, &log.CommonFieldSet{})
+							logCommonField := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
+							if refLogCommonField.Timestamp.Sub(logCommonField.Timestamp) > 0 {
 								// This delete collection happened before the resource existing. ignore the delete collection request.
 								continue
 							}
 							childGroup.PreParsedLogs = append(childGroup.PreParsedLogs, &types.AuditLogParserInput{
-								Log:                                    log.Log,
-								Requestor:                              log.Requestor,
+								Log:                                    l.Log,
+								Requestor:                              l.Requestor,
 								Operation:                              &k8sOp,
-								ResponseErrorCode:                      log.ResponseErrorCode,
-								ResponseErrorMessage:                   log.ResponseErrorMessage,
-								IsErrorResponse:                        log.IsErrorResponse,
+								ResponseErrorCode:                      l.ResponseErrorCode,
+								ResponseErrorMessage:                   l.ResponseErrorMessage,
+								IsErrorResponse:                        l.IsErrorResponse,
 								Request:                                nil,
 								RequestType:                            rtype.RTypeUnknown,
 								Response:                               nil,
@@ -106,7 +109,9 @@ func createDeletionRequestsByDeleteColection(groups []*types.TimelineGrouperResu
 	for _, group := range groups {
 		if _, found := requireSortTimelinePaths[group.TimelineResourcePath]; found {
 			sort.Slice(group.PreParsedLogs, func(i, j int) bool {
-				return group.PreParsedLogs[i].Log.Timestamp().Sub(group.PreParsedLogs[j].Log.Timestamp()) <= 0
+				logICommonField := log.MustGetFieldSet(group.PreParsedLogs[i].Log, &log.CommonFieldSet{})
+				logJCommonField := log.MustGetFieldSet(group.PreParsedLogs[j].Log, &log.CommonFieldSet{})
+				return logICommonField.Timestamp.Sub(logJCommonField.Timestamp) <= 0
 			})
 		}
 	}

@@ -34,38 +34,28 @@
         box-shadow: 0 0 1px rgba(255,255,255,.5)
     @media(max-width: 1200px)
         min-width: 1000px
-    .title
-        border-radius: 20px 0px 0px 20px
-        min-width: 200px
-        background-color: #3f51b5
-        display: grid
-        grid-template-rows: 1fr auto 2fr
-        @media (max-width: 1200px)
-            display: none
-        .title-header
-            grid-row: 3
-            color: white
-            text-align: center
-            display: flex
-            flex-direction: column
-            align-items: center
-            justify-content: center
-            .title-header-app-name
-                font-size: 1.5em
-                .app-name-k8s
-                    margin-bottom: 0px
-        .center-image
-            grid-row: 2
-            text-align: center
-            .khi-logo
-                width: 120px
-                filter: drop-shadow(0 0 0.75rem blue)
-        .catch-phrase
-            margin-top: 20px
-            font-size: 0.8em
-            color: lightgray
-            font-style: italic
 
+
+.title-box
+    height: 320px
+    margin: -40px 0px 0px 0px
+    display: grid
+    grid-template-areas: "icon" "title" "version"
+    grid-template-rows: 1fr auto auto 
+    align-items: center
+    justify-content: center
+    text-align: center
+    .icon
+        grid-area: icon
+    .title
+        grid-area: title
+        h1
+            margin: 0px
+            color: #666666
+    .version
+        grid-area: version
+        color: #888
+    
 .body
     overflow: hidden
     display: flex
@@ -74,11 +64,8 @@
     padding: 20px
     .body-header
         display: flex
-        justify-content: space-between
+        justify-content: end
         color: #666666
-        .welcome-message
-            font-size: 1.5em
-            margin: 0
         .mem-usage
             display: flex
             justify-content: center
@@ -88,13 +75,14 @@
     .task-group
         display: flex
         border-radius: 3px
-        background-color: white
         padding: 10px
         margin-top: 10px
         .button-group
             display: flex
+            width: 100%
             flex-direction: column
             justify-content: center
+            align-items: center
             gap: 20px
         .inspect-left
             display: flex
@@ -196,10 +184,7 @@
                 width: 40px
                 height: 40px
             &.task-group-help
-                color: #3f51b5
-                font-weight: 600
-            &.task-group-inspect
-                color: #3f51b5
+                color: gray
                 font-weight: 600
         .task-group-body
             flex: 1

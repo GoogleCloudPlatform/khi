@@ -19,16 +19,16 @@ import (
 	"os"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/adapter"
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/structuredatastore"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
-	log_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	corev1 "k8s.io/api/core/v1"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -219,9 +219,9 @@ allocatedresourcesstatus: []
 				TemporaryFolder: "/tmp/",
 			})
 			parsedLogs := []*types.AuditLogParserInput{}
-			for i, log := range tc.logPaths {
-				yamlStr := testutil.MustReadText(log)
-				l := log_test.MustLogEntity(yamlStr)
+			for i, logFilePath := range tc.logPaths {
+				yamlStr := testutil.MustReadText(logFilePath)
+				l := testlog.MustLogFromYAML(yamlStr, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
 				extractor := fieldextractor.GCPAuditLogFieldExtractor{}
 				rsLog, err := extractor.ExtractFields(context.Background(), l)
 				if err != nil {
@@ -229,9 +229,11 @@ allocatedresourcesstatus: []
 				}
 				manifestStr := testutil.MustReadText(tc.manifestPaths[i])
 				rsLog.ResourceBodyYaml = manifestStr
-				store := structuredatastore.OnMemoryStructureDataStore{}
-				yamlAdapter := adapter.Yaml(manifestStr)
-				rsLog.ResourceBodyReader, err = yamlAdapter.GetReaderBackedByStore(&store)
+				node, err := structurev2.FromYAML(manifestStr)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				rsLog.ResourceBodyReader = structurev2.NewNodeReader(node)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}

@@ -16,8 +16,6 @@ package serialport
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -62,7 +60,7 @@ func (*SerialPortLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (*SerialPortLogParser) LogTask() taskid.TaskReference[[]*log.LogEntity] {
+func (*SerialPortLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return serialport_taskid.SerialPortLogQueryTaskID.Ref()
 }
 
@@ -71,31 +69,13 @@ func (*SerialPortLogParser) Grouper() grouper.LogGrouper {
 }
 
 // Parse implements parser.Parser.
-func (*SerialPortLogParser) Parse(ctx context.Context, l *log.LogEntity, cs *history.ChangeSet, builder *history.Builder) error {
-
-	// Label field contains `.` in its key. the value needs to be retrived from the low level API.
-	nodeName := "unknown"
-	nodeNameReader, err := l.Fields.ReaderFromArrayRoute([]string{"labels", "compute.googleapis.com/resource_name"})
-	if err == nil && len(nodeNameReader) > 0 {
-		nodeNameReadFromReader, err := nodeNameReader[0].ReadString("")
-		if err == nil {
-			nodeName = nodeNameReadFromReader
-		}
-	}
-
-	mainMessage, err := l.MainMessage()
-	if err != nil {
-		yaml, err := l.Fields.ToYaml("")
-		if err != nil {
-			yaml = "!!ERROR failed to dump in yaml"
-		}
-		slog.WarnContext(ctx, fmt.Sprintf("Failed to extract main message from serial port log.\nError: %s\n\nLog content: %s", err.Error(), yaml))
-		mainMessage = "(unknown)"
-	}
-	mainMessage = parserutil.ConvertSpecialSequences(mainMessage, serialportSequenceConverters...)
+func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	nodeName := l.ReadStringOrDefault("labels.compute\\.googleapis\\.com/resource_name", "unknown")
+	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
+	escapedMainMessage := parserutil.ConvertSpecialSequences(mainMessageFieldSet.MainMessage, serialportSequenceConverters...)
 	serialPortResourcePath := resourcepath.NodeSerialport(nodeName)
 	cs.RecordEvent(serialPortResourcePath)
-	cs.RecordLogSummary(mainMessage)
+	cs.RecordLogSummary(escapedMainMessage)
 	return nil
 }
 
