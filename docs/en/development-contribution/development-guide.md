@@ -1,4 +1,4 @@
-# Development guide
+# Development Guide
 
 ## Run your first build
 
