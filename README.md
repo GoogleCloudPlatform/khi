@@ -12,7 +12,7 @@ Language: English | [日本語](./README.ja.md)
 # Kubernetes History Inspector
 
 Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
-This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
+This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters. Also, KHI is agentless, allowing anyone to access its features without a complicated process.
 
 |Timeline view|Cluster diagram view|
 |---|---|
@@ -23,7 +23,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ### Insightful Log Visualization
 
-The key strength of KHI is its ability to visualize logs of numerous events from multiple Kubernetes resources as timeline-based graphs, moving beyond traditional text-based log analysis. You do not need to manually filter logs by a single resource and chronologically reading through individual event logs in text data anymore. Instead, you can grasp what happened at a glance directly from the timeline visualization. Also, in addition to log visualization, KHI allows you to review the raw log data for that specific moment in its familiar log format in text, and even examine the YAML manifests at the time the specific event took place. This significantly simplifies the process of pinpointing the root cause of an event.
+The key strength of KHI is its ability to visualize logs of numerous activity from multiple Kubernetes resources as timeline-based graphs, moving beyond traditional text-based log analysis. You do not need to manually filter logs by a single resource and chronologically reading through individual activity logs in text data anymore. Instead, you can grasp what happened at a glance directly from the timeline visualization. Also, in addition to log visualization, KHI allows you to review the raw log data for that specific moment in its familiar log format in text, and even examine the YAML manifests at the time the specific event took place. This significantly simplifies the process of pinpointing the root cause of an issue.
 KHI can also generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the configuration and topology of your cluster during an incident or for auditing purposes.
 
 ### Agentless and User friendly
