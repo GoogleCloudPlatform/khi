@@ -23,8 +23,8 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ### Insightful Log Visualization
 
-The key strength of KHI is its ability to visualize logs of numerous activity from multiple Kubernetes resources as timeline-based graphs, moving beyond traditional text-based log analysis. You do not need to manually filter logs by a single resource and chronologically reading through individual activity logs in text data anymore. Instead, you can grasp what happened at a glance directly from the timeline visualization. Also, in addition to log visualization, KHI allows you to review the raw log data for that specific moment in its familiar log format in text, and even examine the YAML manifests at the time the specific event took place. This significantly simplifies the process of pinpointing the root cause of an issue.
-KHI can also generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the configuration and topology of your cluster during an incident or for auditing purposes.
+The key strength of KHI is its ability to visualize logs of numerous activities from multiple Kubernetes resources as timeline-based graphs, moving beyond traditional text-based log analysis. You do not need to manually filter logs by a single resource and chronologically reading through individual activity logs in text data anymore. Instead, you can grasp what happened at a glance directly from the timeline visualization. Also, in addition to log visualization, KHI allows you to review the raw log data for that specific moment in its familiar log format in text, and even examine the YAML manifests at the time the specific event took place. This significantly simplifies the process of pinpointing the root cause of an event.
+KHI can also generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the status of resources and topology of your cluster at a specific time during an incident.
 
 ### Agentless and User friendly
 
@@ -175,7 +175,7 @@ Read [user guide](./docs/en/user-guide.md).
 
 ## Development Contribution Guide
 
-If you'd like to contribute to code KHI, read [Contribution Guide](./docs/contributing.md).
+If you'd like to contribute to the project KHI, read [Contribution Guide](./docs/contributing.md).
 
 ## Disclaimer
 
