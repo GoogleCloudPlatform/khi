@@ -48,7 +48,7 @@ KHI is originally developed by the Google Cloud Support team before it became op
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - Other
-  - kube-apiserver audit logs as JSONlines ([Tutorial](./docs/en/oss.md))
+  - kube-apiserver audit logs as JSONlines ([Tutorial](/docs/en/setup-guide/oss-kubernetes-clusters.md))
 
 ### Logging backend
 
@@ -56,7 +56,7 @@ KHI is originally developed by the Google Cloud Support team before it became op
   - Cloud Logging (For all clusters on Google Cloud)
 
 - Other
-  - Log file upload ([Tutorial](./docs/en/oss.md))
+  - Log file upload ([Tutorial](/docs/en/setup-guide/oss-kubernetes-clusters.md))
 
 ## Getting started
 
@@ -89,7 +89,7 @@ KHI is originally developed by the Google Cloud Support team before it became op
 > [!NOTE]
 > The container image source may change in the near future. #21
 
-For more details, try [Getting started](./docs/en/getting-started.md).
+For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
 ### Run from source code
 
@@ -167,15 +167,15 @@ The following permissions are required or recommended.
 
 ### OSS Kubernetes
 
-Read [Using KHI with OSS Kubernetes Clusters - Example with Loki](./docs/en/oss.md).
+Read [Using KHI with OSS Kubernetes Clusters - Example with Loki](/docs/en/setup-guide/oss-kubernetes-clusters.md).
 
 ## User Guide
 
-Read [user guide](./docs/en/user-guide.md).
+Read [user guide](/docs/en/visualization-guide/user-guide.md).
 
 ## Development Contribution Guide
 
-If you'd like to contribute to the project KHI, read [Contribution Guide](./docs/contributing.md).
+If you'd like to contribute to the project KHI, read [Contribution Guide](/docs/en/development-guide/contributing.md).
 
 ## Disclaimer
 

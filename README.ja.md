@@ -55,7 +55,7 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - その他環境
-  - JSONlines 形式の kube-apiserver 監査ログ ([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](./docs/en/oss.md))
+  - JSONlines 形式の kube-apiserver 監査ログ ([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](/docs/en/setup-guide/oss-kubernetes-clusters.md))
 
 ### ログバックエンド
 
@@ -64,7 +64,7 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
   - Cloud Logging（Google Cloud 上のすべてのクラスタ）
 
 - その他環境
-  - ファイルによるログアップロード([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](./docs/en/oss.md))
+  - ファイルによるログアップロード([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](/docs/en/setup-guide/oss-kubernetes-clusters.md))
 
 ## 実行方法
 
@@ -94,7 +94,7 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 > [!NOTE]
 > コンテナイメージの配信元は近いうちに変更される可能性があります。 #21
 
-詳細は [Getting Started](./docs/en/getting-started.md) を参照してください。
+詳細は [Getting Started](/docs/en/tutorial/getting-started.md) を参照してください。
 
 ### ソースから実行
 
@@ -172,15 +172,15 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 
 ### OSS Kubernetes
 
-[Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ](./docs/en/oss.md)を参照してください。
+[Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ](/docs/en/setup-guide/oss-kubernetes-clusters.md)を参照してください。
 
 ## ユーザーガイド
 
-[ユーザーガイド](./docs/ja/user-guide.md) をご確認ください。
+[ユーザーガイド](/docs/ja/visualization-guide/user-guide.md) をご確認ください。
 
 ## 貢献
 
-プロジェクトへの貢献をご希望の場合は、[コントリビューティングガイド](./docs/contributing.md) をお読みください。
+プロジェクトへの貢献をご希望の場合は、[コントリビュションガイド](/docs/en/development-contribution/contributing.md) をお読みください。
 
 ## 免責事項
 
