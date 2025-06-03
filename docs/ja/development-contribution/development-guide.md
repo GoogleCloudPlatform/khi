@@ -4,7 +4,7 @@ Read [Contribution Guide](contributing.md) and then follow this guide to set up 
 
 ## Run your first build
 
-Follow [the "Run from source code" section](/README.md#run-from-source-code) on README.
+Follow [the "Run from source code" section](../../../README.md#run-from-source-code) on README.
 
 ## Setup environment for development
 
@@ -96,7 +96,7 @@ Several frontend codes are automativally generated from backend codes.
 * `/web/src/app/generated.sass`
 * `/web/src/app/generated.ts`
 
-These files are generated with [`scripts/frontend-codegen/main.go` Golang codes](/scripts/frontend-codegen/main.go). It reads several Golang constant arrays and generate frontend codes with templates.
+These files are generated with [`scripts/frontend-codegen/main.go` Golang codes](../../scripts/frontend-codegen/main.go). It reads several Golang constant arrays and generate frontend codes with templates.
 
 #### Markdown Linting
 

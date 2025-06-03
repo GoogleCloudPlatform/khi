@@ -35,4 +35,4 @@ for this purpose.
 
 ### Development
 
-Please check our [development guide](./en/development-guide.md).
+Please check our [development guide](development-guide.md).

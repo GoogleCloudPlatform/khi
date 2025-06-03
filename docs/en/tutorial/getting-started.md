@@ -2,7 +2,7 @@
 
 This tutorial will explain how to visualize the state changes of Kubernetes resources using Kubernetes History Inspector (KHI). Using Deployments as an example, you'll create, scale, roll out, and delete Pods, and then use KHI to see how these operations change the state of Pods and ReplicaSets.
 
-Please see [User Guide](./user-guide.md) as well.
+Please see [User Guide](/docs/en/visualization-guide/user-guide.md) as well.
 
 ## **Prerequisites**
 
@@ -87,35 +87,35 @@ docker run -p 8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest 
 
 This command starts KHI, and the Web UI is available on port 8080. Access `http://localhost:8080` in your web browser to display the KHI Web UI.
 
-![KHI welcome screen](./images/gettingstarted-newinspection.png)
+![KHI welcome screen](/docs/en/images/gettingstarted-newinspection.png)
 
 Click "New Inspection" button to explore the history of your cluster. Select "Google Kubernetes Engine", leave the log settings at their default values, and click "Next". Enter the time you deleted the Deployment in "End Time", and enter the time it took to create and delete the Deployment in Duration. The numbers can be slightly larger to allow some leeway in the time range.
 
-![Inspection form parameters](./images/gettingstarted-inspection.png)
+![Inspection form parameters](/docs/en/images/gettingstarted-inspection.png)
 
 Click "Run" button to start the inspection. It will take some time, so take a coffee break. ☕️
 
 After the inspection is complete, click "Open" to display a history.
 
-![Visualization result](./images/gettingstarted-inspected.png)
+![Visualization result](/docs/en/images/gettingstarted-inspected.png)
 
 The upper header part is the filter, the lower left is the history information of the resources, and the lower right is a list of logs related to the selected resource. In this case, we created/modified/deleted a Deployment, so let's limit the resources to make it easier to see. Limit "Kinds" in the filter to "deployment, replicaset, pod" and "Namespaces" to "default".
 
 |Kinds|Namespaces|
 |---|---|
-|![Kind filter](./images/gettingstarted-kinds.png)|![Namespaces filter](./images/gettingstarted-namespaces.png)|
+|![Kind filter](/docs/en/images/gettingstarted-kinds.png)|![Namespaces filter](/docs/en/images/gettingstarted-namespaces.png)|
 
 Let's focus on Deployment and ReplicaSet in the Web UI. When you create a Deployment, the Deployment Controller creates a ReplicaSet. The ReplicaSet then creates the required number of Pods. Looking at the history, you can see that the ReplicaSet was created when the Deployment was created. Also, when you scale the Deployment, an event occurs that patches the number of replicas in the ReplicaSet, and the number of Pods increases.
 
-![History view explain](./images/gettingstarted-history.png)
+![History view explain](/docs/en/images/gettingstarted-history.png)
 
 When a rollout is performed on the Deployment, the Deployment Controller creates a new ReplicaSet. This time, you can see in the history that the original ReplicaSet is scaling in little by little, and the new ReplicaSet is scaling out little by little. It may be interesting to compare the default values of maxSurge (25%) and maxUnavailable (25%) applied to the Deployment.
 
-![Rollout visualization ](./images/gettingstarted-rollout.png)
+![Rollout visualization ](/docs/en/images/gettingstarted-rollout.png)
 
 Finally, let's take a look at the Pod lifecycle. Click one of the first created Pods (should be 3) in the Pod resource. The view for the clicked Pod is displayed in the right tray.
 
-![Logs & History view](./images/gettingstarted-views.png)
+![Logs & History view](/docs/en/images/gettingstarted-views.png)
 
 In Log View, logs related to the selected resource are displayed. For example, in this case, logs are aggregated that the Node that could be assigned was not found after the Pod was created, and then it was assigned to the Node after a while and started and deleted.
 

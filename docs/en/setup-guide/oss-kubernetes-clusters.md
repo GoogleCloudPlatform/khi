@@ -330,7 +330,7 @@ Open your web browser and navigate to `http://localhost:8080`.
 1. Click on "New Inspection".
 2. Select "OSS Kubernetes Cluster" as the inspection type.
 
-![new-inspection](./images/oss/new-inspection.png)
+![new-inspection](/docs/en/images/oss/new-inspection.png)
 
 **d. Upload Log File and Run:**
 
@@ -339,13 +339,13 @@ Open your web browser and navigate to `http://localhost:8080`.
 3. Click the "Run" button.
 4. Wait for the inspection process to complete.
 
-![input-param](./images/oss/input-param.png)
+![input-param](/docs/en/images/oss/input-param.png)
 
 **e. Explore the Results:**
 
 Once the inspection is finished, click the "Open" button to view the results. Explore the different views, especially the "Timeline" view. You should be able to see the events related to the Nginx deployment creation, scaling, and deletion, illustrating how the cluster state changed over time.
 
-![timeline](./images/oss/timeline.png)
+![timeline](/docs/en/images/oss/timeline.png)
 
 ## 7. Cleanup
 
