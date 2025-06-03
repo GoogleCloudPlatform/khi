@@ -178,9 +178,9 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 
 [ユーザーガイド](/docs/ja/visualization-guide/user-guide.md) をご確認ください。
 
-## 貢献
+## KHIプロジェクトへの貢献
 
-プロジェクトへの貢献をご希望の場合は、[コントリビュションガイド](/docs/en/development-contribution/contributing.md) をお読みください。
+プロジェクトへの貢献をご希望の場合は、[コントリビューションガイド](/docs/en/development-contribution/contributing.md) をお読みの上、[KHI開発環境のセットアップ](/docs/ja/development-contribution/development-guide.md)を実施してください。
 
 ## 免責事項
 

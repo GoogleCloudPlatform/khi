@@ -1,5 +1,6 @@
 # Development Guide
 
+This document outlines the steps to set up your development environment to contribute to KHI's code development.
 Read [Contribution Guide](contributing.md) and then follow this guide to set up your development environment.
 
 ## Run your first build
@@ -98,7 +99,7 @@ Several frontend codes are automativally generated from backend codes.
 
 These files are generated with [`scripts/frontend-codegen/main.go` Golang codes](/scripts/frontend-codegen/main.go). It reads several Golang constant arrays and generate frontend codes with templates.
 
-#### Markdown Linting
+## Markdown Linting
 
 We use markdownlint-cli2 to enforce our documentation style and ensure consistency across our Markdown files.
 

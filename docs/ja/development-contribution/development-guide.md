@@ -1,33 +1,33 @@
-# Development Guide
+# KHI開発環境のセットアップ
 
-Read [Contribution Guide](contributing.md) and then follow this guide to set up your development environment.
+本ドキュメントは、KHIのコード開発に貢献するために開発環境をセットアップする手順を記載しています。
+まずは [Contribution Guide](/docs/en/development-contribution/contributing.md) をお読みいただいた上で、本ドキュメントに沿って開発環境をセットアップしてください。
 
-## Run your first build
+## KHIをビルドする
 
-Follow [the "Run from source code" section](../../../README.md#run-from-source-code) on README.
+READMEの[ソースから実行](/README.ja.md#ソースから実行) の手順に従ってください。
 
-## Setup environment for development
+## 開発環境のセットアップ
 
-### Fork KHI repository
+### KHIレポジトリをforkする
 
-You can't create a new branch our repository directly. Please fork our repository on your account to modify.
+[KHIレポジトリ](https://github.com/GoogleCloudPlatform/khi)に直接新しいブランチを作成することはできません。あなたのアカウントにKHIレポジトリをforkしてください。
 
-### Setup commit signature verification
+### コミット署名の設定
 
-Please check [this document](https://docs.github.com/en/authentication/managing-commit-signature-verification) to make sure your commits are signed.
-Our repository can't accept unsigned commits.
+[こちらのドキュメント](https://docs.github.com/en/authentication/managing-commit-signature-verification) の手順に沿って、コミットに署名を付与するように設定してください。コミット署名なしのコミットは受付できません。
 
-### Setup Git hook
+### Git hookの設定
 
-Run the following shell command to setup Git hook. It runs format or lint codes before commiting changes.
+下記のシェルコマンドを実行してGithookを設定してください。下記の設定が完了すると、コミットする前にフォーマットやリントをチェックするコードが実行されます。
 
 ```shell
 make setup-hooks
 ```
 
-### Setup VSCode config
+### VSCodeの設定
 
-Save the following code as `.vscode/launch.json`.
+下記のコードを`.vscode/launch.json`ファイルとして保存してください。
 
 ```json
 {
@@ -60,91 +60,89 @@ Save the following code as `.vscode/launch.json`.
 }
 ```
 
-You can run the server with VSCode. You can refer [this document](https://code.visualstudio.com/docs/languages/go) for more details.
+VSCodeでKHIサーバーを実行できます。詳しくは[こちらのドキュメント](https://code.visualstudio.com/docs/languages/go) をご参照ください。
 
-### Run frontend server for development
+### フロントエンドサーバーの実行
 
-To develop frontend code, we usually start Angular dev server on port 4200 with the following code.
+フロントエンドの開発を実施する際、下記のコードを実行すると開発環境のAngularサーバーを4200番ポートで実行できます。
 
 ```shell
 make watch-web
 ```
 
-Angular development server on KHI proxies requests to `localhost:4200/api` to `localhost:8080`. ([the proxy config](../../web/proxy.conf.mjs))
-You can use KHI with accessing `localhost:4200` instead of `localhost:8080`. Angular dev server automatically build and serve the new build when you change the frontend code.
+KHIの開発環境のAngularサーバーはリクエストを `localhost:4200/api` から`localhost:8080`にプロキシします([the proxy config](../../web/proxy.conf.mjs))。
+ `localhost:8080`ではなく `localhost:4200` にてKHIにアクセスできます。 開発環境のAngularサーバーは自動的にビルドされ、フロントエンドのコードの変更が自動で適用されます。
 
-### Run test
+### テストの実行
 
-Run the following code to verify frontend and backend codes.
+下記を実行すると、フロントエンドとバックエンドのコードのテストが実行されます。
 
 ```shell
 make test
 ```
 
-When you want to run backend tests without Cloud Logging, run the following code.
+バックエンドのテストをCloud Loggingと一緒に実行したい場合は下記のコードを実行してください。
 
 ```shell
 go test ./... -args -skip-cloud-logging=true
 ```
 
-## Auto generated codes
+## 自動生成コード
 
-### Generated codes from backend codes
+### バックエンドコードから自動作成されるフロントエンドコード
 
-Several frontend codes are automativally generated from backend codes.
+下記のフロントエンドのコードは、バックエンドのコードから自動生成されます。
 
 * `/web/src/app/generated.sass`
 * `/web/src/app/generated.ts`
 
-These files are generated with [`scripts/frontend-codegen/main.go` Golang codes](../../scripts/frontend-codegen/main.go). It reads several Golang constant arrays and generate frontend codes with templates.
+上記のファイルは [`scripts/frontend-codegen/main.go` Golang codes](/scripts/frontend-codegen/main.go)にて、Golang constant arraysを読み込んでテンプレートをもとに生成されます。
 
-#### Markdown Linting
+## マークダウンリンター
 
-We use markdownlint-cli2 to enforce our documentation style and ensure consistency across our Markdown files.
+KHIではmarkdownlint-cli2を使用して、ドMarkdownファイルにおけるキュメントのスタイルを構成します。
 
-### Using markdownlint-cli2
+### markdownlint-cli2の使用
 
-The project already includes markdownlint-cli2 as a dev dependency, so you just need to install dependencies:
+KHIプロジェクトは markdownlint-cli2 をディペンデンシーとして含んでいるため、下記をインストールする必要があります。
 
 ```bash
 npm install
 ```
 
-To lint Markdown files, run:
+下記のコマンドでリンターが実行されます:
 
 ```bash
 make lint-markdown
 ```
 
-To automatically fix markdownlint issues:
+マークダウンを自動的に修正するには下記を実行します:
 
 ```bash
 make lint-markdown-fix
 ```
 
-## Releasing container image
+## コンテナイメージのリリース
 
-KHI automates the container image deployment process.
-After creating a dedicated tag by creating a release on GitHub, the container will be built automatically and pushed on the repository.
-These tag creations are restricted only for our repository admins.
+KHIはコンテナイメージのデプロイプロセスを自動化しています。
+GitHubでリリースを作成すると、専用のタグが自動的に生成されます。この操作がトリガーとなり、コンテナが自動的にビルドされ、リポジトリにプッシュされます。
 
-* Pre-release
-  * Name tag with `vx.y.z-beta` then it will be deployed at the following addresses:
+* プレリリース
+  * tagを `vx.y.z-beta`として命名すると、 下記のアドレスとしてデプロイされます。
     * `asia.gcr.io/kubernetes-history-inspector/release:beta`
     * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
-* Release
-  * Name tag with `vx.y.z` then it will be deployed at the following address:
+* リリース
+  * tagを`vx.y.z` として命名すると、 下記のアドレスとしてデプロイされます。
     * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z`
     * `asia.gcr.io/kubernetes-history-inspector/release:latest`
 
 > [!NOTE]
-> The deployment process begins after the release entry being created. It may take an hour to push the image on the repository.
+> リリースの作成後にデプロイプロセスが開始されます。イメージがリポジトリにプッシュされるまで1時間ほどかかる場合があります。
 
-### Using on-demand build for pull request code
+### プルリクエストのコードに対するオンデマンドビルドの使用
 
-Repository admins can run `github-deploy-ondemand` check on a Pull request.
-It will deploy the image on `asia.gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA`.
+レポジトリ管理者は、プルしクエストに対して `github-deploy-ondemand` チェックを実行できます。これによりイメージが`asia.gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA`にデプロイされます。
 
 > [!NOTE]
-> The image is only for the last check. Please check the code is right on your environment first.
-> A build may take an hour.
+> このイメージは、最後のチェックのためだけのものです。まず、あなたの環境でコードが正しいことを確認してください。
+ビルドには1時間かかる場合があります。
