@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
@@ -88,6 +89,7 @@ func (r *LocalRunner) Run(ctx context.Context) error {
 		for i := range tasks {
 			taskDefIndex := i
 			currentErrGrp.Go(func() error {
+				defer errorreport.CheckAndReportPanic()
 				err := r.runTask(currentErrCtx, taskDefIndex)
 				if err != nil {
 					cancel()

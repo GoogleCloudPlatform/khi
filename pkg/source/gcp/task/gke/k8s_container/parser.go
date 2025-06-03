@@ -79,14 +79,12 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 	}
 
 	if mainMessage == "" {
-		var yaml string
 		yamlRaw, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
 		if err != nil {
-			yaml = "!!ERROR failed to dump in yaml"
+			slog.WarnContext(ctx, fmt.Sprintf("failed to extract main message from a container log then failed to serialize the log content.\nError message:\n%v", err))
 		} else {
-			yaml = string(yamlRaw)
+			slog.WarnContext(ctx, fmt.Sprintf("failed to extract main message from a container log.\nLog content:\n%s", string(yamlRaw)))
 		}
-		slog.WarnContext(ctx, fmt.Sprintf("Failed to extract main message from container log.\nError: %s\n\nLog content: %s", err.Error(), yaml))
 		mainMessage = "(unknown)"
 	}
 	severityOverride := ParseSeverity(mainMessage)
