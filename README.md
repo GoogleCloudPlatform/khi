@@ -12,36 +12,30 @@ Language: English | [日本語](./README.ja.md)
 # Kubernetes History Inspector
 
 Kubernetes History Inspector (KHI) is a rich log visualization tool for Kubernetes clusters. KHI transforms vast quantities of logs into an interactive, comprehensive timeline view.
-This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters.
-
-Any agents are not needed on your cluster. KHI provides following visualizations for troubleshooting just by loading logs on Kubernetes.
+This makes it an invaluable tool for troubleshooting complex issues that span multiple components within your Kubernetes clusters. Also, KHI is agentless, allowing anyone to access its features without a complicated process.
 
 |Timeline view|Cluster diagram view|
 |---|---|
 |![Timeline view](./docs/images/timeline.png)|![Cluster diagram](./docs/images/cluster-diagram.png)|
-|Visualize timings of resource status changes with timeline chart or diffs of manifests from kubernetes audit logs.|Visualize relationships among k8s resources just from kube-apiserver audit logs.|
+|Timeline view visualizes resource status change timings with timeline charts and manifest diffs from Kubernetes audit logs.|Cluster diagram visualizes relationships among Kubernetes resources, solely from kube-apiserver audit logs.|
 
-## KHI features and characteristics
+## Why use KHI?
 
-- **No Prior Setup Required:** KHI uses your existing logs, so you don't need to install anything extra. This makes setup easier and saves you time. Furthermore, you can use KHI to troubleshoot even past issues as long as logs are still available in your logging backend.
+### Insightful Log Visualization
 
-- **Effortless log collection:** KHI significantly simplifies the process of collecting and visualizing Kubernetes-related logs. Instead of writing complex queries, users can leverage an interactive GUI. By setting the target cluster type, log types, and parameters such as time range and cluster name, KHI automatically generates the necessary queries and collects the logs for visualization.
+The key strength of KHI is its ability to visualize logs of numerous activities associated with each Kubernetes resource as timeline-based graphs, moving beyond traditional text-based log analysis. You do not need to manually filter logs by a single resource and chronologically reading through individual activity logs in text data anymore. Instead, you can grasp what happened at a glance directly from the timeline visualization. Also, in addition to log visualization, KHI allows you to review the raw log data for that specific moment in its familiar log format in text, and even examine the YAML manifests at the time the specific event took place. This significantly simplifies the process of pinpointing the root cause of an event.
+KHI can also generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the status of resources and topology of your cluster at a specific time during an incident.
 
+### Agentless and User friendly
+
+KHI is very easy to set up. It is agentless and allows anyone to easily begin using it without any complicated prior setup on target clusters. Also, KHI enables you to visualize Kubernetes logs through GUI operations. You do not need to write complex queries or commands for log retrieval.
 ![Feature: quick and easy steps to gather logs](./docs/en/images/feature-query.png)
 
-- **Comprehensive Visualization with Interactive Timelines:** KHI transforms vast quantities of logs into an interactive and comprehensive timeline view.
-  - **Resource History Visualization:** KHI displays the status of resources on a timeline. It also parses audit logs and displays the resource manifest at a specific point in time, highlighting differences.
-  - **Visualization of Multiple Log Types Across Multiple Resource Types:** KHI correlates various types of logs across related resources, providing a holistic view.
-  - **Timeline Comparison of Logs Across Resources:** The timeline view allows users to compare logs across resources in the time dimension, making it easy to identify relationships and dependencies.
-  - **Powerful Interactive Filters:** KHI intentionally loads a massive amount of logs into memory. This enables users to interactively filter logs and quickly pinpoint the information they need within the large dataset.
+### Developed from real Log Troubleshooting Experience
 
-![Feature: timeline view](./docs/en/images/feature-timeline.png)
+KHI is originally developed by the Google Cloud Support team before it became open sourced. It emerged from the practical experience of support engineers, who developed it while analyzing Kubernetes logs in their daily operations. KHI is a tool that takes in their deep expertise in Kubernetes log troubleshooting.
 
-- **Cluster Resource Topology Diagrams (Early alpha feature):** KHI can generate diagrams that depict the state of your Kubernetes cluster's resources and their relationships at a specific point in time. This is invaluable for understanding the configuration and topology of your cluster during an incident or for auditing purposes.
-
-![Feature: resource diagram](./docs/en/images/feature-diagram.png)
-
-## Supported environments
+## Supported Products
 
 ### Kubernetes cluster
 
@@ -54,7 +48,7 @@ Any agents are not needed on your cluster. KHI provides following visualizations
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - Other
-  - kube-apiserver audit logs as JSONlines ([Tutorial](./docs/en/oss.md))
+  - kube-apiserver audit logs as JSONlines ([Tutorial](/docs/en/setup-guide/oss-kubernetes-clusters.md))
 
 ### Logging backend
 
@@ -62,7 +56,7 @@ Any agents are not needed on your cluster. KHI provides following visualizations
   - Cloud Logging (For all clusters on Google Cloud)
 
 - Other
-  - Log file upload ([Tutorial](./docs/en/oss.md))
+  - Log file upload ([Tutorial](/docs/en/setup-guide/oss-kubernetes-clusters.md))
 
 ## Getting started
 
@@ -95,7 +89,7 @@ Any agents are not needed on your cluster. KHI provides following visualizations
 > [!NOTE]
 > The container image source may change in the near future. #21
 
-For more details, please try [Getting started](./docs/en/getting-started.md).
+For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
 ### Run from source code
 
@@ -132,7 +126,7 @@ For more details, please try [Getting started](./docs/en/getting-started.md).
 
 ### Authentication settings
 
-## Settings for managed environments
+## Settings for Managed Environments
 
 ### Google Cloud
 
@@ -173,16 +167,16 @@ The following permissions are required or recommended.
 
 ### OSS Kubernetes
 
-Please check out [Using KHI with OSS Kubernetes Clusters - Example with Loki](./docs/en/oss.md).
+Read [Using KHI with OSS Kubernetes Clusters - Example with Loki](/docs/en/setup-guide/oss-kubernetes-clusters.md).
 
 ## User Guide
 
-Please check our [user guide](./docs/en/user-guide.md).
+Read [user guide](/docs/en/visualization-guide/user-guide.md).
 
-## Contribute
+## Development Contribution Guide
 
-If you'd like to contribute to the project, please read our [Contributing guide](./docs/contributing.md).
+If you'd like to contribute to the project KHI, read [Contribution Guide](/docs/en/development-contribution/contributing.md) and then follow [Development Guide](/docs/en/development-contribution/development-guide.md)
 
 ## Disclaimer
 
-Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, please [file a Github issue on this repository](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue) and we are happy to check them on best-effort basis.
+Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, [file a Github issue on this repository](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue) and we are happy to check them on best-effort basis.
