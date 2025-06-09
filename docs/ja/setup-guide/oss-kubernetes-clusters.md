@@ -25,7 +25,7 @@ Kubernetes History Inspector (KHI) は、kube-apiserver の監査ログを使用
 # audit-policy/audit-policy.yaml
 apiVersion: audit.k8s.io/v1
 kind: Policy
-# Log metadata for sensitive resources like configmaps and secrets.
+# ConfigMapやSecretなど内容にセンシティブなものが含まれうる場合にはMetadataレベルとする
 rules:
 - level: Metadata
   resources:
