@@ -102,7 +102,7 @@ go test ./... -args -skip-cloud-logging=true
 
 ## マークダウンリンター
 
-KHIではmarkdownlint-cli2を使用して、ドMarkdownファイルにおけるキュメントのスタイルを構成します。
+KHIではmarkdownlint-cli2を使用して、Markdownファイルにおけるキュメントのスタイルを構成します。
 
 ### markdownlint-cli2の使用
 
