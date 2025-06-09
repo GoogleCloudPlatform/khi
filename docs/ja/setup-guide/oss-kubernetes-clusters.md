@@ -32,8 +32,8 @@ rules:
   - group: "" # core API group
     resources: ["configmaps", "secrets"]
 
-# Log request and response bodies for all other resources.
-# This provides detailed information for KHI's timeline view.
+# その他のリソースではリクエストとレスポンスの内容を含める。
+# これにより、KHIはより詳細な情報を提示することができる
 - level: RequestResponse
 ```
 
