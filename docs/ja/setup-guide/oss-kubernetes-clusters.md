@@ -142,7 +142,7 @@ helm repo update
 helm install loki grafana/loki -f loki-values.yaml --namespace khi --create-namespace
 ```
 
-全てのLokiポッド(MinIOを有効にしている場合はこれも含む)のステータスが `Running`になるまで待ちます。
+全てのLoki Pod(MinIOを有効にしている場合はこれも含む)のステータスが `Running`になるまで待ちます。
 
 ```bash
 kubectl get pods -n khi -l app.kubernetes.io/instance=loki
