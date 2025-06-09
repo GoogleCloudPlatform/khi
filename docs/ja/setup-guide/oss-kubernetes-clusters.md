@@ -150,7 +150,7 @@ kubectl get pods -n khi -l app.kubernetes.io/instance=loki
 
 ## 3. Fluent Bitのデプロイ
 
-Kubernetesクラスター内の全ノード（コントロールプレーンを含む）からログを収集し、それらをLokiに送信するために、軽量なログプロセッサおよびフォワーダーであるFluent Bitを使用します。Fluent BitはDaemonSetとしてデプロイされるため、各ノード上で実行され、そのノードのログを収集・転送します。
+Kubernetesクラスター内の全ノード（コントロールプレーンを含む）からログを収集し、それらをLokiに送信するために、軽量なログの処理と転送を提供するFluent Bitを使用します。Fluent BitはDaemonSetとしてデプロイされるため、各ノード上で実行され、そのノードのログを収集・転送します。
 
 ### a. Fluent Bit Values Fileの作成
 
