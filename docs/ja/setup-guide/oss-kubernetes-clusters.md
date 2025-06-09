@@ -236,7 +236,7 @@ kubectl get pods -n khi -l app.kubernetes.io/instance=fluentbit
 
 ## 4. サンプル監査ログの生成
 
-検査するデータを生成するために、クラスター上でいくつかの基本的な操作を実行してみましょう。ここでは、Nginxデプロイメントの作成、スケール、削除を行います。
+検査するデータを生成するために、クラスター上でいくつかの基本的な操作を実行してみましょう。ここでは、Nginx Deploymentの作成、スケール、削除を行います。
 
 ```bash
 # Create a deployment with 3 replicas
