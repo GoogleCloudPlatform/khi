@@ -172,7 +172,7 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 
 ### OSS Kubernetes
 
-[Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ](/docs/en/setup-guide/oss-kubernetes-clusters.md)を参照してください。
+[OSS Kubernetesクラスタのログの可視化（Loki）](/docs/ja/setup-guide/oss-kubernetes-clusters.md)を参照してください。
 
 ## ユーザーガイド
 
