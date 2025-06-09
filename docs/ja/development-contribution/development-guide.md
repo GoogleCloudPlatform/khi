@@ -98,7 +98,7 @@ go test ./... -args -skip-cloud-logging=true
 * `/web/src/app/generated.sass`
 * `/web/src/app/generated.ts`
 
-上記のファイルは [`scripts/frontend-codegen/main.go` Golang codes](/scripts/frontend-codegen/main.go)にて、Golang constant arraysを読み込んでテンプレートをもとに生成されます。
+上記のファイルは [`scripts/frontend-codegen/main.go` Golang codes](/scripts/frontend-codegen/main.go)にて、Golang側の一部の定数からテンプレートをもとに生成されます。
 
 ## マークダウンリンター
 
