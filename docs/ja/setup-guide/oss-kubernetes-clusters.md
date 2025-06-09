@@ -11,7 +11,7 @@ Kubernetes History Inspector (KHI) は、kube-apiserver の監査ログを使用
 * [Docker](https://docs.docker.com/get-docker/) または [Podman](https://podman.io/getting-started/installation)
 * [kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
 * [Helm](https://helm.sh/docs/intro/install/)
-* [LogCLI](https://grafana.com/docs/loki/latest/query/logcli/getting-started/) (for querying Loki)
+* [LogCLI](https://grafana.com/docs/loki/latest/query/logcli/getting-started/) (Lokiをクエリするため)
 
 ## 1. クラスターの構築
 
