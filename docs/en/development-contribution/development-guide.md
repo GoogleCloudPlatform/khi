@@ -1,3 +1,5 @@
+Language: English | [日本語](/docs/ja/development-contribution/development-guide.md)
+
 # Development Guide
 
 This document outlines the steps to set up your development environment to contribute to KHI's code development.

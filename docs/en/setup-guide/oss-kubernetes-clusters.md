@@ -1,3 +1,5 @@
+Language: English | [日本語](/docs/ja/setup-guide/oss-kubernetes-clusters.md)
+
 # Using KHI with OSS Kubernetes Clusters - Example with Loki
 
 Kubernetes History Inspector (KHI) can visualize a wealth of information using only `kube-apiserver` audit logs. This tutorial demonstrates how to visualize the state of Kubernetes resources with KHI by leveraging audit logs aggregated using [Loki](https://grafana.com/oss/loki/) within an easy-to-prepare Kubernetes environment set up via [kind](https://kind.sigs.k8s.io/).

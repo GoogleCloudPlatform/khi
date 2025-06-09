@@ -1,3 +1,5 @@
+Language: [English](/docs/en/development-contribution/development-guide.md) | 日本語
+
 # KHI開発環境のセットアップ
 
 本ドキュメントは、KHIのコード開発に貢献するために開発環境をセットアップする手順を記載しています。

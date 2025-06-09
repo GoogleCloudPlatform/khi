@@ -1,3 +1,5 @@
+Language: [English](/docs/en/setup-guide/oss-kubernetes-clusters.md) | [日本語]
+
 # OSS Kubernetesクラスタのログの可視化（Loki）
 
 Kubernetes History Inspector (KHI) は、kube-apiserver の監査ログを使用して、様々な情報を視覚化できます。このチュートリアルでは、[kind](https://kind.sigs.k8s.io/)を介してセットアップされたKubernetes環境内で、[Loki](https://grafana.com/oss/loki/)を使用して集約された監査ログを活用し、KHI で Kubernetes リソースの状態を視覚化する方法を紹介します。
