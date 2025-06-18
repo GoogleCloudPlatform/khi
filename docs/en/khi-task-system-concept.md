@@ -342,7 +342,7 @@ However, KHI analyzes various types of logs while maintaining extensibility thro
 
 When using KHI, users follow a workflow like the one shown below:
 
-![](./images/inspection-task-structure.png)
+![Diagram showing how task structure is used in the inspection flow shown to users](./images/inspection-task-structure.png)
 
 Various tasks used for actual log processing are registered to the `InspectionServer` during KHI's initialization.
 When a user clicks the `New Inspection` button, they first need to select an `Inspection Type`. KHI then filters the registered tasks to include only those that can operate with the selected `Inspection Type`. This includes not only the tasks that users can enable or disable but also all tasks used in their dependency relationships.
