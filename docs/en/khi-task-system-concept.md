@@ -52,13 +52,13 @@ This interface is defined roughly as the following type:
 ```go
 type Task[TaskResult any] interface {
     // ID returns the unique identifier of the task.
-	ID() taskid.TaskImplementationID[TaskResult]
+ ID() taskid.TaskImplementationID[TaskResult]
 
     // Labels returns the labels associated with the task. KHI uses this value to various purpose(e.g document generation, filtering tasks by cluster types,...etc)
-	Labels() *typedmap.ReadonlyTypedMap
+ Labels() *typedmap.ReadonlyTypedMap
 
     // Dependencies returns the IDs of tasks that needs to be done beforethis task.
-	Dependencies() []taskid.UntypedTaskReference
+ Dependencies() []taskid.UntypedTaskReference
 
     // Run is the actual function called to run this task.
     Run(ctx context.Context) (TaskResult, error)
@@ -76,8 +76,8 @@ var IntGeneratorTask = task.NewTask(IntGeneratorTaskID,[]taskid.UntypedTaskRefer
     return 1, nil
 })
 
-var DoubleIntTask = task.NewTask(DoubleIntTaskID,[]taskid.UntypedTaskReference{IntGeneratorID.GetTaskReference()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error){
-    intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorID.GetTaskReference())
+var DoubleIntTask = task.NewTask(DoubleIntTaskID,[]taskid.UntypedTaskReference{IntGeneratorID.Ref()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error){
+    intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorID.Ref())
     return intGeneratorResult * 2, nil
 })
 ```
@@ -104,7 +104,7 @@ but those referencing the task need to use `taskid.TaskReference[T]`.
 
 This is used to specify dependency list of a task, and also in `GetTaskResult[T](ctx context.Context, reference taskid.TaskReference[T])` to retrieve the value from a previous task depending on.
 
-In many cases, TaskReference[T] will be obtained from TaskImplementationID[T] through GetTaskReference(). 
+In many cases, TaskReference[T] will be obtained from TaskImplementationID[T] through Ref().
 However, KHI's task system has a mechanism to abstract inputs in the ID itself.
 For example, let's say we want to create a task graph that processes "logs collected from Cloud Logging" or "logs uploaded from a file" with "a certain parser".
 
@@ -116,22 +116,21 @@ var LogsInputFromFileTaskID = taskid.NewImplementationID(LogsInputTaskReference,
 var LogParserTaskID = taskid.NewDefaultImplementationID[[]ParsedLog]("example.khi.google.com/log-parser")
 
 var LogsInputFromCloudLoggingTask = task.NewTask(LogsInputFromCloudLoggingTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) ([]Log, error) {
-	// Get logs from Cloud Logging
-	return logs, nil
+ // Get logs from Cloud Logging
+ return logs, nil
 })
 
 var LogsInputFromFileTask = task.NewTask(LogsInputFromFileTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) ([]Log, error) {
-	// Get logs from file
-	return logs, nil
+ // Get logs from file
+ return logs, nil
 })
 
 var LogParserTask = task.NewTask(LogParserTaskID, []taskid.UntypedTaskReference{LogsInputTaskReference}, func(ctx context.Context) ([]ParsedLog, error) {
-	logs := task.GetTaskResult(ctx, LogsInputTaskReference)
-	// Parse logs
-	return parsedLogs, nil
+ logs := task.GetTaskResult(ctx, LogsInputTaskReference)
+ // Parse logs
+ return parsedLogs, nil
 })
 ```
-
 
 ```mermaid
 flowchart TD
@@ -174,6 +173,7 @@ theValue := typedmap.GetValue(ctx, contextValueID)
 KHI uses the `log/slog` package for logging. KHI's logging handlers automatically associate logs with task names by extracting information from the task context, making it clear which task generated each log entry. For this reason, you should always use context-aware logging methods such as `slog.InfoContext`, `slog.WarnContext`, or `slog.ErrorContext` rather than their non-context counterparts when logging within tasks.
 
 Example:
+
 ```go
 task.NewTask(TaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (Result, error) {
     // Good: Using context-aware logging
@@ -192,8 +192,8 @@ task.NewTask(TaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) 
 
 For testing tasks, use one of the following two helper functions:
 
-* `task_test.RunTask`: Used to call a specific task and receive the resulting value and error
-* `task_test.RunTaskWithDependency`: Used to resolve dependencies with the given task list, execute a specific task, and receive the resulting value and error
+- `task_test.RunTask`: Used to call a specific task and receive the resulting value and error
+- `task_test.RunTaskWithDependency`: Used to resolve dependencies with the given task list, execute a specific task, and receive the resulting value and error
 
 #### task_test.RunTask
 
@@ -206,17 +206,17 @@ var DoubleNumberTaskID = taskid.NewDefaultImplementationID[int]("example.khi.goo
 
 var DoubleNumberTask = task.NewTask(DoubleNumberTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (int, error) {
     number := task.GetTaskResult(ctx, ReturnSomeNumberReference)
-	return number * 2, nil
+ return number * 2, nil
 })
 
 func TestRunTask(t *testing.T) {
-	result,err := task_test.RunTask(context.Background(), DoubleNumberTaskID, task_test.NewTaskDependencyPair(ReturnSomeNumberReference, 5))
-	if err != nil {
-		t.Fatalf("failed to run task: %v", err)
-	}
-	if result != 10 {
-		t.Fatalf("unexpected result: %v", result)
-	}
+ result,err := task_test.RunTask(context.Background(), DoubleNumberTaskID, task_test.NewTaskDependencyPair(ReturnSomeNumberReference, 5))
+ if err != nil {
+  t.Fatalf("failed to run task: %v", err)
+ }
+ if result != 10 {
+  t.Fatalf("unexpected result: %v", result)
+ }
 }
 ```
 
@@ -224,32 +224,31 @@ func TestRunTask(t *testing.T) {
 
 In some cases, tasks may have inputs that are difficult to create for test cases, and you may want to actually execute the dependent tasks as well.
 
-
 ```go
 var SimpleInputTaskReference = taskid.NewTaskReference[int]("example.khi.google.com/simple-input")
 var ComplexOutputTaskID = taskid.NewDefaultImplementationID[ComplexOutput]("example.khi.google.com/complex-output")
 var TestingTargetTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/testing-target") 
 
 var ComplexOutputTask = task.NewTask(ComplexOutputTaskID, []taskid.UntypedTaskReference{SimpleInputTaskReference}, func(ctx context.Context) ([]int, error) {
-	input := task.GetTaskResult(ctx, SimpleInputTaskReference)
+ input := task.GetTaskResult(ctx, SimpleInputTaskReference)
     // Do the complex processing
-	return complex,nil
+ return complex,nil
 })
 
-var TestingTargetTask = task.NewTask(TestingTargetTaskID, []taskid.UntypedTaskReference{ComplexOutputTaskID.GetTaskReference()}, func(ctx context.Context) (int, error) {
-	complexOutput := task.GetTaskResult(ctx, ComplexOutputTaskID.GetTaskReference())
+var TestingTargetTask = task.NewTask(TestingTargetTaskID, []taskid.UntypedTaskReference{ComplexOutputTaskID.Ref()}, func(ctx context.Context) (int, error) {
+ complexOutput := task.GetTaskResult(ctx, ComplexOutputTaskID.Ref())
     // Consume the complex output and produce a comperable output
     return testOutput, nil
 })
 
 func TestRunTaskWithDependency(t *testing.T) {
-	result, err := task_test.RunTaskWithDependency(context.Background(), TestingTargetTaskID,[]typedmap.UntypedTaskReference{ComplexOutputTask,task_test.StubTaskFromReferenceID(SimpleInputTaskReference, 5, nil)})
-	if err != nil {
-		t.Fatalf("failed to run task: %v", err)
-	}
-	if result != EXPECTED_VALUE {
-		t.Fatalf("unexpected result: %v", result)
-	}
+ result, err := task_test.RunTaskWithDependency(context.Background(), TestingTargetTaskID,[]typedmap.UntypedTaskReference{ComplexOutputTask,task_test.StubTaskFromReferenceID(SimpleInputTaskReference, 5, nil)})
+ if err != nil {
+  t.Fatalf("failed to run task: %v", err)
+ }
+ if result != EXPECTED_VALUE {
+  t.Fatalf("unexpected result: %v", result)
+ }
 }
 ```
 
@@ -303,7 +302,6 @@ flowchart TD
 
 In this case, since `DependencyTask1` and `DependencyTask2` have no dependencies between them, they are executed first and can run in parallel. After `DependencyTask1` completes, `Task2` is executed, and after `DependencyTask2` completes, `Task1` is executed, forming the complete graph structure.
 `DependencyTask3` is not referenced by either `Task1` or `Task2`, so it is not included in the `resolvedTaskSet`.
-
 
 ### Running the task graph
 
@@ -372,8 +370,8 @@ KHI utilize this feature to select specific set of tasks from the set of all tas
 
 The InspectionType label applied to tasks has a value of []string type. These are arrays of InspectionType IDs, and they determine whether a task is included as a candidate for dependency relationships based on the following criteria when a user selects an Inspection Type in the UI:
 
-* The task does not have an InspectionType label (interpreted as a task that can be used with any InspectionType)
-* The task includes the ID of the user-selected InspectionType as one of its InspectionType labels
+- The task does not have an InspectionType label (interpreted as a task that can be used with any InspectionType)
+- The task includes the ID of the user-selected InspectionType as one of its InspectionType labels
 
 For example, you can define tasks with these labels as follows:
 
@@ -381,14 +379,14 @@ For example, you can define tasks with these labels as follows:
 var IntGeneratorTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/int-generator")
 
 var IntGeneratorTask = task.NewTask(IntGeneratorTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (int, error) {
-	return 1, nil
+ return 1, nil
 }, task.InspectionTypeLabel("gcp-gke","gcp-gdcv-for-baremetal")) // This task is only available when user selected GKE or GDCV for Baremetal on the inspection type selection
 
 var DoubleIntTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/double-int")
 
-var DoubleIntTask = task.NewTask(DoubleIntTaskID, []taskid.UntypedTaskReference{IntGeneratorTaskID.GetTaskReference()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error) {
-	intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorTaskID.GetTaskReference())
-	return intGeneratorResult * 2, nil
+var DoubleIntTask = task.NewTask(DoubleIntTaskID, []taskid.UntypedTaskReference{IntGeneratorTaskID.Ref()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error) {
+ intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
+ return intGeneratorResult * 2, nil
 }) // This task is available for any inspection type
 
 ```
@@ -398,14 +396,13 @@ var DoubleIntTask = task.NewTask(DoubleIntTaskID, []taskid.UntypedTaskReference{
 In KHI, tasks that users can enable or disable are called Feature tasks. These are also just regular tasks, but with specific labels attached to them.
 Since Feature tasks need to be selected by users in the UI, they are given additional labels such as title and description. These can be assigned all at once using the `task.FeatureTaskLabel` function.
 
-
 ```go
 
 var ContainerdLogFeatureTaskID = taskid.NewDefaultImplementationID[[]Log]("example.khi.google.com/containerd-log-feature")
 
 var ContainerdLogFeatureTask = task.NewTask(ContainerdLogFeatureTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) ([]Log, error) {
-	// Get logs from containerd
-	return logs, nil
+ // Get logs from containerd
+ return logs, nil
 }, task.FeatureTaskLabel("title","description",/*Log type*/,/*is default feature or not */, "gcp-gke","gcp-gdcv-for-baremetal"))
 
 ```
@@ -426,10 +423,10 @@ Users typically don't need to get task mode from the context with using `inspect
 
 ```go
 var Task = inspection_task.NewInspectionTask(TestTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.TaskMode) (Result, error) {
-	if taskMode == inspection_task_interface.TaskModeDryRun { // Skip the task processing when the mode is dryrun.
-		return nil, nil
-	}
-	// ...
+ if taskMode == inspection_task_interface.TaskModeDryRun { // Skip the task processing when the mode is dryrun.
+  return nil, nil
+ }
+ // ...
 })
 ```
 
@@ -460,58 +457,58 @@ Below is a practical example of a form task for entering a Duration value. Since
 
 ```go
 var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
-	WithDependencies([]taskid.UntypedTaskReference{
-		common_task.InspectionTimeTaskID,
-		InputEndTimeTaskID,
-		TimeZoneShiftInputTaskID,
-	}).
-	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		} else {
-			return "1h", nil
-		}
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, common_task.InspectionTimeTaskID.GetTaskReference())
-		endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.GetTaskReference())
-		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.GetTaskReference())
+ WithDependencies([]taskid.UntypedTaskReference{
+  common_task.InspectionTimeTaskID,
+  InputEndTimeTaskID,
+  TimeZoneShiftInputTaskID,
+ }).
+ WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
+ WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
+  if len(previousValues) > 0 {
+   return previousValues[0], nil
+  } else {
+   return "1h", nil
+  }
+ }).
+ WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
+  inspectionTime := task.GetTaskResult(ctx, common_task.InspectionTimeTaskID.Ref())
+  endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
+  timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
 
-		duration := convertedValue.(time.Duration)
-		startTime := endTime.Add(-duration)
-		startToNow := inspectionTime.Sub(startTime)
-		hintString := ""
-		if startToNow > time.Hour*24*30 {
-			hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
-		}
-		if duration > time.Hour*3 {
-			hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
-		}
-		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
-		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
-		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
-		return hintString, form_metadata.Info, nil
-	}).
-	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return err.Error(), nil
-		}
-		if d <= 0 {
-			return "duration must be positive", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Duration, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return 0, err
-		}
-		return d, nil
-	}).
-	Build()
+  duration := convertedValue.(time.Duration)
+  startTime := endTime.Add(-duration)
+  startToNow := inspectionTime.Sub(startTime)
+  hintString := ""
+  if startToNow > time.Hour*24*30 {
+   hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
+  }
+  if duration > time.Hour*3 {
+   hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
+  }
+  hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
+  hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
+  hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
+  return hintString, form_metadata.Info, nil
+ }).
+ WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
+ WithValidator(func(ctx context.Context, value string) (string, error) {
+  d, err := time.ParseDuration(value)
+  if err != nil {
+   return err.Error(), nil
+  }
+  if d <= 0 {
+   return "duration must be positive", nil
+  }
+  return "", nil
+ }).
+ WithConverter(func(ctx context.Context, value string) (time.Duration, error) {
+  d, err := time.ParseDuration(value)
+  if err != nil {
+   return 0, err
+  }
+  return d, nil
+ }).
+ Build()
 ```
 
 These form field configurations are stored in the form metadata.
