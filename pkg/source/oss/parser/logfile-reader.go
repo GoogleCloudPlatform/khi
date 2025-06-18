@@ -41,7 +41,7 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
 	},
-	func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
+	func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
@@ -61,28 +61,30 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 		logLines := strings.Split(string(logData), "\n")
 		var logs []*log.Log
 
-		for _, line := range logLines {
+		progress.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {
 			if strings.TrimSpace(line) == "" {
-				continue
+				return nil
 			}
 
 			l, err := log.NewLogFromYAMLString(line)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read a log: %w", err)
+				return fmt.Errorf("failed to read a log: %w", err)
 			}
 
 			err = l.SetFieldSetReader(&oss_log.OSSK8sAuditLogCommonFieldSetReader{})
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			// TODO: we may need to consider processing logs not with ResponseComplete stage. All logs not on the ResponseComplete stage will be ignored for now.
 			if l.ReadStringOrDefault("stage", "") != "ResponseComplete" {
-				continue
+				return nil
 			}
 
 			logs = append(logs, l)
-		}
+			return nil
+		})
+
 		slices.SortFunc(logs, func(a, b *log.Log) int {
 			logACommonField := log.MustGetFieldSet(a, &log.CommonFieldSet{})
 			logBCommonField := log.MustGetFieldSet(b, &log.CommonFieldSet{})
