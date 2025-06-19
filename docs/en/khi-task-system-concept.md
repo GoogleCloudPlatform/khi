@@ -188,6 +188,40 @@ task.NewTask(TaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) 
 })
 ```
 
+### Package structure for tasks
+
+> [!WARNING]
+> We are starting migration to this package structure. Many of current package structure is not following this rule but newer packages must follow.
+
+Tasks are often defined as package-level global variables. However, the initialization order of global variables within the same package is not guaranteed by the Go language. This can lead to errors where a task is initialized with a reference to another `TaskID` that is still `nil`.
+
+To solve this issue reliably, we separate a task's **"contract"** (including task IDs and types used by them) from its **"implementation"** into distinct packages. Because the implementation package imports the contract package, Go guarantees that the contract (and its `TaskID`s) is fully initialized before the implementation.
+
+We use the following standard structure. For example, for a feature named `foo`:
+
+```plaintext
+pkg/a subpackage of somewhere/foo/
+├── contracts/
+│   └── ids.go          // package foocontracts
+├── impl/
+│   └── parsertask.go   // package fooimpl
+└── registration.go     // package foo
+```
+
+Role of Each Component
+
+- `contracts/` (package foocontracts)
+
+    It contains the TaskID variables and defines the result types used as type parameters for the TaskIDs. Contracts package may contains task label keys and types used in its type parameters.
+    Contract package must not depend on the implementation package.
+- `impl/` (package fooimpl)
+
+    This package contains the actual implementation logic of the task.
+    It imports the contracts package to safely reference the TaskID.
+- `registration.go` (package foo)
+
+    It typically contains an function registering the task instance (from the fooimpl package) with a central task registry. This function is called from upper layer package or initialization step of a file in `cmd/kubernetes-history-inspector/`.
+
 ### Testing tasks
 
 For testing tasks, use one of the following two helper functions:
