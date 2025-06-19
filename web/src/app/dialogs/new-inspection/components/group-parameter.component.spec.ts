@@ -16,10 +16,6 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GroupParameterComponent } from './group-parameter.component';
-import {
-  BrowserDynamicTestingModule,
-  platformBrowserDynamicTesting,
-} from '@angular/platform-browser-dynamic/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
 import {
@@ -34,6 +30,10 @@ import {
   PARAMETER_STORE,
 } from './service/parameter-store';
 import { By } from '@angular/platform-browser';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 
 describe('GroupParameterComponent', () => {
   let fixture: ComponentFixture<GroupParameterComponent>;
@@ -42,8 +42,8 @@ describe('GroupParameterComponent', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
+      BrowserTestingModule,
+      platformBrowserTesting(),
       { teardown: { destroyAfterEach: false } },
     );
   });

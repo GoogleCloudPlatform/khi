@@ -15,10 +15,6 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  BrowserDynamicTestingModule,
-  platformBrowserDynamicTesting,
-} from '@angular/platform-browser-dynamic/testing';
 import { ParameterHeaderComponent } from './parameter-header.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
@@ -31,6 +27,10 @@ import {
   DefaultParameterStore,
   PARAMETER_STORE,
 } from './service/parameter-store';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 describe('ParameterHeaderComponent', () => {
   let fixture: ComponentFixture<ParameterHeaderComponent>;
   let harnessLoader: HarnessLoader;
@@ -38,8 +38,8 @@ describe('ParameterHeaderComponent', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
+      BrowserTestingModule,
+      platformBrowserTesting(),
       { teardown: { destroyAfterEach: false } },
     );
   });

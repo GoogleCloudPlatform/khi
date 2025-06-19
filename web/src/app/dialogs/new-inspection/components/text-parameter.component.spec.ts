@@ -15,10 +15,6 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import {
-  BrowserDynamicTestingModule,
-  platformBrowserDynamicTesting,
-} from '@angular/platform-browser-dynamic/testing';
 import { TextParameterComponent } from './text-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
@@ -34,6 +30,10 @@ import {
   PARAMETER_STORE,
 } from './service/parameter-store';
 import { firstValueFrom } from 'rxjs';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 
 describe('TextParameterComponent', () => {
   let fixture: ComponentFixture<TextParameterComponent>;
@@ -55,8 +55,8 @@ describe('TextParameterComponent', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
+      BrowserTestingModule,
+      platformBrowserTesting(),
       { teardown: { destroyAfterEach: false } },
     );
   });

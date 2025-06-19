@@ -17,16 +17,16 @@
 import { HarnessLoader } from '@angular/cdk/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ParameterHintComponent } from './parameter-hint.component';
-import {
-  BrowserDynamicTestingModule,
-  platformBrowserDynamicTesting,
-} from '@angular/platform-browser-dynamic/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { By } from '@angular/platform-browser';
 import { MatIconHarness } from '@angular/material/icon/testing';
 import { ParameterHintType } from 'src/app/common/schema/form-types';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 
 describe('ParameterHintComponent', () => {
   let fixture: ComponentFixture<ParameterHintComponent>;
@@ -34,8 +34,8 @@ describe('ParameterHintComponent', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
+      BrowserTestingModule,
+      platformBrowserTesting(),
       { teardown: { destroyAfterEach: false } },
     );
   });

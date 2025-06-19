@@ -17,10 +17,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileParameterComponent } from './file-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import {
-  BrowserDynamicTestingModule,
-  platformBrowserDynamicTesting,
-} from '@angular/platform-browser-dynamic/testing';
 import { MatIconModule, MatIconRegistry } from '@angular/material/icon';
 import { FILE_UPLOADER, MockFileUploader } from './service/file-uploader';
 import { By } from '@angular/platform-browser';
@@ -38,6 +34,10 @@ import {
   DefaultParameterStore,
   PARAMETER_STORE,
 } from './service/parameter-store';
+import {
+  BrowserTestingModule,
+  platformBrowserTesting,
+} from '@angular/platform-browser/testing';
 
 describe('FileParameterComponent', () => {
   const mockFileUploader = new MockFileUploader();
@@ -57,8 +57,8 @@ describe('FileParameterComponent', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
-      BrowserDynamicTestingModule,
-      platformBrowserDynamicTesting(),
+      BrowserTestingModule,
+      platformBrowserTesting(),
       { teardown: { destroyAfterEach: false } },
     );
   });
