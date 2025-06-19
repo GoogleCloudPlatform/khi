@@ -15,6 +15,8 @@
 package inspection_task
 
 import (
+	"fmt"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -79,6 +81,12 @@ func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTas
 var _ common_task.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
 func FeatureTaskLabel(title string, description string, logType enum.LogType, isDefaultFeature bool, inspectionTypes ...string) *FeatureTaskLabelImpl {
+	for i, t := range inspectionTypes {
+		if t == "" {
+			panic(fmt.Sprintf(`Invalid inspection type at index at #%d. Empty inspection type was given to FeatureTaskLabel function. This may be caused because of initialization order issue of global variables.
+Please define task IDs and types used in its type parameter in a different package.`, i))
+		}
+	}
 	return &FeatureTaskLabelImpl{
 		title:            title,
 		description:      description,
@@ -102,6 +110,12 @@ var _ common_task.LabelOpt = (*InspectionTypeLabelImpl)(nil)
 // InspectionTypeLabel returns a LabelOpt to mark the task only to be used in the specified inspection types.
 // This label must not be used in the feature task. Use the FeatureTaskLabel in feature tasks.
 func InspectionTypeLabel(types ...string) *InspectionTypeLabelImpl {
+	for i, t := range types {
+		if t == "" {
+			panic(fmt.Sprintf(`Invalid inspection type at index at #%d. Empty inspection type was given to InspectionTypeLabel function. This may be caused because of initialization order issue of global variables.
+Please define task IDs and types used in its type parameter in a different package.`, i))
+		}
+	}
 	return &InspectionTypeLabelImpl{
 		inspectionTypes: types,
 	}

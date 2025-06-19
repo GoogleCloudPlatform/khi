@@ -16,6 +16,7 @@ package task
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
@@ -97,7 +98,10 @@ func (c *TaskImpl[TaskResult]) UntypedRun(ctx context.Context) (any, error) {
 var _ Task[any] = (*TaskImpl[any])(nil)
 
 func NewTask[TaskResult any](taskId taskid.TaskImplementationID[TaskResult], dependencies []taskid.UntypedTaskReference, runFunc func(ctx context.Context) (TaskResult, error), labelOpts ...LabelOpt) *TaskImpl[TaskResult] {
+	verifyTaskID(taskId)
+	verifyDependenciesHasValues(taskId, dependencies)
 	labels := NewLabelSet(labelOpts...)
+	verifyLabelKeys(taskId, labels)
 	return &TaskImpl[TaskResult]{
 		id:           taskId,
 		labels:       labels,
@@ -117,5 +121,30 @@ func dedupeTaskReferences(reference []taskid.UntypedTaskReference) []taskid.Unty
 		result = append(result, ref)
 	}
 	return result
+}
 
+func verifyTaskID[TaskResult any](taskID taskid.TaskImplementationID[TaskResult]) {
+	if taskID == nil || taskID.String() == "" {
+		panic(`Invalid taskID. This may be caused because of initialization order issue of global variables.
+Please define task IDs and types used in its type parameter in a different package.`)
+	}
+}
+
+func verifyDependenciesHasValues[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], dependencies []taskid.UntypedTaskReference) {
+	for i, dependency := range dependencies {
+		if dependency == nil {
+			panic(fmt.Sprintf(`Invalid task definition: %s. Given task dependency list contains a nil reference at #%d. This may be caused because of initialization order issue of global variables.
+Please define task IDs and types used in its type parameter in a different package.`, taskID.String(), i))
+		}
+	}
+}
+
+func verifyLabelKeys[TaskResult any](taskID taskid.TaskImplementationID[TaskResult], labels *typedmap.ReadonlyTypedMap) {
+	keys := labels.Keys()
+	for i, key := range keys {
+		if key == "" {
+			panic(fmt.Sprintf(`Invalid task definition: %s. Given task label contains an empty key at #%d. This may be caused because of initialization order issue of global variables.
+Please define label IDs and types used in its type parameter in a different package.`, taskID.String(), i))
+		}
+	}
 }
