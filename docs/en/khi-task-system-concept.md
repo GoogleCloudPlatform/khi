@@ -193,7 +193,7 @@ task.NewTask(TaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) 
 > [!WARNING]
 > We are starting migration to this package structure. Many of current package structure is not following this rule but newer packages must follow.
 
-Tasks are often defined as package-level global variables. However, the initialization order of global variables within the same package is not guaranteed by the Go language. This can lead to errors where a task is initialized with a reference to another `TaskID` that is still `nil`.
+Tasks are often defined as package-level global variables. However, the initialization order of global variables within the same package is not guaranteed by the Go language. [reference: The Go Programming Language Specification](https://go.dev/ref/spec#Package_initialization) This can lead to errors where a task is initialized with a reference to another `TaskID` that is still `nil`.
 
 To solve this issue reliably, we separate a task's **"contract"** (including task IDs and types used by them) from its **"implementation"** into distinct packages. Because the implementation package imports the contract package, Go guarantees that the contract (and its `TaskID`s) is fully initialized before the implementation.
 
