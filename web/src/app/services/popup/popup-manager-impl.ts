@@ -35,7 +35,7 @@ import {
   PopupFormRequest,
 } from 'src/app/common/schema/api-types';
 import { BACKEND_API, BackendAPI } from '../api/backend-api-interface';
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 
 export const NilPopupFormRequest: PopupFormRequest = {
   id: 'none',
@@ -48,6 +48,8 @@ export const NilPopupFormRequest: PopupFormRequest = {
 
 @Injectable({ providedIn: 'any' })
 export class PopupManagerImpl implements PopupManager {
+  private backendAPI = inject<BackendAPI>(BACKEND_API);
+
   private popupRequest = interval(1000).pipe(
     exhaustMap(
       () => this.backendAPI.getPopup() as Observable<PopupFormRequest>,
@@ -60,8 +62,6 @@ export class PopupManagerImpl implements PopupManager {
       refCount: true,
     }),
   );
-
-  constructor(@Inject(BACKEND_API) private backendAPI: BackendAPI) {}
 
   requests(): Observable<PopupFormRequestWithClient> {
     return this.popupRequest.pipe(

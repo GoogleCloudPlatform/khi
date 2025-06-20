@@ -26,6 +26,15 @@ import { LifecycleHookExtension } from './extension-types/lifecycle-hook';
 export const KHI_FRONTEND_EXTENSION_BUNDLE =
   new InjectionToken<KHIExtensionBundle>('KHI_FRONTEND_EXTENSION_BUNDLE');
 
+/**
+ * THe injection token to receive the multi KHI_FRONTEND_EXTENSION_BUNDLE.
+ * This is a workaround for https://github.com/angular/angular/issues/51675.
+ *
+ */
+export const KHI_FRONTEND_EXTENSION_BUNDLES = new InjectionToken<
+  KHIExtensionBundle[]
+>('KHI_FRONTEND_EXTENSION_BUNDLE');
+
 export type KHIExtensionInitHandler = (extension: KHIExtensionBundle) => void;
 
 /**

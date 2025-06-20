@@ -15,7 +15,7 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatInputModule } from '@angular/material/input';
@@ -67,6 +67,9 @@ const nextButtonLabel: { [key: string]: string } = {
   ],
 })
 export class RequestUserActionPopupComponent implements OnInit, OnDestroy {
+  data = inject<RequestUserActionPopupRequest>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject<MatDialogRef<object, void>>(MatDialogRef);
+
   /**
    * The request from server to show the popup.
    */
@@ -100,10 +103,10 @@ export class RequestUserActionPopupComponent implements OnInit, OnDestroy {
 
   nextButtonText = '';
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: RequestUserActionPopupRequest,
-    private readonly dialogRef: MatDialogRef<object, void>,
-  ) {
+  constructor() {
+    const data = this.data;
+    const dialogRef = this.dialogRef;
+
     dialogRef.disableClose = true;
     this.formRequest = data.formRequest;
     this.nextButtonText = nextButtonLabel[this.formRequest.type];

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Inject, Injectable, InjectionToken } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import {
   BehaviorSubject,
   filter,
@@ -75,6 +75,10 @@ interface SessionStatusNotificationMessage {
  */
 @Injectable({ providedIn: 'root' })
 export class WindowConnectorService {
+  private connectionProvider = inject<WindowConnectionProvider>(
+    WINDOW_CONNECTION_PROVIDER,
+  );
+
   sessionId = -1;
 
   readonly sessionEstablished = new ReplaySubject(1);
@@ -107,10 +111,7 @@ export class WindowConnectorService {
 
   private focusWindowSubscription?: Subscription;
 
-  constructor(
-    @Inject(WINDOW_CONNECTION_PROVIDER)
-    private connectionProvider: WindowConnectionProvider,
-  ) {
+  constructor() {
     this.frameId = randomString();
     this.messageSource = this.connectionProvider.receive().pipe(
       filter(

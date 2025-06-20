@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { InspectionDataStoreService } from './inspection-data-store.service';
 import { InspectionData, TimeRange } from '../store/inspection-data';
 import {
@@ -49,13 +49,12 @@ import { ProgressUtil } from './progress/progress-util';
 
 @Injectable()
 export class InspectionDataLoaderService {
-  constructor(
-    @Inject(PROGRESS_DIALOG_STATUS_UPDATOR)
-    private progress: ProgressDialogStatusUpdator,
-    private inspectionDataStore: InspectionDataStoreService,
-    @Inject(BACKEND_API) private backendService: BackendAPI,
-    @Inject(EXTENSION_STORE) private extension: ExtensionStore,
-  ) {}
+  private progress = inject<ProgressDialogStatusUpdator>(
+    PROGRESS_DIALOG_STATUS_UPDATOR,
+  );
+  private inspectionDataStore = inject(InspectionDataStoreService);
+  private backendService = inject<BackendAPI>(BACKEND_API);
+  private extension = inject<ExtensionStore>(EXTENSION_STORE);
 
   private eventDataToViewEvents(
     events: KHIFileResourceEvent[],

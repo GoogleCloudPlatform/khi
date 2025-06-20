@@ -27,6 +27,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  inject,
 } from '@angular/core';
 import {
   BehaviorSubject,
@@ -80,6 +81,9 @@ interface LogViewSelectionMoveCommand {
   ],
 })
 export class LogViewComponent implements OnInit, AfterViewInit, OnDestroy {
+  private inspectionDataStore = inject(InspectionDataStoreService);
+  private selectionManager = inject(SelectionManagerService);
+
   /**
    * The minimal size of log list.
    */
@@ -155,10 +159,7 @@ export class LogViewComponent implements OnInit, AfterViewInit, OnDestroy {
 
   disableScrollForNext = false;
 
-  constructor(
-    private inspectionDataStore: InspectionDataStoreService,
-    private selectionManager: SelectionManagerService,
-  ) {
+  constructor() {
     this.logBodyViewHeight.next(LogViewComponent.MINIMUM_LOG_LIST_SIZE); // initial value of the log view size.
     this.logViewSelectionMoveCommand
       .pipe(

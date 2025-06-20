@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Pipe, PipeTransform } from '@angular/core';
+import { Pipe, PipeTransform, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { ViewStateService } from '../services/view-state.service';
 
@@ -22,7 +22,7 @@ import { ViewStateService } from '../services/view-state.service';
   name: 'tsf',
 })
 export class TimestampFormatPipe implements PipeTransform {
-  constructor(private readonly _viewStateService: ViewStateService) {}
+  private readonly _viewStateService = inject(ViewStateService);
 
   transform(unix_time: number): Observable<string> {
     return this._viewStateService.timezoneShift.pipe(
@@ -42,7 +42,7 @@ export class TimestampFormatPipe implements PipeTransform {
   name: 'tsflong',
 })
 export class LongTimestampFormatPipe implements PipeTransform {
-  constructor(private readonly _viewStateService: ViewStateService) {}
+  private readonly _viewStateService = inject(ViewStateService);
 
   transform(unix_time: number): Observable<string> {
     return this._viewStateService.timezoneShift.pipe(

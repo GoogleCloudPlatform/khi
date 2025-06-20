@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  Component,
-  inject,
-  Inject,
-  OnDestroy,
-  signal,
-  ViewChild,
-} from '@angular/core';
+import { Component, inject, OnDestroy, signal, ViewChild } from '@angular/core';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import {
   BehaviorSubject,
@@ -125,6 +118,13 @@ export function openNewInspectionDialog(dialog: MatDialog) {
   ],
 })
 export class NewInspectionDialogComponent implements OnDestroy {
+  private readonly dialogRef =
+    inject<MatDialogRef<object, NewInspectionDialogResult>>(MatDialogRef);
+  private readonly backendConnection =
+    inject<BackendConnectionService>(BACKEND_CONNECTION);
+  private readonly apiClient = inject<BackendAPI>(BACKEND_API);
+  private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
+
   static readonly STEP_INDEX_CLUSTER_TYPE = 0;
   static readonly STEP_INDEX_FEATURE_SELECTION = 1;
   static readonly STEP_INDEX_PARAMETER_INPUT = 2;
@@ -138,13 +138,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
    */
   public hadRun = signal(false);
 
-  constructor(
-    private readonly dialogRef: MatDialogRef<object, NewInspectionDialogResult>,
-    @Inject(BACKEND_CONNECTION)
-    private readonly backendConnection: BackendConnectionService,
-    @Inject(BACKEND_API) private readonly apiClient: BackendAPI,
-    @Inject(EXTENSION_STORE) private readonly extension: ExtensionStore,
-  ) {
+  constructor() {
     this.featureToggleRequest
       .pipe(
         takeUntil(this.destroyed),

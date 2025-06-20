@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { InspectionMetadataOfRunResult } from '../../common/schema/api-types';
 import { MatCardModule } from '@angular/material/card';
@@ -26,7 +26,5 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule, MatCardModule],
 })
 export class InspectionMetadataDialogComponent {
-  constructor(
-    @Inject(MAT_DIALOG_DATA) public data: InspectionMetadataOfRunResult,
-  ) {}
+  data = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);
 }

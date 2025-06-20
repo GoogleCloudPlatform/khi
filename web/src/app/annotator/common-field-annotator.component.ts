@@ -108,12 +108,15 @@ export class CommonFieldAnnotatorComponent {
     return (l?: LogEntry | null) => {
       if (!l) return DECISION_HIDDEN;
       const viewState = inject(ViewStateService);
-      const tsflongPipe = new LongTimestampFormatPipe(viewState);
       return {
         inputs: {
           icon,
           label,
-          value: tsflongPipe.transform(l.time),
+          value: viewState.timezoneShift.pipe(
+            map((t) =>
+              LongTimestampFormatPipe.toLongDisplayTimestamp(l.time, t),
+            ),
+          ),
         },
       };
     };

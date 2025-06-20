@@ -16,16 +16,14 @@
 
 import { Title } from '@angular/platform-browser';
 import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 
 /**
  * Control the window title regarding routing paths
  */
 @Injectable()
 export class KHITitleStrategy extends TitleStrategy {
-  constructor(private readonly title: Title) {
-    super();
-  }
+  private readonly title = inject(Title);
 
   override updateTitle(snapshot: RouterStateSnapshot): void {
     const sessionId = snapshot.root.firstChild?.params['sessionId'];

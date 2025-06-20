@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, filter, firstValueFrom, map } from 'rxjs';
 import { InspectionDataStoreService } from './inspection-data-store.service';
 import { SelectionManagerService } from './selection-manager.service';
 
 @Injectable({ providedIn: 'root' })
 export class TimelineSelectionService {
+  private _inspectionDataStore = inject(InspectionDataStoreService);
+  private _logSelectionManager = inject(SelectionManagerService);
+
   private logs = this._inspectionDataStore.allLogs;
 
   private $currentTime: BehaviorSubject<number> = new BehaviorSubject(0);
 
-  constructor(
-    private _inspectionDataStore: InspectionDataStoreService,
-    private _logSelectionManager: SelectionManagerService,
-  ) {
+  constructor() {
     this._logSelectionManager.selectedLog
       .pipe(
         filter((log) => log !== null),

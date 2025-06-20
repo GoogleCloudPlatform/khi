@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  Component,
-  EnvironmentInjector,
-  Inject,
-  Input,
-  inject,
-} from '@angular/core';
+import { Component, EnvironmentInjector, Input, inject } from '@angular/core';
 import { InspectionDataStoreService } from '../services/inspection-data-store.service';
 import {
   ReplaySubject,
@@ -42,6 +36,11 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
 })
 export class LogHeaderComponent {
+  private logAnnotatorResolver = inject<LogAnnotatorResolver>(
+    LOG_ANNOTATOR_RESOLVER,
+  );
+  private _inspectionDataStore = inject(InspectionDataStoreService);
+
   private readonly envInjector = inject(EnvironmentInjector);
 
   @Input()
@@ -62,10 +61,4 @@ export class LogHeaderComponent {
     this.logEntryObservable,
     this.envInjector,
   );
-
-  constructor(
-    @Inject(LOG_ANNOTATOR_RESOLVER)
-    private logAnnotatorResolver: LogAnnotatorResolver,
-    private _inspectionDataStore: InspectionDataStoreService,
-  ) {}
 }

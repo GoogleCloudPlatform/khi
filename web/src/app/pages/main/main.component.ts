@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, Inject, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import {
   animationFrames,
   BehaviorSubject,
@@ -63,6 +63,9 @@ import { HeaderComponent } from 'src/app/header/header.component';
   ],
 })
 export class AppComponent implements OnInit, OnDestroy {
+  private extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
+  private dialog = inject(MatDialog);
+
   readonly destroyed = new Subject<void>();
   readonly showLogPane = new BehaviorSubject<boolean>(true);
   readonly showHistoryPane = new BehaviorSubject<boolean>(true);
@@ -119,11 +122,6 @@ export class AppComponent implements OnInit, OnDestroy {
       resizeRatio: 0,
     },
   ]);
-
-  constructor(
-    @Inject(EXTENSION_STORE) private extensionStore: ExtensionStore,
-    private dialog: MatDialog,
-  ) {}
 
   ngOnInit() {
     if (!this.extensionStore.tryOpenDataFromURL()) {

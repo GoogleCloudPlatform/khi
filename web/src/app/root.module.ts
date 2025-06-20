@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  Inject,
-  Injector,
-  NgModule,
-  Optional,
-  importProvidersFrom,
-  inject,
-} from '@angular/core';
+import { Injector, NgModule, importProvidersFrom, inject } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -54,10 +47,7 @@ import {
 import { DiffPageDataSource } from './services/frame-connection/frames/diff-page-datasource.service';
 import { DiffPageDataSourceServer } from './services/frame-connection/frames/diff-page-datasource-server.service';
 import { GraphPageDataSourceServer } from './services/frame-connection/frames/graph-page-datasource-server.service';
-import {
-  KHI_FRONTEND_EXTENSION_BUNDLE,
-  KHIExtensionBundle,
-} from './extensions/extension-common/extension';
+import { KHI_FRONTEND_EXTENSION_BUNDLES } from './extensions/extension-common/extension';
 import { environment } from 'src/environments/environment';
 import {
   EXTENSION_STORE,
@@ -190,15 +180,13 @@ import {
   bootstrap: [RootComponent],
 })
 export class RootModule {
-  constructor(
-    injector: Injector,
-    @Inject(EXTENSION_STORE) extensionStore: ExtensionStore,
-    iconRegistry: MatIconRegistry,
-    notificationManager: NotificationManager,
-    @Optional()
-    @Inject(KHI_FRONTEND_EXTENSION_BUNDLE)
-    extensions: KHIExtensionBundle[] | null,
-  ) {
+  constructor() {
+    const injector = inject(Injector);
+    const extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
+    const iconRegistry = inject(MatIconRegistry);
+    const notificationManager = inject(NotificationManager);
+    let extensions = inject(KHI_FRONTEND_EXTENSION_BUNDLES, { optional: true });
+
     extensionStore.injector = injector;
     if (!extensions) extensions = [];
     iconRegistry.setDefaultFontSetClass('material-symbols-outlined');

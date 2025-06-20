@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
 import {
   HttpClientTestingModule,
   HttpTestingController,
@@ -46,10 +45,10 @@ describe('BackendAPIImpl testing', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
+      providers: [BackendAPIImpl, ViewStateService],
     });
 
-    const httpClient = TestBed.inject(HttpClient);
-    api = new BackendAPIImpl(httpClient, new ViewStateService());
+    api = TestBed.inject(BackendAPIImpl);
     httpTestingController = TestBed.inject(HttpTestingController);
   });
 

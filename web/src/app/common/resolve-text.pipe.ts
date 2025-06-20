@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Pipe, PipeTransform } from '@angular/core';
+import { Pipe, PipeTransform, inject } from '@angular/core';
 import { InspectionDataStoreService } from '../services/inspection-data-store.service';
 import { Observable, switchMap } from 'rxjs';
 import { TextReference } from './loader/interface';
@@ -27,7 +27,8 @@ import { TextReference } from './loader/interface';
   name: 'resolveText',
 })
 export class ResolveTextPipe implements PipeTransform {
-  constructor(private dataStore: InspectionDataStoreService) {}
+  private dataStore = inject(InspectionDataStoreService);
+
   transform(value: TextReference): Observable<string> {
     return this.dataStore.referenceResolver.pipe(
       switchMap((bs) => bs?.getText(value) ?? 'error'),

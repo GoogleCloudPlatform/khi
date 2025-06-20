@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
+import { TestBed } from '@angular/core/testing';
 import { InMemoryWindowConnectionProvider } from './window-connection-provider.service';
 import {
   KHIWindowPacket,
   WindowConnectorService,
+  WINDOW_CONNECTION_PROVIDER,
+  WindowConnectionProvider,
 } from './window-connector.service';
 
 function waitFor(msec: number): Promise<void> {
@@ -28,14 +31,37 @@ function waitFor(msec: number): Promise<void> {
   });
 }
 
+/**
+ * getUniqueWindowConnectorService returns a new instance of WindowConnectorService to emulate inter-frame connection.
+ * WindowConnectorService generates a frameID for each window frames.
+ * This function reset the TestBed to get a new instance of WindowConnectorService because if Angular injector shares a same instance for each injection, it can't emulate the inter-frame connection.
+ */
+function getUniqueWindowConnectorService(
+  connectionProvider: WindowConnectionProvider,
+) {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers: [
+      WindowConnectorService,
+      { provide: WINDOW_CONNECTION_PROVIDER, useValue: connectionProvider },
+    ],
+  });
+  const windowConnector = TestBed.inject(WindowConnectorService);
+  return windowConnector;
+}
+
 describe('WindowConnectorService', () => {
   it('should route broadcasted packet to all frames', async () => {
     const connectionProvider = new InMemoryWindowConnectionProvider();
-    const windowConnector1 = new WindowConnectorService(connectionProvider);
+
+    const windowConnector1 =
+      getUniqueWindowConnectorService(connectionProvider);
     expect(await windowConnector1.createSession(1)).toBe(true);
-    const windowConnector2 = new WindowConnectorService(connectionProvider);
+    const windowConnector2 =
+      getUniqueWindowConnectorService(connectionProvider);
     expect(await windowConnector2.joinSession(1, 'Diagram')).toBe(true);
-    const windowConnector3 = new WindowConnectorService(connectionProvider);
+    const windowConnector3 =
+      getUniqueWindowConnectorService(connectionProvider);
     expect(await windowConnector3.joinSession(1, 'Diagram')).toBe(true);
     const connector1Packets: KHIWindowPacket<unknown>[] = [];
     const connector2Packets: KHIWindowPacket<unknown>[] = [];
@@ -62,12 +88,16 @@ describe('WindowConnectorService', () => {
 
   it('should route unicasted packet to a destination', async () => {
     const connectionProvider = new InMemoryWindowConnectionProvider();
-    const windowConnector1 = new WindowConnectorService(connectionProvider);
-    await windowConnector1.createSession(1);
-    const windowConnector2 = new WindowConnectorService(connectionProvider);
-    await windowConnector2.createSession(1);
-    const windowConnector3 = new WindowConnectorService(connectionProvider);
-    await windowConnector3.createSession(1);
+
+    const windowConnector1 =
+      getUniqueWindowConnectorService(connectionProvider);
+    expect(await windowConnector1.createSession(1)).toBeTrue();
+    const windowConnector2 =
+      getUniqueWindowConnectorService(connectionProvider);
+    expect(await windowConnector2.createSession(1)).toBeFalse();
+    const windowConnector3 =
+      getUniqueWindowConnectorService(connectionProvider);
+    expect(await windowConnector3.createSession(1)).toBeFalse();
     const connector1Packets: KHIWindowPacket<unknown>[] = [];
     const connector2Packets: KHIWindowPacket<unknown>[] = [];
     const connector3Packets: KHIWindowPacket<unknown>[] = [];
@@ -92,10 +122,12 @@ describe('WindowConnectorService', () => {
 
   it('should ignore packet sent in the another session', async () => {
     const connectionProvider = new InMemoryWindowConnectionProvider();
-    const windowConnector1 = new WindowConnectorService(connectionProvider);
-    await windowConnector1.createSession(1);
-    const windowConnector2 = new WindowConnectorService(connectionProvider);
-    await windowConnector2.createSession(1);
+    const windowConnector1 =
+      getUniqueWindowConnectorService(connectionProvider);
+    expect(await windowConnector1.createSession(1)).toBeTrue();
+    const windowConnector2 =
+      getUniqueWindowConnectorService(connectionProvider);
+    expect(await windowConnector2.createSession(1)).toBeFalse();
     const connector1Packets: KHIWindowPacket<unknown>[] = [];
     const connector2Packets: KHIWindowPacket<unknown>[] = [];
     windowConnector1

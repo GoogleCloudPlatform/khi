@@ -26,6 +26,25 @@ import {
 } from './services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from './services/frame-connection/window-connection-provider.service';
 
+/**
+ * getUniqueWindowConnectorService returns a new instance of WindowConnectorService to emulate inter-frame connection.
+ * WindowConnectorService generates a frameID for each window frames.
+ * This function reset the TestBed to get a new instance of WindowConnectorService because if Angular injector shares a same instance for each injection, it can't emulate the inter-frame connection.
+ */
+function getUniqueWindowConnectorService(
+  connectionProvider: WindowConnectionProvider,
+) {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers: [
+      WindowConnectorService,
+      { provide: WINDOW_CONNECTION_PROVIDER, useValue: connectionProvider },
+    ],
+  });
+  const windowConnector = TestBed.inject(WindowConnectorService);
+  return windowConnector;
+}
+
 function createActivateRouteSnapshotWithSessionId(
   sessionId: string,
 ): ActivatedRouteSnapshot {
@@ -72,11 +91,10 @@ describe('SessionHostGuard', () => {
 
   it('should redirect with incrementing sessionId when the given session ID is used', async () => {
     const route = createActivateRouteSnapshotWithSessionId('0');
-    const connectionProvider = TestBed.inject<WindowConnectionProvider>(
-      WINDOW_CONNECTION_PROVIDER,
-    );
-    const connector = new WindowConnectorService(connectionProvider);
+    const connectionProvider = new InMemoryWindowConnectionProvider();
+    const connector = getUniqueWindowConnectorService(connectionProvider);
     await connector.createSession(0);
+    getUniqueWindowConnectorService(connectionProvider); // Forcibly reset TestBed to create a new window connector in the later injection.
 
     const guardResult = TestBed.runInInjectionContext(() =>
       SessionHostGuard(route),
@@ -114,11 +132,10 @@ describe('SessionChildGuard', () => {
 
   it('should accept when the main window with same session ID is existing', async () => {
     const route = createActivateRouteSnapshotWithSessionId('11');
-    const connectionProvider = TestBed.inject<WindowConnectionProvider>(
-      WINDOW_CONNECTION_PROVIDER,
-    );
-    const connector = new WindowConnectorService(connectionProvider);
+    const connectionProvider = new InMemoryWindowConnectionProvider();
+    const connector = getUniqueWindowConnectorService(connectionProvider);
     await connector.createSession(11);
+    getUniqueWindowConnectorService(connectionProvider); // Forcibly reset TestBed to create a new window connector in the later injection.
 
     const guardResult = TestBed.runInInjectionContext(() =>
       SessionChildGuard('Diagram')(route),
