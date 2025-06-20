@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
@@ -49,7 +50,12 @@ func init() {
 }
 
 func main() {
-	inspectionServer, err := inspection.NewServer()
+	ioconfig, err := inspectioncontract.NewIOConfigForTest()
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
+		os.Exit(1)
+	}
+	inspectionServer, err := inspection.NewServer(ioconfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}

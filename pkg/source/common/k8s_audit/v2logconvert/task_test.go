@@ -18,12 +18,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
@@ -34,7 +33,6 @@ import (
 )
 
 func TestLogFillerTask(t *testing.T) {
-	builder := history.NewBuilder(&ioconfig.IOConfig{})
 	baseLog := `protoPayload:
   authenticationInfo:
     principalEmail: user@example.com
@@ -65,8 +63,8 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 	}
 
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 	_, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeRun, map[string]any{},
-		task_test.NewTaskDependencyValuePair(inspection_task.BuilderGeneratorTaskID.Ref(), builder),
 		task_test.NewTaskDependencyValuePair(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
 			Logs:      logs,
 			Extractor: nil,

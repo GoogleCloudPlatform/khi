@@ -23,7 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
@@ -90,7 +90,7 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 			logBCommonField := log.MustGetFieldSet(b, &log.CommonFieldSet{})
 			return int(logACommonField.Timestamp.UnixNano() - logBCommonField.Timestamp.UnixNano())
 		})
-		metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+		metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 		header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
 
 		if len(logs) > 0 {

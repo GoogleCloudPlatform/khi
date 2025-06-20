@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -83,7 +82,7 @@ func TestHistoryEnsureResourceHistory(t *testing.T) {
 			},
 		}
 
-		builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp/"})
+		builder := NewBuilder("/tmp")
 		builder.ensureResourcePath("foo#bar#qux")
 		builder.sortData()
 
@@ -127,7 +126,7 @@ func TestHistoryEnsureResourceHistory(t *testing.T) {
 				},
 			},
 		}
-		builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp/"})
+		builder := NewBuilder("/tmp")
 		builder.ensureResourcePath("foo#bar#qux")
 
 		builder.ensureResourcePath("foo#baz#quux")
@@ -144,7 +143,7 @@ func TestHistoryEnsureResourceHistory(t *testing.T) {
 
 func TestGetLog(t *testing.T) {
 	t.Run("returns error when the specified log id was not found", func(t *testing.T) {
-		builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
+		builder := NewBuilder("/tmp")
 
 		log, err := builder.GetLog("non-existing-id")
 
@@ -157,7 +156,7 @@ func TestGetLog(t *testing.T) {
 	})
 
 	t.Run("returns an log when the specified log id was found", func(t *testing.T) {
-		builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
+		builder := NewBuilder("/tmp")
 		err := builder.PrepareParseLogs(context.Background(), []*log.Log{
 			testlog.MustLogFromYAML(`insertId: foo
 severity: INFO
@@ -199,7 +198,7 @@ timestamp: "2024-01-01T00:00:00Z"`,
 	}
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
-			builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
+			builder := NewBuilder("/tmp")
 			err := builder.PrepareParseLogs(context.Background(), []*log.Log{
 				testlog.MustLogFromYAML(tc.LogBody, &testCommonFieldSetReader{}),
 			}, func() {})
@@ -221,7 +220,7 @@ timestamp: "2024-01-01T00:00:00Z"`,
 
 func TestGetTimelineBuilder(t *testing.T) {
 	t.Run("generates resource histories when it is absent", func(t *testing.T) {
-		builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
+		builder := NewBuilder("/tmp")
 		tb := builder.GetTimelineBuilder("foo#bar#baz")
 
 		if len(tb.builder.history.Timelines) != 1 {
@@ -299,7 +298,7 @@ func TestGetChildResources(t *testing.T) {
 }
 
 func generateBuilderWithTimelines(resourcePaths []string) *Builder {
-	builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
+	builder := NewBuilder("/tmp")
 	for _, resourcePath := range resourcePaths {
 		builder.GetTimelineBuilder(resourcePath)
 	}
@@ -308,7 +307,7 @@ func generateBuilderWithTimelines(resourcePaths []string) *Builder {
 }
 
 func TestGetTimelineBuilderThreadSafety(t *testing.T) {
-	builder := NewBuilder(&ioconfig.IOConfig{TemporaryFolder: "/tmp"})
+	builder := NewBuilder("/tmp")
 	threadCount := 100
 	timelineCountPerThread := 1000000
 	pool := worker.NewPool(threadCount)

@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
@@ -134,7 +135,12 @@ func run() int {
 	if *parameters.Auth.QuotaProjectID != "" {
 		api.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
 	}
-	inspectionServer, err := inspection.NewServer()
+	ioconfig, err := inspectioncontract.NewIOConfigFromParameter(parameters.Common)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
+		return 1
+	}
+	inspectionServer, err := inspection.NewServer(ioconfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}

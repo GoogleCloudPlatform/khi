@@ -12,38 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ioconfig
+package inspectioncontract
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-var IOConfigTaskID = taskid.NewDefaultImplementationID[*IOConfig](task.KHISystemPrefix + "inspection/ioconfig")
-
+// IOConfig holds configuration for file input/output operations.
 type IOConfig struct {
-	// The project root folder
+	// ApplicationRoot is the project root folder
 	ApplicationRoot string
-	// The folder to save khi files
+	// DataDestination is the folder to save khi files
 	DataDestination string
-	// TemporaryFolder working folder
+	// TemporaryFolder is the working folder for temporary files
 	TemporaryFolder string
 }
 
-var ProductionIOConfig = task.NewTask(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*IOConfig, error) {
+// NewIOConfigFromParameter creates an IOConfig from common parameters for production use.
+// It resolves data destination and temporary folders from parameters or uses defaults.
+func NewIOConfigFromParameter(commonParameter *parameters.CommonParameters) (*IOConfig, error) {
 	dataDestinationFolder := "./data"
-	if parameters.Common.DataDestinationFolder != nil {
-		dataDestinationFolder = *parameters.Common.DataDestinationFolder
+	if commonParameter.DataDestinationFolder != nil {
+		dataDestinationFolder = *commonParameter.DataDestinationFolder
 	}
 	temporaryFolder := "/tmp"
-	if parameters.Common.TemporaryFolder != nil {
-		temporaryFolder = *parameters.Common.TemporaryFolder
+	if commonParameter.TemporaryFolder != nil {
+		temporaryFolder = *commonParameter.TemporaryFolder
 	}
 	dir, err := os.Getwd()
 	if err != nil {
@@ -52,14 +50,19 @@ var ProductionIOConfig = task.NewTask(IOConfigTaskID, []taskid.UntypedTaskRefere
 	if !filepath.IsAbs(dataDestinationFolder) {
 		dataDestinationFolder = filepath.Join(dir, dataDestinationFolder)
 	}
+	if !filepath.IsAbs(temporaryFolder) {
+		temporaryFolder = filepath.Join(dir, temporaryFolder)
+	}
 	return &IOConfig{
 		ApplicationRoot: dir,
 		DataDestination: dataDestinationFolder,
 		TemporaryFolder: temporaryFolder,
 	}, nil
-})
+}
 
-var TestIOConfig = task.NewTask(IOConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*IOConfig, error) {
+// NewIOConfigForTest creates an IOConfig for testing by finding the project root
+// using the .root marker file and setting temporary paths.
+func NewIOConfigForTest() (*IOConfig, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, err
@@ -76,4 +79,4 @@ var TestIOConfig = task.NewTask(IOConfigTaskID, []taskid.UntypedTaskReference{},
 		DataDestination: "/tmp/",
 		TemporaryFolder: "/tmp/",
 	}, nil
-})
+}

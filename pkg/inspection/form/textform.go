@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
@@ -154,10 +154,10 @@ func (b *TextFormTaskBuilder[T]) WithConverter(converter TextFormValueConverter[
 
 func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common_task.Task[T] {
 	return common_task.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
-		m := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
-		req := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInput)
-		taskMode := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskMode)
-		globalSharedMap := khictx.MustGetValue(ctx, inspection_task_contextkey.GlobalSharedMap)
+		m := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
+		req := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskInput)
+		taskMode := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskMode)
+		globalSharedMap := khictx.MustGetValue(ctx, inspectioncontract.GlobalSharedMap)
 
 		previousValueStoreKey := typedmap.NewTypedKey[[]string](fmt.Sprintf("text-form-pv-%s", b.id))
 		prevValue := typedmap.GetOrDefault(globalSharedMap, previousValueStoreKey, []string{})

@@ -20,6 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -29,13 +31,12 @@ import (
 )
 
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{
-	inspection_task.BuilderGeneratorTaskID.Ref(),
 	common_k8saudit_taskid.CommonAuitLogSource,
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (struct{}, error) {
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return struct{}{}, nil
 	}
-	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
+	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 	logs := task.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}

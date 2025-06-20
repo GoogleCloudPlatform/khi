@@ -19,8 +19,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
@@ -73,7 +74,7 @@ var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(serialport_taskid.Se
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
 	gcp_task.InputNodeNameFilterTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
+	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 	nodeNameSubstrings := task.GetTaskResult(ctx, gcp_task.InputNodeNameFilterTaskID.Ref())
 
 	return GenerateSerialPortQuery(taskMode, builder.ClusterResource.GetNodes(), nodeNameSubstrings), nil

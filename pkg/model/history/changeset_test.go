@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -171,7 +170,7 @@ func TestGetRevisions(t *testing.T) {
 func TestChangesetFlushIsThreadSafe(t *testing.T) {
 	groupCount := 100
 	logCountPerGroup := 100
-	builder := NewBuilder(&ioconfig.IOConfig{})
+	builder := NewBuilder("/tmp")
 	lt := testlog.New(testlog.YAML(""))
 	l := [][]*log.Log{}
 	allLogs := []*log.Log{}

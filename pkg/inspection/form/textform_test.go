@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
@@ -211,7 +211,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				if err != nil {
 					t.Errorf("task was ended with unexpected error\n%s", err)
 				}
-				metadata := khictx.MustGetValue(taskCtx, inspection_task_contextkey.InspectionRunMetadata)
+				metadata := khictx.MustGetValue(taskCtx, inspectioncontract.InspectionRunMetadata)
 
 				fields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
 				if !found {
@@ -243,7 +243,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					if result != testCase.RequestValue {
 						t.Errorf("the result is not matching with the expected value\nexpected:%s\nactual:%s", testCase.RequestValue, result)
 					}
-					metadata := khictx.MustGetValue(taskCtx, inspection_task_contextkey.InspectionRunMetadata)
+					metadata := khictx.MustGetValue(taskCtx, inspectioncontract.InspectionRunMetadata)
 
 					fields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
 					if !found {

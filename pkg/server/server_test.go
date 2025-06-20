@@ -29,14 +29,13 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
@@ -95,16 +94,15 @@ func debugRef(id string) taskid.TaskReference[any] {
 }
 
 func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
-	inspectionServer, err := inspection.NewServer()
+	ioConfig, err := inspectioncontract.NewIOConfigForTest()
+	if err != nil {
+		return nil, err
+	}
+	inspectionServer, err := inspection.NewServer(ioConfig)
 	if err != nil {
 		return nil, err
 	}
 	tasks := []task.UntypedTask{
-		task_test.StubTask(inspection_task.BuilderGeneratorTask, history.NewBuilder(&ioconfig.IOConfig{
-			ApplicationRoot: "/",
-			DataDestination: "/tmp/",
-			TemporaryFolder: "/tmp/",
-		}), nil),
 		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("neverend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			tp.Update(0.5, "test")
 			select {
@@ -137,7 +135,6 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			return "feature-bar1-value", nil
 		}, inspection_task.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, false, "qux")),
-		ioconfig.TestIOConfig,
 	}
 
 	for _, task := range tasks {
