@@ -201,8 +201,8 @@ We use the following standard structure. For example, for a feature named `foo`:
 
 ```plaintext
 pkg/a subpackage of somewhere/foo/
-├── contracts/
-│   └── ids.go          // package foocontracts
+├── contract/
+│   └── ids.go          // package foocontract
 ├── impl/
 │   └── parsertask.go   // package fooimpl
 └── registration.go     // package foo
@@ -210,14 +210,14 @@ pkg/a subpackage of somewhere/foo/
 
 Role of Each Component
 
-- `contracts/` (package foocontracts)
+- `contract/` (package foocontract)
 
-    It contains the TaskID variables and defines the result types used as type parameters for the TaskIDs. Contracts package may contains task label keys and types used in its type parameters.
+    It contains the TaskID variables and defines the result types used as type parameters for the TaskIDs. Contract package may contains task label keys and types used in its type parameters.
     Contract package must not depend on the implementation package.
 - `impl/` (package fooimpl)
 
     This package contains the actual implementation logic of the task.
-    It imports the contracts package to safely reference the TaskID.
+    It imports the contract package to safely reference the TaskID.
 - `registration.go` (package foo)
 
     It typically contains an function registering the task instance (from the fooimpl package) with a central task registry. This function is called from upper layer package or initialization step of a file in `cmd/kubernetes-history-inspector/`.
