@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   GetInspectionTypesResponse,
   CreateInspectionResponse,
@@ -62,6 +62,9 @@ import { UploadToken } from 'src/app/common/schema/form-types';
   providedIn: 'root',
 })
 export class BackendAPIImpl implements BackendAPI {
+  private http = inject(HttpClient);
+  private readonly viewState = inject(ViewStateService);
+
   private readonly API_BASE_PATH = '/api/v3';
 
   private readonly MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE = 16 * 1024 * 1024;
@@ -76,10 +79,7 @@ export class BackendAPIImpl implements BackendAPI {
 
   private readonly getConfigObservable: Observable<GetConfigResponse>;
 
-  constructor(
-    private http: HttpClient,
-    private readonly viewState: ViewStateService,
-  ) {
+  constructor() {
     this.baseUrl = BackendAPIImpl.getServerBasePath() + this.API_BASE_PATH;
 
     const getConfigUrl = this.baseUrl + '/config';

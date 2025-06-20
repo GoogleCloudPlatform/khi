@@ -24,12 +24,14 @@ import {
   ProgressDialogStatusObserver,
   ProgressDialogStatusUpdator,
 } from './progress-interface';
-import { Injectable, Provider } from '@angular/core';
+import { Injectable, Provider, inject } from '@angular/core';
 
 @Injectable()
 export class ProgressDialogService
   implements ProgressDialogStatusObserver, ProgressDialogStatusUpdator
 {
+  private _dialog = inject(MatDialog);
+
   /**
    * Returns Angular providers for interfaces implemented on this class.
    */
@@ -59,8 +61,6 @@ export class ProgressDialogService
    * The dismiss() function will close the dialog only when this count become 0.
    */
   private showCount = 0;
-
-  constructor(private _dialog: MatDialog) {}
 
   status(): Observable<CurrentProgress> {
     return this.currentStatusSubject;

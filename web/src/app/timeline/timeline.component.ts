@@ -18,11 +18,11 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
-  Inject,
   Input,
   OnDestroy,
   OnInit,
   ViewChild,
+  inject,
 } from '@angular/core';
 import {
   BehaviorSubject,
@@ -144,6 +144,14 @@ const DEFAULT_HOVER_VIEW_STATE: HoverViewState = {
   ],
 })
 export class TimelineComponent implements OnInit, AfterViewInit, OnDestroy {
+  private _viewStateService = inject(ViewStateService);
+  private _inspectionDataStore = inject(InspectionDataStoreService);
+  private selectionManager = inject(SelectionManagerService);
+  private timelineScrollStrategy = inject(TimelinesScrollStrategy);
+  private timelineRenderer = inject(TimelineRendererService);
+  private keyEventHandler = inject(CanvasKeyEventHandler);
+  private timelineFilter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+
   /**
    * Ignores scroll request when the target log entry is already in between [left edge + padding, right edge - padding].
    */
@@ -242,16 +250,6 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnDestroy {
   canvasParent!: ElementRef<HTMLDivElement>;
   canvasParentSizeSubject: Subject<CanvasSize> = new ReplaySubject(1);
   canvasParentSizeObserver!: ResizeObserver;
-
-  constructor(
-    private _viewStateService: ViewStateService,
-    private _inspectionDataStore: InspectionDataStoreService,
-    private selectionManager: SelectionManagerService,
-    private timelineScrollStrategy: TimelinesScrollStrategy,
-    private timelineRenderer: TimelineRendererService,
-    private keyEventHandler: CanvasKeyEventHandler,
-    @Inject(DEFAULT_TIMELINE_FILTER) private timelineFilter: TimelineFilter,
-  ) {}
   ngOnDestroy(): void {
     this.destoroyed.next();
   }

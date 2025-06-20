@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { SelectionManagerService } from '../services/selection-manager.service';
 import { Subject, withLatestFrom } from 'rxjs';
 import { ResourceTimeline, TimelineLayer } from '../store/timeline';
@@ -44,16 +44,18 @@ interface MoveVerticalSelectionCommand {
  */
 @Injectable({ providedIn: 'root' })
 export class CanvasKeyEventHandler {
+  private selectionManager = inject(SelectionManagerService);
+
   private moveHorizontalSelectionCommand =
     new Subject<MoveHorizontalSelectionCommand>();
 
   private moveVerticalSelectionCommand =
     new Subject<MoveVerticalSelectionCommand>();
 
-  constructor(
-    private selectionManager: SelectionManagerService,
-    @Inject(DEFAULT_TIMELINE_FILTER) filter: TimelineFilter,
-  ) {
+  constructor() {
+    const selectionManager = this.selectionManager;
+    const filter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+
     // For revision selection
     this.moveHorizontalSelectionCommand
       .pipe(

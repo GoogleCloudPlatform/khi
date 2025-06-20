@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   BehaviorSubject,
   Observable,
@@ -44,6 +44,8 @@ export interface PerRowScrollingProperty {
 
 @Injectable()
 export class TimelinesScrollStrategy {
+  private timelineFilter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+
   /**
    * Extra margin at the bottom in pixels.
    * This is needed not to stick the bottom element at the bottom of screen.
@@ -180,9 +182,7 @@ export class TimelinesScrollStrategy {
    */
   scrollToTimelineVerticallyCommand: Subject<ResourceTimeline> = new Subject();
 
-  constructor(
-    @Inject(DEFAULT_TIMELINE_FILTER) private timelineFilter: TimelineFilter,
-  ) {
+  constructor() {
     // Calculate properties needed for scrolling behavior from updated timeline array.
     this.timelineFilter.filteredTimeline
       .pipe(

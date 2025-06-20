@@ -32,6 +32,8 @@ import { ResourceTimeline } from 'src/app/store/timeline';
   imports: [CommonModule, TitleBarComponent, SideBySideDiffComponent],
 })
 export class DiffComponent {
+  private readonly diffPageSource = inject(DiffPageDataSource);
+
   private readonly envInjector = inject(EnvironmentInjector);
 
   private readonly timelineAnnotatorResolver = inject(
@@ -68,6 +70,4 @@ export class DiffComponent {
     this.changePair,
     this.envInjector,
   );
-
-  constructor(private readonly diffPageSource: DiffPageDataSource) {}
 }

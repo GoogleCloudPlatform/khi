@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Inject, Injectable, InjectionToken } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
 import {
   Observable,
   exhaustMap,
@@ -42,6 +42,8 @@ export const BACKEND_CONNECTION = new InjectionToken<BackendConnectionService>(
  */
 @Injectable()
 export class BackendConnectionServiceImpl implements BackendConnectionService {
+  private backendApi = inject<BackendAPI>(BACKEND_API);
+
   /**
    * Interval to poll task progresses.
    */
@@ -81,8 +83,6 @@ export class BackendConnectionServiceImpl implements BackendConnectionService {
     }),
     retry(),
   );
-
-  constructor(@Inject(BACKEND_API) private backendApi: BackendAPI) {}
 
   inspectionTypes(): Observable<GetInspectionTypesResponse> {
     return this.inspectionTypesObservable;

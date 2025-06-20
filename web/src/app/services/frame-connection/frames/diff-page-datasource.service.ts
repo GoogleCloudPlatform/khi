@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { InterframeDatasource } from '../inter-frame-datasource.service';
 import { distinctUntilChanged, map, Subject } from 'rxjs';
 import { WindowConnectorService } from '../window-connector.service';
@@ -28,14 +28,14 @@ import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 
 @Injectable()
 export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> {
+  private connector = inject(WindowConnectorService);
+  private router = inject(Router);
+
   private navigationCandidate: Subject<string> = new Subject();
 
   private enabled = false;
 
-  constructor(
-    private connector: WindowConnectorService,
-    private router: Router,
-  ) {
+  constructor() {
     super();
 
     this.navigationCandidate

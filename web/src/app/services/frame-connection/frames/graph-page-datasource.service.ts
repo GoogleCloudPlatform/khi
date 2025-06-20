@@ -16,7 +16,7 @@
 
 import { GraphData } from 'src/app/common/schema/graph-schema';
 import { InterframeDatasource } from '../inter-frame-datasource.service';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { WindowConnectorService } from '../window-connector.service';
 import {
   GRAPH_PAGE_OPEN,
@@ -29,11 +29,9 @@ export interface UpdateGraphMessage {
 
 @Injectable()
 export class GraphPageDataSource extends InterframeDatasource<GraphData> {
-  private enabled = false;
+  private connector = inject(WindowConnectorService);
 
-  constructor(private connector: WindowConnectorService) {
-    super();
-  }
+  private enabled = false;
   override enable(): void {
     if (this.enabled) {
       return;

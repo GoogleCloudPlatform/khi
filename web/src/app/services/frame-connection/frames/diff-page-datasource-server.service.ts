@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { WindowConnectorService } from '../window-connector.service';
 import {
   DIFF_PAGE_OPEN,
@@ -29,10 +29,8 @@ import { withLatestFrom } from 'rxjs';
  */
 @Injectable()
 export class DiffPageDataSourceServer {
-  constructor(
-    private connector: WindowConnectorService,
-    private selectionManager: SelectionManagerService,
-  ) {}
+  private connector = inject(WindowConnectorService);
+  private selectionManager = inject(SelectionManagerService);
 
   public activate() {
     // Send the current selected revision and timeline to newly activated diff page

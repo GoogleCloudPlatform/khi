@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, Inject, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import {
   BehaviorSubject,
@@ -67,6 +67,11 @@ type ToolbarPopupStatus =
   ],
 })
 export class ToolbarComponent implements OnInit, OnDestroy {
+  private selectionManager = inject(SelectionManagerService);
+  readonly viewStateService = inject(ViewStateService);
+  private inspectionDataStore = inject(InspectionDataStoreService);
+  private timelineFilter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+
   private destoroyed = new Subject<void>();
 
   private breakpointObserver = inject(BreakpointObserver);
@@ -119,13 +124,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   ]).pipe(map(([l, t]) => l == null || t == null));
 
   popupStatus: ToolbarPopupStatus = 'NONE_OPEN';
-
-  constructor(
-    private selectionManager: SelectionManagerService,
-    public readonly viewStateService: ViewStateService,
-    private inspectionDataStore: InspectionDataStoreService,
-    @Inject(DEFAULT_TIMELINE_FILTER) private timelineFilter: TimelineFilter,
-  ) {}
   ngOnDestroy(): void {
     this.destoroyed.next();
   }

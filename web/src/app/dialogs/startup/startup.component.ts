@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, Inject } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   ReplaySubject,
@@ -86,6 +86,16 @@ export type TaskListViewModel = {
   imports: [CommonModule, MatIconModule, MatTooltipModule, MatButtonModule],
 })
 export class StartupDialogComponent {
+  private readonly dialog = inject(MatDialog);
+  private readonly dialogRef = inject<MatDialogRef<void>>(MatDialogRef);
+  private readonly backendAPI = inject<BackendAPI>(BACKEND_API);
+  private readonly backendConnection =
+    inject<BackendConnectionService>(BACKEND_CONNECTION);
+  private readonly loader = inject(InspectionDataLoaderService);
+  private readonly progress = inject<ProgressDialogStatusUpdator>(
+    PROGRESS_DIALOG_STATUS_UPDATOR,
+  );
+
   /**
    * The interval to refresh the start time of each tasks written as `xx seconds ago`.
    */
@@ -154,17 +164,6 @@ export class StartupDialogComponent {
   );
 
   serverStat = this.tasks.pipe(map((resp) => resp.serverStat));
-
-  constructor(
-    private readonly dialog: MatDialog,
-    private readonly dialogRef: MatDialogRef<void>,
-    @Inject(BACKEND_API) private readonly backendAPI: BackendAPI,
-    @Inject(BACKEND_CONNECTION)
-    private readonly backendConnection: BackendConnectionService,
-    private readonly loader: InspectionDataLoaderService,
-    @Inject(PROGRESS_DIALOG_STATUS_UPDATOR)
-    private readonly progress: ProgressDialogStatusUpdator,
-  ) {}
 
   private durationToTimeSeconds(duration: number): string {
     const hour = 1000 * 60 * 60;

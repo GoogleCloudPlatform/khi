@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   BehaviorSubject,
   combineLatest,
@@ -40,6 +40,8 @@ type LogHighlightQuery = LogSelectionQuery | number[];
  */
 @Injectable({ providedIn: 'root' })
 export class SelectionManagerService {
+  private inspectionDataStore = inject(InspectionDataStoreService);
+
   private logSelectionQuery: Subject<LogSelectionQuery> = new Subject();
 
   /**
@@ -193,7 +195,7 @@ export class SelectionManagerService {
       refCount: true,
     }),
   );
-  constructor(private inspectionDataStore: InspectionDataStoreService) {
+  constructor() {
     // Change selection status when current timeline selection was changed.
     this.selectedTimeline
       .pipe(

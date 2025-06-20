@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { DownloadService } from '../pages/graph/services/donwload-service';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatIconModule } from '@angular/material/icon';
@@ -27,7 +27,7 @@ import { MatButtonModule } from '@angular/material/button';
   imports: [MatMenuModule, MatIconModule, MatButtonModule],
 })
 export class GraphMenuComponent {
-  constructor(private downloadService: DownloadService) {}
+  private downloadService = inject(DownloadService);
 
   downloadAsPng() {
     this.downloadService.downloadAsPng();

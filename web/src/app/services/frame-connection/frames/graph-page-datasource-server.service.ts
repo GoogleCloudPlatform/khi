@@ -22,7 +22,7 @@ import { GraphDataConverterService } from '../../graph-converter.service';
 import { SelectionManagerService } from '../../selection-manager.service';
 import { WindowConnectorService } from '../window-connector.service';
 import { withLatestFrom } from 'rxjs';
-import { Inject, Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { UpdateGraphMessage } from './graph-page-datasource.service';
 import {
   DEFAULT_TIMELINE_FILTER,
@@ -31,12 +31,10 @@ import {
 
 @Injectable()
 export class GraphPageDataSourceServer {
-  constructor(
-    private graphConverter: GraphDataConverterService,
-    private connector: WindowConnectorService,
-    private selectionManager: SelectionManagerService,
-    @Inject(DEFAULT_TIMELINE_FILTER) private filter: TimelineFilter,
-  ) {}
+  private graphConverter = inject(GraphDataConverterService);
+  private connector = inject(WindowConnectorService);
+  private selectionManager = inject(SelectionManagerService);
+  private filter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
 
   public activate() {
     this.connector

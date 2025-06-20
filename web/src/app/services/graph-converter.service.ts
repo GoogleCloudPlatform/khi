@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import {
   ArchGraphCondition,
@@ -52,7 +52,7 @@ interface MappedTimelineEntry {
   providedIn: 'root',
 })
 export class GraphDataConverterService {
-  constructor(private _viewStateService: ViewStateService) {}
+  private _viewStateService = inject(ViewStateService);
 
   private $timeZoneShift: BehaviorSubject<number> = asBehaviorSubject(
     this._viewStateService.timezoneShift,

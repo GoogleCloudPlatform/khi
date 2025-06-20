@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   BehaviorSubject,
   Observable,
@@ -53,6 +53,11 @@ import { TimelineGLResourceManager } from './timeline_gl_resource_manager';
 
 @Injectable()
 export class TimelineRendererService {
+  private dataStore = inject(InspectionDataStoreService);
+  private selectionManager = inject(SelectionManagerService);
+  private scrollingStrategy = inject(TimelinesScrollStrategy);
+  private viewState = inject(ViewStateService);
+
   /**
    * The time in ms not to refresh screen when the previous render request was happened recently.
    */
@@ -101,12 +106,7 @@ export class TimelineRendererService {
   private mouseClickPointerLocation: Subject<CanvasMouseLocation | null> =
     new BehaviorSubject<CanvasMouseLocation | null>(null);
 
-  constructor(
-    private dataStore: InspectionDataStoreService,
-    private selectionManager: SelectionManagerService,
-    private scrollingStrategy: TimelinesScrollStrategy,
-    private viewState: ViewStateService,
-  ) {
+  constructor() {
     this.initSubscribers();
   }
 
