@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_task_contextkey
+package inspectioncontract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 )
 
 // InspectionTaskMode is the context key to access the execution mode of the inspection task.
@@ -48,3 +49,11 @@ var InspectionTaskRunID = typedmap.NewTypedKey[string]("khi.google.com/inspectio
 // This map stores supplementary data beyond the main task results, such as logs and progress information.
 // It is expected to be serialized and passed to the frontend for display.
 var InspectionRunMetadata = typedmap.NewTypedKey[*typedmap.ReadonlyTypedMap]("khi.google.com/inspection/metadata-map")
+
+// CurrentIOConfig is the context key to access the current IO configuration
+// for file operations during inspection task execution.
+var CurrentIOConfig = typedmap.NewTypedKey[*IOConfig]("khi.google.com/inspection/current-io-config")
+
+// CurrentHistoryBuilder is the context key to access the history builder instance
+// used for constructing timeline data during inspection execution.
+var CurrentHistoryBuilder = typedmap.NewTypedKey[*history.Builder]("khi.google.com/inspection/current-history-builder")

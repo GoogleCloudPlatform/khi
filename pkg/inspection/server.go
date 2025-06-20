@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
@@ -61,9 +62,11 @@ type InspectionTaskServer struct {
 	inspectionTypes []*InspectionType
 	// inspections are generated inspection task runers
 	inspections map[string]*InspectionTaskRunner
+
+	ioConfig *inspectioncontract.IOConfig
 }
 
-func NewServer() (*InspectionTaskServer, error) {
+func NewServer(ioConfig *inspectioncontract.IOConfig) (*InspectionTaskServer, error) {
 	ns, err := task.NewTaskSet([]task.UntypedTask{})
 	if err != nil {
 		return nil, err
@@ -72,6 +75,7 @@ func NewServer() (*InspectionTaskServer, error) {
 		RootTaskSet:     ns,
 		inspectionTypes: make([]*InspectionType, 0),
 		inspections:     map[string]*InspectionTaskRunner{},
+		ioConfig:        ioConfig,
 	}, nil
 }
 
@@ -101,7 +105,7 @@ func (s *InspectionTaskServer) AddTask(task task.UntypedTask) error {
 
 // CreateInspection generates an inspection and returns inspection ID
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
-	inspectionTask := NewInspectionRunner(s)
+	inspectionTask := NewInspectionRunner(s, s.ioConfig)
 	err := inspectionTask.SetInspectionType(inspectionType)
 	if err != nil {
 		return "", err
