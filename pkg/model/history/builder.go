@@ -29,7 +29,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
@@ -53,11 +52,11 @@ type Builder struct {
 	ClusterResource        *resourceinfo.Cluster
 }
 
-func NewBuilder(ioConfig *ioconfig.IOConfig) *Builder {
+func NewBuilder(tmpFolder string) *Builder {
 	return &Builder{
 		history:                NewHistory(),
 		historyLock:            sync.Mutex{},
-		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(ioConfig.TemporaryFolder), ioConfig.TemporaryFolder),
+		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(tmpFolder), tmpFolder),
 		timelinemap:            common.NewShardingMap[*ResourceTimeline](common.NewSuffixShardingProvider(128, 4)),
 		timelineBuilders:       common.NewShardingMap[*TimelineBuilder](common.NewSuffixShardingProvider(128, 4)),
 		logIdToSerializableLog: common.NewShardingMap[*SerializableLog](common.NewSuffixShardingProvider(128, 4)),

@@ -16,7 +16,6 @@ package inspection_common
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 )
 
@@ -25,16 +24,5 @@ func PrepareInspectionServer(rootServer *inspection.InspectionTaskServer) error 
 	if err != nil {
 		return err
 	}
-
-	err = rootServer.AddTask(ioconfig.ProductionIOConfig)
-	if err != nil {
-		return err
-	}
-
-	err = rootServer.AddTask(inspection_task.BuilderGeneratorTask)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
