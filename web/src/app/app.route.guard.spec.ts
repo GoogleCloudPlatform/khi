@@ -29,7 +29,7 @@ import { InMemoryWindowConnectionProvider } from './services/frame-connection/wi
 /**
  * getUniqueWindowConnectorService returns a new instance of WindowConnectorService to emulate inter-frame connection.
  * WindowConnectorService generates a frameID for each window frames.
- * This function reset the TestBed to get a new instance of WindowConnectorService because if Angular injector shares a same instance for each injection, it can't emulate the inter-frame connection.
+ * This function resets the TestBed to get a new instance of WindowConnectorService because if Angular injector shares the same instance for each injection, it can't emulate the inter-frame connection.
  */
 function getUniqueWindowConnectorService(
   connectionProvider: WindowConnectionProvider,
