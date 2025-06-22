@@ -81,8 +81,8 @@ interface LogViewSelectionMoveCommand {
   ],
 })
 export class LogViewComponent implements OnInit, AfterViewInit, OnDestroy {
-  private inspectionDataStore = inject(InspectionDataStoreService);
-  private selectionManager = inject(SelectionManagerService);
+  private readonly inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly selectionManager = inject(SelectionManagerService);
 
   /**
    * The minimal size of log list.

@@ -62,7 +62,7 @@ import { UploadToken } from 'src/app/common/schema/form-types';
   providedIn: 'root',
 })
 export class BackendAPIImpl implements BackendAPI {
-  private http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
   private readonly viewState = inject(ViewStateService);
 
   private readonly API_BASE_PATH = '/api/v3';

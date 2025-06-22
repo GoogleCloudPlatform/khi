@@ -27,7 +27,7 @@ import { MatButtonModule } from '@angular/material/button';
   imports: [MatMenuModule, MatIconModule, MatButtonModule],
 })
 export class GraphMenuComponent {
-  private downloadService = inject(DownloadService);
+  private readonly downloadService = inject(DownloadService);
 
   downloadAsPng() {
     this.downloadService.downloadAsPng();

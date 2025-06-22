@@ -31,10 +31,10 @@ import {
 
 @Injectable()
 export class GraphPageDataSourceServer {
-  private graphConverter = inject(GraphDataConverterService);
-  private connector = inject(WindowConnectorService);
-  private selectionManager = inject(SelectionManagerService);
-  private filter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+  private readonly graphConverter = inject(GraphDataConverterService);
+  private readonly connector = inject(WindowConnectorService);
+  private readonly selectionManager = inject(SelectionManagerService);
+  private readonly filter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
 
   public activate() {
     this.connector

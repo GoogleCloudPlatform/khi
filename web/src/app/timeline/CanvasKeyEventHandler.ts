@@ -44,12 +44,12 @@ interface MoveVerticalSelectionCommand {
  */
 @Injectable({ providedIn: 'root' })
 export class CanvasKeyEventHandler {
-  private selectionManager = inject(SelectionManagerService);
+  private readonly selectionManager = inject(SelectionManagerService);
 
-  private moveHorizontalSelectionCommand =
+  private readonly moveHorizontalSelectionCommand =
     new Subject<MoveHorizontalSelectionCommand>();
 
-  private moveVerticalSelectionCommand =
+  private readonly moveVerticalSelectionCommand =
     new Subject<MoveVerticalSelectionCommand>();
 
   constructor() {

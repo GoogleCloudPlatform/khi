@@ -29,7 +29,7 @@ export interface UpdateGraphMessage {
 
 @Injectable()
 export class GraphPageDataSource extends InterframeDatasource<GraphData> {
-  private connector = inject(WindowConnectorService);
+  private readonly connector = inject(WindowConnectorService);
 
   private enabled = false;
   override enable(): void {

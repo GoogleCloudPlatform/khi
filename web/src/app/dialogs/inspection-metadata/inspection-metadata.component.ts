@@ -26,5 +26,5 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule, MatCardModule],
 })
 export class InspectionMetadataDialogComponent {
-  data = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);
+  readonly data = inject<InspectionMetadataOfRunResult>(MAT_DIALOG_DATA);
 }

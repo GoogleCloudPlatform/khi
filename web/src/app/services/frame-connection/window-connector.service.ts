@@ -75,7 +75,7 @@ interface SessionStatusNotificationMessage {
  */
 @Injectable({ providedIn: 'root' })
 export class WindowConnectorService {
-  private connectionProvider = inject<WindowConnectionProvider>(
+  private readonly connectionProvider = inject<WindowConnectionProvider>(
     WINDOW_CONNECTION_PROVIDER,
   );
 

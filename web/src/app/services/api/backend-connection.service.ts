@@ -42,7 +42,7 @@ export const BACKEND_CONNECTION = new InjectionToken<BackendConnectionService>(
  */
 @Injectable()
 export class BackendConnectionServiceImpl implements BackendConnectionService {
-  private backendApi = inject<BackendAPI>(BACKEND_API);
+  private readonly backendApi = inject<BackendAPI>(BACKEND_API);
 
   /**
    * Interval to poll task progresses.

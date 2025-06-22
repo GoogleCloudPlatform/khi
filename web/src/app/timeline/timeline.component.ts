@@ -144,13 +144,15 @@ const DEFAULT_HOVER_VIEW_STATE: HoverViewState = {
   ],
 })
 export class TimelineComponent implements OnInit, AfterViewInit, OnDestroy {
-  private _viewStateService = inject(ViewStateService);
-  private _inspectionDataStore = inject(InspectionDataStoreService);
-  private selectionManager = inject(SelectionManagerService);
-  private timelineScrollStrategy = inject(TimelinesScrollStrategy);
-  private timelineRenderer = inject(TimelineRendererService);
-  private keyEventHandler = inject(CanvasKeyEventHandler);
-  private timelineFilter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+  private readonly _viewStateService = inject(ViewStateService);
+  private readonly _inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly selectionManager = inject(SelectionManagerService);
+  private readonly timelineScrollStrategy = inject(TimelinesScrollStrategy);
+  private readonly timelineRenderer = inject(TimelineRendererService);
+  private readonly keyEventHandler = inject(CanvasKeyEventHandler);
+  private readonly timelineFilter = inject<TimelineFilter>(
+    DEFAULT_TIMELINE_FILTER,
+  );
 
   /**
    * Ignores scroll request when the target log entry is already in between [left edge + padding, right edge - padding].

@@ -91,8 +91,8 @@ type DiffViewViewModel = {
   ],
 })
 export class DiffViewComponent implements OnInit, OnDestroy {
-  private _inspectionDataStore = inject(InspectionDataStoreService);
-  private _selectionManager = inject(SelectionManagerService);
+  private readonly _inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly _selectionManager = inject(SelectionManagerService);
 
   private readonly envInjector = inject(EnvironmentInjector);
 

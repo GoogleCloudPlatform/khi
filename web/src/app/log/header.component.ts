@@ -36,10 +36,10 @@ import { CommonModule } from '@angular/common';
   imports: [CommonModule],
 })
 export class LogHeaderComponent {
-  private logAnnotatorResolver = inject<LogAnnotatorResolver>(
+  private readonly logAnnotatorResolver = inject<LogAnnotatorResolver>(
     LOG_ANNOTATOR_RESOLVER,
   );
-  private _inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly inspectionDataStore = inject(InspectionDataStoreService);
 
   private readonly envInjector = inject(EnvironmentInjector);
 
@@ -52,7 +52,7 @@ export class LogHeaderComponent {
 
   public logEntryObservable = this.logIndexObservable.pipe(
     startWith(0),
-    withLatestFrom(this._inspectionDataStore.allLogs),
+    withLatestFrom(this.inspectionDataStore.allLogs),
     map(([i, all]) => all[i]),
     shareReplay(1),
   );

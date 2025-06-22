@@ -49,12 +49,12 @@ import { ProgressUtil } from './progress/progress-util';
 
 @Injectable()
 export class InspectionDataLoaderService {
-  private progress = inject<ProgressDialogStatusUpdator>(
+  private readonly progress = inject<ProgressDialogStatusUpdator>(
     PROGRESS_DIALOG_STATUS_UPDATOR,
   );
-  private inspectionDataStore = inject(InspectionDataStoreService);
-  private backendService = inject<BackendAPI>(BACKEND_API);
-  private extension = inject<ExtensionStore>(EXTENSION_STORE);
+  private readonly inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly backendService = inject<BackendAPI>(BACKEND_API);
+  private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 
   private eventDataToViewEvents(
     events: KHIFileResourceEvent[],

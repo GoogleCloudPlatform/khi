@@ -30,7 +30,7 @@ import { Injectable, Provider, inject } from '@angular/core';
 export class ProgressDialogService
   implements ProgressDialogStatusObserver, ProgressDialogStatusUpdator
 {
-  private _dialog = inject(MatDialog);
+  private readonly _dialog = inject(MatDialog);
 
   /**
    * Returns Angular providers for interfaces implemented on this class.

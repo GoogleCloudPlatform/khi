@@ -67,10 +67,12 @@ type ToolbarPopupStatus =
   ],
 })
 export class ToolbarComponent implements OnInit, OnDestroy {
-  private selectionManager = inject(SelectionManagerService);
   readonly viewStateService = inject(ViewStateService);
-  private inspectionDataStore = inject(InspectionDataStoreService);
-  private timelineFilter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+  private readonly selectionManager = inject(SelectionManagerService);
+  private readonly timelineFilter = inject<TimelineFilter>(
+    DEFAULT_TIMELINE_FILTER,
+  );
+  private readonly inspectionDataStore = inject(InspectionDataStoreService);
 
   private destoroyed = new Subject<void>();
 

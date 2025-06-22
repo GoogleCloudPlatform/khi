@@ -48,9 +48,9 @@ export const NilPopupFormRequest: PopupFormRequest = {
 
 @Injectable({ providedIn: 'any' })
 export class PopupManagerImpl implements PopupManager {
-  private backendAPI = inject<BackendAPI>(BACKEND_API);
+  private readonly backendAPI = inject<BackendAPI>(BACKEND_API);
 
-  private popupRequest = interval(1000).pipe(
+  private readonly popupRequest = interval(1000).pipe(
     exhaustMap(
       () => this.backendAPI.getPopup() as Observable<PopupFormRequest>,
     ),

@@ -21,8 +21,8 @@ import { SelectionManagerService } from './selection-manager.service';
 
 @Injectable({ providedIn: 'root' })
 export class TimelineSelectionService {
-  private _inspectionDataStore = inject(InspectionDataStoreService);
-  private _logSelectionManager = inject(SelectionManagerService);
+  private readonly _inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly _logSelectionManager = inject(SelectionManagerService);
 
   private logs = this._inspectionDataStore.allLogs;
 

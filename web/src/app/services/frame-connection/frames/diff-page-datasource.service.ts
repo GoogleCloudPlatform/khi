@@ -28,10 +28,10 @@ import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 
 @Injectable()
 export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> {
-  private connector = inject(WindowConnectorService);
-  private router = inject(Router);
+  private readonly connector = inject(WindowConnectorService);
+  private readonly router = inject(Router);
 
-  private navigationCandidate: Subject<string> = new Subject();
+  private readonly navigationCandidate: Subject<string> = new Subject();
 
   private enabled = false;
 

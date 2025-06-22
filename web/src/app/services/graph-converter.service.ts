@@ -52,7 +52,7 @@ interface MappedTimelineEntry {
   providedIn: 'root',
 })
 export class GraphDataConverterService {
-  private _viewStateService = inject(ViewStateService);
+  private readonly _viewStateService = inject(ViewStateService);
 
   private $timeZoneShift: BehaviorSubject<number> = asBehaviorSubject(
     this._viewStateService.timezoneShift,

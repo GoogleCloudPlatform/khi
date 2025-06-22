@@ -28,7 +28,7 @@ import {
   imports: [CommonModule, MatProgressBarModule],
 })
 export class ProgressDialogComponent {
-  private progressObserver = inject<ProgressDialogStatusObserver>(
+  private readonly progressObserver = inject<ProgressDialogStatusObserver>(
     PROGRESS_DIALOG_STATUS_OBSERVER,
   );
 

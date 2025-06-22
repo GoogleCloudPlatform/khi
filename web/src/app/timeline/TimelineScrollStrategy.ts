@@ -44,7 +44,9 @@ export interface PerRowScrollingProperty {
 
 @Injectable()
 export class TimelinesScrollStrategy {
-  private timelineFilter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+  private readonly timelineFilter = inject<TimelineFilter>(
+    DEFAULT_TIMELINE_FILTER,
+  );
 
   /**
    * Extra margin at the bottom in pixels.

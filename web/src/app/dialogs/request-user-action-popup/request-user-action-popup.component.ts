@@ -67,7 +67,7 @@ const nextButtonLabel: { [key: string]: string } = {
   ],
 })
 export class RequestUserActionPopupComponent implements OnInit, OnDestroy {
-  data = inject<RequestUserActionPopupRequest>(MAT_DIALOG_DATA);
+  readonly data = inject<RequestUserActionPopupRequest>(MAT_DIALOG_DATA);
   private readonly dialogRef = inject<MatDialogRef<object, void>>(MatDialogRef);
 
   /**
@@ -104,11 +104,8 @@ export class RequestUserActionPopupComponent implements OnInit, OnDestroy {
   nextButtonText = '';
 
   constructor() {
-    const data = this.data;
-    const dialogRef = this.dialogRef;
-
-    dialogRef.disableClose = true;
-    this.formRequest = data.formRequest;
+    this.dialogRef.disableClose = true;
+    this.formRequest = this.data.formRequest;
     this.nextButtonText = nextButtonLabel[this.formRequest.type];
   }
 
