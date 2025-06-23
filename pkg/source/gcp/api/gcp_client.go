@@ -27,7 +27,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
@@ -129,13 +128,6 @@ type GCPClientImpl struct {
 	// This is a parameter for limiting the result length of List log entries api call for testing purpose.
 	MaxLogEntries int
 }
-
-// Digest implements task.CachableDependency.
-func (pi *GCPClientImpl) Digest() string {
-	return "singleton"
-}
-
-var _ cache.CacheDependency = (*GCPClientImpl)(nil)
 
 var _ GCPClient = (*GCPClientImpl)(nil)
 
