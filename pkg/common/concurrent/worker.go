@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package worker
+package concurrent
 
 import (
 	"sync"
@@ -20,20 +20,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 )
 
-// Pool enables running a goroutine with max parallel count limit.
-type Pool struct {
+// WorkerPool enables running a goroutine with max parallel count limit.
+type WorkerPool struct {
 	semaphore chan struct{}
 	waitGroup *sync.WaitGroup
 }
 
-func NewPool(maxParallelCount int) *Pool {
-	return &Pool{
+func NewWorkerPool(maxParallelCount int) *WorkerPool {
+	return &WorkerPool{
 		semaphore: make(chan struct{}, maxParallelCount),
 		waitGroup: &sync.WaitGroup{},
 	}
 }
 
-func (t *Pool) Run(f func()) {
+func (t *WorkerPool) Run(f func()) {
 	t.waitGroup.Add(1)
 	t.semaphore <- struct{}{}
 	go func() {
@@ -46,6 +46,6 @@ func (t *Pool) Run(f func()) {
 	}()
 }
 
-func (t *Pool) Wait() {
+func (t *WorkerPool) Wait() {
 	t.waitGroup.Wait()
 }

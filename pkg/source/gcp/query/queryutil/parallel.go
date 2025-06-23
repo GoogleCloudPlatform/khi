@@ -23,7 +23,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
@@ -36,10 +36,10 @@ type ParallelQueryWorker struct {
 	startTime   time.Time
 	endTime     time.Time
 	apiClient   api.GCPClient
-	pool        *worker.Pool
+	pool        *concurrent.WorkerPool
 }
 
-func NewParallelQueryWorker(pool *worker.Pool, apiClient api.GCPClient, baseQuery string, startTime time.Time, endTime time.Time, workerCount int) *ParallelQueryWorker {
+func NewParallelQueryWorker(pool *concurrent.WorkerPool, apiClient api.GCPClient, baseQuery string, startTime time.Time, endTime time.Time, workerCount int) *ParallelQueryWorker {
 	return &ParallelQueryWorker{
 		baseQuery:   baseQuery,
 		startTime:   startTime,

@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -310,7 +310,7 @@ func TestGetTimelineBuilderThreadSafety(t *testing.T) {
 	builder := NewBuilder("/tmp")
 	threadCount := 100
 	timelineCountPerThread := 1000000
-	pool := worker.NewPool(threadCount)
+	pool := concurrent.NewWorkerPool(threadCount)
 	pool.Run(func() {
 		for i := 0; i < timelineCountPerThread; i++ {
 			uuid1 := common.NewUUID()

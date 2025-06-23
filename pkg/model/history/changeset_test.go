@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -195,7 +195,7 @@ func TestChangesetFlushIsThreadSafe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	pool := worker.NewPool(groupCount)
+	pool := concurrent.NewWorkerPool(groupCount)
 	for i := 0; i < groupCount; i++ {
 		currentGroup := l[i]
 		groupPath := resourcepath.KindLayerGeneralItem("grp", fmt.Sprintf("%d", i))

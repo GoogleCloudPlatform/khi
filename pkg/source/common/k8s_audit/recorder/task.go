@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
@@ -80,7 +80,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		})
 		updator.Start(ctx)
 		defer updator.Done()
-		workerPool := worker.NewPool(16)
+		workerPool := concurrent.NewWorkerPool(16)
 		for _, loopGroup := range filteredLogs {
 			group := loopGroup
 			var prevState any = nil

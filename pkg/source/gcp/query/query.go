@@ -21,9 +21,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
@@ -74,7 +74,7 @@ func (p *ProjectIDDefaultResourceNamesGenerator) GetDependentTasks() []taskid.Un
 
 var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(nil)
 
-var queryThreadPool = worker.NewPool(16)
+var queryThreadPool = concurrent.NewWorkerPool(16)
 
 func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) task.Task[[]*log.Log] {
 	return inspection_task.NewProgressReportableInspectionTask(taskId, append(

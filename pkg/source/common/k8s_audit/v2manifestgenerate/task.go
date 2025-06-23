@@ -22,8 +22,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -62,7 +62,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 		return nil, err
 	}
 	defer updator.Done()
-	workerPool := worker.NewPool(16)
+	workerPool := concurrent.NewWorkerPool(16)
 	for _, group := range groups {
 		currentGroup := group
 		workerPool.Run(func() {
