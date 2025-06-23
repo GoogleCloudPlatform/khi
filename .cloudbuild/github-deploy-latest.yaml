@@ -34,7 +34,7 @@ steps:
     waitFor:
       - dependency_web
     entrypoint: /bin/bash
-  - name: 'node:18'
+  - name: 'node:22'
     args:
       - '-c'
       - |
