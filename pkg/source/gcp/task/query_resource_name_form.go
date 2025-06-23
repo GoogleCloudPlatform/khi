@@ -35,9 +35,7 @@ var resourceNamesInputKey = typedmap.NewTypedKey[*gcp_types.ResourceNamesInput](
 
 var QueryResourceNameInputTask = inspection_task.NewInspectionTask(gcp_taskid.LoggingFilterResourceNameInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*gcp_types.ResourceNamesInput, error) {
 	sharedMap := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionSharedMap)
-	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, func() *gcp_types.ResourceNamesInput {
-		return gcp_types.NewResourceNamesInput()
-	})
+	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, gcp_types.NewResourceNamesInput)
 
 	metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
 	formFields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)

@@ -235,12 +235,13 @@ func parseFieldPath(s string) []string {
 			}
 			isEscaped = false
 		} else {
-			if r == '\\' {
+			switch r {
+			case '\\':
 				isEscaped = true
-			} else if r == '.' {
+			case '.':
 				result = append(result, currentSegment.String())
 				currentSegment.Reset() // Reset the current segment
-			} else {
+			default:
 				currentSegment.WriteRune(r)
 			}
 		}

@@ -12,13 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GOLANGCILINT_VERSION := v1.64.2
+GOLANGCILINT_BIN := $(shell go env GOPATH)/bin/golangci-lint
+
 .PHONY=lint-web
 lint-web: prepare-frontend
 	cd web && npx ng lint
 
 .PHONY=lint-go
-lint-go:
-	go vet ./...
+lint-go: install-golangci-lint
+	$(GOLANGCILINT_BIN) run --config=.golangci.yaml
+
+.PHONY=install-golangci-lint
+install-golangci-lint:
+	@if ! [ -x "$(GOLANGCILINT_BIN)" ]; then \
+		echo "Installing golangci-lint..."; \
+		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCILINT_VERSION); \
+	fi
+
 .PHONY=format-go
 format-go:
 	gofmt -s -w .
