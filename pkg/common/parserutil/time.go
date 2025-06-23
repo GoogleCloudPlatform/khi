@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package parserutil
 
 import "time"
 
-func ParseTime(input string) (time.Time, error) {
+// ParseRFC3339Time parses a string formatted in either RFC3339 or RFC3339Nano format
+// and returns the parsed time. It first attempts to parse the input string using
+// time.RFC3339Nano, and if that fails, it falls back to time.RFC3339.
+func ParseRFC3339Time(input string) (time.Time, error) {
 	t, err := time.Parse(time.RFC3339Nano, input)
 	if err == nil {
 		return t, nil

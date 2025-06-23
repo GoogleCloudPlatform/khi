@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
@@ -115,7 +115,7 @@ func (n *NodeReader) ReadTimestamp(fieldPath string) (time.Time, error) {
 		if err != nil {
 			return time.Time{}, err
 		}
-		return common.ParseTime(tStr)
+		return parserutil.ParseRFC3339Time(tStr)
 	}
 	return t, err
 }
@@ -149,7 +149,7 @@ func (n *NodeReader) ReadTimestampOrDefault(fieldPath string, defaultValue time.
 		if err != nil {
 			return defaultValue
 		}
-		t, err = common.ParseTime(tStr)
+		t, err = parserutil.ParseRFC3339Time(tStr)
 		if err != nil {
 			return defaultValue
 		}

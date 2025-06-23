@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package parserutil
 
 import (
 	"fmt"
@@ -22,7 +22,7 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-func TestParseTime(t *testing.T) {
+func TestParseRFC3339Time(t *testing.T) {
 	JST := time.FixedZone("JST", 9*60*60)
 	testCases := []struct {
 		Input    string
@@ -49,7 +49,7 @@ func TestParseTime(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(fmt.Sprintf("testcase-%s", testCase.Input), func(t *testing.T) {
-			result, err := ParseTime(testCase.Input)
+			result, err := ParseRFC3339Time(testCase.Input)
 			if testCase.Error {
 				if err == nil {
 					t.Errorf("expect the call ending with an error. But no error returned.")

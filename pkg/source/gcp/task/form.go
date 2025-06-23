@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
@@ -212,14 +213,14 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 		return "", form_metadata.Info, nil
 	}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
-		_, err := common.ParseTime(value)
+		_, err := parserutil.ParseRFC3339Time(value)
 		if err != nil {
 			return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
 		}
 		return "", nil
 	}).
 	WithConverter(func(ctx context.Context, value string) (time.Time, error) {
-		return common.ParseTime(value)
+		return parserutil.ParseRFC3339Time(value)
 	}).
 	Build()
 
