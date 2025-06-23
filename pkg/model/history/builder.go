@@ -27,7 +27,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -44,10 +44,10 @@ type Builder struct {
 	history                *History
 	historyLock            sync.Mutex
 	binaryChunk            *binarychunk.Builder
-	timelinemap            *common.ShardingMap[*ResourceTimeline]
-	timelineBuilders       *common.ShardingMap[*TimelineBuilder]
-	logIdToSerializableLog *common.ShardingMap[*SerializableLog]
-	historyResourceCache   *common.ShardingMap[*Resource]
+	timelinemap            *concurrent.ShardingMap[*ResourceTimeline]
+	timelineBuilders       *concurrent.ShardingMap[*TimelineBuilder]
+	logIdToSerializableLog *concurrent.ShardingMap[*SerializableLog]
+	historyResourceCache   *concurrent.ShardingMap[*Resource]
 	sorter                 *ResourceSorter
 	ClusterResource        *resourceinfo.Cluster
 }
@@ -57,10 +57,10 @@ func NewBuilder(tmpFolder string) *Builder {
 		history:                NewHistory(),
 		historyLock:            sync.Mutex{},
 		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(tmpFolder), tmpFolder),
-		timelinemap:            common.NewShardingMap[*ResourceTimeline](common.NewSuffixShardingProvider(128, 4)),
-		timelineBuilders:       common.NewShardingMap[*TimelineBuilder](common.NewSuffixShardingProvider(128, 4)),
-		logIdToSerializableLog: common.NewShardingMap[*SerializableLog](common.NewSuffixShardingProvider(128, 4)),
-		historyResourceCache:   common.NewShardingMap[*Resource](common.NewSuffixShardingProvider(128, 4)),
+		timelinemap:            concurrent.NewShardingMap[*ResourceTimeline](concurrent.NewSuffixShardingProvider(128, 4)),
+		timelineBuilders:       concurrent.NewShardingMap[*TimelineBuilder](concurrent.NewSuffixShardingProvider(128, 4)),
+		logIdToSerializableLog: concurrent.NewShardingMap[*SerializableLog](concurrent.NewSuffixShardingProvider(128, 4)),
+		historyResourceCache:   concurrent.NewShardingMap[*Resource](concurrent.NewSuffixShardingProvider(128, 4)),
 		ClusterResource:        resourceinfo.NewClusterResourceInfo(),
 		sorter: NewResourceSorter(
 			&FirstRevisionTimeSortStrategy{

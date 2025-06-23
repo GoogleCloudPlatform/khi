@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 )
 
 // Resource identifier itself couldn't be found
@@ -40,12 +40,12 @@ type lease[H LeaseHolder] struct {
 // ResourceLeaseHistory is a common interface for memorizing resources used in the cluster.
 // This is used for example: IPs associated to a Pod, Load balancer names associated to Ingress ..etc.
 type ResourceLeaseHistory[H LeaseHolder] struct {
-	leaseHolders *common.ShardingMap[[]*lease[H]]
+	leaseHolders *concurrent.ShardingMap[[]*lease[H]]
 }
 
 func NewResourceLeaseHistory[H LeaseHolder]() *ResourceLeaseHistory[H] {
 	return &ResourceLeaseHistory[H]{
-		leaseHolders: common.NewShardingMap[[]*lease[H]](common.NewSuffixShardingProvider(128, 4)),
+		leaseHolders: concurrent.NewShardingMap[[]*lease[H]](concurrent.NewSuffixShardingProvider(128, 4)),
 	}
 }
 
