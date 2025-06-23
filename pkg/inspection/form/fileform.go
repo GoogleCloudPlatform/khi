@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -53,7 +53,7 @@ func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskB
 
 func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Task[upload.UploadResult] {
 	return common_task.NewTask(b.id, b.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
-		metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+		metadata := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 
 		token := upload.DefaultUploadFileStore.GetUploadToken(upload.GenerateUploadIDWithTaskContext(ctx, b.id.ReferenceIDString()), b.verifier)
 		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)

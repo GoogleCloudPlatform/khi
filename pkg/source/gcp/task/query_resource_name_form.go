@@ -21,7 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -34,18 +34,18 @@ import (
 var resourceNamesInputKey = typedmap.NewTypedKey[*gcp_types.ResourceNamesInput]("query-resource-names")
 
 var QueryResourceNameInputTask = inspection_task.NewInspectionTask(gcp_taskid.LoggingFilterResourceNameInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*gcp_types.ResourceNamesInput, error) {
-	sharedMap := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionSharedMap)
+	sharedMap := khictx.MustGetValue(ctx, inspectioncontract.InspectionSharedMap)
 	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, func() *gcp_types.ResourceNamesInput {
 		return gcp_types.NewResourceNamesInput()
 	})
 
-	metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 	formFields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
 	if !found {
 		return nil, fmt.Errorf("failed to get form fields from run metadata")
 	}
 
-	requestInput := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskInput)
+	requestInput := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskInput)
 
 	queryForms := []form_metadata.ParameterFormField{}
 	for _, form := range resourceNamesInput.GetQueryResourceNamePairs() {

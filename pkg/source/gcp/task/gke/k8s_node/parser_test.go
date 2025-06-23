@@ -17,7 +17,6 @@ package k8s_node
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/noderesource"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
@@ -256,11 +255,7 @@ func TestGetSyslogIdentifier(t *testing.T) {
 func TestK8sNodeParser_ParseKubeletLogWithPodNameButNotWithContainerName(t *testing.T) {
 	wantLogSummary := "MountVolume.SetUp succeeded for volume \"kube-dns-config\" (UniqueName: \"kubernetes.io/configmap/34a3f9e5-4363-47a9-8bd9-3b37c60d107b-kube-dns-config\") pod \"kube-dns-58f547fd74-swzzt\" (UID: \"34a3f9e5-4363-47a9-8bd9-3b37c60d107b\") 【kube-system/kube-dns-58f547fd74-swzzt】"
 
-	builder := history.NewBuilder(&ioconfig.IOConfig{
-		ApplicationRoot: "/",
-		DataDestination: "/tmp/",
-		TemporaryFolder: "/tmp/",
-	})
+	builder := history.NewBuilder("/tmp")
 	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_only_pod_name.yaml", &k8sNodeParser{}, builder, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
@@ -284,11 +279,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameButNotWithContainerName(t *test
 func TestK8sNodeParser_ParseKubeletLogWithPodNameAndContainerName(t *testing.T) {
 	wantLogSummary := "Killing container with a grace period(gracePeriod=30s) 【sidecar in kube-system/kube-dns-58f547fd74-swzzt】"
 
-	builder := history.NewBuilder(&ioconfig.IOConfig{
-		ApplicationRoot: "/",
-		DataDestination: "/tmp/",
-		TemporaryFolder: "/tmp/",
-	})
+	builder := history.NewBuilder("/tmp")
 	nodeName := "gke-sample-cluster-default-abcdefgh-abcd"
 	podID := "foo"
 	containerID := "5e0d5f0eab7a1ee243894fe769d690840243de4d53f5cb139094c395d8186881"
@@ -320,11 +311,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameAndContainerName(t *testing.T) 
 func TestK8sNodeParser_ParseContainerdRunPod(t *testing.T) {
 	wantLogSummary := "RunPodSandbox for &PodSandboxMetadata{Name:kube-dns-58f547fd74-swzzt,Uid:34a3f9e5-4363-47a9-8bd9-3b37c60d107b,Namespace:kube-system,Attempt:0,} returns sandbox id \"e4b03e2...(kube-system/kube-dns-58f547fd74-swzzt)\"【kube-system/kube-dns-58f547fd74-swzzt】"
 
-	builder := history.NewBuilder(&ioconfig.IOConfig{
-		ApplicationRoot: "/",
-		DataDestination: "/tmp/",
-		TemporaryFolder: "/tmp/",
-	})
+	builder := history.NewBuilder("/tmp")
 	podSandboxID := "e4b03e280958b847e92e22b7a1570bdf63cb35432514b9a8f12f4b9adfe49714"
 	nodeName := "gke-sample-cluster-default-abcdefgh-abcd"
 	podNamespace := "kube-system"
@@ -350,11 +337,7 @@ func TestK8sNodeParser_ParseContainerdRunPod(t *testing.T) {
 func TestK8sNodeParser_ParseCreateContainer(t *testing.T) {
 	wantLogSummary := "CreateContainer within sandbox \"e4b03e2...(kube-system/kube-dns-58f547fd74-swzzt)\" for &ContainerMetadata{Name:kubedns,Attempt:0,} returns container id \"eea48bc...(kubedns in kube-system/kube-dns-58f547fd74-swzzt)\"【kube-system/kube-dns-58f547fd74-swzzt】 【kubedns in kube-system/kube-dns-58f547fd74-swzzt】"
 
-	builder := history.NewBuilder(&ioconfig.IOConfig{
-		ApplicationRoot: "/",
-		DataDestination: "/tmp/",
-		TemporaryFolder: "/tmp/",
-	})
+	builder := history.NewBuilder("/tmp")
 	wantNodeName := "gke-sample-cluster-default-abcdefgh-abcd"
 	podSandboxID := "e4b03e280958b847e92e22b7a1570bdf63cb35432514b9a8f12f4b9adfe49714"
 	podNamespace := "kube-system"
@@ -388,11 +371,7 @@ func TestK8sNodeParser_ParseCreateContainer(t *testing.T) {
 func TestK8sNodeParser_ParseContainerdIncludingContainerIdOnly(t *testing.T) {
 	wantLogSummary := "Stop container \"eea48bc...(kubedns in kube-system/kube-dns-58f547fd74-swzzt)\" with signal terminated 【kubedns in kube-system/kube-dns-58f547fd74-swzzt】"
 
-	builder := history.NewBuilder(&ioconfig.IOConfig{
-		ApplicationRoot: "/",
-		DataDestination: "/tmp/",
-		TemporaryFolder: "/tmp/",
-	})
+	builder := history.NewBuilder("/tmp")
 	nodeName := "gke-sample-cluster-default-abcdefgh-abcd"
 	podSandboxID := "e4b03e280958b847e92e22b7a1570bdf63cb35432514b9a8f12f4b9adfe49714"
 	containerID := "eea48bce362bdf290ff0d41655c9e580a41acd354cc845c7b7163d9dd9980bd9"

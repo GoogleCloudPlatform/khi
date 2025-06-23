@@ -20,8 +20,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -59,7 +61,6 @@ func NewAuditRecorderTaskManager(taskID taskid.TaskImplementationID[struct{}], r
 
 func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.UntypedTaskReference, recorder RecorderFunc, logGroupFilter LogGroupFilterFunc, logFilter LogFilterFunc) {
 	dependenciesBase := []taskid.UntypedTaskReference{
-		inspection_task.BuilderGeneratorTaskID.Ref(),
 		common_k8saudit_taskid.LogConvertTaskID.Ref(),
 		common_k8saudit_taskid.ManifestGenerateTaskID.Ref(),
 	}
@@ -67,7 +68,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return struct{}{}, nil
 		}
-		builder := task.GetTaskResult(ctx, inspection_task.BuilderGeneratorTaskID.Ref())
+		builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 		groupedLogs := task.GetTaskResult(ctx, common_k8saudit_taskid.ManifestGenerateTaskID.Ref())
 
 		filteredLogs, allCount := filterMatchedGroupedLogs(ctx, groupedLogs, logGroupFilter)

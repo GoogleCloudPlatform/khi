@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
@@ -46,7 +46,7 @@ type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_t
 func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc ProgressReportableInspectionTaskFunc[T], labelOpts ...task.LabelOpt) task.Task[T] {
 
 	return NewInspectionTask(taskId, dependencies, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (T, error) {
-		metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+		metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 		progress, found := typedmap.Get(metadataSet, progress.ProgressMetadataKey)
 		if !found {
 			return *new(T), fmt.Errorf("progress metadata not found")
@@ -71,7 +71,7 @@ func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementation
 // Returns: An inspection task
 func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc InspectionTaskFunc[T], labelOpts ...task.LabelOpt) task.Task[T] {
 	return task.NewTask(taskId, dependencies, func(ctx context.Context) (T, error) {
-		taskMode := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionTaskMode)
+		taskMode := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskMode)
 		return taskFunc(ctx, taskMode)
 
 	}, labelOpts...)

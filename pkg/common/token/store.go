@@ -21,14 +21,11 @@ import (
 	"log/slog"
 	"sync"
 	"time"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
 )
 
 var ErrNoNewTokenResolved = errors.New("no new token resolved")
 
 type TokenStore interface {
-	cache.CacheDependency
 	GetType() string
 	// GetToken returns the current token. It can come from cache or newly resolved from TokenResolver.
 	GetToken(ctx context.Context) (*Token, error)
@@ -47,11 +44,6 @@ type BasicTokenStore struct {
 	tokenLock             sync.RWMutex
 	lastToken             *Token
 	lastTokenRefreshError error
-}
-
-// Digest implements TokenStore.
-func (b *BasicTokenStore) Digest() string {
-	return b.tokenType
 }
 
 func NewBasicTokenStore(tokenType string, resolver TokenResolver) *BasicTokenStore {
