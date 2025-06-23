@@ -22,7 +22,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
@@ -67,7 +67,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 		currentGroup := group
 		workerPool.Run(func() {
 			prevRevisionBody := ""
-			prevRevisionReader := structurev2.NewNodeReader(structurev2.NewEmptyMapNode())
+			prevRevisionReader := structured.NewNodeReader(structured.NewEmptyMapNode())
 			for _, log := range currentGroup.PreParsedLogs {
 				var currentRevisionBodyType rtype.Type
 				if log.IsErrorResponse || log.GeneratedFromDeleteCollectionOperation {
@@ -91,7 +91,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 				}
 
 				isPartial := currentRevisionBodyType == rtype.RTypePatch
-				currentRevisionBodyRaw, err := currentRevisionReader.Serialize("", &structurev2.YAMLNodeSerializer{})
+				currentRevisionBodyRaw, err := currentRevisionReader.Serialize("", &structured.YAMLNodeSerializer{})
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("failed to serialize resource body to yaml\n%s", err.Error()))
 					processedCount.Add(1)
@@ -102,8 +102,8 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 
 				if isPartial {
 					mergeConfigResolver := mergeConfigRegistry.Get(log.Operation.APIVersion, log.Operation.GetSingularKindName())
-					mergedNode, err := structurev2.MergeNode(prevRevisionReader.Node, currentRevisionReader.Node, structurev2.MergeConfiguration{
-						MergeMapOrderStrategy:    &structurev2.DefaultMergeMapOrderStrategy{},
+					mergedNode, err := structured.MergeNode(prevRevisionReader.Node, currentRevisionReader.Node, structured.MergeConfiguration{
+						MergeMapOrderStrategy:    &structured.DefaultMergeMapOrderStrategy{},
 						ArrayMergeConfigResolver: mergeConfigResolver,
 					})
 					if err != nil {
@@ -111,8 +111,8 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 						processedCount.Add(1)
 						continue
 					}
-					mergedNodeReader := structurev2.NewNodeReader(mergedNode)
-					mergedYaml, err := mergedNodeReader.Serialize("", &structurev2.YAMLNodeSerializer{})
+					mergedNodeReader := structured.NewNodeReader(mergedNode)
+					mergedYaml, err := mergedNodeReader.Serialize("", &structured.YAMLNodeSerializer{})
 					if err != nil {
 						slog.WarnContext(ctx, fmt.Sprintf("failed to read the merged resource body\n%s", err.Error()))
 						processedCount.Add(1)

@@ -28,7 +28,7 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
@@ -269,7 +269,7 @@ func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.
 					slog.WarnContext(ctx, fmt.Sprintf("duplicated consumed log %s", logId))
 					continue
 				}
-				yaml, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
+				yaml, err := l.Serialize("", &structured.YAMLNodeSerializer{})
 				if err != nil {
 					builder.logIdToSerializableLog.ReleaseShard(logId)
 					return err

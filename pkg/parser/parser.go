@@ -23,7 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
@@ -151,7 +151,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 						logCounterChannel <- struct{}{}
 						if err != nil {
 							var yaml string
-							yamlBytes, err2 := l.Serialize("", &structurev2.YAMLNodeSerializer{})
+							yamlBytes, err2 := l.Serialize("", &structured.YAMLNodeSerializer{})
 							if err2 != nil {
 								yaml = "ERROR!! failed to dump in yaml"
 							} else {
