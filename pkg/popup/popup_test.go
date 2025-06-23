@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -50,7 +51,7 @@ func (t *testPopupForm) Validate(req *PopupAnswerResponse) string {
 var _ PopupForm = &testPopupForm{}
 
 func TestPopupManager(t *testing.T) {
-	pm := NewPopupManager()
+	pm := NewPopupManager(idgenerator.NewSequentialGenerator("test-popup-"))
 	t.Run("GetCurrentPopup returns nil when no popup shown", func(t *testing.T) {
 		cp := pm.GetCurrentPopup()
 		if cp != nil {

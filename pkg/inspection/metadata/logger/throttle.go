@@ -14,7 +14,7 @@
 
 package logger
 
-import "github.com/GoogleCloudPlatform/khi/pkg/common"
+import "github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 
 type LogThrottleStatus = int
 
@@ -32,13 +32,13 @@ type LogThrottler interface {
 }
 
 type ConstantLogThrottle struct {
-	counter         *common.ConcurrentCounter
+	counter         *concurrent.ConcurrentCounter
 	MaxCountPerKind int
 }
 
 func NewConstantLogThrottle(maxCountPerKind int) LogThrottler {
 	return ConstantLogThrottle{
-		counter:         common.NewDefaultConcurrentCounter(common.NewSuffixShardingProvider(16, 1)),
+		counter:         concurrent.NewDefaultConcurrentCounter(concurrent.NewSuffixShardingProvider(16, 1)),
 		MaxCountPerKind: maxCountPerKind,
 	}
 }

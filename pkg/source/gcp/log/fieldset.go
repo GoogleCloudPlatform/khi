@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 
@@ -39,7 +39,7 @@ func (c *GCPCommonFieldSetReader) FieldSetKind() string {
 	return (&log.CommonFieldSet{}).Kind()
 }
 
-func (c *GCPCommonFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
+func (c *GCPCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	result := &log.CommonFieldSet{}
 	result.DisplayID = reader.ReadStringOrDefault("insertId", "unknown")
 	result.Timestamp = reader.ReadTimestampOrDefault("timestamp", time.Time{})
@@ -57,7 +57,7 @@ func (g *GCPMainMessageFieldSetReader) FieldSetKind() string {
 	return (&log.MainMessageFieldSet{}).Kind()
 }
 
-func (g *GCPMainMessageFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
+func (g *GCPMainMessageFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	result := &log.MainMessageFieldSet{}
 	textPayload, err := reader.ReadString("textPayload")
 	if err == nil {

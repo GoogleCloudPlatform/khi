@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -65,7 +65,7 @@ func Register(manager *recorder.RecorderTaskManager) error {
 func recordChangeSetForLog(ctx context.Context, l *types.AuditLogParserInput, prevEndpointSlices *model.EndpointSlice, cs *history.ChangeSet, builder *history.Builder) (*model.EndpointSlice, error) {
 	commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
 	var endpointSlice model.EndpointSlice
-	err := structurev2.ReadReflect(l.ResourceBodyReader, "", &endpointSlice)
+	err := structured.ReadReflect(l.ResourceBodyReader, "", &endpointSlice)
 	if err != nil {
 		return nil, err
 	}

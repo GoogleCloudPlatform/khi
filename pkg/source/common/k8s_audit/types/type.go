@@ -17,7 +17,7 @@ package types
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
@@ -37,13 +37,13 @@ type AuditLogParserInput struct {
 	// Kubernetes operation read from resource name and method name
 	Operation *model.KubernetesObjectOperation
 	// The request field of this log. This can be nil depending on the audit policy.
-	Request     *structurev2.NodeReader
+	Request     *structured.NodeReader
 	RequestType rtype.Type
 	// The response field of this log. This can be nil depending on the audit policy.
-	Response     *structurev2.NodeReader
+	Response     *structured.NodeReader
 	ResponseType rtype.Type
 	// Current resource body changed by this request.
-	ResourceBodyReader *structurev2.NodeReader
+	ResourceBodyReader *structured.NodeReader
 	ResourceBodyYaml   string
 	// The response code from the API server.
 	IsErrorResponse      bool

@@ -15,22 +15,39 @@
 package task
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-// Subset returns a new TaskSet filtered using the provided type-safe filter
-func Subset[T any](taskSet *TaskSet, mapFilter filter.TypedMapFilter[T]) *TaskSet {
-	getMap := func(d UntypedTask) *typedmap.ReadonlyTypedMap {
-		return d.Labels()
-	}
-
-	filteredTasks := filter.FilterTypedMapCollection(taskSet.GetAll(), getMap, mapFilter)
+// Subset returns a new TaskSet filtered using the provided predicate function.
+func Subset(taskSet *TaskSet, predicate func(UntypedTask) bool) *TaskSet {
+	filteredTasks := typedmap.Filter(taskSet.GetAll(), predicate)
 	result, _ := NewTaskSet(filteredTasks)
 	return result
 }
 
-// NewEqualFilter creates a new filter that matches exact label values
-func NewEqualFilter[T comparable](labelKey TaskLabelKey[T], value T, includeUndefined bool) filter.TypedMapFilter[T] {
-	return filter.NewEqualFilter(labelKey, value, includeUndefined)
+// WhereLabelEquals returns a predicate function that checks if a task's label
+// matches the expected value.
+func WhereLabelEquals[T comparable](labelKey TaskLabelKey[T], value T, includeIfLabelNotDefined bool) func(UntypedTask) bool {
+	getMap := func(d UntypedTask) *typedmap.ReadonlyTypedMap {
+		return d.Labels()
+	}
+	return typedmap.WhereFieldEquals(getMap, labelKey, value, includeIfLabelNotDefined)
+}
+
+// WhereLabelContainsElement returns a predicate function that checks if a task's label
+// contains the expected element.
+func WhereLabelContainsElement(labelKey TaskLabelKey[[]string], element string, includeIfLabelNotDefined bool) func(UntypedTask) bool {
+	getMap := func(d UntypedTask) *typedmap.ReadonlyTypedMap {
+		return d.Labels()
+	}
+	return typedmap.WhereFieldContainsElement(getMap, labelKey, element, includeIfLabelNotDefined)
+}
+
+// WhereLabelIsEnabled returns a predicate function that checks if a task's label
+// is enabled.
+func WhereLabelIsEnabled(labelKey TaskLabelKey[bool], includeIfLabelNotDefined bool) func(UntypedTask) bool {
+	getMap := func(d UntypedTask) *typedmap.ReadonlyTypedMap {
+		return d.Labels()
+	}
+	return typedmap.WhereFieldIsEnabled(getMap, labelKey, includeIfLabelNotDefined)
 }

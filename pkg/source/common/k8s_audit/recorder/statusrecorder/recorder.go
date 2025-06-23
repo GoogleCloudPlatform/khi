@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -47,7 +47,7 @@ func Register(manager *recorder.RecorderTaskManager) error {
 func recordChangeSetForLog(ctx context.Context, resourcePath string, l *types.AuditLogParserInput, prevStatus *model.K8sResourceContainingStatus, cs *history.ChangeSet, builder *history.Builder) (*model.K8sResourceContainingStatus, error) {
 	commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
 	var resourceContainingStatus model.K8sResourceContainingStatus
-	err := structurev2.ReadReflect(l.ResourceBodyReader, "", &resourceContainingStatus)
+	err := structured.ReadReflect(l.ResourceBodyReader, "", &resourceContainingStatus)
 	if err != nil {
 		return prevStatus, err
 	}

@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -104,7 +104,7 @@ func TestParallelQueryWorkerThreadPool(t *testing.T) {
 			var maxActiveCount int
 			var activeMutex sync.Mutex
 			activeCount := 0
-			pool := worker.NewPool(tc.maxParallelCount)
+			pool := concurrent.NewWorkerPool(tc.maxParallelCount)
 			for i := range tc.functions {
 				originalFunc := tc.functions[i]
 				pool.Run(func() { // Wrap the function

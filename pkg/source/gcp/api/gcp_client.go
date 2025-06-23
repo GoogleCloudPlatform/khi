@@ -27,9 +27,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/cache"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
@@ -129,13 +128,6 @@ type GCPClientImpl struct {
 	// This is a parameter for limiting the result length of List log entries api call for testing purpose.
 	MaxLogEntries int
 }
-
-// Digest implements task.CachableDependency.
-func (pi *GCPClientImpl) Digest() string {
-	return "singleton"
-}
-
-var _ cache.CacheDependency = (*GCPClientImpl)(nil)
 
 var _ GCPClient = (*GCPClientImpl)(nil)
 
@@ -651,11 +643,11 @@ func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []stri
 				return err
 			}
 
-			yamlNode, err := structurev2.FromYAML(string(rawResponse))
+			yamlNode, err := structured.FromYAML(string(rawResponse))
 			if err != nil {
 				return fmt.Errorf("failed to parse a log as YAML. %s", err.Error())
 			}
-			responseYAMLNodeReader := structurev2.NewNodeReader(yamlNode)
+			responseYAMLNodeReader := structured.NewNodeReader(yamlNode)
 			entriesReader, err := responseYAMLNodeReader.GetReader("entries")
 			if err != nil {
 				queryEnd = true

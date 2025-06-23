@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 )
 
 var PopupOptionRedirectTargetKey = "redirectTo"
@@ -77,21 +77,23 @@ type PopupManager struct {
 	popupResult         string
 	currentPopupRequest *PopupFormRequest
 	currentPopup        PopupForm
+	idGenerator         idgenerator.IDGenerator
 }
 
-func NewPopupManager() *PopupManager {
+func NewPopupManager(idGenerator idgenerator.IDGenerator) *PopupManager {
 	return &PopupManager{
 		newPopupLock:        sync.Mutex{},
 		popupWaiter:         sync.WaitGroup{},
 		popupResult:         "",
 		currentPopupRequest: nil,
 		currentPopup:        nil,
+		idGenerator:         idGenerator,
 	}
 }
 
 // ShowPopup shows the popup UI on frontend side and wait until receiving the input.
 func (p *PopupManager) ShowPopup(popup PopupForm) (string, error) {
-	id := common.NewUUID()
+	id := p.idGenerator.Generate()
 	metadata := popup.GetMetadata()
 	p.newPopupLock.Lock()
 	defer p.newPopupLock.Unlock()
@@ -144,4 +146,4 @@ func (p *PopupManager) Answer(request *PopupAnswerResponse) error {
 	return nil
 }
 
-var Instance *PopupManager = NewPopupManager()
+var Instance *PopupManager = NewPopupManager(idgenerator.NewUUIDGenerator())

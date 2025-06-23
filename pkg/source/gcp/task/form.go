@@ -24,8 +24,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
@@ -212,14 +213,14 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 		return "", form_metadata.Info, nil
 	}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
-		_, err := common.ParseTime(value)
+		_, err := parserutil.ParseRFC3339Time(value)
 		if err != nil {
 			return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
 		}
 		return "", nil
 	}).
 	WithConverter(func(ctx context.Context, value string) (time.Time, error) {
-		return common.ParseTime(value)
+		return parserutil.ParseRFC3339Time(value)
 	}).
 	Build()
 
@@ -233,7 +234,7 @@ var InputStartTimeTask = inspection_task.NewInspectionTask(InputStartTimeTaskID,
 	duration := task.GetTaskResult(ctx, InputDurationTaskID.Ref())
 	startTime := endTime.Add(-duration)
 	// Add starttime and endtime on the header metadata
-	metadataSet := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
+	metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 
 	header, found := typedmap.Get(metadataSet, header.HeaderMetadataKey)
 	if !found {

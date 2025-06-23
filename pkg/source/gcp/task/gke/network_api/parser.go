@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -105,7 +105,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 		method := methodNameSplitted[len(methodNameSplitted)-1]
 		if method == "detachNetworkEndpoints" || method == "attachNetworkEndpoints" {
 			isDetach := strings.HasPrefix(method, "detach")
-			requestBody, err := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{})
+			requestBody, err := l.Serialize("protoPayload.request", &structured.YAMLNodeSerializer{})
 			if err != nil {
 				return err
 			}

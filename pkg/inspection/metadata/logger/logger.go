@@ -22,7 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -165,9 +165,9 @@ func (l *Logger) MakeTaskLogger(ctx context.Context, minLevel slog.Level) *TaskL
 	}
 	tid, err := khictx.GetValue(ctx, task_contextkey.TaskImplementationIDContextKey)
 	if err == nil {
-		iid, err := khictx.GetValue(ctx, inspection_task_contextkey.InspectionTaskInspectionID)
+		iid, err := khictx.GetValue(ctx, inspectioncontract.InspectionTaskInspectionID)
 		if err == nil {
-			rid, err := khictx.GetValue(ctx, inspection_task_contextkey.InspectionTaskRunID)
+			rid, err := khictx.GetValue(ctx, inspectioncontract.InspectionTaskRunID)
 			if err == nil {
 				lb := new(bytes.Buffer)
 				th := &TaskSlogHandler{

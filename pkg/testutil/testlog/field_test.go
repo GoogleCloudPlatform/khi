@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestStringField(t *testing.T) {
@@ -90,7 +90,7 @@ foo:
 				if err != nil {
 					t.Fatal(err.Error())
 				}
-				yamlStr, err := reader.Serialize("", &structurev2.YAMLNodeSerializer{})
+				yamlStr, err := reader.Serialize("", &structured.YAMLNodeSerializer{})
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}

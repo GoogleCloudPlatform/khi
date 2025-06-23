@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -79,7 +79,7 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 	}
 
 	if mainMessage == "" {
-		yamlRaw, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
+		yamlRaw, err := l.Serialize("", &structured.YAMLNodeSerializer{})
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("failed to extract main message from a container log then failed to serialize the log content.\nError message:\n%v", err))
 		} else {

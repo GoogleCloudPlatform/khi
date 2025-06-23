@@ -19,8 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
@@ -213,11 +212,7 @@ allocatedresourcesstatus: []
 				t.Fatalf("count of logs and asserters is not matching")
 			}
 			var prevPod *corev1.Pod
-			builder := history.NewBuilder(&ioconfig.IOConfig{
-				ApplicationRoot: "/",
-				DataDestination: "/tmp/",
-				TemporaryFolder: "/tmp/",
-			})
+			builder := history.NewBuilder("/tmp")
 			parsedLogs := []*types.AuditLogParserInput{}
 			for i, logFilePath := range tc.logPaths {
 				yamlStr := testutil.MustReadText(logFilePath)
@@ -229,11 +224,11 @@ allocatedresourcesstatus: []
 				}
 				manifestStr := testutil.MustReadText(tc.manifestPaths[i])
 				rsLog.ResourceBodyYaml = manifestStr
-				node, err := structurev2.FromYAML(manifestStr)
+				node, err := structured.FromYAML(manifestStr)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				rsLog.ResourceBodyReader = structurev2.NewNodeReader(node)
+				rsLog.ResourceBodyReader = structured.NewNodeReader(node)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}

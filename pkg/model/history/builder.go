@@ -21,15 +21,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math/rand"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/ioconfig"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
@@ -45,24 +44,26 @@ type Builder struct {
 	history                *History
 	historyLock            sync.Mutex
 	binaryChunk            *binarychunk.Builder
-	timelinemap            *common.ShardingMap[*ResourceTimeline]
-	timelineBuilders       *common.ShardingMap[*TimelineBuilder]
-	logIdToSerializableLog *common.ShardingMap[*SerializableLog]
-	historyResourceCache   *common.ShardingMap[*Resource]
+	timelinemap            *concurrent.ShardingMap[*ResourceTimeline]
+	timelineBuilders       *concurrent.ShardingMap[*TimelineBuilder]
+	logIdToSerializableLog *concurrent.ShardingMap[*SerializableLog]
+	historyResourceCache   *concurrent.ShardingMap[*Resource]
 	sorter                 *ResourceSorter
 	ClusterResource        *resourceinfo.Cluster
+	timelineIDGenerator    idgenerator.IDGenerator
 }
 
-func NewBuilder(ioConfig *ioconfig.IOConfig) *Builder {
+func NewBuilder(tmpFolder string) *Builder {
 	return &Builder{
 		history:                NewHistory(),
 		historyLock:            sync.Mutex{},
-		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(ioConfig.TemporaryFolder), ioConfig.TemporaryFolder),
-		timelinemap:            common.NewShardingMap[*ResourceTimeline](common.NewSuffixShardingProvider(128, 4)),
-		timelineBuilders:       common.NewShardingMap[*TimelineBuilder](common.NewSuffixShardingProvider(128, 4)),
-		logIdToSerializableLog: common.NewShardingMap[*SerializableLog](common.NewSuffixShardingProvider(128, 4)),
-		historyResourceCache:   common.NewShardingMap[*Resource](common.NewSuffixShardingProvider(128, 4)),
+		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(tmpFolder), tmpFolder),
+		timelinemap:            concurrent.NewShardingMap[*ResourceTimeline](concurrent.NewSuffixShardingProvider(128, 4)),
+		timelineBuilders:       concurrent.NewShardingMap[*TimelineBuilder](concurrent.NewSuffixShardingProvider(128, 4)),
+		logIdToSerializableLog: concurrent.NewShardingMap[*SerializableLog](concurrent.NewSuffixShardingProvider(128, 4)),
+		historyResourceCache:   concurrent.NewShardingMap[*Resource](concurrent.NewSuffixShardingProvider(128, 4)),
 		ClusterResource:        resourceinfo.NewClusterResourceInfo(),
+		timelineIDGenerator:    idgenerator.NewSequentialGenerator("t"),
 		sorter: NewResourceSorter(
 			&FirstRevisionTimeSortStrategy{
 				TargetRelationship: enum.RelationshipPodBinding,
@@ -176,7 +177,7 @@ func (builder *Builder) GetTimelineBuilder(resourcePath string) *TimelineBuilder
 	resource := builder.ensureResourcePath(resourcePath)
 	// When specified resource has no associated timeline
 	if resource.Timeline == "" {
-		tid := builder.generateTimelineID()
+		tid := builder.timelineIDGenerator.Generate()
 		timelineMap := builder.timelinemap.AcquireShard(tid)
 		timeline := newTimeline(tid)
 		resource.Timeline = tid
@@ -270,7 +271,7 @@ func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.
 					slog.WarnContext(ctx, fmt.Sprintf("duplicated consumed log %s", logId))
 					continue
 				}
-				yaml, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
+				yaml, err := l.Serialize("", &structured.YAMLNodeSerializer{})
 				if err != nil {
 					builder.logIdToSerializableLog.ReleaseShard(logId)
 					return err
@@ -378,14 +379,4 @@ func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[str
 		fileSize += writtenSize
 	}
 	return fileSize, nil
-}
-
-func (builder *Builder) generateTimelineID() string {
-	const idLength = 7
-	charset := "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
-	id := make([]byte, idLength)
-	for i := 0; i < len(id); i++ {
-		id[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(id)
 }

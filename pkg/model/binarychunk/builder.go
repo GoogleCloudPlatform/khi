@@ -22,7 +22,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 )
 
@@ -32,7 +32,7 @@ const MAXIMUM_CHUNK_SIZE = 1024 * 1024 * 500
 type Builder struct {
 	// Map between MD5 of given string and the reference of the buffer
 	tmpFolderPath  string
-	referenceCache *common.ShardingMap[*BinaryReference]
+	referenceCache *concurrent.ShardingMap[*BinaryReference]
 	bufferWriters  []LargeBinaryWriter
 	compressor     Compressor
 	maxChunkSize   int
@@ -43,7 +43,7 @@ func NewBuilder(compressor Compressor, tmpFolderPath string) *Builder {
 	return &Builder{
 		tmpFolderPath:  tmpFolderPath,
 		maxChunkSize:   MAXIMUM_CHUNK_SIZE,
-		referenceCache: common.NewShardingMap[*BinaryReference](common.NewSuffixShardingProvider(128, 4)),
+		referenceCache: concurrent.NewShardingMap[*BinaryReference](concurrent.NewSuffixShardingProvider(128, 4)),
 		compressor:     compressor,
 		bufferWriters:  make([]LargeBinaryWriter, 0),
 		lock:           sync.Mutex{},

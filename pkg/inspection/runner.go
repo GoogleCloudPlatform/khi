@@ -19,14 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/inspection/contextkey"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
@@ -40,6 +39,7 @@ import (
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/serializer"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
@@ -62,12 +62,14 @@ type InspectionTaskRunner struct {
 	cancel                context.CancelFunc
 	inspectionSharedMap   *typedmap.TypedMap
 	currentInspectionType string
+	ioconfig              *inspectioncontract.IOConfig
+	idGenerator           idgenerator.IDGenerator
 }
 
-func NewInspectionRunner(server *InspectionTaskServer) *InspectionTaskRunner {
+func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncontract.IOConfig, idg idgenerator.IDGenerator) *InspectionTaskRunner {
 	return &InspectionTaskRunner{
 		inspectionServer:      server,
-		ID:                    generateRandomString(),
+		ID:                    idg.Generate(),
 		enabledFeatures:       map[string]bool{},
 		availableTasks:        nil,
 		featureTasks:          nil,
@@ -78,6 +80,8 @@ func NewInspectionRunner(server *InspectionTaskServer) *InspectionTaskRunner {
 		inspectionSharedMap:   typedmap.NewTypedMap(),
 		cancel:                nil,
 		currentInspectionType: "N/A",
+		ioconfig:              ioConfig,
+		idGenerator:           idg,
 	}
 }
 
@@ -96,9 +100,9 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	if !typeFound {
 		return fmt.Errorf("inspection type %s was not found", inspectionType)
 	}
-	i.availableTasks = task.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspection_task.LabelKeyInspectionTypes, inspectionType, true))
-	defaultFeatures := task.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionDefaultFeatureFlag, false))
-	i.requiredTasks = task.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionRequiredFlag, false))
+	i.availableTasks = task.Subset(i.inspectionServer.RootTaskSet, task.WhereLabelContainsElement(inspection_task.LabelKeyInspectionTypes, inspectionType, true))
+	defaultFeatures := task.Subset(i.availableTasks, task.WhereLabelIsEnabled(inspection_task.LabelKeyInspectionDefaultFeatureFlag, false))
+	i.requiredTasks = task.Subset(i.availableTasks, task.WhereLabelIsEnabled(inspection_task.LabelKeyInspectionRequiredFlag, false))
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
 		defaultFeatureIds = append(defaultFeatureIds, featureTask.UntypedID().String())
@@ -111,7 +115,7 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 	if i.availableTasks == nil {
 		return nil, fmt.Errorf("inspection type is not yet initialized")
 	}
-	featureSet := task.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
+	featureSet := task.Subset(i.availableTasks, task.WhereLabelIsEnabled(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	features := []FeatureListItem{}
 	for _, featureTask := range featureSet.GetAll() {
 		label := typedmap.GetOrDefault(featureTask.Labels(), inspection_task.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", featureTask.UntypedID()))
@@ -177,14 +181,18 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 }
 
 // withRunContextValues returns a context with the value specific to a single run of task.
-func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspection_task_interface.InspectionTaskMode, taskInput map[string]any) context.Context {
-	rid := generateRandomString()
-	runCtx := khictx.WithValue(ctx, inspection_task_contextkey.InspectionTaskRunID, rid)
-	runCtx = khictx.WithValue(runCtx, inspection_task_contextkey.InspectionTaskInspectionID, i.ID)
-	runCtx = khictx.WithValue(runCtx, inspection_task_contextkey.InspectionSharedMap, i.inspectionSharedMap)
-	runCtx = khictx.WithValue(runCtx, inspection_task_contextkey.GlobalSharedMap, inspectionRunnerGlobalSharedMap)
-	runCtx = khictx.WithValue(runCtx, inspection_task_contextkey.InspectionTaskInput, taskInput)
-	return khictx.WithValue(runCtx, inspection_task_contextkey.InspectionTaskMode, runMode)
+func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspection_task_interface.InspectionTaskMode, taskInput map[string]any) (context.Context, error) {
+	rid := i.idGenerator.Generate()
+	runCtx := khictx.WithValue(ctx, inspectioncontract.InspectionTaskRunID, rid)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionTaskInspectionID, i.ID)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionSharedMap, i.inspectionSharedMap)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.GlobalSharedMap, inspectionRunnerGlobalSharedMap)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionTaskInput, taskInput)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionTaskMode, runMode)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.CurrentIOConfig, i.ioconfig)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.CurrentHistoryBuilder, history.NewBuilder(i.ioconfig.TemporaryFolder))
+
+	return runCtx, nil
 }
 
 func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.InspectionRequest) error {
@@ -199,7 +207,10 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 		return err
 	}
 
-	runCtx := i.withRunContextValues(ctx, inspection_task_interface.TaskModeRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, inspection_task_interface.TaskModeRun, req.Values)
+	if err != nil {
+		return err
+	}
 
 	runMetadata := i.generateMetadataForRun(runCtx, &header.Header{
 		InspectTimeUnixSeconds: time.Now().Unix(),
@@ -208,7 +219,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 		SuggestedFileName:      "unnamed.khi",
 	}, runnableTaskGraph)
 
-	runCtx = khictx.WithValue(runCtx, inspection_task_contextkey.InspectionRunMetadata, runMetadata)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionRunMetadata, runMetadata)
 
 	cancelableCtx, cancel := context.WithCancel(runCtx)
 	i.cancel = cancel
@@ -220,7 +231,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 	i.runner = runner
 
 	i.metadata = runMetadata
-	lifecycle.Default.NotifyInspectionStart(khictx.MustGetValue(runCtx, inspection_task_contextkey.InspectionTaskRunID), currentInspectionType.Name)
+	lifecycle.Default.NotifyInspectionStart(khictx.MustGetValue(runCtx, inspectioncontract.InspectionTaskRunID), currentInspectionType.Name)
 
 	err = i.runner.Run(cancelableCtx)
 	if err != nil {
@@ -260,7 +271,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 				}
 			}
 		}
-		lifecycle.Default.NotifyInspectionEnd(khictx.MustGetValue(runCtx, inspection_task_contextkey.InspectionTaskRunID), currentInspectionType.Name, status, resultSize)
+		lifecycle.Default.NotifyInspectionEnd(khictx.MustGetValue(runCtx, inspectioncontract.InspectionTaskRunID), currentInspectionType.Name, status, resultSize)
 	}()
 	return nil
 }
@@ -280,21 +291,26 @@ func (i *InspectionTaskRunner) Result() (*InspectionRunResult, error) {
 		return nil, fmt.Errorf("failed to get the serializer result")
 	}
 
-	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, filter.NewEnabledFilter(metadata.LabelKeyIncludedInRunResultFlag, false))
+	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, func(m metadata.Metadata) bool {
+		return typedmap.GetOrDefault(m.Labels(), metadata.LabelKeyIncludedInRunResultFlag, false)
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &InspectionRunResult{
-		Metadata:    md,
-		ResultStore: inspectionDataStore,
-	}, nil
+			Metadata:    md,
+			ResultStore: inspectionDataStore,
+		},
+		nil
 }
 
 func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 	if i.runner == nil {
 		return nil, fmt.Errorf("this task is not yet started")
 	}
-	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, filter.NewEnabledFilter(metadata.LabelKeyIncludedInRunResultFlag, false))
+	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, func(m metadata.Metadata) bool {
+		return typedmap.GetOrDefault(m.Labels(), metadata.LabelKeyIncludedInRunResultFlag, false)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -315,11 +331,14 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 		return nil, err
 	}
 
-	runCtx := i.withRunContextValues(ctx, inspection_task_interface.TaskModeDryRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, inspection_task_interface.TaskModeDryRun, req.Values)
+	if err != nil {
+		return nil, err
+	}
 
 	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &header.Header{}, runnableTaskGraph)
 
-	runCtx = khictx.WithValue(runCtx, inspection_task_contextkey.InspectionRunMetadata, dryrunMetadata)
+	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionRunMetadata, dryrunMetadata)
 
 	err = runner.Run(runCtx)
 	if err != nil {
@@ -331,13 +350,16 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 		slog.ErrorContext(runCtx, err.Error())
 		return nil, err
 	}
-	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(dryrunMetadata, filter.NewEnabledFilter(metadata.LabelKeyIncludedInDryRunResultFlag, false))
+	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(dryrunMetadata, func(m metadata.Metadata) bool {
+		return typedmap.GetOrDefault(m.Labels(), metadata.LabelKeyIncludedInDryRunResultFlag, false)
+	})
 	if err != nil {
 		return nil, err
 	}
 	return &InspectionDryRunResult{
-		Metadata: md,
-	}, nil
+			Metadata: md,
+		},
+		nil
 }
 
 func (i *InspectionTaskRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, tasks []task.UntypedTask) *logger.Logger {
@@ -419,7 +441,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, query.QueryMetadataKey, query.NewQueryMetadata())
 
 	progressMeta := progress.NewProgress()
-	progressMeta.SetTotalTaskCount(len(task.Subset(taskGraph, filter.NewEnabledFilter(inspection_task.LabelKeyProgressReportable, false)).GetAll()))
+	progressMeta.SetTotalTaskCount(len(task.Subset(taskGraph, task.WhereLabelIsEnabled(inspection_task.LabelKeyProgressReportable, false)).GetAll()))
 	typedmap.Set(writableMetadata, progress.ProgressMetadataKey, progressMeta)
 
 	taskGraphStr, err := taskGraph.DumpGraphviz()
@@ -429,15 +451,6 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, plan.InspectionPlanMetadataKey, plan.NewInspectionPlan(taskGraphStr))
 
 	i.MakeLoggers(ctx, getLogLevel(), writableMetadata.AsReadonly(), taskGraph.GetAll())
-}
-
-func generateRandomString() string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	randomid := make([]rune, 16)
-	for i := range randomid {
-		randomid[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(randomid)
 }
 
 func getLogLevel() slog.Level {

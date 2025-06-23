@@ -15,18 +15,18 @@
 package testlog
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
 
 // MustLogFromYAML returns a log.Log instance from given YAML string.
 // This method is for testing only.
 func MustLogFromYAML(text string, fieldReaders ...log.FieldSetReader) *log.Log {
-	yamlNode, err := structurev2.FromYAML(text)
+	yamlNode, err := structured.FromYAML(text)
 	if err != nil {
 		panic(err.Error())
 	}
-	l := log.NewLog(structurev2.NewNodeReader(yamlNode))
+	l := log.NewLog(structured.NewNodeReader(yamlNode))
 	for _, fieldReader := range fieldReaders {
 		err := l.SetFieldSetReader(fieldReader)
 		if err != nil {
@@ -37,7 +37,7 @@ func MustLogFromYAML(text string, fieldReaders ...log.FieldSetReader) *log.Log {
 }
 
 func NewEmptyLogWithID(id string) *log.Log {
-	l := log.NewLog(structurev2.NewNodeReader(structurev2.NewEmptyMapNode()))
+	l := log.NewLog(structured.NewNodeReader(structured.NewEmptyMapNode()))
 	l.ID = id
 	return l
 }

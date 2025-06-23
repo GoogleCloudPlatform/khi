@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestBaseYamlTestLogOpt(t *testing.T) {
@@ -53,7 +53,7 @@ func TestBaseYamlTestLogOpt(t *testing.T) {
 					t.Errorf("Expecting an error but no error returned.")
 				}
 			} else {
-				yamlStr, err := reader.Serialize("", &structurev2.YAMLNodeSerializer{})
+				yamlStr, err := reader.Serialize("", &structured.YAMLNodeSerializer{})
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
 				}

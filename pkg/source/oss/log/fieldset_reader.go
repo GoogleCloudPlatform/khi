@@ -17,7 +17,7 @@ package log
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
@@ -30,7 +30,7 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) FieldSetKind() string {
 }
 
 // Read implements log.FieldSetReader.
-func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
+func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var err error
 	result := &log.CommonFieldSet{}
 	result.DisplayID = reader.ReadStringOrDefault("auditID", "unknown")
