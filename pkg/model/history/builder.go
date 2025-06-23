@@ -21,13 +21,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math/rand"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -50,6 +50,7 @@ type Builder struct {
 	historyResourceCache   *concurrent.ShardingMap[*Resource]
 	sorter                 *ResourceSorter
 	ClusterResource        *resourceinfo.Cluster
+	timelineIDGenerator    idgenerator.IDGenerator
 }
 
 func NewBuilder(tmpFolder string) *Builder {
@@ -62,6 +63,7 @@ func NewBuilder(tmpFolder string) *Builder {
 		logIdToSerializableLog: concurrent.NewShardingMap[*SerializableLog](concurrent.NewSuffixShardingProvider(128, 4)),
 		historyResourceCache:   concurrent.NewShardingMap[*Resource](concurrent.NewSuffixShardingProvider(128, 4)),
 		ClusterResource:        resourceinfo.NewClusterResourceInfo(),
+		timelineIDGenerator:    idgenerator.NewSequentialGenerator("t"),
 		sorter: NewResourceSorter(
 			&FirstRevisionTimeSortStrategy{
 				TargetRelationship: enum.RelationshipPodBinding,
@@ -175,7 +177,7 @@ func (builder *Builder) GetTimelineBuilder(resourcePath string) *TimelineBuilder
 	resource := builder.ensureResourcePath(resourcePath)
 	// When specified resource has no associated timeline
 	if resource.Timeline == "" {
-		tid := builder.generateTimelineID()
+		tid := builder.timelineIDGenerator.Generate()
 		timelineMap := builder.timelinemap.AcquireShard(tid)
 		timeline := newTimeline(tid)
 		resource.Timeline = tid
@@ -377,14 +379,4 @@ func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[str
 		fileSize += writtenSize
 	}
 	return fileSize, nil
-}
-
-func (builder *Builder) generateTimelineID() string {
-	const idLength = 7
-	charset := "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
-	id := make([]byte, idLength)
-	for i := 0; i < len(id); i++ {
-		id[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(id)
 }

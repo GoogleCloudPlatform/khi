@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/concurrent"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -310,14 +310,15 @@ func TestGetTimelineBuilderThreadSafety(t *testing.T) {
 	builder := NewBuilder("/tmp")
 	threadCount := 100
 	timelineCountPerThread := 1000000
+	idg := idgenerator.NewSequentialGenerator("uuid-")
 	pool := concurrent.NewWorkerPool(threadCount)
 	pool.Run(func() {
 		for i := 0; i < timelineCountPerThread; i++ {
-			uuid1 := common.NewUUID()
-			uuid2 := common.NewUUID()
-			uuid3 := common.NewUUID()
-			uuid4 := common.NewUUID()
-			uuid5 := common.NewUUID()
+			uuid1 := idg.Generate()
+			uuid2 := idg.Generate()
+			uuid3 := idg.Generate()
+			uuid4 := idg.Generate()
+			uuid5 := idg.Generate()
 			builder.GetTimelineBuilder(resourcepath.SubresourceLayerGeneralItem(uuid1[:3], uuid2[:3], uuid3[:3], uuid4[:3], uuid5[:3]).Path)
 		}
 	})

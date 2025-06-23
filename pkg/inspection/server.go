@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"golang.org/x/exp/slices"
 
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
@@ -105,7 +106,7 @@ func (s *InspectionTaskServer) AddTask(task task.UntypedTask) error {
 
 // CreateInspection generates an inspection and returns inspection ID
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
-	inspectionTask := NewInspectionRunner(s, s.ioConfig)
+	inspectionTask := NewInspectionRunner(s, s.ioConfig, idgenerator.NewUUIDGenerator())
 	err := inspectionTask.SetInspectionType(inspectionType)
 	if err != nil {
 		return "", err

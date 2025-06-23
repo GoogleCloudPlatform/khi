@@ -19,10 +19,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
@@ -63,12 +63,13 @@ type InspectionTaskRunner struct {
 	inspectionSharedMap   *typedmap.TypedMap
 	currentInspectionType string
 	ioconfig              *inspectioncontract.IOConfig
+	idGenerator           idgenerator.IDGenerator
 }
 
-func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncontract.IOConfig) *InspectionTaskRunner {
+func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncontract.IOConfig, idg idgenerator.IDGenerator) *InspectionTaskRunner {
 	return &InspectionTaskRunner{
 		inspectionServer:      server,
-		ID:                    generateRandomString(),
+		ID:                    idg.Generate(),
 		enabledFeatures:       map[string]bool{},
 		availableTasks:        nil,
 		featureTasks:          nil,
@@ -80,6 +81,7 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncontr
 		cancel:                nil,
 		currentInspectionType: "N/A",
 		ioconfig:              ioConfig,
+		idGenerator:           idg,
 	}
 }
 
@@ -180,7 +182,7 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 
 // withRunContextValues returns a context with the value specific to a single run of task.
 func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspection_task_interface.InspectionTaskMode, taskInput map[string]any) (context.Context, error) {
-	rid := generateRandomString()
+	rid := i.idGenerator.Generate()
 	runCtx := khictx.WithValue(ctx, inspectioncontract.InspectionTaskRunID, rid)
 	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionTaskInspectionID, i.ID)
 	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionSharedMap, i.inspectionSharedMap)
@@ -449,15 +451,6 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, plan.InspectionPlanMetadataKey, plan.NewInspectionPlan(taskGraphStr))
 
 	i.MakeLoggers(ctx, getLogLevel(), writableMetadata.AsReadonly(), taskGraph.GetAll())
-}
-
-func generateRandomString() string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	randomid := make([]rune, 16)
-	for i := range randomid {
-		randomid[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(randomid)
 }
 
 func getLogLevel() slog.Level {
