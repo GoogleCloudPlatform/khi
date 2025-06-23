@@ -15,7 +15,6 @@
 package model
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -52,7 +51,7 @@ type FormUsedFeatureElement struct {
 // GetFormDocumentModel returns the document model for forms.
 func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDocumentModel, error) {
 	result := FormDocumentModel{}
-	forms := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(label.TaskLabelKeyIsFormTask, false))
+	forms := task.Subset(taskServer.RootTaskSet, task.WhereLabelIsEnabled(label.TaskLabelKeyIsFormTask))
 	for _, form := range forms.GetAll() {
 		usedFeatures, err := getFeaturesRequestingFormTask(taskServer, form)
 		if err != nil {
@@ -79,7 +78,7 @@ func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDoc
 // getFeaturesRequestingFormTask returns the list of feature tasks that depends on the given form task.
 func getFeaturesRequestingFormTask(taskServer *inspection.InspectionTaskServer, formTask task.UntypedTask) ([]task.UntypedTask, error) {
 	var result []task.UntypedTask
-	features := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
+	features := task.Subset(taskServer.RootTaskSet, task.WhereLabelIsEnabled(inspection_task.LabelKeyInspectionFeatureFlag))
 	for _, feature := range features.GetAll() {
 		hasDependency, err := task.HasDependency(taskServer.RootTaskSet, feature, formTask)
 		if err != nil {

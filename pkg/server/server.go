@@ -24,10 +24,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
@@ -114,7 +114,9 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 						return
 					}
 
-					m, err := metadata.GetSerializableSubsetMapFromMetadataSet(md, filter.NewEnabledFilter(metadata.LabelKeyIncludedInTaskListFlag, false))
+					m, err := metadata.GetSerializableSubsetMapFromMetadataSet(md, func(m metadata.Metadata) bool {
+						return typedmap.GetOrDefault(m.Labels(), metadata.LabelKeyIncludedInTaskListFlag, false)
+					})
 					if err != nil {
 						ctx.String(http.StatusInternalServerError, err.Error())
 						return

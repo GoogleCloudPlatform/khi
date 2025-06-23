@@ -18,7 +18,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -110,7 +109,7 @@ type FeatureAvailableInspectionType struct {
 // GetFeatureDocumentModel returns the document model for feature tasks from the task server.
 func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
 	result := FeatureDocumentModel{}
-	features := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
+	features := task.Subset(taskServer.RootTaskSet, task.WhereLabelIsEnabled(inspection_task.LabelKeyInspectionFeatureFlag))
 	for _, feature := range features.GetAll() {
 		indirectQueryDependencyElement := []FeatureIndirectDependentQueryElement{}
 		targetQueryDependencyElement := FeatureDependentTargetQueryElement{}
@@ -213,7 +212,7 @@ func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, feature
 	if err != nil {
 		return nil, err
 	}
-	return task.Subset(resolved, filter.NewEnabledFilter(label.TaskLabelKeyIsQueryTask, false)).GetAll(), nil
+	return task.Subset(resolved, task.WhereLabelIsEnabled(label.TaskLabelKeyIsQueryTask)).GetAll(), nil
 }
 
 // getDependentFormTasks returns the list of form tasks required by the feature task.
@@ -226,7 +225,7 @@ func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureT
 	if err != nil {
 		return nil, err
 	}
-	return task.Subset(resolved, filter.NewEnabledFilter(label.TaskLabelKeyIsFormTask, false)).GetAll(), nil
+	return task.Subset(resolved, task.WhereLabelIsEnabled(label.TaskLabelKeyIsFormTask)).GetAll(), nil
 }
 
 // getAvailableInspectionTypes returns the list of information about inspection type that supports this feature.

@@ -15,9 +15,6 @@
 package metadata
 
 import (
-	"fmt"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
@@ -45,18 +42,13 @@ type Metadata interface {
 	Labels() *typedmap.ReadonlyTypedMap
 }
 
-func GetSerializableSubsetMapFromMetadataSet[T any](metadataSet *typedmap.ReadonlyTypedMap, filter filter.TypedMapFilter[T]) (map[string]interface{}, error) {
+func GetSerializableSubsetMapFromMetadataSet(metadataSet *typedmap.ReadonlyTypedMap, predicate func(m Metadata) bool) (map[string]interface{}, error) {
 	result := map[string]interface{}{}
 	for _, key := range metadataSet.Keys() {
-		metadata, found := typedmap.Get(metadataSet, NewMetadataLabelsKey[Metadata](key))
-		if !found {
-			return nil, fmt.Errorf("unreachable. expected metadata not found")
+		metadata, _ := typedmap.Get(metadataSet, NewMetadataKey[Metadata](key))
+		if predicate(metadata) {
+			result[key] = metadata.ToSerializable()
 		}
-		metadataLabel, found := typedmap.Get(metadata.Labels(), filter.KeyToFilter())
-		if !filter.ShouldInclude(found, metadataLabel) {
-			continue
-		}
-		result[key] = metadata.ToSerializable()
 	}
 	return result, nil
 }
