@@ -19,7 +19,6 @@ import (
 	"log/slog"
 	"path/filepath"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
@@ -50,7 +49,9 @@ var SerializeTask = inspection_task.NewProgressReportableInspectionTask(Serializ
 		return nil, err
 	}
 	defer writer.Close()
-	resultMetadata, err := metadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, filter.NewEqualFilter(metadata.LabelKeyIncludedInResultBinaryFlag, true, false))
+	resultMetadata, err := metadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, func(m metadata.Metadata) bool {
+		return typedmap.GetOrDefault(m.Labels(), metadata.LabelKeyIncludedInResultBinaryFlag, false)
+	})
 	if err != nil {
 		return nil, err
 	}
