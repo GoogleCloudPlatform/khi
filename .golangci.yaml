@@ -12,42 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+version: "2"
 run:
-  timeout: "30m"
-  allow-parallel-runners: true
   go: "1.24"
-
+  allow-parallel-runners: true
 linters:
-  disable-all: true
+  default: none
   enable:
     - bodyclose
     - gocritic
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - noctx
     - staticcheck
     - unused
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow
-  staticcheck:
-    # SA1006 is disabled
-    # See https://staticcheck.dev/docs/checks#SA1006 for more information
-    checks: ["-SA1006"]
-issues:
-  exclude-use-default: true
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - noctx
-        - govet
-
-output:
-  print-linter-name: true
+  settings:
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
+    staticcheck:
+      checks:
+        - -SA1006
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - errcheck
+          - govet
+          - noctx
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
