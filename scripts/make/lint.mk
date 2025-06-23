@@ -20,7 +20,7 @@ lint-web: prepare-frontend
 
 .PHONY=lint-go
 lint-go:
-	podman run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+	docker run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
 
 .PHONY=format-go
 format-go:
