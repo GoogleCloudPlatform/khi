@@ -307,7 +307,7 @@ Start the KHI server using Docker:
 
 ```bash
 # You don't need to pass Google Cloud credentials to the container.
-docker run --rm -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest
+docker run --rm -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest
 ```
 
 You should see output indicating the server is running:

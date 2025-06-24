@@ -74,20 +74,20 @@ KHI is originally developed by the Google Cloud Support team before it became op
 #### Run KHI
 
 1. Open [Cloud Shell](https://shell.cloud.google.com)
-1. Run `docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest`
+1. Run `docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest`
 1. Click the link `http://localhost:8080` on the terminal and start working with KHI!
+
+> [!WARNING]
+> The container image repository has been moved from `asia.gcr.io` to `gcr.io`. While the old repository is still available, we recommend switching to the new one as the old one will be deprecated in the future.
 
 > [!TIP]
 > If you want to run KHI with the other environment where the metadata server is not available,
 > you can pass the access token via the program argument.
 >
 >```bash
->docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
+>docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
 >```
 >
-
-> [!NOTE]
-> The container image source may change in the near future. #21
 
 For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 

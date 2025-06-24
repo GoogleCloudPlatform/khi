@@ -81,18 +81,18 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 #### KHI の実行
 
 1. [Cloud Shell](https://shell.cloud.google.com) を開きます。
-2. `docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest` を実行します。
+2. `docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest` を実行します。
 3. ターミナル上のリンク `http://localhost:8080` をクリックして、KHI の使用を開始してください！
+
+> [!WARNING]
+> コンテナイメージのレポジトリが `asia.gcr.io` から `gcr.io` に変更されました。古いレポジトリも当面の間利用可能ですが、将来的には廃止される予定のため、新しいレポジトリへの切り替えを推奨します。
 
 > [!TIP]
 > メタデータサーバーが利用できない他の環境で KHI を実行する場合は、プログラム引数でアクセストークンを渡します。
 >
 > ```bash
-> docker run -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
+> docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
 > ```
-
-> [!NOTE]
-> コンテナイメージの配信元は近いうちに変更される可能性があります。 #21
 
 詳細は [Getting Started](/docs/en/tutorial/getting-started.md) を参照してください。
 

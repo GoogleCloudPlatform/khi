@@ -48,7 +48,9 @@ steps:
       - '-c'
       - |
         docker buildx create --driver docker-container --name container --use
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t asia.gcr.io/kubernetes-history-inspector/release:beta -t asia.gcr.io/kubernetes-history-inspector/release:${TAG_NAME} --push .
+        # TODO(#21): Remove asia.gcr.io from the build targets.
+        # The new repository is gcr.io, but we will keep the old one for a while.
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t asia.gcr.io/kubernetes-history-inspector/release:beta -t gcr.io/kubernetes-history-inspector/release:beta -t asia.gcr.io/kubernetes-history-inspector/release:${TAG_NAME} -t gcr.io/kubernetes-history-inspector/release:${TAG_NAME} --push .
     id: build_container
     waitFor:
       - build_web

@@ -48,7 +48,7 @@ steps:
       - '-c'
       - |
         docker buildx create --driver docker-container --name container --use
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t asia.gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA --push .
     id: build_container
     waitFor:
       - build_web
