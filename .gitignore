@@ -1,15 +1,29 @@
-.vscode
-result.json
-__debug_bin*
-dist
+# IDE settings
+.vscode/
+.devcontainer/.env
 
+# Build artifacts
+dist/
+/khi
+/khi-debug
+__debug_bin*
+
+# Generated KHI files
+*.khi
+
+# Test and coverage reports
 go-cover.html
 go-cover.output
-.DS_Store
-.envrc
-# Dev container environment
-.devcontainer/.env
-*.khi
+result.json
+
+# Node dependencies
+node_modules/
+
+# Terraform state
 .terraform/
 
-node_modules
+# OS-specific files
+.DS_Store
+
+# Local environment variables
+.envrc
