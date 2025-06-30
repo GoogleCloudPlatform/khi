@@ -7,8 +7,11 @@
 
 Language: [English](./README.md) | 日本語
 
-<hr/>
+> [!NOTE]
+> 🎉 **KubeCon + CloudNativeCon Japan 2025**でKHIを絡めたKubernetesのダウンタイム調査に関連する発表をしました！
+> KHIによるダウンタイム調査にご興味のある方はぜひご覧ください。[詳細はこちら](#登壇情報)。
 
+<hr/>
 # Kubernetes History Inspector
 
 Kubernetes History Inspector (KHI) は、Kubernetes クラスタのログ可視化ツールです。
@@ -185,3 +188,9 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 ## 免責事項
 
 KHI は Google Cloud の公式製品ではございません。不具合のご報告や機能に関するご要望がございましたら、お手数ですが当リポジトリの[Github issues](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue)にご登録ください。可能な範囲で対応させていただきます。
+
+## 登壇情報
+
+本セッションでは、Kubernetesの監査ログからKHIが生成するリソースのdiffを活用し、ダウンタイムの根本原因を効率的に調査する方法を紹介しています。
+
+- **セッション:** [Safeguarding Your Applications: Achieving Zero Downtime During Kubernetes Upgrades](https://kccncjpn2025.sched.com/event/1x71p/safeguarding-your-applications-achieving-zero-downtime-during-kubernetes-upgrades-kazuki-uchima-kakeru-ishii-google-cloud?iframe=no)

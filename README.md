@@ -7,6 +7,9 @@
 
 Language: English | [日本語](./README.ja.md)
 
+> [!NOTE]
+> 🎉 Presented at **KubeCon + CloudNativeCon Japan 2025**! Learn how KHI helps investigate Kubernetes cluster downtime. [Check the details](#featured-session).
+
 <hr/>
 
 # Kubernetes History Inspector
@@ -180,3 +183,9 @@ If you'd like to contribute to the project KHI, read [Contribution Guide](/docs/
 ## Disclaimer
 
 Please note that this tool is not an officially supported Google Cloud product. If you find any issues and have a feature request, [file a Github issue on this repository](https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue) and we are happy to check them on best-effort basis.
+
+## Featured Session
+
+This session demonstrates how to efficiently investigate the root cause of downtime by leveraging the resource diffs that KHI generates from Kubernetes audit logs.
+
+- **Session:** [Safeguarding Your Applications: Achieving Zero Downtime During Kubernetes Upgrades](https://kccncjpn2025.sched.com/event/1x71p/safeguarding-your-applications-achieving-zero-downtime-during-kubernetes-upgrades-kazuki-uchima-kakeru-ishii-google-cloud?iframe=no)
