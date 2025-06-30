@@ -131,19 +131,19 @@ GitHubでリリースを作成すると、専用のタグが自動的に生成�
 
 * プレリリース
   * tagを `vx.y.z-beta`として命名すると、 下記のアドレスとしてデプロイされます。
-    * `asia.gcr.io/kubernetes-history-inspector/release:beta`
-    * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
+    * `gcr.io/kubernetes-history-inspector/release:beta`
+    * `gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
 * リリース
   * tagを`vx.y.z` として命名すると、 下記のアドレスとしてデプロイされます。
-    * `asia.gcr.io/kubernetes-history-inspector/release:vx.y.z`
-    * `asia.gcr.io/kubernetes-history-inspector/release:latest`
+    * `gcr.io/kubernetes-history-inspector/release:vx.y.z`
+    * `gcr.io/kubernetes-history-inspector/release:latest`
 
 > [!NOTE]
 > リリースの作成後にデプロイプロセスが開始されます。イメージがリポジトリにプッシュされるまで1時間ほどかかる場合があります。
 
 ### プルリクエストのコードに対するオンデマンドビルドの使用
 
-レポジトリ管理者は、プルしクエストに対して `github-deploy-ondemand` チェックを実行できます。これによりイメージが`asia.gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA`にデプロイされます。
+レポジトリ管理者は、プルリクエストに対して `github-deploy-ondemand` チェックを実行できます。これによりイメージが`gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA`にデプロイされます。
 
 > [!NOTE]
 > このイメージは、最後のチェックのためだけのものです。まず、あなたの環境でコードが正しいことを確認してください。

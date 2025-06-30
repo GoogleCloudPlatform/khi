@@ -305,7 +305,7 @@ Docckerを使用してKHIサーバーを実行します。
 
 ```bash
 # You don't need to pass Google Cloud credentials to the container.
-docker run --rm -p 127.0.0.1:8080:8080 asia.gcr.io/kubernetes-history-inspector/release:latest
+docker run --rm -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest
 ```
 
 サーバーが稼働していることを示す出力が表示されるはずです。

@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GOLANGCILINT_VERSION := v2.1.6
+
 .PHONY=lint-web
 lint-web: prepare-frontend
 	cd web && npx ng lint
 
 .PHONY=lint-go
 lint-go:
-	go vet ./...
+	docker run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+
 .PHONY=format-go
 format-go:
 	gofmt -s -w .
