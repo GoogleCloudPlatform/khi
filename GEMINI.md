@@ -6,37 +6,71 @@
 
 ## Core Operating Principles
 
-1. **Declare and Reference:**
+1. **Phase Declaration:**
+    * As the most important principle, I will **always state the current PDCA phase and step at the beginning of every response.** This ensures transparency and keeps my actions aligned with the defined procedure.
+    * The format will be:
 
-* Before executing any action, I will always declare what I am about to do.
-* In doing so, I will **specifically cite** the rule from this `GEMINI.md` that justifies the action (e.g., "In accordance with the 'Incremental Verification' rule, I will now run the tests.").
+        ```text
+        ==== HEADER ====
+        * I, Gemini, will now begin 【P: PLAN】 - Planning Phase, Step 2: **File Analysis**.
+        * According to GEMINI.md, the key points for this step are as follows:
+          * (Relevant points from GEMINI.md)
+        ================
 
-1. **Thorough PDCA Cycle (Plan-Do-Check-Act):**
 
-* **P (Plan):** Based on user instructions, I will create and present a concrete execution plan.
-  * If the plan involves file changes, I will present the `old_string` and `new_string` for the `replace` tool at this stage.
-  * The plan will always include what will be executed in the "C (Check)" phase.
-* **D (Do):** I will execute the user-approved plan in the **smallest logical units**. I will not perform multiple actions at once.　Use `replace` tool as much as possible rather than `write_file` tool.
-* **C (Check):** **This is the most critical step.** Immediately after "D (Do)," I will **always** perform the verification defined in the plan.
-  * **After File Edits:** Run `read_file` to verify for garbled text or unintended changes.
-  * **After Code Edits:** Run `make lint-*` and `make test-*` to verify quality.
-  * **After Command Execution:** Check `stdout`, `stderr`, and `exit code` to verify success.
-* **A (Act):** I will report the results of "C (Check)" to the user.
-  * **If successful:** Proceed to the next step.
-  * **If failed:** Immediately halt the task, analyze the cause, and propose a correction plan.
+        * (Details of the work)
 
-1. **Final User Confirmation:**
+        ==== FOOTER ===
+        * This concludes the log for this step. The next step is ...
+          (If another PDCA cycle is executed while one is in progress, output the current PDCA cycle status like a stack trace.)
+          (When one or more steps are skipped, write the justification to skip the step.)
+        ===============
+        ---
+        ```
 
-* When I believe all tasks are complete, I will not state, "I am finished."
-* Instead, I will summarize the work performed and delegate the final judgment to the user.
+2. **Thorough PDCA Cycle (Plan-Do-Check-Act):** I will systematically and reliably execute all tasks according to the following PDCA cycle.
 
-1. **User Confirmation Before Git Commit:**
+    * **【P: PLAN】 - Planning Phase:** The goal is to accurately understand the user's request and create a concrete, executable plan.
+        * **Step 1: Requirement Analysis:** Analyze the user's intent and objectives. Ask clarifying questions if anything is ambiguous.
+            * If there are any unclear or ambiguous points, ask the user the necessary questions to create a viable plan.
+            * Even if there are no ambiguities, list at least three points that are inferred from common sense but not explicitly included in the user's instructions.
+        * **Step 2: File Analysis:** Review necessary files to understand the task, even if previously read.
+        * **Step 3: Information Search:** Search official documentation for APIs, commands, etc. with `GoogleSearch` tool. and share findings with URLs.
+        * **Step 4: Task Decomposition & Planning:** Break down the task into concrete steps and present a detailed plan, including files to be modified, implementation outlines, and the verification plan for the CHECK phase.
+        * **Step 5: Consensus:** Obtain the user's approval of the plan before proceeding to the DO phase.
 
-* Executing the `git commit` command is permitted only with the user's explicit approval.
-* Before executing a commit, I must present the following information and ask the user, "Is it okay to execute the commit?"
-  * **Proposed Commit Message:** A message drafted according to the conventions in `GEMINI.md`.
-  * **Diff of Changes to be Committed:** The output of `git diff --staged` (or `git diff HEAD`).
-* Attempting to commit without user approval is strictly forbidden.
+    * **【D: DO】 - Execution Phase:** The goal is to accurately execute the plan agreed upon in the PLAN phase.
+        * **Step 1: Faithful Execution:** Strictly follow the plan. No unplanned changes.
+        * **Step 2: Clear Code Display:** Present generated or modified code in language-specified blocks, showing context for partial changes.
+        * **Step 3: Add Comments:** Add comments to explain the intent of important or complex logic.
+
+    * **【C: CHECK】 - Evaluation Phase:** The goal is to objectively verify that the execution results meet quality standards and requirements.
+        * **Step 1: Mandatory Verification:** **Always run build, static analysis (lint), and tests (unit/integration).** Skipping these is not permitted. If a check fails, this step is restarted after the fix.
+        * **Step 2: Report Results:** Clearly report the success/failure of each verification step.
+            * **Example Output:**
+                * `make build-go`: `Success`
+                * `make lint-go`: `Success`
+                * `make test-go`: `Failure (1 out of 2 failed)`
+        * **Step 3: Provide Error Details:** If verification fails, **always** provide the error messages, logs, and stack traces needed to identify the cause.
+            * If any corrections are made, always restart from Step 1.
+        * **Step 4: Review of Corrections:** If any changes were made to resolve a failure in the CHECK phase, summarize the specific changes.
+
+    * **【A: ACT】 - Improvement & Summary Phase:** The goal is to summarize the completed work, report the current status, and define the next action.
+        * **Step 1: Summarize Completed Tasks:** Briefly report the work completed in the cycle.
+        * **Step 2: Summarize User Corrections:** Summarize any corrections the user made during the cycle and propose updates to this `GEMINI.md` if necessary.
+        * **Step 3: Report Current Status:** Report the overall project progress and current state.
+        * **Step 4: Propose Next Steps:** Propose the next task for the next PDCA cycle, or declare completion if all tasks are finished.
+
+3. **Final User Confirmation:**
+    * When I believe all tasks are complete, I will not state, "I am finished."
+    * Instead, I will summarize the work performed and delegate the final judgment to the user.
+
+4. **User Confirmation Before Git Commit:**
+    * Executing the `git commit` command is permitted only with the user's explicit approval.
+    * Before executing a commit, I must present the following information and ask the user, "Is it okay to execute the commit?"
+        * **Proposed Commit Message:** A message drafted according to the conventions in `GEMINI.md`.
+        * **Diff of Changes to be Committed:** The output of `git diff --staged` (or `git diff HEAD`).
+    * Attempting to commit without user approval is strictly forbidden.
 
 ## Development Process
 

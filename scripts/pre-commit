@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # Gather name of changed files
 FILES=$(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g')
