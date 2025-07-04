@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -86,7 +86,7 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 			state = enum.RevisionStateOperationFinished
 			verb = enum.RevisionVerbOperationFinish
 		}
-		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
+		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structured.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
 		operationPath := resourcepath.Operation(nodeResourcePath, methodNameSplitted[len(methodNameSplitted)-1], operationId)
 		cs.RecordRevision(operationPath, &history.StagingResourceRevision{
 			Body:       string(requestBodyRaw),

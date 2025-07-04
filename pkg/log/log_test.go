@@ -17,7 +17,7 @@ package log
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -42,7 +42,7 @@ func (t *TestFieldSetReader) FieldSetKind() string {
 	return (&TestFieldSet{}).Kind()
 }
 
-func (t *TestFieldSetReader) Read(reader *structurev2.NodeReader) (FieldSet, error) {
+func (t *TestFieldSetReader) Read(reader *structured.NodeReader) (FieldSet, error) {
 	testField, err := reader.ReadString("test_field")
 	if err != nil {
 		return nil, err
@@ -53,11 +53,11 @@ func (t *TestFieldSetReader) Read(reader *structurev2.NodeReader) (FieldSet, err
 }
 
 func TestGetField(t *testing.T) {
-	yamlNode, err := structurev2.FromYAML(`test_field: foo`)
+	yamlNode, err := structured.FromYAML(`test_field: foo`)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	nodeReader := structurev2.NewNodeReader(yamlNode)
+	nodeReader := structured.NewNodeReader(yamlNode)
 
 	l := NewLog(nodeReader)
 	l.SetFieldSetReader(&TestFieldSetReader{})

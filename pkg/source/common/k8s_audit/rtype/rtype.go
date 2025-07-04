@@ -15,7 +15,7 @@
 package rtype
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 // rtype.Type indicates the schema of log bodies under request or response.
@@ -36,7 +36,7 @@ var AtTypesOnGCPAuditLog map[string]Type = map[string]Type{
 }
 
 // RtypeFromOSSK8sObject returns the type of resource from given requestObject or responseObject in OSS k8s audit log.
-func RtypeFromOSSK8sObject(bodyReader *structurev2.NodeReader) Type {
+func RtypeFromOSSK8sObject(bodyReader *structured.NodeReader) Type {
 	apiVersion := bodyReader.ReadStringOrDefault("apiVersion", "unknown")
 	kind := bodyReader.ReadStringOrDefault("kind", "unknown")
 	if apiVersion == "meta.k8s.io/v1" && kind == "DeleteOptions" {

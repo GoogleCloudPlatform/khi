@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
@@ -35,7 +35,7 @@ type FieldSet interface {
 
 type FieldSetReader interface {
 	// Read attempts to read the log fields into its field.
-	Read(reader *structurev2.NodeReader) (FieldSet, error)
+	Read(reader *structured.NodeReader) (FieldSet, error)
 
 	// FieldSetKind identifies the set of fields. It must be same if the result type has same fields.
 	FieldSetKind() string
@@ -44,14 +44,14 @@ type FieldSetReader interface {
 // Log represents a log handled in KHI.
 // It provides direct access to its fields and abstracted cached access via FieldSet interface.
 type Log struct {
-	*structurev2.NodeReader
+	*structured.NodeReader
 	fields  *typedmap.TypedMap
 	ID      string
 	LogType enum.LogType
 }
 
 // NewLog returns a log instance from NodeReader instance.
-func NewLog(reader *structurev2.NodeReader) *Log {
+func NewLog(reader *structured.NodeReader) *Log {
 	return &Log{
 		ID:         strconv.Itoa(int(logInstanceID.Add(1))),
 		NodeReader: reader,
@@ -62,11 +62,11 @@ func NewLog(reader *structurev2.NodeReader) *Log {
 
 // NewLogFromYAMLString instanciate a new Log from the given YAML string.
 func NewLogFromYAMLString(yaml string) (*Log, error) {
-	node, err := structurev2.FromYAML(yaml)
+	node, err := structured.FromYAML(yaml)
 	if err != nil {
 		return nil, err
 	}
-	return NewLog(structurev2.NewNodeReader(node)), nil
+	return NewLog(structured.NewNodeReader(node)), nil
 }
 
 // SetFieldSetReader reads set of fields with the FieldSetReader and keep it in the log.

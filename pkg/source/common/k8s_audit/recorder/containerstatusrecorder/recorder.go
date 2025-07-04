@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -48,7 +48,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *types.Au
 	commonFieldSet := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
 
 	var pod corev1.Pod
-	err := structurev2.ReadReflectK8sRuntimeObject(l.ResourceBodyReader, "", &pod)
+	err := structured.ReadReflectK8sRuntimeObject(l.ResourceBodyReader, "", &pod)
 	if err != nil {
 		return nil, err
 	}
