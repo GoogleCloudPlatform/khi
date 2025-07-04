@@ -17,8 +17,18 @@ coverage: coverage-go coverage-web
 .PHONY=lint
 lint: lint-web lint-go
 
+# lint warning contains lint rules that is warning at this moment but should be fixed long term.
+.PHONY=lint-warning
+lint-warning: generate-depguard-rules
+	 golangci-lint run --config=.generated-golangci-depguard.yaml
+
+
 .PHONY=format
 format: format-web format-go
+
+.PHONY=generate-depguard-rules
+generate-depguard-rules:
+	cd ./scripts/depguard-generator/ && go run .
 
 ### Initial setup
 
