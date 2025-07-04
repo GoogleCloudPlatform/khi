@@ -13,35 +13,40 @@
 # limitations under the License.
 
 GOLANGCILINT_VERSION := v2.1.6
+CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 
-.PHONY=lint-web
-lint-web: prepare-frontend
+.PHONY: lint-web
+lint-web: prepare-frontend ## Run frontend linter
 	cd web && npx ng lint
 
-.PHONY=lint-go
-lint-go:
-	docker run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+.PHONY: lint-go
+lint-go: ## Run backend linter
+ifeq ($(CONTAINER_CMD),)
+	$(error "lint-go requires docker or podman, but neither was found.")
+else
+	$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+endif
 
-.PHONY=format-go
-format-go:
+.PHONY: format-go
+format-go: ## Format backend source code
 	gofmt -s -w .
 
-.PHONY=format-web
-format-web: prepare-frontend
+.PHONY: format-web
+format-web: prepare-frontend ## Format frontend source code
 	cd web && npx prettier --ignore-path .gitignore --write "./**/*.+(ts|json|html|scss)"
 
-.PHONY=check-format-go
-check-format-go:
+.PHONY: check-format-go
+check-format-go: ## Check backend source code format
 	test -z `gofmt -l .`
 
-.PHONY=check-format-web
-check-format-web: prepare-frontend
+.PHONY: check-format-web
+check-format-web: prepare-frontend ## Check frontend source code format
 	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html|scss)"
 
 .PHONY: lint-markdown
-lint-markdown:
+lint-markdown: ## Run markdown linter
 	npx markdownlint-cli2
 
 .PHONY: lint-markdown-fix
-lint-markdown-fix:
+lint-markdown-fix: ## Fix markdown linter errors
 	npx markdownlint-cli2 --fix
