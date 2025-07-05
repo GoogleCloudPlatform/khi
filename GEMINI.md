@@ -95,7 +95,7 @@
 
     When constructing the string for `printf`, I must pay close attention to shell expansions and escape sequences.
   * **Newlines** must be explicitly written as `\n`.
-  * **Special characters** such as double quotes (`"`) and backticks (``` ` ```) within the message must be properly escaped with a backslash (`\`) to prevent shell misinterpretation.
+  * **Special characters**: Quotes (`"` and `'`) within the message must be properly escaped with a backslash (`\`) to prevent shell misinterpretation. Do not use backticks (`) in the message.
 
     ```bash
     # Example: Using printf with proper escaping
