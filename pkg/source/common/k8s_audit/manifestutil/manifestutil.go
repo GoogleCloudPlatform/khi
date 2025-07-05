@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
@@ -32,7 +32,7 @@ const (
 )
 
 // ParseDeletionStatus returns the current deletion status and deletion time of this resource.
-func ParseDeletionStatus(ctx context.Context, resourceBodyReader *structurev2.NodeReader, operation *model.KubernetesObjectOperation) DeletionStatus {
+func ParseDeletionStatus(ctx context.Context, resourceBodyReader *structured.NodeReader, operation *model.KubernetesObjectOperation) DeletionStatus {
 	gracefulSeconds := -1
 	var deletionTime *time.Time = nil
 	if resourceBodyReader != nil {
@@ -62,7 +62,7 @@ func ParseDeletionStatus(ctx context.Context, resourceBodyReader *structurev2.No
 }
 
 // ParseCreationTime returns the creation time from the resource body.
-func ParseCreationTime(resourceBodyReader *structurev2.NodeReader, defaultTime time.Time) time.Time {
+func ParseCreationTime(resourceBodyReader *structured.NodeReader, defaultTime time.Time) time.Time {
 	if resourceBodyReader != nil {
 		creationTimestamp, err := getCreationTimeFromManifest(resourceBodyReader)
 		if err != nil {
@@ -73,7 +73,7 @@ func ParseCreationTime(resourceBodyReader *structurev2.NodeReader, defaultTime t
 	return defaultTime
 }
 
-func getCreationTimeFromManifest(resourceBodyReader *structurev2.NodeReader) (time.Time, error) {
+func getCreationTimeFromManifest(resourceBodyReader *structured.NodeReader) (time.Time, error) {
 	creationTimestamp, err := resourceBodyReader.ReadString("metadata.creationTimestamp")
 	if err != nil {
 		return time.Time{}, err

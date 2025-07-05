@@ -19,7 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
@@ -224,11 +224,11 @@ allocatedresourcesstatus: []
 				}
 				manifestStr := testutil.MustReadText(tc.manifestPaths[i])
 				rsLog.ResourceBodyYaml = manifestStr
-				node, err := structurev2.FromYAML(manifestStr)
+				node, err := structured.FromYAML(manifestStr)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				rsLog.ResourceBodyReader = structurev2.NewNodeReader(node)
+				rsLog.ResourceBodyReader = structured.NewNodeReader(node)
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}

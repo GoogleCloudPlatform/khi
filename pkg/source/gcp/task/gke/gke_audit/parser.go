@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -85,7 +85,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 		clusterResourcePath := resourcepath.Cluster(clusterName)
 		if shouldRecordResourceRevision {
 			if strings.HasSuffix(methodName, "CreateCluster") {
-				bodyRaw, _ := l.Serialize("protoPayload.request.cluster", &structurev2.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the cluster setting when the field is not available.
+				bodyRaw, _ := l.Serialize("protoPayload.request.cluster", &structured.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the cluster setting when the field is not available.
 				state := enum.RevisionStateExisting
 				if isFirst {
 					state = enum.RevisionStateProvisioning
@@ -124,7 +124,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 		nodepoolResourcePath := resourcepath.Nodepool(clusterName, nodepoolName)
 		if shouldRecordResourceRevision {
 			if strings.HasSuffix(methodName, "CreateNodePool") {
-				bodyRaw, _ := l.Serialize("protoPayload.request.nodePool", &structurev2.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the nodepool setting when the field is not available.
+				bodyRaw, _ := l.Serialize("protoPayload.request.nodePool", &structured.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the nodepool setting when the field is not available.
 				state := enum.RevisionStateExisting
 				if isFirst {
 					state = enum.RevisionStateProvisioning
@@ -161,7 +161,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 	// If this was an operation, it will be recorded as operation data
 	if !(isLast && isFirst) && (isLast || isFirst) && shouldRecordResourceRevision {
-		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
+		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structured.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
 		state := enum.RevisionStateOperationStarted
 		verb := enum.RevisionVerbOperationStart
 		if isLast {

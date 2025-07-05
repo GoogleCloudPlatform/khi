@@ -15,11 +15,11 @@
 package testlog
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 )
 
-type TestLogOpt = func(original structurev2.Node) (structurev2.Node, error)
+type TestLogOpt = func(original structured.Node) (structured.Node, error)
 
 // TestLog is a type to generate mock log data effectively for test.
 type TestLog struct {
@@ -42,8 +42,8 @@ func (b *TestLog) With(additionalOpts ...TestLogOpt) *TestLog {
 	}
 }
 
-func (b *TestLog) BuildReader() (*structurev2.NodeReader, error) {
-	var node structurev2.Node
+func (b *TestLog) BuildReader() (*structured.NodeReader, error) {
+	var node structured.Node
 	var err error
 	for _, opt := range b.opts {
 		node, err = opt(node)
@@ -51,7 +51,7 @@ func (b *TestLog) BuildReader() (*structurev2.NodeReader, error) {
 			return nil, err
 		}
 	}
-	return structurev2.NewNodeReader(node), nil
+	return structured.NewNodeReader(node), nil
 }
 
 func (b *TestLog) MustBuildYamlString() string {
@@ -59,7 +59,7 @@ func (b *TestLog) MustBuildYamlString() string {
 	if err != nil {
 		panic(err)
 	}
-	serializedRaw, err := reader.Serialize("", &structurev2.YAMLNodeSerializer{})
+	serializedRaw, err := reader.Serialize("", &structured.YAMLNodeSerializer{})
 	if err != nil {
 		panic(err)
 	}
