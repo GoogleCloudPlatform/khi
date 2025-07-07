@@ -131,6 +131,32 @@ linters-settings:
       rules: {}
 `,
 		},
+		{
+			name:           "Create new file with allow rule",
+			initialContent: "",
+			rulesToWrite: []*GeneratedRule{
+				{
+					RuleName:    "test-rule-with-allow",
+					TargetFiles: []string{"pkg/a/*"},
+					DeniedPkgs:  []map[string]string{{"pkg": "pkg/b", "desc": "reason"}},
+					AllowedPkgs: []string{"pkg/c", "pkg/d"},
+				},
+			},
+			expectedContent: `linters:
+  settings:
+    depguard:
+      rules:
+        test-rule-with-allow:
+          allow:
+            - pkg/c
+            - pkg/d
+          deny:
+            - desc: reason
+              pkg: pkg/b
+          files:
+            - pkg/a/*
+`,
+		},
 	}
 
 	for _, tc := range testCases {

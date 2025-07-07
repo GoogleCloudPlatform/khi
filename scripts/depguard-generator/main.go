@@ -28,17 +28,14 @@ func main() {
 	outputPath := flag.String("output", "../../.generated-golangci-depguard.yaml", "The path to the output YAML file.")
 	flag.Parse()
 
-	allPackages := mustListAllPackages()
-
 	// All packages not end with _test.go must not depend pkg/testutil/*
-	restrictTestUtil := NewGeneratedRule("no-testutil-in-non-test-files", []string{"**.go", "!**_test.go", "!**/pkg/testutil/*.go"})
+	restrictTestUtil := NewGeneratedRule("no-testutil-in-non-test-files", []string{"$all", "!$test", "!**/pkg/testutil/**/*.go"})
 	restrictTestUtil.AddDeny([]string{"github.com/GoogleCloudPlatform/khi/pkg/testutil"}, "Production code should not depend on test utilities.")
 
 	// All packages under pkg/common must not depend other pacakge in this project
 	restrictCommonDependingOther := NewGeneratedRule("common-cant-depend-other", []string{"pkg/common/**.go", "!pkg/common/**_test.go"})
-	allNonCommonPackages := mustFilterPackages("^github.com/GoogleCloudPlatform/khi/pkg/common.*$", allPackages, true)
-
-	restrictCommonDependingOther.AddDeny(allNonCommonPackages, "common package can't depend the other package")
+	restrictCommonDependingOther.AddDeny([]string{"github.com/GoogleCloudPlatform/khi"}, "common package can't depend the other package")
+	restrictCommonDependingOther.AddAllow([]string{"github.com/GoogleCloudPlatform/khi/common"})
 
 	writer := &FileSystemRuleWriter{Path: *outputPath}
 	if err := writer.Write(restrictTestUtil, restrictCommonDependingOther); err != nil {

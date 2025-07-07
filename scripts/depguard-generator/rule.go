@@ -27,6 +27,10 @@ type GeneratedRule struct {
 	// DeniedPkgs is a list of packages to be denied.
 	// This corresponds to the `deny` directive in depguard.
 	DeniedPkgs []map[string]string // Slice of maps, where each map is {"pkg": "path", "desc": "description"}
+
+	// AllowedPkgs is a list of packages to be allowed.
+	// This corresponds to the `allow` directive in depguard.
+	AllowedPkgs []string
 }
 
 // NewGeneratedRule creates a new rule with a given name and target files.
@@ -35,6 +39,7 @@ func NewGeneratedRule(ruleName string, targetFiles []string) *GeneratedRule {
 		RuleName:    ruleName,
 		TargetFiles: targetFiles,
 		DeniedPkgs:  []map[string]string{},
+		AllowedPkgs: []string{},
 	}
 }
 
@@ -43,5 +48,11 @@ func (r *GeneratedRule) AddDeny(pkgs []string, desc string) *GeneratedRule {
 	for _, pkg := range pkgs {
 		r.DeniedPkgs = append(r.DeniedPkgs, map[string]string{"pkg": pkg, "desc": desc})
 	}
+	return r
+}
+
+// AddAllow adds packages to the allow list for this rule.
+func (r *GeneratedRule) AddAllow(pkgs []string) *GeneratedRule {
+	r.AllowedPkgs = append(r.AllowedPkgs, pkgs...)
 	return r
 }

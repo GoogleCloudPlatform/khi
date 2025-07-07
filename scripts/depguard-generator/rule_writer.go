@@ -95,6 +95,9 @@ func (w *FileSystemRuleWriter) createRulesNode(rules []*GeneratedRule) (*yaml.No
 			"files": rule.TargetFiles,
 			"deny":  rule.DeniedPkgs,
 		}
+		if len(rule.AllowedPkgs) > 0 {
+			ruleContent["allow"] = rule.AllowedPkgs
+		}
 		rulesMap[rule.RuleName] = ruleContent
 	}
 

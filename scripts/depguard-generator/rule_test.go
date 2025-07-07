@@ -33,6 +33,7 @@ func TestGeneratedRule_Builder(t *testing.T) {
 			{"pkg": "pkg/c", "desc": "reason c and d"},
 			{"pkg": "pkg/d", "desc": "reason c and d"},
 		},
+		AllowedPkgs: []string{},
 	}
 
 	if diff := cmp.Diff(expected, rule); diff != "" {
