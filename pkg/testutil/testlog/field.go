@@ -17,23 +17,23 @@ package testlog
 import (
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 // StringField returns a TestLogOpt modifying the field at the specified fieldPath to the value.
 // It creates maps in ancestor when it doens't exist.
 func StringField(fieldPath string, value string) TestLogOpt {
-	return func(original structurev2.Node) (structurev2.Node, error) {
+	return func(original structured.Node) (structured.Node, error) {
 		fieldPathInArray := strings.Split(fieldPath, ".")
-		return structurev2.WithScalarField(original, fieldPathInArray, value)
+		return structured.WithScalarField(original, fieldPathInArray, value)
 	}
 }
 
 // IntField returns a TestLogOpt modifying the field at the specified fieldPath to the value.
 // It creates maps in ancestor when it doens't exist.
 func IntField(fieldPath string, value int) TestLogOpt {
-	return func(original structurev2.Node) (structurev2.Node, error) {
+	return func(original structured.Node) (structured.Node, error) {
 		fieldPathInArray := strings.Split(fieldPath, ".")
-		return structurev2.WithScalarField(original, fieldPathInArray, value)
+		return structured.WithScalarField(original, fieldPathInArray, value)
 	}
 }

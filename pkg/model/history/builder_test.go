@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -43,7 +43,7 @@ func (t *testCommonFieldSetReader) FieldSetKind() string {
 }
 
 // Read implements log.FieldSetReader.
-func (t *testCommonFieldSetReader) Read(reader *structurev2.NodeReader) (log.FieldSet, error) {
+func (t *testCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	result := &log.CommonFieldSet{}
 	result.DisplayID = reader.ReadStringOrDefault("insertId", "unknown")
 	result.Severity = enum.SeverityUnknown

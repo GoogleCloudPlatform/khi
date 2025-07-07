@@ -9,7 +9,7 @@ FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts
 
 # prepare-frontend make task generates source code or configurations needed for building frontend code.
 # This task needs to be set as a dependency of any make tasks using frontend code.
-.PHONY=prepare-frontend
+.PHONY: prepare-frontend
 prepare-frontend: web/angular.json web/src/environments/version.*.ts $(FRONTEND_CODEGEN_TARGETS)
 
 web/angular.json: scripts/generate-angular-json.sh web/angular-template.json web/src/environments/environment.*.ts
@@ -23,10 +23,10 @@ $(FRONTEND_CODEGEN_TARGETS): $(ENUM_GO_FILES) $(FRONTEND_CODEGEN_DEPS)
 web/src/environments/version.*.ts: VERSION
 	./scripts/generate-version.sh
 
-.PHONY=add-licenses
-add-licenses:
+.PHONY: add-licenses
+add-licenses: ## Add license headers to all files
 	$(GOPATH)/bin/addlicense  -c "Google LLC" -l apache .
 
-.PHONY=generate-reference
-generate-reference:
+.PHONY: generate-reference
+generate-reference: ## Generate reference documentation
 	go run ./cmd/reference-generator/

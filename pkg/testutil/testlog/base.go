@@ -17,18 +17,18 @@ package testlog
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 // YAML function returns a TestLogOpt generating the structure node with given YAML string.
 func YAML(yamlStr string) TestLogOpt {
-	return func(original structurev2.Node) (structurev2.Node, error) {
+	return func(original structured.Node) (structured.Node, error) {
 		if original != nil {
 			return nil, fmt.Errorf("BaseYaml expects no previous TestLogOpt is given. But an instance of node was given")
 		}
 		if yamlStr == "" {
-			return structurev2.NewEmptyMapNode(), nil
+			return structured.NewEmptyMapNode(), nil
 		}
-		return structurev2.FromYAML(yamlStr)
+		return structured.FromYAML(yamlStr)
 	}
 }

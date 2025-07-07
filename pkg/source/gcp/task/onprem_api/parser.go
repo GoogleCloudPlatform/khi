@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -83,7 +83,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 		clusterResourcePath := resourcepath.Cluster(resource.ClusterName)
 		if filterMethodNameOperation(methodName, "Create", "Cluster") && isFirst && isSucceedRequest {
 			// Cluster info is stored at protoPayload.request.(aws|azure)Cluster
-			bodyRaw, err := l.Serialize(fmt.Sprintf("protoPayload.request.%sCluster", resource.ClusterType), &structurev2.YAMLNodeSerializer{})
+			bodyRaw, err := l.Serialize(fmt.Sprintf("protoPayload.request.%sCluster", resource.ClusterType), &structured.YAMLNodeSerializer{})
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the cluster info from the log\n%v", err))
 			}
@@ -98,7 +98,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 		}
 		if filterMethodNameOperation(methodName, "Enroll", "Cluster") && !isFirst && isSucceedRequest {
 			// Cluster info is stored at protoPayload.request.(aws|azure)Cluster
-			bodyRaw, err := l.Serialize("protoPayload.response", &structurev2.YAMLNodeSerializer{})
+			bodyRaw, err := l.Serialize("protoPayload.response", &structured.YAMLNodeSerializer{})
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the cluster info from the log\n%v", err))
 			}
@@ -139,7 +139,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 		nodepoolResourcePath := resourcepath.Nodepool(resource.ClusterName, resource.NodepoolName)
 		if filterMethodNameOperation(methodName, "Create", "NodePool") && isFirst && isSucceedRequest {
 			// NodePool info is stored at protoPayload.request.(aws|azure)NodePool
-			bodyRaw, err := l.Serialize("protoPayload.request", &structurev2.YAMLNodeSerializer{})
+			bodyRaw, err := l.Serialize("protoPayload.request", &structured.YAMLNodeSerializer{})
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the nodepool info from the log\n%v", err))
 			}

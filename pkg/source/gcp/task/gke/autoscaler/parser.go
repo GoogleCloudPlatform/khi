@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structurev2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -77,7 +77,7 @@ func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history
 		err := parseDecision(ctx, clusterName, l, cs, builder)
 		if err != nil {
 			var yaml string
-			yamlBytes, err := l.Serialize("", &structurev2.YAMLNodeSerializer{})
+			yamlBytes, err := l.Serialize("", &structured.YAMLNodeSerializer{})
 			if err != nil {
 				yaml = "ERROR!! Failed to dump in YAML"
 			} else {
