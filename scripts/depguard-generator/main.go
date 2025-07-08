@@ -20,13 +20,21 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
 func main() {
 	outputPath := flag.String("output", "../../.generated-golangci-depguard.yaml", "The path to the output YAML file.")
+	packageRoot := flag.String("package-root", "./", "The folder path to the package root.")
 	flag.Parse()
+
+	packageRootAbs, err := filepath.Abs(*packageRoot)
+	if err != nil {
+		panic(fmt.Errorf("failed to get absolute path for package root: %w", err))
+	}
+	_ = mustListAllPackages(packageRootAbs) // TODO: the list of packages would be used in the later change to add more complex rules.
 
 	// All packages not end with _test.go must not depend pkg/testutil/*
 	restrictTestUtil := NewGeneratedRule("no-testutil-in-non-test-files", []string{"$all", "!$test", "!**/pkg/testutil/**/*.go"})
@@ -58,11 +66,11 @@ func mustFilterPackages(pattern string, sourceList []string, invert bool) []stri
 	return matchedPackages
 }
 
-func mustListAllPackages() []string {
+func mustListAllPackages(packageRootFolder string) []string {
 	cmd := exec.Command("go", "list", "-f", "{{.ImportPath}}", "./...")
 	// Assuming this script is run from the root of the khi repository.
 	// For robustness, a root path could be passed in.
-	cmd.Dir = "../.."
+	cmd.Dir = packageRootFolder
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

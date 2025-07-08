@@ -21,13 +21,13 @@ coverage: coverage-go coverage-web ## Run all tests and generate coverage report
 .PHONY: lint
 lint: lint-web lint-go ## Run all linters
 
-.PHONY=lint-warning
+.PHONY: lint-warning
 lint-warning: generate-depguard-rules ## Lint warning contains lint rules that is warning at this moment but should be fixed long term.
 	 golangci-lint run --config=.generated-golangci-depguard.yaml
 
-.PHONY=generate-depguard-rules
+.PHONY: generate-depguard-rules
 generate-depguard-rules: ## Generate depguard rule from Go source. This rule prevents packages being imported from unexpected package and enforce packages to follow the package structure rule.
-	cd ./scripts/depguard-generator/ && go run .
+	cd ./scripts/depguard-generator/ && go run . --package-root=../.. --output=../../.generated-golangci-depguard.yaml
 
 ## Format
 .PHONY: format

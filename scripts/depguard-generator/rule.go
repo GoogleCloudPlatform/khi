@@ -56,3 +56,13 @@ func (r *GeneratedRule) AddAllow(pkgs []string) *GeneratedRule {
 	r.AllowedPkgs = append(r.AllowedPkgs, pkgs...)
 	return r
 }
+
+// DepGuardRule represents a single depguard rule's configuration.
+type DepGuardRule struct {
+	Files       []string            `yaml:"files"`
+	DeniedPkgs  []map[string]string `yaml:"deny,omitempty"`
+	AllowedPkgs []string            `yaml:"allow,omitempty"`
+}
+
+// DepGuardRuleSet maps rule names to their respective configurations.
+type DepGuardRuleSet map[string]DepGuardRule

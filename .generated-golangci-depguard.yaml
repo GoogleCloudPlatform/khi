@@ -24,19 +24,19 @@ linters:
     depguard:
       rules:
         common-cant-depend-other:
-          allow:
-            - github.com/GoogleCloudPlatform/khi/common
-          deny:
-            - desc: common package can't depend the other package
-              pkg: github.com/GoogleCloudPlatform/khi
           files:
             - pkg/common/**.go
             - '!pkg/common/**_test.go'
-        no-testutil-in-non-test-files:
           deny:
-            - desc: Production code should not depend on test utilities.
-              pkg: github.com/GoogleCloudPlatform/khi/pkg/testutil
+            - desc: common package can't depend the other package
+              pkg: github.com/GoogleCloudPlatform/khi
+          allow:
+            - github.com/GoogleCloudPlatform/khi/common
+        no-testutil-in-non-test-files:
           files:
             - $all
             - '!$test'
             - '!**/pkg/testutil/**/*.go'
+          deny:
+            - desc: Production code should not depend on test utilities.
+              pkg: github.com/GoogleCloudPlatform/khi/pkg/testutil

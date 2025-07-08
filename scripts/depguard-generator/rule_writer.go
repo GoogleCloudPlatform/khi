@@ -89,16 +89,13 @@ func (w *FileSystemRuleWriter) Write(rules ...*GeneratedRule) error {
 }
 
 func (w *FileSystemRuleWriter) createRulesNode(rules []*GeneratedRule) (*yaml.Node, error) {
-	rulesMap := make(map[string]interface{})
+	rulesMap := make(DepGuardRuleSet)
 	for _, rule := range rules {
-		ruleContent := map[string]interface{}{
-			"files": rule.TargetFiles,
-			"deny":  rule.DeniedPkgs,
+		rulesMap[rule.RuleName] = DepGuardRule{
+			Files:       rule.TargetFiles,
+			DeniedPkgs:  rule.DeniedPkgs,
+			AllowedPkgs: rule.AllowedPkgs,
 		}
-		if len(rule.AllowedPkgs) > 0 {
-			ruleContent["allow"] = rule.AllowedPkgs
-		}
-		rulesMap[rule.RuleName] = ruleContent
 	}
 
 	var node yaml.Node
