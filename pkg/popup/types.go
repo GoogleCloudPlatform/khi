@@ -18,8 +18,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 )
+
+var popupIDGenerator = idgenerator.NewPrefixIDGenerator("popup-")
 
 var PopupOptionRedirectTargetKey = "redirectTo"
 
@@ -91,7 +93,7 @@ func NewPopupManager() *PopupManager {
 
 // ShowPopup shows the popup UI on frontend side and wait until receiving the input.
 func (p *PopupManager) ShowPopup(popup PopupForm) (string, error) {
-	id := common.NewUUID()
+	id := popupIDGenerator.Generate()
 	metadata := popup.GetMetadata()
 	p.newPopupLock.Lock()
 	defer p.newPopupLock.Unlock()

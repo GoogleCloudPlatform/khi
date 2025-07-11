@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/exp/slices"
-
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
 	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	"golang.org/x/exp/slices"
 )
 
 type PrepareInspectionServerFunc = func(inspectionServer *InspectionTaskServer) error
@@ -61,7 +61,8 @@ type InspectionTaskServer struct {
 	// inspectionTypes are kinds of tasks. Users will select this at first to filter togglable feature tasks.
 	inspectionTypes []*InspectionType
 	// inspections are generated inspection task runers
-	inspections map[string]*InspectionTaskRunner
+	inspections           map[string]*InspectionTaskRunner
+	inspectionIDGenerator idgenerator.IDGenerator
 
 	ioConfig *inspectioncontract.IOConfig
 }
@@ -72,10 +73,11 @@ func NewServer(ioConfig *inspectioncontract.IOConfig) (*InspectionTaskServer, er
 		return nil, err
 	}
 	return &InspectionTaskServer{
-		RootTaskSet:     ns,
-		inspectionTypes: make([]*InspectionType, 0),
-		inspections:     map[string]*InspectionTaskRunner{},
-		ioConfig:        ioConfig,
+		RootTaskSet:           ns,
+		inspectionTypes:       make([]*InspectionType, 0),
+		inspections:           map[string]*InspectionTaskRunner{},
+		inspectionIDGenerator: idgenerator.NewPrefixIDGenerator("inspection-"),
+		ioConfig:              ioConfig,
 	}, nil
 }
 
@@ -105,7 +107,8 @@ func (s *InspectionTaskServer) AddTask(task task.UntypedTask) error {
 
 // CreateInspection generates an inspection and returns inspection ID
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
-	inspectionTask := NewInspectionRunner(s, s.ioConfig)
+	id := s.inspectionIDGenerator.Generate()
+	inspectionTask := NewInspectionRunner(s, s.ioConfig, id)
 	err := inspectionTask.SetInspectionType(inspectionType)
 	if err != nil {
 		return "", err
