@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package idgenerator
 
 import (
-	"testing"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"fmt"
+	"sync/atomic"
 )
 
-func TestNewUUID(t *testing.T) {
-	uuid1 := NewUUID()
-	if uuid1 == "" {
-		t.Error("NewUUID returned an empty string")
-	}
+// prefixIDGenerator is a thread-safe ID generator that creates IDs with a prefix.
+type prefixIDGenerator struct {
+	prefix  string
+	counter uint64
+}
 
-	uuid2 := NewUUID()
-	if uuid1 == uuid2 {
-		t.Error("NewUUID returned the same UUID twice")
-	}
+// NewPrefixIDGenerator creates a new PrefixIDGenerator.
+func NewPrefixIDGenerator(prefix string) IDGenerator {
+	return &prefixIDGenerator{prefix: prefix}
+}
+
+// Generate returns a new unique ID.
+func (g *prefixIDGenerator) Generate() string {
+	id := atomic.AddUint64(&g.counter, 1)
+	return fmt.Sprintf("%s%d", g.prefix, id)
 }

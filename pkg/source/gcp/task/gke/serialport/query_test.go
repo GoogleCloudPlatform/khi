@@ -16,11 +16,10 @@ package serialport
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
-
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -106,9 +105,12 @@ labels."compute.googleapis.com/resource_name":("node-1")`,
 }
 
 func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
+	idg46 := idgenerator.NewFixedLengthIDGenerator(46)
+	idg8 := idgenerator.NewFixedLengthIDGenerator(8)
+	idg4 := idgenerator.NewFixedLengthIDGenerator(4)
 	nodeNames := []string{}
 	for i := 0; i < MaxNodesPerQuery*2+1; i++ { // This query must be splitted with 3 sub groups.
-		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, randomString(46), randomString(8), randomString(4)))
+		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, idg46.Generate(), idg8.Generate(), idg4.Generate()))
 	}
 	query := GenerateSerialPortQuery(inspection_task_interface.TaskModeRun, nodeNames, []string{})
 	if len(query) != 3 {
@@ -152,13 +154,4 @@ func Test_generateNodeNameSubstringLogFilter(t *testing.T) {
 			}
 		})
 	}
-}
-
-func randomString(length int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-	randomid := make([]rune, length)
-	for i := range randomid {
-		randomid[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(randomid)
 }

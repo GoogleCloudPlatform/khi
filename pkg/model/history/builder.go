@@ -21,13 +21,13 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math/rand"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -46,6 +46,7 @@ type Builder struct {
 	binaryChunk            *binarychunk.Builder
 	timelinemap            *common.ShardingMap[*ResourceTimeline]
 	timelineBuilders       *common.ShardingMap[*TimelineBuilder]
+	timelineIDGenerator    idgenerator.IDGenerator
 	logIdToSerializableLog *common.ShardingMap[*SerializableLog]
 	historyResourceCache   *common.ShardingMap[*Resource]
 	sorter                 *ResourceSorter
@@ -59,6 +60,7 @@ func NewBuilder(tmpFolder string) *Builder {
 		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(tmpFolder), tmpFolder),
 		timelinemap:            common.NewShardingMap[*ResourceTimeline](common.NewSuffixShardingProvider(128, 4)),
 		timelineBuilders:       common.NewShardingMap[*TimelineBuilder](common.NewSuffixShardingProvider(128, 4)),
+		timelineIDGenerator:    idgenerator.NewPrefixIDGenerator("t"),
 		logIdToSerializableLog: common.NewShardingMap[*SerializableLog](common.NewSuffixShardingProvider(128, 4)),
 		historyResourceCache:   common.NewShardingMap[*Resource](common.NewSuffixShardingProvider(128, 4)),
 		ClusterResource:        resourceinfo.NewClusterResourceInfo(),
@@ -175,7 +177,7 @@ func (builder *Builder) GetTimelineBuilder(resourcePath string) *TimelineBuilder
 	resource := builder.ensureResourcePath(resourcePath)
 	// When specified resource has no associated timeline
 	if resource.Timeline == "" {
-		tid := builder.generateTimelineID()
+		tid := builder.timelineIDGenerator.Generate()
 		timelineMap := builder.timelinemap.AcquireShard(tid)
 		timeline := newTimeline(tid)
 		resource.Timeline = tid
@@ -377,14 +379,4 @@ func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[str
 		fileSize += writtenSize
 	}
 	return fileSize, nil
-}
-
-func (builder *Builder) generateTimelineID() string {
-	const idLength = 7
-	charset := "aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ"
-	id := make([]byte, idLength)
-	for i := 0; i < len(id); i++ {
-		id[i] = charset[rand.Intn(len(charset))]
-	}
-	return string(id)
 }

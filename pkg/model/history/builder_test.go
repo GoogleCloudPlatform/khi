@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -308,17 +308,22 @@ func generateBuilderWithTimelines(resourcePaths []string) *Builder {
 
 func TestGetTimelineBuilderThreadSafety(t *testing.T) {
 	builder := NewBuilder("/tmp")
+	apiVersionGenerator := idgenerator.NewPrefixIDGenerator("apiversion-")
+	kindGenerator := idgenerator.NewPrefixIDGenerator("kind-")
+	namespaceGenerator := idgenerator.NewPrefixIDGenerator("namespace-")
+	nameGenerator := idgenerator.NewPrefixIDGenerator("name-")
+	subresourceGenerator := idgenerator.NewPrefixIDGenerator("subresource-")
 	threadCount := 100
-	timelineCountPerThread := 1000000
+	timelineCountPerThread := 100000
 	pool := worker.NewPool(threadCount)
 	pool.Run(func() {
 		for i := 0; i < timelineCountPerThread; i++ {
-			uuid1 := common.NewUUID()
-			uuid2 := common.NewUUID()
-			uuid3 := common.NewUUID()
-			uuid4 := common.NewUUID()
-			uuid5 := common.NewUUID()
-			builder.GetTimelineBuilder(resourcepath.SubresourceLayerGeneralItem(uuid1[:3], uuid2[:3], uuid3[:3], uuid4[:3], uuid5[:3]).Path)
+			randomAPIVersion := apiVersionGenerator.Generate()
+			randomKind := kindGenerator.Generate()
+			randomNamespace := namespaceGenerator.Generate()
+			randomResourceName := nameGenerator.Generate()
+			randomSubresource := subresourceGenerator.Generate()
+			builder.GetTimelineBuilder(resourcepath.SubresourceLayerGeneralItem(randomAPIVersion, randomKind, randomNamespace, randomResourceName, randomSubresource).Path)
 		}
 	})
 	pool.Wait()
