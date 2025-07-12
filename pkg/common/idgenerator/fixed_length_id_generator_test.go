@@ -59,6 +59,7 @@ func TestFixedLengthIDGenerator_Generate_Concurrent(t *testing.T) {
 	generatedIDs := make(map[string]bool)
 	var mu sync.Mutex
 
+	// Probability colliding generated IDs are low enough. (3.54*E-27 %) Duplicated IDs indicate problems on its logic.
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
 			defer wg.Done()

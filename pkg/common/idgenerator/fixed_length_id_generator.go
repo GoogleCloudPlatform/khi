@@ -15,9 +15,7 @@
 package idgenerator
 
 import (
-	"math/rand"
-	"sync"
-	"time"
+	"math/rand/v2"
 )
 
 const (
@@ -28,8 +26,6 @@ const (
 type fixedLengthIDGenerator struct {
 	length  int
 	charset string
-	rng     *rand.Rand
-	mu      sync.Mutex
 }
 
 // NewFixedLengthIDGenerator creates a new FixedLengthIDGenerator.
@@ -37,17 +33,14 @@ func NewFixedLengthIDGenerator(length int) IDGenerator {
 	return &fixedLengthIDGenerator{
 		length:  length,
 		charset: defaultCharset,
-		rng:     rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
 // Generate returns a new unique ID.
 func (g *fixedLengthIDGenerator) Generate() string {
-	g.mu.Lock()
-	defer g.mu.Unlock()
 	b := make([]byte, g.length)
 	for i := range b {
-		b[i] = g.charset[g.rng.Intn(len(g.charset))]
+		b[i] = g.charset[rand.N(len(g.charset))]
 	}
 	return string(b)
 }
