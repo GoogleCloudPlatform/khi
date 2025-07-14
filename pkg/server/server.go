@@ -320,7 +320,7 @@ func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverCo
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
-			ctx.DataFromReader(http.StatusOK, int64(math.Min(float64(maxSize), float64(fileSize-int(rangeStart)))), "application/octet-stream", inspectionDataReader, map[string]string{})
+			ctx.DataFromReader(http.StatusOK, min(maxSize, int64(fileSize)-rangeStart), "application/octet-stream", inspectionDataReader, map[string]string{})
 		})
 
 		router.GET("/api/v3/popup", func(ctx *gin.Context) {

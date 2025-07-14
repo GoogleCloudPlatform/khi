@@ -629,7 +629,7 @@ func (c *GCPClientImpl) ListLogEntries(ctx context.Context, resourceNames []stri
 				ResourceNames: resourceNames,
 				Filter:        filter,
 				OrderBy:       "timestamp asc",
-				PageSize:      int64(math.Min(float64(MAXIMUM_PAGE_SIZE), float64(c.MaxLogEntries-entryIndex))), // logging API can take 1000 entries at most.
+				PageSize:      int64(min(MAXIMUM_PAGE_SIZE, c.MaxLogEntries-entryIndex)), // logging API can take 1000 entries at most.
 				PageToken:     nextPageToken,
 			}
 			requestBytes, err := json.Marshal(requestBody)
