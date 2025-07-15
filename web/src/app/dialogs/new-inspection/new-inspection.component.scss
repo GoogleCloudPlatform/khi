@@ -40,11 +40,8 @@ mat-step {
 }
 
 :host::ng-deep {
-  .mat-horizontal-stepper-wrapper {
-    height: 100%;
-  }
-
-  .mat-horizontal-stepper-content.mat-horizontal-stepper-content-current {
+  .mat-horizontal-stepper-wrapper,
+  .mat-horizontal-stepper-content {
     height: 100%;
   }
 
