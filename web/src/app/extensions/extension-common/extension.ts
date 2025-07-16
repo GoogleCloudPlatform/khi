@@ -21,15 +21,7 @@ import { URLDataOpenerExtension } from './extension-types/url-data-opener';
 import { LifecycleHookExtension } from './extension-types/lifecycle-hook';
 
 /**
- * The injection token for KHIExtensionBundle
- */
-export const KHI_FRONTEND_EXTENSION_BUNDLE =
-  new InjectionToken<KHIExtensionBundle>('KHI_FRONTEND_EXTENSION_BUNDLE');
-
-/**
  * THe injection token to receive the multi KHI_FRONTEND_EXTENSION_BUNDLE.
- * This is a workaround for https://github.com/angular/angular/issues/51675.
- *
  */
 export const KHI_FRONTEND_EXTENSION_BUNDLES = new InjectionToken<
   KHIExtensionBundle[]
@@ -48,7 +40,7 @@ export class KHIExtensionBundle {
   public static forExtension(init: KHIExtensionInitHandler): Provider {
     return {
       multi: true,
-      provide: KHI_FRONTEND_EXTENSION_BUNDLE,
+      provide: KHI_FRONTEND_EXTENSION_BUNDLES,
       useValue: new KHIExtensionBundle(init),
     };
   }

@@ -91,7 +91,7 @@ import {
     BrowserAnimationsModule,
     RouterModule.forRoot(KHIRoutes),
     // Standoalone components
-    environment.pluginModules,
+    ...environment.pluginModules,
   ],
   providers: [
     { provide: EXTENSION_STORE, useValue: new ExtensionStore() },
@@ -186,7 +186,6 @@ export class RootModule {
     const iconRegistry = inject(MatIconRegistry);
     const notificationManager = inject(NotificationManager);
     let extensions = inject(KHI_FRONTEND_EXTENSION_BUNDLES, { optional: true });
-
     extensionStore.injector = injector;
     if (!extensions) extensions = [];
     iconRegistry.setDefaultFontSetClass('material-symbols-outlined');
