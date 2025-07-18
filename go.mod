@@ -11,7 +11,7 @@ require (
 
 require (
 	github.com/crazy3lf/colorconv v1.2.0
-	golang.org/x/oauth2 v0.25.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.12.0
 	google.golang.org/api v0.218.0
 	k8s.io/apimachinery v0.32.1
