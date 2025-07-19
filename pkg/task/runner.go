@@ -30,19 +30,24 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var _ task_interface.TaskRunner = (*LocalRunner)(nil)
-
+// LocalRunner executes a task graph defined by a TaskSet on the local machine.
+// It manages task dependencies, concurrent execution, and result aggregation.
 type LocalRunner struct {
 	resolvedTaskSet *TaskSet
 	resultVariable  *typedmap.TypedMap
 	resultError     error
 	started         bool
 	stopped         bool
-	taskWaiters     *sync.Map // sync.Map[string(taskRefID), sync.RWMutex], runner acquire the write lock at the beginning. All dependents will acquire read lock, it will be released when the task run finished.
+	taskWaiters     *typedmap.ReadonlyTypedMap
 	waiter          chan interface{}
 	taskStatuses    []*LocalRunnerTaskStat
 }
 
+// LocalRunner implements task_interface.TaskRunner
+var _ task_interface.TaskRunner = (*LocalRunner)(nil)
+
+// LocalRunnerTaskStat holds the status and metrics for a single task
+// executed by the LocalRunner.
 type LocalRunnerTaskStat struct {
 	Phase     string
 	Error     error
@@ -51,33 +56,61 @@ type LocalRunnerTaskStat struct {
 }
 
 const (
+	// LocalRunnerTaskStatPhaseWaiting indicates that the task is waiting for its dependencies to complete.
 	LocalRunnerTaskStatPhaseWaiting = "WAITING"
+	// LocalRunnerTaskStatPhaseRunning indicates that the task is currently running.
 	LocalRunnerTaskStatPhaseRunning = "RUNNING"
+	// LocalRunnerTaskStatPhaseStopped indicates that the task has finished its execution (either completed or failed).
 	LocalRunnerTaskStatPhaseStopped = "STOPPED"
 )
 
-func (r *LocalRunner) Wait() <-chan interface{} {
-	return r.waiter
+// NewLocalRunner creates and initializes a new LocalRunner for a given TaskSet.
+// The TaskSet must be runnable (i.e., topologically sorted with all dependencies met).
+// It returns an error if the provided TaskSet is not runnable.
+func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
+	if !taskSet.runnable {
+		return nil, fmt.Errorf("given taskset must be runnable")
+	}
+	taskStatuses := []*LocalRunnerTaskStat{}
+	taskWaiters := typedmap.NewTypedMap()
+	for i := 0; i < len(taskSet.tasks); i++ {
+		taskStatuses = append(taskStatuses, &LocalRunnerTaskStat{
+			Phase: LocalRunnerTaskStatPhaseWaiting,
+		})
+
+		// lock the task waiter until its task finished.
+		waiter := sync.RWMutex{}
+		waiter.Lock()
+		typedmap.Set(taskWaiters, waiterKeyForTask(taskSet.tasks[i].UntypedID().GetUntypedReference()), &waiter)
+	}
+	return &LocalRunner{
+		resolvedTaskSet: taskSet,
+		started:         false,
+		resultVariable:  nil,
+		resultError:     nil,
+		stopped:         false,
+		taskWaiters:     taskWaiters.AsReadonly(),
+		waiter:          make(chan interface{}),
+		taskStatuses:    taskStatuses,
+	}, nil
 }
 
-// Result implements Runner.
-func (r *LocalRunner) Result() (*typedmap.ReadonlyTypedMap, error) {
-	if !r.stopped {
-		return nil, fmt.Errorf("this task runner hasn't finished yet")
-	}
-	if r.resultError != nil {
-		return nil, r.resultError
-	}
-	return r.resultVariable.AsReadonly(), nil
+// GetTaskResultFromLocalRunner is a helper function to safely extract a specific
+// task's result from a LocalRunner's result map. It provides a type-safe way
+// to access results using a TaskReference.
+func GetTaskResultFromLocalRunner[TaskResult any](runner *LocalRunner, taskRef taskid.TaskReference[TaskResult]) (TaskResult, bool) {
+	return typedmap.Get(runner.resultVariable, typedmap.NewTypedKey[TaskResult](taskRef.String()))
 }
 
-// Run implements Runner.
+// Run starts the execution of the task graph in a non-blocking manner.
+// It launches a goroutine to manage the entire execution process.
+// It returns an error if the runner has already been started.
 func (r *LocalRunner) Run(ctx context.Context) error {
 	if r.started {
 		return fmt.Errorf("this task is already started before")
 	}
 	go func() {
-		defer r.markDone()
+		defer r.finalizeExecution()
 
 		// Setting up graph context
 		r.resultVariable = typedmap.NewTypedMap()
@@ -107,21 +140,55 @@ func (r *LocalRunner) Run(ctx context.Context) error {
 	return nil
 }
 
+// Wait returns a channel that is closed when the runner finishes executing all tasks
+// in the graph. This is the primary mechanism for waiting for the completion of the
+// entire task set.
+func (r *LocalRunner) Wait() <-chan interface{} {
+	return r.waiter
+}
+
+// Result returns the final results of the task graph execution.
+// It returns a map of task results if the execution was successful, or an error
+// if any task failed or the runner has not yet completed.
+// This method should only be called after the channel from Wait() has been closed.
+func (r *LocalRunner) Result() (*typedmap.ReadonlyTypedMap, error) {
+	if !r.stopped {
+		return nil, fmt.Errorf("this task runner hasn't finished yet")
+	}
+	if r.resultError != nil {
+		return nil, r.resultError
+	}
+	return r.resultVariable.AsReadonly(), nil
+}
+
+// TaskStatuses returns a slice of LocalRunnerTaskStat, providing the status
+// and execution details for each task in the runner's task set.
+// The order of statuses corresponds to the order of tasks in the resolved TaskSet.
+func (r *LocalRunner) TaskStatuses() []*LocalRunnerTaskStat {
+	return r.taskStatuses
+}
+
+// runTask manages the entire lifecycle of a single task within the graph.
+// It waits for all task dependencies to complete, executes the task,
+// records its status, and stores its result or handles any errors.
 func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error {
 	task := r.resolvedTaskSet.GetAll()[taskDefIndex]
-	sources := task.Dependencies()
 	taskStatus := r.taskStatuses[taskDefIndex]
 	taskCtx := khictx.WithValue(graphCtx, task_contextkey.TaskImplementationIDContextKey, task.UntypedID())
-	slog.DebugContext(taskCtx, fmt.Sprintf("task %s started", task.UntypedID().String()))
-	r.waitDependencies(taskCtx, sources)
-	if taskCtx.Err() == context.Canceled {
-		return context.Canceled
+
+	// Wait for completions of all dependencies.
+	for _, dependency := range task.Dependencies() {
+		err := r.waitForDependency(taskCtx, dependency)
+		if err != nil {
+			return err
+		}
 	}
 
 	taskStatus.StartTime = time.Now()
 	taskStatus.Phase = LocalRunnerTaskStatPhaseRunning
 	slog.DebugContext(taskCtx, fmt.Sprintf("task %s started", task.UntypedID()))
 
+	// Run the task
 	result, err := task.UntypedRun(taskCtx)
 
 	taskStatus.Phase = LocalRunnerTaskStatPhaseStopped
@@ -137,87 +204,72 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 		slog.ErrorContext(taskCtx, err.Error())
 		return detailedErr
 	}
+
+	// store the task result to result map
 	typedmap.Set(r.resultVariable, typedmap.NewTypedKey[any](task.UntypedID().GetUntypedReference().ReferenceIDString()), result)
-	taskWaiter, _ := r.taskWaiters.Load(task.UntypedID().GetUntypedReference().String())
-	taskWaiter.(*sync.RWMutex).Unlock()
+
+	r.releaseTaskWaiter(task.UntypedID())
+
 	return nil
 }
 
-func (r *LocalRunner) TaskStatuses() []*LocalRunnerTaskStat {
-	return r.taskStatuses
-}
-
-func newLocalRunnerTaskStatus() *LocalRunnerTaskStat {
-	return &LocalRunnerTaskStat{
-		Phase: LocalRunnerTaskStatPhaseWaiting,
-	}
-}
-
-func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
-	if !taskSet.runnable {
-		return nil, fmt.Errorf("given taskset must be runnable")
-	}
-	taskStatuses := []*LocalRunnerTaskStat{}
-	taskWaiters := sync.Map{}
-	for i := 0; i < len(taskSet.tasks); i++ {
-		taskStatuses = append(taskStatuses, newLocalRunnerTaskStatus())
-
-		// lock the task waiter until its task finished.
-		waiter := sync.RWMutex{}
-		waiter.Lock()
-		taskWaiters.Store(taskSet.tasks[i].UntypedID().ReferenceIDString(), &waiter)
-	}
-	return &LocalRunner{
-		resolvedTaskSet: taskSet,
-		started:         false,
-		resultVariable:  nil,
-		resultError:     nil,
-		stopped:         false,
-		taskWaiters:     &taskWaiters,
-		waiter:          make(chan interface{}),
-		taskStatuses:    taskStatuses,
-	}, nil
-}
-
-func (r *LocalRunner) markDone() {
-	r.stopped = true
-	close(r.waiter)
-	r.taskWaiters.Range(func(key, value any) bool {
-		mutex, _ := value.(*sync.RWMutex)
-		if !mutex.TryRLock() {
-			mutex.Unlock()
-		}
-		return true
-	})
-}
-
-func (r *LocalRunner) waitDependencies(ctx context.Context, dependencies []taskid.UntypedTaskReference) error {
-	for _, dependency := range dependencies {
-		select { // wait for getting the RLock for the task result, or context cancel
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-func() chan struct{} {
-			ch := make(chan struct{})
-			go func() {
-				waiter, _ := r.taskWaiters.Load(dependency.ReferenceIDString())
-				taskWaiter := waiter.(*sync.RWMutex)
-				taskWaiter.RLock()
-				close(ch)
-			}()
-			return ch
-		}():
-			continue
-		}
-	}
-	return nil
-}
-
+// wrapWithTaskError creates a detailed error message, wrapping the original error
+// with the ID of the task that produced it for better debugging context.
 func (r *LocalRunner) wrapWithTaskError(err error, task UntypedTask) error {
 	errMsg := fmt.Sprintf("failed to run a task graph.\n task ID=%s got an error. \n ERROR:\n%v", task.UntypedID(), err)
 	return fmt.Errorf("%s", errMsg)
 }
 
-// GetTaskResultFromLocalRunner returns task results from the local runner task results.
-func GetTaskResultFromLocalRunner[TaskResult any](runner *LocalRunner, taskRef taskid.TaskReference[TaskResult]) (TaskResult, bool) {
-	return typedmap.Get(runner.resultVariable, typedmap.NewTypedKey[TaskResult](taskRef.String()))
+// waitForDependency blocks until a specified dependency task has completed.
+// It handles context cancellation, allowing the wait to be interrupted.
+func (r *LocalRunner) waitForDependency(ctx context.Context, task taskid.UntypedTaskReference) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-func() chan struct{} {
+		ch := make(chan struct{})
+		go func() {
+			waiter, found := typedmap.Get(r.taskWaiters, waiterKeyForTask(task))
+			if !found {
+				slog.ErrorContext(ctx, fmt.Sprintf("unreachable error. Task waiter lock not found for the key `%s`", task.String()))
+				close(ch)
+				return
+			}
+			waiter.RLock()
+			close(ch)
+		}()
+		return ch
+	}():
+		return nil
+	}
+}
+
+// releaseTaskWaiter releases a waiter for a single task as complete by unlocking its corresponding
+// RWMutex. This allows any tasks that depend on it to proceed.
+func (r *LocalRunner) releaseTaskWaiter(task taskid.UntypedTaskImplementationID) error {
+	lock, found := typedmap.Get(r.taskWaiters, waiterKeyForTask(task.GetUntypedReference()))
+	if !found {
+		return fmt.Errorf("unreachable error. Task waiter lock not found for the key `%s`", task.GetUntypedReference().String())
+	}
+	if !lock.TryRLock() {
+		lock.Unlock()
+	}
+	return nil
+}
+
+// finalizeExecution performs cleanup after the entire task graph has finished.
+// It marks the runner as stopped, closes the main waiter channel to signal completion,
+// and ensures all task waiter locks are released.
+func (r *LocalRunner) finalizeExecution() {
+	r.stopped = true
+	close(r.waiter)
+	for _, task := range r.resolvedTaskSet.tasks {
+		r.releaseTaskWaiter(task.UntypedID())
+	}
+}
+
+// waiterKeyForTask is a helper function that creates a type-safe
+// key for accessing the waiter RWMutex in the taskWaiters map.
+func waiterKeyForTask(taskID taskid.UntypedTaskReference) typedmap.TypedKey[*sync.RWMutex] {
+	return typedmap.NewTypedKey[*sync.RWMutex](taskID.ReferenceIDString())
 }
