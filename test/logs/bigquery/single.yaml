@@ -1,0 +1,70 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+protoPayload:
+  '@type': type.googleapis.com/google.cloud.audit.AuditLog
+  status: {}
+  authenticationInfo:
+    principalEmail: requester
+  serviceName: bigquery.googleapis.com
+  methodName: jobservice.jobcompleted
+  resourceName: projects/project-id/jobs/bquxjob_44832c55_195ea1bc54b
+  serviceData:
+    '@type': type.googleapis.com/google.cloud.bigquery.logging.v1.AuditData
+    jobCompletedEvent:
+      eventName: query_job_completed
+      job:
+        jobName:
+          projectId: project-id
+          jobId: bquxjob_44832c55_195ea1bc54b
+          location: US
+        jobConfiguration:
+          query:
+            query: SELECT * FROM `bigquery-public-data.samples.gsod` LIMIT 1000
+            destinationTable:
+              projectId: khi-bigquery
+              datasetId: _75db489103d1a555ce3ada6ca8a8e0409691e759
+              tableId: anondb47f1080f175b355449e48b5b14513706caf582d4e17dee41a5f1065895111a
+            createDisposition: CREATE_IF_NEEDED
+            writeDisposition: WRITE_TRUNCATE
+            defaultDataset: {}
+            queryPriority: QUERY_INTERACTIVE
+            statementType: SELECT
+        jobStatus:
+          state: DONE
+          error: {}
+        jobStatistics:
+          createTime: '2025-03-31T02:50:44.192Z'
+          startTime: '2025-03-31T02:50:44.290Z'
+          endTime: '2025-03-31T02:50:44.612Z'
+          totalProcessedBytes: '17290009238'
+          totalBilledBytes: '17291018240'
+          billingTier: 1
+          totalSlotMs: '601'
+          referencedTables:
+            - projectId: bigquery-public-data
+              datasetId: samples
+              tableId: gsod
+          totalTablesProcessed: 1
+          queryOutputRowCount: '1000'
+          reservation: unreserved
+insertId: ddkiqsen3tfh
+resource:
+  type: bigquery_resource
+  labels:
+    project_id: project-id
+timestamp: '2025-03-31T02:50:44.654856Z'
+severity: INFO
+logName: projects/project-id/logs/cloudaudit.googleapis.com%2Fdata_access
+receiveTimestamp: '2025-03-31T02:50:45.173228086Z'
