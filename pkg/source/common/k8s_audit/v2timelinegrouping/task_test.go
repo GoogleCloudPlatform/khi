@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
@@ -47,7 +47,7 @@ var _ types.AuditLogFieldExtractor = (*stubAuditLogFieldExtractor)(nil)
 func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
 		ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-		result, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspection_task_interface.TaskModeDryRun, map[string]any{},
+		result, _, err := inspection_task_test.RunInspectionTask(ctx, Task, inspectioncontract.TaskModeDryRun, map[string]any{},
 			task_test.NewTaskDependencyValuePair(common_k8saudit_taskid.CommonLogParseTaskID.Ref(), nil))
 		if err != nil {
 			t.Error(err)
@@ -121,7 +121,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 					},
 				},
 			}, nil),
-		}, inspection_task_interface.TaskModeRun, map[string]any{})
+		}, inspectioncontract.TaskModeRun, map[string]any{})
 		if err != nil {
 			t.Error(err)
 		}

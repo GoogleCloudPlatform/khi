@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
@@ -33,7 +32,7 @@ import (
 
 var resourceNamesInputKey = typedmap.NewTypedKey[*gcp_types.ResourceNamesInput]("query-resource-names")
 
-var QueryResourceNameInputTask = inspection_task.NewInspectionTask(gcp_taskid.LoggingFilterResourceNameInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*gcp_types.ResourceNamesInput, error) {
+var QueryResourceNameInputTask = inspection_task.NewInspectionTask(gcp_taskid.LoggingFilterResourceNameInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (*gcp_types.ResourceNamesInput, error) {
 	sharedMap := khictx.MustGetValue(ctx, inspectioncontract.InspectionSharedMap)
 	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, gcp_types.NewResourceNamesInput)
 

@@ -29,7 +29,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
@@ -181,7 +180,7 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 }
 
 // withRunContextValues returns a context with the value specific to a single run of task.
-func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspection_task_interface.InspectionTaskMode, taskInput map[string]any) (context.Context, error) {
+func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspectioncontract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
 	rid := i.runIDGenerator.Generate()
 	runCtx := khictx.WithValue(ctx, inspectioncontract.InspectionTaskRunID, rid)
 	runCtx = khictx.WithValue(runCtx, inspectioncontract.InspectionTaskInspectionID, i.ID)
@@ -207,7 +206,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 		return err
 	}
 
-	runCtx, err := i.withRunContextValues(ctx, inspection_task_interface.TaskModeRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, inspectioncontract.TaskModeRun, req.Values)
 	if err != nil {
 		return err
 	}
@@ -326,7 +325,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 		return nil, err
 	}
 
-	runCtx, err := i.withRunContextValues(ctx, inspection_task_interface.TaskModeDryRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, inspectioncontract.TaskModeDryRun, req.Values)
 	if err != nil {
 		return nil, err
 	}

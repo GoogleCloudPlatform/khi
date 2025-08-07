@@ -20,7 +20,7 @@ import (
 	"slices"
 	"strings"
 
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
@@ -35,7 +35,7 @@ var Task = query.NewQueryGeneratorTask(gke_k8saudit_taskid.K8sAuditQueryTaskID, 
 	gcp_task.InputClusterNameTaskID.Ref(),
 	gcp_task.InputKindFilterTaskID.Ref(),
 	gcp_task.InputNamespaceFilterTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 	kindFilter := coretask.GetTaskResult(ctx, gcp_task.InputKindFilterTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())

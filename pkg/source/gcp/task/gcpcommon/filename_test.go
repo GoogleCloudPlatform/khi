@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -52,7 +51,7 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 
 			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(t.Context())
-			inspection_task_test.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_task_interface.TaskModeRun, map[string]any{},
+			inspection_task_test.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspectioncontract.TaskModeRun, map[string]any{},
 				task_test.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
 				task_test.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.Ref(), tc.StartTime),
 				task_test.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.Ref(), tc.EndTime),

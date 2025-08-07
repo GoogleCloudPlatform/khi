@@ -28,7 +28,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -228,7 +227,7 @@ var InputStartTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefi
 var InputStartTimeTask = inspection_task.NewInspectionTask(InputStartTimeTaskID, []taskid.UntypedTaskReference{
 	InputEndTimeTaskID.Ref(),
 	InputDurationTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (time.Time, error) {
+}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (time.Time, error) {
 	endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
 	duration := coretask.GetTaskResult(ctx, InputDurationTaskID.Ref())
 	startTime := endTime.Add(-duration)

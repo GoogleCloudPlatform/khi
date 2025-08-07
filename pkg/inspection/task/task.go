@@ -22,16 +22,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 // ProgressReportableInspectionTaskFunc is a type for inspection task functions with progress reporting capabilities.
-type ProgressReportableInspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (T, error)
+type ProgressReportableInspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) (T, error)
 
 // InspectionTaskFunc is a type for basic inspection task functions.
-type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (T, error)
+type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (T, error)
 
 // NewProgressReportableInspectionTask generates a task with progress reporting capabilities.
 // This task can report its progress during execution through the TaskProgress object.
@@ -45,7 +44,7 @@ type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_t
 // Returns: A task with progress reporting capabilities
 func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc ProgressReportableInspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 
-	return NewInspectionTask(taskId, dependencies, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (T, error) {
+	return NewInspectionTask(taskId, dependencies, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (T, error) {
 		metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 		progress, found := typedmap.Get(metadataSet, progress.ProgressMetadataKey)
 		if !found {

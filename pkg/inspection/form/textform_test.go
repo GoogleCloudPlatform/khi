@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
@@ -197,7 +196,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			taskCtx := context.Background()
 			taskCtx = inspection_task_test.WithDefaultTestInspectionTaskContext(taskCtx)
 
-			_, _, err := inspection_task_test.RunInspectionTask(taskCtx, taskDef, inspection_task_interface.TaskModeDryRun, map[string]any{
+			_, _, err := inspection_task_test.RunInspectionTask(taskCtx, taskDef, inspectioncontract.TaskModeDryRun, map[string]any{
 				"foo": testCase.RequestValue,
 			})
 			if testCase.ExpectedError != "" {
@@ -225,7 +224,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			if testCase.ExpectedError != "" {
 				taskCtx := context.Background()
 				taskCtx = inspection_task_test.WithDefaultTestInspectionTaskContext(taskCtx)
-				result, _, err := inspection_task_test.RunInspectionTask(taskCtx, taskDef, inspection_task_interface.TaskModeRun, map[string]any{
+				result, _, err := inspection_task_test.RunInspectionTask(taskCtx, taskDef, inspectioncontract.TaskModeRun, map[string]any{
 					"foo": testCase.RequestValue,
 				})
 

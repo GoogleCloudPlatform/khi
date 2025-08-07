@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_task_interface
+package inspectioncontract
 
-type InspectionTaskMode int
+type InspectionTaskModeType int
 
 const (
-	TaskModeDryRun InspectionTaskMode = 1
-	TaskModeRun    InspectionTaskMode = 2
+	TaskModeDryRun InspectionTaskModeType = 1
+	TaskModeRun    InspectionTaskModeType = 2
 )

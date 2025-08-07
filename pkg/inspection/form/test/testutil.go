@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/google/go-cmp/cmp"
@@ -50,7 +50,7 @@ func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T],
 			}
 
 			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-			_, metadata, err := inspection_task_test.RunInspectionTaskWithDependency(ctx, formTask, testCase.Dependencies, inspection_task_interface.TaskModeDryRun, map[string]any{
+			_, metadata, err := inspection_task_test.RunInspectionTaskWithDependency(ctx, formTask, testCase.Dependencies, inspectioncontract.TaskModeDryRun, map[string]any{
 				formTask.ID().ReferenceIDString(): testCase.Input,
 			})
 

@@ -16,12 +16,11 @@ package inspectioncontract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 )
 
 // InspectionTaskMode is the context key to access the execution mode of the inspection task.
-var InspectionTaskMode = typedmap.NewTypedKey[inspection_task_interface.InspectionTaskMode]("khi.google.com/inspection/task-mode")
+var InspectionTaskMode = typedmap.NewTypedKey[InspectionTaskModeType]("khi.google.com/inspection/task-mode")
 
 // InspectionTaskInput is the context key to access the input parameters for the inspection task.
 // It contains a map of parameter names to their values.

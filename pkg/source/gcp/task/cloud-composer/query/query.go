@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -80,12 +80,12 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
 )
 
-func createGenerator(componentName string) func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+func createGenerator(componentName string) func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
 	// This function will generate a Cloud Logging query like;
 	// resource.type="cloud_composer_environment"
 	// resource.labels.environment_name="ENVIRONMENT_NAME"
 	// log_name=projects/PROJECT_ID/logs/COMPONENT_NAME
-	return func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+	return func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
 		projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
 		environmentName := coretask.GetTaskResult(ctx, composer_form.InputComposerEnvironmentNameTask.ID().Ref())
 		return []string{generateQueryForComponent(environmentName, projectID, componentName)}, nil
