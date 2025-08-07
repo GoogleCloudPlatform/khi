@@ -31,6 +31,7 @@ const (
 	LogTypeComposerEnvironment   LogType = 11
 	LogTypeControlPlaneComponent LogType = 12
 	LogTypeSerialPort            LogType = 13
+	LogTypeBigQueryResource      LogType = 14
 
 	logTypeUnusedEnd
 )
@@ -116,5 +117,10 @@ var LogTypes = map[LogType]LogTypeFrontendMetadata{
 		EnumKeyName:          "LogTypeSerialPort",
 		Label:                "serial_port",
 		LabelBackgroundColor: "#333333",
+	},
+	LogTypeBigQueryResource: {
+		EnumKeyName:          "LogTypeBigQueryResource",
+		Label:                "bigquery_resource",
+		LabelBackgroundColor: "#3fb549",
 	},
 }
