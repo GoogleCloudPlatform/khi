@@ -32,7 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(

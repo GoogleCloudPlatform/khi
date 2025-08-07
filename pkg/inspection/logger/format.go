@@ -21,7 +21,7 @@ import (
 	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
 var reset = "\033[0m"
@@ -53,7 +53,7 @@ func (*KHILogFormatHandler) Enabled(context.Context, slog.Level) bool {
 
 // Handle implements slog.Handler.
 func (lh *KHILogFormatHandler) Handle(ctx context.Context, r slog.Record) error {
-	tid, found := khictx.GetValue(ctx, task_contextkey.TaskImplementationIDContextKey)
+	tid, found := khictx.GetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	var logLine string
 	if found == nil {
 		logLine = fmt.Sprintf("%s%s >%s %s %s\n", lh.taskIdToColor(tid.String()), tid, lh.resetColor(), lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, r.Message))

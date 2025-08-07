@@ -21,13 +21,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 // GetTaskResult retrieves the result of a previously executed task.
 func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]) T {
-	taskResults := khictx.MustGetValue(ctx, task_contextkey.TaskResultMapContextKey)
+	taskResults := khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey)
 	result, found := typedmap.Get(taskResults, typedmap.NewTypedKey[T](reference.ReferenceIDString()))
 	if !found {
 		availableTaskResults := ""
@@ -41,7 +41,7 @@ func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]
 
 // WrapErrorWithTaskInformation annotate given error with the current task information.
 func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
-	taskID := khictx.MustGetValue(ctx, task_contextkey.TaskImplementationIDContextKey)
+	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	errorMessage := fmt.Sprintf("An error occurred in task `%s`", taskID.String())
 	return errors.Join(errors.New(errorMessage), err)
 }

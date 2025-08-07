@@ -22,15 +22,15 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 func TestWrapErrorWithTaskInformation(t *testing.T) {
 	taskID := taskid.NewDefaultImplementationID[any]("foo.com/bar")
 
 	ctx := context.Background()
-	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, task_contextkey.TaskImplementationIDContextKey, taskID)
+	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
 
 	originalErr := errors.New("original error message")
 
@@ -61,11 +61,11 @@ func TestGetTaskResult(t *testing.T) {
 
 	// Set up context with task results
 	ctx := context.Background()
-	ctx = khictx.WithValue(ctx, task_contextkey.TaskResultMapContextKey, taskResults)
+	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
 
 	// We also need to set TaskImplementationIDContextKey for panic case to work properly
 	taskID := taskid.NewDefaultImplementationID[any]("test.id")
-	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, task_contextkey.TaskImplementationIDContextKey, taskID)
+	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
 
 	t.Run("get string result", func(t *testing.T) {
 		result := GetTaskResult(ctx, strRef)
