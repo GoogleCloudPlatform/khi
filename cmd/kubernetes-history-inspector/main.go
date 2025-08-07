@@ -27,7 +27,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
@@ -75,7 +75,7 @@ func displayStartMessage(host string, port int) {
 	}
 }
 
-var taskSetRegistrer []inspection.PrepareInspectionServerFunc = make([]inspection.PrepareInspectionServerFunc, 0)
+var taskSetRegistrer []coreinspection.PrepareInspectionServerFunc = make([]coreinspection.PrepareInspectionServerFunc, 0)
 
 func init() {
 	parameters.AddStore(parameters.Help)
@@ -140,7 +140,7 @@ func run() int {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		return 1
 	}
-	inspectionServer, err := inspection.NewServer(ioconfig)
+	inspectionServer, err := coreinspection.NewServer(ioconfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}

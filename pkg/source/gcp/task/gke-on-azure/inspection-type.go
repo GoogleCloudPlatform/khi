@@ -17,12 +17,12 @@ package azure
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
 var InspectionTypeId = "gcp-gke-on-azure"
 
-var AnthosOnAzureInspectionType = inspection.InspectionType{
+var AnthosOnAzureInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "GKE on Azure(Anthos on Azure)",
 	Description: `Visualize logs generated from GKE on Azure cluster. 

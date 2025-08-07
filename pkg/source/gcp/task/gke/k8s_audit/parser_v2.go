@@ -17,7 +17,6 @@ package k8s_audit
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
@@ -34,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
@@ -53,7 +53,7 @@ var GCPK8sAuditLogSourceTask = inspection_task.NewInspectionTask(gke_k8saudit_ta
 	}, nil
 }, inspection_task.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
 
-var RegisterK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspectionServer *inspection.InspectionTaskServer) error {
+var RegisterK8sAuditTasks coreinspection.PrepareInspectionServerFunc = func(inspectionServer *coreinspection.InspectionTaskServer) error {
 	err := inspectionServer.AddTask(GCPK8sAuditLogSourceTask)
 	if err != nil {
 		return err

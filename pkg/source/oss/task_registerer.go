@@ -15,12 +15,12 @@
 package oss
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/parser"
 )
 
-func Prepare(inspetionServer *inspection.InspectionTaskServer) error {
+func Prepare(inspetionServer *coreinspection.InspectionTaskServer) error {
 	err := inspetionServer.AddInspectionType(OSSKubernetesLogFilesInspectionType)
 	if err != nil {
 		return err

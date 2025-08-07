@@ -17,12 +17,12 @@ package inspection_common
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestInspectionTasksAreResolvable(t *testing.T) {
-	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "common", []inspection.PrepareInspectionServerFunc{PrepareInspectionServer})
+	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "common", []coreinspection.PrepareInspectionServerFunc{PrepareInspectionServer})
 }

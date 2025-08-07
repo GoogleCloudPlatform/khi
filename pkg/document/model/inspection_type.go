@@ -17,8 +17,8 @@ package model
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 )
 
@@ -49,7 +49,7 @@ type InspectionTypeDocumentElementFeature struct {
 }
 
 // GetInspectionTypeDocumentModel returns the document model for inspection types from task server.
-func GetInspectionTypeDocumentModel(taskServer *inspection.InspectionTaskServer) InspectionTypeDocumentModel {
+func GetInspectionTypeDocumentModel(taskServer *coreinspection.InspectionTaskServer) InspectionTypeDocumentModel {
 	result := InspectionTypeDocumentModel{}
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {

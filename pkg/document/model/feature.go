@@ -20,8 +20,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -108,7 +108,7 @@ type FeatureAvailableInspectionType struct {
 }
 
 // GetFeatureDocumentModel returns the document model for feature tasks from the task server.
-func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
+func GetFeatureDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*FeatureDocumentModel, error) {
 	result := FeatureDocumentModel{}
 	features := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	for _, feature := range features.GetAll() {
@@ -204,7 +204,7 @@ func GetFeatureDocumentModel(taskServer *inspection.InspectionTaskServer) (*Feat
 }
 
 // getDependentQueryTasks returns the list of query tasks required by the feature task.
-func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, featureTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
+func getDependentQueryTasks(taskServer *coreinspection.InspectionTaskServer, featureTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
 	resolveSource, err := coretask.NewTaskSet([]coretask.UntypedTask{featureTask})
 	if err != nil {
 		return nil, err
@@ -217,7 +217,7 @@ func getDependentQueryTasks(taskServer *inspection.InspectionTaskServer, feature
 }
 
 // getDependentFormTasks returns the list of form tasks required by the feature task.
-func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
+func getDependentFormTasks(taskServer *coreinspection.InspectionTaskServer, featureTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
 	resolveSource, err := coretask.NewTaskSet([]coretask.UntypedTask{featureTask})
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func getDependentFormTasks(taskServer *inspection.InspectionTaskServer, featureT
 }
 
 // getAvailableInspectionTypes returns the list of information about inspection type that supports this feature.
-func getAvailableInspectionTypes(taskServer *inspection.InspectionTaskServer, featureTask coretask.UntypedTask) []FeatureAvailableInspectionType {
+func getAvailableInspectionTypes(taskServer *coreinspection.InspectionTaskServer, featureTask coretask.UntypedTask) []FeatureAvailableInspectionType {
 	result := []FeatureAvailableInspectionType{}
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {

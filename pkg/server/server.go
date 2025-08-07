@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -56,7 +56,7 @@ func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
 	}
 }
 
-func CreateKHIServer(inspectionServer *inspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
+func CreateKHIServer(inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
 	engine := instanciateGinServer(parameters.Debug.Verbose != nil && *parameters.Debug.Verbose)
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowAllOrigins = true

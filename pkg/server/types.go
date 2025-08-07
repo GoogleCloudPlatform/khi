@@ -14,9 +14,7 @@
 
 package server
 
-import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-)
+import coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 
 type SerializedMetadata = map[string]any
 
@@ -26,7 +24,7 @@ type ServerStat struct {
 
 // GetInspectionTypesResponse is the type of the response for /api/v3/inspection/types
 type GetInspectionTypesResponse struct {
-	Types []*inspection.InspectionType `json:"types"`
+	Types []*coreinspection.InspectionType `json:"types"`
 }
 
 // GetInspectionsResponse is the type of the response for /api/v3/inspection
@@ -51,7 +49,7 @@ type PutInspectionFeatureResponse struct {
 }
 
 type GetInspectionFeatureResponse struct {
-	Features []inspection.FeatureListItem `json:"features"`
+	Features []coreinspection.FeatureListItem `json:"features"`
 }
 
 type PostInspectionDryRunRequest = map[string]any

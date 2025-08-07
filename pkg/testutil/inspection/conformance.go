@@ -19,18 +19,18 @@ import (
 	"strings"
 	"testing"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 )
 
 // ConformanceEveryInspectionTasksAreResolvable verify the InspectionTaskServer initialzied with the given preparation method must be resolvable by each tasks.
-func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, preps []inspection.PrepareInspectionServerFunc) {
+func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, preps []coreinspection.PrepareInspectionServerFunc) {
 	ioConfig, err := inspectioncontract.NewIOConfigForTest()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	testServer, err := inspection.NewServer(ioConfig)
+	testServer, err := coreinspection.NewServer(ioConfig)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -65,12 +65,12 @@ func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, pr
 	}
 }
 
-func ConformanceTestForInspectionTypes(t *testing.T, preps []inspection.PrepareInspectionServerFunc) {
+func ConformanceTestForInspectionTypes(t *testing.T, preps []coreinspection.PrepareInspectionServerFunc) {
 	ioConfig, err := inspectioncontract.NewIOConfigForTest()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
-	testServer, err := inspection.NewServer(ioConfig)
+	testServer, err := coreinspection.NewServer(ioConfig)
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}

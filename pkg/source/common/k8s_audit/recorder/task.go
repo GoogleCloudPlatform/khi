@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -33,6 +32,7 @@ import (
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
@@ -119,7 +119,7 @@ func (r *RecorderTaskManager) GetRecorderTaskName(recorderName string) taskid.Ta
 	return taskid.NewDefaultImplementationID[any](fmt.Sprintf("%s/feature/k8s_audit/%s/recorder/%s", gcp_task.GCPPrefix, r.recorderPrefix, recorderName))
 }
 
-func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, inspectionTypes ...string) error {
+func (r *RecorderTaskManager) Register(server *coreinspection.InspectionTaskServer, inspectionTypes ...string) error {
 	recorderTaskIds := []taskid.UntypedTaskReference{}
 	for _, recorder := range r.recorderTasks {
 		err := server.AddTask(recorder)

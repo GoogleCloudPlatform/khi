@@ -15,14 +15,14 @@
 package common
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2manifestgenerate"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2timelinegrouping"
 )
 
-func Register(i *inspection.InspectionTaskServer) error {
+func Register(i *coreinspection.InspectionTaskServer) error {
 	err := i.AddTask(v2commonlogparse.Task)
 	if err != nil {
 		return err

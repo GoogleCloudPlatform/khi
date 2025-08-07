@@ -17,11 +17,11 @@ package oss
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
 )
 
-var OSSKubernetesLogFilesInspectionType = inspection.InspectionType{
+var OSSKubernetesLogFilesInspectionType = coreinspection.InspectionType{
 	Id:          oss_constant.OSSInspectionTypeID,
 	Name:        "OSS Kubernetes Log Files",
 	Description: "Visualize OSS Kubernetes logs through the uploaded files",
