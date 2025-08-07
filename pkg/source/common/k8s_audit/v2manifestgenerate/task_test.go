@@ -29,7 +29,7 @@ import (
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 
-	base_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+	base_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"

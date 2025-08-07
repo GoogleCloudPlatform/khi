@@ -21,13 +21,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -43,9 +43,9 @@ var HeaderSuggestedFileNameTask = inspection_task.NewInspectionTask(HeaderSugges
 	metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
 
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
-	endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
-	startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	endTime := coretask.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
+	startTime := coretask.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
 
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
 

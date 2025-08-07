@@ -34,7 +34,7 @@ import (
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
 type LogGroupFilterFunc = func(ctx context.Context, resourcePath string) bool
@@ -47,14 +47,14 @@ type RecorderFunc = func(ctx context.Context, resourcePath string, currentLog *t
 // RecorderTaskManager provides the way of extending resource specific
 type RecorderTaskManager struct {
 	taskID         taskid.TaskImplementationID[struct{}]
-	recorderTasks  []task.UntypedTask
+	recorderTasks  []coretask.UntypedTask
 	recorderPrefix string
 }
 
 func NewAuditRecorderTaskManager(taskID taskid.TaskImplementationID[struct{}], recorderPrefix string) *RecorderTaskManager {
 	return &RecorderTaskManager{
 		taskID:         taskID,
-		recorderTasks:  make([]task.UntypedTask, 0),
+		recorderTasks:  make([]coretask.UntypedTask, 0),
 		recorderPrefix: recorderPrefix,
 	}
 }
@@ -69,7 +69,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 			return struct{}{}, nil
 		}
 		builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
-		groupedLogs := task.GetTaskResult(ctx, common_k8saudit_taskid.ManifestGenerateTaskID.Ref())
+		groupedLogs := coretask.GetTaskResult(ctx, common_k8saudit_taskid.ManifestGenerateTaskID.Ref())
 
 		filteredLogs, allCount := filterMatchedGroupedLogs(ctx, groupedLogs, logGroupFilter)
 		processedLogCount := atomic.Int32{}

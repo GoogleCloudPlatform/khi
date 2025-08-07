@@ -19,6 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
@@ -27,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 )
 
@@ -50,7 +50,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 }
 
 // RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
-func RunInspectionTask[T any](baseContext context.Context, task task.Task[T], mode inspection_task_interface.InspectionTaskMode, input map[string]any, taskDependencyValues ...task_test.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
+func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspection_task_interface.InspectionTaskMode, input map[string]any, taskDependencyValues ...task_test.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
 	taskCtx := khictx.WithValue(baseContext, inspectioncontract.InspectionTaskInput, input)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncontract.InspectionTaskMode, mode)
 
@@ -60,7 +60,7 @@ func RunInspectionTask[T any](baseContext context.Context, task task.Task[T], mo
 }
 
 // RunInspectionTaskWithDependency execute a task as a graph. Supply dependencies needed to be used with the mainTask.
-func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTask task.Task[T], dependencies []task.UntypedTask, mode inspection_task_interface.InspectionTaskMode, input map[string]any) (T, *typedmap.ReadonlyTypedMap, error) {
+func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask, mode inspection_task_interface.InspectionTaskMode, input map[string]any) (T, *typedmap.ReadonlyTypedMap, error) {
 	taskCtx := khictx.WithValue(baseContext, inspectioncontract.InspectionTaskInput, input)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncontract.InspectionTaskMode, mode)
 	result, err := task_test.RunTaskWithDependency(taskCtx, mainTask, dependencies)

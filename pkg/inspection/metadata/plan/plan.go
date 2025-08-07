@@ -16,8 +16,8 @@ package plan
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var InspectionPlanMetadataKey = metadata.NewMetadataKey[*InspectionPlan]("plan")
@@ -28,7 +28,7 @@ type InspectionPlan struct {
 
 // Labels implements metadata.Metadata.
 func (*InspectionPlan) Labels() *typedmap.ReadonlyTypedMap {
-	return task.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
+	return coretask.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
 }
 
 // ToSerializable implements metadata.Metadata.

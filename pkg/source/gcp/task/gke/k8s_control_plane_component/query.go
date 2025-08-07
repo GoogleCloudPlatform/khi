@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"strings"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -42,9 +42,9 @@ var GKEK8sControlPlaneLogQueryTask = query.NewQueryGeneratorTask(k8s_control_pla
 	gcp_task.InputClusterNameTaskID.Ref(),
 	k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
-	projectId := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
-	controlplaneComponentNameFilter := task.GetTaskResult(ctx, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	projectId := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	controlplaneComponentNameFilter := coretask.GetTaskResult(ctx, k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID.Ref())
 
 	return []string{GenerateK8sControlPlaneQuery(clusterName, projectId, controlplaneComponentNameFilter)}, nil
 }, GenerateK8sControlPlaneQuery("gcp-cluster-name", "gcp-project-id", &queryutil.SetFilterParseResult{

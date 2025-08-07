@@ -17,9 +17,9 @@ package aws
 import (
 	"context"
 
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 

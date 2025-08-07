@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package coretask
 
 import (
 	"context"
@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	task_interface "github.com/GoogleCloudPlatform/khi/pkg/task/inteface"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"golang.org/x/sync/errgroup"
 )
@@ -44,7 +43,7 @@ type LocalRunner struct {
 }
 
 // LocalRunner implements task_interface.TaskRunner
-var _ task_interface.TaskRunner = (*LocalRunner)(nil)
+var _ TaskRunner = (*LocalRunner)(nil)
 
 // LocalRunnerTaskStat holds the status and metrics for a single task
 // executed by the LocalRunner.

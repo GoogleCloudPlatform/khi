@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package coretask
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"

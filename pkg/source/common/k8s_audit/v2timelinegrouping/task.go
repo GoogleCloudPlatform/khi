@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -30,7 +31,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -40,7 +40,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	preStepParseResult := task.GetTaskResult(ctx, common_k8saudit_taskid.CommonLogParseTaskID.Ref())
+	preStepParseResult := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonLogParseTaskID.Ref())
 	progressUpdater := progress.NewIndeterminateUpdator(tp, time.Second)
 	err := progressUpdater.Start("Grouping logs by timeline")
 	if err != nil {

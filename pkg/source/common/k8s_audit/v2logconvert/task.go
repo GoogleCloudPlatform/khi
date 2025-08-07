@@ -21,12 +21,12 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -37,7 +37,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 		return struct{}{}, nil
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
-	logs := task.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
+	logs := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}
 	updator := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {

@@ -20,8 +20,8 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var QueryMetadataKey = metadata.NewMetadataKey[*QueryMetadata]("query")
@@ -39,7 +39,7 @@ type QueryMetadata struct {
 
 // Labels implements metadata.Metadata.
 func (*QueryMetadata) Labels() *typedmap.ReadonlyTypedMap {
-	return task.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
+	return coretask.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
 }
 
 // ToSerializable implements metadata.Metadata.

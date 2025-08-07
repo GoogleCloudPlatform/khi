@@ -18,13 +18,13 @@ import (
 	"context"
 	"fmt"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -40,8 +40,8 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
-	environment := task.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	environment := coretask.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, environment)
 
 	// when the user is inputing these information, abort

@@ -19,10 +19,10 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -33,13 +33,13 @@ type TextFormTestCase struct {
 	Input             string
 	ExpectedValue     any
 	ExpectedFormField form.TextParameterFormField
-	Dependencies      []task.UntypedTask
+	Dependencies      []coretask.UntypedTask
 	Before            func()
 	After             func()
 }
 
 // TestTextForms tests an inspection task generating a TextForm in the metadata.
-func TestTextForms[T any](t *testing.T, label string, formTask task.Task[T], testCases []*TextFormTestCase, cmpOptions ...cmp.Option) {
+func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T], testCases []*TextFormTestCase, cmpOptions ...cmp.Option) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			if testCase.Before != nil {

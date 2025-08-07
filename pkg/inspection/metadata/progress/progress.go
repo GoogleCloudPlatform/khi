@@ -19,8 +19,8 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var ProgressMetadataKey = metadata.NewMetadataKey[*Progress]("progress")
@@ -83,7 +83,7 @@ func NewProgress() *Progress {
 
 // Labels implements Metadata.
 func (*Progress) Labels() *typedmap.ReadonlyTypedMap {
-	return task.NewLabelSet(
+	return coretask.NewLabelSet(
 		metadata.IncludeInTaskList(),
 	)
 }

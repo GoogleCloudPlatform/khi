@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
@@ -38,7 +39,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -61,7 +61,7 @@ type ProjectIDDefaultResourceNamesGenerator struct{}
 
 // GenerateResourceNames implements DefaultResourceNamesGenerator.
 func (p *ProjectIDDefaultResourceNamesGenerator) GenerateResourceNames(ctx context.Context) ([]string, error) {
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
 }
 
@@ -76,7 +76,7 @@ var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(
 
 var queryThreadPool = worker.NewPool(16)
 
-func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) task.Task[[]*log.Log] {
+func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
 	return inspection_task.NewProgressReportableInspectionTask(taskId, append(
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
 		gcp_task.InputStartTimeTaskID.Ref(),
@@ -89,7 +89,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		}
 
 		metadata := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
-		resourceNames := task.GetTaskResult(ctx, gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref())
+		resourceNames := coretask.GetTaskResult(ctx, gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref())
 		taskInput := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskInput)
 
 		defaultResourceNames, err := resourceNamesGenerator.GenerateResourceNames(ctx)
@@ -119,8 +119,8 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			}
 		}
 
-		startTime := task.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
-		endTime := task.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
+		startTime := coretask.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
+		endTime := coretask.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
 
 		queryStrings, err := generator(ctx, taskMode)
 		if err != nil {

@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
@@ -33,7 +34,6 @@ import (
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -82,7 +82,7 @@ var InputClusterNameTask = form.NewTextFormTaskBuilder(InputClusterNameTaskID, P
 	WithDependencies([]taskid.UntypedTaskReference{AutocompleteClusterNamesTaskID, ClusterNamePrefixTaskID}).
 	WithDescription("The cluster name to gather logs.").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		clusters := task.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
+		clusters := coretask.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
 		// If the previous value is included in the list of cluster names, the name is used as the default value.
 		if len(previousValues) > 0 && slices.Index(clusters.ClusterNames, previousValues[0]) > -1 {
 			return previousValues[0], nil
@@ -93,12 +93,12 @@ var InputClusterNameTask = form.NewTextFormTaskBuilder(InputClusterNameTaskID, P
 		return clusters.ClusterNames[0], nil
 	}).
 	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		clusters := task.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
+		clusters := coretask.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
 		return common.SortForAutocomplete(value, clusters.ClusterNames), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		clusters := task.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
-		prefix := task.GetTaskResult(ctx, ClusterNamePrefixTaskID)
+		clusters := coretask.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
+		prefix := coretask.GetTaskResult(ctx, ClusterNamePrefixTaskID)
 
 		// on failure of getting the list of clusters
 		if clusters.Error != "" {
@@ -119,7 +119,7 @@ var InputClusterNameTask = form.NewTextFormTaskBuilder(InputClusterNameTaskID, P
 		return "", nil
 	}).
 	WithConverter(func(ctx context.Context, value string) (string, error) {
-		prefix := task.GetTaskResult(ctx, ClusterNamePrefixTaskID)
+		prefix := coretask.GetTaskResult(ctx, ClusterNamePrefixTaskID)
 
 		return prefix + strings.TrimSpace(value), nil
 	}).
@@ -142,9 +142,9 @@ var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, Priorit
 		}
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
-		endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
+		endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
+		timezoneShift := coretask.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
 
 		duration := convertedValue.(time.Duration)
 		startTime := endTime.Add(-duration)
@@ -197,13 +197,13 @@ var InputEndTimeTask = form.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityF
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
 		}
-		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
-		timezoneShift := task.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
+		timezoneShift := coretask.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
 
 		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-		inspectionTime := task.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspection_task.InspectionTimeTaskID.Ref())
 
 		specifiedTime := convertedValue.(time.Time)
 		if inspectionTime.Sub(specifiedTime) < 0 {
@@ -229,8 +229,8 @@ var InputStartTimeTask = inspection_task.NewInspectionTask(InputStartTimeTaskID,
 	InputEndTimeTaskID.Ref(),
 	InputDurationTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (time.Time, error) {
-	endTime := task.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-	duration := task.GetTaskResult(ctx, InputDurationTaskID.Ref())
+	endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
+	duration := coretask.GetTaskResult(ctx, InputDurationTaskID.Ref())
 	startTime := endTime.Add(-duration)
 	// Add starttime and endtime on the header metadata
 	metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
@@ -351,7 +351,7 @@ var InputLocationsTask = form.NewTextFormTaskBuilder(InputLocationsTaskID, Prior
 		if len(previousValues) > 0 { // no need to call twice; should be the same
 			return previousValues, nil
 		}
-		regions := task.GetTaskResult(ctx, AutocompleteLocationTaskID.Ref())
+		regions := coretask.GetTaskResult(ctx, AutocompleteLocationTaskID.Ref())
 		return regions, nil
 	}).
 	Build()

@@ -17,9 +17,9 @@ package model
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // InspectionTypeDocumentModel is a model type for generating document docs/en/reference/inspection-type.md
@@ -54,8 +54,8 @@ func GetInspectionTypeDocumentModel(taskServer *inspection.InspectionTaskServer)
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {
 		// Get the list of feature tasks supporting the inspection type.
-		tasksInInspectionType := task.Subset(taskServer.RootTaskSet, filter.NewContainsElementFilter(inspection_task.LabelKeyInspectionTypes, inspectionType.Id, true))
-		featureTasks := task.Subset(tasksInInspectionType, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false)).GetAll()
+		tasksInInspectionType := coretask.Subset(taskServer.RootTaskSet, filter.NewContainsElementFilter(inspection_task.LabelKeyInspectionTypes, inspectionType.Id, true))
+		featureTasks := coretask.Subset(tasksInInspectionType, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false)).GetAll()
 
 		features := []InspectionTypeDocumentElementFeature{}
 		for _, task := range featureTasks {

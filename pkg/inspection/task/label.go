@@ -18,8 +18,8 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 

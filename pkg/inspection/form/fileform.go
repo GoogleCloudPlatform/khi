@@ -20,10 +20,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 

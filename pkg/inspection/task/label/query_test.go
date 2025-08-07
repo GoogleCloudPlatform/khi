@@ -18,15 +18,15 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestQueryTaskLabelOpt(t *testing.T) {
 	labelOpt := NewQueryTaskLabelOpt(enum.LogTypeComputeApi, "sample query")
-	label := task.NewLabelSet(labelOpt)
+	label := coretask.NewLabelSet(labelOpt)
 
 	anyQueryTask, exists := typedmap.Get(label, TaskLabelKeyIsQueryTask)
 	if !exists {

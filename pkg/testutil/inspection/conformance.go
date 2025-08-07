@@ -19,9 +19,9 @@ import (
 	"strings"
 	"testing"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // ConformanceEveryInspectionTasksAreResolvable verify the InspectionTaskServer initialzied with the given preparation method must be resolvable by each tasks.
@@ -43,11 +43,11 @@ func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, pr
 
 	for _, targetTask := range testServer.GetAllRegisteredTasks() {
 		t.Run(fmt.Sprintf("%s-only-contains-%s-must-be-resolvable", label, targetTask.UntypedID().String()), func(t *testing.T) {
-			availableSet, err := task.NewTaskSet(testServer.GetAllRegisteredTasks())
+			availableSet, err := coretask.NewTaskSet(testServer.GetAllRegisteredTasks())
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}
-			originalSet, err := task.NewTaskSet([]task.UntypedTask{targetTask})
+			originalSet, err := coretask.NewTaskSet([]coretask.UntypedTask{targetTask})
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 			}

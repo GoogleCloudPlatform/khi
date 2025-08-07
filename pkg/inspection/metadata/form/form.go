@@ -20,9 +20,9 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var FormFieldSetMetadataKey = metadata.NewMetadataKey[*FormFieldSet]("form")
@@ -116,7 +116,7 @@ var _ metadata.Metadata = (*FormFieldSet)(nil)
 
 // Labels implements Metadata.
 func (*FormFieldSet) Labels() *typedmap.ReadonlyTypedMap {
-	return task.NewLabelSet(metadata.IncludeInDryRunResult())
+	return coretask.NewLabelSet(metadata.IncludeInDryRunResult())
 }
 
 func (f *FormFieldSet) ToSerializable() interface{} {

@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -43,7 +43,7 @@ var AutocompleteLocationTask = inspection_cached_task.NewCachedTask(Autocomplete
 		if err != nil {
 			return inspection_cached_task.PreviousTaskResult[[]string]{}, err
 		}
-		projectID := task.GetTaskResult(ctx, InputProjectIdTaskID.Ref())
+		projectID := coretask.GetTaskResult(ctx, InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
 
 		if prevValue.DependencyDigest == dependencyDigest {

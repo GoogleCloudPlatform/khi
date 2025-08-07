@@ -47,7 +47,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -102,7 +102,7 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	tasks := []task.UntypedTask{
+	tasks := []coretask.UntypedTask{
 		inspection_task.NewProgressReportableInspectionTask(debugTaskImplID("neverend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
 			tp.Update(0.5, "test")
 			select {

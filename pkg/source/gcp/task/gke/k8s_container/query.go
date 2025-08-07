@@ -19,13 +19,13 @@ import (
 	"fmt"
 	"strings"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -92,9 +92,9 @@ var GKEContainerQueryTask = query.NewQueryGeneratorTask(gke_k8s_container_taskid
 	gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref(),
 	gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
-	namespacesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref())
-	podNamesFilter := task.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	namespacesFilter := coretask.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref())
+	podNamesFilter := coretask.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref())
 
 	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
 }, GenerateK8sContainerQuery("gcp-cluster-name", &queryutil.SetFilterParseResult{

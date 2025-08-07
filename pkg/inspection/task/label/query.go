@@ -16,15 +16,15 @@ package label
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var (
-	TaskLabelKeyIsQueryTask            = task.NewTaskLabelKey[bool](inspection_task.InspectionTaskPrefix + "is-query-task")
-	TaskLabelKeyQueryTaskTargetLogType = task.NewTaskLabelKey[enum.LogType](inspection_task.InspectionTaskPrefix + "query-task-target-log-type")
-	TaskLabelKeyQueryTaskSampleQuery   = task.NewTaskLabelKey[string](inspection_task.InspectionTaskPrefix + "query-task-sample-query")
+	TaskLabelKeyIsQueryTask            = coretask.NewTaskLabelKey[bool](inspection_task.InspectionTaskPrefix + "is-query-task")
+	TaskLabelKeyQueryTaskTargetLogType = coretask.NewTaskLabelKey[enum.LogType](inspection_task.InspectionTaskPrefix + "query-task-target-log-type")
+	TaskLabelKeyQueryTaskSampleQuery   = coretask.NewTaskLabelKey[string](inspection_task.InspectionTaskPrefix + "query-task-sample-query")
 )
 
 type QueryTaskLabelOpt struct {
@@ -39,7 +39,7 @@ func (q *QueryTaskLabelOpt) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, TaskLabelKeyQueryTaskSampleQuery, q.SampleQuery)
 }
 
-var _ (task.LabelOpt) = (*QueryTaskLabelOpt)(nil)
+var _ (coretask.LabelOpt) = (*QueryTaskLabelOpt)(nil)
 
 // NewQueryTaskLabelOpt constucts a new instance of task.LabelOpt for query related tasks.
 func NewQueryTaskLabelOpt(targetLogType enum.LogType, sampleQuery string) *QueryTaskLabelOpt {

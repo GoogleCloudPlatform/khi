@@ -16,14 +16,14 @@ package label
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 var (
-	TaskLabelKeyIsFormTask           = task.NewTaskLabelKey[bool](inspection_task.InspectionTaskPrefix + "is-form-task")
-	TaskLabelKeyFormFieldLabel       = task.NewTaskLabelKey[string](inspection_task.InspectionTaskPrefix + "form-field-label")
-	TaskLabelKeyFormFieldDescription = task.NewTaskLabelKey[string](inspection_task.InspectionTaskPrefix + "form-field-description")
+	TaskLabelKeyIsFormTask           = coretask.NewTaskLabelKey[bool](inspection_task.InspectionTaskPrefix + "is-form-task")
+	TaskLabelKeyFormFieldLabel       = coretask.NewTaskLabelKey[string](inspection_task.InspectionTaskPrefix + "form-field-label")
+	TaskLabelKeyFormFieldDescription = coretask.NewTaskLabelKey[string](inspection_task.InspectionTaskPrefix + "form-field-description")
 )
 
 type FormTaskLabelOpt struct {
@@ -46,4 +46,4 @@ func NewFormTaskLabelOpt(label, description string) *FormTaskLabelOpt {
 	}
 }
 
-var _ (task.LabelOpt) = (*FormTaskLabelOpt)(nil)
+var _ (coretask.LabelOpt) = (*FormTaskLabelOpt)(nil)

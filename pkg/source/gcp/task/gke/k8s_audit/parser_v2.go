@@ -34,7 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -45,7 +45,7 @@ var GCPK8sAuditLogSourceTask = inspection_task.NewInspectionTask(gke_k8saudit_ta
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	logs := task.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref())
+	logs := coretask.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref())
 
 	return &types.AuditLogParserLogSource{
 		Logs:      logs,

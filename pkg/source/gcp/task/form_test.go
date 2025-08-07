@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/form/test"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
@@ -28,7 +29,6 @@ import (
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -43,7 +43,7 @@ func TestProjectIdInput(t *testing.T) {
 			Name:          "With valid project ID",
 			Input:         "foo-project",
 			ExpectedValue: "foo-project",
-			Dependencies: []task.UntypedTask{
+			Dependencies: []coretask.UntypedTask{
 				testClusterNamePrefix,
 			},
 			ExpectedFormField: form.TextParameterFormField{
@@ -60,7 +60,7 @@ func TestProjectIdInput(t *testing.T) {
 			Name:          "With fixed project ID from environment variable",
 			Input:         "foo-project",
 			ExpectedValue: "bar-project",
-			Dependencies: []task.UntypedTask{
+			Dependencies: []coretask.UntypedTask{
 				testClusterNamePrefix,
 			},
 			ExpectedFormField: form.TextParameterFormField{
@@ -86,7 +86,7 @@ func TestProjectIdInput(t *testing.T) {
 			Name:          "With invalid project ID",
 			Input:         "A invalid project ID",
 			ExpectedValue: "",
-			Dependencies: []task.UntypedTask{
+			Dependencies: []coretask.UntypedTask{
 				testClusterNamePrefix,
 			},
 			ExpectedFormField: form.TextParameterFormField{
@@ -104,7 +104,7 @@ func TestProjectIdInput(t *testing.T) {
 			Name:          "Spaces around project ID must be trimmed",
 			Input:         "  project-foo   ",
 			ExpectedValue: "project-foo",
-			Dependencies: []task.UntypedTask{
+			Dependencies: []coretask.UntypedTask{
 				testClusterNamePrefix,
 			},
 			ExpectedFormField: form.TextParameterFormField{
@@ -121,7 +121,7 @@ func TestProjectIdInput(t *testing.T) {
 			Name:          "With valid old style project ID",
 			Input:         "  deprecated.com:but-still-usable-project-id   ",
 			ExpectedValue: "deprecated.com:but-still-usable-project-id",
-			Dependencies: []task.UntypedTask{
+			Dependencies: []coretask.UntypedTask{
 				testClusterNamePrefix,
 			},
 			ExpectedFormField: form.TextParameterFormField{
@@ -149,7 +149,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "with valid cluster name",
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []task.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/cluster-name",
@@ -166,7 +166,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "spaces around cluster name must be trimmed",
 			Input:         "  foo-cluster   ",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []task.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/cluster-name",
@@ -183,7 +183,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "invalid cluster name",
 			Input:         "An invalid cluster name",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []task.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/cluster-name",
@@ -201,7 +201,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "non existing cluster should show a hint",
 			Input:         "nonexisting-cluster",
 			ExpectedValue: "nonexisting-cluster",
-			Dependencies:  []task.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/cluster-name",
@@ -232,7 +232,7 @@ func TestDurationInput(t *testing.T) {
 			Name:          "With valid time duration",
 			Input:         "10m",
 			ExpectedValue: time.Duration(time.Minute) * 10,
-			Dependencies:  []task.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -251,7 +251,7 @@ func TestDurationInput(t *testing.T) {
 			Name:          "With invalid time duration",
 			Input:         "foo",
 			ExpectedValue: time.Hour,
-			Dependencies:  []task.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -267,7 +267,7 @@ func TestDurationInput(t *testing.T) {
 			Name:          "With invalid time duration(negative)",
 			Input:         "-10m",
 			ExpectedValue: time.Hour,
-			Dependencies:  []task.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -283,7 +283,7 @@ func TestDurationInput(t *testing.T) {
 			Name:          "with longer duration starting before than 30 days",
 			Input:         "672h", // starting time will be 30 days before the inspection time
 			ExpectedValue: time.Hour * 672,
-			Dependencies:  []task.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Type:        "Text",
@@ -305,7 +305,7 @@ Query range:
 			Name:          "With non UTC timezone",
 			Input:         "1h",
 			ExpectedValue: time.Hour,
-			Dependencies:  []task.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskJST},
+			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskJST},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Type:        "Text",
@@ -343,7 +343,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with empty",
 			Input:         "",
 			ExpectedValue: expectedValue1,
-			Dependencies:  []task.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -359,7 +359,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []task.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -374,7 +374,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and non UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []task.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
+			Dependencies:  []coretask.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -556,7 +556,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Name:          "With an empty input",
 			Input:         "",
 			ExpectedValue: []string{},
-			Dependencies:  []task.UntypedTask{},
+			Dependencies:  []coretask.UntypedTask{},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       wantLabelName,
@@ -570,7 +570,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Name:          "With a single node name substring",
 			Input:         "node-name-1",
 			ExpectedValue: []string{"node-name-1"},
-			Dependencies:  []task.UntypedTask{},
+			Dependencies:  []coretask.UntypedTask{},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       wantLabelName,
@@ -583,7 +583,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Name:          "With multiple node name substrings",
 			Input:         "node-name-1 node-name-2 node-name-3",
 			ExpectedValue: []string{"node-name-1", "node-name-2", "node-name-3"},
-			Dependencies:  []task.UntypedTask{},
+			Dependencies:  []coretask.UntypedTask{},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       wantLabelName,
@@ -596,7 +596,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Name:          "With invalid node name substring",
 			Input:         "node-name-1 invalid=node=name node-name-3",
 			ExpectedValue: []string{},
-			Dependencies:  []task.UntypedTask{},
+			Dependencies:  []coretask.UntypedTask{},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       wantLabelName,
@@ -610,7 +610,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 			Name:          "With spaces around node name substring",
 			Input:         "  node-name-1  node-name-2  ",
 			ExpectedValue: []string{"node-name-1", "node-name-2"},
-			Dependencies:  []task.UntypedTask{},
+			Dependencies:  []coretask.UntypedTask{},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       wantLabelName,
@@ -628,7 +628,7 @@ func TestLocationInput(t *testing.T) {
 			Name:          "With valid location",
 			Input:         "asia-northeast1",
 			ExpectedValue: "asia-northeast1",
-			Dependencies:  []task.UntypedTask{AutocompleteLocationTask, InputProjectIdTask},
+			Dependencies:  []coretask.UntypedTask{AutocompleteLocationTask, InputProjectIdTask},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/location",

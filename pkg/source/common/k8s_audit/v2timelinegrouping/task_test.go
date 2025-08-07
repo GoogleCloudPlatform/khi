@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
@@ -26,7 +27,6 @@ import (
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
@@ -88,7 +88,7 @@ timestamp: 2024-01-01T00:00:00+09:00`
 		}
 
 		ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-		result, _, err := inspection_task_test.RunInspectionTaskWithDependency(ctx, Task, []task.UntypedTask{
+		result, _, err := inspection_task_test.RunInspectionTaskWithDependency(ctx, Task, []coretask.UntypedTask{
 			v2commonlogparse.Task,
 			task_test.StubTaskFromReferenceID(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
 				Logs: logs,

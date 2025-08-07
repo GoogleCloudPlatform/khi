@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -30,7 +31,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -70,7 +70,7 @@ func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
 
 // Parse implements parser.Parser.
 func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 
 	// scaleUp,scaleDown,nodePoolCreated,nodePoolDeleted
 	if l.Has("jsonPayload.decision") {

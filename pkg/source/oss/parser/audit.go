@@ -21,6 +21,7 @@ import (
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
@@ -33,7 +34,6 @@ import (
 	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/fieldextractor"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -44,7 +44,7 @@ var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	logs := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())
+	logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())
 
 	return &types.AuditLogParserLogSource{
 		Logs:      logs,

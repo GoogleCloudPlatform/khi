@@ -19,9 +19,9 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"golang.org/x/exp/slices"
 )
 
@@ -57,7 +57,7 @@ type InspectionRunResult struct {
 // InspectionTaskServer manages tasks and provides apis to get task related information in JSON convertible type.
 type InspectionTaskServer struct {
 	// RootTaskSet is the set of the all tasks in KHI.
-	RootTaskSet *task.TaskSet
+	RootTaskSet *coretask.TaskSet
 	// inspectionTypes are kinds of tasks. Users will select this at first to filter togglable feature tasks.
 	inspectionTypes []*InspectionType
 	// inspections are generated inspection task runers
@@ -68,7 +68,7 @@ type InspectionTaskServer struct {
 }
 
 func NewServer(ioConfig *inspectioncontract.IOConfig) (*InspectionTaskServer, error) {
-	ns, err := task.NewTaskSet([]task.UntypedTask{})
+	ns, err := coretask.NewTaskSet([]coretask.UntypedTask{})
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionTyp
 }
 
 // AddTask register a task usable for the inspection task graph execution.
-func (s *InspectionTaskServer) AddTask(task task.UntypedTask) error {
+func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 	return s.RootTaskSet.Add(task)
 }
 
@@ -144,6 +144,6 @@ func (s *InspectionTaskServer) GetAllRunners() []*InspectionTaskRunner {
 }
 
 // GetAllRegisteredTasks returns a cloned list of all tasks registered in this server.
-func (s *InspectionTaskServer) GetAllRegisteredTasks() []task.UntypedTask {
+func (s *InspectionTaskServer) GetAllRegisteredTasks() []coretask.UntypedTask {
 	return s.RootTaskSet.GetAll()
 }

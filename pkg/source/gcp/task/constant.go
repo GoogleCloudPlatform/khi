@@ -17,8 +17,8 @@ package task
 import (
 	"context"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -32,6 +32,6 @@ var ClusterNamePrefixTaskID = taskid.NewTaskReference[string](GCPPrefix + "clust
 
 var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.MergeConfigRegistry](GCPPrefix + "merge-config")
 
-var GCPDefaultK8sResourceMergeConfigTask = task.NewTask(K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.MergeConfigRegistry, error) {
+var GCPDefaultK8sResourceMergeConfigTask = coretask.NewTask(K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.MergeConfigRegistry, error) {
 	return k8s.GenerateDefaultMergeConfig()
 })

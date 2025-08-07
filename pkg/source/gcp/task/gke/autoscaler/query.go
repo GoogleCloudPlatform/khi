@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -43,8 +43,8 @@ var AutoscalerQueryTask = query.NewQueryGeneratorTask(gke_autoscaler_taskid.Auto
 	gcp_task.InputProjectIdTaskID.Ref(),
 	gcp_task.InputClusterNameTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 
 	return []string{GenerateAutoscalerQuery(projectID, clusterName, true)}, nil
 }, GenerateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true))

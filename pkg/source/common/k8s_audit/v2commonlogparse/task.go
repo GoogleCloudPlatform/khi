@@ -22,12 +22,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -37,7 +37,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	source := task.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
+	source := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}
 	progressUpdater := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {

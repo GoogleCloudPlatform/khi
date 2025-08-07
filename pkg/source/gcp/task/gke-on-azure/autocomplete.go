@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -35,7 +35,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewIm
 		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
 	if projectID != "" && projectID == prevValue.DependencyDigest {
 		return prevValue, nil
 	}

@@ -23,6 +23,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
@@ -32,7 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -45,7 +45,7 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
-		result := task.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
+		result := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
 
 		reader, err := result.GetReader()
 		if err != nil {
@@ -113,7 +113,7 @@ var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
-		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
+		logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
 
 		var eventLogs []*log.Log
 
@@ -136,7 +136,7 @@ var OSSNonEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 			return []*log.Log{}, nil
 		}
 
-		logs := task.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
+		logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
 
 		var auditLogs []*log.Log
 

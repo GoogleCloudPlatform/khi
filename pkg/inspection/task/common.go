@@ -18,7 +18,7 @@ import (
 	"context"
 	"time"
 
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/task"
+	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 

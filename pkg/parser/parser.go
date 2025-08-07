@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
@@ -32,7 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 	"golang.org/x/sync/errgroup"
 )
@@ -64,14 +64,14 @@ type Parser interface {
 	Grouper() grouper.LogGrouper
 }
 
-func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...task.LabelOpt) task.Task[struct{}] {
+func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	return inspection_task.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (struct{}, error) {
 		if taskMode == inspection_task_interface.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
 		builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
-		logs := task.GetTaskResult(ctx, parser.LogTask())
+		logs := coretask.GetTaskResult(ctx, parser.LogTask())
 
 		preparedLogCount := atomic.Int32{}
 		updator := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
@@ -177,7 +177,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 		close(logCounterChannel)
 		return struct{}{}, nil
 	},
-		append([]task.LabelOpt{
+		append([]coretask.LabelOpt{
 			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
 		}, labelOpts...)...)
 }

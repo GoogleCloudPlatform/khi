@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -31,7 +32,6 @@ import (
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -44,8 +44,8 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 	if taskMode == inspection_task_interface.TaskModeDryRun {
 		return nil, nil
 	}
-	groups := task.GetTaskResult(ctx, common_k8saudit_taskid.TimelineGroupingTaskID.Ref())
-	mergeConfigRegistry := task.GetTaskResult(ctx, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().Ref())
+	groups := coretask.GetTaskResult(ctx, common_k8saudit_taskid.TimelineGroupingTaskID.Ref())
+	mergeConfigRegistry := coretask.GetTaskResult(ctx, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().Ref())
 
 	totalLogCount := 0
 	for _, group := range groups {

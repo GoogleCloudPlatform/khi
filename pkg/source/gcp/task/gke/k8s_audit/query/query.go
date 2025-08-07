@@ -28,7 +28,7 @@ import (
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
 var Task = query.NewQueryGeneratorTask(gke_k8saudit_taskid.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
@@ -36,9 +36,9 @@ var Task = query.NewQueryGeneratorTask(gke_k8saudit_taskid.K8sAuditQueryTaskID, 
 	gcp_task.InputKindFilterTaskID.Ref(),
 	gcp_task.InputNamespaceFilterTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
-	clusterName := task.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
-	kindFilter := task.GetTaskResult(ctx, gcp_task.InputKindFilterTaskID.Ref())
-	namespaceFilter := task.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	kindFilter := coretask.GetTaskResult(ctx, gcp_task.InputKindFilterTaskID.Ref())
+	namespaceFilter := coretask.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())
 
 	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
 }, GenerateK8sAuditQuery(

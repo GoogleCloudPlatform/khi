@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package coretask
 
 // HasDependency check if 2 tasks have dependency between them when the task graph was resolved with given task set.
 func HasDependency(taskSet *TaskSet, dependencyFrom UntypedTask, dependencyTo UntypedTask) (bool, error) {

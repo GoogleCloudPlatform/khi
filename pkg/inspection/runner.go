@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
 	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
@@ -42,9 +43,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	task_interface "github.com/GoogleCloudPlatform/khi/pkg/task/inteface"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -55,10 +54,10 @@ type InspectionTaskRunner struct {
 	ID                    string
 	runIDGenerator        idgenerator.IDGenerator
 	enabledFeatures       map[string]bool
-	availableTasks        *task.TaskSet
-	featureTasks          *task.TaskSet
-	requiredTasks         *task.TaskSet
-	runner                task_interface.TaskRunner
+	availableTasks        *coretask.TaskSet
+	featureTasks          *coretask.TaskSet
+	requiredTasks         *coretask.TaskSet
+	runner                coretask.TaskRunner
 	runnerLock            sync.Mutex
 	metadata              *typedmap.ReadonlyTypedMap
 	cancel                context.CancelFunc
@@ -101,9 +100,9 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	if !typeFound {
 		return fmt.Errorf("inspection type %s was not found", inspectionType)
 	}
-	i.availableTasks = task.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspection_task.LabelKeyInspectionTypes, inspectionType, true))
-	defaultFeatures := task.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionDefaultFeatureFlag, false))
-	i.requiredTasks = task.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionRequiredFlag, false))
+	i.availableTasks = coretask.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspection_task.LabelKeyInspectionTypes, inspectionType, true))
+	defaultFeatures := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionDefaultFeatureFlag, false))
+	i.requiredTasks = coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionRequiredFlag, false))
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
 		defaultFeatureIds = append(defaultFeatureIds, featureTask.UntypedID().String())
@@ -116,7 +115,7 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 	if i.availableTasks == nil {
 		return nil, fmt.Errorf("inspection type is not yet initialized")
 	}
-	featureSet := task.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
+	featureSet := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	features := []FeatureListItem{}
 	for _, featureTask := range featureSet.GetAll() {
 		label := typedmap.GetOrDefault(featureTask.Labels(), inspection_task.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", featureTask.UntypedID()))
@@ -136,7 +135,7 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 }
 
 func (i *InspectionTaskRunner) SetFeatureList(featureList []string) error {
-	featureTasks := []task.UntypedTask{}
+	featureTasks := []coretask.UntypedTask{}
 	for _, featureId := range featureList {
 		featureTask, err := i.availableTasks.Get(featureId)
 		if err != nil {
@@ -147,7 +146,7 @@ func (i *InspectionTaskRunner) SetFeatureList(featureList []string) error {
 		}
 		featureTasks = append(featureTasks, featureTask)
 	}
-	featureTaskSet, err := task.NewTaskSet(featureTasks)
+	featureTaskSet, err := coretask.NewTaskSet(featureTasks)
 	if err != nil {
 		return err
 	}
@@ -225,7 +224,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 	cancelableCtx, cancel := context.WithCancel(runCtx)
 	i.cancel = cancel
 
-	runner, err := task.NewLocalRunner(runnableTaskGraph)
+	runner, err := coretask.NewLocalRunner(runnableTaskGraph)
 	if err != nil {
 		return err
 	}
@@ -322,7 +321,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 	}
 	slog.DebugContext(ctx, "end resolving task graph")
 
-	runner, err := task.NewLocalRunner(runnableTaskGraph)
+	runner, err := coretask.NewLocalRunner(runnableTaskGraph)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +354,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 	}, nil
 }
 
-func (i *InspectionTaskRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, tasks []task.UntypedTask) *logger.Logger {
+func (i *InspectionTaskRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, tasks []coretask.UntypedTask) *logger.Logger {
 	logger := logger.NewLogger()
 	for _, def := range tasks {
 		taskCtx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, def.UntypedID())
@@ -385,14 +384,14 @@ func (i *InspectionTaskRunner) Wait() <-chan interface{} {
 	return i.runner.Wait()
 }
 
-func (i *InspectionTaskRunner) resolveTaskGraph() (*task.TaskSet, error) {
+func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
 	if i.featureTasks == nil || i.availableTasks == nil {
 		return nil, fmt.Errorf("this runner is not ready for resolving graph")
 	}
-	usedTasks := []task.UntypedTask{}
+	usedTasks := []coretask.UntypedTask{}
 	usedTasks = append(usedTasks, i.featureTasks.GetAll()...)
 	usedTasks = append(usedTasks, i.requiredTasks.GetAll()...)
-	initialTaskSet, err := task.NewTaskSet(usedTasks)
+	initialTaskSet, err := coretask.NewTaskSet(usedTasks)
 	if err != nil {
 		return nil, err
 	}
@@ -415,26 +414,26 @@ func (i *InspectionTaskRunner) resolveTaskGraph() (*task.TaskSet, error) {
 	return wrapped.ResolveTask(i.availableTasks)
 }
 
-func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *header.Header, taskGraph *task.TaskSet) *typedmap.ReadonlyTypedMap {
+func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *header.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
 	i.addCommonMetadata(ctx, writableMetadata, initHeader, taskGraph)
 	return writableMetadata.AsReadonly()
 }
 
-func (i *InspectionTaskRunner) generateMetadataForRun(ctx context.Context, initHeader *header.Header, taskGraph *task.TaskSet) *typedmap.ReadonlyTypedMap {
+func (i *InspectionTaskRunner) generateMetadataForRun(ctx context.Context, initHeader *header.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
 	i.addCommonMetadata(ctx, writableMetadata, initHeader, taskGraph)
 	return writableMetadata.AsReadonly()
 }
 
-func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMetadata *typedmap.TypedMap, initHeader *header.Header, taskGraph *task.TaskSet) {
+func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMetadata *typedmap.TypedMap, initHeader *header.Header, taskGraph *coretask.TaskSet) {
 	typedmap.Set(writableMetadata, header.HeaderMetadataKey, initHeader)
 	typedmap.Set(writableMetadata, error_metadata.ErrorMessageSetMetadataKey, error_metadata.NewErrorMessageSet())
 	typedmap.Set(writableMetadata, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
 	typedmap.Set(writableMetadata, query.QueryMetadataKey, query.NewQueryMetadata())
 
 	progressMeta := progress.NewProgress()
-	progressMeta.SetTotalTaskCount(len(task.Subset(taskGraph, filter.NewEnabledFilter(inspection_task.LabelKeyProgressReportable, false)).GetAll()))
+	progressMeta.SetTotalTaskCount(len(coretask.Subset(taskGraph, filter.NewEnabledFilter(inspection_task.LabelKeyProgressReportable, false)).GetAll()))
 	typedmap.Set(writableMetadata, progress.ProgressMetadataKey, progressMeta)
 
 	taskGraphStr, err := taskGraph.DumpGraphviz()

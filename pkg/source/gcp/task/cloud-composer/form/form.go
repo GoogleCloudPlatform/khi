@@ -19,12 +19,12 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
@@ -36,8 +36,8 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 	if err != nil {
 		return inspection_cached_task.PreviousTaskResult[[]string]{}, err
 	}
-	projectID := task.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
-	location := task.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	location := coretask.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, location)
 
 	if prevValue.DependencyDigest == dependencyDigest {
@@ -67,6 +67,6 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
 	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref()},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-	environments := task.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref())
+	environments := coretask.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref())
 	return common.SortForAutocomplete(value, environments), nil
 }).Build()

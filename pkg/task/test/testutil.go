@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
@@ -50,20 +50,20 @@ func NewTaskDependencyValuePair[T any](key taskid.TaskReference[T], value T) Tas
 }
 
 // RunTask runs a single task.
-func RunTask[T any](baseContext context.Context, task task.Task[T], taskDependencyValues ...TaskDependencyValues) (T, error) {
+func RunTask[T any](baseContext context.Context, task coretask.Task[T], taskDependencyValues ...TaskDependencyValues) (T, error) {
 	taskCtx := prepareTaskContext(baseContext, task, taskDependencyValues...)
 	return task.Run(taskCtx)
 }
 
 // RunTaskWithDependency runs a task as a graph. Supply the dependencies of the main task to resolve the graph correctly.
-func RunTaskWithDependency[T any](baseContext context.Context, mainTask task.Task[T], dependencies []task.UntypedTask) (T, error) {
+func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask) (T, error) {
 	taskCtx := prepareTaskContext(baseContext, mainTask)
 
-	taskSet, err := task.NewTaskSet([]task.UntypedTask{mainTask})
+	taskSet, err := coretask.NewTaskSet([]coretask.UntypedTask{mainTask})
 	if err != nil {
 		return *new(T), err
 	}
-	allTaskSet, err := task.NewTaskSet(dependencies)
+	allTaskSet, err := coretask.NewTaskSet(dependencies)
 	if err != nil {
 		return *new(T), err
 	}
@@ -72,7 +72,7 @@ func RunTaskWithDependency[T any](baseContext context.Context, mainTask task.Tas
 		return *new(T), err
 	}
 
-	runner, err := task.NewLocalRunner(resolvedTaskSet)
+	runner, err := coretask.NewLocalRunner(resolvedTaskSet)
 	if err != nil {
 		return *new(T), err
 	}
@@ -97,7 +97,7 @@ func RunTaskWithDependency[T any](baseContext context.Context, mainTask task.Tas
 	return result, nil
 }
 
-func prepareTaskContext(baseContext context.Context, task task.UntypedTask, taskDependencyValues ...TaskDependencyValues) context.Context {
+func prepareTaskContext(baseContext context.Context, task coretask.UntypedTask, taskDependencyValues ...TaskDependencyValues) context.Context {
 	taskCtx := khictx.WithValue(baseContext, task_contextkey.TaskImplementationIDContextKey, task.UntypedID())
 
 	resultMap := typedmap.NewTypedMap()
@@ -111,15 +111,15 @@ func prepareTaskContext(baseContext context.Context, task task.UntypedTask, task
 }
 
 // StubTask wraps a given task to return the constant values given without calling the original task.
-func StubTask[T any](mockTarget task.Task[T], mockResult T, mockError error) task.Task[T] {
-	return task.NewTask(mockTarget.ID(), []taskid.UntypedTaskReference{}, func(ctx context.Context) (T, error) {
+func StubTask[T any](mockTarget coretask.Task[T], mockResult T, mockError error) coretask.Task[T] {
+	return coretask.NewTask(mockTarget.ID(), []taskid.UntypedTaskReference{}, func(ctx context.Context) (T, error) {
 		return mockResult, mockError
-	}, task.FromLabels(mockTarget.Labels())...)
+	}, coretask.FromLabels(mockTarget.Labels())...)
 }
 
 // StubTaskFromReferenceID creates a new test task return the given constant value of its result.
-func StubTaskFromReferenceID[T any](mockTargetReference taskid.TaskReference[T], mockResult T, mockError error) task.Task[T] {
-	return task.NewTask(taskid.NewDefaultImplementationID[T](mockTargetReference.ReferenceIDString()), []taskid.UntypedTaskReference{}, func(ctx context.Context) (T, error) {
+func StubTaskFromReferenceID[T any](mockTargetReference taskid.TaskReference[T], mockResult T, mockError error) coretask.Task[T] {
+	return coretask.NewTask(taskid.NewDefaultImplementationID[T](mockTargetReference.ReferenceIDString()), []taskid.UntypedTaskReference{}, func(ctx context.Context) (T, error) {
 		return mockResult, mockError
 	})
 }

@@ -17,10 +17,10 @@ package model
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 )
 
 // FormDocumentModel represents the model for generating document docs/en/reference/form.md.
@@ -52,7 +52,7 @@ type FormUsedFeatureElement struct {
 // GetFormDocumentModel returns the document model for forms.
 func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDocumentModel, error) {
 	result := FormDocumentModel{}
-	forms := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(label.TaskLabelKeyIsFormTask, false))
+	forms := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(label.TaskLabelKeyIsFormTask, false))
 	for _, form := range forms.GetAll() {
 		usedFeatures, err := getFeaturesRequestingFormTask(taskServer, form)
 		if err != nil {
@@ -77,11 +77,11 @@ func GetFormDocumentModel(taskServer *inspection.InspectionTaskServer) (*FormDoc
 }
 
 // getFeaturesRequestingFormTask returns the list of feature tasks that depends on the given form task.
-func getFeaturesRequestingFormTask(taskServer *inspection.InspectionTaskServer, formTask task.UntypedTask) ([]task.UntypedTask, error) {
-	var result []task.UntypedTask
-	features := task.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
+func getFeaturesRequestingFormTask(taskServer *inspection.InspectionTaskServer, formTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
+	var result []coretask.UntypedTask
+	features := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_task.LabelKeyInspectionFeatureFlag, false))
 	for _, feature := range features.GetAll() {
-		hasDependency, err := task.HasDependency(taskServer.RootTaskSet, feature, formTask)
+		hasDependency, err := coretask.HasDependency(taskServer.RootTaskSet, feature, formTask)
 		if err != nil {
 			return nil, err
 		}

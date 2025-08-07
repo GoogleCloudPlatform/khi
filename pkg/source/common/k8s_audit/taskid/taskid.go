@@ -15,16 +15,16 @@
 package common_k8saudit_taskid
 
 import (
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
 // CommonAuditLogSource is a task ID for the task to inject logs and dependencies specific to the log source.
 // The task needs to return types.AuditLogParserLogSource as its result.
-var CommonAuitLogSource = taskid.NewTaskReference[*types.AuditLogParserLogSource](task.KHISystemPrefix + "audit-log-source")
+var CommonAuitLogSource = taskid.NewTaskReference[*types.AuditLogParserLogSource](coretask.KHISystemPrefix + "audit-log-source")
 
-var k8sAuditTaskIDPrefix = task.KHISystemPrefix + "feature/k8s_audit/"
+var k8sAuditTaskIDPrefix = coretask.KHISystemPrefix + "feature/k8s_audit/"
 
 var TimelineGroupingTaskID = taskid.NewDefaultImplementationID[[]*types.TimelineGrouperResult](k8sAuditTaskIDPrefix + "timelne-grouping")
 var ManifestGenerateTaskID = taskid.NewDefaultImplementationID[[]*types.TimelineGrouperResult](k8sAuditTaskIDPrefix + "manifest-generate")
