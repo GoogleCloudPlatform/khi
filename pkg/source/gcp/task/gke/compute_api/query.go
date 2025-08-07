@@ -21,7 +21,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
@@ -30,8 +29,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 )
 
-func GenerateComputeAPIQuery(taskMode inspection_task_interface.InspectionTaskMode, nodeNames []string) []string {
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+func GenerateComputeAPIQuery(taskMode inspectioncontract.InspectionTaskModeType, nodeNames []string) []string {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		return []string{
 			generateComputeAPIQueryWithInstanceNameFilter("-- instance name filters to be determined after audit log query"),
 		}
@@ -59,11 +58,11 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 
 var ComputeAPIQueryTask = query.NewQueryGeneratorTask(gke_compute_api_taskid.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 
 	return GenerateComputeAPIQuery(i, builder.ClusterResource.GetNodes()), nil
-}, GenerateComputeAPIQuery(inspection_task_interface.TaskModeRun, []string{
+}, GenerateComputeAPIQuery(inspectioncontract.TaskModeRun, []string{
 	"gke-test-cluster-node-1",
 	"gke-test-cluster-node-2",
 })[0])

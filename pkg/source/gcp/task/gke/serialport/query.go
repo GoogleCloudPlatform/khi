@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -35,8 +34,8 @@ import (
 
 const MaxNodesPerQuery = 30
 
-func GenerateSerialPortQuery(taskMode inspection_task_interface.InspectionTaskMode, foundNodeNames []string, nodeNameSubstrings []string) []string {
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+func GenerateSerialPortQuery(taskMode inspectioncontract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []string {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		return []string{
 			generateSerialPortQueryWithInstanceNameFilter("-- instance name filters to be determined after audit log query", generateNodeNameSubstringLogFilter(nodeNameSubstrings)),
 		}
@@ -73,12 +72,12 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(serialport_taskid.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
 	gcp_task.InputNodeNameFilterTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, gcp_task.InputNodeNameFilterTaskID.Ref())
 
 	return GenerateSerialPortQuery(taskMode, builder.ClusterResource.GetNodes(), nodeNameSubstrings), nil
-}, GenerateSerialPortQuery(inspection_task_interface.TaskModeRun, []string{
+}, GenerateSerialPortQuery(inspectioncontract.TaskModeRun, []string{
 	"gke-test-cluster-node-1",
 	"gke-test-cluster-node-2",
 }, []string{})[0])

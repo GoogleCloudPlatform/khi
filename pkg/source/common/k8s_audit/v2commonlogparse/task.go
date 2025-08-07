@@ -23,7 +23,7 @@ import (
 	"time"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
@@ -33,8 +33,8 @@ import (
 
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.CommonLogParseTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonAuitLogSource,
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*types.AuditLogParserInput, error) {
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*types.AuditLogParserInput, error) {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		return nil, nil
 	}
 	source := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)

@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
@@ -34,8 +33,8 @@ import (
 
 var SerializerTaskID = taskid.NewDefaultImplementationID[*inspectiondata.FileSystemStore](inspection_task.InspectionTaskPrefix + "serialize")
 
-var SerializeTask = inspection_task.NewProgressReportableInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID.Ref()}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+var SerializeTask = inspection_task.NewProgressReportableInspectionTask(SerializerTaskID, []taskid.UntypedTaskReference{inspection_task.InspectionMainSubgraphDoneTaskID.Ref()}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) (*inspectiondata.FileSystemStore, error) {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil
 	}

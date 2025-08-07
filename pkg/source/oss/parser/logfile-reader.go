@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
@@ -41,8 +40,8 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
 	},
-	func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*log.Log, error) {
-		if taskMode == inspection_task_interface.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*log.Log, error) {
+		if taskMode == inspectioncontract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 		result := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
@@ -109,8 +108,8 @@ var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
-		if taskMode == inspection_task_interface.TaskModeDryRun {
+	}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+		if taskMode == inspectioncontract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 		logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
@@ -131,8 +130,8 @@ var OSSNonEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
-		if taskMode == inspection_task_interface.TaskModeDryRun {
+	}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+		if taskMode == inspectioncontract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 

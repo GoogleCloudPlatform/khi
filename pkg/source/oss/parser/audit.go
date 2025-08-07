@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -40,8 +40,8 @@ import (
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (*types.AuditLogParserLogSource, error) {
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())

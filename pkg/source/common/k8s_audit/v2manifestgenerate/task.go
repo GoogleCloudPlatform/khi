@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
@@ -40,8 +40,8 @@ var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. A
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.TimelineGroupingTaskID.Ref(),
 	gcp_task.K8sResourceMergeConfigTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		return nil, nil
 	}
 	groups := coretask.GetTaskResult(ctx, common_k8saudit_taskid.TimelineGroupingTaskID.Ref())

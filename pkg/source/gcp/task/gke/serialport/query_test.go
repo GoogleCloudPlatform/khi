@@ -19,7 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -27,14 +27,14 @@ import (
 func TestGenerateSerialPortQuery(t *testing.T) {
 	testCases := []struct {
 		name               string
-		taskMode           inspection_task_interface.InspectionTaskMode
+		taskMode           inspectioncontract.InspectionTaskModeType
 		nodeNames          []string
 		nodeNameSubstrings []string
 		wantQuery          string
 	}{
 		{
 			name:               "dryrun",
-			taskMode:           inspection_task_interface.TaskModeDryRun,
+			taskMode:           inspectioncontract.TaskModeDryRun,
 			nodeNames:          []string{"node-1", "node-2"},
 			nodeNameSubstrings: []string{},
 			wantQuery: `LOG_ID("serialconsole.googleapis.com%2Fserial_port_1_output") OR
@@ -48,7 +48,7 @@ LOG_ID("serialconsole.googleapis.com%2Fserial_port_debug_output")
 		},
 		{
 			name:               "with single node",
-			taskMode:           inspection_task_interface.TaskModeRun,
+			taskMode:           inspectioncontract.TaskModeRun,
 			nodeNames:          []string{"node-1"},
 			nodeNameSubstrings: []string{},
 			wantQuery: `LOG_ID("serialconsole.googleapis.com%2Fserial_port_1_output") OR
@@ -62,7 +62,7 @@ labels."compute.googleapis.com/resource_name"=("node-1")
 		},
 		{
 			name:               "with multiple nodes",
-			taskMode:           inspection_task_interface.TaskModeRun,
+			taskMode:           inspectioncontract.TaskModeRun,
 			nodeNames:          []string{"node-1", "node-2", "node-3"},
 			nodeNameSubstrings: []string{},
 			wantQuery: `LOG_ID("serialconsole.googleapis.com%2Fserial_port_1_output") OR
@@ -76,7 +76,7 @@ labels."compute.googleapis.com/resource_name"=("node-1" OR "node-2" OR "node-3")
 		},
 		{
 			name:               "with node name substring",
-			taskMode:           inspection_task_interface.TaskModeRun,
+			taskMode:           inspectioncontract.TaskModeRun,
 			nodeNames:          []string{"node-1", "node-2", "node-3"},
 			nodeNameSubstrings: []string{"node-1"},
 			wantQuery: `LOG_ID("serialconsole.googleapis.com%2Fserial_port_1_output") OR
@@ -112,7 +112,7 @@ func TestMaximumNodeCountNotHittingQueryLengthLimit(t *testing.T) {
 	for i := 0; i < MaxNodesPerQuery*2+1; i++ { // This query must be splitted with 3 sub groups.
 		nodeNames = append(nodeNames, fmt.Sprintf(`gke-%s-%s-%s`, idg46.Generate(), idg8.Generate(), idg4.Generate()))
 	}
-	query := GenerateSerialPortQuery(inspection_task_interface.TaskModeRun, nodeNames, []string{})
+	query := GenerateSerialPortQuery(inspectioncontract.TaskModeRun, nodeNames, []string{})
 	if len(query) != 3 {
 		t.Errorf("len(GenerateSerialPortQuery())=%d, want %d", len(query), 3)
 	}

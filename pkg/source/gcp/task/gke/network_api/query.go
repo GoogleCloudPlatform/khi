@@ -21,7 +21,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
 
@@ -31,12 +30,12 @@ import (
 	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
 )
 
-func GenerateGCPNetworkAPIQuery(taskMode inspection_task_interface.InspectionTaskMode, negNames []string) []string {
+func GenerateGCPNetworkAPIQuery(taskMode inspectioncontract.InspectionTaskModeType, negNames []string) []string {
 	nodeNamesWithNetworkEndpointGroups := []string{}
 	for _, negName := range negNames {
 		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
 	}
-	if taskMode == inspection_task_interface.TaskModeDryRun {
+	if taskMode == inspectioncontract.TaskModeDryRun {
 		return []string{queryFromNegNameFilter("-- neg name filters to be determined after audit log query")}
 	} else {
 		result := []string{}
@@ -58,7 +57,7 @@ func queryFromNegNameFilter(negNameFilter string) string {
 
 var GCPNetworkLogQueryTask = query.NewQueryGeneratorTask(network_api_taskid.GCPNetworkLogQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
 	return GenerateGCPNetworkAPIQuery(i, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
-}, GenerateGCPNetworkAPIQuery(inspection_task_interface.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])
+}, GenerateGCPNetworkAPIQuery(inspectioncontract.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])

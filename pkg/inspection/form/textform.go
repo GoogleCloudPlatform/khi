@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/task/label"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
@@ -207,7 +206,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 				return *new(T), fmt.Errorf("default value generator for task `%s` returned an error\n%v", b.id, err)
 			}
 		}
-		if validationErr != "" && taskMode == inspection_task_interface.TaskModeRun {
+		if validationErr != "" && taskMode == inspectioncontract.TaskModeRun {
 			return *new(T), fmt.Errorf("validator for task `%s` returned a validation error. But this task was executed as a Run mode not in DryRun. All validations must be resolved before running.\n%v", b.id, validationErr)
 		}
 
@@ -228,7 +227,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 			}
 			field.Hint = hint
 			field.HintType = hintType
-			if taskMode == inspection_task_interface.TaskModeRun {
+			if taskMode == inspectioncontract.TaskModeRun {
 				newValueHistory := append([]string{currentValue}, prevValue...)
 				typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
 			}

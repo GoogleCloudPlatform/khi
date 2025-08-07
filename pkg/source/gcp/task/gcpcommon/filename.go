@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
@@ -39,7 +38,7 @@ var HeaderSuggestedFileNameTask = inspection_task.NewInspectionTask(HeaderSugges
 	gcp_task.InputStartTimeTaskID.Ref(),
 	gcp_task.InputEndTimeTaskID.Ref(),
 	gcp_task.InputClusterNameTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (struct{}, error) {
+}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (struct{}, error) {
 	metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
 

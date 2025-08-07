@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	multicloud_api_taskidvar "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api/multicloud_api_taskid"
@@ -38,7 +38,7 @@ protoPayload.resourceName:"%s"
 
 var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(multicloud_api_taskidvar.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
 	gcp_task.InputClusterNameTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_task_interface.InspectionTaskMode) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 
 	return []string{GenerateMultiCloudAPIQuery(clusterName)}, nil

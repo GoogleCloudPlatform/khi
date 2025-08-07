@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -64,8 +63,8 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		common_k8saudit_taskid.LogConvertTaskID.Ref(),
 		common_k8saudit_taskid.ManifestGenerateTaskID.Ref(),
 	}
-	newTask := inspection_task.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, tp *progress.TaskProgress) (any, error) {
-		if taskMode == inspection_task_interface.TaskModeDryRun {
+	newTask := inspection_task.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) (any, error) {
+		if taskMode == inspectioncontract.TaskModeDryRun {
 			return struct{}{}, nil
 		}
 		builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
@@ -129,7 +128,7 @@ func (r *RecorderTaskManager) Register(server *inspection.InspectionTaskServer, 
 		}
 		recorderTaskIds = append(recorderTaskIds, recorder.UntypedID().GetUntypedReference())
 	}
-	waiterTask := inspection_task.NewInspectionTask(r.taskID, recorderTaskIds, func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode) (struct{}, error) {
+	waiterTask := inspection_task.NewInspectionTask(r.taskID, recorderTaskIds, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	}, inspection_task.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, inspectionTypes...))
 	err := server.AddTask(waiterTask)

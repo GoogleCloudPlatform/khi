@@ -22,8 +22,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/form/test"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
@@ -399,7 +399,7 @@ func TestInputStartTime(t *testing.T) {
 	}
 
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspection_task_interface.TaskModeDryRun, map[string]any{},
+	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspectioncontract.TaskModeDryRun, map[string]any{},
 		task_test.NewTaskDependencyValuePair(InputDurationTaskID.Ref(), duration),
 		task_test.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		task_test.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.Ref(), time.UTC),

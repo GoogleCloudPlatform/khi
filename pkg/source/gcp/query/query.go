@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task_interface "github.com/GoogleCloudPlatform/khi/pkg/inspection/interface"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
@@ -47,7 +46,7 @@ const GKEQueryPrefix = gcp_task.GCPPrefix + "query/gke/"
 // Query task will return @Skip when query builder decided to skip.
 const SkipQueryBody = "@Skip"
 
-type QueryGeneratorFunc = func(context.Context, inspection_task_interface.InspectionTaskMode) ([]string, error)
+type QueryGeneratorFunc = func(context.Context, inspectioncontract.InspectionTaskModeType) ([]string, error)
 
 // DefaultResourceNamesGenerator returns the default resource names used for querying Cloud Logging.
 type DefaultResourceNamesGenerator interface {
@@ -82,7 +81,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		gcp_task.InputStartTimeTaskID.Ref(),
 		gcp_task.InputEndTimeTaskID.Ref(),
 		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
-	), func(ctx context.Context, taskMode inspection_task_interface.InspectionTaskMode, progress *progress.TaskProgress) ([]*log.Log, error) {
+	), func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err
@@ -149,7 +148,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			queryInfo.SetQuery(taskId.String(), readableQueryNameForQueryIndex, finalQuery)
 			// TODO: not to store whole logs on memory to avoid OOM
 			// Run query only when thetask mode is for running
-			if taskMode == inspection_task_interface.TaskModeRun {
+			if taskMode == inspectioncontract.TaskModeRun {
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
 				queryLogs, queryErr := worker.Query(ctx, resourceNamesFromInput, progress)
 				if queryErr != nil {
@@ -184,7 +183,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
 		}
 
-		if taskMode == inspection_task_interface.TaskModeRun {
+		if taskMode == inspectioncontract.TaskModeRun {
 			slices.SortFunc(allLogs, func(a, b *log.Log) int {
 				commonFieldSetForA, _ := log.GetFieldSet(a, &log.CommonFieldSet{}) // errors are safely ignored because this field set is required in previous steps
 				commonFieldSetForB, _ := log.GetFieldSet(b, &log.CommonFieldSet{})
