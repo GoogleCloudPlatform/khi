@@ -17,12 +17,12 @@ package vmware
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
 var InspectionTypeId = "gcp-gdcv-for-vmware"
 
-var AnthosOnVMWareInspectionType = inspection.InspectionType{
+var AnthosOnVMWareInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "GDCV for VMWare(GKE on VMWare, Anthos on VMWare)",
 	Description: `Visualize logs generated from GDCV for VMWare cluster(including admin clsuter/user cluster).

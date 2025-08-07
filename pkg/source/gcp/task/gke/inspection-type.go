@@ -17,12 +17,12 @@ package gke
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
 var InspectionTypeId = "gcp-gke"
 
-var GKEInspectionType = inspection.InspectionType{
+var GKEInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "Google Kubernetes Engine",
 	Description: `Visualize logs generated from GKE cluster. 

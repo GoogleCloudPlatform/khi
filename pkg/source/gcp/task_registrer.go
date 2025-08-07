@@ -15,7 +15,7 @@
 package gcp
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
 	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
@@ -42,7 +42,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api"
 )
 
-func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error {
+func commonPreparation(inspectionServer *coreinspection.InspectionTaskServer) error {
 	err := inspectionServer.AddTask(task.GCPDefaultK8sResourceMergeConfigTask)
 	if err != nil {
 		return err
@@ -348,7 +348,7 @@ func commonPreparation(inspectionServer *inspection.InspectionTaskServer) error 
 	return nil
 }
 
-func PrepareInspectionServer(inspectionServer *inspection.InspectionTaskServer) error {
+func PrepareInspectionServer(inspectionServer *coreinspection.InspectionTaskServer) error {
 	err := commonPreparation(inspectionServer)
 	if err != nil {
 		return err

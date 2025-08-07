@@ -15,11 +15,11 @@
 package inspection_common
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 )
 
-func PrepareInspectionServer(rootServer *inspection.InspectionTaskServer) error {
+func PrepareInspectionServer(rootServer *coreinspection.InspectionTaskServer) error {
 	err := rootServer.AddTask(inspection_task.InspectionTimeProducer)
 	if err != nil {
 		return err

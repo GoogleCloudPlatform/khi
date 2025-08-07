@@ -17,12 +17,12 @@ package aws
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
 var InspectionTypeId = "gcp-gke-on-aws"
 
-var AnthosOnAWSInspectionType = inspection.InspectionType{
+var AnthosOnAWSInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "GKE on AWS(Anthos on AWS)",
 	Description: `Visualize logs generated from GKE on AWS cluster. 

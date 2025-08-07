@@ -17,12 +17,12 @@ package composer_inspection_type
 import (
 	"math"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
 var InspectionTypeId = "gcp-composer"
 
-var ComposerInspectionType = inspection.InspectionType{
+var ComposerInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "Cloud Composer",
 	Description: `Visualize logs related to Cloud Composer environment.

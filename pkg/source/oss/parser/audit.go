@@ -17,10 +17,10 @@ package parser
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
@@ -53,7 +53,7 @@ var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK
 }, inspection_task.InspectionTypeLabel(oss_constant.OSSInspectionTypeID))
 
 // RegisterK8sAuditTasks registers tasks needed for parsing OSS k8s audit logs on the inspection server.
-var RegisterK8sAuditTasks inspection.PrepareInspectionServerFunc = func(inspectionServer *inspection.InspectionTaskServer) error {
+var RegisterK8sAuditTasks coreinspection.PrepareInspectionServerFunc = func(inspectionServer *coreinspection.InspectionTaskServer) error {
 	err := inspectionServer.AddTask(OSSK8sAuditLogSourceTask)
 	if err != nil {
 		return err

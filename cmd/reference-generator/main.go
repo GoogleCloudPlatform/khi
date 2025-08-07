@@ -22,9 +22,9 @@ import (
 	"log/slog"
 	"os"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/generator"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
@@ -32,7 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 )
 
-var taskSetRegistrer []inspection.PrepareInspectionServerFunc = make([]inspection.PrepareInspectionServerFunc, 0)
+var taskSetRegistrer []coreinspection.PrepareInspectionServerFunc = make([]coreinspection.PrepareInspectionServerFunc, 0)
 
 // fatal logs the error and exits if err is not nil.
 func fatal(err error, msg string) {
@@ -55,7 +55,7 @@ func main() {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		os.Exit(1)
 	}
-	inspectionServer, err := inspection.NewServer(ioconfig)
+	inspectionServer, err := coreinspection.NewServer(ioconfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}

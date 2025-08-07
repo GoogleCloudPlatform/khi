@@ -28,7 +28,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
@@ -46,6 +45,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -92,12 +92,12 @@ func debugRef(id string) taskid.TaskReference[any] {
 	return taskid.NewTaskReference[any](id)
 }
 
-func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
+func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) {
 	ioConfig, err := inspectioncontract.NewIOConfigForTest()
 	if err != nil {
 		return nil, err
 	}
-	inspectionServer, err := inspection.NewServer(ioConfig)
+	inspectionServer, err := coreinspection.NewServer(ioConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func createTestInspectionServer() (*inspection.InspectionTaskServer, error) {
 			return nil, err
 		}
 	}
-	inspectionTypes := []inspection.InspectionType{
+	inspectionTypes := []coreinspection.InspectionType{
 		{
 			Id:          "foo",
 			Name:        "foo-name",

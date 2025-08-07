@@ -17,7 +17,7 @@ package gcp
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
 	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
@@ -25,7 +25,7 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-func testPrepareInspectionServer(inspectionServer *inspection.InspectionTaskServer) error {
+func testPrepareInspectionServer(inspectionServer *coreinspection.InspectionTaskServer) error {
 	err := commonPreparation(inspectionServer)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func testPrepareInspectionServer(inspectionServer *inspection.InspectionTaskServ
 }
 
 func TestInspectionTasksAreResolvable(t *testing.T) {
-	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "gcp", []inspection.PrepareInspectionServerFunc{
+	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "gcp", []coreinspection.PrepareInspectionServerFunc{
 		inspection_common.PrepareInspectionServer,
 		common.Register,
 		testPrepareInspectionServer,
@@ -42,7 +42,7 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 }
 
 func TestConformanceTestForInspectionTypes(t *testing.T) {
-	inspection_test.ConformanceTestForInspectionTypes(t, []inspection.PrepareInspectionServerFunc{
+	inspection_test.ConformanceTestForInspectionTypes(t, []coreinspection.PrepareInspectionServerFunc{
 		inspection_common.PrepareInspectionServer,
 		common.Register,
 		testPrepareInspectionServer,
