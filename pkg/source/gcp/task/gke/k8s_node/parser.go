@@ -30,7 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parser"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var GKENodeLogParseJob = parser.NewParserTaskFromParser(k8s_node_taskid.GKENodeLogParserTaskID, &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)

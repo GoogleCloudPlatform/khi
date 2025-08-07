@@ -18,7 +18,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var GKENodeLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "k8s-node")

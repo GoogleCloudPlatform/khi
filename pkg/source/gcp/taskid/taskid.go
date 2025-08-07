@@ -16,7 +16,7 @@ package gcp_taskid
 
 import (
 	gcp_types "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var LoggingFilterResourceNameInputTaskID = taskid.NewDefaultImplementationID[*gcp_types.ResourceNamesInput]("logging-filter-resource-name-input")

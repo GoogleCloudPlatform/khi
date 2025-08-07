@@ -22,8 +22,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -40,8 +40,8 @@ func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
 	tid1 := taskid.NewDefaultImplementationID[any]("task1").(taskid.UntypedTaskImplementationID)
 	tid2 := taskid.NewDefaultImplementationID[any]("task2").(taskid.UntypedTaskImplementationID)
-	t1Ctx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, tid1)
-	t2Ctx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, tid2)
+	t1Ctx := khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, tid1)
+	t2Ctx := khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, tid2)
 	logger := slog.New(lh)
 
 	logger.Info("default info")

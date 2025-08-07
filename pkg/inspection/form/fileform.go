@@ -24,7 +24,7 @@ import (
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type FileFormTaskBuilder struct {

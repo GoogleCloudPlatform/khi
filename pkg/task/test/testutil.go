@@ -21,8 +21,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type TaskDependencyValues interface {
@@ -98,14 +98,14 @@ func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask
 }
 
 func prepareTaskContext(baseContext context.Context, task coretask.UntypedTask, taskDependencyValues ...TaskDependencyValues) context.Context {
-	taskCtx := khictx.WithValue(baseContext, task_contextkey.TaskImplementationIDContextKey, task.UntypedID())
+	taskCtx := khictx.WithValue(baseContext, core_contract.TaskImplementationIDContextKey, task.UntypedID())
 
 	resultMap := typedmap.NewTypedMap()
 	for _, taskDependencyValue := range taskDependencyValues {
 		taskDependencyValue.Register(resultMap)
 	}
 
-	taskCtx = khictx.WithValue(taskCtx, task_contextkey.TaskResultMapContextKey, resultMap)
+	taskCtx = khictx.WithValue(taskCtx, core_contract.TaskResultMapContextKey, resultMap)
 
 	return taskCtx
 }

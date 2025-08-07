@@ -25,7 +25,7 @@ import (
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
 func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
@@ -35,7 +35,7 @@ func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
 	taskDependentValues := typedmap.NewTypedMap()
 	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](gcp_task.InputProjectIdTaskID.ReferenceIDString()), projectId)
 	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](composer_taskid.InputComposerEnvironmentTaskID.ReferenceIDString()), environmentName)
-	ctx = khictx.WithValue(ctx, task_contextkey.TaskResultMapContextKey, taskDependentValues)
+	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 	// resource.type="cloud_composer_environment"
 	// resource.labels.environment_name="test-environment"
 	// log_name=projects/test-project/logs/airflow-scheduler

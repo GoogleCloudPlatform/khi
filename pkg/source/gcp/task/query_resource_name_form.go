@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
 	gcp_types "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var resourceNamesInputKey = typedmap.NewTypedKey[*gcp_types.ResourceNamesInput]("query-resource-names")

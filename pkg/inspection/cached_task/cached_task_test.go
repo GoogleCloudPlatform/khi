@@ -21,7 +21,7 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 	"github.com/google/go-cmp/cmp"
 )
 

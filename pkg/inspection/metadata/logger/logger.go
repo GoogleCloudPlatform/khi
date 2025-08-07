@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 )
 
 var LoggerMetadataKey = metadata.NewMetadataKey[*Logger]("log")
@@ -163,7 +163,7 @@ func (l *Logger) MakeTaskLogger(ctx context.Context, minLevel slog.Level) *TaskL
 	if parameters.Debug.NoColor != nil && *parameters.Debug.NoColor {
 		stdoutWithColor = false
 	}
-	tid, err := khictx.GetValue(ctx, task_contextkey.TaskImplementationIDContextKey)
+	tid, err := khictx.GetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	if err == nil {
 		iid, err := khictx.GetValue(ctx, inspectioncontract.InspectionTaskInspectionID)
 		if err == nil {

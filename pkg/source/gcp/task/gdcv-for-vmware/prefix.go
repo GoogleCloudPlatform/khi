@@ -20,7 +20,7 @@ import (
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var AnthosOnVMWareClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "gdcv-for-vmware"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {

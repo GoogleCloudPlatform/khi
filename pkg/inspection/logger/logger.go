@@ -23,8 +23,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var globalLogHandler *globalLoggerHandler = nil
@@ -86,7 +86,7 @@ func (g *globalLoggerHandler) getHandler(ctx context.Context) slog.Handler {
 }
 
 func (g *globalLoggerHandler) routeHandler(ctx context.Context) slog.Handler {
-	tid, err := khictx.GetValue(ctx, task_contextkey.TaskImplementationIDContextKey)
+	tid, err := khictx.GetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	if err == nil {
 		iid, err := khictx.GetValue(ctx, inspectioncontract.InspectionTaskInspectionID)
 		if err == nil {

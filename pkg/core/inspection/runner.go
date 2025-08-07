@@ -42,8 +42,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
@@ -356,7 +356,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 func (i *InspectionTaskRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, tasks []coretask.UntypedTask) *logger.Logger {
 	logger := logger.NewLogger()
 	for _, def := range tasks {
-		taskCtx := khictx.WithValue(ctx, task_contextkey.TaskImplementationIDContextKey, def.UntypedID())
+		taskCtx := khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, def.UntypedID())
 		logger.MakeTaskLogger(taskCtx, minLevel)
 	}
 	return logger

@@ -24,8 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	task_contextkey "github.com/GoogleCloudPlatform/khi/pkg/task/contextkey"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/taskid"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -113,7 +113,7 @@ func (r *LocalRunner) Run(ctx context.Context) error {
 
 		// Setting up graph context
 		r.resultVariable = typedmap.NewTypedMap()
-		ctx = khictx.WithValue(ctx, task_contextkey.TaskResultMapContextKey, r.resultVariable)
+		ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, r.resultVariable)
 
 		tasks := r.resolvedTaskSet.GetAll()
 		cancelableCtx, cancel := context.WithCancel(ctx)
@@ -173,7 +173,7 @@ func (r *LocalRunner) TaskStatuses() []*LocalRunnerTaskStat {
 func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error {
 	task := r.resolvedTaskSet.GetAll()[taskDefIndex]
 	taskStatus := r.taskStatuses[taskDefIndex]
-	taskCtx := khictx.WithValue(graphCtx, task_contextkey.TaskImplementationIDContextKey, task.UntypedID())
+	taskCtx := khictx.WithValue(graphCtx, core_contract.TaskImplementationIDContextKey, task.UntypedID())
 
 	// Wait for completions of all dependencies.
 	for _, dependency := range task.Dependencies() {
