@@ -22,7 +22,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
@@ -144,7 +143,7 @@ var _ metadata.Metadata = (*Logger)(nil)
 
 // Labels implements metadata.Metadata.
 func (*Logger) Labels() *typedmap.ReadonlyTypedMap {
-	return coretask.NewLabelSet(
+	return metadata.NewLabelSet(
 		metadata.IncludeInRunResult(),
 	)
 }

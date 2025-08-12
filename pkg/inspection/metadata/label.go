@@ -14,26 +14,24 @@
 
 package metadata
 
-import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-
 // TODO: avoid circular dependency and use namespace in the flag name
 var LabelKeyIncludedInRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-run-result")
 var LabelKeyIncludedInDryRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-dry-run-result")
 var LabelKeyIncludedInTaskListFlag = NewMetadataLabelsKey[bool]("metadata/include-in-tasklist")
 var LabelKeyIncludedInResultBinaryFlag = NewMetadataLabelsKey[bool]("metadata/include-in-result-binary")
 
-func IncludeInRunResult() coretask.LabelOpt {
-	return coretask.WithLabelValue(LabelKeyIncludedInRunResultFlag, true)
+func IncludeInRunResult() MetadataLabelOpt {
+	return WithLabelValue(LabelKeyIncludedInRunResultFlag, true)
 }
 
-func IncludeInDryRunResult() coretask.LabelOpt {
-	return coretask.WithLabelValue(LabelKeyIncludedInDryRunResultFlag, true)
+func IncludeInDryRunResult() MetadataLabelOpt {
+	return WithLabelValue(LabelKeyIncludedInDryRunResultFlag, true)
 }
 
-func IncludeInTaskList() coretask.LabelOpt {
-	return coretask.WithLabelValue(LabelKeyIncludedInTaskListFlag, true)
+func IncludeInTaskList() MetadataLabelOpt {
+	return WithLabelValue(LabelKeyIncludedInTaskListFlag, true)
 }
 
-func IncludeInResultBinary() coretask.LabelOpt {
-	return coretask.WithLabelValue(LabelKeyIncludedInResultBinaryFlag, true)
+func IncludeInResultBinary() MetadataLabelOpt {
+	return WithLabelValue(LabelKeyIncludedInResultBinaryFlag, true)
 }

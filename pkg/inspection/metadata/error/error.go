@@ -16,7 +16,6 @@ package error
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
@@ -35,7 +34,7 @@ type ErrorMessageSet struct {
 
 // Labels implements metadata.Metadata.
 func (e *ErrorMessageSet) Labels() *typedmap.ReadonlyTypedMap {
-	return coretask.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList())
+	return metadata.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList())
 }
 
 // ToSerializable implements metadata.Metadata.

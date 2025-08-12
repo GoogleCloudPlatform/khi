@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
@@ -40,7 +39,7 @@ var _ metadata.Metadata = (*Header)(nil)
 
 // Labels implements Metadata.
 func (*Header) Labels() *typedmap.ReadonlyTypedMap {
-	return coretask.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList(), metadata.IncludeInResultBinary())
+	return metadata.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList(), metadata.IncludeInResultBinary())
 }
 
 func (h *Header) ToSerializable() interface{} {
