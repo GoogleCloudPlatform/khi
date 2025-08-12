@@ -15,10 +15,12 @@
 package coreinspection
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -29,11 +31,12 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/plan"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
@@ -42,12 +45,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
 
+// InspectionTaskRunner manages the lifecycle of a single inspection instance.
+// It handles task graph resolution, execution, and result retrieval for a given inspection type and feature set.
 type InspectionTaskRunner struct {
 	inspectionServer      *InspectionTaskServer
 	ID                    string
@@ -65,6 +69,7 @@ type InspectionTaskRunner struct {
 	ioconfig              *inspectioncontract.IOConfig
 }
 
+// NewInspectionRunner creates a new InspectionTaskRunner.
 func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncontract.IOConfig, id string) *InspectionTaskRunner {
 	return &InspectionTaskRunner{
 		inspectionServer:      server,
@@ -84,10 +89,13 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncontr
 	}
 }
 
+// Started returns true if the inspection has been started.
 func (i *InspectionTaskRunner) Started() bool {
 	return i.runner != nil
 }
 
+// SetInspectionType sets the type of inspection and initializes the available tasks.
+// It filters the root task set from the server to get tasks relevant to the specified inspectionType.
 func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	typeFound := false
 	for _, inspection := range i.inspectionServer.inspectionTypes {
@@ -110,6 +118,7 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	return i.SetFeatureList(defaultFeatureIds)
 }
 
+// FeatureList returns the list of available features for the current inspection type.
 func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 	if i.availableTasks == nil {
 		return nil, fmt.Errorf("inspection type is not yet initialized")
@@ -133,6 +142,7 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 	return features, nil
 }
 
+// SetFeatureList sets the list of enabled features for the inspection.
 func (i *InspectionTaskRunner) SetFeatureList(featureList []string) error {
 	featureTasks := []coretask.UntypedTask{}
 	for _, featureId := range featureList {
@@ -157,9 +167,8 @@ func (i *InspectionTaskRunner) SetFeatureList(featureList []string) error {
 	return nil
 }
 
-// UpdateFeatureMap updates the enabledFeatures and featureDefinitions
-// inputs:
-// featureMap: map of featureId and bool. If the value is true, the feature is enabled.
+// UpdateFeatureMap updates the enabled features based on the provided map.
+// The input map contains feature IDs and a boolean indicating if they should be enabled.
 func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) error {
 	for featureId := range featureMap {
 		task, err := i.availableTasks.Get(featureId)
@@ -194,6 +203,8 @@ func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode
 	return runCtx, nil
 }
 
+// Run executes the inspection. It resolves the task graph, sets up the context
+// and metadata, and starts the task runner asynchronously.
 func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.InspectionRequest) error {
 	defer i.runnerLock.Unlock()
 	i.runnerLock.Lock()
@@ -225,6 +236,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 
 	runner, err := coretask.NewLocalRunner(runnableTaskGraph)
 	if err != nil {
+		i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 		return err
 	}
 	i.runner = runner
@@ -234,9 +246,11 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 
 	err = i.runner.Run(cancelableCtx)
 	if err != nil {
+		i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 		return err
 	}
 	go func() {
+		defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 		<-i.runner.Wait()
 		progress, found := typedmap.Get(i.metadata, progress.ProgressMetadataKey)
 		if !found {
@@ -275,6 +289,8 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 	return nil
 }
 
+// Result returns the final result of a completed inspection.
+// It extracts the inspection data store and serializable metadata from the task runner's result.
 func (i *InspectionTaskRunner) Result() (*InspectionRunResult, error) {
 	if i.runner == nil {
 		return nil, fmt.Errorf("this task is not yet started")
@@ -300,6 +316,7 @@ func (i *InspectionTaskRunner) Result() (*InspectionRunResult, error) {
 	}, nil
 }
 
+// Metadata returns the serializable metadata of the current run.
 func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 	if i.runner == nil {
 		return nil, fmt.Errorf("this task is not yet started")
@@ -311,14 +328,14 @@ func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 	return md, nil
 }
 
+// DryRun performs a dry run of the inspection.
+// It resolves the task graph and runs it in dry-run mode to collect metadata without executing tasks.
 func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.InspectionRequest) (*InspectionDryRunResult, error) {
-	slog.DebugContext(ctx, "starting resolving task graph")
 	runnableTaskGraph, err := i.resolveTaskGraph()
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return nil, err
 	}
-	slog.DebugContext(ctx, "end resolving task graph")
 
 	runner, err := coretask.NewLocalRunner(runnableTaskGraph)
 	if err != nil {
@@ -329,6 +346,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 	if err != nil {
 		return nil, err
 	}
+	defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 
 	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &header.Header{}, runnableTaskGraph)
 
@@ -353,14 +371,31 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_task.
 	}, nil
 }
 
-func (i *InspectionTaskRunner) MakeLoggers(ctx context.Context, minLevel slog.Level, m *typedmap.ReadonlyTypedMap, tasks []coretask.UntypedTask) *logger.Logger {
-	logger := logger.NewLogger()
+func (i *InspectionTaskRunner) makeLoggers(ctx context.Context, minLevel slog.Level, tasks []coretask.UntypedTask) *log.LogMetadata {
+	logMetadata := log.NewLogMetadata()
 	for _, def := range tasks {
-		taskCtx := khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, def.UntypedID())
-		logger.MakeTaskLogger(taskCtx, minLevel)
+		inspectionID := i.ID
+		runID := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskRunID)
+		taskID := def.UntypedID()
+		logger.RegisterTaskLogger(inspectionID, taskID, runID, i.makeLogger(minLevel, logMetadata.GetTaskLogBuffer(taskID)))
 	}
-	return logger
+	return logMetadata
 }
+
+func (i *InspectionTaskRunner) makeLogger(minLevel slog.Level, logBuffer *bytes.Buffer) slog.Handler {
+	stdoutWithColor := true
+	if parameters.Debug.NoColor != nil && *parameters.Debug.NoColor {
+		stdoutWithColor = false
+	}
+	logThrottleCount := 10 // Similar logs over logThrottleCount will be discarded
+
+	return logger.NewTeeHandler(
+		logger.NewThrottleFilter(logThrottleCount, logger.NewSeverityFilter(minLevel, logger.NewKHIFormatLogger(os.Stdout, stdoutWithColor))),
+		logger.NewThrottleFilter(logThrottleCount, logger.NewSeverityFilter(minLevel, logger.NewKHIFormatLogger(logBuffer, false))),
+	)
+}
+
+// GetCurrentMetadata returns the metadata map for the current inspection run.
 func (i *InspectionTaskRunner) GetCurrentMetadata() (*typedmap.ReadonlyTypedMap, error) {
 	if i.metadata == nil {
 		return nil, fmt.Errorf("this task hasn't been started")
@@ -368,6 +403,7 @@ func (i *InspectionTaskRunner) GetCurrentMetadata() (*typedmap.ReadonlyTypedMap,
 	return i.metadata, nil
 }
 
+// Cancel requests the cancellation of a running inspection.
 func (i *InspectionTaskRunner) Cancel() error {
 	if i.cancel == nil {
 		return fmt.Errorf("this task is not yet started")
@@ -379,6 +415,7 @@ func (i *InspectionTaskRunner) Cancel() error {
 	return nil
 }
 
+// Wait returns a channel that is closed when the inspection finishes.
 func (i *InspectionTaskRunner) Wait() <-chan interface{} {
 	return i.runner.Wait()
 }
@@ -441,7 +478,18 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	}
 	typedmap.Set(writableMetadata, plan.InspectionPlanMetadataKey, plan.NewInspectionPlan(taskGraphStr))
 
-	i.MakeLoggers(ctx, getLogLevel(), writableMetadata.AsReadonly(), taskGraph.GetAll())
+	logMetadata := i.makeLoggers(ctx, getLogLevel(), taskGraph.GetAll())
+	typedmap.Set(writableMetadata, log.LogMetadataKey, logMetadata)
+}
+
+func (i *InspectionTaskRunner) cleanupAfterAnyRun(ctx context.Context, taskGraph *coretask.TaskSet) {
+	// Clean up loggers registered for all tasks
+	tasks := taskGraph.GetAll()
+	for _, task := range tasks {
+		inspectionID := i.ID
+		runID := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskRunID)
+		logger.UnregisterTaskLogger(inspectionID, task.UntypedID(), runID)
+	}
 }
 
 func getLogLevel() slog.Level {

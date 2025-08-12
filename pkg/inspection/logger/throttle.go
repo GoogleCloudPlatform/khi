@@ -16,44 +16,47 @@ package logger
 
 import "github.com/GoogleCloudPlatform/khi/pkg/common"
 
-type LogThrottleStatus = int
+type logThrottleStatus = int
 
 var (
-	StatusNoThrottle         LogThrottleStatus = 0
-	StatusJustBeforeThrottle LogThrottleStatus = 1
-	StatusThrottled          LogThrottleStatus = 2
+	statusNoThrottle         logThrottleStatus = 0
+	statusJustBeforeThrottle logThrottleStatus = 1
+	statusThrottled          logThrottleStatus = 2
 )
 
-// LogThrottler is an interface to decide if the new record should be printed or not.
-// It mainly for reducing log volume addressing same kind log.
-type LogThrottler interface {
-	// ThrottleStatus returns true only when it should be handled. This must be called once for a single log entry.
-	ThrottleStatus(logKind string) LogThrottleStatus
+// logThrottler is an interface to decide if a new log record should be printed.
+// It is used to reduce the volume of similar, repetitive logs.
+type logThrottler interface {
+	// ThrottleStatus determines if a log of a given kind should be processed.
+	// It must be called once for each log entry.
+	ThrottleStatus(logKind string) logThrottleStatus
 }
 
-type ConstantLogThrottle struct {
+// constantCountLogThrottler is an implementation of logThrottler that allows
+// a constant number of logs per kind before it starts throttling.
+type constantCountLogThrottler struct {
 	counter         *common.ConcurrentCounter
 	MaxCountPerKind int
 }
 
-func NewConstantLogThrottle(maxCountPerKind int) LogThrottler {
-	return ConstantLogThrottle{
+func newConstantCountLogThrottler(maxCountPerKind int) logThrottler {
+	return constantCountLogThrottler{
 		counter:         common.NewDefaultConcurrentCounter(common.NewSuffixShardingProvider(16, 1)),
 		MaxCountPerKind: maxCountPerKind,
 	}
 }
 
-func (c ConstantLogThrottle) ThrottleStatus(logKind string) LogThrottleStatus {
+func (c constantCountLogThrottler) ThrottleStatus(logKind string) logThrottleStatus {
 	if logKind == "" {
-		return StatusNoThrottle
+		return statusNoThrottle
 	}
 	cnt := c.counter.Incr(logKind)
 	switch {
 	case cnt == c.MaxCountPerKind:
-		return StatusJustBeforeThrottle
+		return statusJustBeforeThrottle
 	case cnt > c.MaxCountPerKind:
-		return StatusThrottled
+		return statusThrottled
 	default:
-		return StatusNoThrottle
+		return statusNoThrottle
 	}
 }

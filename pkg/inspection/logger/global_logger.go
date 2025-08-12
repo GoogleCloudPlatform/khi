@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
-var globalLogHandler *globalLoggerHandler = nil
+var globalLogHandler *globalLoggerHandler
 
 // A slog.Handler for KHI.
 // This should route write requests to the corresponding slog.Handler.
@@ -117,13 +117,15 @@ func (g *globalLoggerHandler) RegisterTaskLogger(inspectionId string, taskId tas
 		(*g.handlers)[loggerId] = handler
 	}
 }
-func (g *globalLoggerHandler) UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
+
+func (g *globalLoggerHandler) UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
 	g.handlersLock.Lock()
 	defer g.handlersLock.Unlock()
 	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
 	delete((*g.handlers), loggerId)
 }
 
+// InitGlobalKHILogger initializes the global logger for KHI.
 func InitGlobalKHILogger() {
 	globalLogHandler = localInitInspectionLogger(NewKHIFormatLogger(os.Stdout, true))
 	slog.SetDefault(slog.New(globalLogHandler))
@@ -140,6 +142,14 @@ func localInitInspectionLogger(defaultHandler slog.Handler) *globalLoggerHandler
 	return handler
 }
 
+// RegisterTaskLogger registers a slog.Handler for a specific task run.
+// This allows logs to be routed to a handler tailored for that task.
 func RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
 	globalLogHandler.RegisterTaskLogger(inspectionId, taskId, runId, handler)
+}
+
+// UnregisterTaskLogger removes the slog.Handler for a specific task run.
+// This should be called when a task run is complete to clean up resources.
+func UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
+	globalLogHandler.UnregisterTaskLogger(inspectionId, taskId, runId)
 }

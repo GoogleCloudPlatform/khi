@@ -20,29 +20,29 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-func TestConstantLogThrottle(t *testing.T) {
-	throttle := NewConstantLogThrottle(10)
+func TestConstantLogThrottler(t *testing.T) {
+	throttle := newConstantCountLogThrottler(10)
 	for i := 0; i < 9; i++ {
-		if throttle.ThrottleStatus("foo") != StatusNoThrottle {
+		if throttle.ThrottleStatus("foo") != statusNoThrottle {
 			t.Errorf("key foo shouldn't be throttled yet")
 		}
-		if throttle.ThrottleStatus("") != StatusNoThrottle {
+		if throttle.ThrottleStatus("") != statusNoThrottle {
 			t.Errorf("key \"\" shouldn't be throttled never")
 		}
 	}
-	if throttle.ThrottleStatus("foo") != StatusJustBeforeThrottle {
+	if throttle.ThrottleStatus("foo") != statusJustBeforeThrottle {
 		t.Errorf("key foo should be throttled from next")
 	}
-	if throttle.ThrottleStatus("foo") != StatusThrottled {
+	if throttle.ThrottleStatus("foo") != statusThrottled {
 		t.Errorf("foo should be throttled")
 	}
-	if throttle.ThrottleStatus("bar") != StatusNoThrottle {
+	if throttle.ThrottleStatus("bar") != statusNoThrottle {
 		t.Errorf("key foo shouldn't be throttled yet")
 	}
-	if throttle.ThrottleStatus("") != StatusNoThrottle {
+	if throttle.ThrottleStatus("") != statusNoThrottle {
 		t.Errorf("key \"\" shouldn't be throttled never")
 	}
-	if throttle.ThrottleStatus("") != StatusNoThrottle {
+	if throttle.ThrottleStatus("") != statusNoThrottle {
 		t.Errorf("key \"\" shouldn't be throttled never")
 	}
 }
