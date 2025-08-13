@@ -12,23 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package progress
+package progressutil
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 )
 
-// IndeterminateUpdator updates progress bar during a procedure can't report its progress.
+// IndeterminateUpdator updates a progress bar for a task that cannot report
+// its progress as a percentage. It shows a message with an animated indicator
+// to signify that the task is running.
 type IndeterminateUpdator struct {
-	Progress *TaskProgress
+	Progress *progress.TaskProgress
 	Interval time.Duration
 	context  context.Context
 	cancel   func()
 }
 
-func NewIndeterminateUpdator(progress *TaskProgress, interval time.Duration) *IndeterminateUpdator {
+// NewIndeterminateUpdator creates and initializes a new IndeterminateUpdator.
+// It marks the associated TaskProgress as indeterminate.
+func NewIndeterminateUpdator(progress *progress.TaskProgress, interval time.Duration) *IndeterminateUpdator {
 	progress.Indeterminate = true
 	return &IndeterminateUpdator{
 		Progress: progress,

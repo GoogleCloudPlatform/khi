@@ -25,8 +25,8 @@ import (
 
 func newProgressforConformanceTest() metadata.Metadata {
 	progress := NewProgress()
-	progress.GetTaskProgress("foo")
-	progress.GetTaskProgress("bar")
+	progress.GetOrCreateTaskProgress("foo")
+	progress.GetOrCreateTaskProgress("bar")
 	return progress
 }
 

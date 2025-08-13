@@ -22,13 +22,27 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
+// ProgressMetadataKey is the key used to store and retrieve Progress metadata
+// from a context or metadata map.
 var ProgressMetadataKey = metadata.NewMetadataKey[*Progress]("progress")
 
-const TASK_PHASE_RUNNING = "RUNNING"
-const TASK_PHASE_DONE = "DONE"
-const TASK_PHASE_ERROR = "ERROR"
-const TASK_PHASE_CANCELLED = "CANCELLED"
+// TaskProgressPhase represents the lifecycle phase of a task's progress.
+type TaskProgressPhase string
 
+// Constants defining the possible phases of a task's progress.
+const (
+	// TaskPhaseRunning indicates that the task is currently executing.
+	TaskPhaseRunning TaskProgressPhase = "RUNNING"
+	// TaskPhaseDone indicates that the task has completed successfully.
+	TaskPhaseDone = "DONE"
+	// TaskPhaseError indicates that the task terminated with an error.
+	TaskPhaseError = "ERROR"
+	// TaskPhaseCancelled indicates that the task was cancelled before completion.
+	TaskPhaseCancelled = "CANCELLED"
+)
+
+// TaskProgress represents the progress of a single task within an inspection.
+// It includes an ID, a human-readable label, a status message, and completion percentage.
 type TaskProgress struct {
 	Id            string  `json:"id"`
 	Label         string  `json:"label"`
@@ -37,6 +51,7 @@ type TaskProgress struct {
 	Indeterminate bool    `json:"indeterminate"`
 }
 
+// NewTaskProgress creates and initializes a new TaskProgress object with the given ID.
 func NewTaskProgress(id string) *TaskProgress {
 	return &TaskProgress{
 		Id:            id,
@@ -60,18 +75,21 @@ func (tp *TaskProgress) MarkIndeterminate() {
 	tp.Percentage = 0
 }
 
+// Progress aggregates the progress of all tasks in an inspection run.
+// It tracks the overall phase, total progress, and the progress of individual active tasks.
 type Progress struct {
-	Phase             string          `json:"phase"`
-	TotalProgress     *TaskProgress   `json:"totalProgress"`
-	TaskProgresses    []*TaskProgress `json:"progresses"`
-	totalTaskCount    int             `json:"-"`
-	resolvedTaskCount int             `json:"-"`
-	lock              sync.Mutex      `json:"-"`
+	Phase             TaskProgressPhase `json:"phase"`
+	TotalProgress     *TaskProgress     `json:"totalProgress"`
+	TaskProgresses    []*TaskProgress   `json:"progresses"`
+	totalTaskCount    int               `json:"-"`
+	resolvedTaskCount int               `json:"-"`
+	lock              sync.Mutex        `json:"-"`
 }
 
+// NewProgress creates and initializes a new Progress object.
 func NewProgress() *Progress {
 	return &Progress{
-		Phase:             TASK_PHASE_RUNNING,
+		Phase:             TaskPhaseRunning,
 		TaskProgresses:    make([]*TaskProgress, 0),
 		TotalProgress:     NewTaskProgress("Total"),
 		lock:              sync.Mutex{},
@@ -92,15 +110,20 @@ func (p *Progress) ToSerializable() interface{} {
 	return p
 }
 
+// SetTotalTaskCount sets the total number of tasks that will be tracked.
+// This is used to calculate the overall progress percentage.
 func (p *Progress) SetTotalTaskCount(count int) {
 	p.totalTaskCount = count
 	p.updateTotalTaskProgress()
 }
 
-func (p *Progress) GetTaskProgress(id string) (*TaskProgress, error) {
+// GetOrCreateTaskProgress retrieves the TaskProgress for a given task ID.
+// If no progress object exists for the ID, a new one is created and added to the list.
+// It returns an error if the overall progress is no longer in the RUNNING phase.
+func (p *Progress) GetOrCreateTaskProgress(id string) (*TaskProgress, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.Phase != TASK_PHASE_RUNNING {
+	if p.Phase != TaskPhaseRunning {
 		return nil, fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
 	for _, progress := range p.TaskProgresses {
@@ -113,10 +136,13 @@ func (p *Progress) GetTaskProgress(id string) (*TaskProgress, error) {
 	return taskProgress, nil
 }
 
+// ResolveTask marks a task as resolved by removing it from the active progress list
+// and increments the count of resolved tasks.
+// It returns an error if the overall progress is no longer in the RUNNING phase.
 func (p *Progress) ResolveTask(id string) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.Phase != TASK_PHASE_RUNNING {
+	if p.Phase != TaskPhaseRunning {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
 	newTaskProgress := make([]*TaskProgress, 0)
@@ -131,37 +157,46 @@ func (p *Progress) ResolveTask(id string) error {
 	return nil
 }
 
-func (p *Progress) Done() error {
+// MarkDone transitions the overall progress to the DONE phase.
+// It clears all active task progresses and marks the total progress as 100% complete.
+// It returns an error if the overall progress is no longer in the RUNNING phase.
+func (p *Progress) MarkDone() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.Phase != TASK_PHASE_RUNNING {
+	if p.Phase != TaskPhaseRunning {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
-	p.Phase = TASK_PHASE_DONE
+	p.Phase = TaskPhaseDone
 	p.resolvedTaskCount = p.totalTaskCount
 	p.TaskProgresses = make([]*TaskProgress, 0)
 	p.updateTotalTaskProgress()
 	return nil
 }
 
-func (p *Progress) Cancel() error {
+// MarkCancelled transitions the overall progress to the CANCELLED phase.
+// It clears all active task progresses.
+// It returns an error if the overall progress is no longer in the RUNNING phase.
+func (p *Progress) MarkCancelled() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.Phase != TASK_PHASE_RUNNING {
+	if p.Phase != TaskPhaseRunning {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
-	p.Phase = TASK_PHASE_CANCELLED
+	p.Phase = TaskPhaseCancelled
 	p.TaskProgresses = make([]*TaskProgress, 0)
 	return nil
 }
 
-func (p *Progress) Error() error {
+// MarkError transitions the overall progress to the ERROR phase.
+// It clears all active task progresses.
+// It returns an error if the overall progress is no longer in the RUNNING phase.
+func (p *Progress) MarkError() error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-	if p.Phase != TASK_PHASE_RUNNING {
+	if p.Phase != TaskPhaseRunning {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
-	p.Phase = TASK_PHASE_ERROR
+	p.Phase = TaskPhaseError
 	p.TaskProgresses = make([]*TaskProgress, 0)
 	return nil
 }

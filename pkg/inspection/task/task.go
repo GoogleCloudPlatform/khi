@@ -51,7 +51,7 @@ func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementation
 			return *new(T), fmt.Errorf("progress metadata not found")
 		}
 		defer progress.ResolveTask(taskId.String())
-		taskProgress, err := progress.GetTaskProgress(taskId.String())
+		taskProgress, err := progress.GetOrCreateTaskProgress(taskId.String())
 		if err != nil {
 			return *new(T), err
 		}

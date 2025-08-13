@@ -12,25 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package progress
+package progressutil
 
 import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 )
 
-type ProgressUpdatorOnTickFunc = func(tp *TaskProgress)
+// ProgressUpdatorOnTickFunc is a function type that is called by ProgressUpdator
+// on each tick to update the task progress.
+type ProgressUpdatorOnTickFunc = func(tp *progress.TaskProgress)
 
+// ProgressUpdator periodically updates a TaskProgress object at a specified
+// interval. It uses a callback function to perform the update logic on each tick.
 type ProgressUpdator struct {
-	Progress *TaskProgress
+	Progress *progress.TaskProgress
 	Interval time.Duration
 	OnTick   ProgressUpdatorOnTickFunc
 	context  context.Context
 	cancel   func()
 }
 
-func NewProgressUpdator(progress *TaskProgress, interval time.Duration, onTick ProgressUpdatorOnTickFunc) *ProgressUpdator {
+// NewProgressUpdator creates and initializes a new ProgressUpdator.
+func NewProgressUpdator(progress *progress.TaskProgress, interval time.Duration, onTick ProgressUpdatorOnTickFunc) *ProgressUpdator {
 	return &ProgressUpdator{
 		Progress: progress,
 		Interval: interval,
@@ -38,6 +45,9 @@ func NewProgressUpdator(progress *TaskProgress, interval time.Duration, onTick P
 	}
 }
 
+// Start begins the periodic updates. It invokes the OnTick callback immediately
+// and then continues to call it at the specified interval until Done is called.
+// It returns an error if the updator has already been started.
 func (p *ProgressUpdator) Start(ctx context.Context) error {
 	p.OnTick(p.Progress)
 	cancellable, cancel := context.WithCancel(ctx)
@@ -57,6 +67,8 @@ func (p *ProgressUpdator) Start(ctx context.Context) error {
 	return nil
 }
 
+// Done stops the periodic updates.
+// It returns an error if the updator was not started.
 func (p *ProgressUpdator) Done() error {
 	if p.context == nil {
 		return fmt.Errorf("this updator is not yet started")

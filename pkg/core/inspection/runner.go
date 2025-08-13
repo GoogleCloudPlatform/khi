@@ -260,15 +260,15 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_task.Ins
 		resultSize := 0
 		if result, err := i.runner.Result(); err != nil {
 			if errors.Is(cancelableCtx.Err(), context.Canceled) {
-				progress.Cancel()
+				progress.MarkCancelled()
 				status = "cancel"
 			} else {
-				progress.Error()
+				progress.MarkError()
 				status = "error"
 			}
 			slog.WarnContext(runCtx, fmt.Sprintf("task %s was finished with an error\n%s", i.ID, err))
 		} else {
-			progress.Done()
+			progress.MarkDone()
 			status = "done"
 
 			history, found := typedmap.Get(result, typedmap.NewTypedKey[inspectiondata.Store](serializer.SerializerTaskID.ReferenceIDString()))

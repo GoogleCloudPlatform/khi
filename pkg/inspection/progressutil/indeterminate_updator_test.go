@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package progress
+package progressutil
 
 import (
 	"testing"
@@ -22,32 +22,33 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 )
 
 func TestIndeterminateUpdator(t *testing.T) {
-	progress := NewTaskProgress("foo")
-	updator := NewIndeterminateUpdator(progress, 1000*time.Millisecond)
+	tp := progress.NewTaskProgress("foo")
+	updator := NewIndeterminateUpdator(tp, 1000*time.Millisecond)
 	err := updator.Start("working")
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	time.Sleep(1500 * time.Millisecond)
-	if diff := cmp.Diff(&TaskProgress{
+	if diff := cmp.Diff(&progress.TaskProgress{
 		Id:            "foo",
 		Label:         "foo",
 		Message:       "working.",
 		Percentage:    0,
 		Indeterminate: true,
-	}, progress, cmpopts.IgnoreUnexported(TaskProgress{})); diff != "" {
+	}, tp, cmpopts.IgnoreUnexported(progress.TaskProgress{})); diff != "" {
 		t.Errorf("The result status is not in the expected status\n%s", diff)
 	}
 	err = updator.Done()
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	msg := progress.Message
+	msg := tp.Message
 	time.Sleep(1000 * time.Millisecond)
-	if msg != progress.Message {
+	if msg != tp.Message {
 		t.Errorf("The progress is keeping updated")
 	}
 }
