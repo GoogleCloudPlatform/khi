@@ -52,10 +52,10 @@ func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskB
 }
 
 func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Task[upload.UploadResult] {
-	return common_task.NewTask(b.id, b.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
+	return common_task.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
 		metadata := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
 
-		token := upload.DefaultUploadFileStore.GetUploadToken(upload.GenerateUploadIDWithTaskContext(ctx, b.id.ReferenceIDString()), b.verifier)
+		token := upload.DefaultUploadFileStore.GetUploadToken(upload.GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
 		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
 		if err != nil {
 			return upload.UploadResult{}, err
@@ -69,7 +69,7 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 			Token:  token,
 			Status: uploadResult.Status,
 		}
-		b.SetupBaseFormField(&field.ParameterFormFieldBase)
+		b.FormTaskBuilderBase.SetupBaseFormField(&field.ParameterFormFieldBase)
 
 		field = setFormHintsFromUploadResult(uploadResult, field)
 		formFields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
@@ -78,7 +78,7 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 		}
 		err = formFields.SetField(field)
 		if err != nil {
-			return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.id, err)
+			return upload.UploadResult{}, fmt.Errorf("failed to configure the form metadata in task `%s`\n%v", b.FormTaskBuilderBase.id, err)
 		}
 
 		return uploadResult, nil

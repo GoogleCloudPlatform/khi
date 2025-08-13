@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package progress
+package progressutil
 
 import (
 	"errors"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 )
 
 // updateRecord records a single progress update
@@ -89,7 +91,7 @@ func TestReportProgressFromArraySync(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a real TaskProgress
-			progress := NewTaskProgress("test")
+			progress := progress.NewTaskProgress("test")
 
 			// Set up a recorder to capture updates
 			var updates []updateRecord

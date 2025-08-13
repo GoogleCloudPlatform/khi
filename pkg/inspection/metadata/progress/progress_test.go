@@ -25,7 +25,7 @@ import (
 
 func TestGetTaskProgress(t *testing.T) {
 	progress := NewProgress()
-	tp, err := progress.GetTaskProgress("foo")
+	tp, err := progress.GetOrCreateTaskProgress("foo")
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
@@ -41,7 +41,7 @@ func TestGetTaskProgress(t *testing.T) {
 		t.Errorf("generated task progress is not containing the expected state\n%s", diff)
 	}
 
-	tp2, err := progress.GetTaskProgress("foo")
+	tp2, err := progress.GetOrCreateTaskProgress("foo")
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
@@ -54,8 +54,8 @@ func TestGetTaskProgress(t *testing.T) {
 func TestResolveTasks(t *testing.T) {
 	progress := NewProgress()
 	progress.SetTotalTaskCount(2)
-	progress.GetTaskProgress("foo")
-	progress.GetTaskProgress("bar")
+	progress.GetOrCreateTaskProgress("foo")
+	progress.GetOrCreateTaskProgress("bar")
 	progress.ResolveTask("foo")
 
 	if diff := cmp.Diff(&Progress{
@@ -75,9 +75,9 @@ func TestResolveTasks(t *testing.T) {
 func TestDoneClearTasks(t *testing.T) {
 	progress := NewProgress()
 	progress.SetTotalTaskCount(2)
-	progress.GetTaskProgress("foo")
-	progress.GetTaskProgress("bar")
-	progress.Done()
+	progress.GetOrCreateTaskProgress("foo")
+	progress.GetOrCreateTaskProgress("bar")
+	progress.MarkDone()
 
 	if diff := cmp.Diff(&Progress{
 		Phase:          "DONE",
@@ -91,9 +91,9 @@ func TestDoneClearTasks(t *testing.T) {
 func TestCancelClearTasks(t *testing.T) {
 	progress := NewProgress()
 	progress.SetTotalTaskCount(2)
-	progress.GetTaskProgress("foo")
-	progress.GetTaskProgress("bar")
-	progress.Cancel()
+	progress.GetOrCreateTaskProgress("foo")
+	progress.GetOrCreateTaskProgress("bar")
+	progress.MarkCancelled()
 
 	if diff := cmp.Diff(&Progress{
 		Phase:          "CANCELLED",

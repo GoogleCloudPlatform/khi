@@ -24,6 +24,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
@@ -41,7 +42,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 		return nil, nil
 	}
 	preStepParseResult := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonLogParseTaskID.Ref())
-	progressUpdater := progress.NewIndeterminateUpdator(tp, time.Second)
+	progressUpdater := progressutil.NewIndeterminateUpdator(tp, time.Second)
 	err := progressUpdater.Start("Grouping logs by timeline")
 	if err != nil {
 		return nil, err

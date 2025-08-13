@@ -27,6 +27,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
@@ -52,7 +53,7 @@ var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_t
 		totalLogCount += len(group.PreParsedLogs)
 	}
 	processedCount := atomic.Int32{}
-	updator := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
+	updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
 		current := processedCount.Load()
 		tp.Percentage = float32(current) / float32(totalLogCount)
 		tp.Message = fmt.Sprintf("%d/%d", current, totalLogCount)

@@ -27,6 +27,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -73,7 +74,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 		logs := coretask.GetTaskResult(ctx, parser.LogTask())
 
 		preparedLogCount := atomic.Int32{}
-		updator := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
+		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
 			current := preparedLogCount.Load()
 			tp.Percentage = float32(current) / float32(len(logs))
 			tp.Message = fmt.Sprintf("%d/%d", current, len(logs))

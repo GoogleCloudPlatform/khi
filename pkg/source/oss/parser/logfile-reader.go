@@ -27,6 +27,7 @@ import (
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -60,7 +61,7 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 		logLines := strings.Split(string(logData), "\n")
 		var logs []*log.Log
 
-		progress.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {
+		progressutil.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {
 			if strings.TrimSpace(line) == "" {
 				return nil
 			}

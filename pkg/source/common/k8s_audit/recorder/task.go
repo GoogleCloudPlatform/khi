@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -72,7 +73,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 
 		filteredLogs, allCount := filterMatchedGroupedLogs(ctx, groupedLogs, logGroupFilter)
 		processedLogCount := atomic.Int32{}
-		updator := progress.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
+		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
 			current := processedLogCount.Load()
 			tp.Percentage = float32(current) / float32(allCount)
 			tp.Message = fmt.Sprintf("%d/%d", current, allCount)
