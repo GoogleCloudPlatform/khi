@@ -56,6 +56,7 @@ export type ProgressBarViewModel = {
   message: string;
   percentage: number;
   percentageLabel: string;
+  indeterminate: boolean;
 };
 
 export type ErrorViewModel = {
@@ -144,6 +145,7 @@ export class StartupDialogComponent {
                 message: p.message,
                 percentage: p.percentage * 100,
                 percentageLabel: (p.percentage * 100).toFixed(2),
+                indeterminate: p.indeterminate,
               }) as ProgressBarViewModel,
           ),
           inspectionTimeLabel: this.durationToTimeSeconds(

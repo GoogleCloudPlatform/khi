@@ -121,34 +121,44 @@
                             >
                           </p>
                           <div class="progress-container">
-                            <p
-                              class="progress-header"
-                              *ngIf="task.progresses.length > 0"
-                            >
-                              {{ task.progresses.length }} concurrent sub tasks
-                              are running ({{
-                                task.totalProgress.percentageLabel
-                              }}):
-                            </p>
-                            <div
-                              class="progress-element"
-                              *ngFor="
-                                let progress of task.progresses;
-                                trackBy: progressCollectionTrack
-                              "
-                            >
-                              <div class="progress-label">
-                                <p class="progress-label-inner">
-                                  {{ progress.label }}({{
-                                    progress.percentageLabel
-                                  }}%) {{ progress.message }}
-                                </p>
-                              </div>
-                              <div
-                                class="progress-bar"
-                                [style.width.%]="progress.percentage"
-                              ></div>
-                            </div>
+                            @if (task.progresses.length > 0) {
+                              <p class="progress-header">
+                                {{ task.progresses.length }} concurrent sub
+                                tasks are running ({{
+                                  task.totalProgress.percentageLabel
+                                }}):
+                              </p>
+                            }
+                            @for (
+                              progress of task.progresses;
+                              track progressCollectionTrack($index, progress)
+                            ) {
+                              @if (progress.indeterminate) {
+                                <div class="progress-element">
+                                  <div class="indeterminate-progress-bar"></div>
+                                  <div class="progress-label">
+                                    <p class="progress-label-inner">
+                                      {{ progress.label }}
+                                      {{ progress.message }}
+                                    </p>
+                                  </div>
+                                </div>
+                              } @else {
+                                <div class="progress-element">
+                                  <div class="progress-label">
+                                    <p class="progress-label-inner">
+                                      {{ progress.label }}({{
+                                        progress.percentageLabel
+                                      }}%) {{ progress.message }}
+                                    </p>
+                                  </div>
+                                  <div
+                                    class="progress-bar"
+                                    [style.width.%]="progress.percentage"
+                                  ></div>
+                                </div>
+                              }
+                            }
                           </div>
                           <div class="error-container">
                             <p class="error" *ngFor="let err of task.errors">
