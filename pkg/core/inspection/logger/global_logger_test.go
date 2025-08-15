@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 
@@ -37,7 +37,7 @@ func TestGlobalLoggerHandlerWithChildLogger(t *testing.T) {
 	buf2Handler := slog.NewTextHandler(buf2, nil)
 	lh := localInitInspectionLogger(slog.NewTextHandler(bufDefault, nil))
 
-	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 	tid1 := taskid.NewDefaultImplementationID[any]("task1").(taskid.UntypedTaskImplementationID)
 	tid2 := taskid.NewDefaultImplementationID[any]("task2").(taskid.UntypedTaskImplementationID)
 	t1Ctx := khictx.WithValue(ctx, core_contract.TaskImplementationIDContextKey, tid1)

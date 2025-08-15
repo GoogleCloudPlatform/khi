@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
@@ -28,9 +27,10 @@ import (
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 
@@ -192,11 +192,11 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 				logs = append(logs, logBase.With(logOpts...).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}, &gcp_log.GCPMainMessageFieldSetReader{}))
 			}
 
-			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-			result, _, err := inspection_task_test.RunInspectionTaskWithDependency(ctx, Task, []base_task.UntypedTask{
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+			result, _, err := inspectiontest.RunInspectionTaskWithDependency(ctx, Task, []base_task.UntypedTask{
 				v2timelinegrouping.Task,
 				v2commonlogparse.Task,
-				task_test.StubTaskFromReferenceID(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
+				tasktest.StubTaskFromReferenceID(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
 					Logs:      logs,
 					Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 				}, nil),

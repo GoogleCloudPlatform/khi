@@ -23,13 +23,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	inspection_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/impl"
-	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -37,7 +37,7 @@ import (
 
 func TestProjectIdInput(t *testing.T) {
 	wantDescription := "The project ID containing logs of the cluster to query"
-	testClusterNamePrefix := task_test.StubTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
+	testClusterNamePrefix := tasktest.StubTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
 	form_task_test.TestTextForms(t, "gcp-project-id", InputProjectIdTask, []*form_task_test.TextFormTestCase{
 		{
 			Name:          "With valid project ID",
@@ -139,8 +139,8 @@ func TestProjectIdInput(t *testing.T) {
 
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
-	testClusterNamePrefix := task_test.StubTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
-	mockClusterNamesTask1 := task_test.StubTaskFromReferenceID(AutocompleteClusterNamesTaskID, &AutocompleteClusterNameList{
+	testClusterNamePrefix := tasktest.StubTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
+	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(AutocompleteClusterNamesTaskID, &AutocompleteClusterNameList{
 		ClusterNames: []string{"foo-cluster", "bar-cluster"},
 		Error:        "",
 	}, nil)
@@ -222,10 +222,10 @@ func TestDurationInput(t *testing.T) {
 	expectedDescription := "The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)"
 	expectedLabel := "Duration"
 	expectedSuggestions := []string{"1m", "10m", "1h", "3h", "12h", "24h"}
-	timezoneTaskUTC := task_test.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
-	timezoneTaskJST := task_test.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
-	currentTimeTask1 := task_test.StubTask(inspection_impl.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
-	endTimeTask := task_test.StubTask(InputEndTimeTask, time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC), nil)
+	timezoneTaskUTC := tasktest.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
+	timezoneTaskJST := tasktest.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
+	currentTimeTask1 := tasktest.StubTask(inspection_impl.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
+	endTimeTask := tasktest.StubTask(InputEndTimeTask, time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC), nil)
 
 	form_task_test.TestTextForms(t, "duration", InputDurationTask, []*form_task_test.TextFormTestCase{
 		{
@@ -332,8 +332,8 @@ func TestInputEndtime(t *testing.T) {
 		t.Errorf("unexpected error\n%s", err)
 	}
 	expectedValue2, err := time.Parse(time.RFC3339, "2020-01-02T00:00:00Z")
-	timezoneTaskUTC := task_test.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
-	timezoneTaskJST := task_test.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
+	timezoneTaskUTC := tasktest.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
+	timezoneTaskJST := tasktest.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
 
 	if err != nil {
 		t.Errorf("unexpected error\n%s", err)
@@ -398,11 +398,11 @@ func TestInputStartTime(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspection_contract.TaskModeDryRun, map[string]any{},
-		task_test.NewTaskDependencyValuePair(InputDurationTaskID.Ref(), duration),
-		task_test.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
-		task_test.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.Ref(), time.UTC),
+	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+	startTime, _, err := inspectiontest.RunInspectionTask(ctx, InputStartTimeTask, inspection_contract.TaskModeDryRun, map[string]any{},
+		tasktest.NewTaskDependencyValuePair(InputDurationTaskID.Ref(), duration),
+		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
+		tasktest.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.Ref(), time.UTC),
 	)
 	if err != nil {
 		t.Errorf("unexpected error\n%v", err)
