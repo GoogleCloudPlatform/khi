@@ -63,7 +63,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		common_k8saudit_taskid.LogConvertTaskID.Ref(),
 		common_k8saudit_taskid.ManifestGenerateTaskID.Ref(),
 	}
-	newTask := inspectiontaskbase.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) (any, error) {
+	newTask := inspectiontaskbase.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return struct{}{}, nil
 		}
@@ -72,7 +72,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 
 		filteredLogs, allCount := filterMatchedGroupedLogs(ctx, groupedLogs, logGroupFilter)
 		processedLogCount := atomic.Int32{}
-		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgress) {
+		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
 			current := processedLogCount.Load()
 			tp.Percentage = float32(current) / float32(allCount)
 			tp.Message = fmt.Sprintf("%d/%d", current, allCount)

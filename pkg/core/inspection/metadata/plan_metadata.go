@@ -18,26 +18,24 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-var InspectionPlanMetadataKey = NewMetadataKey[*InspectionPlan]("plan")
-
-type InspectionPlan struct {
+type InspectionPlanMetadata struct {
 	TaskGraph string `json:"taskGraph"`
 }
 
 // Labels implements Metadata.
-func (*InspectionPlan) Labels() *typedmap.ReadonlyTypedMap {
+func (*InspectionPlanMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return NewLabelSet(IncludeInDryRunResult(), IncludeInRunResult())
 }
 
 // ToSerializable implements Metadata.
-func (p *InspectionPlan) ToSerializable() interface{} {
+func (p *InspectionPlanMetadata) ToSerializable() interface{} {
 	return p
 }
 
-var _ Metadata = (*InspectionPlan)(nil)
+var _ Metadata = (*InspectionPlanMetadata)(nil)
 
-func NewInspectionPlan(taskGraph string) *InspectionPlan {
-	return &InspectionPlan{
+func NewInspectionPlanMetadata(taskGraph string) *InspectionPlanMetadata {
+	return &InspectionPlanMetadata{
 		TaskGraph: taskGraph,
 	}
 }

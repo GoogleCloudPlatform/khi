@@ -79,7 +79,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		gcp_task.InputStartTimeTaskID.Ref(),
 		gcp_task.InputEndTimeTaskID.Ref(),
 		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
-	), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
+	), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err

@@ -34,14 +34,14 @@ import (
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.CommonLogParseTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonAuitLogSource,
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) ([]*types.AuditLogParserInput, error) {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*types.AuditLogParserInput, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	source := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}
-	progressUpdater := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgress) {
+	progressUpdater := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
 		current := processedCount.Load()
 		tp.Percentage = float32(current) / float32(len(source.Logs))
 		tp.Message = fmt.Sprintf("%d/%d", current, len(source.Logs))

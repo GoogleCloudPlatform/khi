@@ -18,33 +18,31 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-var ErrorMessageSetMetadataKey = NewMetadataKey[*ErrorMessageSet]("error")
-
 type ErrorMessage struct {
 	ErrorId int    `json:"errorId"`
 	Message string `json:"message"`
 	Link    string `json:"link"`
 }
 
-// ErrorMessageSet is a metadata type containing errors exposed to frontend.
-type ErrorMessageSet struct {
+// ErrorMessageSetMetadata is a metadata type containing errors exposed to frontend.
+type ErrorMessageSetMetadata struct {
 	ErrorMessages []*ErrorMessage `json:"errorMessages"`
 }
 
 // Labels implements metadata.Metadata.
-func (e *ErrorMessageSet) Labels() *typedmap.ReadonlyTypedMap {
+func (e *ErrorMessageSetMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return NewLabelSet(IncludeInRunResult(), IncludeInTaskList())
 }
 
 // ToSerializable implements metadata.Metadata.
-func (e *ErrorMessageSet) ToSerializable() interface{} {
+func (e *ErrorMessageSetMetadata) ToSerializable() interface{} {
 	return e
 }
 
-var _ Metadata = (*ErrorMessageSet)(nil)
+var _ Metadata = (*ErrorMessageSetMetadata)(nil)
 
 // AddErrorMessage stores a new ErrorMessage. Duplicated error message will be ignored.
-func (e *ErrorMessageSet) AddErrorMessage(newError *ErrorMessage) {
+func (e *ErrorMessageSetMetadata) AddErrorMessage(newError *ErrorMessage) {
 	for _, msg := range e.ErrorMessages {
 		if msg.ErrorId == newError.ErrorId {
 			return // Skip adding duplicated error
@@ -60,8 +58,8 @@ func NewUnauthorizedErrorMessage() *ErrorMessage {
 	}
 }
 
-func NewErrorMessageSet() *ErrorMessageSet {
-	return &ErrorMessageSet{
+func NewErrorMessageSetMetadata() *ErrorMessageSetMetadata {
+	return &ErrorMessageSetMetadata{
 		ErrorMessages: []*ErrorMessage{},
 	}
 }

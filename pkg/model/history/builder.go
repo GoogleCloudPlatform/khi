@@ -338,7 +338,7 @@ func (builder *Builder) sortData() error {
 }
 
 // Finalize flushes the binary chunk data and serialized metadata to the given io.Writer. Returns the written data size in bytes and error.
-func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[string]interface{}, writer io.Writer, progress *inspectionmetadata.TaskProgress) (int, error) {
+func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[string]interface{}, writer io.Writer, progress *inspectionmetadata.TaskProgressMetadata) (int, error) {
 	fileSize := 0
 	progress.Update(0, "Sorting log entries")
 	progress.MarkIndeterminate()

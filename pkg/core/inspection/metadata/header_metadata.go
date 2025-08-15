@@ -20,10 +20,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-var HeaderMetadataKey = NewMetadataKey[*Header]("header")
-
-// Header is a metadata type shown for users in the inspection list page.
-type Header struct {
+// HeaderMetadata is a metadata type shown for users in the inspection list page.
+type HeaderMetadata struct {
 	InspectionType         string `json:"inspectionType"`
 	InspectionTypeIconPath string `json:"inspectionTypeIconPath"`
 	StartTimeUnixSeconds   int64  `json:"startTimeUnixSeconds"`
@@ -34,25 +32,25 @@ type Header struct {
 	FileSize          int    `json:"fileSize,omitempty"`
 }
 
-var _ Metadata = (*Header)(nil)
+var _ Metadata = (*HeaderMetadata)(nil)
 
 // Labels implements Metadata.
-func (*Header) Labels() *typedmap.ReadonlyTypedMap {
+func (*HeaderMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return NewLabelSet(IncludeInRunResult(), IncludeInTaskList(), IncludeInResultBinary())
 }
 
-func (h *Header) ToSerializable() interface{} {
+func (h *HeaderMetadata) ToSerializable() interface{} {
 	return h
 }
 
-func (h *Header) SetStartTime(startTime time.Time) {
+func (h *HeaderMetadata) SetStartTime(startTime time.Time) {
 	h.StartTimeUnixSeconds = startTime.Unix()
 }
 
-func (h *Header) SetEndTime(endTime time.Time) {
+func (h *HeaderMetadata) SetEndTime(endTime time.Time) {
 	h.EndTimeUnixSeconds = endTime.Unix()
 }
 
-func (h *Header) SetInspectionTime(inspectionTime time.Time) {
+func (h *HeaderMetadata) SetInspectionTime(inspectionTime time.Time) {
 	h.InspectTimeUnixSeconds = inspectionTime.Unix()
 }

@@ -27,7 +27,7 @@ import (
 )
 
 // ProgressReportableInspectionTaskFunc is a type for inspection task functions with progress reporting capabilities.
-type ProgressReportableInspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) (T, error)
+type ProgressReportableInspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (T, error)
 
 // InspectionTaskFunc is a type for basic inspection task functions.
 type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (T, error)

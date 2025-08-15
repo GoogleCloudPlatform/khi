@@ -23,9 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// LogMetadataKey is a key to get LogMetadata from the metadata set.
-var LogMetadataKey = NewMetadataKey[*LogMetadata]("log")
-
 // LogMetadata is a Metadata serializes the log data for each tasks.
 type LogMetadata struct {
 	logBuffers map[string]*bytes.Buffer

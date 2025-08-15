@@ -91,7 +91,7 @@ func TestReportProgressFromArraySync(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a real TaskProgress
-			progress := inspectionmetadata.NewTaskProgress("test")
+			progress := inspectionmetadata.NewTaskProgressMetadata("test")
 
 			// Set up a recorder to capture updates
 			var updates []updateRecord

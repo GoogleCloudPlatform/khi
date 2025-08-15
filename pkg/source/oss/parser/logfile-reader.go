@@ -40,7 +40,7 @@ var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
 	},
-	func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
+	func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
@@ -90,7 +90,7 @@ var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 			return int(logACommonField.Timestamp.UnixNano() - logBCommonField.Timestamp.UnixNano())
 		})
 		metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-		header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.Header{})
+		header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
 		if len(logs) > 0 {
 			startLogCommonField := log.MustGetFieldSet(logs[0], &log.CommonFieldSet{})
@@ -108,7 +108,7 @@ var OSSEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
+	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
@@ -130,7 +130,7 @@ var OSSNonEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTas
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
+	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}

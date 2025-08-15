@@ -26,20 +26,20 @@ import (
 )
 
 func TestIndeterminateUpdator(t *testing.T) {
-	tp := inspectionmetadata.NewTaskProgress("foo")
+	tp := inspectionmetadata.NewTaskProgressMetadata("foo")
 	updator := NewIndeterminateUpdator(tp, 1000*time.Millisecond)
 	err := updator.Start("working")
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	time.Sleep(1500 * time.Millisecond)
-	if diff := cmp.Diff(&inspectionmetadata.TaskProgress{
+	if diff := cmp.Diff(&inspectionmetadata.TaskProgressMetadata{
 		Id:            "foo",
 		Label:         "foo",
 		Message:       "working.",
 		Percentage:    0,
 		Indeterminate: true,
-	}, tp, cmpopts.IgnoreUnexported(inspectionmetadata.TaskProgress{})); diff != "" {
+	}, tp, cmpopts.IgnoreUnexported(inspectionmetadata.TaskProgressMetadata{})); diff != "" {
 		t.Errorf("The result status is not in the expected status\n%s", diff)
 	}
 	err = updator.Done()

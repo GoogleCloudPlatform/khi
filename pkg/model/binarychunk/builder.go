@@ -97,7 +97,7 @@ func (b *Builder) Read(ref *BinaryReference) ([]byte, error) {
 }
 
 // Build amends all the binary buffers to the given writer in KHI format. Returns the written byte size.
-func (b *Builder) Build(ctx context.Context, writer io.Writer, progress *inspectionmetadata.TaskProgress) (int, error) {
+func (b *Builder) Build(ctx context.Context, writer io.Writer, progress *inspectionmetadata.TaskProgressMetadata) (int, error) {
 	allBinarySize := 0
 	b.lock.Lock()
 	defer b.lock.Unlock()

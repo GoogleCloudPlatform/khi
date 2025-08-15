@@ -24,12 +24,12 @@ import (
 
 // ProgressUpdatorOnTickFunc is a function type that is called by ProgressUpdator
 // on each tick to update the task progress.
-type ProgressUpdatorOnTickFunc = func(tp *inspectionmetadata.TaskProgress)
+type ProgressUpdatorOnTickFunc = func(tp *inspectionmetadata.TaskProgressMetadata)
 
 // ProgressUpdator periodically updates a TaskProgress object at a specified
 // interval. It uses a callback function to perform the update logic on each tick.
 type ProgressUpdator struct {
-	Progress *inspectionmetadata.TaskProgress
+	Progress *inspectionmetadata.TaskProgressMetadata
 	Interval time.Duration
 	OnTick   ProgressUpdatorOnTickFunc
 	context  context.Context
@@ -37,7 +37,7 @@ type ProgressUpdator struct {
 }
 
 // NewProgressUpdator creates and initializes a new ProgressUpdator.
-func NewProgressUpdator(progress *inspectionmetadata.TaskProgress, interval time.Duration, onTick ProgressUpdatorOnTickFunc) *ProgressUpdator {
+func NewProgressUpdator(progress *inspectionmetadata.TaskProgressMetadata, interval time.Duration, onTick ProgressUpdatorOnTickFunc) *ProgressUpdator {
 	return &ProgressUpdator{
 		Progress: progress,
 		Interval: interval,

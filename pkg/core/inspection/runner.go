@@ -213,7 +213,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 		return err
 	}
 
-	runMetadata := i.generateMetadataForRun(runCtx, &inspectionmetadata.Header{
+	runMetadata := i.generateMetadataForRun(runCtx, &inspectionmetadata.HeaderMetadata{
 		InspectTimeUnixSeconds: time.Now().Unix(),
 		InspectionType:         currentInspectionType.Name,
 		InspectionTypeIconPath: currentInspectionType.Icon,
@@ -339,7 +339,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contr
 	}
 	defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 
-	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &inspectionmetadata.Header{}, runnableTaskGraph)
+	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &inspectionmetadata.HeaderMetadata{}, runnableTaskGraph)
 
 	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionRunMetadata, dryrunMetadata)
 
@@ -441,22 +441,22 @@ func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
 	return wrapped.ResolveTask(i.availableTasks)
 }
 
-func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *inspectionmetadata.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
+func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *inspectionmetadata.HeaderMetadata, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
 	i.addCommonMetadata(ctx, writableMetadata, initHeader, taskGraph)
 	return writableMetadata.AsReadonly()
 }
 
-func (i *InspectionTaskRunner) generateMetadataForRun(ctx context.Context, initHeader *inspectionmetadata.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
+func (i *InspectionTaskRunner) generateMetadataForRun(ctx context.Context, initHeader *inspectionmetadata.HeaderMetadata, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
 	i.addCommonMetadata(ctx, writableMetadata, initHeader, taskGraph)
 	return writableMetadata.AsReadonly()
 }
 
-func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMetadata *typedmap.TypedMap, initHeader *inspectionmetadata.Header, taskGraph *coretask.TaskSet) {
+func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMetadata *typedmap.TypedMap, initHeader *inspectionmetadata.HeaderMetadata, taskGraph *coretask.TaskSet) {
 	typedmap.Set(writableMetadata, inspectionmetadata.HeaderMetadataKey, initHeader)
-	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSet())
-	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSet())
+	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSetMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
 
 	progressMeta := inspectionmetadata.NewProgress()
@@ -467,7 +467,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	if err != nil {
 		taskGraphStr = fmt.Sprintf("failed to generate task graph %v", err.Error())
 	}
-	typedmap.Set(writableMetadata, inspectionmetadata.InspectionPlanMetadataKey, inspectionmetadata.NewInspectionPlan(taskGraphStr))
+	typedmap.Set(writableMetadata, inspectionmetadata.InspectionPlanMetadataKey, inspectionmetadata.NewInspectionPlanMetadata(taskGraphStr))
 
 	logMetadata := i.makeLoggers(ctx, getLogLevel(), taskGraph.GetAll())
 	typedmap.Set(writableMetadata, inspectionmetadata.LogMetadataKey, logMetadata)

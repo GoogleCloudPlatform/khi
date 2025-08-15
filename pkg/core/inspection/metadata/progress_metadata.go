@@ -21,10 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-// ProgressMetadataKey is the key used to store and retrieve Progress metadata
-// from a context or metadata map.
-var ProgressMetadataKey = NewMetadataKey[*Progress]("progress")
-
 // TaskProgressPhase represents the lifecycle phase of a task's progress.
 type TaskProgressPhase string
 
@@ -40,9 +36,9 @@ const (
 	TaskPhaseCancelled = "CANCELLED"
 )
 
-// TaskProgress represents the progress of a single task within an inspection.
+// TaskProgressMetadata represents the progress of a single task within an inspection.
 // It includes an ID, a human-readable label, a status message, and completion percentage.
-type TaskProgress struct {
+type TaskProgressMetadata struct {
 	Id            string  `json:"id"`
 	Label         string  `json:"label"`
 	Message       string  `json:"message"`
@@ -50,9 +46,9 @@ type TaskProgress struct {
 	Indeterminate bool    `json:"indeterminate"`
 }
 
-// NewTaskProgress creates and initializes a new TaskProgress object with the given ID.
-func NewTaskProgress(id string) *TaskProgress {
-	return &TaskProgress{
+// NewTaskProgressMetadata creates and initializes a new TaskProgress object with the given ID.
+func NewTaskProgressMetadata(id string) *TaskProgressMetadata {
+	return &TaskProgressMetadata{
 		Id:            id,
 		Indeterminate: false,
 		Percentage:    0,
@@ -62,14 +58,14 @@ func NewTaskProgress(id string) *TaskProgress {
 }
 
 // Update updates fields from percentage and message
-func (tp *TaskProgress) Update(percentage float32, message string) {
+func (tp *TaskProgressMetadata) Update(percentage float32, message string) {
 	tp.Percentage = percentage
 	tp.Message = message
 	tp.Indeterminate = false
 }
 
 // MarkIndeterminate updates TaskProgress field to be indeterminate mode
-func (tp *TaskProgress) MarkIndeterminate() {
+func (tp *TaskProgressMetadata) MarkIndeterminate() {
 	tp.Indeterminate = true
 	tp.Percentage = 0
 }
@@ -77,20 +73,20 @@ func (tp *TaskProgress) MarkIndeterminate() {
 // Progress aggregates the progress of all tasks in an inspection run.
 // It tracks the overall phase, total progress, and the progress of individual active tasks.
 type Progress struct {
-	Phase             TaskProgressPhase `json:"phase"`
-	TotalProgress     *TaskProgress     `json:"totalProgress"`
-	TaskProgresses    []*TaskProgress   `json:"progresses"`
-	totalTaskCount    int               `json:"-"`
-	resolvedTaskCount int               `json:"-"`
-	lock              sync.Mutex        `json:"-"`
+	Phase             TaskProgressPhase       `json:"phase"`
+	TotalProgress     *TaskProgressMetadata   `json:"totalProgress"`
+	TaskProgresses    []*TaskProgressMetadata `json:"progresses"`
+	totalTaskCount    int                     `json:"-"`
+	resolvedTaskCount int                     `json:"-"`
+	lock              sync.Mutex              `json:"-"`
 }
 
 // NewProgress creates and initializes a new Progress object.
 func NewProgress() *Progress {
 	return &Progress{
 		Phase:             TaskPhaseRunning,
-		TaskProgresses:    make([]*TaskProgress, 0),
-		TotalProgress:     NewTaskProgress("Total"),
+		TaskProgresses:    make([]*TaskProgressMetadata, 0),
+		TotalProgress:     NewTaskProgressMetadata("Total"),
 		lock:              sync.Mutex{},
 		resolvedTaskCount: 0,
 		totalTaskCount:    0,
@@ -119,7 +115,7 @@ func (p *Progress) SetTotalTaskCount(count int) {
 // GetOrCreateTaskProgress retrieves the TaskProgress for a given task ID.
 // If no progress object exists for the ID, a new one is created and added to the list.
 // It returns an error if the overall progress is no longer in the RUNNING phase.
-func (p *Progress) GetOrCreateTaskProgress(id string) (*TaskProgress, error) {
+func (p *Progress) GetOrCreateTaskProgress(id string) (*TaskProgressMetadata, error) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if p.Phase != TaskPhaseRunning {
@@ -130,7 +126,7 @@ func (p *Progress) GetOrCreateTaskProgress(id string) (*TaskProgress, error) {
 			return progress, nil
 		}
 	}
-	taskProgress := NewTaskProgress(id)
+	taskProgress := NewTaskProgressMetadata(id)
 	p.TaskProgresses = append(p.TaskProgresses, taskProgress)
 	return taskProgress, nil
 }
@@ -144,7 +140,7 @@ func (p *Progress) ResolveTask(id string) error {
 	if p.Phase != TaskPhaseRunning {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
-	newTaskProgress := make([]*TaskProgress, 0)
+	newTaskProgress := make([]*TaskProgressMetadata, 0)
 	for _, progress := range p.TaskProgresses {
 		if progress.Id != id {
 			newTaskProgress = append(newTaskProgress, progress)
@@ -167,7 +163,7 @@ func (p *Progress) MarkDone() error {
 	}
 	p.Phase = TaskPhaseDone
 	p.resolvedTaskCount = p.totalTaskCount
-	p.TaskProgresses = make([]*TaskProgress, 0)
+	p.TaskProgresses = make([]*TaskProgressMetadata, 0)
 	p.updateTotalTaskProgress()
 	return nil
 }
@@ -182,7 +178,7 @@ func (p *Progress) MarkCancelled() error {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
 	p.Phase = TaskPhaseCancelled
-	p.TaskProgresses = make([]*TaskProgress, 0)
+	p.TaskProgresses = make([]*TaskProgressMetadata, 0)
 	return nil
 }
 
@@ -196,7 +192,7 @@ func (p *Progress) MarkError() error {
 		return fmt.Errorf("the current progress phase is not RUNNING but %s", p.Phase)
 	}
 	p.Phase = TaskPhaseError
-	p.TaskProgresses = make([]*TaskProgress, 0)
+	p.TaskProgresses = make([]*TaskProgressMetadata, 0)
 	return nil
 }
 

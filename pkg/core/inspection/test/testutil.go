@@ -65,9 +65,9 @@ func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTas
 
 func generateTestMetadata() *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
-	typedmap.Set(writableMetadata, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.Header{})
-	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSet())
-	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSet())
+	typedmap.Set(writableMetadata, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
+	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSetMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, inspectionmetadata.NewProgress())
 	return writableMetadata.AsReadonly()

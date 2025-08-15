@@ -24,9 +24,9 @@ import (
 )
 
 func TestNewProgressUpdator(t *testing.T) {
-	p := &inspectionmetadata.TaskProgress{}
+	p := &inspectionmetadata.TaskProgressMetadata{}
 	interval := 100 * time.Millisecond
-	onTick := func(tp *inspectionmetadata.TaskProgress) {}
+	onTick := func(tp *inspectionmetadata.TaskProgressMetadata) {}
 
 	updator := NewProgressUpdator(p, interval, onTick)
 
@@ -44,13 +44,13 @@ func TestNewProgressUpdator(t *testing.T) {
 func TestProgressUpdator_StartAndDone(t *testing.T) {
 	var mu sync.Mutex
 	var tickCount int
-	onTick := func(tp *inspectionmetadata.TaskProgress) {
+	onTick := func(tp *inspectionmetadata.TaskProgressMetadata) {
 		mu.Lock()
 		defer mu.Unlock()
 		tickCount++
 	}
 
-	p := &inspectionmetadata.TaskProgress{}
+	p := &inspectionmetadata.TaskProgressMetadata{}
 	interval := 50 * time.Millisecond
 	updator := NewProgressUpdator(p, interval, onTick)
 
@@ -88,7 +88,7 @@ func TestProgressUpdator_StartAndDone(t *testing.T) {
 }
 
 func TestProgressUpdator_DoneWithoutStart(t *testing.T) {
-	updator := NewProgressUpdator(&inspectionmetadata.TaskProgress{}, 1*time.Second, func(tp *inspectionmetadata.TaskProgress) {})
+	updator := NewProgressUpdator(&inspectionmetadata.TaskProgressMetadata{}, 1*time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {})
 	err := updator.Done()
 	if err == nil {
 		t.Errorf("Done() should return an error if Start() was not called")
@@ -98,13 +98,13 @@ func TestProgressUpdator_DoneWithoutStart(t *testing.T) {
 func TestProgressUpdator_ParentContextCancellation(t *testing.T) {
 	var mu sync.Mutex
 	var tickCount int
-	onTick := func(tp *inspectionmetadata.TaskProgress) {
+	onTick := func(tp *inspectionmetadata.TaskProgressMetadata) {
 		mu.Lock()
 		defer mu.Unlock()
 		tickCount++
 	}
 
-	p := &inspectionmetadata.TaskProgress{}
+	p := &inspectionmetadata.TaskProgressMetadata{}
 	interval := 50 * time.Millisecond
 	updator := NewProgressUpdator(p, interval, onTick)
 
