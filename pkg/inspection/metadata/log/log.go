@@ -20,8 +20,8 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 // LogMetadataKey is a key to get LogMetadata from the metadata set.

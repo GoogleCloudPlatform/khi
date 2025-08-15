@@ -16,7 +16,7 @@ package core_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 // TaskResultMapContextKey is the key to get the result of each tasks run before.

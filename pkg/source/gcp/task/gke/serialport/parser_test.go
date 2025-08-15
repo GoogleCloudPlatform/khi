@@ -17,7 +17,7 @@ package serialport
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
@@ -94,7 +94,7 @@ func TestSerialPortSpecialSequenceConverter(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := parserutil.ConvertSpecialSequences(tc.input, serialportSequenceConverters...)
+			actual := logutil.ConvertSpecialSequences(tc.input, serialportSequenceConverters...)
 			if diff := cmp.Diff(tc.expected, actual); diff != "" {
 				t.Errorf("the result is not matching with the expected result\n%s", diff)
 			}

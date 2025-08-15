@@ -21,45 +21,45 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type autoscalerLogParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (p *autoscalerLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeAutoscaler
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*autoscalerLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		gcp_task.InputClusterNameTaskID.Ref(),
 	}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*autoscalerLogParser) Description() string {
 	return `Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*autoscalerLogParser) GetParserName() string {
 	return `Autoscaler Logs`
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (*autoscalerLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_autoscaler_taskid.AutoscalerQueryTaskID.Ref()
 }
@@ -68,7 +68,7 @@ func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 
@@ -227,6 +227,6 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *hi
 	return nil
 }
 
-var _ parser.Parser = (*autoscalerLogParser)(nil)
+var _ parsertask.Parser = (*autoscalerLogParser)(nil)
 
-var AutoscalerParserTask = parser.NewParserTaskFromParser(gke_autoscaler_taskid.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var AutoscalerParserTask = parsertask.NewParserTaskFromParser(gke_autoscaler_taskid.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

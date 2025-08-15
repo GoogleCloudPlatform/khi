@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
 

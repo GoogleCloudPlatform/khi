@@ -19,15 +19,15 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	airflow "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 // Regex templates to parse Airflow log format
@@ -76,12 +76,12 @@ func NewAirflowSchedulerParser(queryTaskId taskid.TaskReference[[]*log.Log], tar
 	return &AirflowSchedulerParser{queryTaskId: queryTaskId, targetLogType: targetLogType}
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (t *AirflowSchedulerParser) TargetLogType() enum.LogType {
 	return t.targetLogType
 }
 
-var _ parser.Parser = &AirflowSchedulerParser{}
+var _ parsertask.Parser = &AirflowSchedulerParser{}
 
 func (*AirflowSchedulerParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}

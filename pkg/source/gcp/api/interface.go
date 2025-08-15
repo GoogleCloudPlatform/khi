@@ -17,7 +17,7 @@ package api
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type GCPClient interface {

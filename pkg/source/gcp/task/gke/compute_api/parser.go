@@ -20,41 +20,41 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gke_compute_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type computeAPIParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (c *computeAPIParser) TargetLogType() enum.LogType {
 	return enum.LogTypeComputeApi
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*computeAPIParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*computeAPIParser) Description() string {
 	return `Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*computeAPIParser) GetParserName() string {
 	return `Compute API Logs`
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (*computeAPIParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_compute_api_taskid.ComputeAPIQueryTaskID.Ref()
 }
@@ -62,7 +62,7 @@ func (*computeAPIParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	commonLogFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
@@ -111,6 +111,6 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 	return nil
 }
 
-var _ parser.Parser = (*computeAPIParser)(nil)
+var _ parsertask.Parser = (*computeAPIParser)(nil)
 
-var ComputeAPIParserTask = parser.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var ComputeAPIParserTask = parsertask.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

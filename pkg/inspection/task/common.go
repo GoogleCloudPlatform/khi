@@ -19,7 +19,7 @@ import (
 	"time"
 
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 type InspectionRequest struct {

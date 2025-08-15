@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser
+package parsertask
 
 import (
 	"context"
@@ -25,15 +25,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -64,6 +64,7 @@ type Parser interface {
 	Grouper() grouper.LogGrouper
 }
 
+// NewParserTaskFromParser generates a coretask.Task that consumes array of LogEntities, grouping them by given log field key and call parse function concurrently.
 func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	return inspection_task.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
 		if taskMode == inspectioncontract.TaskModeDryRun {

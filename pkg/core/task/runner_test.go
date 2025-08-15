@@ -23,7 +23,7 @@ import (
 	"time"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error)) UntypedTask {

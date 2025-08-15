@@ -17,9 +17,9 @@ package componentparser
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type DefaultK8sControlPlaneComponentParser struct {

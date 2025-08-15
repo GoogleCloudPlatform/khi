@@ -17,8 +17,8 @@ package componentparser
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 // ControlPlaneComponentParser is an abstraction type to define the customized process for each components

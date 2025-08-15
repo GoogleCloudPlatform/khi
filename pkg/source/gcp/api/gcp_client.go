@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var ErrorRateLimitExceeds = errors.New("ratelimit exceeds. retry it later")

@@ -22,6 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
@@ -31,7 +32,6 @@ import (
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"

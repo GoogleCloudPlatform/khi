@@ -21,9 +21,9 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type KindToKlogFieldPairData struct {

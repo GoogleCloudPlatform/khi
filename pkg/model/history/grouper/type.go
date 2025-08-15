@@ -16,7 +16,7 @@ package grouper
 
 import (
 	common_grouper "github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type LogGrouper = common_grouper.Grouper[*log.Log, string]

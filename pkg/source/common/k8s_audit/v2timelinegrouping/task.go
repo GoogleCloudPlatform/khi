@@ -22,17 +22,17 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.TimelineGroupingTaskID, []taskid.UntypedTaskReference{

@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"strings"
 	"unique"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 )
 
 var _ MergeMapOrderStrategy = (*DefaultMergeMapOrderStrategy)(nil)
@@ -210,7 +208,7 @@ func mergeMapSequenceNode(fieldPath []string, prev Node, patch Node, config Merg
 	if err != nil {
 		return nil, err
 	}
-	if strategy == merger.MergeStrategyReplace {
+	if strategy == MergeStrategyReplace {
 		return mergeMapSequenceNodeWithReplaceStrategy(fieldPath, prev, patch, config)
 	} else {
 		return mergeMapSequenceNodeWithMergeStrategy(fieldPath, mergeKey, prev, patch, config)

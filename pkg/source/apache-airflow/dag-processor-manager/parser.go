@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type AirflowDagProcessorParser struct {
@@ -43,12 +43,12 @@ func NewAirflowDagProcessorParser(dagFilePath string, logTask taskid.TaskReferen
 	}
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (a *AirflowDagProcessorParser) TargetLogType() enum.LogType {
 	return a.targetLogType
 }
 
-var _ parser.Parser = (*AirflowDagProcessorParser)(nil)
+var _ parsertask.Parser = (*AirflowDagProcessorParser)(nil)
 
 func (*AirflowDagProcessorParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
@@ -62,7 +62,7 @@ func (*AirflowDagProcessorParser) GetParserName() string {
 	return "Airflow DagProcessorManager"
 }
 
-// Grouper implements parser.Parser.
+// Grouper implements parsertask.Parser.
 func (*AirflowDagProcessorParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }

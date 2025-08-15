@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )

@@ -17,9 +17,9 @@ package history
 import (
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 // Staging data types contains large string data directly on it.

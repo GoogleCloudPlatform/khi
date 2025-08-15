@@ -20,41 +20,41 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type gkeAuditLogParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (p *gkeAuditLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeGkeAudit
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*gkeAuditLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*gkeAuditLogParser) Description() string {
 	return `Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*gkeAuditLogParser) GetParserName() string {
 	return `GKE Audit logs`
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return gke_audit_taskid.GKEAuditLogQueryTaskID.Ref()
 }
@@ -63,7 +63,7 @@ func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
@@ -197,6 +197,6 @@ func getRelatedNodepool(l *log.Log) (string, error) {
 	return l.ReadString("protoPayload.request.update.desiredNodePoolId")
 }
 
-var _ parser.Parser = (*gkeAuditLogParser)(nil)
+var _ parsertask.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = parser.NewParserTaskFromParser(gke_audit_taskid.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKEAuditLogParseJob = parsertask.NewParserTaskFromParser(gke_audit_taskid.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

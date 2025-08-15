@@ -21,42 +21,42 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	multicloud_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
 	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type onpremCloudAuditLogParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (o *onpremCloudAuditLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeOnPremAPI
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*onpremCloudAuditLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*onpremCloudAuditLogParser) Description() string {
 	return `Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*onpremCloudAuditLogParser) GetParserName() string {
 	return `OnPrem API logs`
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (*onpremCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return multicloud_api_taskid.OnPremCloudAPIQueryTaskID.Ref()
 }
@@ -65,7 +65,7 @@ func (*onpremCloudAuditLogParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	resourceName := l.ReadStringOrDefault("protoPayload.resourceName", "")
 	resource := parseResourceNameOfOnPremAPI(resourceName)
@@ -196,9 +196,9 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 	return nil
 }
 
-var _ parser.Parser = (*onpremCloudAuditLogParser)(nil)
+var _ parsertask.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = parser.NewParserTaskFromParser(onprem_api_taskid.OnPremCloudAPIParserTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
+var OnPremCloudAuditLogParseTask = parsertask.NewParserTaskFromParser(onprem_api_taskid.OnPremCloudAPIParserTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

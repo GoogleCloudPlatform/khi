@@ -21,41 +21,41 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api/multicloud_api_taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type multiCloudAuditLogParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (m *multiCloudAuditLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeMulticloudAPI
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*multiCloudAuditLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*multiCloudAuditLogParser) Description() string {
 	return `Gather Anthos Multicloud audit log including cluster creation,deletion and upgrades.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*multiCloudAuditLogParser) GetParserName() string {
 	return `MultiCloud API logs`
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (*multiCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return multicloud_api_taskid.MultiCloudAPIQueryTaskID.Ref()
 }
@@ -64,7 +64,7 @@ func (*multiCloudAuditLogParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	resourceName := l.ReadStringOrDefault("protoPayload.resourceName", "")
 	resource := parseResourceNameOfMulticloudAPI(resourceName)
@@ -172,9 +172,9 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 	return nil
 }
 
-var _ parser.Parser = (*multiCloudAuditLogParser)(nil)
+var _ parsertask.Parser = (*multiCloudAuditLogParser)(nil)
 
-var MultiCloudAuditLogParseJob = parser.NewParserTaskFromParser(multicloud_api_taskid.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
+var MultiCloudAuditLogParseJob = parsertask.NewParserTaskFromParser(multicloud_api_taskid.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
 
 type multiCloudResource struct {
 	ClusterType  string // aws or azure

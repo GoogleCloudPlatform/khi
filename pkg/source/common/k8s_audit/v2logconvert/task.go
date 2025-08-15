@@ -22,12 +22,12 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{

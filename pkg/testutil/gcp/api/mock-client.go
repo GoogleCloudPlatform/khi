@@ -17,7 +17,7 @@ package api_test
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
 

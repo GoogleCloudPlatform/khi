@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 func TestGCPCommonFieldSet(t *testing.T) {

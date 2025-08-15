@@ -21,13 +21,13 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
 	gcp_types "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var resourceNamesInputKey = typedmap.NewTypedKey[*gcp_types.ResourceNamesInput]("query-resource-names")

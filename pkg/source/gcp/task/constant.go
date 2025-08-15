@@ -18,8 +18,8 @@ import (
 	"context"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 const GCPPrefix = "cloud.google.com/"
@@ -30,8 +30,8 @@ const GCPPrefix = "cloud.google.com/"
 // For Anthos on Azure, it will be "azureClusters/"
 var ClusterNamePrefixTaskID = taskid.NewTaskReference[string](GCPPrefix + "cluster-name-prefix")
 
-var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.MergeConfigRegistry](GCPPrefix + "merge-config")
+var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.K8sManifestMergeConfigRegistry](GCPPrefix + "merge-config")
 
-var GCPDefaultK8sResourceMergeConfigTask = coretask.NewTask(K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.MergeConfigRegistry, error) {
+var GCPDefaultK8sResourceMergeConfigTask = coretask.NewTask(K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
 	return k8s.GenerateDefaultMergeConfig()
 })

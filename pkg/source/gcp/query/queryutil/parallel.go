@@ -25,7 +25,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )

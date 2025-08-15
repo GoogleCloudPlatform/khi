@@ -16,8 +16,6 @@ package structured
 
 import (
 	"strings"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 )
 
 // keyItem represents a node used as a key for merge or patch merge directives.
@@ -47,7 +45,7 @@ type MergeConfiguration struct {
 	MergeMapOrderStrategy MergeMapOrderStrategy
 	// ArrayMergeConfigResolver resolves array merge strategy of a sequence node at a specific node.
 	// Arrays defined in kubernetes manifest can be replaced or merged with using keys. These are different by the field path of the manifest.
-	ArrayMergeConfigResolver *merger.MergeConfigResolver // TODO: Move this type in this package.
+	ArrayMergeConfigResolver *MergeConfigResolver
 
 	// patchDirectiveReplace instruct map fields needs to be replaced instead of merge strategy.
 	// This field is used for supporting $patch directive in strategic merge patch: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-api-machinery/strategic-merge-patch.md#replace-directive
@@ -73,13 +71,13 @@ type MergeConfiguration struct {
 }
 
 // GetArrayMergeStrategyAndKey returns the strategy of merging a sequence of maps and the key field name used for merging.
-func (c *MergeConfiguration) GetArrayMergeStrategyAndKey(fieldPath []string) (strategy merger.MergeArrayStrategy, mergeKey string, err error) {
+func (c *MergeConfiguration) GetArrayMergeStrategyAndKey(fieldPath []string) (strategy MergeArrayStrategy, mergeKey string, err error) {
 	joinedFieldPath := strings.Join(fieldPath[:len(fieldPath)-1], ".") // Remove the last `[]` and construct string represented field path.
 	strategy = c.ArrayMergeConfigResolver.GetMergeArrayStrategy(joinedFieldPath)
-	if strategy == merger.MergeStrategyMerge {
+	if strategy == MergeStrategyMerge {
 		mergeKey, err = c.ArrayMergeConfigResolver.GetMergeKey(joinedFieldPath)
 		if err != nil {
-			return merger.MergeStrategyMerge, "", err
+			return MergeStrategyMerge, "", err
 		}
 	}
 	return

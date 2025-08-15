@@ -20,15 +20,15 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	apacheairflow "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var (
@@ -45,7 +45,7 @@ var (
 // Parse airflow-scheduler logs and make them into TaskInstances.
 // This parser will detect these lifecycles;
 // - running
-var _ parser.Parser = &AirflowWorkerParser{}
+var _ parsertask.Parser = &AirflowWorkerParser{}
 
 type AirflowWorkerParser struct {
 	queryTaskId   taskid.TaskReference[[]*log.Log]
@@ -59,37 +59,37 @@ func NewAirflowWorkerParser(queryTaskId taskid.TaskReference[[]*log.Log], target
 	}
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (a *AirflowWorkerParser) TargetLogType() enum.LogType {
 	return a.targetLogType
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*AirflowWorkerParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// DependsOnPast implements parser.Parser.
+// DependsOnPast implements parsertask.Parser.
 func (*AirflowWorkerParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*AirflowWorkerParser) Description() string {
 	return `Airflow Worker logs contain information related to the execution of TaskInstances. By including these logs, you can gain insights into where and how each TaskInstance was executed.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*AirflowWorkerParser) GetParserName() string {
 	return "Airflow Worker"
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (a *AirflowWorkerParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return a.queryTaskId
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	parsers := []airflowParserFn{
 		&airflowWorkerRunningHostFn{},

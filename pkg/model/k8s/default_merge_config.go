@@ -18,8 +18,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s/configsource"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -222,17 +221,17 @@ var defaultMergeConfigSources []defaultMergeConfigSourceItem = []defaultMergeCon
 	},
 }
 
-func GenerateDefaultMergeConfig() (*MergeConfigRegistry, error) {
+func GenerateDefaultMergeConfig() (*K8sManifestMergeConfigRegistry, error) {
 	type defaultResource struct {
 		metav1.ObjectMeta `json:"metadata,omitempty"`
 	}
-	defaultResovler, err := configsource.FromResourceTypeReflection(defaultResource{})
+	defaultResovler, err := FromResourceTypeReflection(defaultResource{})
 	if err != nil {
 		return nil, err
 	}
-	registry := &MergeConfigRegistry{
+	registry := &K8sManifestMergeConfigRegistry{
 		defaultResolver:      defaultResovler,
-		mergeConfigResolvers: make(map[string]*merger.MergeConfigResolver),
+		mergeConfigResolvers: make(map[string]*structured.MergeConfigResolver),
 	}
 
 	for _, config := range defaultMergeConfigSources {
@@ -243,7 +242,7 @@ func GenerateDefaultMergeConfig() (*MergeConfigRegistry, error) {
 		for _, resource := range config.Resources {
 			refType := reflect.TypeOf(resource)
 			kind := strings.ToLower(refType.Name())
-			resolver, err := configsource.FromResourceTypeReflection(resource)
+			resolver, err := FromResourceTypeReflection(resource)
 			if err != nil {
 				return nil, err
 			}

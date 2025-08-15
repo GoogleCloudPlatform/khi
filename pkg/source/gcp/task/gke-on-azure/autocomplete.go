@@ -20,11 +20,11 @@ import (
 	"log/slog"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "anthos-on-azure"), []taskid.UntypedTaskReference{

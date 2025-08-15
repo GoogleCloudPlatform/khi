@@ -21,15 +21,15 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 
 	goyaml "gopkg.in/yaml.v3"
 )

@@ -15,10 +15,10 @@
 package gke_autoscaler_taskid
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var AutoscalerQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "autoscaler")

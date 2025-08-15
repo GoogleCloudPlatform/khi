@@ -15,8 +15,8 @@
 package form
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 // FormTaskBuilderBase provides common functionality for form task builders

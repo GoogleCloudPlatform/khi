@@ -30,10 +30,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"golang.org/x/sync/errgroup"
 )
 

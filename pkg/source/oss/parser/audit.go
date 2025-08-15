@@ -22,6 +22,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
@@ -34,7 +35,6 @@ import (
 	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/fieldextractor"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.

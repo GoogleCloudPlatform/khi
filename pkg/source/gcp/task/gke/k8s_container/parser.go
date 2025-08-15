@@ -20,31 +20,31 @@ import (
 	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type k8sContainerParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (k *k8sContainerParser) TargetLogType() enum.LogType {
 	return enum.LogTypeContainer
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*k8sContainerParser) Description() string {
 	return `Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*k8sContainerParser) GetParserName() string {
 	return "Kubernetes container logs"
 }
@@ -61,7 +61,7 @@ func (*k8sContainerParser) Grouper() grouper.LogGrouper {
 	return grouper.NewSingleStringFieldKeyLogGrouper("resource.labels.pod_name")
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 	mainMessage := mainMessageFieldSet.MainMessage
@@ -97,6 +97,6 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 	return nil
 }
 
-var _ parser.Parser = (*k8sContainerParser)(nil)
+var _ parsertask.Parser = (*k8sContainerParser)(nil)
 
-var GKEContainerLogParseJob = parser.NewParserTaskFromParser(gke_k8s_container_taskid.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEContainerLogParseJob = parsertask.NewParserTaskFromParser(gke_k8s_container_taskid.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)

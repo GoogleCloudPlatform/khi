@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rawlogs
-
-import (
-	"time"
-)
-
-// Repository stores logs after fetching logs
-// Implementation shouldn't keep the given data on memory not to consume huge memory.
-type Repository interface {
-	Write(timestamp time.Time, data []byte) error
-	IterateInSortedOrder() LogIterator
-	Dispose() error
-}
-
-type LogIterator interface {
-	HasNext() bool
-	Next() ([]byte, error)
-	Reset()
-}
+// Package logutil provides log-related utilities used by multiple log
+// processing tasks, such as parsers for different log string formats and
+// log string converters.
+package logutil

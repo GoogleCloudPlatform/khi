@@ -17,7 +17,7 @@ package grouper
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
