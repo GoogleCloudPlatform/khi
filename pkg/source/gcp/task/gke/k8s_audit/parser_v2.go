@@ -17,8 +17,6 @@ package k8s_audit
 import (
 	"context"
 
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
@@ -32,17 +30,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 // GCPK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
-var GCPK8sAuditLogSourceTask = inspection_task.NewInspectionTask(gke_k8saudit_taskid.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
+var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(gke_k8saudit_taskid.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
-	if taskMode == inspectioncontract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref())
@@ -51,10 +51,10 @@ var GCPK8sAuditLogSourceTask = inspection_task.NewInspectionTask(gke_k8saudit_ta
 		Logs:      logs,
 		Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 	}, nil
-}, inspection_task.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
+}, inspection_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
 
-var RegisterK8sAuditTasks coreinspection.PrepareInspectionServerFunc = func(inspectionServer *coreinspection.InspectionTaskServer) error {
-	err := inspectionServer.AddTask(GCPK8sAuditLogSourceTask)
+var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(registry coreinspection.InspectionTaskRegistry) error {
+	err := registry.AddTask(GCPK8sAuditLogSourceTask)
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ var RegisterK8sAuditTasks coreinspection.PrepareInspectionServerFunc = func(insp
 		return err
 	}
 
-	err = manager.Register(inspectionServer, inspectiontype.GCPK8sClusterInspectionTypes...)
+	err = manager.Register(registry, inspectiontype.GCPK8sClusterInspectionTypes...)
 	if err != nil {
 		return err
 	}

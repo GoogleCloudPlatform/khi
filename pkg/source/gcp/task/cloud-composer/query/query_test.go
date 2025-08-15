@@ -22,10 +22,10 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
@@ -43,7 +43,7 @@ func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
 resource.labels.environment_name="test-environment"
 log_name=projects/%s/logs/airflow-scheduler`, projectId)
 
-	taskMode := inspectioncontract.TaskModeDryRun     // any int is fine
+	taskMode := inspection_contract.TaskModeDryRun    // any int is fine
 	generator := createGenerator("airflow-scheduler") // sample: airflow-scheduler
 	actual, err := generator(ctx, taskMode)
 	if err != nil {

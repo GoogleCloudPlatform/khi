@@ -20,10 +20,10 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 )
@@ -38,7 +38,7 @@ protoPayload.resourceName:"%s"
 
 var OnPremAPIQueryTask = query.NewQueryGeneratorTask(onprem_api_taskid.OnPremCloudAPIQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
 	gcp_task.InputClusterNameTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncontract.InspectionTaskModeType) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
 	return []string{GenerateOnPremAPIQuery(clusterName)}, nil
 }, GenerateOnPremAPIQuery("baremetalClusters/my-cluster"))

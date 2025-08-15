@@ -21,22 +21,22 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
-var Task = inspection_task.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{
+var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonAuitLogSource,
-}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
-	if taskMode == inspectioncontract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
+	if taskMode == inspection_contract.TaskModeDryRun {
 		return struct{}{}, nil
 	}
-	builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
+	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
 	logs := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}

@@ -19,20 +19,20 @@ import (
 	"fmt"
 	"log/slog"
 
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
-var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "anthos-on-baremetal"), []taskid.UntypedTaskReference{
+var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "anthos-on-baremetal"), []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
+		return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
 	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
@@ -44,7 +44,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewIm
 		clusterNames, err := client.GetAnthosOnBaremetalClusterNames(ctx, projectID)
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
-			return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+			return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 				DependencyDigest: projectID,
 				Value: &gcp_task.AutocompleteClusterNameList{
 					ClusterNames: []string{},
@@ -52,7 +52,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewIm
 				},
 			}, nil
 		}
-		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+		return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 			DependencyDigest: projectID,
 			Value: &gcp_task.AutocompleteClusterNameList{
 				ClusterNames: clusterNames,
@@ -60,11 +60,11 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(taskid.NewIm
 			},
 		}, nil
 	}
-	return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+	return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 		DependencyDigest: projectID,
 		Value: &gcp_task.AutocompleteClusterNameList{
 			ClusterNames: []string{},
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_task.InspectionTypeLabel(InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(InspectionTypeId))

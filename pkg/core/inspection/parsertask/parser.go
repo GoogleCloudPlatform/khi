@@ -24,16 +24,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -66,12 +66,12 @@ type Parser interface {
 
 // NewParserTaskFromParser generates a coretask.Task that consumes array of LogEntities, grouping them by given log field key and call parse function concurrently.
 func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
-	return inspection_task.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
-		if taskMode == inspectioncontract.TaskModeDryRun {
+	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
+		if taskMode == inspection_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
-		builder := khictx.MustGetValue(ctx, inspectioncontract.CurrentHistoryBuilder)
+		builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
 		logs := coretask.GetTaskResult(ctx, parser.LogTask())
 
 		preparedLogCount := atomic.Int32{}
@@ -179,6 +179,6 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 		return struct{}{}, nil
 	},
 		append([]coretask.LabelOpt{
-			inspection_task.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
+			inspection_contract.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
 		}, labelOpts...)...)
 }

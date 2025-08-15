@@ -485,12 +485,12 @@ Developers performing normal extensions do not need to be aware of the existence
 One major use of Metadata is for forms when creating log filters.
 Each task writes the metadata required for its form to the form metadata, which the frontend receives to render the form.
 
-However, users do not need to understand the specifics of handling metadata. For example, if it's a text form, use `form.NewTextFormTaskBuilder`.
+However, users do not need to understand the specifics of handling metadata. For example, if it's a text form, use `formtask.NewTextFormTaskBuilder`.
 
 Below is a practical example of a form task for entering a Duration value. Since forms are also tasks, they can have prerequisite tasks.
 
 ```go
-var InputDurationTask = form.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
+var InputDurationTask = formtask.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
  WithDependencies([]taskid.UntypedTaskReference{
   common_task.InspectionTimeTaskID,
   InputEndTimeTaskID,

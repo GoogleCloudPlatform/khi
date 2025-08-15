@@ -16,31 +16,18 @@ package common
 
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2manifestgenerate"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2timelinegrouping"
 )
 
-func Register(i *coreinspection.InspectionTaskServer) error {
-	err := i.AddTask(v2commonlogparse.Task)
-	if err != nil {
-		return err
-	}
-
-	err = i.AddTask(v2timelinegrouping.Task)
-	if err != nil {
-		return err
-	}
-
-	err = i.AddTask(v2manifestgenerate.Task)
-	if err != nil {
-		return err
-	}
-
-	err = i.AddTask(v2logconvert.Task)
-	if err != nil {
-		return err
-	}
-	return nil
+func Register(registry coreinspection.InspectionTaskRegistry) error {
+	return coretask.RegisterTasks(registry,
+		v2commonlogparse.Task,
+		v2timelinegrouping.Task,
+		v2manifestgenerate.Task,
+		v2logconvert.Task,
+	)
 }

@@ -20,9 +20,9 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"

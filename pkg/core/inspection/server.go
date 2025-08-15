@@ -20,12 +20,12 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/inspectiondata"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspection_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/impl"
 	"golang.org/x/exp/slices"
 )
 
-type PrepareInspectionServerFunc = func(inspectionServer *InspectionTaskServer) error
+type InspectionRegistrationFunc = func(registry InspectionTaskRegistry) error
 
 type InspectionType struct {
 	Id          string `json:"id"`
@@ -51,7 +51,7 @@ type InspectionDryRunResult struct {
 
 type InspectionRunResult struct {
 	Metadata    interface{}
-	ResultStore inspectiondata.Store
+	ResultStore inspection_contract.Store
 }
 
 // InspectionTaskServer manages tasks and provides apis to get task related information in JSON convertible type.
@@ -64,21 +64,28 @@ type InspectionTaskServer struct {
 	inspections           map[string]*InspectionTaskRunner
 	inspectionIDGenerator idgenerator.IDGenerator
 
-	ioConfig *inspectioncontract.IOConfig
+	ioConfig *inspection_contract.IOConfig
 }
 
-func NewServer(ioConfig *inspectioncontract.IOConfig) (*InspectionTaskServer, error) {
+func NewServer(ioConfig *inspection_contract.IOConfig) (*InspectionTaskServer, error) {
 	ns, err := coretask.NewTaskSet([]coretask.UntypedTask{})
 	if err != nil {
 		return nil, err
 	}
-	return &InspectionTaskServer{
+	server := &InspectionTaskServer{
 		RootTaskSet:           ns,
 		inspectionTypes:       make([]*InspectionType, 0),
 		inspections:           map[string]*InspectionTaskRunner{},
 		inspectionIDGenerator: idgenerator.NewPrefixIDGenerator("inspection-"),
 		ioConfig:              ioConfig,
-	}, nil
+	}
+
+	// Register mandatory tasks for inspection task
+	err = inspection_impl.Register(server)
+	if err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 // AddInspectionType register a inspection type.
@@ -147,3 +154,5 @@ func (s *InspectionTaskServer) GetAllRunners() []*InspectionTaskRunner {
 func (s *InspectionTaskServer) GetAllRegisteredTasks() []coretask.UntypedTask {
 	return s.RootTaskSet.GetAll()
 }
+
+var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)

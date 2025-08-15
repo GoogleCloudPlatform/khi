@@ -21,12 +21,12 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 // ConformanceEveryInspectionTasksAreResolvable verify the InspectionTaskServer initialzied with the given preparation method must be resolvable by each tasks.
-func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, preps []coreinspection.PrepareInspectionServerFunc) {
-	ioConfig, err := inspectioncontract.NewIOConfigForTest()
+func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, preps []coreinspection.InspectionRegistrationFunc) {
+	ioConfig, err := inspection_contract.NewIOConfigForTest()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}
@@ -65,8 +65,8 @@ func ConformanceEveryInspectionTasksAreResolvable(t *testing.T, label string, pr
 	}
 }
 
-func ConformanceTestForInspectionTypes(t *testing.T, preps []coreinspection.PrepareInspectionServerFunc) {
-	ioConfig, err := inspectioncontract.NewIOConfigForTest()
+func ConformanceTestForInspectionTypes(t *testing.T, preps []coreinspection.InspectionRegistrationFunc) {
+	ioConfig, err := inspection_contract.NewIOConfigForTest()
 	if err != nil {
 		t.Errorf("unexpected error %v", err)
 	}

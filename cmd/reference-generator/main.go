@@ -25,14 +25,13 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/generator"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
-	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
-var taskSetRegistrer []coreinspection.PrepareInspectionServerFunc = make([]coreinspection.PrepareInspectionServerFunc, 0)
+var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
 
 // fatal logs the error and exits if err is not nil.
 func fatal(err error, msg string) {
@@ -43,14 +42,13 @@ func fatal(err error, msg string) {
 }
 
 func init() {
-	taskSetRegistrer = append(taskSetRegistrer, inspection_common.PrepareInspectionServer)
-	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
-	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
+	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
+	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common_k8saudit.Register)
 }
 
 func main() {
-	ioconfig, err := inspectioncontract.NewIOConfigForTest()
+	ioconfig, err := inspection_contract.NewIOConfigForTest()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		os.Exit(1)

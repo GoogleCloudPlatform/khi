@@ -19,22 +19,22 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 )
 
-var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerEnvironmentNames = inspectiontaskbase.NewCachedTask(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
 	gcp_task.InputLocationsTaskID.Ref(),
 	gcp_task.InputProjectIdTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[[]string]) (inspection_cached_task.PreviousTaskResult[[]string], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[[]string]) (inspectiontaskbase.PreviousTaskResult[[]string], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspection_cached_task.PreviousTaskResult[[]string]{}, err
+		return inspectiontaskbase.PreviousTaskResult[[]string]{}, err
 	}
 	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
 	location := coretask.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.Ref())
@@ -48,23 +48,23 @@ var AutocompleteComposerEnvironmentNames = inspection_cached_task.NewCachedTask(
 		clusterNames, err := client.GetComposerEnvironmentNames(ctx, projectID, location)
 		if err != nil {
 			// Failed to read the composer environments in the (project,location)
-			return inspection_cached_task.PreviousTaskResult[[]string]{
+			return inspectiontaskbase.PreviousTaskResult[[]string]{
 				DependencyDigest: dependencyDigest,
 				Value:            []string{},
 			}, nil
 		}
-		return inspection_cached_task.PreviousTaskResult[[]string]{
+		return inspectiontaskbase.PreviousTaskResult[[]string]{
 			DependencyDigest: dependencyDigest,
 			Value:            clusterNames,
 		}, nil
 	}
-	return inspection_cached_task.PreviousTaskResult[[]string]{
+	return inspectiontaskbase.PreviousTaskResult[[]string]{
 		DependencyDigest: dependencyDigest,
 		Value:            []string{},
 	}, nil
 })
 
-var InputComposerEnvironmentNameTask = form.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
+var InputComposerEnvironmentNameTask = formtask.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
 	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref()},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 	environments := coretask.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref())

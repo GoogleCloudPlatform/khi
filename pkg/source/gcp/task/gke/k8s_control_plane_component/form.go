@@ -17,7 +17,7 @@ package k8scontrolplanecomponent
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
@@ -27,7 +27,7 @@ const priorityForControlPlaneGroup = gcp_task.FormBasePriority + 30000
 
 var inputControlPlaneComponentNameAliasMap map[string][]string = map[string][]string{}
 
-var InputControlPlaneComponentNameFilterTask = form.NewTextFormTaskBuilder(
+var InputControlPlaneComponentNameFilterTask = formtask.NewTextFormTaskBuilder(
 	k8s_control_plane_component_taskid.InputControlPlaneComponentNameFilterTaskID,
 	priorityForControlPlaneGroup+1000,
 	"Control plane component names",

@@ -21,14 +21,14 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/form/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspection_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/impl"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
@@ -224,7 +224,7 @@ func TestDurationInput(t *testing.T) {
 	expectedSuggestions := []string{"1m", "10m", "1h", "3h", "12h", "24h"}
 	timezoneTaskUTC := task_test.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
 	timezoneTaskJST := task_test.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
-	currentTimeTask1 := task_test.StubTask(inspection_task.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
+	currentTimeTask1 := task_test.StubTask(inspection_impl.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
 	endTimeTask := task_test.StubTask(InputEndTimeTask, time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC), nil)
 
 	form_task_test.TestTextForms(t, "duration", InputDurationTask, []*form_task_test.TextFormTestCase{
@@ -343,7 +343,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with empty",
 			Input:         "",
 			ExpectedValue: expectedValue1,
-			Dependencies:  []coretask.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{inspection_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -359,7 +359,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{inspection_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -374,7 +374,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and non UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{inspection_task.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
+			Dependencies:  []coretask.UntypedTask{inspection_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
 			ExpectedFormField: form.TextParameterFormField{
 				ParameterFormFieldBase: form.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -399,7 +399,7 @@ func TestInputStartTime(t *testing.T) {
 	}
 
 	ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(context.Background())
-	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspectioncontract.TaskModeDryRun, map[string]any{},
+	startTime, _, err := inspection_task_test.RunInspectionTask(ctx, InputStartTimeTask, inspection_contract.TaskModeDryRun, map[string]any{},
 		task_test.NewTaskDependencyValuePair(InputDurationTaskID.Ref(), duration),
 		task_test.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
 		task_test.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.Ref(), time.UTC),
