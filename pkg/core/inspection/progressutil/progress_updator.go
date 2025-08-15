@@ -19,17 +19,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 // ProgressUpdatorOnTickFunc is a function type that is called by ProgressUpdator
 // on each tick to update the task progress.
-type ProgressUpdatorOnTickFunc = func(tp *progress.TaskProgress)
+type ProgressUpdatorOnTickFunc = func(tp *inspectionmetadata.TaskProgress)
 
 // ProgressUpdator periodically updates a TaskProgress object at a specified
 // interval. It uses a callback function to perform the update logic on each tick.
 type ProgressUpdator struct {
-	Progress *progress.TaskProgress
+	Progress *inspectionmetadata.TaskProgress
 	Interval time.Duration
 	OnTick   ProgressUpdatorOnTickFunc
 	context  context.Context
@@ -37,7 +37,7 @@ type ProgressUpdator struct {
 }
 
 // NewProgressUpdator creates and initializes a new ProgressUpdator.
-func NewProgressUpdator(progress *progress.TaskProgress, interval time.Duration, onTick ProgressUpdatorOnTickFunc) *ProgressUpdator {
+func NewProgressUpdator(progress *inspectionmetadata.TaskProgress, interval time.Duration, onTick ProgressUpdatorOnTickFunc) *ProgressUpdator {
 	return &ProgressUpdator{
 		Progress: progress,
 		Interval: interval,

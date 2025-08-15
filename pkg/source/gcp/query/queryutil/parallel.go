@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
@@ -50,7 +50,7 @@ func NewParallelQueryWorker(pool *worker.Pool, apiClient api.GCPClient, baseQuer
 	}
 }
 
-func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *progress.TaskProgress) ([]*log.Log, error) {
+func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
 	timeSegments := divideTimeSegments(p.startTime, p.endTime, p.workerCount)
 	percentages := make([]float32, p.workerCount)
 	logSink := make(chan *log.Log)

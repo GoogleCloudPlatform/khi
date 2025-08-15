@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package plan
+package inspectionmetadata
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
-var InspectionPlanMetadataKey = metadata.NewMetadataKey[*InspectionPlan]("plan")
+var InspectionPlanMetadataKey = NewMetadataKey[*InspectionPlan]("plan")
 
 type InspectionPlan struct {
 	TaskGraph string `json:"taskGraph"`
 }
 
-// Labels implements metadata.Metadata.
+// Labels implements Metadata.
 func (*InspectionPlan) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
+	return NewLabelSet(IncludeInDryRunResult(), IncludeInRunResult())
 }
 
-// ToSerializable implements metadata.Metadata.
+// ToSerializable implements Metadata.
 func (p *InspectionPlan) ToSerializable() interface{} {
 	return p
 }
 
-var _ metadata.Metadata = (*InspectionPlan)(nil)
+var _ Metadata = (*InspectionPlan)(nil)
 
 func NewInspectionPlan(taskGraph string) *InspectionPlan {
 	return &InspectionPlan{

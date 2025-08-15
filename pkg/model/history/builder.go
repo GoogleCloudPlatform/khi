@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo"
@@ -338,7 +338,7 @@ func (builder *Builder) sortData() error {
 }
 
 // Finalize flushes the binary chunk data and serialized metadata to the given io.Writer. Returns the written data size in bytes and error.
-func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[string]interface{}, writer io.Writer, progress *progress.TaskProgress) (int, error) {
+func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[string]interface{}, writer io.Writer, progress *inspectionmetadata.TaskProgress) (int, error) {
 	fileSize := 0
 	progress.Update(0, "Sorting log entries")
 	progress.MarkIndeterminate()

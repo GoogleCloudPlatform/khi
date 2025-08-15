@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package form
+package inspectionmetadata
 
 import (
 	"fmt"
@@ -20,11 +20,10 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
-var FormFieldSetMetadataKey = metadata.NewMetadataKey[*FormFieldSet]("form")
+var FormFieldSetMetadataKey = NewMetadataKey[*FormFieldSet]("form")
 
 // ParameterInputType represents the type of parameter form field.
 type ParameterInputType string
@@ -111,11 +110,11 @@ type FormFieldSet struct {
 	fields     []ParameterFormField
 }
 
-var _ metadata.Metadata = (*FormFieldSet)(nil)
+var _ Metadata = (*FormFieldSet)(nil)
 
 // Labels implements Metadata.
 func (*FormFieldSet) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(metadata.IncludeInDryRunResult())
+	return NewLabelSet(IncludeInDryRunResult())
 }
 
 func (f *FormFieldSet) ToSerializable() interface{} {
@@ -142,7 +141,7 @@ func (f *FormFieldSet) SetField(newField ParameterFormField) error {
 	return nil
 }
 
-// DangerouslyGetField shouldn't be used in non testing code. Because a field shouldn't depend on the other field metadata.
+// DangerouslyGetField shouldn't be used in non testing code. Because a field shouldn't depend on the other field
 // This is only for testing purpose.
 func (f *FormFieldSet) DangerouslyGetField(id string) ParameterFormField {
 	f.fieldsLock.RLock()

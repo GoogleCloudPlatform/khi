@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata
+package inspectionmetadata
 
 // TODO: avoid circular dependency and use namespace in the flag name
 var LabelKeyIncludedInRunResultFlag = NewMetadataLabelsKey[bool]("metadata/include-in-run-result")

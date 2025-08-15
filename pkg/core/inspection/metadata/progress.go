@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package progress
+package inspectionmetadata
 
 import (
 	"fmt"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
 // ProgressMetadataKey is the key used to store and retrieve Progress metadata
 // from a context or metadata map.
-var ProgressMetadataKey = metadata.NewMetadataKey[*Progress]("progress")
+var ProgressMetadataKey = NewMetadataKey[*Progress]("progress")
 
 // TaskProgressPhase represents the lifecycle phase of a task's progress.
 type TaskProgressPhase string
@@ -100,8 +99,8 @@ func NewProgress() *Progress {
 
 // Labels implements Metadata.
 func (*Progress) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(
-		metadata.IncludeInTaskList(),
+	return NewLabelSet(
+		IncludeInTaskList(),
 	)
 }
 

@@ -26,10 +26,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 type testCompressorWaitForSecond struct {
@@ -69,7 +69,7 @@ func TestBuilder(t *testing.T) {
 			t.Errorf("Generated BinaryReferences are not identical.")
 		}
 		// Just for clearning up
-		b.Build(context.Background(), &bytes.Buffer{}, progress.NewTaskProgress("foo"))
+		b.Build(context.Background(), &bytes.Buffer{}, inspectionmetadata.NewTaskProgress("foo"))
 	})
 
 	t.Run("generates binary chunks within the chunk max size and wrote as a single buffer with sizes", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestBuilder(t *testing.T) {
 		}
 		var result bytes.Buffer
 
-		_, err := b.Build(context.Background(), &result, progress.NewTaskProgress("foo"))
+		_, err := b.Build(context.Background(), &result, inspectionmetadata.NewTaskProgress("foo"))
 		if err != nil {
 			t.Errorf("err was not nil:%v", err)
 		}
@@ -141,7 +141,7 @@ func TestBuilder(t *testing.T) {
 			<-time.After(time.Millisecond * 100)
 			cancel()
 		}()
-		size, err := b.Build(ctx, &buf, progress.NewTaskProgress("foo"))
+		size, err := b.Build(ctx, &buf, inspectionmetadata.NewTaskProgress("foo"))
 		if !errors.Is(err, context.Canceled) {
 			t.Errorf("Build didn't returned the Canceled error after the cancel")
 		}

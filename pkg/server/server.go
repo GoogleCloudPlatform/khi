@@ -26,7 +26,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
@@ -114,7 +114,7 @@ func CreateKHIServer(inspectionServer *coreinspection.InspectionTaskServer, serv
 						return
 					}
 
-					m, err := metadata.GetSerializableSubsetMapFromMetadataSet(md, filter.NewEnabledFilter(metadata.LabelKeyIncludedInTaskListFlag, false))
+					m, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(md, filter.NewEnabledFilter(inspectionmetadata.LabelKeyIncludedInTaskListFlag, false))
 					if err != nil {
 						ctx.String(http.StatusInternalServerError, err.Error())
 						return

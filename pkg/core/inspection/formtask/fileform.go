@@ -17,13 +17,15 @@ package formtask
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
@@ -55,15 +57,15 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 	return common_task.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
 		metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 
-		token := upload.DefaultUploadFileStore.GetUploadToken(upload.GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
+		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
 		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
 		if err != nil {
 			return upload.UploadResult{}, err
 		}
-		field := form_metadata.FileParameterFormField{
-			ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
-				Type:     form_metadata.File,
-				HintType: form_metadata.None,
+		field := inspectionmetadata.FileParameterFormField{
+			ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+				Type:     inspectionmetadata.File,
+				HintType: inspectionmetadata.None,
 				Hint:     "",
 			},
 			Token:  token,
@@ -72,7 +74,7 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 		b.FormTaskBuilderBase.SetupBaseFormField(&field.ParameterFormFieldBase)
 
 		field = setFormHintsFromUploadResult(uploadResult, field)
-		formFields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
+		formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 		if !found {
 			return upload.UploadResult{}, fmt.Errorf("failed to get form fields from metadata")
 		}
@@ -87,20 +89,27 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 
 // setFormHintsFromUploadResult sets the appropriate hint and hint type on a form field
 // based on the upload result status and any errors encountered during the upload process.
-func setFormHintsFromUploadResult(result upload.UploadResult, field form_metadata.FileParameterFormField) form_metadata.FileParameterFormField {
+func setFormHintsFromUploadResult(result upload.UploadResult, field inspectionmetadata.FileParameterFormField) inspectionmetadata.FileParameterFormField {
 	switch {
 	case result.UploadError != nil:
 		field.Hint = result.UploadError.Error()
-		field.HintType = form_metadata.Error
+		field.HintType = inspectionmetadata.Error
 	case result.VerificationError != nil:
 		field.Hint = result.VerificationError.Error()
-		field.HintType = form_metadata.Error
+		field.HintType = inspectionmetadata.Error
 	case result.Status == upload.UploadStatusWaiting:
 		field.Hint = "Waiting a file to be uploaded."
-		field.HintType = form_metadata.Error
+		field.HintType = inspectionmetadata.Error
 	case result.Status != upload.UploadStatusCompleted:
 		field.Hint = "File is being processed. Please wait a moment."
-		field.HintType = form_metadata.Error
+		field.HintType = inspectionmetadata.Error
 	}
 	return field
+}
+
+// GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
+func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
+	inspectionID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInspectionID)
+	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
+	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", inspectionID, taskID.ReferenceIDString(), formId), "/", "_")
 }

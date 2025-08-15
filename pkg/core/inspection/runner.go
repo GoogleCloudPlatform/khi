@@ -29,16 +29,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/plan"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -220,7 +213,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 		return err
 	}
 
-	runMetadata := i.generateMetadataForRun(runCtx, &header.Header{
+	runMetadata := i.generateMetadataForRun(runCtx, &inspectionmetadata.Header{
 		InspectTimeUnixSeconds: time.Now().Unix(),
 		InspectionType:         currentInspectionType.Name,
 		InspectionTypeIconPath: currentInspectionType.Icon,
@@ -250,7 +243,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 	go func() {
 		defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 		<-i.runner.Wait()
-		progress, found := typedmap.Get(i.metadata, progress.ProgressMetadataKey)
+		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
 		if !found {
 			slog.ErrorContext(runCtx, "progress metadata was not found")
 		}
@@ -304,7 +297,7 @@ func (i *InspectionTaskRunner) Result() (*InspectionRunResult, error) {
 		return nil, fmt.Errorf("failed to get the serializer result")
 	}
 
-	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, filter.NewEnabledFilter(metadata.LabelKeyIncludedInRunResultFlag, false))
+	md, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, filter.NewEnabledFilter(inspectionmetadata.LabelKeyIncludedInRunResultFlag, false))
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +312,7 @@ func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 	if i.runner == nil {
 		return nil, fmt.Errorf("this task is not yet started")
 	}
-	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, filter.NewEnabledFilter(metadata.LabelKeyIncludedInRunResultFlag, false))
+	md, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(i.metadata, filter.NewEnabledFilter(inspectionmetadata.LabelKeyIncludedInRunResultFlag, false))
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +339,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contr
 	}
 	defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 
-	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &header.Header{}, runnableTaskGraph)
+	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &inspectionmetadata.Header{}, runnableTaskGraph)
 
 	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionRunMetadata, dryrunMetadata)
 
@@ -360,7 +353,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contr
 		slog.ErrorContext(runCtx, err.Error())
 		return nil, err
 	}
-	md, err := metadata.GetSerializableSubsetMapFromMetadataSet(dryrunMetadata, filter.NewEnabledFilter(metadata.LabelKeyIncludedInDryRunResultFlag, false))
+	md, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(dryrunMetadata, filter.NewEnabledFilter(inspectionmetadata.LabelKeyIncludedInDryRunResultFlag, false))
 	if err != nil {
 		return nil, err
 	}
@@ -369,8 +362,8 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contr
 	}, nil
 }
 
-func (i *InspectionTaskRunner) makeLoggers(ctx context.Context, minLevel slog.Level, tasks []coretask.UntypedTask) *log.LogMetadata {
-	logMetadata := log.NewLogMetadata()
+func (i *InspectionTaskRunner) makeLoggers(ctx context.Context, minLevel slog.Level, tasks []coretask.UntypedTask) *inspectionmetadata.LogMetadata {
+	logMetadata := inspectionmetadata.NewLogMetadata()
 	for _, def := range tasks {
 		inspectionID := i.ID
 		runID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskRunID)
@@ -448,36 +441,36 @@ func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
 	return wrapped.ResolveTask(i.availableTasks)
 }
 
-func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *header.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
+func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *inspectionmetadata.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
 	i.addCommonMetadata(ctx, writableMetadata, initHeader, taskGraph)
 	return writableMetadata.AsReadonly()
 }
 
-func (i *InspectionTaskRunner) generateMetadataForRun(ctx context.Context, initHeader *header.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
+func (i *InspectionTaskRunner) generateMetadataForRun(ctx context.Context, initHeader *inspectionmetadata.Header, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
 	i.addCommonMetadata(ctx, writableMetadata, initHeader, taskGraph)
 	return writableMetadata.AsReadonly()
 }
 
-func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMetadata *typedmap.TypedMap, initHeader *header.Header, taskGraph *coretask.TaskSet) {
-	typedmap.Set(writableMetadata, header.HeaderMetadataKey, initHeader)
-	typedmap.Set(writableMetadata, error_metadata.ErrorMessageSetMetadataKey, error_metadata.NewErrorMessageSet())
-	typedmap.Set(writableMetadata, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
-	typedmap.Set(writableMetadata, query.QueryMetadataKey, query.NewQueryMetadata())
+func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMetadata *typedmap.TypedMap, initHeader *inspectionmetadata.Header, taskGraph *coretask.TaskSet) {
+	typedmap.Set(writableMetadata, inspectionmetadata.HeaderMetadataKey, initHeader)
+	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSet())
+	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSet())
+	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
 
-	progressMeta := progress.NewProgress()
+	progressMeta := inspectionmetadata.NewProgress()
 	progressMeta.SetTotalTaskCount(len(coretask.Subset(taskGraph, filter.NewEnabledFilter(inspection_contract.LabelKeyProgressReportable, false)).GetAll()))
-	typedmap.Set(writableMetadata, progress.ProgressMetadataKey, progressMeta)
+	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, progressMeta)
 
 	taskGraphStr, err := taskGraph.DumpGraphviz()
 	if err != nil {
 		taskGraphStr = fmt.Sprintf("failed to generate task graph %v", err.Error())
 	}
-	typedmap.Set(writableMetadata, plan.InspectionPlanMetadataKey, plan.NewInspectionPlan(taskGraphStr))
+	typedmap.Set(writableMetadata, inspectionmetadata.InspectionPlanMetadataKey, inspectionmetadata.NewInspectionPlan(taskGraphStr))
 
 	logMetadata := i.makeLoggers(ctx, getLogLevel(), taskGraph.GetAll())
-	typedmap.Set(writableMetadata, log.LogMetadataKey, logMetadata)
+	typedmap.Set(writableMetadata, inspectionmetadata.LogMetadataKey, logMetadata)
 }
 
 func (i *InspectionTaskRunner) cleanupAfterAnyRun(ctx context.Context, taskGraph *coretask.TaskSet) {

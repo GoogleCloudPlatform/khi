@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	"github.com/google/go-cmp/cmp"
@@ -32,7 +32,7 @@ type TextFormTestCase struct {
 	Name              string
 	Input             string
 	ExpectedValue     any
-	ExpectedFormField form.TextParameterFormField
+	ExpectedFormField inspectionmetadata.TextParameterFormField
 	Dependencies      []coretask.UntypedTask
 	Before            func()
 	After             func()
@@ -58,12 +58,12 @@ func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T],
 				t.Errorf("form field task returned an error %v", err)
 			}
 
-			formFields, found := typedmap.Get(metadata, form.FormFieldSetMetadataKey)
+			formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 			if !found {
 				t.Fatalf("form field metadata not found!")
 			}
 			field := formFields.DangerouslyGetField(formTask.UntypedID().GetUntypedReference().String())
-			textField, convertible := field.(form.TextParameterFormField)
+			textField, convertible := field.(inspectionmetadata.TextParameterFormField)
 			if !convertible {
 				t.Fatal("the generated form is not a TextParameterFormField")
 			}
@@ -73,7 +73,7 @@ func TestTextForms[T any](t *testing.T, label string, formTask coretask.Task[T],
 			if textField.ParameterFormFieldBase.ID == "" {
 				t.Errorf("the generated form had the empty Id")
 			}
-			if diff := cmp.Diff(testCase.ExpectedFormField, field, cmpopts.IgnoreFields(form.ParameterFormFieldBase{}, "Priority", "ID", "Type")); diff != "" {
+			if diff := cmp.Diff(testCase.ExpectedFormField, field, cmpopts.IgnoreFields(inspectionmetadata.ParameterFormFieldBase{}, "Priority", "ID", "Type")); diff != "" {
 				t.Errorf("the form task didn't generate the expected form field metadata\n%s", diff)
 			}
 		})

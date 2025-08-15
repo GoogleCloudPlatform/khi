@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package header
+package inspectionmetadata
 
 import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
-var HeaderMetadataKey = metadata.NewMetadataKey[*Header]("header")
+var HeaderMetadataKey = NewMetadataKey[*Header]("header")
 
 // Header is a metadata type shown for users in the inspection list page.
 type Header struct {
@@ -35,11 +34,11 @@ type Header struct {
 	FileSize          int    `json:"fileSize,omitempty"`
 }
 
-var _ metadata.Metadata = (*Header)(nil)
+var _ Metadata = (*Header)(nil)
 
 // Labels implements Metadata.
 func (*Header) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList(), metadata.IncludeInResultBinary())
+	return NewLabelSet(IncludeInRunResult(), IncludeInTaskList(), IncludeInResultBinary())
 }
 
 func (h *Header) ToSerializable() interface{} {

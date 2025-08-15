@@ -21,11 +21,11 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -37,7 +37,7 @@ import (
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.TimelineGroupingTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonLogParseTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*types.TimelineGrouperResult, error) {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}

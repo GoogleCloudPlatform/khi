@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 // updateRecord records a single progress update
@@ -91,7 +91,7 @@ func TestReportProgressFromArraySync(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a real TaskProgress
-			progress := progress.NewTaskProgress("test")
+			progress := inspectionmetadata.NewTaskProgress("test")
 
 			// Set up a recorder to capture updates
 			var updates []updateRecord

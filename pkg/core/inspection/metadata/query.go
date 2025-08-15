@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package inspectionmetadata
 
 import (
 	"slices"
@@ -20,10 +20,9 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
-var QueryMetadataKey = metadata.NewMetadataKey[*QueryMetadata]("query")
+var QueryMetadataKey = NewMetadataKey[*QueryMetadata]("query")
 
 type QueryItem struct {
 	Id    string `json:"id"`
@@ -36,12 +35,12 @@ type QueryMetadata struct {
 	lock    sync.Mutex
 }
 
-// Labels implements metadata.Metadata.
+// Labels implements Metadata.
 func (*QueryMetadata) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(metadata.IncludeInDryRunResult(), metadata.IncludeInRunResult())
+	return NewLabelSet(IncludeInDryRunResult(), IncludeInRunResult())
 }
 
-// ToSerializable implements metadata.Metadata.
+// ToSerializable implements Metadata.
 func (q *QueryMetadata) ToSerializable() interface{} {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -66,7 +65,7 @@ func (q *QueryMetadata) SetQuery(id string, name string, queryString string) {
 	})
 }
 
-var _ metadata.Metadata = (*QueryMetadata)(nil)
+var _ Metadata = (*QueryMetadata)(nil)
 
 func NewQueryMetadata() *QueryMetadata {
 	return &QueryMetadata{

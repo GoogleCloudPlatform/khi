@@ -23,12 +23,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
@@ -41,7 +40,7 @@ var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
 	},
-	func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*log.Log, error) {
+	func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
@@ -91,7 +90,7 @@ var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 			return int(logACommonField.Timestamp.UnixNano() - logBCommonField.Timestamp.UnixNano())
 		})
 		metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-		header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
+		header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.Header{})
 
 		if len(logs) > 0 {
 			startLogCommonField := log.MustGetFieldSet(logs[0], &log.CommonFieldSet{})
@@ -109,7 +108,7 @@ var OSSEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
@@ -131,7 +130,7 @@ var OSSNonEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTas
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
