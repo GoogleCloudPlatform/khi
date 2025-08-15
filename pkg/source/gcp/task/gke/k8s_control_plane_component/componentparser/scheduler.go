@@ -21,9 +21,9 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var ErrParserNoMatchingWithLog = errors.New("Parser didn't match with the given log")

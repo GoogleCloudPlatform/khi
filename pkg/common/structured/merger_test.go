@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -28,7 +27,7 @@ func TestMergeNode(t *testing.T) {
 		Prev               string
 		Patch              string
 		Expected           string
-		ArrayMergeStrategy *merger.MergeConfigResolver
+		ArrayMergeStrategy *MergeConfigResolver
 	}{
 		{
 			Name: "merge to update a field",
@@ -235,9 +234,9 @@ quux: 3
     - key: banana
       value: 4
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -266,9 +265,9 @@ quux: 3
     - key: 1
       value: pinapple
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -298,9 +297,9 @@ quux: 3
     - key: apple
       value: 1
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -330,9 +329,9 @@ quux: 3
     - key: 1
       value: apple
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -359,9 +358,9 @@ quux: 3
     - key: apple
       value: 1
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -388,9 +387,9 @@ quux: 3
     - key: 3
       value: banana
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -423,9 +422,9 @@ foo:
     - key: apple
       value: 1
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -452,9 +451,9 @@ foo:
     - key: banana
       value: 4
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyReplace,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyReplace,
 				},
 				MergeKeys: map[string]string{},
 			},
@@ -476,9 +475,9 @@ foo:
       value: 2
 bar: qux
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyReplace,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyReplace,
 				},
 				MergeKeys: map[string]string{},
 			},
@@ -496,9 +495,9 @@ bar: qux
 - key: banana
   value: 2
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"": merger.MergeStrategyReplace,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"": MergeStrategyReplace,
 				},
 			},
 		},
@@ -514,9 +513,9 @@ bar: qux
 - key: banana
   value: 2
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"": merger.MergeStrategyReplace,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"": MergeStrategyReplace,
 				},
 			},
 		},
@@ -533,9 +532,9 @@ bar: qux
 - key: banana
   value: 2
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"": "key",
@@ -554,9 +553,9 @@ bar: qux
 - key: banana
   value: 2
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"": "key",
@@ -574,9 +573,9 @@ bar: qux
     - key: apple
     - key: banana
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -594,9 +593,9 @@ bar: qux
     - key: 1
     - key: 2
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "key",
@@ -614,9 +613,9 @@ bar: qux
     - apple
     - banana
 `,
-			ArrayMergeStrategy: &merger.MergeConfigResolver{
-				MergeStrategies: map[string]merger.MergeArrayStrategy{
-					"foo": merger.MergeStrategyMerge,
+			ArrayMergeStrategy: &MergeConfigResolver{
+				MergeStrategies: map[string]MergeArrayStrategy{
+					"foo": MergeStrategyMerge,
 				},
 				MergeKeys: map[string]string{
 					"foo": "",

@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 )

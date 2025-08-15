@@ -22,9 +22,9 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var globalLogHandler *globalLoggerHandler

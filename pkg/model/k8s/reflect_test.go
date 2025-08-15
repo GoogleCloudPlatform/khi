@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configsource
+package k8s
 
 import (
 	"fmt"
@@ -21,9 +21,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
-
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 func TestFromResourceTypeReflection(t *testing.T) {
@@ -63,7 +62,7 @@ func TestFromResourceTypeReflection(t *testing.T) {
 	}
 	type fieldTestCase struct {
 		path     string
-		strategy merger.MergeArrayStrategy
+		strategy structured.MergeArrayStrategy
 		mergeKey string
 	}
 	testCase := []struct {
@@ -82,78 +81,78 @@ func TestFromResourceTypeReflection(t *testing.T) {
 			fieldTestCases: []fieldTestCase{
 				{
 					path:     "primitive",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "",
 				}, {
 					path:     "mergename",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				}, {
 					path:     "replacearray",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				}, {
 					path:     "mergemerge",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				},
 				{
 					path:     "mergemerge.[].values",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				}, {
 					path:     "mergereplace",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				},
 				{
 					path:     "mergereplace.[].values",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "replacemerge",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "replacemerge.[].values",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				},
 				{
 					path:     "replacereplace",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "replacereplace.[].values",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "replacereplace.[].values",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "replacereplace.[].values",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "inlineArrayMerge",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				},
 				{
 					path:     "inlineArrayReplace",
-					strategy: merger.MergeStrategyReplace,
+					strategy: structured.MergeStrategyReplace,
 					mergeKey: "",
 				},
 				{
 					path:     "pointerType.values",
-					strategy: merger.MergeStrategyMerge,
+					strategy: structured.MergeStrategyMerge,
 					mergeKey: "name",
 				},
 			},
@@ -179,7 +178,7 @@ func TestFromResourceTypeReflection(t *testing.T) {
 				t.Fatal(err)
 			}
 			for key, strategy := range resolver.MergeStrategies {
-				if strategy == merger.MergeStrategyReplace {
+				if strategy == structured.MergeStrategyReplace {
 					slog.Info(fmt.Sprintf("%s -> %s\n", key, strategy))
 				} else {
 					mergeKey, err := resolver.GetMergeKey(key)
@@ -199,7 +198,7 @@ func TestFromResourceTypeReflection(t *testing.T) {
 					})
 					t.Run("GetMergeKey", func(t *testing.T) {
 						mergeKey, err := resolver.GetMergeKey(field.path)
-						if field.strategy == merger.MergeStrategyReplace {
+						if field.strategy == structured.MergeStrategyReplace {
 							if err == nil {
 								t.Errorf("GetMergeKey in the array field with replace merge policy should return an error but no error returned")
 							}

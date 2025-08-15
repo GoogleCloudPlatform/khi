@@ -17,15 +17,15 @@ package parser_test
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
 // ParseFromYamlLogFile returns the parsed ChangeSet from the yaml log file at the given path with specified parser.
-func ParseFromYamlLogFile(testFile string, parser parser.Parser, builder *history.Builder, readers ...log.FieldSetReader) (*history.ChangeSet, error) {
+func ParseFromYamlLogFile(testFile string, parser parsertask.Parser, builder *history.Builder, readers ...log.FieldSetReader) (*history.ChangeSet, error) {
 	testutil.InitTestIO()
 	yamlStr := testutil.MustReadText(testFile)
 	l := testlog.MustLogFromYAML(yamlStr)

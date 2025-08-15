@@ -29,8 +29,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 
 	"github.com/gin-contrib/cors"

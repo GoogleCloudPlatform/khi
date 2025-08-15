@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"

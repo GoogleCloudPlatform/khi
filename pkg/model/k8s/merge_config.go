@@ -18,15 +18,18 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
-type MergeConfigRegistry struct {
-	defaultResolver      *merger.MergeConfigResolver
-	mergeConfigResolvers map[string]*merger.MergeConfigResolver
+// K8sManifestMergeConfigRegistry holds merge configurations for Kubernetes manifests.
+type K8sManifestMergeConfigRegistry struct {
+	defaultResolver      *structured.MergeConfigResolver
+	mergeConfigResolvers map[string]*structured.MergeConfigResolver
 }
 
-func (r *MergeConfigRegistry) Register(apiVersion string, kind string, childResolver *merger.MergeConfigResolver) {
+// Register adds a new merge configuration for a specific apiVersion and kind.
+// If a configuration for the same apiVersion and kind already exists, it logs an error.
+func (r *K8sManifestMergeConfigRegistry) Register(apiVersion string, kind string, childResolver *structured.MergeConfigResolver) {
 	mapKey := fmt.Sprintf("%s-%s", apiVersion, kind)
 	if _, found := r.mergeConfigResolvers[mapKey]; found {
 		slog.Error(fmt.Sprintf("Merge config for apiVersion: %s, kind:%s is already registered", apiVersion, kind))
@@ -34,7 +37,9 @@ func (r *MergeConfigRegistry) Register(apiVersion string, kind string, childReso
 	r.mergeConfigResolvers[mapKey] = childResolver
 }
 
-func (r *MergeConfigRegistry) Get(apiVersion string, kind string) *merger.MergeConfigResolver {
+// Get retrieves the merge configuration for a specific apiVersion and kind.
+// If a specific configuration is not found, it returns the default resolver.
+func (r *K8sManifestMergeConfigRegistry) Get(apiVersion string, kind string) *structured.MergeConfigResolver {
 	mapKey := fmt.Sprintf("%s-%s", apiVersion, kind)
 	if resolver, found := r.mergeConfigResolvers[mapKey]; found {
 		return resolver

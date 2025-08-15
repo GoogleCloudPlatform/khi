@@ -19,9 +19,9 @@ import (
 	"fmt"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var AutocompleteClusterNamesTaskID = taskid.NewTaskReference[*AutocompleteClusterNameList](GCPPrefix + "autocomplete/cluster-names")

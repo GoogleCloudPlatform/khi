@@ -17,51 +17,51 @@ package k8scontrolplanecomponent
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/componentparser"
 	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type k8sControlPlaneComponentParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) TargetLogType() enum.LogType {
 	return enum.LogTypeControlPlaneComponent
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) Description() string {
 	return `Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) GetParserName() string {
 	return `Kubernetes Control plane component logs`
 }
 
-// Grouper implements parser.Parser.
+// Grouper implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) Grouper() grouper.LogGrouper {
 	return grouper.NewSingleStringFieldKeyLogGrouper("resource.labels.component_name")
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentQueryTaskID.Ref()
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	component := l.ReadStringOrDefault("resource.labels.component_name", "Unknown")
 	for i := 0; i < len(componentparser.ComponentParsers); i++ {
@@ -80,6 +80,6 @@ func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.Log, 
 	return nil
 }
 
-var _ parser.Parser = (*k8sControlPlaneComponentParser)(nil)
+var _ parsertask.Parser = (*k8sControlPlaneComponentParser)(nil)
 
-var GKEK8sControlPlaneComponentLogParseTask = parser.NewParserTaskFromParser(k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEK8sControlPlaneComponentLogParseTask = parsertask.NewParserTaskFromParser(k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)

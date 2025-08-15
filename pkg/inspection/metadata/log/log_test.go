@@ -17,7 +17,7 @@ package log
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"

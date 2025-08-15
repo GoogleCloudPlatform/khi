@@ -20,20 +20,20 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/noderesource"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
-var GKENodeLogParseJob = parser.NewParserTaskFromParser(k8s_node_taskid.GKENodeLogParserTaskID, &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKENodeLogParseJob = parsertask.NewParserTaskFromParser(k8s_node_taskid.GKENodeLogParserTaskID, &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
 
 const ContainerdStartingMsg = "starting containerd"
 const DockerdStartingMsg = "Starting up"
@@ -46,17 +46,17 @@ const ConfigureHelperShTerminatingMsg = "Done for the configuration for kubernet
 type k8sNodeParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (p *k8sNodeParser) TargetLogType() enum.LogType {
 	return enum.LogTypeNode
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*k8sNodeParser) Description() string {
 	return `Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*k8sNodeParser) GetParserName() string {
 	return `Kubernetes Node Logs`
 }
@@ -81,7 +81,7 @@ func (*k8sNodeParser) GetSyslogIdentifier(l *log.Log) string {
 	return syslogIdentiefier
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	commonMessageFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
@@ -464,4 +464,4 @@ func toReadableContainerName(namespace string, name string, container string) st
 	return fmt.Sprintf("%s in %s/%s", container, namespace, name)
 }
 
-var _ parser.Parser = (*k8sNodeParser)(nil)
+var _ parsertask.Parser = (*k8sNodeParser)(nil)

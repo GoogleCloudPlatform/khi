@@ -19,46 +19,46 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 type OSSK8sEventFromK8sAudit struct {
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) Description() string {
 	return `The event log parser for OSS kubernetes from the audit log`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) GetParserName() string {
 	return "OSS Kubernetes Event logs from JSONL audit log"
 }
 
-// Grouper implements parser.Parser.
+// Grouper implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) LogTask() taskid.TaskReference[[]*log.Log] {
 	return oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID.Ref()
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	apiVersion := l.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "core/v1")
 	kind := strings.ToLower(l.ReadStringOrDefault("responseObject.involvedObject.kind", "unknown"))
@@ -78,14 +78,14 @@ func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.Log, cs *his
 	return nil
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) TargetLogType() enum.LogType {
 	return enum.LogTypeAudit
 }
 
-var _ parser.Parser = (*OSSK8sEventFromK8sAudit)(nil)
+var _ parsertask.Parser = (*OSSK8sEventFromK8sAudit)(nil)
 
-var OSSK8sEventLogParserTask = parser.NewParserTaskFromParser(
+var OSSK8sEventLogParserTask = parsertask.NewParserTaskFromParser(
 	oss_taskid.OSSK8sEventLogParserTaskID,
 	&OSSK8sEventFromK8sAudit{}, true, []string{
 		oss_constant.OSSInspectionTypeID,

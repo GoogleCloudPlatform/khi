@@ -18,8 +18,8 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type OSSK8sAuditLogCommonFieldSetReader struct{}

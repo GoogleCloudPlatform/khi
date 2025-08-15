@@ -21,41 +21,41 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 	"gopkg.in/yaml.v3"
 )
 
 type gceNetworkParser struct{}
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (g *gceNetworkParser) TargetLogType() enum.LogType {
 	return enum.LogTypeNetworkAPI
 }
 
-// Dependencies implements parser.Parser.
+// Dependencies implements parsertask.Parser.
 func (*gceNetworkParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*gceNetworkParser) Description() string {
 	return `Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*gceNetworkParser) GetParserName() string {
 	return "GCE Network Logs"
 }
 
-// LogTask implements parser.Parser.
+// LogTask implements parsertask.Parser.
 func (*gceNetworkParser) LogTask() taskid.TaskReference[[]*log.Log] {
 	return network_api_taskid.GCPNetworkLogQueryTaskID.Ref()
 }
@@ -64,7 +64,7 @@ func (*gceNetworkParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	isFirst := l.Has("operation.first")
@@ -153,6 +153,6 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 	return nil
 }
 
-var _ parser.Parser = (*gceNetworkParser)(nil)
+var _ parsertask.Parser = (*gceNetworkParser)(nil)
 
-var NetowrkAPIParserTask = parser.NewParserTaskFromParser(network_api_taskid.GCPNetworkLogParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var NetowrkAPIParserTask = parsertask.NewParserTaskFromParser(network_api_taskid.GCPNetworkLogParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

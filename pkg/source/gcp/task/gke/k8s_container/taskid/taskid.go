@@ -15,11 +15,11 @@
 package gke_k8s_container_taskid
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var InputContainerQueryNamespacesTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](gcp_task.GCPPrefix + "input/container-query-namespaces")

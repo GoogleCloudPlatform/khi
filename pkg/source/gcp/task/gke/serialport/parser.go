@@ -17,41 +17,41 @@ package serialport
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/parserutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	serialport_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/serialport/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 )
 
-var serialportSequenceConverters = []parserutil.SpecialSequenceConverter{
-	&parserutil.ANSIEscapeSequenceStripper{},
-	&parserutil.SequenceConverter{From: []string{"\\r", "\\n", "\\x1bM"}},
-	&parserutil.UnicodeUnquoteConverter{},
-	&parserutil.SequenceConverter{From: []string{"\\x2d"}, To: "-"},
-	&parserutil.SequenceConverter{From: []string{"\t"}, To: " "},
+var serialportSequenceConverters = []logutil.SpecialSequenceConverter{
+	&logutil.ANSIEscapeSequenceStripper{},
+	&logutil.SequenceConverter{From: []string{"\\r", "\\n", "\\x1bM"}},
+	&logutil.UnicodeUnquoteConverter{},
+	&logutil.SequenceConverter{From: []string{"\\x2d"}, To: "-"},
+	&logutil.SequenceConverter{From: []string{"\t"}, To: " "},
 }
 
 type SerialPortLogParser struct {
 }
 
-// TargetLogType implements parser.Parser.
+// TargetLogType implements parsertask.Parser.
 func (s *SerialPortLogParser) TargetLogType() enum.LogType {
 	return enum.LogTypeSerialPort
 }
 
-// Description implements parser.Parser.
+// Description implements parsertask.Parser.
 func (*SerialPortLogParser) Description() string {
 	return `Gather serialport logs of GKE nodes. This helps detailed investigation on VM bootstrapping issue on GKE node.`
 }
 
-// GetParserName implements parser.Parser.
+// GetParserName implements parsertask.Parser.
 func (*SerialPortLogParser) GetParserName() string {
 	return "Node serial port logs"
 }
@@ -68,17 +68,17 @@ func (*SerialPortLogParser) Grouper() grouper.LogGrouper {
 	return grouper.NewSingleStringFieldKeyLogGrouper("resource.labels.instance_id")
 }
 
-// Parse implements parser.Parser.
+// Parse implements parsertask.Parser.
 func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
 	nodeName := l.ReadStringOrDefault("labels.compute\\.googleapis\\.com/resource_name", "unknown")
 	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
-	escapedMainMessage := parserutil.ConvertSpecialSequences(mainMessageFieldSet.MainMessage, serialportSequenceConverters...)
+	escapedMainMessage := logutil.ConvertSpecialSequences(mainMessageFieldSet.MainMessage, serialportSequenceConverters...)
 	serialPortResourcePath := resourcepath.NodeSerialport(nodeName)
 	cs.RecordEvent(serialPortResourcePath)
 	cs.RecordLogSummary(escapedMainMessage)
 	return nil
 }
 
-var _ parser.Parser = (*SerialPortLogParser)(nil)
+var _ parsertask.Parser = (*SerialPortLogParser)(nil)
 
-var GKESerialPortLogParseTask = parser.NewParserTaskFromParser(serialport_taskid.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKESerialPortLogParseTask = parsertask.NewParserTaskFromParser(serialport_taskid.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)

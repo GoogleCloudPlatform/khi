@@ -15,11 +15,11 @@
 package k8s_control_plane_component_taskid
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](gcp_task.GCPPrefix + "input/component-names")

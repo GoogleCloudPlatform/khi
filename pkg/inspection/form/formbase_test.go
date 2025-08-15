@@ -17,8 +17,8 @@ package form
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 func TestNewFormTaskBuilderBase(t *testing.T) {

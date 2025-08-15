@@ -16,8 +16,8 @@ package common_k8saudit_taskid
 
 import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/task/core/contract/taskid"
 )
 
 // CommonAuditLogSource is a task ID for the task to inject logs and dependencies specific to the log source.

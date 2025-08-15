@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configsource
+package k8s
 
 import (
 	"fmt"
@@ -20,14 +20,14 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/log/structure/merger"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
 const MAXIMUM_STRUCTURE_DEPTH = 100
 
-func FromResourceTypeReflection(resourceType interface{}) (*merger.MergeConfigResolver, error) {
-	result := &merger.MergeConfigResolver{
-		MergeStrategies: make(map[string]merger.MergeArrayStrategy),
+func FromResourceTypeReflection(resourceType interface{}) (*structured.MergeConfigResolver, error) {
+	result := &structured.MergeConfigResolver{
+		MergeStrategies: make(map[string]structured.MergeArrayStrategy),
 		MergeKeys:       map[string]string{},
 	}
 	refType := reflect.TypeOf(resourceType)
@@ -38,7 +38,7 @@ func FromResourceTypeReflection(resourceType interface{}) (*merger.MergeConfigRe
 	return result, nil
 }
 
-func resolveTypeRecursive(path string, current reflect.Type, resolver *merger.MergeConfigResolver) error {
+func resolveTypeRecursive(path string, current reflect.Type, resolver *structured.MergeConfigResolver) error {
 	if strings.Count(path, ".") > MAXIMUM_STRUCTURE_DEPTH {
 		return fmt.Errorf("maximum structure depth reached. is this a recursive structure?")
 	}
@@ -71,9 +71,9 @@ func resolveTypeRecursive(path string, current reflect.Type, resolver *merger.Me
 				if fieldKind == reflect.Slice || fieldKind == reflect.Array {
 					patchStrategy, ok := field.Tag.Lookup("patchStrategy")
 					if !ok || patchStrategy != "merge" {
-						resolver.MergeStrategies[jsonFieldPath] = merger.MergeStrategyReplace
+						resolver.MergeStrategies[jsonFieldPath] = structured.MergeStrategyReplace
 					} else {
-						resolver.MergeStrategies[jsonFieldPath] = merger.MergeStrategyMerge
+						resolver.MergeStrategies[jsonFieldPath] = structured.MergeStrategyMerge
 						patchMergeKey, ok := field.Tag.Lookup("patchMergeKey")
 						if ok {
 							resolver.MergeKeys[jsonFieldPath] = patchMergeKey
