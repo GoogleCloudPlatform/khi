@@ -226,12 +226,12 @@ Role of Each Component
 
 For testing tasks, use one of the following two helper functions:
 
-- `task_test.RunTask`: Used to call a specific task and receive the resulting value and error
-- `task_test.RunTaskWithDependency`: Used to resolve dependencies with the given task list, execute a specific task, and receive the resulting value and error
+- `tasktest.RunTask`: Used to call a specific task and receive the resulting value and error
+- `tasktest.RunTaskWithDependency`: Used to resolve dependencies with the given task list, execute a specific task, and receive the resulting value and error
 
-#### task_test.RunTask
+#### tasktest.RunTask
 
-Use `task_test.RunTask` when you simply want to execute a task with specific inputs and test its result.
+Use `tasktest.RunTask` when you simply want to execute a task with specific inputs and test its result.
 
 ```go
 
@@ -244,7 +244,7 @@ var DoubleNumberTask = task.NewTask(DoubleNumberTaskID, []taskid.UntypedTaskRefe
 })
 
 func TestRunTask(t *testing.T) {
- result,err := task_test.RunTask(context.Background(), DoubleNumberTaskID, task_test.NewTaskDependencyPair(ReturnSomeNumberReference, 5))
+ result,err := tasktest.RunTask(context.Background(), DoubleNumberTaskID, task_test.NewTaskDependencyPair(ReturnSomeNumberReference, 5))
  if err != nil {
   t.Fatalf("failed to run task: %v", err)
  }
@@ -254,7 +254,7 @@ func TestRunTask(t *testing.T) {
 }
 ```
 
-#### task_test.RunTaskWithDependency
+#### tasktest.RunTaskWithDependency
 
 In some cases, tasks may have inputs that are difficult to create for test cases, and you may want to actually execute the dependent tasks as well.
 
@@ -276,7 +276,7 @@ var TestingTargetTask = task.NewTask(TestingTargetTaskID, []taskid.UntypedTaskRe
 })
 
 func TestRunTaskWithDependency(t *testing.T) {
- result, err := task_test.RunTaskWithDependency(context.Background(), TestingTargetTaskID,[]typedmap.UntypedTaskReference{ComplexOutputTask,task_test.StubTaskFromReferenceID(SimpleInputTaskReference, 5, nil)})
+ result, err := tasktest.RunTaskWithDependency(context.Background(), TestingTargetTaskID,[]typedmap.UntypedTaskReference{ComplexOutputTask,task_test.StubTaskFromReferenceID(SimpleInputTaskReference, 5, nil)})
  if err != nil {
   t.Fatalf("failed to run task: %v", err)
  }

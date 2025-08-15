@@ -21,11 +21,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -50,11 +50,11 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 
-			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(t.Context())
-			inspection_task_test.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_contract.TaskModeRun, map[string]any{},
-				task_test.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
-				task_test.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.Ref(), tc.StartTime),
-				task_test.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.Ref(), tc.EndTime),
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			inspectiontest.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_contract.TaskModeRun, map[string]any{},
+				tasktest.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
+				tasktest.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.Ref(), tc.StartTime),
+				tasktest.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.Ref(), tc.EndTime),
 			)
 
 			metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)

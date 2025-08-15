@@ -36,12 +36,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -121,7 +121,7 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 			}
 			return "", nil
 		}).Build(inspection_contract.InspectionTypeLabel("foo")),
-		task_test.StubTask(gcp_task.TimeZoneShiftInputTask, time.UTC, nil),
+		tasktest.StubTask(gcp_task.TimeZoneShiftInputTask, time.UTC, nil),
 		formtask.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspection_contract.InspectionTypeLabel("bar")),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) (any, error) {
 			return "feature-foo1-value", nil
