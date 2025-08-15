@@ -24,12 +24,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
@@ -80,7 +79,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		gcp_task.InputStartTimeTaskID.Ref(),
 		gcp_task.InputEndTimeTaskID.Ref(),
 		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
-	), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+	), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err
@@ -128,7 +127,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			slog.InfoContext(ctx, fmt.Sprintf("Query generator `%s` decided to skip.", taskId))
 			return []*log.Log{}, nil
 		}
-		queryInfo, found := typedmap.Get(metadata, query.QueryMetadataKey)
+		queryInfo, found := typedmap.Get(metadata, inspectionmetadata.QueryMetadataKey)
 		if !found {
 			return nil, fmt.Errorf("query metadata was not found")
 		}
@@ -151,22 +150,22 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
 				queryLogs, queryErr := worker.Query(ctx, resourceNamesFromInput, progress)
 				if queryErr != nil {
-					errorMessageSet, found := typedmap.Get(metadata, error_metadata.ErrorMessageSetMetadataKey)
+					errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
 					if !found {
 						return nil, fmt.Errorf("error message set metadata was not found")
 					}
 					if strings.HasPrefix(queryErr.Error(), "401:") {
-						errorMessageSet.AddErrorMessage(error_metadata.NewUnauthorizedErrorMessage())
+						errorMessageSet.AddErrorMessage(inspectionmetadata.NewUnauthorizedErrorMessage())
 					}
 					// TODO: these errors are shown to frontend but it's not well implemented.
 					if strings.HasPrefix(queryErr.Error(), "403:") {
-						errorMessageSet.AddErrorMessage(&error_metadata.ErrorMessage{
+						errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
 							ErrorId: 0,
 							Message: queryErr.Error(),
 						})
 					}
 					if strings.HasPrefix(queryErr.Error(), "404:") {
-						errorMessageSet.AddErrorMessage(&error_metadata.ErrorMessage{
+						errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
 							ErrorId: 0,
 							Message: queryErr.Error(),
 						})

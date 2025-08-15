@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 const MAXIMUM_CHUNK_SIZE = 1024 * 1024 * 500
@@ -97,7 +97,7 @@ func (b *Builder) Read(ref *BinaryReference) ([]byte, error) {
 }
 
 // Build amends all the binary buffers to the given writer in KHI format. Returns the written byte size.
-func (b *Builder) Build(ctx context.Context, writer io.Writer, progress *progress.TaskProgress) (int, error) {
+func (b *Builder) Build(ctx context.Context, writer io.Writer, progress *inspectionmetadata.TaskProgress) (int, error) {
 	allBinarySize := 0
 	b.lock.Lock()
 	defer b.lock.Unlock()

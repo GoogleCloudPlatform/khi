@@ -21,18 +21,18 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonAuitLogSource,
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) (struct{}, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		return struct{}{}, nil
 	}
@@ -40,7 +40,7 @@ var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudi
 	logs := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}
-	updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
+	updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgress) {
 		current := processedCount.Load()
 		tp.Percentage = float32(current) / float32(len(logs.Logs))
 		tp.Message = fmt.Sprintf("%d/%d", current, len(logs.Logs))

@@ -22,15 +22,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
-var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspection_contract.SerializerTaskID, []taskid.UntypedTaskReference{inspection_contract.InspectionMainSubgraphDoneTaskID.Ref()}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) (*inspection_contract.FileSystemStore, error) {
+var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspection_contract.SerializerTaskID, []taskid.UntypedTaskReference{inspection_contract.InspectionMainSubgraphDoneTaskID.Ref()}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) (*inspection_contract.FileSystemStore, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil
@@ -46,7 +44,7 @@ var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspe
 		return nil, err
 	}
 	defer writer.Close()
-	resultMetadata, err := metadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, filter.NewEqualFilter(metadata.LabelKeyIncludedInResultBinaryFlag, true, false))
+	resultMetadata, err := inspectionmetadata.GetSerializableSubsetMapFromMetadataSet(metadataSet, filter.NewEqualFilter(inspectionmetadata.LabelKeyIncludedInResultBinaryFlag, true, false))
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +52,7 @@ var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspe
 	if err != nil {
 		return nil, err
 	}
-	header, found := typedmap.Get(metadataSet, header.HeaderMetadataKey)
+	header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
 	if found {
 		header.FileSize = fileSize
 	}

@@ -20,9 +20,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
@@ -45,7 +45,7 @@ type TextFormSuggestionsProvider = func(ctx context.Context, value string, previ
 type TextFormValueConverter[T any] = func(ctx context.Context, value string) (T, error)
 
 // TextFormHintGenerator is a function type to generate a hint string
-type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error)
+type TextFormHintGenerator = func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error)
 
 // TextFormTaskBuilder is an utility to construct an instance of task for input form field.
 // This will generate the task instance with `Build()` method call after chaining several configuration methods.
@@ -87,8 +87,8 @@ func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority i
 			var anyValue any = value // This is needed for forcible cast from string to T.
 			return anyValue.(T), nil
 		},
-		hintGenerator: func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
-			return "", form_metadata.Info, nil
+		hintGenerator: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+			return "", inspectionmetadata.Info, nil
 		},
 	}
 }
@@ -164,7 +164,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 		if err != nil {
 			return *new(T), fmt.Errorf("allowEdit provider for task `%s` returned an error\n%v", b.id, err)
 		}
-		field := form_metadata.TextParameterFormField{}
+		field := inspectionmetadata.TextParameterFormField{}
 		field.Readonly = readonly
 
 		// Compute the default value of the form
@@ -183,8 +183,8 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 			currentValue = valueString
 		}
 
-		field.Type = form_metadata.Text
-		field.HintType = form_metadata.Info
+		field.Type = inspectionmetadata.Text
+		field.HintType = inspectionmetadata.Info
 
 		b.SetupBaseFormField(&field.ParameterFormFieldBase)
 
@@ -214,7 +214,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 			return *new(T), fmt.Errorf("failed to convert the value `%s` to the dedicated value in task %s\n%v", currentValue, b.id, err)
 		}
 		if validationErr != "" {
-			field.HintType = form_metadata.Error
+			field.HintType = inspectionmetadata.Error
 			field.Hint = validationErr
 		} else {
 			hint, hintType, err := b.hintGenerator(ctx, currentValue, convertedValue)
@@ -222,7 +222,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 				return *new(T), fmt.Errorf("failed to generate a hint for task %s\n%v", b.id, err)
 			}
 			if hint == "" {
-				hintType = form_metadata.None
+				hintType = inspectionmetadata.None
 			}
 			field.Hint = hint
 			field.HintType = hintType
@@ -231,7 +231,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 				typedmap.Set(globalSharedMap, previousValueStoreKey, newValueHistory)
 			}
 		}
-		formFields, found := typedmap.Get(m, form_metadata.FormFieldSetMetadataKey)
+		formFields, found := typedmap.Get(m, inspectionmetadata.FormFieldSetMetadataKey)
 		if !found {
 			return *new(T), fmt.Errorf("form field set was not found in the metadata set")
 		}

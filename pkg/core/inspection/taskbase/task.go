@@ -20,14 +20,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 // ProgressReportableInspectionTaskFunc is a type for inspection task functions with progress reporting capabilities.
-type ProgressReportableInspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) (T, error)
+type ProgressReportableInspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgress) (T, error)
 
 // InspectionTaskFunc is a type for basic inspection task functions.
 type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (T, error)
@@ -46,7 +46,7 @@ func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementation
 
 	return NewInspectionTask(taskId, dependencies, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (T, error) {
 		metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-		progress, found := typedmap.Get(metadataSet, progress.ProgressMetadataKey)
+		progress, found := typedmap.Get(metadataSet, inspectionmetadata.ProgressMetadataKey)
 		if !found {
 			return *new(T), fmt.Errorf("progress metadata not found")
 		}

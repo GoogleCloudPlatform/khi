@@ -20,7 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 
@@ -58,7 +58,7 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 			)
 
 			metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-			header, found := typedmap.Get(metadata, header.HeaderMetadataKey)
+			header, found := typedmap.Get(metadata, inspectionmetadata.HeaderMetadataKey)
 			if !found {
 				t.Fatalf("header metadata not found")
 			}

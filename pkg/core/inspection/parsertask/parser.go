@@ -24,11 +24,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
@@ -66,7 +66,7 @@ type Parser interface {
 
 // NewParserTaskFromParser generates a coretask.Task that consumes array of LogEntities, grouping them by given log field key and call parse function concurrently.
 func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
-	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) (struct{}, error) {
+	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) (struct{}, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
@@ -75,7 +75,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 		logs := coretask.GetTaskResult(ctx, parser.LogTask())
 
 		preparedLogCount := atomic.Int32{}
-		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
+		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgress) {
 			current := preparedLogCount.Load()
 			tp.Percentage = float32(current) / float32(len(logs))
 			tp.Message = fmt.Sprintf("%d/%d", current, len(logs))

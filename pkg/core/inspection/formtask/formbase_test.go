@@ -17,8 +17,8 @@ package formtask
 import (
 	"testing"
 
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 )
 
 func TestNewFormTaskBuilderBase(t *testing.T) {
@@ -90,7 +90,7 @@ func TestFormTaskBuilderBase_SetupBaseFormField(t *testing.T) {
 	builder := NewFormTaskBuilderBase(taskid.NewDefaultImplementationID[string](testID), testPriority, testLabel)
 	builder.WithDescription(testDescription)
 
-	field := &form_metadata.ParameterFormFieldBase{}
+	field := &inspectionmetadata.ParameterFormFieldBase{}
 	builder.SetupBaseFormField(field)
 
 	if field.ID != testID {

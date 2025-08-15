@@ -15,8 +15,8 @@
 package formtask
 
 import (
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
 )
 
 // FormTaskBuilderBase provides common functionality for form task builders
@@ -51,7 +51,7 @@ func (b *FormTaskBuilderBase[T]) WithDependencies(dependencies []taskid.UntypedT
 }
 
 // SetupBaseFormField configures common form field properties
-func (b *FormTaskBuilderBase[T]) SetupBaseFormField(field *form_metadata.ParameterFormFieldBase) {
+func (b *FormTaskBuilderBase[T]) SetupBaseFormField(field *inspectionmetadata.ParameterFormFieldBase) {
 	field.ID = b.id.ReferenceIDString()
 	field.Label = b.label
 	field.Priority = b.priority

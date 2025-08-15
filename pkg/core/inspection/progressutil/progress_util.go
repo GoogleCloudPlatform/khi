@@ -17,14 +17,14 @@ package progressutil
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 // ReportProgressFromArraySync reports progress of processing an array synchronously.
 // It updates the given TaskProgress with the current count and percentage.
 // The process function is called for each element in the source array.
 // If the process function returns an error, the reporting stops and the error is returned.
-func ReportProgressFromArraySync[T any](progress *progress.TaskProgress, source []T, process func(int, T) error) error {
+func ReportProgressFromArraySync[T any](progress *inspectionmetadata.TaskProgress, source []T, process func(int, T) error) error {
 	fLen := float32(len(source))
 	progress.Update(0, fmt.Sprintf("%d/%d", 0, len(source)))
 	for i := 0; i < len(source); i++ {

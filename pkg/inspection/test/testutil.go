@@ -19,12 +19,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	error_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/error"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
@@ -69,10 +65,10 @@ func RunInspectionTaskWithDependency[T any](baseContext context.Context, mainTas
 
 func generateTestMetadata() *typedmap.ReadonlyTypedMap {
 	writableMetadata := typedmap.NewTypedMap()
-	typedmap.Set(writableMetadata, header.HeaderMetadataKey, &header.Header{})
-	typedmap.Set(writableMetadata, error_metadata.ErrorMessageSetMetadataKey, error_metadata.NewErrorMessageSet())
-	typedmap.Set(writableMetadata, form.FormFieldSetMetadataKey, form.NewFormFieldSet())
-	typedmap.Set(writableMetadata, query.QueryMetadataKey, query.NewQueryMetadata())
-	typedmap.Set(writableMetadata, progress.ProgressMetadataKey, progress.NewProgress())
+	typedmap.Set(writableMetadata, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.Header{})
+	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSet())
+	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSet())
+	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, inspectionmetadata.NewProgress())
 	return writableMetadata.AsReadonly()
 }

@@ -26,11 +26,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
@@ -95,21 +94,21 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(InputClusterNameTaskI
 		clusters := coretask.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
 		return common.SortForAutocomplete(value, clusters.ClusterNames), nil
 	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 		clusters := coretask.GetTaskResult(ctx, AutocompleteClusterNamesTaskID)
 		prefix := coretask.GetTaskResult(ctx, ClusterNamePrefixTaskID)
 
 		// on failure of getting the list of clusters
 		if clusters.Error != "" {
-			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), form_metadata.Warning, nil
+			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), inspectionmetadata.Warning, nil
 		}
 		convertedWithoutPrefix := strings.TrimPrefix(convertedValue.(string), prefix)
 		for _, suggestedCluster := range clusters.ClusterNames {
 			if suggestedCluster == convertedWithoutPrefix {
-				return "", form_metadata.Info, nil
+				return "", inspectionmetadata.Info, nil
 			}
 		}
-		return fmt.Sprintf("Cluster `%s` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.", value), form_metadata.Warning, nil
+		return fmt.Sprintf("Cluster `%s` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.", value), inspectionmetadata.Warning, nil
 	}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
 		if !clusterNameValidator.Match([]byte(value)) {
@@ -140,7 +139,7 @@ var InputDurationTask = formtask.NewTextFormTaskBuilder(InputDurationTaskID, Pri
 			return "1h", nil
 		}
 	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
 		timezoneShift := coretask.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
@@ -158,7 +157,7 @@ var InputDurationTask = formtask.NewTextFormTaskBuilder(InputDurationTaskID, Pri
 		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
 		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
 		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
-		return hintString, form_metadata.Info, nil
+		return hintString, inspectionmetadata.Info, nil
 	}).
 	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
@@ -201,14 +200,14 @@ var InputEndTimeTask = formtask.NewTextFormTaskBuilder(InputEndTimeTaskID, Prior
 
 		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, form_metadata.ParameterHintType, error) {
+	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
 
 		specifiedTime := convertedValue.(time.Time)
 		if inspectionTime.Sub(specifiedTime) < 0 {
-			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), form_metadata.Warning, nil
+			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
 		}
-		return "", form_metadata.Info, nil
+		return "", inspectionmetadata.Info, nil
 	}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
 		_, err := common.ParseTime(value)
@@ -234,7 +233,7 @@ var InputStartTimeTask = inspectiontaskbase.NewInspectionTask(InputStartTimeTask
 	// Add starttime and endtime on the header metadata
 	metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 
-	header, found := typedmap.Get(metadataSet, header.HeaderMetadataKey)
+	header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
 	if !found {
 		return time.Time{}, fmt.Errorf("header metadata not found")
 	}

@@ -20,13 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 func TestNewProgressUpdator(t *testing.T) {
-	p := &progress.TaskProgress{}
+	p := &inspectionmetadata.TaskProgress{}
 	interval := 100 * time.Millisecond
-	onTick := func(tp *progress.TaskProgress) {}
+	onTick := func(tp *inspectionmetadata.TaskProgress) {}
 
 	updator := NewProgressUpdator(p, interval, onTick)
 
@@ -44,13 +44,13 @@ func TestNewProgressUpdator(t *testing.T) {
 func TestProgressUpdator_StartAndDone(t *testing.T) {
 	var mu sync.Mutex
 	var tickCount int
-	onTick := func(tp *progress.TaskProgress) {
+	onTick := func(tp *inspectionmetadata.TaskProgress) {
 		mu.Lock()
 		defer mu.Unlock()
 		tickCount++
 	}
 
-	p := &progress.TaskProgress{}
+	p := &inspectionmetadata.TaskProgress{}
 	interval := 50 * time.Millisecond
 	updator := NewProgressUpdator(p, interval, onTick)
 
@@ -88,7 +88,7 @@ func TestProgressUpdator_StartAndDone(t *testing.T) {
 }
 
 func TestProgressUpdator_DoneWithoutStart(t *testing.T) {
-	updator := NewProgressUpdator(&progress.TaskProgress{}, 1*time.Second, func(tp *progress.TaskProgress) {})
+	updator := NewProgressUpdator(&inspectionmetadata.TaskProgress{}, 1*time.Second, func(tp *inspectionmetadata.TaskProgress) {})
 	err := updator.Done()
 	if err == nil {
 		t.Errorf("Done() should return an error if Start() was not called")
@@ -98,13 +98,13 @@ func TestProgressUpdator_DoneWithoutStart(t *testing.T) {
 func TestProgressUpdator_ParentContextCancellation(t *testing.T) {
 	var mu sync.Mutex
 	var tickCount int
-	onTick := func(tp *progress.TaskProgress) {
+	onTick := func(tp *inspectionmetadata.TaskProgress) {
 		mu.Lock()
 		defer mu.Unlock()
 		tickCount++
 	}
 
-	p := &progress.TaskProgress{}
+	p := &inspectionmetadata.TaskProgress{}
 	interval := 50 * time.Millisecond
 	updator := NewProgressUpdator(p, interval, onTick)
 

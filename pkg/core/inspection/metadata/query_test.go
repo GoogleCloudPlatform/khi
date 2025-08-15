@@ -12,24 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metadata_test
+package inspectionmetadata
 
 import (
-	"encoding/json"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
+	"github.com/google/go-cmp/cmp"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
-func ConformanceMetadataTypeTest(t *testing.T, m metadata.Metadata) {
-	t.Run("metadata type must be serializable", func(t *testing.T) {
-		ConformanceTestMetadataIsSerializable(t, m)
-	})
-}
+func TestQuerySerializeInSortedOrder(t *testing.T) {
+	query := QueryMetadata{
+		Queries: []*QueryItem{
+			{Id: "a"},
+			{Id: "c"},
+			{Id: "b"},
+			{Id: "e"},
+			{Id: "d"},
+		},
+	}
 
-func ConformanceTestMetadataIsSerializable(t *testing.T, m metadata.Metadata) {
-	_, err := json.Marshal(m.ToSerializable())
-	if err != nil {
-		t.Errorf("Expected metadata is JSON serializable. But returned an error\n%v", err)
+	expected := []*QueryItem{
+		{Id: "a"},
+		{Id: "b"},
+		{Id: "c"},
+		{Id: "d"},
+		{Id: "e"},
+	}
+	if diff := cmp.Diff(query.ToSerializable(), expected); diff != "" {
+		t.Errorf("Query info serialization result was not in the sorted order\n%s", diff)
 	}
 }

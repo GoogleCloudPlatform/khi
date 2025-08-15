@@ -22,10 +22,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
@@ -63,7 +63,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		common_k8saudit_taskid.LogConvertTaskID.Ref(),
 		common_k8saudit_taskid.ManifestGenerateTaskID.Ref(),
 	}
-	newTask := inspectiontaskbase.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) (any, error) {
+	newTask := inspectiontaskbase.NewProgressReportableInspectionTask(r.GetRecorderTaskName(name), append(dependenciesBase, dependencies...), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) (any, error) {
 		if taskMode == inspection_contract.TaskModeDryRun {
 			return struct{}{}, nil
 		}
@@ -72,7 +72,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 
 		filteredLogs, allCount := filterMatchedGroupedLogs(ctx, groupedLogs, logGroupFilter)
 		processedLogCount := atomic.Int32{}
-		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *progress.TaskProgress) {
+		updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgress) {
 			current := processedLogCount.Load()
 			tp.Percentage = float32(current) / float32(allCount)
 			tp.Message = fmt.Sprintf("%d/%d", current, allCount)

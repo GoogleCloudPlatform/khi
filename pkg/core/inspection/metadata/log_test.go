@@ -12,21 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package log
+package inspectionmetadata
 
 import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	metadata_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/metadata"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
-
-func TestConformance(t *testing.T) {
-	logMetadata := NewLogMetadata()
-	metadata_test.ConformanceMetadataTypeTest(t, logMetadata)
-}
 
 func TestLogMetadata(t *testing.T) {
 	logMetadata := NewLogMetadata()

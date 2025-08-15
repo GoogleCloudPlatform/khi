@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package log
+package inspectionmetadata
 
 import (
 	"bytes"
@@ -21,11 +21,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
 // LogMetadataKey is a key to get LogMetadata from the metadata set.
-var LogMetadataKey = metadata.NewMetadataKey[*LogMetadata]("log")
+var LogMetadataKey = NewMetadataKey[*LogMetadata]("log")
 
 // LogMetadata is a Metadata serializes the log data for each tasks.
 type LogMetadata struct {
@@ -57,14 +56,14 @@ func (l *LogMetadata) GetTaskLogBuffer(taskID taskid.UntypedTaskImplementationID
 	return l.logBuffers[taskID.String()]
 }
 
-// Labels implements metadata.Metadata.
+// Labels implements Metadata.
 func (l *LogMetadata) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(
-		metadata.IncludeInRunResult(),
+	return NewLabelSet(
+		IncludeInRunResult(),
 	)
 }
 
-// ToSerializable implements metadata.Metadata.
+// ToSerializable implements Metadata.
 // It returns a slice of SerializableLogItem, sorted by task ID.
 func (l *LogMetadata) ToSerializable() interface{} {
 	// Get keys and sort them to ensure a stable order.
@@ -85,4 +84,4 @@ func (l *LogMetadata) ToSerializable() interface{} {
 	return result
 }
 
-var _ metadata.Metadata = (*LogMetadata)(nil)
+var _ Metadata = (*LogMetadata)(nil)

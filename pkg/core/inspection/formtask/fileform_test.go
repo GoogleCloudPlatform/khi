@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	form_metadata "github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/form"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
@@ -44,13 +44,13 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 	mockToken := mockUploadToken{id: "test-token"}
 
 	// Base field used in all test cases
-	baseField := form_metadata.FileParameterFormField{
-		ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
+	baseField := inspectionmetadata.FileParameterFormField{
+		ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 			ID:       "test-field",
-			Type:     form_metadata.File,
+			Type:     inspectionmetadata.File,
 			Label:    "Test File Field",
 			Priority: 0,
-			HintType: form_metadata.None,
+			HintType: inspectionmetadata.None,
 			Hint:     "",
 		},
 		Token:  mockToken,
@@ -60,7 +60,7 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 	testCases := []struct {
 		name          string
 		uploadResult  upload.UploadResult
-		expectedField form_metadata.FileParameterFormField
+		expectedField inspectionmetadata.FileParameterFormField
 	}{
 		{
 			name: "upload error case",
@@ -69,13 +69,13 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 				UploadError:       errors.New("upload failed: file too large"),
 				VerificationError: nil,
 			},
-			expectedField: form_metadata.FileParameterFormField{
-				ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
+			expectedField: inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       "test-field",
-					Type:     form_metadata.File,
+					Type:     inspectionmetadata.File,
 					Label:    "Test File Field",
 					Priority: 0,
-					HintType: form_metadata.Error,
+					HintType: inspectionmetadata.Error,
 					Hint:     "upload failed: file too large",
 				},
 				Token:  mockToken,
@@ -89,13 +89,13 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 				UploadError:       nil,
 				VerificationError: errors.New("invalid file format"),
 			},
-			expectedField: form_metadata.FileParameterFormField{
-				ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
+			expectedField: inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       "test-field",
-					Type:     form_metadata.File,
+					Type:     inspectionmetadata.File,
 					Label:    "Test File Field",
 					Priority: 0,
-					HintType: form_metadata.Error,
+					HintType: inspectionmetadata.Error,
 					Hint:     "invalid file format",
 				},
 				Token:  mockToken,
@@ -109,13 +109,13 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 				UploadError:       nil,
 				VerificationError: nil,
 			},
-			expectedField: form_metadata.FileParameterFormField{
-				ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
+			expectedField: inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       "test-field",
-					Type:     form_metadata.File,
+					Type:     inspectionmetadata.File,
 					Label:    "Test File Field",
 					Priority: 0,
-					HintType: form_metadata.Error,
+					HintType: inspectionmetadata.Error,
 					Hint:     "Waiting a file to be uploaded.",
 				},
 				Token:  mockToken,
@@ -129,13 +129,13 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 				UploadError:       nil,
 				VerificationError: nil,
 			},
-			expectedField: form_metadata.FileParameterFormField{
-				ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
+			expectedField: inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       "test-field",
-					Type:     form_metadata.File,
+					Type:     inspectionmetadata.File,
 					Label:    "Test File Field",
 					Priority: 0,
-					HintType: form_metadata.Error,
+					HintType: inspectionmetadata.Error,
 					Hint:     "File is being processed. Please wait a moment.",
 				},
 				Token:  mockToken,
@@ -149,13 +149,13 @@ func TestSetFormHintsFromUploadResult(t *testing.T) {
 				UploadError:       nil,
 				VerificationError: nil,
 			},
-			expectedField: form_metadata.FileParameterFormField{
-				ParameterFormFieldBase: form_metadata.ParameterFormFieldBase{
+			expectedField: inspectionmetadata.FileParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:       "test-field",
-					Type:     form_metadata.File,
+					Type:     inspectionmetadata.File,
 					Label:    "Test File Field",
 					Priority: 0,
-					HintType: form_metadata.None,
+					HintType: inspectionmetadata.None,
 					Hint:     "",
 				},
 				Token:  mockToken,

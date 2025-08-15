@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package error
+package inspectionmetadata
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata"
 )
 
-var ErrorMessageSetMetadataKey = metadata.NewMetadataKey[*ErrorMessageSet]("error")
+var ErrorMessageSetMetadataKey = NewMetadataKey[*ErrorMessageSet]("error")
 
 type ErrorMessage struct {
 	ErrorId int    `json:"errorId"`
@@ -34,7 +33,7 @@ type ErrorMessageSet struct {
 
 // Labels implements metadata.Metadata.
 func (e *ErrorMessageSet) Labels() *typedmap.ReadonlyTypedMap {
-	return metadata.NewLabelSet(metadata.IncludeInRunResult(), metadata.IncludeInTaskList())
+	return NewLabelSet(IncludeInRunResult(), IncludeInTaskList())
 }
 
 // ToSerializable implements metadata.Metadata.
@@ -42,7 +41,7 @@ func (e *ErrorMessageSet) ToSerializable() interface{} {
 	return e
 }
 
-var _ metadata.Metadata = (*ErrorMessageSet)(nil)
+var _ Metadata = (*ErrorMessageSet)(nil)
 
 // AddErrorMessage stores a new ErrorMessage. Duplicated error message will be ignored.
 func (e *ErrorMessageSet) AddErrorMessage(newError *ErrorMessage) {

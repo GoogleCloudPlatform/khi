@@ -19,14 +19,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 )
 
 // IndeterminateUpdator updates a progress bar for a task that cannot report
 // its progress as a percentage. It shows a message with an animated indicator
 // to signify that the task is running.
 type IndeterminateUpdator struct {
-	Progress *progress.TaskProgress
+	Progress *inspectionmetadata.TaskProgress
 	Interval time.Duration
 	context  context.Context
 	cancel   func()
@@ -34,7 +34,7 @@ type IndeterminateUpdator struct {
 
 // NewIndeterminateUpdator creates and initializes a new IndeterminateUpdator.
 // It marks the associated TaskProgress as indeterminate.
-func NewIndeterminateUpdator(progress *progress.TaskProgress, interval time.Duration) *IndeterminateUpdator {
+func NewIndeterminateUpdator(progress *inspectionmetadata.TaskProgress, interval time.Duration) *IndeterminateUpdator {
 	progress.Indeterminate = true
 	return &IndeterminateUpdator{
 		Progress: progress,
