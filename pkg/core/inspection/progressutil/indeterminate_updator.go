@@ -26,7 +26,7 @@ import (
 // its progress as a percentage. It shows a message with an animated indicator
 // to signify that the task is running.
 type IndeterminateUpdator struct {
-	Progress *inspectionmetadata.TaskProgress
+	Progress *inspectionmetadata.TaskProgressMetadata
 	Interval time.Duration
 	context  context.Context
 	cancel   func()
@@ -34,7 +34,7 @@ type IndeterminateUpdator struct {
 
 // NewIndeterminateUpdator creates and initializes a new IndeterminateUpdator.
 // It marks the associated TaskProgress as indeterminate.
-func NewIndeterminateUpdator(progress *inspectionmetadata.TaskProgress, interval time.Duration) *IndeterminateUpdator {
+func NewIndeterminateUpdator(progress *inspectionmetadata.TaskProgressMetadata, interval time.Duration) *IndeterminateUpdator {
 	progress.Indeterminate = true
 	return &IndeterminateUpdator{
 		Progress: progress,

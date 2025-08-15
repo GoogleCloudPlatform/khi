@@ -41,7 +41,7 @@ var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. A
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.TimelineGroupingTaskID.Ref(),
 	gcp_task.K8sResourceMergeConfigTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) ([]*types.TimelineGrouperResult, error) {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}
@@ -53,7 +53,7 @@ var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudi
 		totalLogCount += len(group.PreParsedLogs)
 	}
 	processedCount := atomic.Int32{}
-	updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgress) {
+	updator := progressutil.NewProgressUpdator(tp, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
 		current := processedCount.Load()
 		tp.Percentage = float32(current) / float32(totalLogCount)
 		tp.Message = fmt.Sprintf("%d/%d", current, totalLogCount)

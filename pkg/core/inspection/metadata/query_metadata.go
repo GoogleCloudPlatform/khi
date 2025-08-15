@@ -22,8 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-var QueryMetadataKey = NewMetadataKey[*QueryMetadata]("query")
-
 type QueryItem struct {
 	Id    string `json:"id"`
 	Name  string `json:"name"`

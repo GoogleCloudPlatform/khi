@@ -30,7 +30,7 @@ func TestGetTaskProgress(t *testing.T) {
 		t.Errorf("unexpected error %s", err)
 	}
 
-	expected := &TaskProgress{
+	expected := &TaskProgressMetadata{
 		Id:         "foo",
 		Percentage: 0,
 		Message:    "",
@@ -60,8 +60,8 @@ func TestResolveTasks(t *testing.T) {
 
 	if diff := cmp.Diff(&Progress{
 		Phase:         "RUNNING",
-		TotalProgress: &TaskProgress{Id: "Total", Label: "Total", Message: "1 of 2 tasks complete", Percentage: 0.5},
-		TaskProgresses: []*TaskProgress{
+		TotalProgress: &TaskProgressMetadata{Id: "Total", Label: "Total", Message: "1 of 2 tasks complete", Percentage: 0.5},
+		TaskProgresses: []*TaskProgressMetadata{
 			{
 				Id:    "bar",
 				Label: "bar",
@@ -81,8 +81,8 @@ func TestDoneClearTasks(t *testing.T) {
 
 	if diff := cmp.Diff(&Progress{
 		Phase:          "DONE",
-		TotalProgress:  &TaskProgress{Id: "Total", Label: "Total", Message: "2 of 2 tasks complete", Percentage: 1},
-		TaskProgresses: []*TaskProgress{},
+		TotalProgress:  &TaskProgressMetadata{Id: "Total", Label: "Total", Message: "2 of 2 tasks complete", Percentage: 1},
+		TaskProgresses: []*TaskProgressMetadata{},
 	}, progress, cmpopts.IgnoreUnexported(Progress{})); diff != "" {
 		t.Errorf("The result status is not in the expected status\n%s", diff)
 	}
@@ -97,8 +97,8 @@ func TestCancelClearTasks(t *testing.T) {
 
 	if diff := cmp.Diff(&Progress{
 		Phase:          "CANCELLED",
-		TaskProgresses: []*TaskProgress{},
-		TotalProgress:  &TaskProgress{Id: "Total", Label: "Total", Message: "0 of 2 tasks complete"},
+		TaskProgresses: []*TaskProgressMetadata{},
+		TotalProgress:  &TaskProgressMetadata{Id: "Total", Label: "Total", Message: "0 of 2 tasks complete"},
 	}, progress, cmpopts.IgnoreUnexported(Progress{})); diff != "" {
 		t.Errorf("The result status is not in the expected status\n%s", diff)
 	}

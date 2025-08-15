@@ -35,7 +35,7 @@ func ConformanceTestMetadataIsSerializable(t *testing.T, m Metadata) {
 }
 
 func TestHeaderMetadataConformance(t *testing.T) {
-	ConformanceMetadataTypeTest(t, &Header{})
+	ConformanceMetadataTypeTest(t, &HeaderMetadata{})
 }
 
 func TestConformance(t *testing.T) {
@@ -43,7 +43,7 @@ func TestConformance(t *testing.T) {
 }
 
 func TestErrorMetadataConformance(t *testing.T) {
-	ConformanceMetadataTypeTest(t, &ErrorMessageSet{
+	ConformanceMetadataTypeTest(t, &ErrorMessageSetMetadata{
 		[]*ErrorMessage{
 			{},
 		},
@@ -77,5 +77,5 @@ func TestProgressConformance(t *testing.T) {
 }
 
 func TestPlanMetadataConformance(t *testing.T) {
-	ConformanceMetadataTypeTest(t, &InspectionPlan{})
+	ConformanceMetadataTypeTest(t, &InspectionPlanMetadata{})
 }

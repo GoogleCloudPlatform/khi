@@ -50,7 +50,7 @@ func NewParallelQueryWorker(pool *worker.Pool, apiClient api.GCPClient, baseQuer
 	}
 }
 
-func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *inspectionmetadata.TaskProgress) ([]*log.Log, error) {
+func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 	timeSegments := divideTimeSegments(p.startTime, p.endTime, p.workerCount)
 	percentages := make([]float32, p.workerCount)
 	logSink := make(chan *log.Log)

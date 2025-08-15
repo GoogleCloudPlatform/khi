@@ -23,8 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 )
 
-var FormFieldSetMetadataKey = NewMetadataKey[*FormFieldSet]("form")
-
 // ParameterInputType represents the type of parameter form field.
 type ParameterInputType string
 
@@ -104,24 +102,24 @@ type FileParameterFormField struct {
 	Status upload.UploadStatus `json:"status"`
 }
 
-// FormFieldSet is a metadata type used in frontend to generate the form fields.
-type FormFieldSet struct {
+// FormFieldSetMetadata is a metadata type used in frontend to generate the form fields.
+type FormFieldSetMetadata struct {
 	fieldsLock sync.RWMutex
 	fields     []ParameterFormField
 }
 
-var _ Metadata = (*FormFieldSet)(nil)
+var _ Metadata = (*FormFieldSetMetadata)(nil)
 
 // Labels implements Metadata.
-func (*FormFieldSet) Labels() *typedmap.ReadonlyTypedMap {
+func (*FormFieldSetMetadata) Labels() *typedmap.ReadonlyTypedMap {
 	return NewLabelSet(IncludeInDryRunResult())
 }
 
-func (f *FormFieldSet) ToSerializable() interface{} {
+func (f *FormFieldSetMetadata) ToSerializable() interface{} {
 	return f.fields
 }
 
-func (f *FormFieldSet) SetField(newField ParameterFormField) error {
+func (f *FormFieldSetMetadata) SetField(newField ParameterFormField) error {
 	f.fieldsLock.Lock()
 	defer f.fieldsLock.Unlock()
 	newFieldBase := GetParameterFormFieldBase(newField)
@@ -143,7 +141,7 @@ func (f *FormFieldSet) SetField(newField ParameterFormField) error {
 
 // DangerouslyGetField shouldn't be used in non testing code. Because a field shouldn't depend on the other field
 // This is only for testing purpose.
-func (f *FormFieldSet) DangerouslyGetField(id string) ParameterFormField {
+func (f *FormFieldSetMetadata) DangerouslyGetField(id string) ParameterFormField {
 	f.fieldsLock.RLock()
 	defer f.fieldsLock.RUnlock()
 	for _, field := range f.fields {
@@ -168,8 +166,8 @@ func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldB
 	}
 }
 
-func NewFormFieldSet() *FormFieldSet {
-	return &FormFieldSet{
+func NewFormFieldSetMetadata() *FormFieldSetMetadata {
+	return &FormFieldSetMetadata{
 		fields: make([]ParameterFormField, 0),
 	}
 }

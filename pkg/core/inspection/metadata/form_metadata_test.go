@@ -33,12 +33,12 @@ func fieldWithIdAndPriorityForTest(id string, priority int) TextParameterFormFie
 }
 
 func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
-	fsActual := NewFormFieldSet()
+	fsActual := NewFormFieldSetMetadata()
 	fsActual.SetField(fieldWithIdAndPriorityForTest("foo", 1))
 	fsActual.SetField(fieldWithIdAndPriorityForTest("bar", 3))
 	fsActual.SetField(fieldWithIdAndPriorityForTest("qux", 2))
 
-	fsExpected := &FormFieldSet{
+	fsExpected := &FormFieldSetMetadata{
 		fields: []ParameterFormField{
 			fieldWithIdAndPriorityForTest("bar", 3),
 			fieldWithIdAndPriorityForTest("qux", 2),
@@ -46,7 +46,7 @@ func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
 		},
 	}
 
-	if diff := cmp.Diff(fsActual, fsExpected, cmp.AllowUnexported(FormFieldSet{}), cmpopts.IgnoreFields(FormFieldSet{}, "fieldsLock")); diff != "" {
+	if diff := cmp.Diff(fsActual, fsExpected, cmp.AllowUnexported(FormFieldSetMetadata{}), cmpopts.IgnoreFields(FormFieldSetMetadata{}, "fieldsLock")); diff != "" {
 		t.Errorf("FieldSet has fields in unexpected shape\n%v", diff)
 	}
 }

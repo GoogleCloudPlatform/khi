@@ -37,7 +37,7 @@ import (
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.TimelineGroupingTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonLogParseTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgress) ([]*types.TimelineGrouperResult, error) {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}
