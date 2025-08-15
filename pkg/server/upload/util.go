@@ -20,13 +20,13 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 // GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
 func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
-	inspectionID := khictx.MustGetValue(ctx, inspectioncontract.InspectionTaskInspectionID)
+	inspectionID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInspectionID)
 	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", inspectionID, taskID.ReferenceIDString(), formId), "/", "_")
 }

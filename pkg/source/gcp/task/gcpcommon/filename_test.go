@@ -20,11 +20,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	inspection_task_test "github.com/GoogleCloudPlatform/khi/pkg/inspection/test"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	task_test "github.com/GoogleCloudPlatform/khi/pkg/task/test"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -51,13 +51,13 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 
 			ctx := inspection_task_test.WithDefaultTestInspectionTaskContext(t.Context())
-			inspection_task_test.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspectioncontract.TaskModeRun, map[string]any{},
+			inspection_task_test.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_contract.TaskModeRun, map[string]any{},
 				task_test.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
 				task_test.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.Ref(), tc.StartTime),
 				task_test.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.Ref(), tc.EndTime),
 			)
 
-			metadata := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
+			metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 			header, found := typedmap.Get(metadata, header.HeaderMetadataKey)
 			if !found {
 				t.Fatalf("header metadata not found")

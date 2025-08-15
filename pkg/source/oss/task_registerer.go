@@ -20,33 +20,33 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/parser"
 )
 
-func Prepare(inspetionServer *coreinspection.InspectionTaskServer) error {
-	err := inspetionServer.AddInspectionType(OSSKubernetesLogFilesInspectionType)
+func Register(registry coreinspection.InspectionTaskRegistry) error {
+	err := registry.AddInspectionType(OSSKubernetesLogFilesInspectionType)
 	if err != nil {
 		return err
 	}
 
-	err = inspetionServer.AddTask(parser.OSSK8sEventLogParserTask)
+	err = registry.AddTask(parser.OSSK8sEventLogParserTask)
 	if err != nil {
 		return err
 	}
-	err = parser.RegisterK8sAuditTasks(inspetionServer)
+	err = parser.RegisterK8sAuditTasks(registry)
 	if err != nil {
 		return err
 	}
-	err = inspetionServer.AddTask(parser.OSSLogFileReader)
+	err = registry.AddTask(parser.OSSLogFileReader)
 	if err != nil {
 		return err
 	}
-	err = inspetionServer.AddTask(parser.OSSEventLogFilter)
+	err = registry.AddTask(parser.OSSEventLogFilter)
 	if err != nil {
 		return err
 	}
-	err = inspetionServer.AddTask(parser.OSSNonEventLogFilter)
+	err = registry.AddTask(parser.OSSNonEventLogFilter)
 	if err != nil {
 		return err
 	}
-	err = inspetionServer.AddTask(form.AuditLogFilesForm)
+	err = registry.AddTask(form.AuditLogFilesForm)
 	if err != nil {
 		return err
 	}

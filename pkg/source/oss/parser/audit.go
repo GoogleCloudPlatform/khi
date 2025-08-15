@@ -17,10 +17,10 @@ package parser
 import (
 	"context"
 
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
@@ -38,10 +38,10 @@ import (
 )
 
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
-var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
+var OSSK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
-	if taskMode == inspectioncontract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())
@@ -50,11 +50,11 @@ var OSSK8sAuditLogSourceTask = inspection_task.NewInspectionTask(oss_taskid.OSSK
 		Logs:      logs,
 		Extractor: &fieldextractor.OSSJSONLAuditLogFieldExtractor{},
 	}, nil
-}, inspection_task.InspectionTypeLabel(oss_constant.OSSInspectionTypeID))
+}, inspection_contract.InspectionTypeLabel(oss_constant.OSSInspectionTypeID))
 
 // RegisterK8sAuditTasks registers tasks needed for parsing OSS k8s audit logs on the inspection server.
-var RegisterK8sAuditTasks coreinspection.PrepareInspectionServerFunc = func(inspectionServer *coreinspection.InspectionTaskServer) error {
-	err := inspectionServer.AddTask(OSSK8sAuditLogSourceTask)
+var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(registry coreinspection.InspectionTaskRegistry) error {
+	err := registry.AddTask(OSSK8sAuditLogSourceTask)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ var RegisterK8sAuditTasks coreinspection.PrepareInspectionServerFunc = func(insp
 		return err
 	}
 
-	err = manager.Register(inspectionServer, oss_constant.OSSInspectionTypeID)
+	err = manager.Register(registry, oss_constant.OSSInspectionTypeID)
 	if err != nil {
 		return err
 	}

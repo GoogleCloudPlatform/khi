@@ -23,26 +23,26 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/header"
 	"github.com/GoogleCloudPlatform/khi/pkg/inspection/metadata/progress"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/progressutil"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
-var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
+var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFileReader,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*log.Log, error) {
-		if taskMode == inspectioncontract.TaskModeDryRun {
+	func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *progress.TaskProgress) ([]*log.Log, error) {
+		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 		result := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
@@ -90,7 +90,7 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 			logBCommonField := log.MustGetFieldSet(b, &log.CommonFieldSet{})
 			return int(logACommonField.Timestamp.UnixNano() - logBCommonField.Timestamp.UnixNano())
 		})
-		metadataSet := khictx.MustGetValue(ctx, inspectioncontract.InspectionRunMetadata)
+		metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 		header := typedmap.GetOrDefault(metadataSet, header.HeaderMetadataKey, &header.Header{})
 
 		if len(logs) > 0 {
@@ -105,12 +105,12 @@ var OSSLogFileReader = inspection_task.NewProgressReportableInspectionTask(
 	},
 )
 
-var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
+var OSSEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
-		if taskMode == inspectioncontract.TaskModeDryRun {
+	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 		logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
@@ -127,12 +127,12 @@ var OSSEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
 		return eventLogs, nil
 	})
 
-var OSSNonEventLogFilter = inspection_task.NewProgressReportableInspectionTask(
+var OSSNonEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTask(
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
 	[]taskid.UntypedTaskReference{
 		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspectioncontract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
-		if taskMode == inspectioncontract.TaskModeDryRun {
+	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *progress.TaskProgress) ([]*log.Log, error) {
+		if taskMode == inspection_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
 

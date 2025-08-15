@@ -15,12 +15,12 @@
 package form
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
 )
 
-var AuditLogFilesForm = form.NewFileFormTaskBuilder(oss_taskid.OSSAPIServerAuditLogFileInputTask, 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
+var AuditLogFilesForm = formtask.NewFileFormTaskBuilder(oss_taskid.OSSAPIServerAuditLogFileInputTask, 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
 	MaxLineSizeInBytes: 1024 * 1024 * 1024,
 }).
 	WithDescription(`Upload JSONLine format kube-apiserver audit log`).

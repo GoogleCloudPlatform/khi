@@ -17,7 +17,7 @@ package k8s_container
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/form"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
@@ -28,7 +28,7 @@ const priorityForContainerGroup = gcp_task.FormBasePriority + 20000
 var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},
 }
-var InputContainerQueryNamespaceFilterTask = form.NewTextFormTaskBuilder(gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
+var InputContainerQueryNamespaceFilterTask = formtask.NewTextFormTaskBuilder(gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
 	WithDefaultValueConstant("@managed", true).
 	WithDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
@@ -48,7 +48,7 @@ Specify the space splitted namespace lists to query container logs only in the s
 	}).
 	Build()
 var inputPodNamesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{}
-var InputContainerQueryPodNamesFilterMask = form.NewTextFormTaskBuilder(gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
+var InputContainerQueryPodNamesFilterMask = formtask.NewTextFormTaskBuilder(gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
 	WithDefaultValueConstant("@any", true).
 	WithDescription(`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.

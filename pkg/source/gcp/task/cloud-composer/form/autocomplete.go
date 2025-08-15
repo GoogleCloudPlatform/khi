@@ -18,26 +18,26 @@ import (
 	"context"
 	"fmt"
 
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_cached_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/cached_task"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 // This is an implementation for gcp_task.AutocompleteClusterNamesTaskID
 // the task returns GKE cluster name where the provided Composer environment is running
-var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
 	gcp_task.InputProjectIdTaskID.Ref(),
 	composer_taskid.InputComposerEnvironmentTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
 
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
+		return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
 	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
@@ -47,7 +47,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 	// when the user is inputing these information, abort
 	isWIP := projectID == "" || environment == ""
 	if isWIP {
-		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+		return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 			DependencyDigest: dependencyDigest,
 			Value: &gcp_task.AutocompleteClusterNameList{
 				ClusterNames: []string{},
@@ -63,7 +63,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 	// fetch all GKE clusters in the project
 	clusters, err := client.GetClusters(ctx, projectID)
 	if err != nil {
-		return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+		return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 			DependencyDigest: dependencyDigest,
 			Value: &gcp_task.AutocompleteClusterNameList{
 				ClusterNames: []string{},
@@ -76,7 +76,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 	// = the gke cluster where the composer is running
 	for _, cluster := range clusters {
 		if cluster.ResourceLabels["goog-composer-environment"] == environment {
-			return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+			return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 				DependencyDigest: dependencyDigest,
 				Value: &gcp_task.AutocompleteClusterNameList{
 					ClusterNames: []string{cluster.Name},
@@ -85,7 +85,7 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 		}
 	}
 
-	return inspection_cached_task.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
+	return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{
 		DependencyDigest: dependencyDigest,
 		Value: &gcp_task.AutocompleteClusterNameList{
 			ClusterNames: []string{},
@@ -93,4 +93,4 @@ var AutocompleteClusterNames = inspection_cached_task.NewCachedTask(composer_tas
 			Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
 		},
 	}, nil
-}, inspection_task.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))

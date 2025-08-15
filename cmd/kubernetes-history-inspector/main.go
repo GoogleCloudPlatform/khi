@@ -28,10 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	inspection_common "github.com/GoogleCloudPlatform/khi/pkg/inspection/common"
-	inspectioncontract "github.com/GoogleCloudPlatform/khi/pkg/inspection/contract"
-	"github.com/GoogleCloudPlatform/khi/pkg/inspection/logger"
-	inspection_task "github.com/GoogleCloudPlatform/khi/pkg/inspection/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -43,6 +40,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 
 	"cloud.google.com/go/profiler"
 )
@@ -75,7 +73,7 @@ func displayStartMessage(host string, port int) {
 	}
 }
 
-var taskSetRegistrer []coreinspection.PrepareInspectionServerFunc = make([]coreinspection.PrepareInspectionServerFunc, 0)
+var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
 
 func init() {
 	parameters.AddStore(parameters.Help)
@@ -85,9 +83,8 @@ func init() {
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
 
-	taskSetRegistrer = append(taskSetRegistrer, inspection_common.PrepareInspectionServer)
-	taskSetRegistrer = append(taskSetRegistrer, gcp.PrepareInspectionServer)
-	taskSetRegistrer = append(taskSetRegistrer, oss.Prepare)
+	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
+	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common.Register)
 }
 
@@ -135,7 +132,7 @@ func run() int {
 	if *parameters.Auth.QuotaProjectID != "" {
 		api.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
 	}
-	ioconfig, err := inspectioncontract.NewIOConfigFromParameter(parameters.Common)
+	ioconfig, err := inspection_contract.NewIOConfigFromParameter(parameters.Common)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		return 1
@@ -242,7 +239,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
-			err = t.Run(context.Background(), &inspection_task.InspectionRequest{
+			err = t.Run(context.Background(), &inspection_contract.InspectionRequest{
 				Values: values,
 			})
 			if err != nil {
