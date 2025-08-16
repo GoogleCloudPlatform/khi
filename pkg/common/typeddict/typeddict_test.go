@@ -19,6 +19,8 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+
+	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestTypedDict_Set_Get_Delete(t *testing.T) {
