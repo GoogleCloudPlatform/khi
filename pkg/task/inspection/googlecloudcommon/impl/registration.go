@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcp_taskid
+package googlecloudcommon_impl
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	gcp_types "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/types"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-var LoggingFilterResourceNameInputTaskID = taskid.NewDefaultImplementationID[*gcp_types.ResourceNamesInput]("logging-filter-resource-name-input")
+// Register registers all googlecloudcommon inspection tasks to the registry.
+func Register(registry coreinspection.InspectionTaskRegistry) error {
+	return coretask.RegisterTasks(registry,
+		InputProjectIdTask,
+		InputLoggingFilterResourceNameTask,
+		InputDurationTask,
+		InputStartTimeTask,
+		InputEndTimeTask,
+	)
+}

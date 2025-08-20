@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_impl
+package googlecloudcommon_contract
 
-import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-
-func Register(registry coretask.TaskRegistry) error {
-	return coretask.RegisterTasks(registry, InspectionTimeProducer, TimeZoneShiftInputTask)
-}
+var (
+	FormBasePriority                   = 100000
+	PriorityForQueryTimeGroup          = FormBasePriority + 50000
+	PriorityForResourceIdentifierGroup = FormBasePriority + 40000
+	PriorityForK8sResourceFilterGroup  = FormBasePriority + 30000
+)

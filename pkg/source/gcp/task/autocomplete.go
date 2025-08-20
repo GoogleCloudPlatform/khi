@@ -22,6 +22,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 var AutocompleteClusterNamesTaskID = taskid.NewTaskReference[*AutocompleteClusterNameList](GCPPrefix + "autocomplete/cluster-names")
@@ -36,14 +37,14 @@ var AutocompleteLocationTaskID taskid.TaskImplementationID[[]string] = taskid.Ne
 // default implementation for "Location" field
 var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(AutocompleteLocationTaskID,
 	[]taskid.UntypedTaskReference{
-		InputProjectIdTaskID.Ref(), // for API restriction
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 	},
 	func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[[]string]) (inspectiontaskbase.PreviousTaskResult[[]string], error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return inspectiontaskbase.PreviousTaskResult[[]string]{}, err
 		}
-		projectID := coretask.GetTaskResult(ctx, InputProjectIdTaskID.Ref())
+		projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
 
 		if prevValue.DependencyDigest == dependencyDigest {

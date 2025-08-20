@@ -22,10 +22,10 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
@@ -33,7 +33,7 @@ func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
 	projectId := "test-project"
 	environmentName := "test-environment"
 	taskDependentValues := typedmap.NewTypedMap()
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](gcp_task.InputProjectIdTaskID.ReferenceIDString()), projectId)
+	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudcommon_contract.InputProjectIdTaskID.ReferenceIDString()), projectId)
 	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](composer_taskid.InputComposerEnvironmentTaskID.ReferenceIDString()), environmentName)
 	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 	// resource.type="cloud_composer_environment"

@@ -20,57 +20,19 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 )
 
 const FormBasePriority = 100000
 const PriorityForQueryTimeGroup = FormBasePriority + 50000
 const PriorityForResourceIdentifierGroup = FormBasePriority + 40000
 const PriorityForK8sResourceFilterGroup = FormBasePriority + 30000
-
-var InputProjectIdTaskID = taskid.NewDefaultImplementationID[string](GCPPrefix + "input/project-id")
-
-var projectIdValidator = regexp.MustCompile(`^\s*[0-9a-z\.:\-]+\s*$`)
-
-var InputProjectIdTask = formtask.NewTextFormTaskBuilder(InputProjectIdTaskID, PriorityForResourceIdentifierGroup+5000, "Project ID").
-	WithDescription("The project ID containing logs of the cluster to query").
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		if !projectIdValidator.Match([]byte(value)) {
-			return "Project ID must match `^*[0-9a-z\\.:\\-]+$`", nil
-		}
-		return "", nil
-	}).
-	WithReadonlyFunc(func(ctx context.Context) (bool, error) {
-		if parameters.Auth.FixedProjectID == nil {
-			return false, nil
-		}
-		return *parameters.Auth.FixedProjectID != "", nil
-	}).
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if parameters.Auth.FixedProjectID != nil && *parameters.Auth.FixedProjectID != "" {
-			return *parameters.Auth.FixedProjectID, nil
-		}
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (string, error) {
-		return strings.TrimSpace(value), nil
-	}).
-	Build()
 
 var InputClusterNameTaskID = taskid.NewDefaultImplementationID[string](GCPPrefix + "input/cluster-name")
 
@@ -122,126 +84,6 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(InputClusterNameTaskI
 		return prefix + strings.TrimSpace(value), nil
 	}).
 	Build()
-
-var InputDurationTaskID = taskid.NewDefaultImplementationID[time.Duration](GCPPrefix + "input/duration")
-
-var InputDurationTask = formtask.NewTextFormTaskBuilder(InputDurationTaskID, PriorityForQueryTimeGroup+4000, "Duration").
-	WithDependencies([]taskid.UntypedTaskReference{
-		inspection_contract.InspectionTimeTaskID.Ref(),
-		InputEndTimeTaskID.Ref(),
-		TimeZoneShiftInputTaskID.Ref(),
-	}).
-	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		} else {
-			return "1h", nil
-		}
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
-
-		duration := convertedValue.(time.Duration)
-		startTime := endTime.Add(-duration)
-		startToNow := inspectionTime.Sub(startTime)
-		hintString := ""
-		if startToNow > time.Hour*24*30 {
-			hintString += "Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.\n"
-		}
-		if duration > time.Hour*3 {
-			hintString += "This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.\n"
-		}
-		hintString += fmt.Sprintf("Query range:\n%s\n", toTimeDurationWithTimezone(startTime, endTime, timezoneShift, true))
-		hintString += fmt.Sprintf("(UTC: %s)\n", toTimeDurationWithTimezone(startTime, endTime, time.UTC, false))
-		hintString += fmt.Sprintf("(PDT: %s)", toTimeDurationWithTimezone(startTime, endTime, time.FixedZone("PDT", -7*3600), false))
-		return hintString, inspectionmetadata.Info, nil
-	}).
-	WithSuggestionsConstant([]string{"1m", "10m", "1h", "3h", "12h", "24h"}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return err.Error(), nil
-		}
-		if d <= 0 {
-			return "duration must be positive", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Duration, error) {
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return 0, err
-		}
-		return d, nil
-	}).
-	Build()
-
-var InputEndTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefix + "input/end-time")
-
-var InputEndTimeTask = formtask.NewTextFormTaskBuilder(InputEndTimeTaskID, PriorityForQueryTimeGroup+5000, "End time").
-	WithDependencies([]taskid.UntypedTaskReference{
-		inspection_contract.InspectionTimeTaskID.Ref(),
-		TimeZoneShiftInputTaskID.Ref(),
-	}).
-	WithDescription(`The endtime of query. Please input it in the format of RFC3339
-(example: 2006-01-02T15:04:05-07:00)`).
-	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		return previousValues, nil
-	}).
-	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		if len(previousValues) > 0 {
-			return previousValues[0], nil
-		}
-		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, TimeZoneShiftInputTaskID.Ref())
-
-		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
-	}).
-	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
-
-		specifiedTime := convertedValue.(time.Time)
-		if inspectionTime.Sub(specifiedTime) < 0 {
-			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
-		}
-		return "", inspectionmetadata.Info, nil
-	}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		_, err := common.ParseTime(value)
-		if err != nil {
-			return "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (time.Time, error) {
-		return common.ParseTime(value)
-	}).
-	Build()
-
-var InputStartTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GCPPrefix + "input/start-time")
-
-var InputStartTimeTask = inspectiontaskbase.NewInspectionTask(InputStartTimeTaskID, []taskid.UntypedTaskReference{
-	InputEndTimeTaskID.Ref(),
-	InputDurationTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (time.Time, error) {
-	endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
-	duration := coretask.GetTaskResult(ctx, InputDurationTaskID.Ref())
-	startTime := endTime.Add(-duration)
-	// Add starttime and endtime on the header metadata
-	metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-
-	header, found := typedmap.Get(metadataSet, inspectionmetadata.HeaderMetadataKey)
-	if !found {
-		return time.Time{}, fmt.Errorf("header metadata not found")
-	}
-
-	header.StartTimeUnixSeconds = startTime.Unix()
-	header.EndTimeUnixSeconds = endTime.Unix()
-	return startTime, nil
-})
 
 var InputKindFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](GCPPrefix + "input/kinds")
 
@@ -353,13 +195,3 @@ var InputLocationsTask = formtask.NewTextFormTaskBuilder(InputLocationsTaskID, P
 		return regions, nil
 	}).
 	Build()
-
-func toTimeDurationWithTimezone(startTime time.Time, endTime time.Time, timezone *time.Location, withTimezone bool) string {
-	timeFormat := "2006-01-02T15:04:05"
-	if withTimezone {
-		timeFormat = time.RFC3339
-	}
-	startTimeStr := startTime.In(timezone).Format(timeFormat)
-	endTimeStr := endTime.In(timezone).Format(timeFormat)
-	return fmt.Sprintf("%s ~ %s", startTimeStr, endTimeStr)
-}

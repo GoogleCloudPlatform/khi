@@ -55,11 +55,7 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		task.AutocompleteLocationTask,
 		// Form input related tasks
 		task.TimeZoneShiftInputTask,
-		task.InputProjectIdTask,
 		task.InputClusterNameTask,
-		task.InputDurationTask,
-		task.InputEndTimeTask,
-		task.InputStartTimeTask,
 		task.InputKindFilterTask,
 		task.InputLocationsTask,
 		task.InputNamespaceFilterTask,
@@ -68,7 +64,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		k8s_container.InputContainerQueryPodNamesFilterMask,
 		k8scontrolplanecomponent.InputControlPlaneComponentNameFilterTask,
 		// Query related tasks
-		task.QueryResourceNameInputTask,
 		k8sauditquery.Task,
 		k8s_event.GKEK8sEventLogQueryTask,
 		k8s_node.GKENodeQueryTask,

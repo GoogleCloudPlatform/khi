@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}]("header-suggested-file-name")
@@ -35,17 +36,16 @@ var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](
 // HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
 // This name is used in frontend to save the inspection data as a file.
 var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(HeaderSuggestedFileNameTaskID, []taskid.UntypedTaskReference{
-	gcp_task.InputStartTimeTaskID.Ref(),
-	gcp_task.InputEndTimeTaskID.Ref(),
+	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	gcp_task.InputClusterNameTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (struct{}, error) {
 	metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
 	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
-	endTime := coretask.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
-	startTime := coretask.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
-
+	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
+	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
 
 	return struct{}{}, nil

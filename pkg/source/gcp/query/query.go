@@ -35,8 +35,8 @@ import (
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 const GKEQueryPrefix = gcp_task.GCPPrefix + "query/gke/"
@@ -58,14 +58,14 @@ type ProjectIDDefaultResourceNamesGenerator struct{}
 
 // GenerateResourceNames implements DefaultResourceNamesGenerator.
 func (p *ProjectIDDefaultResourceNamesGenerator) GenerateResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
 }
 
 // GetDependentTasks implements DefaultResourceNamesGenerator.
 func (p *ProjectIDDefaultResourceNamesGenerator) GetDependentTasks() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID.Ref(),
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	}
 }
 
@@ -76,9 +76,9 @@ var queryThreadPool = worker.NewPool(16)
 func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
-		gcp_task.InputStartTimeTaskID.Ref(),
-		gcp_task.InputEndTimeTaskID.Ref(),
-		gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref(),
+		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
+		googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(),
 	), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		client, err := api.DefaultGCPClientFactory.NewClient()
 		if err != nil {
@@ -86,7 +86,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		}
 
 		metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-		resourceNames := coretask.GetTaskResult(ctx, gcp_taskid.LoggingFilterResourceNameInputTaskID.Ref())
+		resourceNames := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref())
 		taskInput := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInput)
 
 		defaultResourceNames, err := resourceNamesGenerator.GenerateResourceNames(ctx)
@@ -116,8 +116,8 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			}
 		}
 
-		startTime := coretask.GetTaskResult(ctx, gcp_task.InputStartTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, gcp_task.InputEndTimeTaskID.Ref())
+		startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 
 		queryStrings, err := generator(ctx, taskMode)
 		if err != nil {
