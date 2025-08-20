@@ -20,8 +20,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -33,7 +33,7 @@ import (
 	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
 )
 
-var GKENodeLogParseJob = parsertask.NewParserTaskFromParser(k8s_node_taskid.GKENodeLogParserTaskID, &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKENodeLogParseJob = legacyparser.NewParserTaskFromParser(k8s_node_taskid.GKENodeLogParserTaskID, &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
 
 const ContainerdStartingMsg = "starting containerd"
 const DockerdStartingMsg = "Starting up"
@@ -464,4 +464,4 @@ func toReadableContainerName(namespace string, name string, container string) st
 	return fmt.Sprintf("%s in %s/%s", container, namespace, name)
 }
 
-var _ parsertask.Parser = (*k8sNodeParser)(nil)
+var _ legacyparser.Parser = (*k8sNodeParser)(nil)

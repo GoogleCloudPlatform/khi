@@ -20,7 +20,7 @@ import (
 	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -97,6 +97,6 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 	return nil
 }
 
-var _ parsertask.Parser = (*k8sContainerParser)(nil)
+var _ legacyparser.Parser = (*k8sContainerParser)(nil)
 
-var GKEContainerLogParseJob = parsertask.NewParserTaskFromParser(gke_k8s_container_taskid.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(gke_k8s_container_taskid.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)

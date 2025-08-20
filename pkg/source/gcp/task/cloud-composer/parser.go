@@ -15,7 +15,7 @@
 package composer_task
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	airflowscheduler "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow/airflow-scheduler"
 	airflowworker "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow/airflow-worker"
@@ -24,19 +24,19 @@ import (
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 )
 
-var AirflowSchedulerLogParseJob = parsertask.NewParserTaskFromParser(
+var AirflowSchedulerLogParseJob = legacyparser.NewParserTaskFromParser(
 	composer_taskid.AirflowSchedulerLogParserTaskID,
 	airflowscheduler.NewAirflowSchedulerParser(composer_taskid.ComposerSchedulerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	true,
 	[]string{composer_inspection_type.InspectionTypeId},
 )
-var AirflowWorkerLogParseJob = parsertask.NewParserTaskFromParser(
+var AirflowWorkerLogParseJob = legacyparser.NewParserTaskFromParser(
 	composer_taskid.AirflowWorkerLogParserTaskID,
 	airflowworker.NewAirflowWorkerParser(composer_taskid.ComposerWorkerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	true,
 	[]string{composer_inspection_type.InspectionTypeId},
 )
-var AirflowDagProcessorLogParseJob = parsertask.NewParserTaskFromParser(
+var AirflowDagProcessorLogParseJob = legacyparser.NewParserTaskFromParser(
 	composer_taskid.AirflowDagProcessorManagerLogParserTaskID,
 	airflowdagprocessor.NewAirflowDagProcessorParser("/home/airflow/gcs/dags/", composer_taskid.ComposerDagProcessorManagerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	true,

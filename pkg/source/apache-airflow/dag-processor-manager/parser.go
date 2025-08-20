@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -48,7 +48,7 @@ func (a *AirflowDagProcessorParser) TargetLogType() enum.LogType {
 	return a.targetLogType
 }
 
-var _ parsertask.Parser = (*AirflowDagProcessorParser)(nil)
+var _ legacyparser.Parser = (*AirflowDagProcessorParser)(nil)
 
 func (*AirflowDagProcessorParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}

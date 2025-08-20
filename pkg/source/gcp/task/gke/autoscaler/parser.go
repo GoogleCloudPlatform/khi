@@ -21,7 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -227,6 +227,6 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *hi
 	return nil
 }
 
-var _ parsertask.Parser = (*autoscalerLogParser)(nil)
+var _ legacyparser.Parser = (*autoscalerLogParser)(nil)
 
-var AutoscalerParserTask = parsertask.NewParserTaskFromParser(gke_autoscaler_taskid.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(gke_autoscaler_taskid.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

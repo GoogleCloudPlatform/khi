@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -83,9 +83,9 @@ func (o *OSSK8sEventFromK8sAudit) TargetLogType() enum.LogType {
 	return enum.LogTypeAudit
 }
 
-var _ parsertask.Parser = (*OSSK8sEventFromK8sAudit)(nil)
+var _ legacyparser.Parser = (*OSSK8sEventFromK8sAudit)(nil)
 
-var OSSK8sEventLogParserTask = parsertask.NewParserTaskFromParser(
+var OSSK8sEventLogParserTask = legacyparser.NewParserTaskFromParser(
 	oss_taskid.OSSK8sEventLogParserTaskID,
 	&OSSK8sEventFromK8sAudit{}, true, []string{
 		oss_constant.OSSInspectionTypeID,
