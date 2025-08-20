@@ -41,6 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 
 	"cloud.google.com/go/profiler"
 )
@@ -86,6 +87,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
 	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {

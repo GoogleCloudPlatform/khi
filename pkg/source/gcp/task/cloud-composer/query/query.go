@@ -22,10 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
@@ -33,7 +33,7 @@ var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/Airflow Scheduler",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID.Ref(),
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
 	&query.ProjectIDDefaultResourceNamesGenerator{},
@@ -46,7 +46,7 @@ var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/DAG Processor Manager",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID.Ref(),
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
 	&query.ProjectIDDefaultResourceNamesGenerator{},
@@ -59,7 +59,7 @@ var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/Airflow Monitoring",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID.Ref(),
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
 	&query.ProjectIDDefaultResourceNamesGenerator{},
@@ -72,7 +72,7 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 	"Composer Environment/Airflow Worker",
 	enum.LogTypeComposerEnvironment,
 	[]taskid.UntypedTaskReference{
-		gcp_task.InputProjectIdTaskID.Ref(),
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 	},
 	&query.ProjectIDDefaultResourceNamesGenerator{},
@@ -86,7 +86,7 @@ func createGenerator(componentName string) func(ctx context.Context, i inspectio
 	// resource.labels.environment_name="ENVIRONMENT_NAME"
 	// log_name=projects/PROJECT_ID/logs/COMPONENT_NAME
 	return func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
-		projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+		projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 		environmentName := coretask.GetTaskResult(ctx, composer_form.InputComposerEnvironmentNameTask.ID().Ref())
 		return []string{generateQueryForComponent(environmentName, projectID, componentName)}, nil
 	}

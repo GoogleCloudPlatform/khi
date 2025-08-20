@@ -26,12 +26,13 @@ import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
 // This is an implementation for gcp_task.AutocompleteClusterNamesTaskID
 // the task returns GKE cluster name where the provided Composer environment is running
 var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
-	gcp_task.InputProjectIdTaskID.Ref(),
+	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	composer_taskid.InputComposerEnvironmentTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList], error) {
 
@@ -40,7 +41,7 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(composer_taskid.
 		return inspectiontaskbase.PreviousTaskResult[*gcp_task.AutocompleteClusterNameList]{}, err
 	}
 
-	projectID := coretask.GetTaskResult(ctx, gcp_task.InputProjectIdTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	environment := coretask.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, environment)
 

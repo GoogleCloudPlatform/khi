@@ -15,127 +15,20 @@
 package task
 
 import (
-	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	inspection_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/impl"
+	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
-
-func TestProjectIdInput(t *testing.T) {
-	wantDescription := "The project ID containing logs of the cluster to query"
-	testClusterNamePrefix := tasktest.StubTaskFromReferenceID(ClusterNamePrefixTaskID, "", nil)
-	form_task_test.TestTextForms(t, "gcp-project-id", InputProjectIdTask, []*form_task_test.TextFormTestCase{
-		{
-			Name:          "With valid project ID",
-			Input:         "foo-project",
-			ExpectedValue: "foo-project",
-			Dependencies: []coretask.UntypedTask{
-				testClusterNamePrefix,
-			},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					ID:          GCPPrefix + "input/project-id",
-					Type:        inspectionmetadata.Text,
-					Label:       "Project ID",
-					Description: wantDescription,
-					HintType:    inspectionmetadata.None,
-				},
-			},
-		},
-		{
-			Name:          "With fixed project ID from environment variable",
-			Input:         "foo-project",
-			ExpectedValue: "bar-project",
-			Dependencies: []coretask.UntypedTask{
-				testClusterNamePrefix,
-			},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					ID:          GCPPrefix + "input/project-id",
-					Type:        inspectionmetadata.Text,
-					Label:       "Project ID",
-					Description: wantDescription,
-					HintType:    inspectionmetadata.None,
-				},
-				Readonly: true,
-				Default:  "bar-project",
-			},
-			Before: func() {
-				expectedFixedProjectId := "bar-project"
-				parameters.Auth.FixedProjectID = &expectedFixedProjectId
-			},
-			After: func() {
-				parameters.Auth.FixedProjectID = nil
-			},
-		},
-		{
-			Name:          "With invalid project ID",
-			Input:         "A invalid project ID",
-			ExpectedValue: "",
-			Dependencies: []coretask.UntypedTask{
-				testClusterNamePrefix,
-			},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					ID:          GCPPrefix + "input/project-id",
-					Type:        inspectionmetadata.Text,
-					Label:       "Project ID",
-					Description: wantDescription,
-					HintType:    inspectionmetadata.Error,
-					Hint:        "Project ID must match `^*[0-9a-z\\.:\\-]+$`",
-				},
-			},
-		},
-		{
-			Name:          "Spaces around project ID must be trimmed",
-			Input:         "  project-foo   ",
-			ExpectedValue: "project-foo",
-			Dependencies: []coretask.UntypedTask{
-				testClusterNamePrefix,
-			},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					ID:          GCPPrefix + "input/project-id",
-					Type:        inspectionmetadata.Text,
-					Label:       "Project ID",
-					Description: wantDescription,
-					HintType:    inspectionmetadata.None,
-				},
-			},
-		},
-		{
-			Name:          "With valid old style project ID",
-			Input:         "  deprecated.com:but-still-usable-project-id   ",
-			ExpectedValue: "deprecated.com:but-still-usable-project-id",
-			Dependencies: []coretask.UntypedTask{
-				testClusterNamePrefix,
-			},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					ID:          GCPPrefix + "input/project-id",
-					Description: wantDescription,
-					Type:        "Text",
-					Label:       "Project ID",
-					HintType:    inspectionmetadata.None,
-				},
-			},
-		},
-	})
-}
 
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
@@ -216,205 +109,6 @@ func TestClusterNameInput(t *testing.T) {
 			},
 		},
 	})
-}
-
-func TestDurationInput(t *testing.T) {
-	expectedDescription := "The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)"
-	expectedLabel := "Duration"
-	expectedSuggestions := []string{"1m", "10m", "1h", "3h", "12h", "24h"}
-	timezoneTaskUTC := tasktest.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
-	timezoneTaskJST := tasktest.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
-	currentTimeTask1 := tasktest.StubTask(inspection_impl.InspectionTimeProducer, time.Date(2023, time.April, 5, 12, 0, 0, 0, time.UTC), nil)
-	endTimeTask := tasktest.StubTask(InputEndTimeTask, time.Date(2023, time.April, 1, 12, 0, 0, 0, time.UTC), nil)
-
-	form_task_test.TestTextForms(t, "duration", InputDurationTask, []*form_task_test.TextFormTestCase{
-		{
-			Name:          "With valid time duration",
-			Input:         "10m",
-			ExpectedValue: time.Duration(time.Minute) * 10,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					HintType:    inspectionmetadata.Info,
-					Hint: `Query range:
-2023-04-01T11:50:00Z ~ 2023-04-01T12:00:00Z
-(UTC: 2023-04-01T11:50:00 ~ 2023-04-01T12:00:00)
-(PDT: 2023-04-01T04:50:00 ~ 2023-04-01T05:00:00)`,
-				},
-				Suggestions: expectedSuggestions,
-				Default:     "1h",
-			},
-		},
-		{
-			Name:          "With invalid time duration",
-			Input:         "foo",
-			ExpectedValue: time.Hour,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					Hint:        "time: invalid duration \"foo\"",
-					HintType:    inspectionmetadata.Error,
-				},
-				Default:     "1h",
-				Suggestions: expectedSuggestions,
-			},
-		},
-		{
-			Name:          "With invalid time duration(negative)",
-			Input:         "-10m",
-			ExpectedValue: time.Hour,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					Hint:        "duration must be positive",
-					HintType:    inspectionmetadata.Error,
-				},
-				Suggestions: expectedSuggestions,
-				Default:     "1h",
-			},
-		},
-		{
-			Name:          "with longer duration starting before than 30 days",
-			Input:         "672h", // starting time will be 30 days before the inspection time
-			ExpectedValue: time.Hour * 672,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskUTC},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Type:        "Text",
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					Hint: `Specified time range starts from over than 30 days ago, maybe some logs are missing and the generated result could be incomplete.
-This duration can be too long for big clusters and lead OOM. Please retry with shorter duration when your machine crashed.
-Query range:
-2023-03-04T12:00:00Z ~ 2023-04-01T12:00:00Z
-(UTC: 2023-03-04T12:00:00 ~ 2023-04-01T12:00:00)
-(PDT: 2023-03-04T05:00:00 ~ 2023-04-01T05:00:00)`,
-					HintType: inspectionmetadata.Info,
-				},
-				Suggestions: expectedSuggestions,
-				Default:     "1h",
-			},
-		},
-		{
-			Name:          "With non UTC timezone",
-			Input:         "1h",
-			ExpectedValue: time.Hour,
-			Dependencies:  []coretask.UntypedTask{endTimeTask, currentTimeTask1, timezoneTaskJST},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Type:        "Text",
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					Hint: `Query range:
-2023-04-01T20:00:00+09:00 ~ 2023-04-01T21:00:00+09:00
-(UTC: 2023-04-01T11:00:00 ~ 2023-04-01T12:00:00)
-(PDT: 2023-04-01T04:00:00 ~ 2023-04-01T05:00:00)`,
-					HintType: inspectionmetadata.Info,
-				},
-				Suggestions: expectedSuggestions,
-				Default:     "1h",
-			},
-		},
-	})
-}
-
-func TestInputEndtime(t *testing.T) {
-	expectedDescription := "The endtime of query. Please input it in the format of RFC3339\n(example: 2006-01-02T15:04:05-07:00)"
-	expectedLabel := "End time"
-	expectedValue1, err := time.Parse(time.RFC3339, "2020-01-02T03:04:05Z")
-	if err != nil {
-		t.Errorf("unexpected error\n%s", err)
-	}
-	expectedValue2, err := time.Parse(time.RFC3339, "2020-01-02T00:00:00Z")
-	timezoneTaskUTC := tasktest.StubTask(TimeZoneShiftInputTask, time.UTC, nil)
-	timezoneTaskJST := tasktest.StubTask(TimeZoneShiftInputTask, time.FixedZone("", 9*3600), nil)
-
-	if err != nil {
-		t.Errorf("unexpected error\n%s", err)
-	}
-	form_task_test.TestTextForms(t, "endtime", InputEndTimeTask, []*form_task_test.TextFormTestCase{
-		{
-			Name:          "with empty",
-			Input:         "",
-			ExpectedValue: expectedValue1,
-			Dependencies:  []coretask.UntypedTask{inspection_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					Hint:        "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)",
-					HintType:    inspectionmetadata.Error,
-				},
-				Default:     "2020-01-02T03:04:05Z",
-				Suggestions: []string{},
-			},
-		},
-		{
-			Name:          "with valid timestamp and UTC timezone",
-			Input:         "2020-01-02T00:00:00Z",
-			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{inspection_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					HintType:    inspectionmetadata.None,
-				},
-				Suggestions: []string{},
-				Default:     "2020-01-02T03:04:05Z",
-			},
-		},
-		{
-			Name:          "with valid timestamp and non UTC timezone",
-			Input:         "2020-01-02T00:00:00Z",
-			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{inspection_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
-			ExpectedFormField: inspectionmetadata.TextParameterFormField{
-				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
-					Label:       expectedLabel,
-					Description: expectedDescription,
-					HintType:    inspectionmetadata.None,
-				},
-				Suggestions: []string{},
-				Default:     "2020-01-02T12:04:05+09:00",
-			},
-		},
-	})
-}
-
-func TestInputStartTime(t *testing.T) {
-	duration, err := time.ParseDuration("1h30m")
-	if err != nil {
-		t.Fatal(err)
-	}
-	endTime, err := time.Parse(time.RFC3339, "2023-01-02T15:45:00Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	startTime, _, err := inspectiontest.RunInspectionTask(ctx, InputStartTimeTask, inspection_contract.TaskModeDryRun, map[string]any{},
-		tasktest.NewTaskDependencyValuePair(InputDurationTaskID.Ref(), duration),
-		tasktest.NewTaskDependencyValuePair(InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(TimeZoneShiftInputTaskID.Ref(), time.UTC),
-	)
-	if err != nil {
-		t.Errorf("unexpected error\n%v", err)
-	}
-	expectedTime, err := time.Parse(time.RFC3339, "2023-01-02T14:15:00Z")
-	if err != nil {
-		t.Errorf("unexpected error\n%v", err)
-	}
-
-	if startTime.String() != expectedTime.String() {
-		t.Errorf("returned time is not matching with the expected value\n%s", startTime)
-	}
 }
 
 func TestInputKindName(t *testing.T) {
@@ -628,7 +322,7 @@ func TestLocationInput(t *testing.T) {
 			Name:          "With valid location",
 			Input:         "asia-northeast1",
 			ExpectedValue: "asia-northeast1",
-			Dependencies:  []coretask.UntypedTask{AutocompleteLocationTask, InputProjectIdTask},
+			Dependencies:  []coretask.UntypedTask{AutocompleteLocationTask, googlecloudcommon_impl.InputProjectIdTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          GCPPrefix + "input/location",

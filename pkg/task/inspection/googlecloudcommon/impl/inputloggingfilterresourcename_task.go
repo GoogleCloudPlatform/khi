@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package googlecloudcommon_impl
 
 import (
 	"context"
@@ -25,16 +25,17 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	gcp_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/taskid"
-	gcp_types "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/types"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-var resourceNamesInputKey = typedmap.NewTypedKey[*gcp_types.ResourceNamesInput]("query-resource-names")
+var resourceNamesInputKey = typedmap.NewTypedKey[*googlecloudcommon_contract.ResourceNamesInput]("query-resource-names")
 
-var QueryResourceNameInputTask = inspectiontaskbase.NewInspectionTask(gcp_taskid.LoggingFilterResourceNameInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*gcp_types.ResourceNamesInput, error) {
+// InputLoggingFilterResourceNameTask defines an inspection task that creates a form group
+// for overriding log filter resource names for advanced users.
+var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
 	sharedMap := khictx.MustGetValue(ctx, inspection_contract.InspectionSharedMap)
-	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, gcp_types.NewResourceNamesInput)
+	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, googlecloudcommon_contract.NewResourceNamesInput)
 
 	metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 	formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
@@ -79,7 +80,7 @@ var QueryResourceNameInputTask = inspectiontaskbase.NewInspectionTask(gcp_taskid
 	groupForm := inspectionmetadata.GroupParameterFormField{
 		ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 			Priority:    -1000000,
-			ID:          gcp_taskid.LoggingFilterResourceNameInputTaskID.ReferenceIDString(),
+			ID:          googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
 			Type:        inspectionmetadata.Group,
 			Label:       "Logging filter resource names (advanced)",
 			Description: "Override these parameters when your logs are not on the same project of the cluster, or customize the log filter target resources.",

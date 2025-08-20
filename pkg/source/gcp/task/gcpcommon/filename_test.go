@@ -26,6 +26,7 @@ import (
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
@@ -53,8 +54,8 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			inspectiontest.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_contract.TaskModeRun, map[string]any{},
 				tasktest.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
-				tasktest.NewTaskDependencyValuePair(gcp_task.InputStartTimeTaskID.Ref(), tc.StartTime),
-				tasktest.NewTaskDependencyValuePair(gcp_task.InputEndTimeTaskID.Ref(), tc.EndTime),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), tc.StartTime),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), tc.EndTime),
 			)
 
 			metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
