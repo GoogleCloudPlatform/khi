@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package googlecloudcommon_impl
 
 import (
 	"context"
@@ -25,17 +25,8 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-var AutocompleteClusterNamesTaskID = taskid.NewTaskReference[*AutocompleteClusterNameList](GCPPrefix + "autocomplete/cluster-names")
-
-type AutocompleteClusterNameList struct {
-	ClusterNames []string
-	Error        string
-}
-
-var AutocompleteLocationTaskID taskid.TaskImplementationID[[]string] = taskid.NewDefaultImplementationID[[]string](GCPPrefix + "autocomplete/location")
-
-// default implementation for "Location" field
-var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(AutocompleteLocationTaskID,
+// AutocompleteLocationTask is a task that provides a list of available locations for autocomplete.
+var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommon_contract.AutocompleteLocationTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 	},

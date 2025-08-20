@@ -32,21 +32,21 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.ManifestGenerateTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.TimelineGroupingTaskID.Ref(),
-	gcp_task.K8sResourceMergeConfigTaskID.Ref(),
+	googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*types.TimelineGrouperResult, error) {
 	if taskMode == inspection_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	groups := coretask.GetTaskResult(ctx, common_k8saudit_taskid.TimelineGroupingTaskID.Ref())
-	mergeConfigRegistry := coretask.GetTaskResult(ctx, gcp_task.GCPDefaultK8sResourceMergeConfigTask.ID().Ref())
+	mergeConfigRegistry := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref())
 
 	totalLogCount := 0
 	for _, group := range groups {

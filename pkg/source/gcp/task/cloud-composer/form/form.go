@@ -30,7 +30,7 @@ import (
 )
 
 var AutocompleteComposerEnvironmentNames = inspectiontaskbase.NewCachedTask(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
-	gcp_task.InputLocationsTaskID.Ref(),
+	googlecloudcommon_contract.InputLocationsTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[[]string]) (inspectiontaskbase.PreviousTaskResult[[]string], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
@@ -38,7 +38,7 @@ var AutocompleteComposerEnvironmentNames = inspectiontaskbase.NewCachedTask(comp
 		return inspectiontaskbase.PreviousTaskResult[[]string]{}, err
 	}
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	location := coretask.GetTaskResult(ctx, gcp_task.InputLocationsTaskID.Ref())
+	location := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLocationsTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, location)
 
 	if prevValue.DependencyDigest == dependencyDigest {

@@ -15,8 +15,12 @@
 package googlecloudcommon_contract
 
 var (
-	FormBasePriority                   = 100000
-	PriorityForQueryTimeGroup          = FormBasePriority + 50000
+	// FormBasePriority is the base priority for Google Cloud common forms.
+	FormBasePriority = 100000
+	// PriorityForQueryTimeGroup is the priority for the query time group.
+	PriorityForQueryTimeGroup = FormBasePriority + 50000
+	// PriorityForResourceIdentifierGroup is the priority for the resource identifier group.
 	PriorityForResourceIdentifierGroup = FormBasePriority + 40000
-	PriorityForK8sResourceFilterGroup  = FormBasePriority + 30000
+	// PriorityForK8sResourceFilterGroup is the priority for the k8s resource filter group.
+	PriorityForK8sResourceFilterGroup = FormBasePriority + 30000
 )

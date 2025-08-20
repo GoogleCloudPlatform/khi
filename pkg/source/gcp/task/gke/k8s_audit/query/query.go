@@ -24,21 +24,21 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
 var Task = query.NewQueryGeneratorTask(gke_k8saudit_taskid.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
-	gcp_task.InputClusterNameTaskID.Ref(),
-	gcp_task.InputKindFilterTaskID.Ref(),
-	gcp_task.InputNamespaceFilterTaskID.Ref(),
+	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
+	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
-	kindFilter := coretask.GetTaskResult(ctx, gcp_task.InputKindFilterTaskID.Ref())
-	namespaceFilter := coretask.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
+	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 
 	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
 }, GenerateK8sAuditQuery(

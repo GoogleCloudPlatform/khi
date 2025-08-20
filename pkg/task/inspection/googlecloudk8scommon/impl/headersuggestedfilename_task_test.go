@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcpcommon
+package googlecloudk8scommon_impl
 
 import (
 	"testing"
@@ -23,12 +23,9 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 func TestHeaderSuggestedFileNameTask(t *testing.T) {
@@ -53,7 +50,7 @@ func TestHeaderSuggestedFileNameTask(t *testing.T) {
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			inspectiontest.RunInspectionTask(ctx, HeaderSuggestedFileNameTask, inspection_contract.TaskModeRun, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(gcp_task.InputClusterNameTaskID.Ref(), tc.ClusterName),
+				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), tc.ClusterName),
 				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), tc.StartTime),
 				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), tc.EndTime),
 			)

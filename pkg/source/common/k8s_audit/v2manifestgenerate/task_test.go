@@ -24,13 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2timelinegrouping"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 
@@ -200,7 +200,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 					Logs:      logs,
 					Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 				}, nil),
-				gcp_task.GCPDefaultK8sResourceMergeConfigTask,
+				googlecloudk8scommon_impl.DefaultK8sResourceMergeConfigTask,
 			}, inspection_contract.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Error(err)

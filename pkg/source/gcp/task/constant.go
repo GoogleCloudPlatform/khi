@@ -14,24 +14,4 @@
 
 package task
 
-import (
-	"context"
-
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
-)
-
 const GCPPrefix = "cloud.google.com/"
-
-// ClusterNamePrefixTaskID is the task ID for generating the cluster name prefix used in query.
-// For GKE, it's just a task to return "" always.
-// For Anthos on AWS, it should return "awsClusters/" because the `resource.labels.cluster_name` field would be `awsClusters/<cluster-name>`
-// For Anthos on Azure, it will be "azureClusters/"
-var ClusterNamePrefixTaskID = taskid.NewTaskReference[string](GCPPrefix + "cluster-name-prefix")
-
-var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.K8sManifestMergeConfigRegistry](GCPPrefix + "merge-config")
-
-var GCPDefaultK8sResourceMergeConfigTask = coretask.NewTask(K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
-	return k8s.GenerateDefaultMergeConfig()
-})

@@ -19,10 +19,10 @@ import (
 
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var AnthosOnAzureClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(task.ClusterNamePrefixTaskID, "gke-on-azure"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+var AnthosOnAzureClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-azure"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "azureClusters/", nil
 }, inspection_contract.InspectionTypeLabel(InspectionTypeId))
