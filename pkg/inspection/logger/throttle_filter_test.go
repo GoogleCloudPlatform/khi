@@ -15,7 +15,6 @@
 package logger
 
 import (
-	"bytes"
 	"log/slog"
 	"strings"
 	"testing"
@@ -25,16 +24,7 @@ func TestThrottleFilter(t *testing.T) {
 	const maxPerKind = 2
 	const logKind = "test-kind"
 
-	var buf bytes.Buffer
-	childHandler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
-		// Remove time to make assertions stable
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.TimeKey {
-				return slog.Attr{}
-			}
-			return a
-		},
-	})
+	buf, childHandler := newTestHandler()
 	throttleFilter := NewThrottleFilter(maxPerKind, childHandler)
 	logger := slog.New(throttleFilter)
 
@@ -92,6 +82,46 @@ func TestThrottleFilter(t *testing.T) {
 		logger.Info("no kind message")
 		output := buf.String()
 		expected := `level=INFO msg="no kind message"`
+		if !strings.Contains(output, expected) {
+			t.Errorf("expected output to contain %q, but got %q", expected, output)
+		}
+	})
+}
+
+func TestThrottleFilter_WithAttrs(t *testing.T) {
+	const maxPerKind = 2
+	const logKind = "test-kind-attrs"
+
+	buf, childHandler := newTestHandler()
+	baseHandler := NewThrottleFilter(maxPerKind, childHandler)
+	handlerWithAttrs := baseHandler.WithAttrs([]slog.Attr{slog.String("attr_key", "attr_value")})
+	logger := slog.New(handlerWithAttrs)
+
+	t.Run("first log should pass with attrs", func(t *testing.T) {
+		buf.Reset()
+		logger.Info("message 1", slog.String(LogKindAttrKey, logKind))
+		output := buf.String()
+		expected := `level=INFO msg="message 1" attr_key=attr_value log-kind=test-kind-attrs`
+		if !strings.Contains(output, expected) {
+			t.Errorf("expected output to contain %q, but got %q", expected, output)
+		}
+	})
+}
+
+func TestThrottleFilter_WithGroup(t *testing.T) {
+	const maxPerKind = 2
+	const logKind = "test-kind-group"
+
+	buf, childHandler := newTestHandler()
+	baseHandler := NewThrottleFilter(maxPerKind, childHandler)
+	handlerWithGroup := baseHandler.WithGroup("group_name")
+	logger := slog.New(handlerWithGroup)
+
+	t.Run("first log should pass with group", func(t *testing.T) {
+		buf.Reset()
+		logger.Info("message 1", slog.String(LogKindAttrKey, logKind))
+		output := buf.String()
+		expected := `level=INFO msg="message 1" group_name.log-kind=test-kind-group`
 		if !strings.Contains(output, expected) {
 			t.Errorf("expected output to contain %q, but got %q", expected, output)
 		}

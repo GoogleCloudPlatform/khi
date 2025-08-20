@@ -48,7 +48,7 @@ func (t *ThrottleFilter) Handle(ctx context.Context, r slog.Record) error {
 		return nil
 	case statusJustBeforeThrottle:
 		r = r.Clone()
-		r.Message += "\n  (Over 10 similar logs shown for this task. Similar logs will be omitted from next.)"
+		r.Message += "\n  (Similar logs shown for this task. Similar logs will be omitted from next.)"
 		return t.childLogHandler.Handle(ctx, r)
 	default:
 		return t.childLogHandler.Handle(ctx, r)

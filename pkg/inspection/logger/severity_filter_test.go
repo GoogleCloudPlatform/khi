@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-func TestSeverityFilter(t *testing.T) {
+func newTestHandler() (*bytes.Buffer, slog.Handler) {
 	var buf bytes.Buffer
 	childHandler := slog.NewTextHandler(&buf, &slog.HandlerOptions{
 		// Remove time to make assertions stable
@@ -34,7 +34,11 @@ func TestSeverityFilter(t *testing.T) {
 			return a
 		},
 	})
+	return &buf, childHandler
+}
 
+func TestSeverityFilter(t *testing.T) {
+	buf, childHandler := newTestHandler()
 	// Set the minimum severity to INFO
 	severityFilter := NewSeverityFilter(slog.LevelInfo, childHandler)
 
@@ -103,4 +107,40 @@ func TestSeverityFilter(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSeverityFilter_WithAttrs(t *testing.T) {
+	buf, childHandler := newTestHandler()
+	severityFilter := NewSeverityFilter(slog.LevelInfo, childHandler)
+	handlerWithAttrs := severityFilter.WithAttrs([]slog.Attr{slog.String("attr_key", "attr_value")})
+
+	t.Run("log should pass with attrs", func(t *testing.T) {
+		buf.Reset()
+		logger := slog.New(handlerWithAttrs)
+		logger.Info("info message")
+
+		output := buf.String()
+		expectedOutput := "level=INFO msg=\"info message\" attr_key=attr_value\n"
+		if output != expectedOutput {
+			t.Errorf("expected output %q, but got %q", expectedOutput, output)
+		}
+	})
+}
+
+func TestSeverityFilter_WithGroup(t *testing.T) {
+	buf, childHandler := newTestHandler()
+	severityFilter := NewSeverityFilter(slog.LevelInfo, childHandler)
+	handlerWithGroup := severityFilter.WithGroup("group_name")
+
+	t.Run("log should pass with group", func(t *testing.T) {
+		buf.Reset()
+		logger := slog.New(handlerWithGroup)
+		logger.Info("info message", "log_key", "log_value")
+
+		output := buf.String()
+		expectedOutput := "level=INFO msg=\"info message\" group_name.log_key=log_value\n"
+		if output != expectedOutput {
+			t.Errorf("expected output %q, but got %q", expectedOutput, output)
+		}
+	})
 }
