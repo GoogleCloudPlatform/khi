@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcpcommon
+package googlecloudk8scommon_impl
 
 import (
 	"context"
@@ -26,24 +26,22 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
-
-var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}]("header-suggested-file-name")
 
 // HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
 // This name is used in frontend to save the inspection data as a file.
-var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(HeaderSuggestedFileNameTaskID, []taskid.UntypedTaskReference{
+var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.HeaderSuggestedFileNameTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-	gcp_task.InputClusterNameTaskID.Ref(),
+	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (struct{}, error) {
 	metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
-	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)

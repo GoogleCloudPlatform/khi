@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudcommon_impl
+package googlecloudk8scommon_impl
 
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// Register registers all googlecloudcommon inspection tasks to the registry.
+// Register registers all googlecloudk8scommon inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		AutocompleteLocationTask,
-		InputProjectIdTask,
-		InputLoggingFilterResourceNameTask,
-		InputDurationTask,
-		InputStartTimeTask,
-		InputEndTimeTask,
-		InputLocationsTask,
+		HeaderSuggestedFileNameTask,
+		DefaultK8sResourceMergeConfigTask,
+		InputClusterNameTask,
+		InputKindFilterTask,
+		InputNamespaceFilterTask,
 	)
 }

@@ -23,6 +23,9 @@ import (
 // GoogleCloudCommonTaskIDPrefix is the prefix for Google Cloud common task IDs.
 var GoogleCloudCommonTaskIDPrefix = "cloud.google.com/common/"
 
+// AutocompleteLocationTaskID is the task ID for the location autocomplete.
+var AutocompleteLocationTaskID taskid.TaskImplementationID[[]string] = taskid.NewDefaultImplementationID[[]string](GoogleCloudCommonTaskIDPrefix + "autocomplete-location")
+
 // Common forms over Google Cloud related packages.
 
 // InputProjectIdTaskID is the task ID for the Google Cloud project ID.
@@ -39,3 +42,6 @@ var InputEndTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GoogleClou
 
 // InputStartTimeTaskID is the task ID for the start time of the log query. This is computed from InputDurationTask and InputEndTimeTask.
 var InputStartTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GoogleCloudCommonTaskIDPrefix + "input-start-time")
+
+// InputLocationsTaskID is the task ID for the locations of the target resource.
+var InputLocationsTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonTaskIDPrefix + "input-location")

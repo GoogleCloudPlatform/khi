@@ -30,8 +30,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 type autoscalerLogParser struct {
@@ -45,7 +45,7 @@ func (p *autoscalerLogParser) TargetLogType() enum.LogType {
 // Dependencies implements parsertask.Parser.
 func (*autoscalerLogParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		gcp_task.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	}
 }
 
@@ -70,7 +70,7 @@ func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
 
 // Parse implements parsertask.Parser.
 func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
 	// scaleUp,scaleDown,nodePoolCreated,nodePoolDeleted
 	if l.Has("jsonPayload.decision") {

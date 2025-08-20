@@ -25,10 +25,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	k8s_event_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 func GenerateK8sEventQuery(clusterName string, projectId string, namespaceFilter *queryutil.SetFilterParseResult) string {
@@ -74,12 +74,12 @@ func generateK8sEventNamespaceFilter(filter *queryutil.SetFilterParseResult) str
 
 var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(k8s_event_taskid.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-	gcp_task.InputClusterNameTaskID.Ref(),
-	gcp_task.InputNamespaceFilterTaskID.Ref(),
+	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, gcp_task.InputClusterNameTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	namespaceFilter := coretask.GetTaskResult(ctx, gcp_task.InputNamespaceFilterTaskID.Ref())
+	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 
 	return []string{GenerateK8sEventQuery(clusterName, projectID, namespaceFilter)}, nil
 }, GenerateK8sEventQuery(

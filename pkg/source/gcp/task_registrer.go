@@ -22,7 +22,6 @@ import (
 	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gcpcommon"
 	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
 	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
@@ -45,20 +44,12 @@ import (
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	err := coretask.RegisterTasks(registry,
-		task.GCPDefaultK8sResourceMergeConfigTask,
-		gcpcommon.HeaderSuggestedFileNameTask,
 		gke.AutocompleteClusterNames,
 		aws.AutocompleteClusterNames,
 		azure.AutocompleteClusterNames,
 		baremetal.AutocompleteClusterNames,
 		vmware.AutocompleteClusterNames,
-		task.AutocompleteLocationTask,
 		// Form input related tasks
-		task.TimeZoneShiftInputTask,
-		task.InputClusterNameTask,
-		task.InputKindFilterTask,
-		task.InputLocationsTask,
-		task.InputNamespaceFilterTask,
 		task.InputNodeNameFilterTask,
 		k8s_container.InputContainerQueryNamespaceFilterTask,
 		k8s_container.InputContainerQueryPodNamesFilterMask,

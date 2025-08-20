@@ -36,11 +36,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
@@ -121,7 +119,6 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 			}
 			return "", nil
 		}).Build(inspection_contract.InspectionTypeLabel("foo")),
-		tasktest.StubTask(gcp_task.TimeZoneShiftInputTask, time.UTC, nil),
 		formtask.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspection_contract.InspectionTypeLabel("bar")),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo1-value", nil
@@ -244,7 +241,7 @@ func TestApiResponses(t *testing.T) {
 	logger.InitGlobalKHILogger()
 	inspectionServer, err := createTestInspectionServer()
 	if err != nil {
-		t.Errorf("unexpected error %s", err)
+		t.Fatalf("unexpected error %s", err)
 	}
 	serverConfig := ServerConfig{
 		ViewerMode:       false,

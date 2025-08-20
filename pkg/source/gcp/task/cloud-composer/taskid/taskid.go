@@ -18,12 +18,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 const ComposerQueryPrefix = gcp_task.GCPPrefix + "query/composer/"
 
 // AutocompleteClusterNamesTaskID is an task ID to get list of cluster names on the suggestion popup.
-var AutocompleteClusterNamesTaskID taskid.TaskImplementationID[*gcp_task.AutocompleteClusterNameList] = taskid.NewImplementationID(gcp_task.AutocompleteClusterNamesTaskID, "composer")
+var AutocompleteClusterNamesTaskID taskid.TaskImplementationID[*googlecloudk8scommon_contract.AutocompleteClusterNameList] = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "composer")
 var AutocompleteComposerEnvironmentNamesTaskID taskid.TaskImplementationID[[]string] = taskid.NewDefaultImplementationID[[]string](gcp_task.GCPPrefix + "autocomplete/composer-environment-names")
 var InputComposerEnvironmentTaskID taskid.TaskImplementationID[string] = taskid.NewDefaultImplementationID[string](gcp_task.GCPPrefix + "input/composer/environment_name")
 

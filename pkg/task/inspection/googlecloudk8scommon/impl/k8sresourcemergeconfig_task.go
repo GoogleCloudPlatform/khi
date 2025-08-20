@@ -12,22 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudcommon_impl
+package googlecloudk8scommon_impl
 
 import (
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"context"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-// Register registers all googlecloudcommon inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	return coretask.RegisterTasks(registry,
-		AutocompleteLocationTask,
-		InputProjectIdTask,
-		InputLoggingFilterResourceNameTask,
-		InputDurationTask,
-		InputStartTimeTask,
-		InputEndTimeTask,
-		InputLocationsTask,
-	)
-}
+// DefaultK8sResourceMergeConfigTask return the default patch request merge config.
+var DefaultK8sResourceMergeConfigTask = coretask.NewTask(googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
+	return k8s.GenerateDefaultMergeConfig()
+})

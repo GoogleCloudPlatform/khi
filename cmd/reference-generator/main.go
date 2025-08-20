@@ -29,6 +29,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
+	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 )
 
 var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
@@ -45,6 +47,8 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
 	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common_k8saudit.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudk8scommon_impl.Register)
 }
 
 func main() {
