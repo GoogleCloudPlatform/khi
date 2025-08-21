@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vmware
+package googlecloudclustergdcvmware_contract
 
 import (
 	"math"
@@ -20,9 +20,11 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
+// InspectionTypeId is the unique identifier for the GDCV for VMWare inspection type.
 var InspectionTypeId = "gcp-gdcv-for-vmware"
 
-var AnthosOnVMWareInspectionType = coreinspection.InspectionType{
+// GDCVForVMWareInspectionType defines the inspection type for GDCV for VMWare.
+var GDCVForVMWareInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "GDCV for VMWare(GKE on VMWare, Anthos on VMWare)",
 	Description: `Visualize logs generated from GDCV for VMWare cluster(including admin clsuter/user cluster).

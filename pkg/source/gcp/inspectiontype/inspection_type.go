@@ -17,20 +17,20 @@ package inspectiontype
 import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
-	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
 	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
+	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
+	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
 )
 
 // GCPK8sClusterInspectionTypes is the list of inspection types of k8s clusters from Google Cloud.
 var GCPK8sClusterInspectionTypes = []string{
-	gke.InspectionTypeId, composer_inspection_type.InspectionTypeId, vmware.InspectionTypeId, baremetal.InspectionTypeId, aws.InspectionTypeId, azure.InspectionTypeId,
+	googlecloudclustergke_contract.InspectionTypeId, composer_inspection_type.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId, baremetal.InspectionTypeId, aws.InspectionTypeId, azure.InspectionTypeId,
 }
 
 // GKEBasedClusterInspectionTypes is the list of inspection types of GKE.
 var GKEBasedClusterInspectionTypes = []string{
-	gke.InspectionTypeId, composer_inspection_type.InspectionTypeId,
+	googlecloudclustergke_contract.InspectionTypeId, composer_inspection_type.InspectionTypeId,
 }
 
 // GKEMultiCloudClusterInspectionTypes is the list of inspection types of GKE multicloud.
@@ -40,5 +40,5 @@ var GKEMultiCloudClusterInspectionTypes = []string{
 
 // GDCClusterInspectionTypes is the list of inspection types of GDC clusters.
 var GDCClusterInspectionTypes = []string{
-	baremetal.InspectionTypeId, vmware.InspectionTypeId,
+	baremetal.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId,
 }
