@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	apacheairflow "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow"
+	apacheairflowcommon "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl/airflow-common"
 )
 
 var (
@@ -110,7 +110,7 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 		}
 
 		r := resourcepath.AirflowTaskInstance(ti)
-		verb, state := apacheairflow.TiStatusToVerb(ti)
+		verb, state := apacheairflowcommon.TiStatusToVerb(ti)
 		cs.RecordRevision(r, &history.StagingResourceRevision{
 			Verb:       verb,
 			State:      state,
@@ -151,7 +151,7 @@ func (fn *airflowWorkerRunningHostFn) fn(inputLog *log.Log) (*model.AirflowTaskI
 	runid := matches[airflowWorkerRunningHostTemplate.SubexpIndex("runid")]
 	host := matches[airflowWorkerRunningHostTemplate.SubexpIndex("host")]
 	stateStr := matches[airflowWorkerRunningHostTemplate.SubexpIndex("state")] // Renamed original string variable
-	state, err := apacheairflow.StringToTiState(stateStr)
+	state, err := apacheairflowcommon.StringToTiState(stateStr)
 	if err != nil {
 		// Log or handle the error appropriately if the state string is unknown.
 		fmt.Printf("Warning: Could not convert Airflow state '%s' to Tistate: %v. Skipping log entry.\n", stateStr, err)
@@ -200,7 +200,7 @@ func (fn *airflowWorkerMarkingStatusFn) fn(inputLog *log.Log) (*model.AirflowTas
 		mapIndex = matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("mapIndex")]
 	}
 	// Convert the string state to the required model.Tistate type
-	tiState, err := apacheairflow.StringToTiState(state)
+	tiState, err := apacheairflowcommon.StringToTiState(state)
 	if err != nil {
 		// Log or handle the error appropriately if the state string is unknown.
 		fmt.Printf("Warning: Could not convert Airflow state '%s' to Tistate: %v. Skipping log entry.\n", state, err)

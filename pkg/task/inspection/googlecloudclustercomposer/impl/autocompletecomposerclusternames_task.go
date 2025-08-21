@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_form
+package googlecloudclustercomposer_impl
 
 import (
 	"context"
@@ -22,18 +22,17 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
-	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-// This is an implementation for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID
-// the task returns GKE cluster name where the provided Composer environment is running
-var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(composer_taskid.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
+// AutocompleteComposerClusterNamesTask is an implementation for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID
+// the task returns GKE cluster name where the provided Composer environment is running.
+var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-	composer_taskid.InputComposerEnvironmentTaskID.Ref(),
+	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 
 	client, err := api.DefaultGCPClientFactory.NewClient()
@@ -42,7 +41,7 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(composer_taskid.
 	}
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	environment := coretask.GetTaskResult(ctx, composer_taskid.InputComposerEnvironmentTaskID.Ref())
+	environment := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, environment)
 
 	// when the user is inputing these information, abort
@@ -94,4 +93,4 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(composer_taskid.
 			Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustercomposer_contract.InspectionTypeId))

@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	airflow "github.com/GoogleCloudPlatform/khi/pkg/source/apache-airflow"
+	apacheairflowcommon "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl/airflow-common"
 )
 
 // Regex templates to parse Airflow log format
@@ -115,7 +115,7 @@ func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.Log, cs *hist
 	}
 
 	resourcePath := resourcepath.AirflowTaskInstance(ti)
-	verb, state := airflow.TiStatusToVerb(ti)
+	verb, state := apacheairflowcommon.TiStatusToVerb(ti)
 	cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
 		Verb:       verb,
 		State:      state,
@@ -171,7 +171,7 @@ func (t *AirflowSchedulerParser) parseInternal(l *log.Log) (*model.AirflowTaskIn
 		if matches[re.SubexpIndex("mapIndex")] != "" {
 			mapIndex = matches[re.SubexpIndex("mapIndex")]
 		}
-		state, err := airflow.StringToTiState(stateStr)
+		state, err := apacheairflowcommon.StringToTiState(stateStr)
 		if err != nil {
 			fmt.Printf("Warning: Could not convert Airflow state '%s' to Tistate: %v. Skipping log entry.\n", stateStr, err)
 			continue

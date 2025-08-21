@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
 	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
@@ -59,6 +60,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcbaremetal_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonaws_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonazure_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustercomposer_impl.Register)
 
 }
 

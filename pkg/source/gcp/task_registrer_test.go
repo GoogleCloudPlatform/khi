@@ -19,7 +19,12 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
+	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
+	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
+	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
 	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
+	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
+	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
@@ -41,6 +46,11 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		googlecloudcommon_impl.Register,
 		googlecloudk8scommon_impl.Register,
 		googlecloudclustergke_impl.Register,
+		googlecloudclustergdcbaremetal_impl.Register,
+		googlecloudclustergdcvmware_impl.Register,
+		googlecloudclustergkeonaws_impl.Register,
+		googlecloudclustergkeonazure_impl.Register,
+		googlecloudclustercomposer_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
@@ -51,6 +61,11 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		googlecloudcommon_impl.Register,
 		googlecloudk8scommon_impl.Register,
 		googlecloudclustergke_impl.Register,
+		googlecloudclustergdcbaremetal_impl.Register,
+		googlecloudclustergdcvmware_impl.Register,
+		googlecloudclustergkeonaws_impl.Register,
+		googlecloudclustergkeonazure_impl.Register,
+		googlecloudclustercomposer_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
