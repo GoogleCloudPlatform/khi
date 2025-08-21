@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package azure
+package googlecloudclustergkeonaws_contract
 
 import (
 	"math"
@@ -20,13 +20,15 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
-var InspectionTypeId = "gcp-gke-on-azure"
+// InspectionTypeId is the unique identifier for the GKE on AWS inspection type.
+var InspectionTypeId = "gcp-gke-on-aws"
 
-var AnthosOnAzureInspectionType = coreinspection.InspectionType{
+// AnthosOnAWSInspectionType defines the inspection type for GKE on AWS.
+var AnthosOnAWSInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
-	Name: "GKE on Azure(Anthos on Azure)",
-	Description: `Visualize logs generated from GKE on Azure cluster. 
+	Name: "GKE on AWS(Anthos on AWS)",
+	Description: `Visualize logs generated from GKE on AWS cluster. 
 Supporting K8s audit log, k8s event log,k8s node log, k8s container log and MultiCloud API audit log.`,
 	Icon:     "assets/icons/anthos.png",
-	Priority: math.MaxInt - 3,
+	Priority: math.MaxInt - 2,
 }

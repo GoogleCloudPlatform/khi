@@ -16,16 +16,16 @@ package inspectiontype
 
 import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
-	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
-	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
 	googlecloudclustergdcbaremetal_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/contract"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
 	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
+	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
+	googlecloudclustergkeonazure_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/contract"
 )
 
 // GCPK8sClusterInspectionTypes is the list of inspection types of k8s clusters from Google Cloud.
 var GCPK8sClusterInspectionTypes = []string{
-	googlecloudclustergke_contract.InspectionTypeId, composer_inspection_type.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId, googlecloudclustergdcbaremetal_contract.InspectionTypeId, aws.InspectionTypeId, azure.InspectionTypeId,
+	googlecloudclustergke_contract.InspectionTypeId, composer_inspection_type.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId, googlecloudclustergdcbaremetal_contract.InspectionTypeId, googlecloudclustergkeonaws_contract.InspectionTypeId, googlecloudclustergkeonazure_contract.InspectionTypeId,
 }
 
 // GKEBasedClusterInspectionTypes is the list of inspection types of GKE.
@@ -35,7 +35,7 @@ var GKEBasedClusterInspectionTypes = []string{
 
 // GKEMultiCloudClusterInspectionTypes is the list of inspection types of GKE multicloud.
 var GKEMultiCloudClusterInspectionTypes = []string{
-	aws.InspectionTypeId, azure.InspectionTypeId,
+	googlecloudclustergkeonaws_contract.InspectionTypeId, googlecloudclustergkeonazure_contract.InspectionTypeId,
 }
 
 // GDCClusterInspectionTypes is the list of inspection types of GDC clusters.

@@ -44,6 +44,8 @@ import (
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
 	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
+	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
+	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 
@@ -97,7 +99,8 @@ func init() {
 
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcvmware_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcbaremetal_impl.Register)
-
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonaws_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonazure_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {
