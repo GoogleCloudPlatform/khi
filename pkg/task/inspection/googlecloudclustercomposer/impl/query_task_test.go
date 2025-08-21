@@ -1,3 +1,19 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package googlecloudclustercomposer_impl
+
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +28,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_query
-
 import (
 	"context"
 	"fmt"
@@ -22,9 +36,9 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
@@ -34,7 +48,7 @@ func TestCreateGeneratorCreatesComposerQuery(t *testing.T) {
 	environmentName := "test-environment"
 	taskDependentValues := typedmap.NewTypedMap()
 	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudcommon_contract.InputProjectIdTaskID.ReferenceIDString()), projectId)
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](composer_taskid.InputComposerEnvironmentTaskID.ReferenceIDString()), environmentName)
+	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), environmentName)
 	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 	// resource.type="cloud_composer_environment"
 	// resource.labels.environment_name="test-environment"

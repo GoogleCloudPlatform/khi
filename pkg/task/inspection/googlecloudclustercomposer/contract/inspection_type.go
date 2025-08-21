@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_inspection_type
+package googlecloudclustercomposer_contract
 
 import (
 	"math"
@@ -20,8 +20,10 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
+// InspectionTypeId is the inspection type id for google cloud composer.
 var InspectionTypeId = "gcp-composer"
 
+// ComposerInspectionType is the inspection type for google cloud composer.
 var ComposerInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "Cloud Composer",
