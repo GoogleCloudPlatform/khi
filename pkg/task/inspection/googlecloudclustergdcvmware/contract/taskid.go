@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vmware
+package googlecloudclustergdcvmware_contract
 
 import (
-	"context"
-
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var AnthosOnVMWareClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gdcv-for-vmware"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
-	return "", nil
-}, inspection_contract.InspectionTypeLabel(InspectionTypeId))
+// AutocompleteGDCVForVMWareClusterNamesTaskID is the task ID for listing up GDCV for VMWare cluster names on the project.
+var AutocompleteGDCVForVMWareClusterNamesTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-vmware")
+
+// ClusterNamePrefixTaskIDForGDCVForVMWare is the task ID for the GDCV for VMWare cluster name prefix.
+var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gdcv-for-vmware")

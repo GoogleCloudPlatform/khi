@@ -41,6 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
 	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
@@ -92,6 +93,9 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudk8scommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergke_impl.Register)
+
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcvmware_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcvmware_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {

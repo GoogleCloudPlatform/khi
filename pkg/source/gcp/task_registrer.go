@@ -23,8 +23,6 @@ import (
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
 	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
-	vmware "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-vmware"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke"
 	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
 	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
@@ -47,7 +45,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		aws.AutocompleteClusterNames,
 		azure.AutocompleteClusterNames,
 		baremetal.AutocompleteClusterNames,
-		vmware.AutocompleteClusterNames,
 		// Form input related tasks
 		task.InputNodeNameFilterTask,
 		k8s_container.InputContainerQueryNamespaceFilterTask,
@@ -80,7 +77,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		// Cluster name prefix tasks
 		aws.AnthosOnAWSClusterNamePrefixTask,
 		azure.AnthosOnAzureClusterNamePrefixTask,
-		vmware.AnthosOnVMWareClusterNamePrefixTask,
 		baremetal.AnthosOnBaremetalClusterNamePrefixTask,
 		// Composer Query Task
 		composer_query.ComposerMonitoringLogQueryTask,
@@ -103,10 +99,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	}
 
 	// Register inspection types
-	err = registry.AddInspectionType(gke.GKEInspectionType)
-	if err != nil {
-		return err
-	}
 	err = registry.AddInspectionType(aws.AnthosOnAWSInspectionType)
 	if err != nil {
 		return err
@@ -116,10 +108,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		return err
 	}
 	err = registry.AddInspectionType(baremetal.AnthosOnBaremetalInspectionType)
-	if err != nil {
-		return err
-	}
-	err = registry.AddInspectionType(vmware.AnthosOnVMWareInspectionType)
 	if err != nil {
 		return err
 	}

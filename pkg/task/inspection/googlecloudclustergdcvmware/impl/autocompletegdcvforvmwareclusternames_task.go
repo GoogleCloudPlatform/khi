@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gke
+package googlecloudclustergdcvmware_impl
 
 import (
 	"context"
@@ -24,11 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "gke"), []taskid.UntypedTaskReference{
+// AutocompleteGDCVForVMWareClusterNamesTask is a task that provides autocomplete suggestions for GDCV for VMWare cluster names.
+var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustergdcvmware_contract.AutocompleteGDCVForVMWareClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
@@ -42,7 +44,7 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplem
 	}
 
 	if projectID != "" {
-		clusterNames, err := client.GetClusterNames(ctx, projectID)
+		clusterNames, err := client.GetAnthosOnVMWareClusterNames(ctx, projectID)
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
 			return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
@@ -68,4 +70,4 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplem
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustergdcvmware_contract.InspectionTypeId))

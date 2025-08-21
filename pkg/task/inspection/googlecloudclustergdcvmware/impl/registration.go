@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudclustergke_impl
+package googlecloudclustergdcvmware_impl
 
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
+	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
 )
 
-// Register registers all googlecloudclustergke inspection tasks to the registry.
+// Register registers all googlecloudclustergdcvmware inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergke_contract.GKEInspectionType)
+	err := registry.AddInspectionType(googlecloudclustergdcvmware_contract.GDCVForVMWareInspectionType)
 	if err != nil {
 		return err
 	}
 	return coretask.RegisterTasks(registry,
-		AutocompleteGKEClusterNamesTask,
-		GKEClusterNamePrefixTask,
+		AutocompleteGDCVForVMWareClusterNamesTask,
+		GDCVForVMWareClusterNamePrefixTask,
 	)
 }
