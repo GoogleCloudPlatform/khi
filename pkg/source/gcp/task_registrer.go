@@ -44,7 +44,6 @@ import (
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	err := coretask.RegisterTasks(registry,
-		gke.AutocompleteClusterNames,
 		aws.AutocompleteClusterNames,
 		azure.AutocompleteClusterNames,
 		baremetal.AutocompleteClusterNames,
@@ -79,7 +78,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
 		serialport.GKESerialPortLogParseTask,
 		// Cluster name prefix tasks
-		gke.GKEClusterNamePrefixTask,
 		aws.AnthosOnAWSClusterNamePrefixTask,
 		azure.AnthosOnAzureClusterNamePrefixTask,
 		vmware.AnthosOnVMWareClusterNamePrefixTask,
