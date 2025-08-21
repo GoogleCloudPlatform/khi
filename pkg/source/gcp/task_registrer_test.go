@@ -19,6 +19,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
+	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
@@ -39,6 +40,7 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		common.Register,
 		googlecloudcommon_impl.Register,
 		googlecloudk8scommon_impl.Register,
+		googlecloudclustergke_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
@@ -48,6 +50,7 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		common.Register,
 		googlecloudcommon_impl.Register,
 		googlecloudk8scommon_impl.Register,
+		googlecloudclustergke_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
