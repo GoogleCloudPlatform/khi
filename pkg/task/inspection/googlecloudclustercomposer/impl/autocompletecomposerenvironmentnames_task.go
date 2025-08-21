@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_form
+package googlecloudclustercomposer_impl
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	composer_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/taskid"
+	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-var AutocompleteComposerEnvironmentNames = inspectiontaskbase.NewCachedTask(composer_taskid.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
+// AutocompleteComposerEnvironmentNamesTask is the task that autocompletes composer environment names.
+var AutocompleteComposerEnvironmentNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[[]string]) (inspectiontaskbase.PreviousTaskResult[[]string], error) {
@@ -64,10 +62,3 @@ var AutocompleteComposerEnvironmentNames = inspectiontaskbase.NewCachedTask(comp
 		Value:            []string{},
 	}, nil
 })
-
-var InputComposerEnvironmentNameTask = formtask.NewTextFormTaskBuilder(composer_taskid.InputComposerEnvironmentTaskID, gcp_task.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
-	[]taskid.UntypedTaskReference{composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref()},
-).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-	environments := coretask.GetTaskResult(ctx, composer_taskid.AutocompleteComposerEnvironmentNamesTaskID.Ref())
-	return common.SortForAutocomplete(value, environments), nil
-}).Build()

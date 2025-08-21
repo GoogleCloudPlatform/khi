@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package composer_task
+package googlecloudclustercomposer_impl
 
 import (
 	"context"
 
-	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 )
 
-var ComposerClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "composer"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+// ComposerClusterNamePrefixTask is the task that returns the composer cluster name prefix.
+var ComposerClusterNamePrefixTask = coretask.NewTask(googlecloudclustercomposer_contract.ComposerClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "", nil
-}, inspection_contract.InspectionTypeLabel(composer_inspection_type.InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustercomposer_contract.InspectionTypeId))

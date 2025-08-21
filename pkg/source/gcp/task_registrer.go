@@ -18,10 +18,6 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
-	composer_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer"
-	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
-	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
-	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit"
@@ -68,28 +64,7 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		onprem_api.OnPremCloudAuditLogParseTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
 		serialport.GKESerialPortLogParseTask,
-		// Composer Query Task
-		composer_query.ComposerMonitoringLogQueryTask,
-		composer_query.ComposerDagProcessorManagerLogQueryTask,
-		composer_query.ComposerSchedulerLogQueryTask,
-		composer_query.ComposerWorkerLogQueryTask,
-		composer_form.AutocompleteClusterNames,
-		composer_task.ComposerClusterNamePrefixTask,
-		// Composer Input Task
-		composer_form.InputComposerEnvironmentNameTask,
-		// Composer AutoComplete Task
-		composer_form.AutocompleteComposerEnvironmentNames,
-		// Composer Parser Task
-		composer_task.AirflowSchedulerLogParseJob,
-		composer_task.AirflowWorkerLogParseJob,
-		composer_task.AirflowDagProcessorLogParseJob,
 	)
-	if err != nil {
-		return err
-	}
-
-	// Register inspection types
-	err = registry.AddInspectionType(composer_inspection_type.ComposerInspectionType)
 	if err != nil {
 		return err
 	}
