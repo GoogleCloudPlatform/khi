@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package baremetal
+package googlecloudclustergdcbaremetal_impl
 
 import (
 	"context"
@@ -24,16 +24,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustergdcbaremetal_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-baremetal"), []taskid.UntypedTaskReference{
+// AutocompleteGDCVForBaremetalClusterNamesTask is a task that provides autocomplete suggestions for GDCV for Baremetal cluster names.
+var AutocompleteGDCVForBaremetalClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustergdcbaremetal_contract.AutocompleteGDCVForBaremetalClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
+		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, nil
 	}
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
@@ -68,4 +70,4 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplem
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustergdcbaremetal_contract.InspectionTypeId))

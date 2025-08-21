@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package baremetal
+package googlecloudclustergdcbaremetal_contract
 
 import (
 	"math"
@@ -20,9 +20,11 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
 
+// InspectionTypeId is the unique identifier for the GDCV for Baremetal inspection type.
 var InspectionTypeId = "gcp-gdcv-for-baremetal"
 
-var AnthosOnBaremetalInspectionType = coreinspection.InspectionType{
+// GDCVForBaremetalInspectionType defines the inspection type for GDCV for Baremetal.
+var GDCVForBaremetalInspectionType = coreinspection.InspectionType{
 	Id:   InspectionTypeId,
 	Name: "GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)",
 	Description: `Visualize logs generated from GDCV for baremetal cluster(including user cluster/admin cluster/hybrid cluster or standalone cluster).
