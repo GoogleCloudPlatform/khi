@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package aws
+package googlecloudclustergkeonaws_impl
 
 import (
 	"context"
@@ -20,9 +20,10 @@ import (
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
 )
 
-var AnthosOnAWSClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-aws"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+// AnthosOnAWSClusterNamePrefixTask is a task that provides the cluster name prefix for GKE on AWS.
+var AnthosOnAWSClusterNamePrefixTask = common_task.NewTask(googlecloudclustergkeonaws_contract.ClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "awsClusters/", nil
-}, inspection_contract.InspectionTypeLabel(InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustergkeonaws_contract.InspectionTypeId))

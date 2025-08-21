@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package azure
+package googlecloudclustergkeonaws_impl
 
 import (
 	"context"
@@ -24,11 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-azure"), []taskid.UntypedTaskReference{
+// AutocompleteGKEOnAWSClusterNames is a task that provides a list of GKE on AWS cluster names for autocompletion.
+var AutocompleteGKEOnAWSClusterNames = inspectiontaskbase.NewCachedTask(googlecloudclustergkeonaws_contract.AutocompleteGKEOnAWSClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 	client, err := api.DefaultGCPClientFactory.NewClient()
@@ -42,7 +44,7 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplem
 	}
 
 	if projectID != "" {
-		clusterNames, err := client.GetAnthosAzureClusterNames(ctx, projectID)
+		clusterNames, err := client.GetAnthosAWSClusterNames(ctx, projectID)
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
 			return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
@@ -68,4 +70,4 @@ var AutocompleteClusterNames = inspectiontaskbase.NewCachedTask(taskid.NewImplem
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustergkeonaws_contract.InspectionTypeId))

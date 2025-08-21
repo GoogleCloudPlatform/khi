@@ -6,13 +6,13 @@
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in writing, software
+// Unless required by applicable law. or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package azure
+package googlecloudclustergkeonazure_impl
 
 import (
 	"context"
@@ -20,9 +20,10 @@ import (
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudclustergkeonazure_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/contract"
 )
 
-var AnthosOnAzureClusterNamePrefixTask = common_task.NewTask(taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-azure"), []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+// AnthosOnAzureClusterNamePrefixTask is a task that provides the cluster name prefix for GKE on Azure.
+var AnthosOnAzureClusterNamePrefixTask = common_task.NewTask(googlecloudclustergkeonazure_contract.ClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "azureClusters/", nil
-}, inspection_contract.InspectionTypeLabel(InspectionTypeId))
+}, inspection_contract.InspectionTypeLabel(googlecloudclustergkeonazure_contract.InspectionTypeId))

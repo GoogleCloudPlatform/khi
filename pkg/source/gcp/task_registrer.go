@@ -22,8 +22,6 @@ import (
 	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
-	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
-	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit"
@@ -41,8 +39,6 @@ import (
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	err := coretask.RegisterTasks(registry,
-		aws.AutocompleteClusterNames,
-		azure.AutocompleteClusterNames,
 		// Form input related tasks
 		task.InputNodeNameFilterTask,
 		k8s_container.InputContainerQueryNamespaceFilterTask,
@@ -72,9 +68,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		onprem_api.OnPremCloudAuditLogParseTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
 		serialport.GKESerialPortLogParseTask,
-		// Cluster name prefix tasks
-		aws.AnthosOnAWSClusterNamePrefixTask,
-		azure.AnthosOnAzureClusterNamePrefixTask,
 		// Composer Query Task
 		composer_query.ComposerMonitoringLogQueryTask,
 		composer_query.ComposerDagProcessorManagerLogQueryTask,
@@ -96,14 +89,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	}
 
 	// Register inspection types
-	err = registry.AddInspectionType(aws.AnthosOnAWSInspectionType)
-	if err != nil {
-		return err
-	}
-	err = registry.AddInspectionType(azure.AnthosOnAzureInspectionType)
-	if err != nil {
-		return err
-	}
 	err = registry.AddInspectionType(composer_inspection_type.ComposerInspectionType)
 	if err != nil {
 		return err
