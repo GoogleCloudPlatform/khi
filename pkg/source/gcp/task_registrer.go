@@ -22,7 +22,6 @@ import (
 	composer_form "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/form"
 	composer_inspection_type "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/inspectiontype"
 	composer_query "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/cloud-composer/query"
-	baremetal "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gdcv-for-baremetal"
 	aws "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-aws"
 	azure "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke-on-azure"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
@@ -44,7 +43,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	err := coretask.RegisterTasks(registry,
 		aws.AutocompleteClusterNames,
 		azure.AutocompleteClusterNames,
-		baremetal.AutocompleteClusterNames,
 		// Form input related tasks
 		task.InputNodeNameFilterTask,
 		k8s_container.InputContainerQueryNamespaceFilterTask,
@@ -77,7 +75,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		// Cluster name prefix tasks
 		aws.AnthosOnAWSClusterNamePrefixTask,
 		azure.AnthosOnAzureClusterNamePrefixTask,
-		baremetal.AnthosOnBaremetalClusterNamePrefixTask,
 		// Composer Query Task
 		composer_query.ComposerMonitoringLogQueryTask,
 		composer_query.ComposerDagProcessorManagerLogQueryTask,
@@ -104,10 +101,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		return err
 	}
 	err = registry.AddInspectionType(azure.AnthosOnAzureInspectionType)
-	if err != nil {
-		return err
-	}
-	err = registry.AddInspectionType(baremetal.AnthosOnBaremetalInspectionType)
 	if err != nil {
 		return err
 	}
