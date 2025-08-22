@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package autoscaler
+package googlecloudloggkeautoscaler_impl
 
 import (
 	"context"
@@ -22,13 +22,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 )
 
-func GenerateAutoscalerQuery(projectId string, clusterName string, excludeStatus bool) string {
+func generateAutoscalerQuery(projectId string, clusterName string, excludeStatus bool) string {
 	excludeStatusQueryFragment := "-- include query for status log"
 	if excludeStatus {
 		excludeStatusQueryFragment = `-jsonPayload.status: ""`
@@ -40,12 +40,12 @@ resource.labels.cluster_name="%s"
 logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, projectId, clusterName, excludeStatusQueryFragment, projectId)
 }
 
-var AutoscalerQueryTask = query.NewQueryGeneratorTask(gke_autoscaler_taskid.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
+var AutoscalerQueryTask = query.NewQueryGeneratorTask(googlecloudloggkeautoscaler_contract.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
-	return []string{GenerateAutoscalerQuery(projectID, clusterName, true)}, nil
-}, GenerateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true))
+	return []string{generateAutoscalerQuery(projectID, clusterName, true)}, nil
+}, generateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true))

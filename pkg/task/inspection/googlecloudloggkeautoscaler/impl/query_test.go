@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package autoscaler
+package googlecloudloggkeautoscaler_impl
 
 import (
 	"testing"
@@ -50,7 +50,7 @@ logName="projects/my-project/logs/container.googleapis.com%2Fcluster-autoscaler-
 	}
 
 	for _, tc := range testCases {
-		result := GenerateAutoscalerQuery(tc.projectId, tc.clusterName, tc.excludeStatus)
+		result := generateAutoscalerQuery(tc.projectId, tc.clusterName, tc.excludeStatus)
 		if result != tc.expected {
 			t.Errorf("Expected query:\n%s\nGot:\n%s", tc.expected, result)
 		}
@@ -79,7 +79,7 @@ func TestGeneratedAutoscalerQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateAutoscalerQuery(tc.ProjectId, tc.ClusterName, tc.ExcludeStatus)
+			query := generateAutoscalerQuery(tc.ProjectId, tc.ClusterName, tc.ExcludeStatus)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

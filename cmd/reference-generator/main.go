@@ -39,6 +39,7 @@ import (
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
+	googlecloudloggkeautoscaler_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/impl"
 	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
 	googlecloudlogk8snode_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/impl"
@@ -79,6 +80,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlognetworkapiaudit_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8snode_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontainer_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeautoscaler_impl.Register)
 }
 
 func main() {

@@ -17,7 +17,6 @@ package gcp
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit"
 	k8sauditquery "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/query"
 	k8scontrolplanecomponent "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component"
@@ -29,9 +28,7 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		k8scontrolplanecomponent.InputControlPlaneComponentNameFilterTask,
 		// Query related tasks
 		k8sauditquery.Task,
-		autoscaler.AutoscalerQueryTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneLogQueryTask,
-		autoscaler.AutoscalerParserTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
 	)
 	if err != nil {
