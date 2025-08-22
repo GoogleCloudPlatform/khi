@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strings"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
@@ -31,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
@@ -80,7 +80,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 		googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(),
 	), func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		client, err := api.DefaultGCPClientFactory.NewClient()
+		client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			hadError := false
 			for _, resourceNameFromInput := range resourceNamesFromInput {
 				resourceNameWithoutSurroundingSpace := strings.TrimSpace(resourceNameFromInput)
-				err := api.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
+				err := googlecloudapi.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
 				if err != nil {
 					hadError = true
 					break

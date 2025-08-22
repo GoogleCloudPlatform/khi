@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
 
 func IsValidLogQuery(t *testing.T, query string) error {
@@ -36,7 +36,7 @@ func IsValidLogQuery(t *testing.T, query string) error {
 	if found {
 		parameters.Auth.AccessToken = &accessToken
 	}
-	gcpApi, err := api.DefaultGCPClientFactory.NewClient()
+	gcpApi, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return err
 	}

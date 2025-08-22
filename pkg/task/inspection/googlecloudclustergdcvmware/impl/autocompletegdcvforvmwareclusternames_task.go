@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -33,7 +33,7 @@ import (
 var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustergdcvmware_contract.AutocompleteGDCVForVMWareClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
-	client, err := api.DefaultGCPClientFactory.NewClient()
+	client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 	if err != nil {
 		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
 	}

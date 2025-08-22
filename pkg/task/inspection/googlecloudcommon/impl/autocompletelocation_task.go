@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
@@ -31,7 +31,7 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 	},
 	func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[[]string]) (inspectiontaskbase.PreviousTaskResult[[]string], error) {
-		client, err := api.DefaultGCPClientFactory.NewClient()
+		client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 		if err != nil {
 			return inspectiontaskbase.PreviousTaskResult[[]string]{}, err
 		}
