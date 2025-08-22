@@ -17,7 +17,6 @@ package gcp
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit"
@@ -33,7 +32,6 @@ import (
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	err := coretask.RegisterTasks(registry,
 		// Form input related tasks
-		task.InputNodeNameFilterTask,
 		k8s_container.InputContainerQueryNamespaceFilterTask,
 		k8s_container.InputContainerQueryPodNamesFilterMask,
 		k8scontrolplanecomponent.InputControlPlaneComponentNameFilterTask,

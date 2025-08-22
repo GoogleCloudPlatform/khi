@@ -14,7 +14,7 @@
 
 package googlecloudcommon_contract
 
-var (
+const (
 	// FormBasePriority is the base priority for Google Cloud common forms.
 	FormBasePriority = 100000
 	// PriorityForQueryTimeGroup is the priority for the query time group.

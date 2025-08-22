@@ -47,3 +47,6 @@ var InputKindFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilt
 
 // InputNamespaceFilterTaskID is the task ID for the namespace filter.
 var InputNamespaceFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](GoogleCloudCommonK8STaskIDPrefix + "input-namespaces")
+
+// InputNodeNameFilterTaskID receives space splitted node names to filter node specific logs.
+var InputNodeNameFilterTaskID = taskid.NewDefaultImplementationID[[]string](GoogleCloudCommonK8STaskIDPrefix + "input/node-name-filter")
