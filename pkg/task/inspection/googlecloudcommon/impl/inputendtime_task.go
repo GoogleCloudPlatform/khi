@@ -24,15 +24,15 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InputEndTimeTask defines a form task to input the end time for log queries.
 var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputEndTimeTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+5000, "End time").
 	WithDependencies([]taskid.UntypedTaskReference{
-		inspection_contract.InspectionTimeTaskID.Ref(),
-		inspection_contract.TimeZoneShiftInputTaskID.Ref(),
+		inspectioncore_contract.InspectionTimeTaskID.Ref(),
+		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription(`The endtime of query. Please input it in the format of RFC3339
 (example: 2006-01-02T15:04:05-07:00)`).
@@ -43,13 +43,13 @@ var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contrac
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
 		}
-		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, inspection_contract.TimeZoneShiftInputTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore_contract.InspectionTimeTaskID.Ref())
+		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore_contract.TimeZoneShiftInputTaskID.Ref())
 
 		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore_contract.InspectionTimeTaskID.Ref())
 
 		specifiedTime := convertedValue.(time.Time)
 		if inspectionTime.Sub(specifiedTime) < 0 {

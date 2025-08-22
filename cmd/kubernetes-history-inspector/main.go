@@ -40,7 +40,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
@@ -60,6 +59,7 @@ import (
 	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	"cloud.google.com/go/profiler"
 )
@@ -170,7 +170,7 @@ func run() int {
 	if *parameters.Auth.QuotaProjectID != "" {
 		api.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
 	}
-	ioconfig, err := inspection_contract.NewIOConfigFromParameter(parameters.Common)
+	ioconfig, err := inspectioncore_contract.NewIOConfigFromParameter(parameters.Common)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		return 1
@@ -277,7 +277,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
-			err = t.Run(context.Background(), &inspection_contract.InspectionRequest{
+			err = t.Run(context.Background(), &inspectioncore_contract.InspectionRequest{
 				Values: values,
 			})
 			if err != nil {

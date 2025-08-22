@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_impl
+package inspectioncore_impl
 
 import (
 	"context"
@@ -25,19 +25,19 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspection_contract.SerializerTaskID, []taskid.UntypedTaskReference{inspection_contract.InspectionMainSubgraphDoneTaskID.Ref()}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*inspection_contract.FileSystemStore, error) {
-	if taskMode == inspection_contract.TaskModeDryRun {
+var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspectioncore_contract.SerializerTaskID, []taskid.UntypedTaskReference{inspectioncore_contract.InspectionMainSubgraphDoneTaskID.Ref()}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*inspectioncore_contract.FileSystemStore, error) {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil
 	}
-	inspectionID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInspectionID)
-	metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
-	ioConfig := khictx.MustGetValue(ctx, inspection_contract.CurrentIOConfig)
-	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
-	store := inspection_contract.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
+	inspectionID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
+	metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
+	ioConfig := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentIOConfig)
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
+	store := inspectioncore_contract.NewFileSystemInspectionResultRepository(filepath.Join(ioConfig.DataDestination, inspectionID+".khi"))
 
 	writer, err := store.GetWriter()
 	if err != nil {

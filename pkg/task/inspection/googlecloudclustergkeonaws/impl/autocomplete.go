@@ -23,10 +23,10 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteGKEOnAWSClusterNames is a task that provides a list of GKE on AWS cluster names for autocompletion.
@@ -70,4 +70,4 @@ var AutocompleteGKEOnAWSClusterNames = inspectiontaskbase.NewCachedTask(googlecl
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergkeonaws_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergkeonaws_contract.InspectionTypeId))

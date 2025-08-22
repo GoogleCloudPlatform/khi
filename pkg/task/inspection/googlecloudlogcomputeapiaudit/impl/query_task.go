@@ -26,13 +26,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // GenerateComputeAPIQuery generates a query for compute API logs.
-func GenerateComputeAPIQuery(taskMode inspection_contract.InspectionTaskModeType, nodeNames []string) []string {
-	if taskMode == inspection_contract.TaskModeDryRun {
+func GenerateComputeAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []string {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return []string{
 			generateComputeAPIQueryWithInstanceNameFilter("-- instance name filters to be determined after audit log query"),
 		}
@@ -61,11 +61,11 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 // ComputeAPIQueryTask defines a task that queries compute API logs from Cloud Logging.
 var ComputeAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
-	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 
 	return GenerateComputeAPIQuery(i, builder.ClusterResource.GetNodes()), nil
-}, GenerateComputeAPIQuery(inspection_contract.TaskModeRun, []string{
+}, GenerateComputeAPIQuery(inspectioncore_contract.TaskModeRun, []string{
 	"gke-test-cluster-node-1",
 	"gke-test-cluster-node-2",
 })[0])

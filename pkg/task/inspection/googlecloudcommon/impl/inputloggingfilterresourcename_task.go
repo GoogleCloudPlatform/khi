@@ -25,25 +25,25 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var resourceNamesInputKey = typedmap.NewTypedKey[*googlecloudcommon_contract.ResourceNamesInput]("query-resource-names")
 
 // InputLoggingFilterResourceNameTask defines an inspection task that creates a form group
 // for overriding log filter resource names for advanced users.
-var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
-	sharedMap := khictx.MustGetValue(ctx, inspection_contract.InspectionSharedMap)
+var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
+	sharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionSharedMap)
 	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, googlecloudcommon_contract.NewResourceNamesInput)
 
-	metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
+	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 	formFields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 	if !found {
 		return nil, fmt.Errorf("failed to get form fields from run metadata")
 	}
 
-	requestInput := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInput)
+	requestInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 
 	queryForms := []inspectionmetadata.ParameterFormField{}
 	for _, form := range resourceNamesInput.GetQueryResourceNamePairs() {

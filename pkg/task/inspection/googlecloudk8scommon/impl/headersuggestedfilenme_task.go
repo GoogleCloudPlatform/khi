@@ -26,9 +26,9 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // HeaderSuggestedFileNameTask is a task to supply the suggested file name of the KHI file generated.
@@ -37,8 +37,8 @@ var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googleclo
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (struct{}, error) {
-	metadataSet := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
+	metadataSet := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 	header := typedmap.GetOrDefault(metadataSet, inspectionmetadata.HeaderMetadataKey, &inspectionmetadata.HeaderMetadata{})
 
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
@@ -47,7 +47,7 @@ var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googleclo
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
 
 	return struct{}{}, nil
-}, inspection_contract.NewRequiredTaskLabel(), inspection_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
+}, inspectioncore_contract.NewRequiredTaskLabel(), inspectioncore_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
 
 func getSuggestedFileName(clusterName string, startTime, endTime time.Time) string {
 	return fmt.Sprintf("%s-%s-%s.khi", clusterName, startTime.Format("2006_01_02_1504"), endTime.Format("2006_01_02_1504"))

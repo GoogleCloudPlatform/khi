@@ -23,10 +23,10 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergkeonazure_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteGKEOnAzureClusterNamesTask is a task that provides a list of GKE on Azure cluster names for autocompletion.
@@ -70,4 +70,4 @@ var AutocompleteGKEOnAzureClusterNamesTask = inspectiontaskbase.NewCachedTask(go
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergkeonazure_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergkeonazure_contract.InspectionTypeId))

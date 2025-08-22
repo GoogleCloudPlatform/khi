@@ -21,8 +21,8 @@ import (
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 func TestInputStartTime(t *testing.T) {
@@ -36,10 +36,10 @@ func TestInputStartTime(t *testing.T) {
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	startTime, _, err := inspectiontest.RunInspectionTask(ctx, InputStartTimeTask, inspection_contract.TaskModeDryRun, map[string]any{},
+	startTime, _, err := inspectiontest.RunInspectionTask(ctx, InputStartTimeTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputDurationTaskID.Ref(), duration),
 		tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), endTime),
-		tasktest.NewTaskDependencyValuePair(inspection_contract.TimeZoneShiftInputTaskID.Ref(), time.UTC),
+		tasktest.NewTaskDependencyValuePair(inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(), time.UTC),
 	)
 	if err != nil {
 		t.Errorf("unexpected error\n%v", err)

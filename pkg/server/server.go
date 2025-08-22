@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/popup"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
@@ -212,7 +212,7 @@ func CreateKHIServer(inspectionServer *coreinspection.InspectionTaskServer, serv
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
-			result, err := currentTask.DryRun(ctx, &inspection_contract.InspectionRequest{
+			result, err := currentTask.DryRun(ctx, &inspectioncore_contract.InspectionRequest{
 				Values: reqBody,
 			})
 			if err != nil {
@@ -234,7 +234,7 @@ func CreateKHIServer(inspectionServer *coreinspection.InspectionTaskServer, serv
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
-			err := currentTask.Run(ctx, &inspection_contract.InspectionRequest{
+			err := currentTask.Run(ctx, &inspectioncore_contract.InspectionRequest{
 				Values: reqBody,
 			})
 			if err != nil {

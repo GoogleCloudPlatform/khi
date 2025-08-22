@@ -30,7 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -41,8 +41,8 @@ import (
 // GCPK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(gke_k8saudit_taskid.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
-	if taskMode == inspection_contract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref())
@@ -51,7 +51,7 @@ var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(gke_k8saudit
 		Logs:      logs,
 		Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
+}, inspectioncore_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
 
 var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(registry coreinspection.InspectionTaskRegistry) error {
 	err := registry.AddTask(GCPK8sAuditLogSourceTask)

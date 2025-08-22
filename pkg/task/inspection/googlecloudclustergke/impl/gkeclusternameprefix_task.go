@@ -19,12 +19,12 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // GKEClusterNamePrefixTask is a task that returns an empty string as the cluster name prefix for GKE.
 // This task is necessary to satisfy the dependency of the log source profile, but GKE does not require a prefix.
 var GKEClusterNamePrefixTask = coretask.NewTask(googlecloudclustergke_contract.ClusterNamePrefixTaskIDForGKE, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "", nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergke_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergke_contract.InspectionTypeId))

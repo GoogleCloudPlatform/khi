@@ -25,7 +25,7 @@ import (
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -62,8 +62,8 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
-	_, _, err := inspectiontest.RunInspectionTask(ctx, Task, inspection_contract.TaskModeRun, map[string]any{},
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
+	_, _, err := inspectiontest.RunInspectionTask(ctx, Task, inspectioncore_contract.TaskModeRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(common_k8saudit_taskid.CommonAuitLogSource, &types.AuditLogParserLogSource{
 			Logs:      logs,
 			Extractor: nil,

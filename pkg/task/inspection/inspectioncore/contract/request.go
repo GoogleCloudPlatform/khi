@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_contract
+package inspectioncore_contract
 
 type InspectionRequest struct {
 	Values map[string]any
