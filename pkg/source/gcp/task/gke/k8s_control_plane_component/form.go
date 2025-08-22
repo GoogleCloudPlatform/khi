@@ -19,11 +19,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-const priorityForControlPlaneGroup = gcp_task.FormBasePriority + 30000
+const priorityForControlPlaneGroup = googlecloudcommon_contract.FormBasePriority + 30000
 
 var inputControlPlaneComponentNameAliasMap map[string][]string = map[string][]string{}
 

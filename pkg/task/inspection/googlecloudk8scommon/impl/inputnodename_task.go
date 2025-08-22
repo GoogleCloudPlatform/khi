@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package googlecloudk8scommon_impl
 
 import (
 	"context"
@@ -21,15 +21,9 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
-
-const FormBasePriority = 100000
-const PriorityForQueryTimeGroup = FormBasePriority + 50000
-const PriorityForResourceIdentifierGroup = FormBasePriority + 40000
-const PriorityForK8sResourceFilterGroup = FormBasePriority + 30000
-
-var InputNodeNameFilterTaskID = taskid.NewDefaultImplementationID[[]string](GCPPrefix + "input/node-name-filter")
 
 var nodeNameSubstringValidator = regexp.MustCompile("^[-a-z0-9]*$")
 
@@ -48,7 +42,7 @@ func getNodeNameSubstringsFromRawInput(value string) []string {
 }
 
 // InputNodeNameFilterTask is a task to collect list of substrings of node names. This input value is used in querying k8s_node or serialport logs.
-var InputNodeNameFilterTask = formtask.NewTextFormTaskBuilder(InputNodeNameFilterTaskID, PriorityForK8sResourceFilterGroup+3000, "Node names").
+var InputNodeNameFilterTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputNodeNameFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+3000, "Node names").
 	WithDefaultValueConstant("", true).
 	WithDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
 	WithValidator(func(ctx context.Context, value string) (string, error) {

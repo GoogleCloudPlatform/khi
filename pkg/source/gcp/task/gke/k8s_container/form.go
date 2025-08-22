@@ -19,11 +19,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-const priorityForContainerGroup = gcp_task.FormBasePriority + 20000
+const priorityForContainerGroup = googlecloudcommon_contract.FormBasePriority + 20000
 
 var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},

@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package googlecloudk8scommon_impl
 
 import (
 	"testing"
@@ -20,8 +20,6 @@ import (
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestNodeNameFiltertask(t *testing.T) {
