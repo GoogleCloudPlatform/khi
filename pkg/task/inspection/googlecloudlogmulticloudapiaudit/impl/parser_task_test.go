@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud_api
+package googlecloudlogmulticloudapiaudit_impl
 
 import (
 	"testing"

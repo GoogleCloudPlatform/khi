@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud_api
+package googlecloudlogmulticloudapiaudit_impl
 
 import (
 	"context"
@@ -21,14 +21,14 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	multicloud_api_taskidvar "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api/multicloud_api_taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
+	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 )
 
-func GenerateMultiCloudAPIQuery(clusterNameWithPrefix string) string {
+// generateQuery generates a query for multicloud API logs.
+func generateQuery(clusterNameWithPrefix string) string {
 	return fmt.Sprintf(`resource.type="audited_resource"
 resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
@@ -36,10 +36,11 @@ protoPayload.resourceName:"%s"
 `, clusterNameWithPrefix)
 }
 
-var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(multicloud_api_taskidvar.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
+// MultiCloudAPIQueryTask defines a task that queries multicloud API logs from Cloud Logging.
+var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
-	return []string{GenerateMultiCloudAPIQuery(clusterName)}, nil
-}, GenerateMultiCloudAPIQuery("awsClusters/cluster-foo"))
+	return []string{generateQuery(clusterName)}, nil
+}, generateQuery("awsClusters/cluster-foo"))

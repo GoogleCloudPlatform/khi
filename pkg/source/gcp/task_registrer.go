@@ -29,8 +29,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/serialport"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api"
 )
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
@@ -48,9 +46,7 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		gke_audit.GKEAuditQueryTask,
 		compute_api.ComputeAPIQueryTask,
 		network_api.GCPNetworkLogQueryTask,
-		multicloud_api.MultiCloudAPIQueryTask,
 		autoscaler.AutoscalerQueryTask,
-		onprem_api.OnPremAPIQueryTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneLogQueryTask,
 		serialport.GKESerialPortLogQueryTask,
 		k8s_event.GKEK8sEventLogParseJob,
@@ -59,9 +55,7 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		gke_audit.GKEAuditLogParseJob,
 		compute_api.ComputeAPIParserTask,
 		network_api.NetowrkAPIParserTask,
-		multicloud_api.MultiCloudAuditLogParseJob,
 		autoscaler.AutoscalerParserTask,
-		onprem_api.OnPremCloudAuditLogParseTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
 		serialport.GKESerialPortLogParseTask,
 	)

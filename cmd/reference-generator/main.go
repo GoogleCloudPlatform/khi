@@ -37,6 +37,8 @@ import (
 	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
+	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 )
 
 var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
@@ -61,7 +63,8 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonaws_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonazure_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustercomposer_impl.Register)
-
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogmulticloudapiaudit_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogonpremapiaudit_impl.Register)
 }
 
 func main() {
