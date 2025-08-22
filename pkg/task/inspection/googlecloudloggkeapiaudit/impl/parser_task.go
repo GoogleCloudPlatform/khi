@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gke_audit
+package googlecloudloggkeapiaudit_impl
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
+	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 )
 
 type gkeAuditLogParser struct {
@@ -56,7 +56,7 @@ func (*gkeAuditLogParser) GetParserName() string {
 
 // LogTask implements parsertask.Parser.
 func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return gke_audit_taskid.GKEAuditLogQueryTaskID.Ref()
+	return googlecloudloggkeapiaudit_contract.GKEAuditLogQueryTaskID.Ref()
 }
 
 func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {
@@ -199,4 +199,4 @@ func getRelatedNodepool(l *log.Log) (string, error) {
 
 var _ legacyparser.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(gke_audit_taskid.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudloggkeapiaudit_contract.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

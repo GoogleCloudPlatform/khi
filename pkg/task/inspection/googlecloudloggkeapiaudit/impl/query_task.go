@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gke_audit
+package googlecloudloggkeapiaudit_impl
 
 import (
 	"context"
@@ -22,10 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gke_audit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/gke_audit/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 )
 
 func GenerateGKEAuditQuery(projectName string, clusterName string) string {
@@ -34,7 +34,7 @@ logName="projects/%s/logs/cloudaudit.googleapis.com%%2Factivity"
 resource.labels.cluster_name="%s"`, projectName, clusterName)
 }
 
-var GKEAuditQueryTask = query.NewQueryGeneratorTask(gke_audit_taskid.GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []taskid.UntypedTaskReference{
+var GKEAuditQueryTask = query.NewQueryGeneratorTask(googlecloudloggkeapiaudit_contract.GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {

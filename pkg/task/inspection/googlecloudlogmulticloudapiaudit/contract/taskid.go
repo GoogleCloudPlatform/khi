@@ -19,10 +19,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
-var MultiCloudAPIAuditLogTaskIDPrefix = "cloud.google.com/log/multicloud/"
+var MultiCloudAPIAuditLogTaskIDPrefix = "cloud.google.com/log/multicloud-api/"
 
 // MultiCloudAPIQueryTaskID is the task id for the task that queries multicloud API logs from Cloud Logging.
-var MultiCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "multicloud-api")
+var MultiCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "query")
 
 // MultiCloudAPIParserTaskID is the task id for the task that parses multicloud API logs.
-var MultiCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](MultiCloudAPIAuditLogTaskIDPrefix + "feature/multicloud-audit-parser")
+var MultiCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](MultiCloudAPIAuditLogTaskIDPrefix + "parser")

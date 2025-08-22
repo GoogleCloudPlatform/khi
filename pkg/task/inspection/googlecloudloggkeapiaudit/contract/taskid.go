@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gke_audit_taskid
+package googlecloudloggkeapiaudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
-var GKEAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "gke-audit")
-var GKEAuditParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/gke-audit-parser")
+var GKEAPIAuditLogTaskIDPrefix = "cloud.google.com/log/gke-api/"
+
+// GKEAuditLogQueryTaskID is the task id for the task that queries GKE audit logs from Cloud Logging.
+var GKEAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "query")
+
+// GKEAuditParserTaskID is the task id for the task that parses GKE audit logs.
+var GKEAuditParserTaskID = taskid.NewDefaultImplementationID[struct{}](GKEAPIAuditLogTaskIDPrefix + "parser")
