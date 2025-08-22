@@ -12,14 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_node_taskid
+// Package googlecloudlogk8snode_contract defines the contract for the googlecloudlogk8snode task.
+package googlecloudlogk8snode_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
-var GKENodeLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "k8s-node")
-var GKENodeLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/nodelog-parser")
+const (
+	// TaskIDPrefix is the prefix for all task IDs in this package.
+	TaskIDPrefix = "cloud.google.com/log/k8s-node/"
+)
+
+// GKENodeLogQueryTaskID is the task id for the task that queries GKE node logs from Cloud Logging.
+var GKENodeLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
+
+// GKENodeLogParseTaskID is the task id for the task that parses GKE node logs.
+var GKENodeLogParseTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "parser")
