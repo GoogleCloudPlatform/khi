@@ -20,7 +20,7 @@ import (
 )
 
 // OnPremCloudAPITaskIDPrefix is the prefix for all task ids related to google cloud on-prem API audit.
-var OnPremCloudAPITaskIDPrefix = "cloud.google.com/onprem-api-audit/"
+var OnPremCloudAPITaskIDPrefix = "cloud.google.com/onprem-api/"
 
 // OnPremCloudAuditLogQueryTaskID is the task id for the task that queries on-prem API audit logs from Cloud Logging.
 var OnPremCloudAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremCloudAPITaskIDPrefix + "query")

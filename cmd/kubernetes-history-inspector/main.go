@@ -49,6 +49,7 @@ import (
 	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
@@ -100,7 +101,6 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudk8scommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergke_impl.Register)
-
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcvmware_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcbaremetal_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonaws_impl.Register)
@@ -109,6 +109,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogserialport_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogmulticloudapiaudit_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogonpremapiaudit_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeapiaudit_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {

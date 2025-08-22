@@ -27,6 +27,7 @@ import (
 	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
 	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
@@ -57,6 +58,7 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		googlecloudlogserialport_impl.Register,
 		googlecloudlogmulticloudapiaudit_impl.Register,
 		googlecloudlogonpremapiaudit_impl.Register,
+		googlecloudloggkeapiaudit_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
@@ -75,6 +77,7 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		googlecloudlogserialport_impl.Register,
 		googlecloudlogmulticloudapiaudit_impl.Register,
 		googlecloudlogonpremapiaudit_impl.Register,
+		googlecloudloggkeapiaudit_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
