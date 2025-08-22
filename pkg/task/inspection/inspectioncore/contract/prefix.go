@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_contract
+package inspectioncore_contract
 
-type InspectionTaskModeType int
+import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 
-const (
-	TaskModeDryRun InspectionTaskModeType = 1
-	TaskModeRun    InspectionTaskModeType = 2
-)
+const InspectionTaskPrefix = coretask.KHISystemPrefix + "inspection/"

@@ -23,16 +23,16 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InputDurationTask defines a form task to input the duration for log queries.
 var InputDurationTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputDurationTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+4000, "Duration").
 	WithDependencies([]taskid.UntypedTaskReference{
-		inspection_contract.InspectionTimeTaskID.Ref(),
+		inspectioncore_contract.InspectionTimeTaskID.Ref(),
 		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-		inspection_contract.TimeZoneShiftInputTaskID.Ref(),
+		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription("The duration of time range to gather logs. Supported time units are `h`,`m` or `s`. (Example: `3h30m`)").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
@@ -43,9 +43,9 @@ var InputDurationTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contra
 		}
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspection_contract.InspectionTimeTaskID.Ref())
+		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore_contract.InspectionTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-		timezoneShift := coretask.GetTaskResult(ctx, inspection_contract.TimeZoneShiftInputTaskID.Ref())
+		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore_contract.TimeZoneShiftInputTaskID.Ref())
 
 		duration := convertedValue.(time.Duration)
 		startTime := endTime.Add(-duration)

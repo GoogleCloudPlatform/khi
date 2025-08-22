@@ -28,7 +28,6 @@ import (
 	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
@@ -48,6 +47,7 @@ import (
 	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
@@ -86,7 +86,7 @@ func init() {
 }
 
 func main() {
-	ioconfig, err := inspection_contract.NewIOConfigForTest()
+	ioconfig, err := inspectioncore_contract.NewIOConfigForTest()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		os.Exit(1)

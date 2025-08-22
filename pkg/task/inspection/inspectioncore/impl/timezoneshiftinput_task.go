@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_impl
+package inspectioncore_impl
 
 import (
 	"context"
@@ -21,11 +21,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var TimeZoneShiftInputTask = inspectiontaskbase.NewInspectionTask(inspection_contract.TimeZoneShiftInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*time.Location, error) {
-	req := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInput)
+var TimeZoneShiftInputTask = inspectiontaskbase.NewInspectionTask(inspectioncore_contract.TimeZoneShiftInputTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*time.Location, error) {
+	req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 	if tzShiftAny, found := req["timezoneShift"]; found {
 		if tzShiftFloat, convertible := tzShiftAny.(float64); convertible {
 			return time.FixedZone("Unknown", int(tzShiftFloat*3600)), nil

@@ -19,12 +19,12 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergdcbaremetal_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // GDCVForBaremetalClusterNamePrefixTask is a task that returns an empty string as the cluster name prefix for GDCV for Baremetal.
 // This task is necessary to satisfy the dependency of the log source profile, but GDCV for Baremetal does not require a prefix.
 var GDCVForBaremetalClusterNamePrefixTask = coretask.NewTask(googlecloudclustergdcbaremetal_contract.ClusterNamePrefixTaskIDForGDCVForBaremetal, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "", nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergdcbaremetal_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergdcbaremetal_contract.InspectionTypeId))

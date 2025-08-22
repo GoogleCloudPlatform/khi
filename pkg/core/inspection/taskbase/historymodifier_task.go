@@ -31,7 +31,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 type HistoryModifer interface {
@@ -40,13 +40,13 @@ type HistoryModifer interface {
 }
 
 func NewHistoryModifierTask(tid taskid.TaskImplementationID[struct{}], historyModifier HistoryModifer) coretask.Task[struct{}] {
-	return NewProgressReportableInspectionTask(tid, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-		if taskMode == inspection_contract.TaskModeDryRun {
+	return NewProgressReportableInspectionTask(tid, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
 
-		builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
+		builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 		groupedLogs := coretask.GetTaskResult(ctx, historyModifier.GroupedLogTask())
 
 		totalLogCount := 0

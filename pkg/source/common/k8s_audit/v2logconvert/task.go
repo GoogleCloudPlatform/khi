@@ -27,16 +27,16 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.LogConvertTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonAuitLogSource,
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-	if taskMode == inspection_contract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return struct{}{}, nil
 	}
-	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 	logs := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonAuitLogSource)
 
 	processedCount := atomic.Int32{}

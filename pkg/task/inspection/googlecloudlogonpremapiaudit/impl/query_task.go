@@ -22,9 +22,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 func generateQuery(clusterNameWithPrefix string) string {
@@ -38,7 +38,7 @@ protoPayload.resourceName:"%s"
 // OnPremCloudAuditLogQueryTask defines a task that gathers on-prem API audit logs from Cloud Logging.
 var OnPremCloudAuditLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	return []string{generateQuery(clusterName)}, nil
 }, generateQuery("baremetalClusters/my-cluster"))

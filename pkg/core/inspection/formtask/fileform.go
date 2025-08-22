@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 type FileFormTaskBuilder struct {
@@ -55,7 +55,7 @@ func (b *FileFormTaskBuilder) WithDescription(description string) *FileFormTaskB
 
 func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_task.Task[upload.UploadResult] {
 	return common_task.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
-		metadata := khictx.MustGetValue(ctx, inspection_contract.InspectionRunMetadata)
+		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 
 		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
 		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
@@ -109,7 +109,7 @@ func setFormHintsFromUploadResult(result upload.UploadResult, field inspectionme
 
 // GenerateUploadIDWithTaskContext generates the upload ID from form ID and task ID.
 func GenerateUploadIDWithTaskContext(ctx context.Context, formId string) string {
-	inspectionID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskInspectionID)
+	inspectionID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
 	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	return strings.ReplaceAll(fmt.Sprintf("%s_%s_%s", inspectionID, taskID.ReferenceIDString(), formId), "/", "_")
 }

@@ -19,7 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // FormDocumentModel represents the model for generating document docs/en/reference/form.md.
@@ -51,7 +51,7 @@ type FormUsedFeatureElement struct {
 // GetFormDocumentModel returns the document model for forms.
 func GetFormDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*FormDocumentModel, error) {
 	result := FormDocumentModel{}
-	forms := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_contract.TaskLabelKeyIsFormTask, false))
+	forms := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspectioncore_contract.TaskLabelKeyIsFormTask, false))
 	for _, form := range forms.GetAll() {
 		usedFeatures, err := getFeaturesRequestingFormTask(taskServer, form)
 		if err != nil {
@@ -61,14 +61,14 @@ func GetFormDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*For
 		for _, feature := range usedFeatures {
 			usedFeatureElements = append(usedFeatureElements, FormUsedFeatureElement{
 				ID:   feature.UntypedID().String(),
-				Name: typedmap.GetOrDefault(feature.Labels(), inspection_contract.LabelKeyFeatureTaskTitle, ""),
+				Name: typedmap.GetOrDefault(feature.Labels(), inspectioncore_contract.LabelKeyFeatureTaskTitle, ""),
 			})
 		}
 
 		result.Forms = append(result.Forms, FormDocumentElement{
 			ID:           form.UntypedID().String(),
-			Label:        typedmap.GetOrDefault(form.Labels(), inspection_contract.TaskLabelKeyFormFieldLabel, ""),
-			Description:  typedmap.GetOrDefault(form.Labels(), inspection_contract.TaskLabelKeyFormFieldDescription, ""),
+			Label:        typedmap.GetOrDefault(form.Labels(), inspectioncore_contract.TaskLabelKeyFormFieldLabel, ""),
+			Description:  typedmap.GetOrDefault(form.Labels(), inspectioncore_contract.TaskLabelKeyFormFieldDescription, ""),
 			UsedFeatures: usedFeatureElements,
 		})
 	}
@@ -78,7 +78,7 @@ func GetFormDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*For
 // getFeaturesRequestingFormTask returns the list of feature tasks that depends on the given form task.
 func getFeaturesRequestingFormTask(taskServer *coreinspection.InspectionTaskServer, formTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
 	var result []coretask.UntypedTask
-	features := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspection_contract.LabelKeyInspectionFeatureFlag, false))
+	features := coretask.Subset(taskServer.RootTaskSet, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionFeatureFlag, false))
 	for _, feature := range features.GetAll() {
 		hasDependency, err := coretask.HasDependency(taskServer.RootTaskSet, feature, formTask)
 		if err != nil {

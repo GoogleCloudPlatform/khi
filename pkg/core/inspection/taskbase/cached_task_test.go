@@ -21,7 +21,7 @@ import (
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -37,11 +37,11 @@ func TestCachedTask(t *testing.T) {
 	})
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
-	_, _, err := inspectiontest.RunInspectionTask(ctx, task, inspection_contract.TaskModeRun, map[string]any{})
+	_, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
 	if err != nil {
 		t.Errorf("unexpected task error result %v", err)
 	}
-	_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspection_contract.TaskModeRun, map[string]any{})
+	_, _, err = inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{})
 	if err != nil {
 		t.Errorf("unexpected task error result %v", err)
 	}

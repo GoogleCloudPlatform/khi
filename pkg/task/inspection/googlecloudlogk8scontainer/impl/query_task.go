@@ -24,9 +24,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // GenerateK8sContainerQuery generates a Cloud Logging query for Kubernetes container logs.
@@ -94,7 +94,7 @@ var GKEContainerQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8scontain
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
 	googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	namespacesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref())
 	podNamesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref())

@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var globalLogHandler *globalLoggerHandler
@@ -88,9 +88,9 @@ func (g *globalLoggerHandler) getHandler(ctx context.Context) slog.Handler {
 func (g *globalLoggerHandler) routeHandler(ctx context.Context) slog.Handler {
 	tid, err := khictx.GetValue(ctx, core_contract.TaskImplementationIDContextKey)
 	if err == nil {
-		iid, err := khictx.GetValue(ctx, inspection_contract.InspectionTaskInspectionID)
+		iid, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
 		if err == nil {
-			rid, err := khictx.GetValue(ctx, inspection_contract.InspectionTaskRunID)
+			rid, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskRunID)
 			if err == nil {
 				g.handlersLock.Lock()
 				defer g.handlersLock.Unlock()

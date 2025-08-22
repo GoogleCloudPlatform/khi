@@ -17,7 +17,7 @@ package parser
 import (
 	"context"
 
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -40,8 +40,8 @@ import (
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var OSSK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
-	if taskMode == inspection_contract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())
@@ -50,7 +50,7 @@ var OSSK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(oss_taskid.O
 		Logs:      logs,
 		Extractor: &fieldextractor.OSSJSONLAuditLogFieldExtractor{},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(oss_constant.OSSInspectionTypeID))
+}, inspectioncore_contract.InspectionTypeLabel(oss_constant.OSSInspectionTypeID))
 
 // RegisterK8sAuditTasks registers tasks needed for parsing OSS k8s audit logs on the inspection server.
 var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(registry coreinspection.InspectionTaskRegistry) error {

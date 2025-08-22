@@ -29,8 +29,8 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
 
@@ -201,7 +201,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 					Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 				}, nil),
 				googlecloudk8scommon_impl.DefaultK8sResourceMergeConfigTask,
-			}, inspection_contract.TaskModeRun, map[string]any{})
+			}, inspectioncore_contract.TaskModeRun, map[string]any{})
 			if err != nil {
 				t.Error(err)
 			}

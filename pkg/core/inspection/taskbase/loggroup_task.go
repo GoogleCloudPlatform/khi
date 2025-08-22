@@ -24,7 +24,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // LogGroup holds a collection of logs that belong to the same group.
@@ -44,8 +44,8 @@ func NewLogGrouperTask(taskId taskid.TaskImplementationID[LogGroupMap], logTask 
 	return NewProgressReportableInspectionTask(taskId, []taskid.UntypedTaskReference{
 		logTask,
 	},
-		func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (LogGroupMap, error) {
-			if taskMode != inspection_contract.TaskModeRun {
+		func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (LogGroupMap, error) {
+			if taskMode != inspectioncore_contract.TaskModeRun {
 				return LogGroupMap{}, nil
 			}
 

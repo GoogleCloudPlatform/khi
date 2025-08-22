@@ -27,15 +27,15 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // NewFieldSetReadTask create a task consumes the list of logs and set the given field set readers for all of the logs concurrently.
 func NewFieldSetReadTask(taskId taskid.TaskImplementationID[struct{}], logTask taskid.TaskReference[[]*log.Log], fieldSetReaders []log.FieldSetReader) coretask.Task[struct{}] {
 	return NewProgressReportableInspectionTask(taskId, []taskid.UntypedTaskReference{
 		logTask,
-	}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-		if taskMode != inspection_contract.TaskModeRun {
+	}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+		if taskMode != inspectioncore_contract.TaskModeRun {
 			return struct{}{}, nil
 		}
 

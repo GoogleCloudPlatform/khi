@@ -22,9 +22,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // generateQuery generates a query for multicloud API logs.
@@ -39,7 +39,7 @@ protoPayload.resourceName:"%s"
 // MultiCloudAPIQueryTask defines a task that queries multicloud API logs from Cloud Logging.
 var MultiCloudAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
 	return []string{generateQuery(clusterName)}, nil

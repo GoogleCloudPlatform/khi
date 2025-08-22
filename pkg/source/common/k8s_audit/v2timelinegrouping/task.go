@@ -32,13 +32,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var Task = inspectiontaskbase.NewProgressReportableInspectionTask(common_k8saudit_taskid.TimelineGroupingTaskID, []taskid.UntypedTaskReference{
 	common_k8saudit_taskid.CommonLogParseTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*types.TimelineGrouperResult, error) {
-	if taskMode == inspection_contract.TaskModeDryRun {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*types.TimelineGrouperResult, error) {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	preStepParseResult := coretask.GetTaskResult(ctx, common_k8saudit_taskid.CommonLogParseTaskID.Ref())

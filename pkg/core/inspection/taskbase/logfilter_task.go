@@ -24,7 +24,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // LogFilterFunc defines the function signature for filtering logs. It returns true if the log should be kept.
@@ -32,8 +32,8 @@ type LogFilterFunc = func(ctx context.Context, log *log.Log) bool
 
 // NewLogFilterTask creates a task that consumes a list of logs and returns a new list containing only the logs that satisfy the filter function.
 func NewLogFilterTask(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs taskid.TaskReference[[]*log.Log], logFilter LogFilterFunc) coretask.Task[[]*log.Log] {
-	return NewProgressReportableInspectionTask(tid, []taskid.UntypedTaskReference{sourceLogs}, func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode != inspection_contract.TaskModeRun {
+	return NewProgressReportableInspectionTask(tid, []taskid.UntypedTaskReference{sourceLogs}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+		if taskMode != inspectioncore_contract.TaskModeRun {
 			return []*log.Log{}, nil
 		}
 

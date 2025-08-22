@@ -19,11 +19,11 @@ import (
 
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergkeonazure_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AnthosOnAzureClusterNamePrefixTask is a task that provides the cluster name prefix for GKE on Azure.
 var AnthosOnAzureClusterNamePrefixTask = common_task.NewTask(googlecloudclustergkeonazure_contract.ClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "azureClusters/", nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergkeonazure_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergkeonazure_contract.InspectionTypeId))

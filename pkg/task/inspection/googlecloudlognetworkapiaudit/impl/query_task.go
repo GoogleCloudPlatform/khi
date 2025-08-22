@@ -25,17 +25,17 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // generateGCPNetworkAPIQuery generates a query for network API logs.
-func generateGCPNetworkAPIQuery(taskMode inspection_contract.InspectionTaskModeType, negNames []string) []string {
+func generateGCPNetworkAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, negNames []string) []string {
 	nodeNamesWithNetworkEndpointGroups := []string{}
 	for _, negName := range negNames {
 		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
 	}
-	if taskMode == inspection_contract.TaskModeDryRun {
+	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return []string{queryFromNegNameFilter("-- neg name filters to be determined after audit log query")}
 	} else {
 		result := []string{}
@@ -58,7 +58,7 @@ func queryFromNegNameFilter(negNameFilter string) string {
 // NetworkAPIQueryTask defines a task that queries network API logs from Cloud Logging.
 var NetworkAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlognetworkapiaudit_contract.NetworkAPIQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
-	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
+}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 	return generateGCPNetworkAPIQuery(i, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
-}, generateGCPNetworkAPIQuery(inspection_contract.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])
+}, generateGCPNetworkAPIQuery(inspectioncore_contract.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])

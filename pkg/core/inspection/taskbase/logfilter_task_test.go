@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -34,20 +34,20 @@ func TestNewLogFilterTask(t *testing.T) {
 	}
 	testCases := []struct {
 		name         string
-		taskMode     inspection_contract.InspectionTaskModeType
+		taskMode     inspectioncore_contract.InspectionTaskModeType
 		logYAMLs     []string
 		logFilter    LogFilterFunc
 		resultLogIDs []string
 	}{
 		{
 			name:         "should return an empty slice for an empty log input on run mode",
-			taskMode:     inspection_contract.TaskModeRun,
+			taskMode:     inspectioncore_contract.TaskModeRun,
 			logYAMLs:     []string{},
 			resultLogIDs: []string{},
 		},
 		{
 			name:     "should filter logs based on the provided function on run mode",
-			taskMode: inspection_contract.TaskModeRun,
+			taskMode: inspectioncore_contract.TaskModeRun,
 			logYAMLs: sourceLogs,
 			logFilter: func(ctx context.Context, l *log.Log) bool {
 				id := l.ReadStringOrDefault("id", "unknown")
@@ -57,7 +57,7 @@ func TestNewLogFilterTask(t *testing.T) {
 		},
 		{
 			name:     "should return an empty slice and perform no filtering for dryrun mode",
-			taskMode: inspection_contract.TaskModeDryRun,
+			taskMode: inspectioncore_contract.TaskModeDryRun,
 			logFilter: func(ctx context.Context, l *log.Log) bool {
 				return true
 			},

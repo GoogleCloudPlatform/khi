@@ -19,12 +19,12 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // GDCVForVMWareClusterNamePrefixTask is a task that returns an empty string as the cluster name prefix for GDCV for VMWare.
 // This task is necessary to satisfy the dependency of the log source profile, but GDCV for VMWare does not require a prefix.
 var GDCVForVMWareClusterNamePrefixTask = coretask.NewTask(googlecloudclustergdcvmware_contract.ClusterNamePrefixTaskIDForGDCVForVMWare, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "", nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergdcvmware_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergdcvmware_contract.InspectionTypeId))

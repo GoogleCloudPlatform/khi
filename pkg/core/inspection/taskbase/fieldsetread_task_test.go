@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -94,7 +94,7 @@ var _ log.FieldSetReader = (*testFieldSetBarReader)(nil)
 func TestNewFieldSetReadTask(t *testing.T) {
 	testCases := []struct {
 		name     string
-		taskMode inspection_contract.InspectionTaskModeType
+		taskMode inspectioncore_contract.InspectionTaskModeType
 		logYAMLs []string
 		readers  []log.FieldSetReader
 		wantFoo  []*testFieldSetFoo
@@ -102,7 +102,7 @@ func TestNewFieldSetReadTask(t *testing.T) {
 	}{
 		{
 			name:     "TaskModeRun: should read and set fieldsets",
-			taskMode: inspection_contract.TaskModeRun,
+			taskMode: inspectioncore_contract.TaskModeRun,
 			logYAMLs: []string{
 				`foo: "hello"`,
 				`bar: "world"`,
@@ -123,7 +123,7 @@ bar: "world"`,
 		},
 		{
 			name:     "TaskModeDryRun: should not read any fieldsets",
-			taskMode: inspection_contract.TaskModeDryRun,
+			taskMode: inspectioncore_contract.TaskModeDryRun,
 			logYAMLs: []string{
 				`foo: "hello"`,
 			},
@@ -133,7 +133,7 @@ bar: "world"`,
 		},
 		{
 			name:     "TaskModeRun: should read and set fieldsets for logs over the concurrency count",
-			taskMode: inspection_contract.TaskModeRun,
+			taskMode: inspectioncore_contract.TaskModeRun,
 			logYAMLs: func() []string {
 				logs := make([]string, 20)
 				for i := 0; i < 20; i++ {

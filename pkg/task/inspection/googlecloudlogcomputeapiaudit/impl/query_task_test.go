@@ -17,7 +17,7 @@ package googlecloudlogcomputeapiaudit_impl
 import (
 	"testing"
 
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
@@ -25,13 +25,13 @@ import (
 func TestGenerateComputeAPIQuery(t *testing.T) {
 	testCases := []struct {
 		Name      string
-		TaskMode  inspection_contract.InspectionTaskModeType
+		TaskMode  inspectioncore_contract.InspectionTaskModeType
 		NodeNames []string
 		Expected  []string
 	}{
 		{
 			Name:      "DryRun mode",
-			TaskMode:  inspection_contract.TaskModeDryRun,
+			TaskMode:  inspectioncore_contract.TaskModeDryRun,
 			NodeNames: []string{}, // No nodes specified for dry run
 			Expected: []string{`resource.type="gce_instance"
 -protoPayload.methodName:("list" OR "get" OR "watch")
@@ -40,7 +40,7 @@ func TestGenerateComputeAPIQuery(t *testing.T) {
 		},
 		{
 			Name:      "Run mode with a few nodes",
-			TaskMode:  inspection_contract.TaskModeRun,
+			TaskMode:  inspectioncore_contract.TaskModeRun,
 			NodeNames: []string{"node1", "node2"},
 			Expected: []string{`resource.type="gce_instance"
 -protoPayload.methodName:("list" OR "get" OR "watch")
@@ -62,17 +62,17 @@ protoPayload.resourceName:(instances/node1 OR instances/node2)
 func TestGenerateComputeAPIQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		Name      string
-		TaskMode  inspection_contract.InspectionTaskModeType
+		TaskMode  inspectioncore_contract.InspectionTaskModeType
 		NodeNames []string
 	}{
 		{
 			Name:      "Valid Query in DryRun mode",
-			TaskMode:  inspection_contract.TaskModeDryRun,
+			TaskMode:  inspectioncore_contract.TaskModeDryRun,
 			NodeNames: []string{}, // No nodes specified for dry run
 		},
 		{
 			Name:      "Valid Query in Run mode",
-			TaskMode:  inspection_contract.TaskModeRun,
+			TaskMode:  inspectioncore_contract.TaskModeRun,
 			NodeNames: []string{"gke-test-cluster-node-1"},
 		},
 	}

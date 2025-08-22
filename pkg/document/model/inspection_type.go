@@ -19,7 +19,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // InspectionTypeDocumentModel is a model type for generating document docs/en/reference/inspection-type.md
@@ -54,15 +54,15 @@ func GetInspectionTypeDocumentModel(taskServer *coreinspection.InspectionTaskSer
 	inspectionTypes := taskServer.GetAllInspectionTypes()
 	for _, inspectionType := range inspectionTypes {
 		// Get the list of feature tasks supporting the inspection type.
-		tasksInInspectionType := coretask.Subset(taskServer.RootTaskSet, filter.NewContainsElementFilter(inspection_contract.LabelKeyInspectionTypes, inspectionType.Id, true))
-		featureTasks := coretask.Subset(tasksInInspectionType, filter.NewEnabledFilter(inspection_contract.LabelKeyInspectionFeatureFlag, false)).GetAll()
+		tasksInInspectionType := coretask.Subset(taskServer.RootTaskSet, filter.NewContainsElementFilter(inspectioncore_contract.LabelKeyInspectionTypes, inspectionType.Id, true))
+		featureTasks := coretask.Subset(tasksInInspectionType, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionFeatureFlag, false)).GetAll()
 
 		features := []InspectionTypeDocumentElementFeature{}
 		for _, task := range featureTasks {
 			features = append(features, InspectionTypeDocumentElementFeature{
 				ID:          task.UntypedID().String(),
-				Name:        typedmap.GetOrDefault(task.Labels(), inspection_contract.LabelKeyFeatureTaskTitle, ""),
-				Description: typedmap.GetOrDefault(task.Labels(), inspection_contract.LabelKeyFeatureTaskDescription, ""),
+				Name:        typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.LabelKeyFeatureTaskTitle, ""),
+				Description: typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.LabelKeyFeatureTaskDescription, ""),
 			})
 		}
 

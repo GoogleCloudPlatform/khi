@@ -33,7 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -66,12 +66,12 @@ type Parser interface {
 
 // NewParserTaskFromParser generates a coretask.Task that consumes array of LogEntities, grouping them by given log field key and call parse function concurrently.
 func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
-	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspection_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
-		if taskMode == inspection_contract.TaskModeDryRun {
+	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
-		builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
+		builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 		logs := coretask.GetTaskResult(ctx, parser.LogTask())
 
 		preparedLogCount := atomic.Int32{}
@@ -179,6 +179,6 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 		return struct{}{}, nil
 	},
 		append([]coretask.LabelOpt{
-			inspection_contract.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
+			inspectioncore_contract.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
 		}, labelOpts...)...)
 }

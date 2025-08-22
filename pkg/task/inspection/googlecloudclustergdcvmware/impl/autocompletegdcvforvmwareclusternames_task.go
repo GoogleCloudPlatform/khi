@@ -23,10 +23,10 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteGDCVForVMWareClusterNamesTask is a task that provides autocomplete suggestions for GDCV for VMWare cluster names.
@@ -70,4 +70,4 @@ var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask
 			Error:        "Project ID is empty",
 		},
 	}, nil
-}, inspection_contract.InspectionTypeLabel(googlecloudclustergdcvmware_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergdcvmware_contract.InspectionTypeId))
