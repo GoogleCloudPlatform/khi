@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package network_api
+package googlecloudlognetworkapiaudit_impl
 
 import (
 	"context"
@@ -22,15 +22,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
-	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
+	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 )
 
-func GenerateGCPNetworkAPIQuery(taskMode inspection_contract.InspectionTaskModeType, negNames []string) []string {
+// generateGCPNetworkAPIQuery generates a query for network API logs.
+func generateGCPNetworkAPIQuery(taskMode inspection_contract.InspectionTaskModeType, negNames []string) []string {
 	nodeNamesWithNetworkEndpointGroups := []string{}
 	for _, negName := range negNames {
 		nodeNamesWithNetworkEndpointGroups = append(nodeNamesWithNetworkEndpointGroups, fmt.Sprintf("networkEndpointGroups/%s", negName))
@@ -55,9 +55,10 @@ func queryFromNegNameFilter(negNameFilter string) string {
 `, negNameFilter)
 }
 
-var GCPNetworkLogQueryTask = query.NewQueryGeneratorTask(network_api_taskid.GCPNetworkLogQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
+// NetworkAPIQueryTask defines a task that queries network API logs from Cloud Logging.
+var NetworkAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlognetworkapiaudit_contract.NetworkAPIQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
 	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspection_contract.CurrentHistoryBuilder)
-	return GenerateGCPNetworkAPIQuery(i, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
-}, GenerateGCPNetworkAPIQuery(inspection_contract.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])
+	return generateGCPNetworkAPIQuery(i, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
+}, generateGCPNetworkAPIQuery(inspection_contract.TaskModeRun, []string{"neg-id-1", "neg-id-2"})[0])

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package network_api
+package googlecloudlognetworkapiaudit_impl
 
 import (
 	"testing"
@@ -33,7 +33,7 @@ func TestGenerateGenerateGCPNetworkAPIQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateGCPNetworkAPIQuery(0, tc.NEGs)
+			query := generateGCPNetworkAPIQuery(0, tc.NEGs)
 			err := gcp_test.IsValidLogQuery(t, query[0])
 			if err != nil {
 				t.Errorf("Query is not valid: %v", err)
