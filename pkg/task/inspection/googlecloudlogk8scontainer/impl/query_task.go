@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_container
+package googlecloudlogk8scontainer_impl
 
 import (
 	"context"
@@ -24,11 +24,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
+// GenerateK8sContainerQuery generates a Cloud Logging query for Kubernetes container logs.
 func GenerateK8sContainerQuery(clusterName string, namespacesFilter *queryutil.SetFilterParseResult, podNamesFilter *queryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_container"
 resource.labels.cluster_name="%s"
@@ -70,6 +71,7 @@ func generatePodNamesFilter(podNamesFilter *queryutil.SetFilterParseResult) stri
 		if len(podNamesFilter.Subtractives) == 0 {
 			return "-- No pod name filter"
 		}
+
 		podNamesWithQuotes := []string{}
 		for _, podName := range podNamesFilter.Subtractives {
 			podNamesWithQuotes = append(podNamesWithQuotes, fmt.Sprintf(`"%s"`, podName))
@@ -87,19 +89,21 @@ func generatePodNamesFilter(podNamesFilter *queryutil.SetFilterParseResult) stri
 	return fmt.Sprintf(`resource.labels.pod_name:(%s)`, strings.Join(podNamesWithQuotes, " OR "))
 }
 
-var GKEContainerQueryTask = query.NewQueryGeneratorTask(gke_k8s_container_taskid.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
+// GKEContainerQueryTask is a query generator task for GKE container logs.
+var GKEContainerQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref(),
-	gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref(),
+	googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
+	googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	namespacesFilter := coretask.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID.Ref())
-	podNamesFilter := coretask.GetTaskResult(ctx, gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID.Ref())
+	namespacesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref())
+	podNamesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref())
 
 	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
 }, GenerateK8sContainerQuery("gcp-cluster-name", &queryutil.SetFilterParseResult{
 	Additives: []string{"default"},
-}, &queryutil.SetFilterParseResult{
-	Subtractives: []string{"nginx-", "redis"},
-	SubtractMode: true,
-}))
+},
+	&queryutil.SetFilterParseResult{
+		Subtractives: []string{"nginx-", "redis"},
+		SubtractMode: true,
+	}))

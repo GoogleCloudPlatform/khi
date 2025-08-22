@@ -29,6 +29,7 @@ import (
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
 	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
+	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
 	googlecloudlogk8snode_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/impl"
 	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
@@ -67,6 +68,7 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		googlecloudlogk8sevent_impl.Register,
 		googlecloudlognetworkapiaudit_impl.Register,
 		googlecloudlogk8snode_impl.Register,
+		googlecloudlogk8scontainer_impl.Register,
 		testPrepareInspectionServer,
 	})
 }
@@ -90,6 +92,7 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		googlecloudlogk8sevent_impl.Register,
 		googlecloudlognetworkapiaudit_impl.Register,
 		googlecloudlogk8snode_impl.Register,
+		googlecloudlogk8scontainer_impl.Register,
 		testPrepareInspectionServer,
 	})
 }

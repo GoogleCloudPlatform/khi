@@ -20,22 +20,17 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit"
 	k8sauditquery "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container"
 	k8scontrolplanecomponent "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component"
 )
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 	err := coretask.RegisterTasks(registry,
 		// Form input related tasks
-		k8s_container.InputContainerQueryNamespaceFilterTask,
-		k8s_container.InputContainerQueryPodNamesFilterMask,
 		k8scontrolplanecomponent.InputControlPlaneComponentNameFilterTask,
 		// Query related tasks
 		k8sauditquery.Task,
-		k8s_container.GKEContainerQueryTask,
 		autoscaler.AutoscalerQueryTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneLogQueryTask,
-		k8s_container.GKEContainerLogParseJob,
 		autoscaler.AutoscalerParserTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
 	)
