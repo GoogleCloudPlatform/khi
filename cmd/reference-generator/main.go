@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/document/generator"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
 	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
@@ -39,6 +38,7 @@ import (
 	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudloggkeautoscaler_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/impl"
+	googlecloudlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl"
 	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
 	googlecloudlogk8scontrolplane_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
@@ -61,7 +61,6 @@ func fatal(err error, msg string) {
 }
 
 func init() {
-	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
 	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common_k8saudit.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
@@ -83,6 +82,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontainer_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeautoscaler_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontrolplane_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8saudit_impl.Register)
 }
 
 func main() {

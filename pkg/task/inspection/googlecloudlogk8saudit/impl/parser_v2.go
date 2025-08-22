@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_audit
+package googlecloudlogk8saudit_impl
 
 import (
 	"context"
@@ -28,8 +28,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/statusrecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
-	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
+	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl/fieldextractor"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
@@ -38,14 +38,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-// GCPK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
-var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(gke_k8saudit_taskid.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
-	gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref(),
+// GCPK8sAuditLogSourceTask creates an AuditLogParserLogSource for GCP Kubernetes audit logs.
+// It retrieves the logs from the K8sAuditQueryTask and provides them along with a
+// GCP-specific field extractor to downstream parsing tasks.
+var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8saudit_contract.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
+	googlecloudlogk8saudit_contract.K8sAuditQueryTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return nil, nil
 	}
-	logs := coretask.GetTaskResult(ctx, gke_k8saudit_taskid.K8sAuditQueryTaskID.Ref())
+	logs := coretask.GetTaskResult(ctx, googlecloudlogk8saudit_contract.K8sAuditQueryTaskID.Ref())
 
 	return &types.AuditLogParserLogSource{
 		Logs:      logs,
@@ -53,13 +55,15 @@ var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(gke_k8saudit
 	}, nil
 }, inspectioncore_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
 
+// RegisterK8sAuditTasks registers all the tasks required for parsing GKE Kubernetes audit logs.
+// This includes the common audit log recorders as well as GKE-specific ones like the SNEG recorder.
 var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(registry coreinspection.InspectionTaskRegistry) error {
 	err := registry.AddTask(GCPK8sAuditLogSourceTask)
 	if err != nil {
 		return err
 	}
 
-	manager := recorder.NewAuditRecorderTaskManager(gke_k8saudit_taskid.K8sAuditParseTaskID, "gke")
+	manager := recorder.NewAuditRecorderTaskManager(googlecloudlogk8saudit_contract.K8sAuditParseTaskID, "gke")
 	err = commonrecorder.Register(manager)
 	if err != nil {
 		return err

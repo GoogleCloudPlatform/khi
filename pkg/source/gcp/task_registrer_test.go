@@ -30,6 +30,7 @@ import (
 	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudloggkeautoscaler_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/impl"
+	googlecloudlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl"
 	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
 	googlecloudlogk8scontrolplane_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
@@ -42,14 +43,6 @@ import (
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
-
-func testPrepareInspectionServer(inspectionServer coreinspection.InspectionTaskRegistry) error {
-	err := commonPreparation(inspectionServer)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func TestInspectionTasksAreResolvable(t *testing.T) {
 	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "gcp", []coreinspection.InspectionRegistrationFunc{
@@ -73,7 +66,7 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		googlecloudlogk8scontainer_impl.Register,
 		googlecloudloggkeautoscaler_impl.Register,
 		googlecloudlogk8scontrolplane_impl.Register,
-		testPrepareInspectionServer,
+		googlecloudlogk8saudit_impl.Register,
 	})
 }
 
@@ -99,6 +92,6 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		googlecloudlogk8scontainer_impl.Register,
 		googlecloudloggkeautoscaler_impl.Register,
 		googlecloudlogk8scontrolplane_impl.Register,
-		testPrepareInspectionServer,
+		googlecloudlogk8saudit_impl.Register,
 	})
 }
