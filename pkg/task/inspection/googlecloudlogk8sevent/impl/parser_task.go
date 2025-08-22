@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_event
+package googlecloudlogk8sevent_impl
 
 import (
 	"context"
@@ -27,10 +27,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	k8s_event_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event/taskid"
+	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 )
 
-var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(k8s_event_taskid.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
+// GKEK8sEventLogParseJob is the parser task for Kubernetes Event logs.
+var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8sevent_contract.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
 
 type k8sEventParser struct {
 }
@@ -55,7 +56,7 @@ func (*k8sEventParser) Dependencies() []taskid.UntypedTaskReference {
 }
 
 func (*k8sEventParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return k8s_event_taskid.GKEK8sEventLogQueryTaskID.Ref()
+	return googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID.Ref()
 }
 
 func (*k8sEventParser) Grouper() grouper.LogGrouper {
