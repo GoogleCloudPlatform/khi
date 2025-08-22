@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_event
+package googlecloudlogk8sevent_impl
 
 import (
 	"context"
@@ -25,12 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	k8s_event_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 )
 
+// GenerateK8sEventQuery generates a query for Kubernetes Event logs.
 func GenerateK8sEventQuery(clusterName string, projectId string, namespaceFilter *queryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`logName="projects/%s/logs/events"
 resource.labels.cluster_name="%s"
@@ -72,7 +73,8 @@ func generateK8sEventNamespaceFilter(filter *queryutil.SetFilterParseResult) str
 	}
 }
 
-var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(k8s_event_taskid.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
+// GKEK8sEventLogQueryTask defines a task that queries Kubernetes Event logs from Cloud Logging.
+var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
