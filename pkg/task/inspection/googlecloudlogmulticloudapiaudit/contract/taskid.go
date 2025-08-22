@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package onprem_api_taskid
+package googlecloudlogmulticloudapiaudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
-var OnPremCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "onprem-api")
-var OnPremCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/onprem-audit-parser")
+var MultiCloudAPIAuditLogTaskIDPrefix = "cloud.google.com/log/multicloud/"
+
+// MultiCloudAPIQueryTaskID is the task id for the task that queries multicloud API logs from Cloud Logging.
+var MultiCloudAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "multicloud-api")
+
+// MultiCloudAPIParserTaskID is the task id for the task that parses multicloud API logs.
+var MultiCloudAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](MultiCloudAPIAuditLogTaskIDPrefix + "feature/multicloud-audit-parser")

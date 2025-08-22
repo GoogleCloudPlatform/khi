@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package onprem_api
+package googlecloudlogonpremapiaudit_impl
 
 import (
 	"context"
@@ -29,8 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	multicloud_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
-	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
+	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 )
 
 type onpremCloudAuditLogParser struct {
@@ -58,7 +57,7 @@ func (*onpremCloudAuditLogParser) GetParserName() string {
 
 // LogTask implements parsertask.Parser.
 func (*onpremCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return multicloud_api_taskid.OnPremCloudAPIQueryTaskID.Ref()
+	return googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID.Ref()
 }
 
 func (*onpremCloudAuditLogParser) Grouper() grouper.LogGrouper {
@@ -198,7 +197,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 
 var _ legacyparser.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(onprem_api_taskid.OnPremCloudAPIParserTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
+var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogParseTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

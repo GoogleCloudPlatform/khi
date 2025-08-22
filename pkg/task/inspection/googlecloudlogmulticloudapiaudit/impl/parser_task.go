@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package multicloud_api
+package googlecloudlogmulticloudapiaudit_impl
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/multicloud_api/multicloud_api_taskid"
+	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 )
 
 type multiCloudAuditLogParser struct {
@@ -57,7 +57,7 @@ func (*multiCloudAuditLogParser) GetParserName() string {
 
 // LogTask implements parsertask.Parser.
 func (*multiCloudAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return multicloud_api_taskid.MultiCloudAPIQueryTaskID.Ref()
+	return googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIQueryTaskID.Ref()
 }
 
 func (*multiCloudAuditLogParser) Grouper() grouper.LogGrouper {
@@ -174,7 +174,8 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 
 var _ legacyparser.Parser = (*multiCloudAuditLogParser)(nil)
 
-var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(multicloud_api_taskid.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
+// MultiCloudAuditLogParseJob is the parser task for multicloud audit logs.
+var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
 
 type multiCloudResource struct {
 	ClusterType  string // aws or azure

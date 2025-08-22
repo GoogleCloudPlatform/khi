@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package onprem_api
+package googlecloudlogonpremapiaudit_impl
 
 import (
 	"context"
@@ -21,14 +21,13 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	onprem_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/onprem_api/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
+	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 )
 
-func GenerateOnPremAPIQuery(clusterNameWithPrefix string) string {
+func generateQuery(clusterNameWithPrefix string) string {
 	return fmt.Sprintf(`resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
@@ -36,9 +35,10 @@ protoPayload.resourceName:"%s"
 `, clusterNameWithPrefix)
 }
 
-var OnPremAPIQueryTask = query.NewQueryGeneratorTask(onprem_api_taskid.OnPremCloudAPIQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
+// OnPremCloudAuditLogQueryTask defines a task that gathers on-prem API audit logs from Cloud Logging.
+var OnPremCloudAuditLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspection_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	return []string{GenerateOnPremAPIQuery(clusterName)}, nil
-}, GenerateOnPremAPIQuery("baremetalClusters/my-cluster"))
+	return []string{generateQuery(clusterName)}, nil
+}, generateQuery("baremetalClusters/my-cluster"))

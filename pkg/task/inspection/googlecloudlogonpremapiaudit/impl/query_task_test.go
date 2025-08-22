@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package onprem_api
+package googlecloudlogonpremapiaudit_impl
 
 import (
 	"testing"
@@ -38,7 +38,7 @@ protoPayload.resourceName:"baremetalClusters/my-cluster"
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Input, func(t *testing.T) {
-			actual := GenerateOnPremAPIQuery(testCase.Input)
+			actual := generateQuery(testCase.Input)
 			if diff := cmp.Diff(testCase.Expected, actual); diff != "" {
 				t.Errorf("The generated result is not matching with the expected\n%s", diff)
 			}
@@ -58,7 +58,7 @@ func TestGenerateOnPremAPIQueryIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateOnPremAPIQuery(tc.ClusterName)
+			query := generateQuery(tc.ClusterName)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())
