@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_container
+package googlecloudlogk8scontainer_impl
 
 import (
 	"strings"
@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
+// MainMessageSeverityParsers is a list of severity parsers for container logs.
 var MainMessageSeverityParsers = []MainMessageSeverityParser{
 	&MetricsContainerLogSeverityParser{},
 }
@@ -31,6 +32,7 @@ type MainMessageSeverityParser interface {
 	TryParse(message string) enum.Severity
 }
 
+// ParseSeverity parses the severity from a log message using the registered parsers.
 func ParseSeverity(message string) enum.Severity {
 	for _, parser := range MainMessageSeverityParsers {
 		severity := parser.TryParse(message)
@@ -41,6 +43,7 @@ func ParseSeverity(message string) enum.Severity {
 	return enum.SeverityUnknown
 }
 
+// MetricsContainerLogSeverityParser is a severity parser for metrics container logs.
 type MetricsContainerLogSeverityParser struct{}
 
 // TryParse implements MainMessageSeverityParser.

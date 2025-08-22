@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_container
+package googlecloudlogk8scontainer_impl
 
 import (
 	"context"
@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
+	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
 type k8sContainerParser struct {
@@ -54,7 +54,7 @@ func (*k8sContainerParser) Dependencies() []taskid.UntypedTaskReference {
 }
 
 func (*k8sContainerParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return gke_k8s_container_taskid.GKEContainerLogQueryTaskID.Ref()
+	return googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID.Ref()
 }
 
 func (*k8sContainerParser) Grouper() grouper.LogGrouper {
@@ -99,4 +99,5 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 
 var _ legacyparser.Parser = (*k8sContainerParser)(nil)
 
-var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(gke_k8s_container_taskid.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+// GKEContainerLogParseJob is a parser task for GKE container logs.
+var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontainer_contract.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)

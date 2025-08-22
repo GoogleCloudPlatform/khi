@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_container
+package googlecloudlogk8scontainer_impl
 
 import (
 	"context"

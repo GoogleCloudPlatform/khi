@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_container
+package googlecloudlogk8scontainer_impl
 
 import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gke_k8s_container_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
 const priorityForContainerGroup = googlecloudcommon_contract.FormBasePriority + 20000
@@ -28,7 +28,9 @@ const priorityForContainerGroup = googlecloudcommon_contract.FormBasePriority + 
 var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},
 }
-var InputContainerQueryNamespaceFilterTask = formtask.NewTextFormTaskBuilder(gke_k8s_container_taskid.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
+
+// InputContainerQueryNamespaceFilterTask is a form task that allows users to specify which namespaces to query for container logs.
+var InputContainerQueryNamespaceFilterTask = formtask.NewTextFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID, priorityForContainerGroup+1000, "Namespaces(Container logs)").
 	WithDefaultValueConstant("@managed", true).
 	WithDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
@@ -47,8 +49,11 @@ Specify the space splitted namespace lists to query container logs only in the s
 		return result, nil
 	}).
 	Build()
+
 var inputPodNamesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{}
-var InputContainerQueryPodNamesFilterMask = formtask.NewTextFormTaskBuilder(gke_k8s_container_taskid.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
+
+// InputContainerQueryPodNamesFilterMask is a form task that allows users to specify which pod names to query for container logs.
+var InputContainerQueryPodNamesFilterMask = formtask.NewTextFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
 	WithDefaultValueConstant("@any", true).
 	WithDescription(`Container logs tend to be a lot and take very long time to query.
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
