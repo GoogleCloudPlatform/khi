@@ -52,6 +52,7 @@ import (
 	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
+	googlecloudlogk8snode_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/impl"
 	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
 	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
@@ -116,6 +117,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogcomputeapiaudit_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8sevent_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlognetworkapiaudit_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8snode_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {

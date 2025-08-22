@@ -22,7 +22,6 @@ import (
 	k8sauditquery "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container"
 	k8scontrolplanecomponent "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node"
 )
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
@@ -33,11 +32,9 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		k8scontrolplanecomponent.InputControlPlaneComponentNameFilterTask,
 		// Query related tasks
 		k8sauditquery.Task,
-		k8s_node.GKENodeQueryTask,
 		k8s_container.GKEContainerQueryTask,
 		autoscaler.AutoscalerQueryTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneLogQueryTask,
-		k8s_node.GKENodeLogParseJob,
 		k8s_container.GKEContainerLogParseJob,
 		autoscaler.AutoscalerParserTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,

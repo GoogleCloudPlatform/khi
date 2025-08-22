@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s_node
+package googlecloudlogk8snode_impl
 
 import (
 	"context"
@@ -24,12 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	k8s_node_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node/taskid"
 	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
+// GenerateK8sNodeLogQuery generates a query for GKE node logs.
 func GenerateK8sNodeLogQuery(projectId string, clusterId string, nodeNameSubstrings []string) string {
 	return fmt.Sprintf(`resource.type="k8s_node"
 -logName="projects/%s/logs/events"
@@ -46,7 +47,8 @@ func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
 	}
 }
 
-var GKENodeQueryTask = query.NewQueryGeneratorTask(k8s_node_taskid.GKENodeLogQueryTaskID, "Kubernetes node log", enum.LogTypeNode, []taskid.UntypedTaskReference{
+// GKENodeQueryTask defines a task that queries GKE node logs from Cloud Logging.
+var GKENodeQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8snode_contract.GKENodeLogQueryTaskID, "Kubernetes node log", enum.LogTypeNode, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
