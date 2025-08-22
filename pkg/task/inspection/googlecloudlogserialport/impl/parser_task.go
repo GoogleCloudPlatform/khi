@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package serialport
+package googlecloudlogserialport_impl
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	serialport_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/serialport/taskid"
+	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 )
@@ -61,7 +61,7 @@ func (*SerialPortLogParser) Dependencies() []taskid.UntypedTaskReference {
 }
 
 func (*SerialPortLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return serialport_taskid.SerialPortLogQueryTaskID.Ref()
+	return googlecloudlogserialport_contract.SerialPortLogQueryTaskID.Ref()
 }
 
 func (*SerialPortLogParser) Grouper() grouper.LogGrouper {
@@ -81,4 +81,4 @@ func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 var _ legacyparser.Parser = (*SerialPortLogParser)(nil)
 
-var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(serialport_taskid.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogserialport_contract.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)

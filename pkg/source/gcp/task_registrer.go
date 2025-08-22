@@ -28,7 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_node"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/serialport"
 )
 
 func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
@@ -48,7 +47,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		network_api.GCPNetworkLogQueryTask,
 		autoscaler.AutoscalerQueryTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneLogQueryTask,
-		serialport.GKESerialPortLogQueryTask,
 		k8s_event.GKEK8sEventLogParseJob,
 		k8s_node.GKENodeLogParseJob,
 		k8s_container.GKEContainerLogParseJob,
@@ -57,7 +55,6 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		network_api.NetowrkAPIParserTask,
 		autoscaler.AutoscalerParserTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
-		serialport.GKESerialPortLogParseTask,
 	)
 	if err != nil {
 		return err
