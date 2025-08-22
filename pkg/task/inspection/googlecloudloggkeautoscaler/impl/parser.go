@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package autoscaler
+package googlecloudloggkeautoscaler_impl
 
 import (
 	"context"
@@ -30,8 +30,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	gke_autoscaler_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler/taskid"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 )
 
 type autoscalerLogParser struct {
@@ -61,7 +61,7 @@ func (*autoscalerLogParser) GetParserName() string {
 
 // LogTask implements parsertask.Parser.
 func (*autoscalerLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return gke_autoscaler_taskid.AutoscalerQueryTaskID.Ref()
+	return googlecloudloggkeautoscaler_contract.AutoscalerQueryTaskID.Ref()
 }
 
 func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
@@ -229,4 +229,4 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *hi
 
 var _ legacyparser.Parser = (*autoscalerLogParser)(nil)
 
-var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(gke_autoscaler_taskid.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(googlecloudloggkeautoscaler_contract.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
