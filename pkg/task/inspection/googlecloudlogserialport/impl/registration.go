@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package serialport_taskid
+package googlecloudlogserialport_impl
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-var SerialPortLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](query.GKEQueryPrefix + "serialport")
-var SerialPortLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "feature/serialport")
+// Register registers all googlecloudlogserialport inspection tasks to the registry.
+func Register(registry coreinspection.InspectionTaskRegistry) error {
+	return coretask.RegisterTasks(registry,
+		GKESerialPortLogQueryTask,
+		GKESerialPortLogParseTask,
+	)
+}
