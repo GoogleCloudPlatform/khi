@@ -25,8 +25,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gke_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/taskid"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
+	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -60,7 +60,7 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 
 // ComputeAPIQueryTask defines a task that queries compute API logs from Cloud Logging.
 var ComputeAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
-	gke_k8saudit_taskid.K8sAuditParseTaskID.Ref(),
+	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
 }, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 

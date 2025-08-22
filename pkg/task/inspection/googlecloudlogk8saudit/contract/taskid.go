@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gke_k8saudit_taskid
+package googlecloudlogk8saudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 )
 
-var K8sAuditQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gcp_task.GCPPrefix + "query/k8s_audit")
-var K8sAuditParseTaskID = taskid.NewDefaultImplementationID[struct{}](gcp_task.GCPPrefix + "/feature/audit-parser-v2")
+// TaskIDPrefix is the prefix for all task IDs in the googlecloudlogk8saudit package.
+const TaskIDPrefix = "cloud.google.com/log/k8s-audit/"
+
+// K8sAuditQueryTaskID is the task ID for querying Kubernetes audit logs from Google Cloud Logging.
+var K8sAuditQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query-k8s_audit")
+
+// K8sAuditParseTaskID is the task ID for the root task that parses Kubernetes audit logs.
+var K8sAuditParseTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "audit-parser-v2")
+
+// GKEK8sAuditLogSourceTaskID is the task ID for providing a log source of GKE Kubernetes audit logs for parsing.
 var GKEK8sAuditLogSourceTaskID = taskid.NewImplementationID(common_k8saudit_taskid.CommonAuitLogSource, "gcp")

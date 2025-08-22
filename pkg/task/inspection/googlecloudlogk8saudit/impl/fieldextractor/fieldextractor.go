@@ -20,12 +20,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/k8s"
 )
 
+// GCPAuditLogFieldExtractor extracts fields from a GCP Kubernetes audit log entry.
 type GCPAuditLogFieldExtractor struct{}
 
-// ExtractFields implements common.AuditLogFieldExtractor.
+// ExtractFields extracts relevant fields from a GCP audit log and populates an AuditLogParserInput.
+// It implements the common.AuditLogFieldExtractor interface.
 func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*types.AuditLogParserInput, error) {
 	resourceName, err := l.ReadString("protoPayload.resourceName")
 	if err != nil {
@@ -39,7 +40,7 @@ func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Lo
 
 	userEmail := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
 
-	operation := k8s.ParseKubernetesOperation(resourceName, methodName)
+	operation := parseKubernetesOperation(resourceName, methodName)
 	// /status subresource contains the actual content of the parent.
 	// It's easier to see timeline merged with the parent timeline instead of showing status as the single subresource timeline.
 	// TODO: There would be the other subresources needed to be cared like this.

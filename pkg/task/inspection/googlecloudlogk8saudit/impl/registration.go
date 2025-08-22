@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,37 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcp
+package googlecloudlogk8saudit_impl
 
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit"
-	k8sauditquery "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/query"
 )
 
-func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
-	err := coretask.RegisterTasks(registry,
-		// Form input related tasks
-		// Query related tasks
-		k8sauditquery.Task,
-	)
-	if err != nil {
-		return err
-	}
-	// Parse related tasks
-	err = k8s_audit.RegisterK8sAuditTasks(registry)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
+// Register registers all tasks related to GKE Kubernetes audit log.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := commonPreparation(registry)
+	err := RegisterK8sAuditTasks(registry)
 	if err != nil {
 		return err
 	}
-	return nil
+	return coretask.RegisterTasks(registry,
+		K8sAuditQueryTask,
+	)
 }

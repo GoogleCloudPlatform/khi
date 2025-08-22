@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s
+package fieldextractor
 
 import (
 	"fmt"
@@ -130,7 +130,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(fmt.Sprintf("%s-%s", testCase.ResourceName, testCase.MethodName), func(t *testing.T) {
-			res := ParseKubernetesOperation(testCase.ResourceName, testCase.MethodName)
+			res := parseKubernetesOperation(testCase.ResourceName, testCase.MethodName)
 			if diff := cmp.Diff(res, testCase.ExpectedK8sOp); diff != "" {
 				t.Errorf("result operation is not matching with the expected operation\n%s", diff)
 			}
@@ -139,12 +139,12 @@ func TestParseKubernetesOperation(t *testing.T) {
 }
 
 func TestConvertToResourcePath(t *testing.T) {
-	res := ParseKubernetesOperation("io.k8s.core/v1/namespaces/foo/pods/bar/status", "io.k8s.core.v1.pods.status.update")
+	res := parseKubernetesOperation("io.k8s.core/v1/namespaces/foo/pods/bar/status", "io.k8s.core.v1.pods.status.update")
 	if res.CovertToResourcePath() != "io.k8s.core/v1#pod#foo#bar#status" {
 		t.Errorf("Expected resource path mismatch, got %q want 'io.k8s.core/v1#pod#foo#bar#status'", res.CovertToResourcePath())
 	}
 
-	res = ParseKubernetesOperation("io.k8s.core/v1/namespaces/foo/pods/bar", "io.k8s.core.v1.pods.update")
+	res = parseKubernetesOperation("io.k8s.core/v1/namespaces/foo/pods/bar", "io.k8s.core.v1.pods.update")
 	if res.CovertToResourcePath() != "io.k8s.core/v1#pod#foo#bar" {
 		t.Errorf("EExpected resource path mismatch, got %q want 'io.k8s.core/v1#pod#foo#bar'", res.CovertToResourcePath())
 	}

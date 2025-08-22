@@ -24,12 +24,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2commonlogparse"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/v2timelinegrouping"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/fieldextractor"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl/fieldextractor"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"

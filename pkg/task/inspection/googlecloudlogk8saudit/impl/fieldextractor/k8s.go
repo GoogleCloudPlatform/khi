@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8s
+package fieldextractor
 
 import (
 	"strings"
@@ -21,7 +21,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
-func ParseKubernetesOperation(resourceName string, methodName string) *model.KubernetesObjectOperation {
+// parseKubernetesOperation parses the resourceName and methodName from a GCP audit log
+// to determine the details of a Kubernetes API operation.
+func parseKubernetesOperation(resourceName string, methodName string) *model.KubernetesObjectOperation {
 	resourceNameFragments := strings.Split(resourceName, "/")
 	methodNameFragments := strings.Split(methodName, ".")
 	var pluralKind, namespace, name, subResourceName string
@@ -69,6 +71,8 @@ func ParseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	}
 }
 
+// parseVerb converts a verb string from the audit log's methodName
+// into the corresponding enum.RevisionVerb.
 func parseVerb(verbInStr string) enum.RevisionVerb {
 	switch verbInStr {
 	case "create":

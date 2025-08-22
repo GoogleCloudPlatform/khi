@@ -38,7 +38,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
@@ -52,6 +51,7 @@ import (
 	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudloggkeautoscaler_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/impl"
+	googlecloudlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl"
 	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
 	googlecloudlogk8scontrolplane_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
@@ -103,7 +103,6 @@ func init() {
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
 
-	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
 	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
@@ -125,6 +124,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontainer_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeautoscaler_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontrolplane_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8saudit_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {
