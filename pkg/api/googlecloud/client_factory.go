@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package googlecloudapi
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/httpclient"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
 )
 
 type GCPClientFactory struct {

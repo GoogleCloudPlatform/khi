@@ -25,6 +25,9 @@ import (
 	"strings"
 	"syscall"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/accesstoken"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
@@ -36,9 +39,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
@@ -168,7 +169,7 @@ func run() int {
 
 	k8s.GenerateDefaultMergeConfig()
 	if *parameters.Auth.QuotaProjectID != "" {
-		api.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
+		googlecloudapi.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
 	}
 	ioconfig, err := inspectioncore_contract.NewIOConfigFromParameter(parameters.Common)
 	if err != nil {

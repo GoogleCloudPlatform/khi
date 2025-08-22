@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"strings"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -63,7 +63,7 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 			resourceNamesFromInput := strings.Split(formInput.(string), " ")
 			for i, resourceNameFromInput := range resourceNamesFromInput {
 				resourceNameWithoutSurroundingSpace := strings.TrimSpace(resourceNameFromInput)
-				err := api.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
+				err := googlecloudapi.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
 				if err != nil {
 					formFieldBase.HintType = inspectionmetadata.Error
 					formFieldBase.Hint = fmt.Sprintf("%d: %s", i, err.Error())
