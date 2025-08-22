@@ -41,6 +41,7 @@ import (
 	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
 	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
 	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
+	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
 )
@@ -73,6 +74,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeapiaudit_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogcomputeapiaudit_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8sevent_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, googlecloudlognetworkapiaudit_impl.Register)
 }
 
 func main() {

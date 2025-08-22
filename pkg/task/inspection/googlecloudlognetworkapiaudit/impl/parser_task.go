@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package network_api
+package googlecloudlognetworkapiaudit_impl
 
 import (
 	"context"
@@ -29,9 +29,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	network_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/network_api/taskid"
+	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	"gopkg.in/yaml.v3"
 )
+
+type negAttachOrDetachRequestEndpoint struct {
+	Instance  string `yaml:"instance"`
+	IpAddress string `yaml:"ipAddress"`
+	Port      string `yaml:"port"`
+}
+
+type negAttachOrDetachRequest struct {
+	NetworkEndpoints []*negAttachOrDetachRequestEndpoint `yaml:"networkEndpoints"`
+}
 
 type gceNetworkParser struct{}
 
@@ -57,7 +67,7 @@ func (*gceNetworkParser) GetParserName() string {
 
 // LogTask implements parsertask.Parser.
 func (*gceNetworkParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return network_api_taskid.GCPNetworkLogQueryTaskID.Ref()
+	return googlecloudlognetworkapiaudit_contract.NetworkAPIQueryTaskID.Ref()
 }
 
 func (*gceNetworkParser) Grouper() grouper.LogGrouper {
@@ -109,7 +119,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 			if err != nil {
 				return err
 			}
-			var negRequest NegAttachOrDetachRequest
+			var negRequest negAttachOrDetachRequest
 			err = yaml.Unmarshal([]byte(requestBody), &negRequest)
 			if err != nil {
 				return err
@@ -155,4 +165,5 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 
 var _ legacyparser.Parser = (*gceNetworkParser)(nil)
 
-var NetowrkAPIParserTask = legacyparser.NewParserTaskFromParser(network_api_taskid.GCPNetworkLogParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+// NetworkAPIParserTask is the parser task for network API audit logs.
+var NetworkAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlognetworkapiaudit_contract.NetworkAPIParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
