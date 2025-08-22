@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package compute_api
+// Package googlecloudlogcomputeapiaudit_impl defines the implementation of the googlecloudlogcomputeapiaudit task.
+package googlecloudlogcomputeapiaudit_impl
 
 import (
 	"context"
@@ -28,9 +29,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	gke_compute_api_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api/taskid"
+	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 )
 
+// computeAPIParser is a parser for Compute API audit logs.
 type computeAPIParser struct {
 }
 
@@ -56,7 +58,7 @@ func (*computeAPIParser) GetParserName() string {
 
 // LogTask implements parsertask.Parser.
 func (*computeAPIParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return gke_compute_api_taskid.ComputeAPIQueryTaskID.Ref()
+	return googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID.Ref()
 }
 func (*computeAPIParser) Grouper() grouper.LogGrouper {
 	return grouper.AllDependentLogGrouper
@@ -113,4 +115,5 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 
 var _ legacyparser.Parser = (*computeAPIParser)(nil)
 
-var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+// ComputeAPIParserTask is the parser task for compute API logs.
+var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlogcomputeapiaudit_contract.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

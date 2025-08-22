@@ -18,7 +18,6 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/autoscaler"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/compute_api"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit"
 	k8sauditquery "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_audit/query"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_container"
@@ -39,14 +38,12 @@ func commonPreparation(registry coreinspection.InspectionTaskRegistry) error {
 		k8s_event.GKEK8sEventLogQueryTask,
 		k8s_node.GKENodeQueryTask,
 		k8s_container.GKEContainerQueryTask,
-		compute_api.ComputeAPIQueryTask,
 		network_api.GCPNetworkLogQueryTask,
 		autoscaler.AutoscalerQueryTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneLogQueryTask,
 		k8s_event.GKEK8sEventLogParseJob,
 		k8s_node.GKENodeLogParseJob,
 		k8s_container.GKEContainerLogParseJob,
-		compute_api.ComputeAPIParserTask,
 		network_api.NetowrkAPIParserTask,
 		autoscaler.AutoscalerParserTask,
 		k8scontrolplanecomponent.GKEK8sControlPlaneComponentLogParseTask,
