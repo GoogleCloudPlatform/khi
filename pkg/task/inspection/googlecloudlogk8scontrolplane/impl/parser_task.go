@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8scontrolplanecomponent
+package googlecloudlogk8scontrolplane_impl
 
 import (
 	"context"
@@ -24,8 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/componentparser"
-	k8s_control_plane_component_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_control_plane_component/taskid"
+	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/impl/componentparser"
 )
 
 type k8sControlPlaneComponentParser struct {
@@ -58,7 +58,7 @@ func (k *k8sControlPlaneComponentParser) Grouper() grouper.LogGrouper {
 
 // LogTask implements parsertask.Parser.
 func (k *k8sControlPlaneComponentParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentQueryTaskID.Ref()
+	return googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentQueryTaskID.Ref()
 }
 
 // Parse implements parsertask.Parser.
@@ -82,4 +82,4 @@ func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.Log, 
 
 var _ legacyparser.Parser = (*k8sControlPlaneComponentParser)(nil)
 
-var GKEK8sControlPlaneComponentLogParseTask = legacyparser.NewParserTaskFromParser(k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEK8sControlPlaneComponentLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
