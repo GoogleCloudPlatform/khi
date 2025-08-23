@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -28,14 +28,14 @@ func TestGenerateK8sEventQuery(t *testing.T) {
 		ExpectedQuery        string
 		InputClusterName     string
 		InputProjectName     string
-		InputNamespaceFilter *queryutil.SetFilterParseResult
+		InputNamespaceFilter *gcpqueryutil.SetFilterParseResult
 		InputStartTime       time.Time
 		InputEndTime         time.Time
 	}{
 		{
 			InputClusterName: "foo-cluster",
 			InputProjectName: "foo-project",
-			InputNamespaceFilter: &queryutil.SetFilterParseResult{
+			InputNamespaceFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#namespaced",
 				},
@@ -61,43 +61,43 @@ func TestGenerateK8sEventQueryIsValid(t *testing.T) {
 		Name            string
 		ClusterName     string
 		ProjectName     string
-		NamespaceFilter *queryutil.SetFilterParseResult
+		NamespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			Name:            "ClusterScoped",
 			ClusterName:     "foo-cluster",
 			ProjectName:     "foo-project",
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
 		},
 		{
 			Name:            "Namespaced",
 			ClusterName:     "foo-cluster",
 			ProjectName:     "foo-project",
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
 		},
 		{
 			Name:            "Namespaced with specific namespace",
 			ClusterName:     "foo-cluster",
 			ProjectName:     "foo-project",
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"default"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},
 		},
 		{
 			Name:            "Namespaced with multiple namespaces",
 			ClusterName:     "foo-cluster",
 			ProjectName:     "foo-project",
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
 		},
 		{
 			Name:            "ClusterScoped with specific namespace",
 			ClusterName:     "foo-cluster",
 			ProjectName:     "foo-project",
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
 		},
 		{
 			Name:            "ClusterScoped with multiple namespaces",
 			ClusterName:     "foo-cluster",
 			ProjectName:     "foo-project",
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
 		},
 	}
 	for _, tc := range testCases {

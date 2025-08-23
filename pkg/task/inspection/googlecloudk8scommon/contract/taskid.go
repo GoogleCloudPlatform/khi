@@ -15,9 +15,9 @@
 package googlecloudk8scommon_contract
 
 import (
+	queryutil "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 )
 
 // GoogleCloudCommonK8STaskIDPrefix is the prefix for common task used for K8s on Google Cloud related tasks  IDs.

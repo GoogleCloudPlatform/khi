@@ -19,12 +19,12 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-var inputKindNameAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
+var inputKindNameAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"default": strings.Split("pods replicasets daemonsets nodes deployments namespaces statefulsets services servicenetworkendpointgroups ingresses poddisruptionbudgets jobs cronjobs endpointslices persistentvolumes persistentvolumeclaims storageclasses horizontalpodautoscalers verticalpodautoscalers multidimpodautoscalers", " "),
 }
 
@@ -36,14 +36,14 @@ var InputKindFilterTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_c
 		if value == "" {
 			return "kind filter can't be empty", nil
 		}
-		result, err := queryutil.ParseSetFilter(value, inputKindNameAliasMap, true, true, true)
+		result, err := gcpqueryutil.ParseSetFilter(value, inputKindNameAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string) (*queryutil.SetFilterParseResult, error) {
-		result, err := queryutil.ParseSetFilter(value, inputKindNameAliasMap, true, true, true)
+	WithConverter(func(ctx context.Context, value string) (*gcpqueryutil.SetFilterParseResult, error) {
+		result, err := gcpqueryutil.ParseSetFilter(value, inputKindNameAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
 		}

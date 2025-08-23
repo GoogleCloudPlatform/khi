@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
@@ -30,7 +30,7 @@ func TestInputNamespaces(t *testing.T) {
 	form_task_test.TestTextForms(t, "namespaces", InputNamespaceFilterTask, []*form_task_test.TextFormTestCase{
 		{
 			Input: "",
-			ExpectedValue: &queryutil.SetFilterParseResult{
+			ExpectedValue: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#namespaced",
 					"#cluster-scoped",
@@ -52,7 +52,7 @@ func TestInputNamespaces(t *testing.T) {
 		},
 		{
 			Input: "kube-system default",
-			ExpectedValue: &queryutil.SetFilterParseResult{
+			ExpectedValue: &gcpqueryutil.SetFilterParseResult{
 				Additives:       []string{"kube-system", "default"},
 				Subtractives:    []string{},
 				ValidationError: "",
@@ -70,7 +70,7 @@ func TestInputNamespaces(t *testing.T) {
 		},
 		{
 			Input: "@all_cluster_scoped @all_namespaced",
-			ExpectedValue: &queryutil.SetFilterParseResult{
+			ExpectedValue: &gcpqueryutil.SetFilterParseResult{
 				Additives:       []string{"#namespaced", "#cluster-scoped"},
 				Subtractives:    []string{},
 				ValidationError: "",

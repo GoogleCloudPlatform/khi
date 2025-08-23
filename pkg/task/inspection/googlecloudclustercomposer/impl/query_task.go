@@ -18,17 +18,17 @@ import (
 	"context"
 	"fmt"
 
+	queryutil "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // ComposerSchedulerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
+var ComposerSchedulerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID,
 	"Composer Environment/Airflow Scheduler",
 	enum.LogTypeComposerEnvironment,
@@ -36,13 +36,13 @@ var ComposerSchedulerLogQueryTask = query.NewQueryGeneratorTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&query.ProjectIDDefaultResourceNamesGenerator{},
+	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-scheduler"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-scheduler"),
 )
 
 // ComposerDagProcessorManagerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
+var ComposerDagProcessorManagerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID,
 	"Composer Environment/DAG Processor Manager",
 	enum.LogTypeComposerEnvironment,
@@ -50,13 +50,13 @@ var ComposerDagProcessorManagerLogQueryTask = query.NewQueryGeneratorTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&query.ProjectIDDefaultResourceNamesGenerator{},
+	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("dag-processor-manager"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "dag-processor-manager"),
 )
 
 // ComposerMonitoringLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
+var ComposerMonitoringLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerMonitoringLogQueryTaskID,
 	"Composer Environment/Airflow Monitoring",
 	enum.LogTypeComposerEnvironment,
@@ -64,13 +64,13 @@ var ComposerMonitoringLogQueryTask = query.NewQueryGeneratorTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&query.ProjectIDDefaultResourceNamesGenerator{},
+	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-monitoring"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-monitoring"),
 )
 
 // ComposerWorkerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
+var ComposerWorkerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerWorkerLogQueryTaskID,
 	"Composer Environment/Airflow Worker",
 	enum.LogTypeComposerEnvironment,
@@ -78,7 +78,7 @@ var ComposerWorkerLogQueryTask = query.NewQueryGeneratorTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&query.ProjectIDDefaultResourceNamesGenerator{},
+	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-worker"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
 )

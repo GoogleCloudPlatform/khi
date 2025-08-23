@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
@@ -41,14 +41,14 @@ var InputControlPlaneComponentNameFilterTask = formtask.NewTextFormTaskBuilder(
 	}).
 	WithDescription("Control plane component names to query(e.g. apiserver, controller-manager...etc)").
 	WithValidator(func(ctx context.Context, value string) (string, error) {
-		result, err := queryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
+		result, err := gcpqueryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string) (*queryutil.SetFilterParseResult, error) {
-		result, err := queryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
+	WithConverter(func(ctx context.Context, value string) (*gcpqueryutil.SetFilterParseResult, error) {
+		result, err := gcpqueryutil.ParseSetFilter(value, inputControlPlaneComponentNameAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
 		}

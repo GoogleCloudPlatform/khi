@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package query
+package gcpqueryutil
 
 import (
 	"context"
@@ -33,27 +33,29 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
-	gcp_task "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-const GKEQueryPrefix = gcp_task.GCPPrefix + "query/gke/"
-
+// SkipQueryBody is a special query body that indicates the query should be skipped.
 // Query task will return @Skip when query builder decided to skip.
 const SkipQueryBody = "@Skip"
 
+// QueryGeneratorFunc is a function type that generates Cloud Logging queries.
+// A query task may return multiple logging filters because a logging filter has a maximum length,
+// and some query tasks need to split a long filter into multiple smaller ones.
 type QueryGeneratorFunc = func(context.Context, inspectioncore_contract.InspectionTaskModeType) ([]string, error)
 
-// DefaultResourceNamesGenerator returns the default resource names used for querying Cloud Logging.
+// DefaultResourceNamesGenerator is an interface for generating the default resource names
+// used for querying Cloud Logging.
 type DefaultResourceNamesGenerator interface {
-	// GetDependentTasks returns the list of taks references needed for generating resource names.
+	// GetDependentTasks returns the list of task references needed for generating resource names.
 	GetDependentTasks() []taskid.UntypedTaskReference
 	// GenerateResourceNames returns the list of resource names.
 	GenerateResourceNames(ctx context.Context) ([]string, error)
 }
 
+// ProjectIDDefaultResourceNamesGenerator generates resource names from the project ID.
 type ProjectIDDefaultResourceNamesGenerator struct{}
 
 // GenerateResourceNames implements DefaultResourceNamesGenerator.
@@ -73,7 +75,8 @@ var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(
 
 var queryThreadPool = worker.NewPool(16)
 
-func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
+// NewCloudLoggingListLogTask creates a new task that lists log entries from Cloud Logging.
+func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
 		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
@@ -139,7 +142,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			if len(queryStrings) > 1 {
 				readableQueryNameForQueryIndex = fmt.Sprintf("%s-%d", readableQueryName, queryIndex)
 			}
-			finalQuery := fmt.Sprintf("%s\n%s", queryString, queryutil.TimeRangeQuerySection(startTime, endTime, true))
+			finalQuery := fmt.Sprintf("%s\n%s", queryString, TimeRangeQuerySection(startTime, endTime, true))
 			if len(finalQuery) > 20000 {
 				slog.WarnContext(ctx, fmt.Sprintf("Logging filter is exceeding Cloud Logging limitation 20000 charactors\n%s", finalQuery))
 			}
@@ -147,7 +150,7 @@ func NewQueryGeneratorTask(taskId taskid.TaskImplementationID[[]*log.Log], reada
 			// TODO: not to store whole logs on memory to avoid OOM
 			// Run query only when thetask mode is for running
 			if taskMode == inspectioncore_contract.TaskModeRun {
-				worker := queryutil.NewParallelQueryWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
+				worker := NewParallelCloudLoggingListWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
 				queryLogs, queryErr := worker.Query(ctx, resourceNamesFromInput, progress)
 				if queryErr != nil {
 					errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)

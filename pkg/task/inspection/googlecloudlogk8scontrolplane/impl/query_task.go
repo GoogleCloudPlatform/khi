@@ -19,18 +19,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func GenerateK8sControlPlaneQuery(clusterName string, projectId string, controlplaneComponentFilter *queryutil.SetFilterParseResult) string {
+func GenerateK8sControlPlaneQuery(clusterName string, projectId string, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="%s"
 resource.labels.project_id="%s"
@@ -38,21 +37,21 @@ resource.labels.project_id="%s"
 %s`, clusterName, projectId, generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
 }
 
-var GKEK8sControlPlaneLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentQueryTaskID, "K8s control plane logs", enum.LogTypeControlPlaneComponent, []taskid.UntypedTaskReference{
+var GKEK8sControlPlaneLogQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentQueryTaskID, "K8s control plane logs", enum.LogTypeControlPlaneComponent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	projectId := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	controlplaneComponentNameFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref())
 
 	return []string{GenerateK8sControlPlaneQuery(clusterName, projectId, controlplaneComponentNameFilter)}, nil
-}, GenerateK8sControlPlaneQuery("gcp-cluster-name", "gcp-project-id", &queryutil.SetFilterParseResult{
+}, GenerateK8sControlPlaneQuery("gcp-cluster-name", "gcp-project-id", &gcpqueryutil.SetFilterParseResult{
 	SubtractMode: true,
 }))
 
-func generateK8sControlPlaneComponentFilter(filter *queryutil.SetFilterParseResult) string {
+func generateK8sControlPlaneComponentFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 	if filter.ValidationError != "" {
 		return fmt.Sprintf(`-- Failed to generate component name filter due to the validation error "%s"`, filter.ValidationError)
 	}
@@ -60,11 +59,11 @@ func generateK8sControlPlaneComponentFilter(filter *queryutil.SetFilterParseResu
 		if len(filter.Subtractives) == 0 {
 			return "-- No component name filter"
 		}
-		return fmt.Sprintf(`-resource.labels.component_name:(%s)`, strings.Join(queryutil.WrapDoubleQuoteForStringArray(filter.Subtractives), " OR "))
+		return fmt.Sprintf(`-resource.labels.component_name:(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(filter.Subtractives), " OR "))
 	} else {
 		if len(filter.Additives) == 0 {
 			return `-- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.`
 		}
-		return fmt.Sprintf(`resource.labels.component_name:(%s)`, strings.Join(queryutil.WrapDoubleQuoteForStringArray(filter.Additives), " OR "))
+		return fmt.Sprintf(`resource.labels.component_name:(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(filter.Additives), " OR "))
 	}
 }

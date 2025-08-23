@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	form_task_test "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask/test"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
@@ -30,7 +30,7 @@ func TestInputKindName(t *testing.T) {
 	form_task_test.TestTextForms(t, "kind", InputKindFilterTask, []*form_task_test.TextFormTestCase{
 		{
 			Input: "",
-			ExpectedValue: &queryutil.SetFilterParseResult{
+			ExpectedValue: &gcpqueryutil.SetFilterParseResult{
 				Additives:       inputKindNameAliasMap["default"],
 				Subtractives:    []string{},
 				ValidationError: "",
@@ -49,7 +49,7 @@ func TestInputKindName(t *testing.T) {
 		},
 		{
 			Input: "pods replicasets",
-			ExpectedValue: &queryutil.SetFilterParseResult{
+			ExpectedValue: &gcpqueryutil.SetFilterParseResult{
 				Additives:       []string{"pods", "replicasets"},
 				Subtractives:    []string{},
 				ValidationError: "",
@@ -68,7 +68,7 @@ func TestInputKindName(t *testing.T) {
 		},
 		{
 			Input: "@invalid_alias",
-			ExpectedValue: &queryutil.SetFilterParseResult{
+			ExpectedValue: &gcpqueryutil.SetFilterParseResult{
 				Additives:       inputKindNameAliasMap["default"],
 				Subtractives:    []string{},
 				ValidationError: "",
