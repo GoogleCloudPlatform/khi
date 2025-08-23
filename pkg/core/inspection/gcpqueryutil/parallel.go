@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package queryutil
+package gcpqueryutil
 
 import (
 	"context"
@@ -30,7 +30,8 @@ import (
 	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
 
-type ParallelQueryWorker struct {
+// ParallelCloudLoggingListWorker executes a Cloud Logging query in parallel by dividing the time range.
+type ParallelCloudLoggingListWorker struct {
 	workerCount int
 	baseQuery   string
 	startTime   time.Time
@@ -39,8 +40,9 @@ type ParallelQueryWorker struct {
 	pool        *worker.Pool
 }
 
-func NewParallelQueryWorker(pool *worker.Pool, apiClient googlecloudapi.GCPClient, baseQuery string, startTime time.Time, endTime time.Time, workerCount int) *ParallelQueryWorker {
-	return &ParallelQueryWorker{
+// NewParallelCloudLoggingListWorker creates a new ParallelCloudLoggingListWorker.
+func NewParallelCloudLoggingListWorker(pool *worker.Pool, apiClient googlecloudapi.GCPClient, baseQuery string, startTime time.Time, endTime time.Time, workerCount int) *ParallelCloudLoggingListWorker {
+	return &ParallelCloudLoggingListWorker{
 		baseQuery:   baseQuery,
 		startTime:   startTime,
 		endTime:     endTime,
@@ -50,7 +52,8 @@ func NewParallelQueryWorker(pool *worker.Pool, apiClient googlecloudapi.GCPClien
 	}
 }
 
-func (p *ParallelQueryWorker) Query(ctx context.Context, resourceNames []string, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
+// Query executes the query and returns the log entries.
+func (p *ParallelCloudLoggingListWorker) Query(ctx context.Context, resourceNames []string, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 	timeSegments := divideTimeSegments(p.startTime, p.endTime, p.workerCount)
 	percentages := make([]float32, p.workerCount)
 	logSink := make(chan *log.Log)

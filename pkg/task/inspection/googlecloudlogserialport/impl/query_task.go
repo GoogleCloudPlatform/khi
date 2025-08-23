@@ -20,11 +20,10 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
@@ -40,9 +39,9 @@ func GenerateSerialPortQuery(taskMode inspectioncore_contract.InspectionTaskMode
 		}
 	} else {
 		result := []string{}
-		instanceNameGroups := queryutil.SplitToChildGroups(foundNodeNames, MaxNodesPerQuery)
+		instanceNameGroups := gcpqueryutil.SplitToChildGroups(foundNodeNames, MaxNodesPerQuery)
 		for _, group := range instanceNameGroups {
-			instanceNameFilter := fmt.Sprintf(`labels."compute.googleapis.com/resource_name"=(%s)`, strings.Join(queryutil.WrapDoubleQuoteForStringArray(group), " OR "))
+			instanceNameFilter := fmt.Sprintf(`labels."compute.googleapis.com/resource_name"=(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(group), " OR "))
 			result = append(result, generateSerialPortQueryWithInstanceNameFilter(instanceNameFilter, generateNodeNameSubstringLogFilter(nodeNameSubstrings)))
 		}
 		return result
@@ -53,7 +52,7 @@ func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
 	if len(nodeNameSubstrings) == 0 {
 		return "-- No node name substring filters are specified."
 	} else {
-		return fmt.Sprintf(`labels."compute.googleapis.com/resource_name":(%s)`, strings.Join(queryutil.WrapDoubleQuoteForStringArray(nodeNameSubstrings), " OR "))
+		return fmt.Sprintf(`labels."compute.googleapis.com/resource_name":(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(nodeNameSubstrings), " OR "))
 	}
 }
 
@@ -68,10 +67,10 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 %s`, instanceNameFilter, nodeNameSubstringFilter)
 }
 
-var GKESerialPortLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogserialport_contract.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
+var GKESerialPortLogQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogserialport_contract.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
 	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
 

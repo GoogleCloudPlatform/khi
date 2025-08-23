@@ -16,16 +16,16 @@
 package googlecloudlogk8scontrolplane_contract
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 )
 
 // K8sControlPlaneLogTaskIDPrefix is the prefix for all task IDs in this package.
 const K8sControlPlaneLogTaskIDPrefix = "cloud.google.com/log/k8s-control-plane/"
 
 // InputControlPlaneComponentNameFilterTaskID is the task ID for the form task that inputs the control plane component name filter.
-var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](K8sControlPlaneLogTaskIDPrefix + "input/component-names")
+var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](K8sControlPlaneLogTaskIDPrefix + "input/component-names")
 
 // GKEK8sControlPlaneComponentQueryTaskID is the task ID for the task that queries GKE control plane component logs.
 var GKEK8sControlPlaneComponentQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "query")

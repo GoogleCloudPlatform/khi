@@ -20,10 +20,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -33,11 +32,11 @@ import (
 
 // K8sAuditQueryTask is a query generator task that creates a Google Cloud Logging query
 // to fetch Kubernetes audit logs for a specific cluster.
-var K8sAuditQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8saudit_contract.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
+var K8sAuditQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogk8saudit_contract.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
@@ -45,17 +44,17 @@ var K8sAuditQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8saudit_contr
 	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
 }, GenerateK8sAuditQuery(
 	"gcp-cluster-name",
-	&queryutil.SetFilterParseResult{
+	&gcpqueryutil.SetFilterParseResult{
 		Additives: []string{"deployments", "replicasets", "pods", "nodes"},
 	},
-	&queryutil.SetFilterParseResult{
+	&gcpqueryutil.SetFilterParseResult{
 		Additives: []string{"#cluster-scoped", "#namespaced"},
 	},
 ))
 
 // GenerateK8sAuditQuery constructs a Google Cloud Logging query string for fetching
 // Kubernetes audit logs based on cluster name, kind filters, and namespace filters.
-func GenerateK8sAuditQuery(clusterName string, auditKindFilter *queryutil.SetFilterParseResult, namespaceFilter *queryutil.SetFilterParseResult) string {
+func GenerateK8sAuditQuery(clusterName string, auditKindFilter *gcpqueryutil.SetFilterParseResult, namespaceFilter *gcpqueryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_cluster"
 resource.labels.cluster_name="%s"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
@@ -66,7 +65,7 @@ protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 
 // generateAuditKindFilter creates a log filter snippet for Kubernetes resource kinds
 // based on the parsed filter result.
-func generateAuditKindFilter(filter *queryutil.SetFilterParseResult) string {
+func generateAuditKindFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 	if filter.ValidationError != "" {
 		return fmt.Sprintf(`-- Failed to generate kind filter due to the validation error "%s"`, filter.ValidationError)
 	}
@@ -85,7 +84,7 @@ func generateAuditKindFilter(filter *queryutil.SetFilterParseResult) string {
 
 // generateK8sAuditNamespaceFilter creates a log filter snippet for Kubernetes namespaces
 // based on the parsed filter result.
-func generateK8sAuditNamespaceFilter(filter *queryutil.SetFilterParseResult) string {
+func generateK8sAuditNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 	if filter.ValidationError != "" {
 		return fmt.Sprintf(`-- Failed to generate namespace filter due to the validation error "%s"`, filter.ValidationError)
 	}

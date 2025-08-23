@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package queryutil
+package gcpqueryutil
 
 import (
 	"fmt"
@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// TimeRangeQuerySection returns a Cloud Logging query snippet for a given time range.
 func TimeRangeQuerySection(startTime time.Time, endTime time.Time, includeEnd bool) string {
 	endEqual := ""
 	if includeEnd {
@@ -30,6 +31,7 @@ func TimeRangeQuerySection(startTime time.Time, endTime time.Time, includeEnd bo
 timestamp <%s "%s"`, startTime.Format(format), endEqual, endTime.Format(format))
 }
 
+// ToLowerForStringArray converts all strings in a slice to lowercase.
 func ToLowerForStringArray(source []string) []string {
 	result := []string{}
 	for _, s := range source {
@@ -38,6 +40,7 @@ func ToLowerForStringArray(source []string) []string {
 	return result
 }
 
+// WrapDoubleQuoteForStringArray wraps each string in a slice with double quotes.
 func WrapDoubleQuoteForStringArray(source []string) []string {
 	result := []string{}
 	for _, s := range source {
@@ -46,7 +49,8 @@ func WrapDoubleQuoteForStringArray(source []string) []string {
 	return result
 }
 
-// SplitToChildGroups divices the given array with multiple child array not exceeding the given maxCount
+// SplitToChildGroups divides the given array into multiple child arrays,
+// with each child array not exceeding the given maxCount.
 func SplitToChildGroups[T any](input []T, maxCount int) [][]T {
 	result := make([][]T, 0)
 	for i, value := range input {

@@ -18,14 +18,14 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
 const priorityForContainerGroup = googlecloudcommon_contract.FormBasePriority + 20000
 
-var inputNamespacesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{
+var inputNamespacesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{
 	"managed": {"kube-system", "gke-system", "istio-system", "asm-system", "gmp-system", "gke-mcs", "configconnector-operator-system", "cnrm-system"},
 }
 
@@ -35,14 +35,14 @@ var InputContainerQueryNamespaceFilterTask = formtask.NewTextFormTaskBuilder(goo
 	WithDescription(`Container logs tend to be a lot and take very long time to query.
 Specify the space splitted namespace lists to query container logs only in the specific namespaces.`).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
-		result, err := queryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
+		result, err := gcpqueryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string) (*queryutil.SetFilterParseResult, error) {
-		result, err := queryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
+	WithConverter(func(ctx context.Context, value string) (*gcpqueryutil.SetFilterParseResult, error) {
+		result, err := gcpqueryutil.ParseSetFilter(value, inputNamespacesAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
 		}
@@ -50,7 +50,7 @@ Specify the space splitted namespace lists to query container logs only in the s
 	}).
 	Build()
 
-var inputPodNamesAliasMap queryutil.SetFilterAliasToItemsMap = map[string][]string{}
+var inputPodNamesAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{}
 
 // InputContainerQueryPodNamesFilterMask is a form task that allows users to specify which pod names to query for container logs.
 var InputContainerQueryPodNamesFilterMask = formtask.NewTextFormTaskBuilder(googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID, priorityForContainerGroup+2000, "Pod names(Container logs)").
@@ -59,14 +59,14 @@ var InputContainerQueryPodNamesFilterMask = formtask.NewTextFormTaskBuilder(goog
 	Specify the space splitted pod names lists to query container logs only in the specific pods.
 	This parameter is evaluated as the partial match not the perfect match. You can use the prefix of the pod names.`).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
-		result, err := queryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
+		result, err := gcpqueryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string) (*queryutil.SetFilterParseResult, error) {
-		result, err := queryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
+	WithConverter(func(ctx context.Context, value string) (*gcpqueryutil.SetFilterParseResult, error) {
+		result, err := gcpqueryutil.ParseSetFilter(value, inputPodNamesAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
 		}

@@ -20,11 +20,10 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
@@ -32,13 +31,13 @@ import (
 )
 
 // GenerateK8sEventQuery generates a query for Kubernetes Event logs.
-func GenerateK8sEventQuery(clusterName string, projectId string, namespaceFilter *queryutil.SetFilterParseResult) string {
+func GenerateK8sEventQuery(clusterName string, projectId string, namespaceFilter *gcpqueryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`logName="projects/%s/logs/events"
 resource.labels.cluster_name="%s"
 %s`, projectId, clusterName, generateK8sEventNamespaceFilter(namespaceFilter))
 }
 
-func generateK8sEventNamespaceFilter(filter *queryutil.SetFilterParseResult) string {
+func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 	if filter.ValidationError != "" {
 		return fmt.Sprintf(`-- Failed to generate namespace filter due to the validation error "%s"`, filter.ValidationError)
 	}
@@ -74,11 +73,11 @@ func generateK8sEventNamespaceFilter(filter *queryutil.SetFilterParseResult) str
 }
 
 // GKEK8sEventLogQueryTask defines a task that queries Kubernetes Event logs from Cloud Logging.
-var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
+var GKEK8sEventLogQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
@@ -87,7 +86,7 @@ var GKEK8sEventLogQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8sevent
 }, GenerateK8sEventQuery(
 	"gcp-cluster-name",
 	"gcp-project-id",
-	&queryutil.SetFilterParseResult{
+	&gcpqueryutil.SetFilterParseResult{
 		Additives: []string{"#cluster-scoped", "#namespaced"},
 	},
 ))

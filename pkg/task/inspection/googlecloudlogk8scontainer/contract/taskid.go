@@ -15,18 +15,18 @@
 package googlecloudlogk8scontainer_contract
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 )
 
 const TaskIDPrefix = "cloud.google.com/log/k8s-container/"
 
 // InputContainerQueryNamespacesTaskID is the task ID for the form input that specifies which namespaces to query for container logs.
-var InputContainerQueryNamespacesTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](TaskIDPrefix + "input/query-namespaces")
+var InputContainerQueryNamespacesTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](TaskIDPrefix + "input/query-namespaces")
 
 // InputContainerQueryPodNamesTaskID is the task ID for the form input that specifies which pod names to query for container logs.
-var InputContainerQueryPodNamesTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](TaskIDPrefix + "input/query-podnames")
+var InputContainerQueryPodNamesTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](TaskIDPrefix + "input/query-podnames")
 
 // GKEContainerLogQueryTaskID is the task ID for the task that queries GKE container logs from Cloud Logging.
 var GKEContainerLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")

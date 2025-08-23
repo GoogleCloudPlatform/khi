@@ -17,7 +17,7 @@ package googlecloudlogk8scontainer_impl
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -25,38 +25,38 @@ func TestGenerateK8sContainerQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		ClusterName     string
-		PodNameFilter   *queryutil.SetFilterParseResult
-		NamespaceFilter *queryutil.SetFilterParseResult
+		PodNameFilter   *gcpqueryutil.SetFilterParseResult
+		NamespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			Name:            "with no set filters",
 			ClusterName:     "foo-cluster",
-			PodNameFilter:   &queryutil.SetFilterParseResult{Additives: []string{}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{}},
+			PodNameFilter:   &gcpqueryutil.SetFilterParseResult{Additives: []string{}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{}},
 		},
 		{
 			Name:            "with namespace filter",
 			ClusterName:     "foo-cluster",
-			PodNameFilter:   &queryutil.SetFilterParseResult{Additives: []string{}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"kube-system"}},
+			PodNameFilter:   &gcpqueryutil.SetFilterParseResult{Additives: []string{}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"kube-system"}},
 		},
 		{
 			Name:            "with pod name filter",
 			ClusterName:     "foo-cluster",
-			PodNameFilter:   &queryutil.SetFilterParseResult{Additives: []string{"nginx-pod"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{}},
+			PodNameFilter:   &gcpqueryutil.SetFilterParseResult{Additives: []string{"nginx-pod"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{}},
 		},
 		{
 			Name:            "with both filters",
 			ClusterName:     "foo-cluster",
-			PodNameFilter:   &queryutil.SetFilterParseResult{Additives: []string{"nginx-pod"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"kube-system"}},
+			PodNameFilter:   &gcpqueryutil.SetFilterParseResult{Additives: []string{"nginx-pod"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"kube-system"}},
 		},
 		{
 			Name:            "with complex filters",
 			ClusterName:     "foo-cluster",
-			PodNameFilter:   &queryutil.SetFilterParseResult{Additives: []string{"nginx-pod", "apache-pod"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"kube-system", "istio-system"}},
+			PodNameFilter:   &gcpqueryutil.SetFilterParseResult{Additives: []string{"nginx-pod", "apache-pod"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"kube-system", "istio-system"}},
 		},
 	}
 	for _, tc := range testCases {

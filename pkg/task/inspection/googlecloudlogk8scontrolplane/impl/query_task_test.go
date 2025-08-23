@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -27,12 +27,12 @@ func TestGenerateK8sControlPlaneQuery(t *testing.T) {
 		ExpectedQuery                        string
 		InputClusterName                     string
 		InputProjectName                     string
-		InputControlplaneComponentNameFilter *queryutil.SetFilterParseResult
+		InputControlplaneComponentNameFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			InputClusterName:                     "foo-cluster",
 			InputProjectName:                     "foo-project",
-			InputControlplaneComponentNameFilter: &queryutil.SetFilterParseResult{SubtractMode: true},
+			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: true},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
@@ -42,7 +42,7 @@ resource.labels.project_id="foo-project"
 		{
 			InputClusterName:                     "foo-cluster",
 			InputProjectName:                     "foo-project",
-			InputControlplaneComponentNameFilter: &queryutil.SetFilterParseResult{SubtractMode: true, Subtractives: []string{"apiserver", "autoscaler"}},
+			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: true, Subtractives: []string{"apiserver", "autoscaler"}},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
@@ -52,7 +52,7 @@ resource.labels.project_id="foo-project"
 		{
 			InputClusterName:                     "foo-cluster",
 			InputProjectName:                     "foo-project",
-			InputControlplaneComponentNameFilter: &queryutil.SetFilterParseResult{SubtractMode: false, Additives: []string{"apiserver"}},
+			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: false, Additives: []string{"apiserver"}},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
@@ -62,7 +62,7 @@ resource.labels.component_name:("apiserver")`,
 		{
 			InputClusterName:                     "foo-cluster",
 			InputProjectName:                     "foo-project",
-			InputControlplaneComponentNameFilter: &queryutil.SetFilterParseResult{SubtractMode: false, Additives: []string{}},
+			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: false, Additives: []string{}},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
@@ -72,7 +72,7 @@ resource.labels.project_id="foo-project"
 		{
 			InputClusterName:                     "foo-cluster",
 			InputProjectName:                     "foo-project",
-			InputControlplaneComponentNameFilter: &queryutil.SetFilterParseResult{ValidationError: "test error"},
+			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{ValidationError: "test error"},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
 resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"

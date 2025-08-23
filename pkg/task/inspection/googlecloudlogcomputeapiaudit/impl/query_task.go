@@ -21,10 +21,9 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -38,7 +37,7 @@ func GenerateComputeAPIQuery(taskMode inspectioncore_contract.InspectionTaskMode
 		}
 	} else {
 		result := []string{}
-		instanceNameGroups := queryutil.SplitToChildGroups(nodeNames, 30)
+		instanceNameGroups := gcpqueryutil.SplitToChildGroups(nodeNames, 30)
 		for _, group := range instanceNameGroups {
 			nodeNamesWithInstance := []string{}
 			for _, nodeName := range group {
@@ -59,9 +58,9 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 }
 
 // ComputeAPIQueryTask defines a task that queries compute API logs from Cloud Logging.
-var ComputeAPIQueryTask = query.NewQueryGeneratorTask(googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
+var ComputeAPIQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
 	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 
 	return GenerateComputeAPIQuery(i, builder.ClusterResource.GetNodes()), nil

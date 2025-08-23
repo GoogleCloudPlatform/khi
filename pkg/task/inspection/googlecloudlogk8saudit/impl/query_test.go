@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
@@ -26,8 +26,8 @@ func TestGenerateK8sAuditQuery(t *testing.T) {
 	testCases := []struct {
 		ExpectedQuery        string
 		InputClusterName     string
-		InputKindFilter      *queryutil.SetFilterParseResult
-		InputNamespaceFilter *queryutil.SetFilterParseResult
+		InputKindFilter      *gcpqueryutil.SetFilterParseResult
+		InputNamespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			ExpectedQuery: `resource.type="k8s_cluster"
@@ -37,14 +37,14 @@ protoPayload.methodName=~"\.(pods|deployments|jobs)\."
 protoPayload.resourceName:"namespaces/"
 `,
 			InputClusterName: "foo-cluster",
-			InputKindFilter: &queryutil.SetFilterParseResult{
+			InputKindFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"pods",
 					"deployments",
 					"jobs",
 				},
 			},
-			InputNamespaceFilter: &queryutil.SetFilterParseResult{
+			InputNamespaceFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#namespaced",
 				},
@@ -65,44 +65,44 @@ func TestGenerateK8sAuditQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		Name            string
 		ClusterName     string
-		KindFilter      *queryutil.SetFilterParseResult
-		NamespaceFilter *queryutil.SetFilterParseResult
+		KindFilter      *gcpqueryutil.SetFilterParseResult
+		NamespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			Name:            "ClusterScoped",
 			ClusterName:     "foo-cluster",
-			KindFilter:      &queryutil.SetFilterParseResult{Additives: []string{"pods"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
+			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
 		},
 		{
 			Name:            "Namespaced",
 			ClusterName:     "foo-cluster",
-			KindFilter:      &queryutil.SetFilterParseResult{Additives: []string{"pods"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
+			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
 		},
 		{
 			Name:            "Namespaced with specific namespace",
 			ClusterName:     "foo-cluster",
-			KindFilter:      &queryutil.SetFilterParseResult{Additives: []string{"pods"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"default"}},
+			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},
 		},
 		{
 			Name:            "Namespaced with multiple namespaces",
 			ClusterName:     "foo-cluster",
-			KindFilter:      &queryutil.SetFilterParseResult{Additives: []string{"pods"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
+			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
 		},
 		{
 			Name:            "ClusterScoped with specific namespace",
 			ClusterName:     "foo-cluster",
-			KindFilter:      &queryutil.SetFilterParseResult{Additives: []string{"pods"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
+			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
 		},
 		{
 			Name:            "ClusterScoped with multiple namespaces",
 			ClusterName:     "foo-cluster",
-			KindFilter:      &queryutil.SetFilterParseResult{Additives: []string{"pods"}},
-			NamespaceFilter: &queryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
+			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
+			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
 		},
 	}
 	for _, tc := range testCases {
@@ -119,23 +119,23 @@ func TestGenerateK8sAuditQueryIsValid(t *testing.T) {
 func TestGenerateNamespaceFilter(t *testing.T) {
 	testCases := []struct {
 		ExpectedQuery string
-		Input         *queryutil.SetFilterParseResult
+		Input         *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			ExpectedQuery: `-- Invalid: none of the resources will be selected. Ignoreing namespace filter.`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{},
 			},
 		},
 		{
 			ExpectedQuery: `-- Failed to generate namespace filter due to the validation error "test error"`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				ValidationError: "test error",
 			},
 		},
 		{
 			ExpectedQuery: `protoPayload.resourceName:("/namespaces/kube-system" OR "/namespaces/default")`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"kube-system",
 					"default",
@@ -144,7 +144,7 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 		},
 		{
 			ExpectedQuery: `protoPayload.resourceName:("/namespaces/kube-system" OR "/namespaces/default")`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"kube-system",
 					"default",
@@ -153,7 +153,7 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 		},
 		{
 			ExpectedQuery: `-- No namespace filter`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#cluster-scoped",
 					"#namespaced",
@@ -162,7 +162,7 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 		},
 		{
 			ExpectedQuery: `protoPayload.resourceName:"namespaces/"`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#namespaced",
 				},
@@ -170,7 +170,7 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 		},
 		{
 			ExpectedQuery: `(protoPayload.resourceName:("/namespaces/kube-system" OR "/namespaces/default") OR NOT (protoPayload.resourceName:"/namespaces/"))`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#cluster-scoped",
 					"kube-system",
@@ -180,7 +180,7 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 		},
 		{
 			ExpectedQuery: `-protoPayload.resourceName:"/namespaces/"`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#cluster-scoped",
 				},
@@ -200,42 +200,42 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 func TestKindNameFilter(t *testing.T) {
 	testCases := []struct {
 		ExpectedQuery string
-		Input         *queryutil.SetFilterParseResult
+		Input         *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			ExpectedQuery: `-- Failed to generate kind filter due to the validation error "test error"`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				ValidationError: "test error",
 			},
 		},
 		{
 			ExpectedQuery: `-- Invalid: none of the resources will be selected. Ignoreing kind filter.`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{},
 			},
 		},
 		{
 			ExpectedQuery: `protoPayload.methodName=~"\.(pods)\."`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"pods"},
 			},
 		},
 		{
 			ExpectedQuery: `protoPayload.methodName=~"\.(pods|deployments)\."`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"pods", "deployments"},
 			},
 		},
 		{
 			ExpectedQuery: `-protoPayload.methodName=~"\.(pods|deployments)\."`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Subtractives: []string{"pods", "deployments"},
 				SubtractMode: true,
 			},
 		},
 		{
 			ExpectedQuery: `-- No kind filter`,
-			Input: &queryutil.SetFilterParseResult{
+			Input: &gcpqueryutil.SetFilterParseResult{
 				Subtractives: []string{},
 				SubtractMode: true,
 			},

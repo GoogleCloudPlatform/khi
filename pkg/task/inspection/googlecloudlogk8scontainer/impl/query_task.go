@@ -19,25 +19,24 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/query/queryutil"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // GenerateK8sContainerQuery generates a Cloud Logging query for Kubernetes container logs.
-func GenerateK8sContainerQuery(clusterName string, namespacesFilter *queryutil.SetFilterParseResult, podNamesFilter *queryutil.SetFilterParseResult) string {
+func GenerateK8sContainerQuery(clusterName string, namespacesFilter *gcpqueryutil.SetFilterParseResult, podNamesFilter *gcpqueryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_container"
 resource.labels.cluster_name="%s"
 %s
 %s`, clusterName, generateNamespacesFilter(namespacesFilter), generatePodNamesFilter(podNamesFilter))
 }
 
-func generateNamespacesFilter(namespacesFilter *queryutil.SetFilterParseResult) string {
+func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResult) string {
 	if namespacesFilter.ValidationError != "" {
 		return fmt.Sprintf("-- Failed to generate namespaces filter due to the validation error \"%s\"", namespacesFilter.ValidationError)
 	}
@@ -63,7 +62,7 @@ func generateNamespacesFilter(namespacesFilter *queryutil.SetFilterParseResult) 
 
 }
 
-func generatePodNamesFilter(podNamesFilter *queryutil.SetFilterParseResult) string {
+func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) string {
 	if podNamesFilter.ValidationError != "" {
 		return fmt.Sprintf("-- Failed to generate pod name filter due to the validation error \"%s\"", podNamesFilter.ValidationError)
 	}
@@ -90,20 +89,20 @@ func generatePodNamesFilter(podNamesFilter *queryutil.SetFilterParseResult) stri
 }
 
 // GKEContainerQueryTask is a query generator task for GKE container logs.
-var GKEContainerQueryTask = query.NewQueryGeneratorTask(googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
+var GKEContainerQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
 	googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),
-}, &query.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	namespacesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref())
 	podNamesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref())
 
 	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
-}, GenerateK8sContainerQuery("gcp-cluster-name", &queryutil.SetFilterParseResult{
+}, GenerateK8sContainerQuery("gcp-cluster-name", &gcpqueryutil.SetFilterParseResult{
 	Additives: []string{"default"},
 },
-	&queryutil.SetFilterParseResult{
+	&gcpqueryutil.SetFilterParseResult{
 		Subtractives: []string{"nginx-", "redis"},
 		SubtractMode: true,
 	}))
