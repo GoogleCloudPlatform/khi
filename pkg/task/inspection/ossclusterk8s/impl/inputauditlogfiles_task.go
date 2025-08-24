@@ -12,19 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss
+package ossclusterk8s_impl
 
 import (
-	"math"
-
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-var OSSKubernetesLogFilesInspectionType = coreinspection.InspectionType{
-	Id:          oss_constant.OSSInspectionTypeID,
-	Name:        "OSS Kubernetes Log Files",
-	Description: "Visualize OSS Kubernetes logs through the uploaded files",
-	Icon:        "assets/icons/k8s.png",
-	Priority:    math.MaxInt - 1000,
-}
+var InputAuditLogFilesTask = formtask.NewFileFormTaskBuilder(ossclusterk8s_contract.InputAuditLogFilesFormTaskID, 1000, "Audit Log Files", &upload.JSONLineUploadFileVerifier{
+	MaxLineSizeInBytes: 1024 * 1024 * 1024,
+}).
+	WithDescription(`Upload JSONLine format kube-apiserver audit log`).
+	Build()

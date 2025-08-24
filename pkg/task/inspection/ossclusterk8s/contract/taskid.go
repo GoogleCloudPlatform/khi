@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss_taskid
+package ossclusterk8s_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -25,10 +25,9 @@ import (
 const OSSTaskPrefix = "khi.google.com/oss/"
 
 var OSSK8sAuditLogSourceTaskID = taskid.NewImplementationID(common_k8saudit_taskid.CommonAuitLogSource, "oss")
-var OSSAPIServerAuditLogFileInputTask = taskid.NewDefaultImplementationID[upload.UploadResult](OSSTaskPrefix + "form/kube-apiserver-audit-log-files")
-var OSSAPIServerAuditLogFileReader = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-reader")
-var OSSAPIServerAuditLogFilterAuditTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-filter/audit")
-var OSSAPIServerAuditLogFilterNonAuditTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-filter/non-audit")
-var OSSAuditLogFileReader = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "log-reader")
+var InputAuditLogFilesFormTaskID = taskid.NewDefaultImplementationID[upload.UploadResult](OSSTaskPrefix + "form/kube-apiserver-audit-log-files")
+var AuditLogFileReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-reader")
+var NonEventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-non-event-audit")
+var EventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-event-audit")
 var OSSK8sAuditLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "audit-parser")
 var OSSK8sEventLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-parser")

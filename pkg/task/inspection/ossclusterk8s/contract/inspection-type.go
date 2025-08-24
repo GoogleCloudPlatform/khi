@@ -12,6 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss_constant
+package ossclusterk8s_contract
 
-const OSSInspectionTypeID = "oss-kubernetes-from-files"
+import (
+	"math"
+
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+)
+
+const InspectionTypeID = "oss-kubernetes-from-files"
+
+var OSSKubernetesLogFilesInspectionType = coreinspection.InspectionType{
+	Id:          InspectionTypeID,
+	Name:        "OSS Kubernetes Log Files",
+	Description: "Visualize OSS Kubernetes logs through the uploaded files",
+	Icon:        "assets/icons/k8s.png",
+	Priority:    math.MaxInt - 1000,
+}

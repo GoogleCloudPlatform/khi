@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/document/generator"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
 	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
@@ -48,6 +47,7 @@ import (
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	ossclusterk8s_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/impl"
 )
 
 var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
@@ -61,7 +61,6 @@ func fatal(err error, msg string) {
 }
 
 func init() {
-	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
 	taskSetRegistrer = append(taskSetRegistrer, common_k8saudit.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudk8scommon_impl.Register)
@@ -83,6 +82,7 @@ func init() {
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeautoscaler_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontrolplane_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8saudit_impl.Register)
+	taskSetRegistrer = append(taskSetRegistrer, ossclusterk8s_impl.Register)
 }
 
 func main() {

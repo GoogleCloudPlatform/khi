@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fieldextractor
+package ossclusterk8s_impl
 
 import (
 	"context"

@@ -12,17 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser
+package ossclusterk8s_impl
 
 import (
-	"context"
-
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
-
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
@@ -31,36 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/noderecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/ownerreferencerecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/statusrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
-	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/fieldextractor"
-	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
+	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
-
-// OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
-var OSSK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(oss_taskid.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
-	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
-	if taskMode == inspectioncore_contract.TaskModeDryRun {
-		return nil, nil
-	}
-	logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID.Ref())
-
-	return &types.AuditLogParserLogSource{
-		Logs:      logs,
-		Extractor: &fieldextractor.OSSJSONLAuditLogFieldExtractor{},
-	}, nil
-}, inspectioncore_contract.InspectionTypeLabel(oss_constant.OSSInspectionTypeID))
 
 // RegisterK8sAuditTasks registers tasks needed for parsing OSS k8s audit logs on the inspection server.
 var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddTask(OSSK8sAuditLogSourceTask)
-	if err != nil {
-		return err
-	}
-
-	manager := recorder.NewAuditRecorderTaskManager(oss_taskid.OSSK8sAuditLogParserTaskID, "oss")
-	err = commonrecorder.Register(manager)
+	manager := recorder.NewAuditRecorderTaskManager(ossclusterk8s_contract.OSSK8sAuditLogParserTaskID, "oss")
+	err := commonrecorder.Register(manager)
 	if err != nil {
 		return err
 	}
@@ -89,7 +59,7 @@ var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(regis
 		return err
 	}
 
-	err = manager.Register(registry, oss_constant.OSSInspectionTypeID)
+	err = manager.Register(registry, ossclusterk8s_contract.InspectionTypeID)
 	if err != nil {
 		return err
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package log
+package ossclusterk8s_impl
 
 import (
 	"fmt"
@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+// OSSK8sAuditLogCommonFieldSetReader implements log.FieldSetReader for log.CommonFieldSet{}.
 type OSSK8sAuditLogCommonFieldSetReader struct{}
 
 // FieldSetKind implements log.FieldSetReader.

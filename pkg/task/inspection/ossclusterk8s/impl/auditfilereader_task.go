@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser
+package ossclusterk8s_impl
 
 import (
 	"context"
@@ -28,23 +28,21 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	oss_log "github.com/GoogleCloudPlatform/khi/pkg/source/oss/log"
-	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
-	oss_taskid.OSSAPIServerAuditLogFileReader,
+var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionTask(
+	ossclusterk8s_contract.AuditLogFileReaderTaskID,
 	[]taskid.UntypedTaskReference{
-		oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref(),
+		ossclusterk8s_contract.InputAuditLogFilesFormTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return []*log.Log{}, nil
 		}
-		result := coretask.GetTaskResult(ctx, oss_taskid.OSSAPIServerAuditLogFileInputTask.Ref())
+		result := coretask.GetTaskResult(ctx, ossclusterk8s_contract.InputAuditLogFilesFormTaskID.Ref())
 
 		reader, err := result.GetReader()
 		if err != nil {
@@ -70,7 +68,7 @@ var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 				return fmt.Errorf("failed to read a log: %w", err)
 			}
 
-			err = l.SetFieldSetReader(&oss_log.OSSK8sAuditLogCommonFieldSetReader{})
+			err = l.SetFieldSetReader(&OSSK8sAuditLogCommonFieldSetReader{})
 			if err != nil {
 				return err
 			}
@@ -103,52 +101,3 @@ var OSSLogFileReader = inspectiontaskbase.NewProgressReportableInspectionTask(
 		return logs, nil
 	},
 )
-
-var OSSEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTask(
-	oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID,
-	[]taskid.UntypedTaskReference{
-		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
-			return []*log.Log{}, nil
-		}
-		logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
-
-		var eventLogs []*log.Log
-
-		for _, l := range logs {
-			if l.ReadStringOrDefault("kind", "") == "Event" && l.ReadStringOrDefault("responseObject.kind", "") == "Event" {
-				l.LogType = enum.LogTypeEvent
-				eventLogs = append(eventLogs, l)
-			}
-		}
-
-		return eventLogs, nil
-	})
-
-var OSSNonEventLogFilter = inspectiontaskbase.NewProgressReportableInspectionTask(
-	oss_taskid.OSSAPIServerAuditLogFilterAuditTaskID,
-	[]taskid.UntypedTaskReference{
-		oss_taskid.OSSAuditLogFileReader.GetUntypedReference(),
-	}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		if taskMode == inspectioncore_contract.TaskModeDryRun {
-			return []*log.Log{}, nil
-		}
-
-		logs := coretask.GetTaskResult(ctx, oss_taskid.OSSAuditLogFileReader.Ref())
-
-		var auditLogs []*log.Log
-
-		for _, l := range logs {
-			verb := l.ReadStringOrDefault("verb", "")
-			if l.ReadStringOrDefault("kind", "") == "Event" && l.ReadStringOrDefault("responseObject.kind", "") != "Event" && l.Has("objectRef") {
-				if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
-					continue
-				}
-				l.LogType = enum.LogTypeAudit
-				auditLogs = append(auditLogs, l)
-			}
-		}
-
-		return auditLogs, nil
-	})

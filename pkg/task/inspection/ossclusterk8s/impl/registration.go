@@ -12,44 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package oss
+package ossclusterk8s_impl
 
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/form"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss/parser"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
+// Register registers all googlecloudlogserialport inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(OSSKubernetesLogFilesInspectionType)
+	err := registry.AddInspectionType(ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType)
 	if err != nil {
 		return err
 	}
-
-	err = registry.AddTask(parser.OSSK8sEventLogParserTask)
+	err = RegisterK8sAuditTasks(registry)
 	if err != nil {
 		return err
 	}
-	err = parser.RegisterK8sAuditTasks(registry)
-	if err != nil {
-		return err
-	}
-	err = registry.AddTask(parser.OSSLogFileReader)
-	if err != nil {
-		return err
-	}
-	err = registry.AddTask(parser.OSSEventLogFilter)
-	if err != nil {
-		return err
-	}
-	err = registry.AddTask(parser.OSSNonEventLogFilter)
-	if err != nil {
-		return err
-	}
-	err = registry.AddTask(form.AuditLogFilesForm)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return coretask.RegisterTasks(registry,
+		InputAuditLogFilesTask,
+		AuditLogFileReaderTask,
+		EventAuditLogFilterTask,
+		NonEventAuditLogFilterTask,
+		OSSK8sAuditLogSourceTask,
+		OSSK8sEventLogParserTask,
+	)
 }

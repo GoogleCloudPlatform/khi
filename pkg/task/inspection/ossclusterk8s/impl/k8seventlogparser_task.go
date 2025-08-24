@@ -1,3 +1,5 @@
+package ossclusterk8s_impl
+
 // Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parser
-
 import (
 	"context"
 	"fmt"
@@ -26,8 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	oss_constant "github.com/GoogleCloudPlatform/khi/pkg/source/oss/constant"
-	oss_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/oss/taskid"
+	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
 type OSSK8sEventFromK8sAudit struct {
@@ -55,7 +54,7 @@ func (o *OSSK8sEventFromK8sAudit) Grouper() grouper.LogGrouper {
 
 // LogTask implements parsertask.Parser.
 func (o *OSSK8sEventFromK8sAudit) LogTask() taskid.TaskReference[[]*log.Log] {
-	return oss_taskid.OSSAPIServerAuditLogFilterNonAuditTaskID.Ref()
+	return ossclusterk8s_contract.EventAuditLogFilterTaskID.Ref()
 }
 
 // Parse implements parsertask.Parser.
@@ -86,8 +85,8 @@ func (o *OSSK8sEventFromK8sAudit) TargetLogType() enum.LogType {
 var _ legacyparser.Parser = (*OSSK8sEventFromK8sAudit)(nil)
 
 var OSSK8sEventLogParserTask = legacyparser.NewParserTaskFromParser(
-	oss_taskid.OSSK8sEventLogParserTaskID,
+	ossclusterk8s_contract.OSSK8sEventLogParserTaskID,
 	&OSSK8sEventFromK8sAudit{}, true, []string{
-		oss_constant.OSSInspectionTypeID,
+		ossclusterk8s_contract.InspectionTypeID,
 	},
 )
