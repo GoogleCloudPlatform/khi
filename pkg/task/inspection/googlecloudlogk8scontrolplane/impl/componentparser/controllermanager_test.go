@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
@@ -95,7 +95,7 @@ func TestEventLogToResourcePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &ControllerManagerComponentParser{}
-			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(tc.inputLog, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			path, err := parser.eventLogToResourcePath(l)
 			if tc.expectedError {
 				if err == nil {
@@ -149,7 +149,7 @@ func TestControllerLogToResourcePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &ControllerManagerComponentParser{}
-			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(tc.inputLog, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			paths, err := parser.controllerLogToResourcePath(l)
 			if tc.expectedError {
 				if err == nil {
@@ -195,7 +195,7 @@ func TestKindLogToResourcePath(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &ControllerManagerComponentParser{}
-			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(tc.inputLog, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			path, err := parser.kindLogToResourcePath(context.Background(), l)
 			if tc.expectedError {
 				if err == nil {

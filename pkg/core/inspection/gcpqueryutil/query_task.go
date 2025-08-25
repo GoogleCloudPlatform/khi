@@ -32,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -180,8 +179,8 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 		}
 
 		for _, l := range allLogs {
-			l.SetFieldSetReader(&gcp_log.GCPCommonFieldSetReader{})
-			l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
+			l.SetFieldSetReader(&GCPCommonFieldSetReader{})
+			l.SetFieldSetReader(&GCPMainMessageFieldSetReader{})
 		}
 
 		if taskMode == inspectioncore_contract.TaskModeRun {

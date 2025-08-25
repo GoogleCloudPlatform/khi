@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 )
 
@@ -197,7 +197,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 
 var _ legacyparser.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogParseTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
+var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogParseTaskID, &onpremCloudAuditLogParser{}, true, googlecloudinspectiontypegroup_contract.GDCClusterInspectionTypes)
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

@@ -18,9 +18,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
 
 func TestK8sContainerParserReceivingLogNotContainingMainMessage(t *testing.T) {
@@ -29,7 +29,7 @@ func TestK8sContainerParserReceivingLogNotContainingMainMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error on constructing log instance\n%v", err)
 	}
-	l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
+	l.SetFieldSetReader(&gcpqueryutil.GCPMainMessageFieldSetReader{})
 	cs := history.NewChangeSet(l)
 	err = parser.Parse(context.Background(), l, cs, nil)
 	if err != nil {

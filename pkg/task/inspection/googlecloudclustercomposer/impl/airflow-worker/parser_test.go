@@ -17,8 +17,8 @@ package apacheairflow
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/stretchr/testify/assert"
 
@@ -72,7 +72,7 @@ func Test__airflowWorkerRunningHostFn(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run("Test-"+test.name, func(t *testing.T) {
-			l := testlog.MustLogFromYAML(test.yaml, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(test.yaml, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			ti, err := p.fn(l)
 			assert.Nil(t, err)
 			assert.Equal(t, test.expected, ti)
@@ -133,7 +133,7 @@ textPayload: "Marking task as SUCCESS. dag_id=airflow_monitoring, task_id=echo, 
 
 	for _, test := range testCases {
 		t.Run("Test-"+test.name, func(t *testing.T) {
-			l := testlog.MustLogFromYAML(test.yaml, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(test.yaml, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			ti, err := p.fn(l)
 			assert.Equal(t, test.isErr, err != nil)
 			assert.Equal(t, test.expected, ti)

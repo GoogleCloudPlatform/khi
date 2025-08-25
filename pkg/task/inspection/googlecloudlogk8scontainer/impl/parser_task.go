@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
@@ -100,4 +100,4 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 var _ legacyparser.Parser = (*k8sContainerParser)(nil)
 
 // GKEContainerLogParseJob is a parser task for GKE container logs.
-var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontainer_contract.GKEContainerParserTaskID, &k8sContainerParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontainer_contract.GKEContainerParserTaskID, &k8sContainerParser{}, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)

@@ -17,10 +17,10 @@ package googlecloudlogk8snode_impl
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/noderesource"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
@@ -53,7 +53,7 @@ func TestParseSummary(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			l := testlog.MustLogFromYAML(tc.input, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(tc.input, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			summary, err := parseDefaultSummary(l)
 			if err != nil {
 				t.Fatal(err)
@@ -256,7 +256,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameButNotWithContainerName(t *test
 	wantLogSummary := "MountVolume.SetUp succeeded for volume \"kube-dns-config\" (UniqueName: \"kubernetes.io/configmap/34a3f9e5-4363-47a9-8bd9-3b37c60d107b-kube-dns-config\") pod \"kube-dns-58f547fd74-swzzt\" (UID: \"34a3f9e5-4363-47a9-8bd9-3b37c60d107b\") 【kube-system/kube-dns-58f547fd74-swzzt】"
 
 	builder := history.NewBuilder("/tmp")
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_only_pod_name.yaml", &k8sNodeParser{}, builder, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_only_pod_name.yaml", &k8sNodeParser{}, builder, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -288,7 +288,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameAndContainerName(t *testing.T) 
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, podResourceBinding)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, containerResourceBinding)
 
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_pod_and_container_name.yaml", &k8sNodeParser{}, builder, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/kubelet_pod_and_container_name.yaml", &k8sNodeParser{}, builder, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -318,7 +318,7 @@ func TestK8sNodeParser_ParseContainerdRunPod(t *testing.T) {
 	podName := "kube-dns-58f547fd74-swzzt"
 	podResourceBinding := noderesource.NewPodResourceBinding(podSandboxID, podNamespace, podName)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, podResourceBinding)
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_run_pod_sandbox.yaml", &k8sNodeParser{}, builder, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_run_pod_sandbox.yaml", &k8sNodeParser{}, builder, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -348,7 +348,7 @@ func TestK8sNodeParser_ParseCreateContainer(t *testing.T) {
 	containerResourceBinding := podResourceBinding.NewContainerResourceBinding(containerID, containerName)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(wantNodeName, podResourceBinding)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(wantNodeName, containerResourceBinding)
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_create_container.yaml", &k8sNodeParser{}, builder, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_create_container.yaml", &k8sNodeParser{}, builder, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -383,7 +383,7 @@ func TestK8sNodeParser_ParseContainerdIncludingContainerIdOnly(t *testing.T) {
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, podResourceBinding)
 	builder.ClusterResource.NodeResourceLogBinder.AddResourceBinding(nodeName, containerResourceBinding)
 
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_only_container_id.yaml", &k8sNodeParser{}, builder, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_node/containerd_only_container_id.yaml", &k8sNodeParser{}, builder, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

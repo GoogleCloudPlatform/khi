@@ -27,7 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 )
 
 // ParallelCloudLoggingListWorker executes a Cloud Logging query in parallel by dividing the time range.
@@ -110,12 +109,12 @@ func (p *ParallelCloudLoggingListWorker) Query(ctx context.Context, resourceName
 				}
 			}()
 			for l := range subLogSink {
-				err := l.SetFieldSetReader(&gcp_log.GCPCommonFieldSetReader{})
+				err := l.SetFieldSetReader(&GCPCommonFieldSetReader{})
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("failed to read CommonFieldSet from obtained log %s", err.Error()))
 					continue
 				}
-				err = l.SetFieldSetReader(&gcp_log.GCPMainMessageFieldSetReader{})
+				err = l.SetFieldSetReader(&GCPMainMessageFieldSetReader{})
 				if err != nil {
 					slog.WarnContext(ctx, fmt.Sprintf("failed to read MainMessageFieldSet from obtained log %s", err.Error()))
 					continue

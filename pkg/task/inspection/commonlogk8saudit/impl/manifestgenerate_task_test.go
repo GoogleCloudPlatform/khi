@@ -19,13 +19,14 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	base_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl/fieldextractor"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
@@ -185,7 +186,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 			logs := []*log.Log{}
 			logBase := testlog.New(testlog.YAML(tc.baseLog))
 			for _, logOpts := range tc.logOpts {
-				logs = append(logs, logBase.With(logOpts...).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}, &gcp_log.GCPMainMessageFieldSetReader{}))
+				logs = append(logs, logBase.With(logOpts...).MustBuildLogEntity(&gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{}))
 			}
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
@@ -194,7 +195,7 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 				CommonLogParserTask,
 				tasktest.StubTaskFromReferenceID(commonlogk8saudit_contract.CommonAuitLogSource, &commonlogk8saudit_contract.AuditLogParserLogSource{
 					Logs:      logs,
-					Extractor: nil, // TODO: fix
+					Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 				}, nil),
 				googlecloudk8scommon_impl.DefaultK8sResourceMergeConfigTask,
 			}, inspectioncore_contract.TaskModeRun, map[string]any{})

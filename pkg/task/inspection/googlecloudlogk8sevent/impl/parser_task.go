@@ -26,12 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 )
 
 // GKEK8sEventLogParseJob is the parser task for Kubernetes Event logs.
-var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8sevent_contract.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8sevent_contract.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
 
 type k8sEventParser struct {
 }

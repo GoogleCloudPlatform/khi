@@ -17,10 +17,10 @@ package googlecloudloggkeapiaudit_impl
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 	"github.com/google/go-cmp/cmp"
@@ -36,7 +36,7 @@ func TestGkeAuditLogParser_ClusterCreationStartLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/cluster_creation_started.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -76,7 +76,7 @@ func TestGkeAuditLogParser_ClusterCreationFinishedLog(t *testing.T) {
 
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/cluster_creation_started.yaml",
-		&gkeAuditLogParser{}, nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		&gkeAuditLogParser{}, nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -113,7 +113,7 @@ func TestGkeAuditLogParser_ClusterDeletionStartLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/cluster_deletion_started.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -151,7 +151,7 @@ func TestGkeAuditLogParser_ClusterDeletionFinishedLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/cluster_deletion_finished.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -190,7 +190,7 @@ func TestGkeAuditLogParser_NodepoolCreationStartLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/nodepool_creation_started.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -229,7 +229,7 @@ func TestGkeAuditLogParser_NodepoolCreationFinishedLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/nodepool_creation_finished.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -268,7 +268,7 @@ func TestGkeAuditLogParser_NodepoolDeletionStartLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/nodepool_deletion_started.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -307,7 +307,7 @@ func TestGkeAuditLogParser_NodepoolDeletionFinishedLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/nodepool_deletion_finished.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}
@@ -344,7 +344,7 @@ func TestGkeAuditLogParser_ClusterCreationWithErrorLog(t *testing.T) {
 	cs, err := parser_test.ParseFromYamlLogFile(
 		"test/logs/gke_audit/cluster_creation_started_with_error.yaml",
 		&gkeAuditLogParser{},
-		nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+		nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

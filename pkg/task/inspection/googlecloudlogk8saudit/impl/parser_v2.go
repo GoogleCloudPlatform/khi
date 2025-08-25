@@ -17,7 +17,6 @@ package googlecloudlogk8saudit_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/bindingrecorder"
@@ -28,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/ownerreferencerecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/snegrecorder"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/statusrecorder"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl/fieldextractor"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -53,7 +53,7 @@ var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(googlecloudl
 		Logs:      logs,
 		Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 	}, nil
-}, inspectioncore_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...))
 
 // RegisterK8sAuditTasks registers all the tasks required for parsing GKE Kubernetes audit logs.
 // This includes the common audit log recorders as well as GKE-specific ones like the SNEG recorder.
@@ -99,7 +99,7 @@ var RegisterK8sAuditTasks coreinspection.InspectionRegistrationFunc = func(regis
 		return err
 	}
 
-	err = manager.Register(registry, inspectiontype.GCPK8sClusterInspectionTypes...)
+	err = manager.Register(registry, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...)
 	if err != nil {
 		return err
 	}

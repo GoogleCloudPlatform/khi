@@ -25,9 +25,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 )
 
 var serialportSequenceConverters = []logutil.SpecialSequenceConverter{
@@ -81,4 +80,4 @@ func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 var _ legacyparser.Parser = (*SerialPortLogParser)(nil)
 
-var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogserialport_contract.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogserialport_contract.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

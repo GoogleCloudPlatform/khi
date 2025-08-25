@@ -25,8 +25,8 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -47,7 +47,7 @@ var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googleclo
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
 
 	return struct{}{}, nil
-}, inspectioncore_contract.NewRequiredTaskLabel(), inspectioncore_contract.InspectionTypeLabel(inspectiontype.GCPK8sClusterInspectionTypes...))
+}, inspectioncore_contract.NewRequiredTaskLabel(), inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...))
 
 func getSuggestedFileName(clusterName string, startTime, endTime time.Time) string {
 	return fmt.Sprintf("%s-%s-%s.khi", clusterName, startTime.Format("2006_01_02_1504"), endTime.Format("2006_01_02_1504"))

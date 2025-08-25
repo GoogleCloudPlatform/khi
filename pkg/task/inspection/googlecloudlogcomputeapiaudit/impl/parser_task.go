@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 )
 
@@ -116,4 +116,4 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 var _ legacyparser.Parser = (*computeAPIParser)(nil)
 
 // ComputeAPIParserTask is the parser task for compute API logs.
-var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlogcomputeapiaudit_contract.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlogcomputeapiaudit_contract.ComputeAPIParserTaskID, &computeAPIParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

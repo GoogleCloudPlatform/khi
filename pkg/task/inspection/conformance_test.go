@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcp
+package inspection_test
 
 import (
 	"testing"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
@@ -67,6 +68,7 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		googlecloudlogk8scontrolplane_impl.Register,
 		googlecloudlogk8saudit_impl.Register,
 		ossclusterk8s_impl.Register,
+		commonlogk8saudit_impl.Register,
 	})
 }
 
@@ -93,5 +95,6 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		googlecloudlogk8scontrolplane_impl.Register,
 		googlecloudlogk8saudit_impl.Register,
 		ossclusterk8s_impl.Register,
+		commonlogk8saudit_impl.Register,
 	})
 }

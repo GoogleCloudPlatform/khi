@@ -19,10 +19,10 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
@@ -57,7 +57,7 @@ timestamp: "2024-01-01T00:00:00+09:00"`
 	}
 	logs := []*log.Log{}
 	for _, opt := range logOpts {
-		logs = append(logs, testlog.New(testlog.YAML(baseLog)).With(opt...).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}, &gcp_log.GCPMainMessageFieldSetReader{}))
+		logs = append(logs, testlog.New(testlog.YAML(baseLog)).With(opt...).MustBuildLogEntity(&gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{}))
 	}
 
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())

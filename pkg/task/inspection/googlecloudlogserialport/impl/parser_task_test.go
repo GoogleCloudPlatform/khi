@@ -17,9 +17,9 @@ package googlecloudlogserialport_impl
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
 	"github.com/google/go-cmp/cmp"
 
@@ -29,7 +29,7 @@ import (
 func TestSerialPortLogParser_ParseBasicSerialPortLog(t *testing.T) {
 	wantLogSummary := "[ OK ] Stopped getty@tty1.service."
 
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/serialport/basic-serialport-log.yaml", &SerialPortLogParser{}, nil, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+	cs, err := parser_test.ParseFromYamlLogFile("test/logs/serialport/basic-serialport-log.yaml", &SerialPortLogParser{}, nil, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 	if err != nil {
 		t.Errorf("got error %v, want nil", err)
 	}

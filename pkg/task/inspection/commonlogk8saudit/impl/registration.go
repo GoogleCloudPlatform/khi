@@ -19,11 +19,12 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// Register registers all googlecloudclustercomposer inspection tasks to the registry.
+// Register registers all commonlogk8saudit inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		CommonLogParserTask,
 		CommonLogConvertTask,
 		ManifestGenerateTask,
+		TimelineGroupingTask,
 	)
 }

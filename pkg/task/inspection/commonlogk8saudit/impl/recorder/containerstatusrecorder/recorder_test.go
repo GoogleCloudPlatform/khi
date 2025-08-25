@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl/fieldextractor"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
@@ -216,7 +216,7 @@ allocatedresourcesstatus: []
 			parsedLogs := []*commonlogk8saudit_contract.AuditLogParserInput{}
 			for i, logFilePath := range tc.logPaths {
 				yamlStr := testutil.MustReadText(logFilePath)
-				l := testlog.MustLogFromYAML(yamlStr, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+				l := testlog.MustLogFromYAML(yamlStr, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 				extractor := fieldextractor.GCPAuditLogFieldExtractor{}
 				rsLog, err := extractor.ExtractFields(context.Background(), l)
 				if err != nil {

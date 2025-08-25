@@ -29,11 +29,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/noderesource"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
-var GKENodeLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8snode_contract.GKENodeLogParseTaskID, &k8sNodeParser{}, false, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKENodeLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8snode_contract.GKENodeLogParseTaskID, &k8sNodeParser{}, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
 
 const ContainerdStartingMsg = "starting containerd"
 const DockerdStartingMsg = "Starting up"

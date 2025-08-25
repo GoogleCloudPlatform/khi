@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	"gopkg.in/yaml.v3"
 )
@@ -166,4 +166,4 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 var _ legacyparser.Parser = (*gceNetworkParser)(nil)
 
 // NetworkAPIParserTask is the parser task for network API audit logs.
-var NetworkAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlognetworkapiaudit_contract.NetworkAPIParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var NetworkAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlognetworkapiaudit_contract.NetworkAPIParserTaskID, &gceNetworkParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

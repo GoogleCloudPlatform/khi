@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 )
 
@@ -175,7 +175,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 var _ legacyparser.Parser = (*multiCloudAuditLogParser)(nil)
 
 // MultiCloudAuditLogParseJob is the parser task for multicloud audit logs.
-var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
+var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, googlecloudinspectiontypegroup_contract.GKEMultiCloudClusterInspectionTypes)
 
 type multiCloudResource struct {
 	ClusterType  string // aws or azure

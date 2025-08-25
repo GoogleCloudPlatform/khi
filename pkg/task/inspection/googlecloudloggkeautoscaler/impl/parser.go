@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 )
@@ -229,4 +229,4 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *hi
 
 var _ legacyparser.Parser = (*autoscalerLogParser)(nil)
 
-var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(googlecloudloggkeautoscaler_contract.AutoscalerParserTaskID, &autoscalerLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(googlecloudloggkeautoscaler_contract.AutoscalerParserTaskID, &autoscalerLogParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

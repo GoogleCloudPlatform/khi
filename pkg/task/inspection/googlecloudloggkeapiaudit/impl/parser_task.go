@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 )
 
@@ -199,4 +199,4 @@ func getRelatedNodepool(l *log.Log) (string, error) {
 
 var _ legacyparser.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudloggkeapiaudit_contract.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudloggkeapiaudit_contract.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

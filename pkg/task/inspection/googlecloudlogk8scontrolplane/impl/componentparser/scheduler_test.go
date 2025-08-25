@@ -21,7 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
@@ -85,7 +85,7 @@ timestamp: "2024-08-19T10:06:31.833958Z"`,
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
 			parser := &SchedulerComponentParser{}
-			l := testlog.MustLogFromYAML(tc.inputLog, &log.GCPCommonFieldSetReader{}, &log.GCPMainMessageFieldSetReader{})
+			l := testlog.MustLogFromYAML(tc.inputLog, &gcpqueryutil.GCPCommonFieldSetReader{}, &gcpqueryutil.GCPMainMessageFieldSetReader{})
 			path, err := parser.podRelatedLogsToResourcePath(context.Background(), l)
 			if tc.expectedError {
 				if err == nil {
