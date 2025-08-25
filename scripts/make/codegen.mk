@@ -23,6 +23,10 @@ $(FRONTEND_CODEGEN_TARGETS): $(ENUM_GO_FILES) $(FRONTEND_CODEGEN_DEPS)
 web/src/environments/version.*.ts: VERSION
 	./scripts/generate-version.sh
 
+.PHONY: generate-backend
+generate-backend: ## Generate backend source code
+	go run ./scripts/backend-codegen/
+
 .PHONY: add-licenses
 add-licenses: ## Add license headers to all files
 	$(GOPATH)/bin/addlicense  -c "Google LLC" -l apache .

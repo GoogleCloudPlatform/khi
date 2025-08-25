@@ -10,11 +10,11 @@ build-web: prepare-frontend ## Build frontend for production
 	cd web && npx ng build --output-path ../dist -c prod
 
 .PHONY: build-go
-build-go: ## Build backend for production
+build-go: generate-backend ## Build backend for production
 	CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi ./cmd/kubernetes-history-inspector/...
 
 .PHONY: build-go-debug
-build-go-debug: ## Build backend for debugging
+build-go-debug: generate-backend ## Build backend for debugging
 	CGO_ENABLED=0 go build -gcflags="all=-N -l" -ldflags="-X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi-debug ./cmd/kubernetes-history-inspector/...
 
 .PHONY: build

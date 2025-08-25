@@ -17,84 +17,15 @@ package inspection_test
 import (
 	"testing"
 
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
-	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
-	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
-	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
-	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
-	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
-	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
-	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
-	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
-	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
-	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
-	googlecloudloggkeautoscaler_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/impl"
-	googlecloudlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl"
-	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
-	googlecloudlogk8scontrolplane_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/impl"
-	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
-	googlecloudlogk8snode_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/impl"
-	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
-	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
-	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
-	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
-	ossclusterk8s_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/impl"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestInspectionTasksAreResolvable(t *testing.T) {
-	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "gcp", []coreinspection.InspectionRegistrationFunc{
-		googlecloudcommon_impl.Register,
-		googlecloudk8scommon_impl.Register,
-		googlecloudclustergke_impl.Register,
-		googlecloudclustergdcbaremetal_impl.Register,
-		googlecloudclustergdcvmware_impl.Register,
-		googlecloudclustergkeonaws_impl.Register,
-		googlecloudclustergkeonazure_impl.Register,
-		googlecloudclustercomposer_impl.Register,
-		googlecloudlogserialport_impl.Register,
-		googlecloudlogmulticloudapiaudit_impl.Register,
-		googlecloudlogonpremapiaudit_impl.Register,
-		googlecloudloggkeapiaudit_impl.Register,
-		googlecloudlogcomputeapiaudit_impl.Register,
-		googlecloudlogk8sevent_impl.Register,
-		googlecloudlognetworkapiaudit_impl.Register,
-		googlecloudlogk8snode_impl.Register,
-		googlecloudlogk8scontainer_impl.Register,
-		googlecloudloggkeautoscaler_impl.Register,
-		googlecloudlogk8scontrolplane_impl.Register,
-		googlecloudlogk8saudit_impl.Register,
-		ossclusterk8s_impl.Register,
-		commonlogk8saudit_impl.Register,
-	})
+	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t)
 }
 
 func TestConformanceTestForInspectionTypes(t *testing.T) {
-	inspection_test.ConformanceTestForInspectionTypes(t, []coreinspection.InspectionRegistrationFunc{
-		googlecloudcommon_impl.Register,
-		googlecloudk8scommon_impl.Register,
-		googlecloudclustergke_impl.Register,
-		googlecloudclustergdcbaremetal_impl.Register,
-		googlecloudclustergdcvmware_impl.Register,
-		googlecloudclustergkeonaws_impl.Register,
-		googlecloudclustergkeonazure_impl.Register,
-		googlecloudclustercomposer_impl.Register,
-		googlecloudlogserialport_impl.Register,
-		googlecloudlogmulticloudapiaudit_impl.Register,
-		googlecloudlogonpremapiaudit_impl.Register,
-		googlecloudloggkeapiaudit_impl.Register,
-		googlecloudlogcomputeapiaudit_impl.Register,
-		googlecloudlogk8sevent_impl.Register,
-		googlecloudlognetworkapiaudit_impl.Register,
-		googlecloudlogk8snode_impl.Register,
-		googlecloudlogk8scontainer_impl.Register,
-		googlecloudloggkeautoscaler_impl.Register,
-		googlecloudlogk8scontrolplane_impl.Register,
-		googlecloudlogk8saudit_impl.Register,
-		ossclusterk8s_impl.Register,
-		commonlogk8saudit_impl.Register,
-	})
+	inspection_test.ConformanceTestForInspectionTypes(t)
 }

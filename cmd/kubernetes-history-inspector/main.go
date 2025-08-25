@@ -32,35 +32,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 
-	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
-	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
-	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
-	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
-	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
-	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
-	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
-	googlecloudcommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/impl"
-	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
-	googlecloudlogcomputeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/impl"
-	googlecloudloggkeapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/impl"
-	googlecloudloggkeautoscaler_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/impl"
-	googlecloudlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl"
-	googlecloudlogk8scontainer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/impl"
-	googlecloudlogk8scontrolplane_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/impl"
-	googlecloudlogk8sevent_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/impl"
-	googlecloudlogk8snode_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/impl"
-	googlecloudlogmulticloudapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/impl"
-	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
-	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
-	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
-	ossclusterk8s_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/impl"
 
 	"cloud.google.com/go/profiler"
 )
@@ -93,8 +72,6 @@ func displayStartMessage(host string, port int) {
 	}
 }
 
-var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
-
 func init() {
 	parameters.AddStore(parameters.Help)
 	parameters.AddStore(parameters.Common)
@@ -102,29 +79,6 @@ func init() {
 	parameters.AddStore(parameters.Job)
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
-
-	taskSetRegistrer = append(taskSetRegistrer, commonlogk8saudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudk8scommon_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergke_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcvmware_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergdcbaremetal_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonaws_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergkeonazure_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustercomposer_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogserialport_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogmulticloudapiaudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogonpremapiaudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeapiaudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogcomputeapiaudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8sevent_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlognetworkapiaudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8snode_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontainer_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudloggkeautoscaler_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8scontrolplane_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, googlecloudlogk8saudit_impl.Register)
-	taskSetRegistrer = append(taskSetRegistrer, ossclusterk8s_impl.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {
@@ -182,11 +136,10 @@ func run() int {
 	}
 
 	if !*parameters.Server.ViewerMode {
-		for i, taskSetRegistrer := range taskSetRegistrer {
-			err = taskSetRegistrer(inspectionServer)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to call initialize calls for taskSetRegistrer(#%d)\n%v", i, err))
-			}
+		err := generated.RegisterAllInspectionTasks(inspectionServer)
+		if err != nil {
+			slog.Error(err.Error())
+			return 1
 		}
 	}
 
