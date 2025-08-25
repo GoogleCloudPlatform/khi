@@ -21,14 +21,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 type OSSJSONLAuditLogFieldExtractor struct{}
 
 // ExtractFields implements common.AuditLogFieldExtractor.
-func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*types.AuditLogParserInput, error) {
+func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*commonlogk8saudit_contract.AuditLogParserInput, error) {
 	apiGroup := l.ReadStringOrDefault("objectRef.apiGroup", "core")
 	apiVersion := l.ReadStringOrDefault("objectRef.apiVersion", "unknown")
 	kind := l.ReadStringOrDefault("objectRef.resource", "unknown")
@@ -61,17 +60,17 @@ func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *l
 
 	// response, request can be nil when the fields are missing, error can be ignorable.
 	response, _ := l.GetReader("responseObject")
-	responseType := rtype.RTypeUnknown
+	responseType := commonlogk8saudit_contract.RTypeUnknown
 	if response != nil {
-		responseType = rtype.RtypeFromOSSK8sObject(response)
+		responseType = commonlogk8saudit_contract.RtypeFromOSSK8sObject(response)
 	}
 	request, _ := l.GetReader("requestObject")
-	requestType := rtype.RTypeUnknown
+	requestType := commonlogk8saudit_contract.RTypeUnknown
 	if request != nil {
-		requestType = rtype.RtypeFromOSSK8sObject(request)
+		requestType = commonlogk8saudit_contract.RtypeFromOSSK8sObject(request)
 	}
 
-	return &types.AuditLogParserInput{
+	return &commonlogk8saudit_contract.AuditLogParserInput{
 		Log:                  l,
 		Requestor:            requestor,
 		Operation:            &k8sOp,
@@ -103,4 +102,4 @@ func verbStringToEnum(verbStr string) enum.RevisionVerb {
 	}
 }
 
-var _ types.AuditLogFieldExtractor = (*OSSJSONLAuditLogFieldExtractor)(nil)
+var _ commonlogk8saudit_contract.AuditLogFieldExtractor = (*OSSJSONLAuditLogFieldExtractor)(nil)

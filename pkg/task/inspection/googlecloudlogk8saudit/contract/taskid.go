@@ -17,7 +17,7 @@ package googlecloudlogk8saudit_contract
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	common_k8saudit_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/taskid"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 // TaskIDPrefix is the prefix for all task IDs in the googlecloudlogk8saudit package.
@@ -30,4 +30,4 @@ var K8sAuditQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPr
 var K8sAuditParseTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "audit-parser-v2")
 
 // GKEK8sAuditLogSourceTaskID is the task ID for providing a log source of GKE Kubernetes audit logs for parsing.
-var GKEK8sAuditLogSourceTaskID = taskid.NewImplementationID(common_k8saudit_taskid.CommonAuitLogSource, "gcp")
+var GKEK8sAuditLogSourceTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.CommonAuitLogSource, "gcp")

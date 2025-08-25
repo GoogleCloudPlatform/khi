@@ -18,8 +18,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/rtype"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 // GCPAuditLogFieldExtractor extracts fields from a GCP Kubernetes audit log entry.
@@ -27,7 +26,7 @@ type GCPAuditLogFieldExtractor struct{}
 
 // ExtractFields extracts relevant fields from a GCP audit log and populates an AuditLogParserInput.
 // It implements the common.AuditLogFieldExtractor interface.
-func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*types.AuditLogParserInput, error) {
+func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Log) (*commonlogk8saudit_contract.AuditLogParserInput, error) {
 	resourceName, err := l.ReadString("protoPayload.resourceName")
 	if err != nil {
 		return nil, err
@@ -51,25 +50,25 @@ func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Lo
 	responseErrorCode := l.ReadIntOrDefault("protoPayload.status.code", 0)
 	responseErrorMessage := l.ReadStringOrDefault("protoPayload.status.message", "")
 
-	requestType := rtype.RTypeUnknown
+	requestType := commonlogk8saudit_contract.RTypeUnknown
 	request, _ := l.GetReader("protoPayload.request")
 	if request != nil && request.Has("@type") {
 		rtypeInStr := request.ReadStringOrDefault("@type", "")
-		if rt, found := rtype.AtTypesOnGCPAuditLog[rtypeInStr]; found {
+		if rt, found := commonlogk8saudit_contract.AtTypesOnGCPAuditLog[rtypeInStr]; found {
 			requestType = rt
 		}
 	}
 
-	responseType := rtype.RTypeUnknown
+	responseType := commonlogk8saudit_contract.RTypeUnknown
 	response, _ := l.GetReader("protoPayload.response")
 	if response != nil && response.Has("@type") {
 		rtypeInStr := response.ReadStringOrDefault("@type", "")
-		if rt, found := rtype.AtTypesOnGCPAuditLog[rtypeInStr]; found {
+		if rt, found := commonlogk8saudit_contract.AtTypesOnGCPAuditLog[rtypeInStr]; found {
 			responseType = rt
 		}
 	}
 
-	return &types.AuditLogParserInput{
+	return &commonlogk8saudit_contract.AuditLogParserInput{
 		Log:                  l,
 		Requestor:            userEmail,
 		Operation:            operation,
@@ -83,4 +82,4 @@ func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Lo
 	}, nil
 }
 
-var _ types.AuditLogFieldExtractor = (*GCPAuditLogFieldExtractor)(nil)
+var _ commonlogk8saudit_contract.AuditLogFieldExtractor = (*GCPAuditLogFieldExtractor)(nil)

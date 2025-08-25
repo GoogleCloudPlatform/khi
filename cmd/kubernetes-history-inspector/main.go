@@ -37,8 +37,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 
+	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
@@ -103,7 +103,7 @@ func init() {
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
 
-	taskSetRegistrer = append(taskSetRegistrer, common.Register)
+	taskSetRegistrer = append(taskSetRegistrer, commonlogk8saudit_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudcommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudk8scommon_impl.Register)
 	taskSetRegistrer = append(taskSetRegistrer, googlecloudclustergke_impl.Register)

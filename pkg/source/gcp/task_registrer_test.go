@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
 	googlecloudclustercomposer_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl"
 	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
 	googlecloudclustergdcvmware_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/impl"
@@ -39,6 +38,7 @@ import (
 	googlecloudlognetworkapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/impl"
 	googlecloudlogonpremapiaudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/impl"
 	googlecloudlogserialport_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/impl"
+	ossclusterk8s_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/impl"
 	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
@@ -46,7 +46,6 @@ import (
 
 func TestInspectionTasksAreResolvable(t *testing.T) {
 	inspection_test.ConformanceEveryInspectionTasksAreResolvable(t, "gcp", []coreinspection.InspectionRegistrationFunc{
-		common.Register,
 		googlecloudcommon_impl.Register,
 		googlecloudk8scommon_impl.Register,
 		googlecloudclustergke_impl.Register,
@@ -67,12 +66,12 @@ func TestInspectionTasksAreResolvable(t *testing.T) {
 		googlecloudloggkeautoscaler_impl.Register,
 		googlecloudlogk8scontrolplane_impl.Register,
 		googlecloudlogk8saudit_impl.Register,
+		ossclusterk8s_impl.Register,
 	})
 }
 
 func TestConformanceTestForInspectionTypes(t *testing.T) {
 	inspection_test.ConformanceTestForInspectionTypes(t, []coreinspection.InspectionRegistrationFunc{
-		common.Register,
 		googlecloudcommon_impl.Register,
 		googlecloudk8scommon_impl.Register,
 		googlecloudclustergke_impl.Register,
@@ -93,5 +92,6 @@ func TestConformanceTestForInspectionTypes(t *testing.T) {
 		googlecloudloggkeautoscaler_impl.Register,
 		googlecloudlogk8scontrolplane_impl.Register,
 		googlecloudlogk8saudit_impl.Register,
+		ossclusterk8s_impl.Register,
 	})
 }

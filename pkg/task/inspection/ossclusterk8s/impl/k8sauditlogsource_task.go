@@ -20,7 +20,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
@@ -28,13 +28,13 @@ import (
 // OSSK8sAuditLogSourceTask receives logs generated from the previous tasks specific to OSS audit log parsing and inject dependencies specific to this OSS inspection type.
 var OSSK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(ossclusterk8s_contract.OSSK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	ossclusterk8s_contract.NonEventAuditLogFilterTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*commonlogk8saudit_contract.AuditLogParserLogSource, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, ossclusterk8s_contract.NonEventAuditLogFilterTaskID.Ref())
 
-	return &types.AuditLogParserLogSource{
+	return &commonlogk8saudit_contract.AuditLogParserLogSource{
 		Logs:      logs,
 		Extractor: &OSSJSONLAuditLogFieldExtractor{},
 	}, nil

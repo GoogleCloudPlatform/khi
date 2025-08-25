@@ -17,17 +17,17 @@ package googlecloudlogk8saudit_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/bindingrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/commonrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/containerstatusrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/endpointslicerecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/noderecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/ownerreferencerecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/snegrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/recorder/statusrecorder"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit/types"
 	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/inspectiontype"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/bindingrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/commonrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/containerstatusrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/endpointslicerecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/noderecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/ownerreferencerecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/snegrecorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/statusrecorder"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/impl/fieldextractor"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -43,13 +43,13 @@ import (
 // GCP-specific field extractor to downstream parsing tasks.
 var GCPK8sAuditLogSourceTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8saudit_contract.GKEK8sAuditLogSourceTaskID, []taskid.UntypedTaskReference{
 	googlecloudlogk8saudit_contract.K8sAuditQueryTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*types.AuditLogParserLogSource, error) {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*commonlogk8saudit_contract.AuditLogParserLogSource, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return nil, nil
 	}
 	logs := coretask.GetTaskResult(ctx, googlecloudlogk8saudit_contract.K8sAuditQueryTaskID.Ref())
 
-	return &types.AuditLogParserLogSource{
+	return &commonlogk8saudit_contract.AuditLogParserLogSource{
 		Logs:      logs,
 		Extractor: &fieldextractor.GCPAuditLogFieldExtractor{},
 	}, nil
