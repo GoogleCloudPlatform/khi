@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -197,6 +197,6 @@ func getRelatedNodepool(l *log.Log) (string, error) {
 	return l.ReadString("protoPayload.request.update.desiredNodePoolId")
 }
 
-var _ parsertask.Parser = (*gkeAuditLogParser)(nil)
+var _ legacyparser.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = parsertask.NewParserTaskFromParser(gke_audit_taskid.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(gke_audit_taskid.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

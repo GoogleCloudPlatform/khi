@@ -17,7 +17,7 @@ package k8scontrolplanecomponent
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -80,6 +80,6 @@ func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.Log, 
 	return nil
 }
 
-var _ parsertask.Parser = (*k8sControlPlaneComponentParser)(nil)
+var _ legacyparser.Parser = (*k8sControlPlaneComponentParser)(nil)
 
-var GKEK8sControlPlaneComponentLogParseTask = parsertask.NewParserTaskFromParser(k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEK8sControlPlaneComponentLogParseTask = legacyparser.NewParserTaskFromParser(k8s_control_plane_component_taskid.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)

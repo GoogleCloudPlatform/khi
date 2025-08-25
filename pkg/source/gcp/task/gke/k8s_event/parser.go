@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -30,7 +30,7 @@ import (
 	k8s_event_taskid "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/task/gke/k8s_event/taskid"
 )
 
-var GKEK8sEventLogParseJob = parsertask.NewParserTaskFromParser(k8s_event_taskid.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
+var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(k8s_event_taskid.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, inspectiontype.GCPK8sClusterInspectionTypes)
 
 type k8sEventParser struct {
 }
@@ -92,4 +92,4 @@ func (*k8sEventParser) Parse(ctx context.Context, l *log.Log, cs *history.Change
 	return nil
 }
 
-var _ parsertask.Parser = (*k8sEventParser)(nil)
+var _ legacyparser.Parser = (*k8sEventParser)(nil)

@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -111,6 +111,6 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 	return nil
 }
 
-var _ parsertask.Parser = (*computeAPIParser)(nil)
+var _ legacyparser.Parser = (*computeAPIParser)(nil)
 
-var ComputeAPIParserTask = parsertask.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(gke_compute_api_taskid.ComputeAPIParserTaskID, &computeAPIParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)

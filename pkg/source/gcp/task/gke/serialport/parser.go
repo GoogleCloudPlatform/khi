@@ -17,8 +17,8 @@ package serialport
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -79,6 +79,6 @@ func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 	return nil
 }
 
-var _ parsertask.Parser = (*SerialPortLogParser)(nil)
+var _ legacyparser.Parser = (*SerialPortLogParser)(nil)
 
-var GKESerialPortLogParseTask = parsertask.NewParserTaskFromParser(serialport_taskid.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)
+var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(serialport_taskid.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, inspectiontype.GKEBasedClusterInspectionTypes)

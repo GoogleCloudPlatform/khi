@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -45,7 +45,7 @@ var (
 // Parse airflow-scheduler logs and make them into TaskInstances.
 // This parser will detect these lifecycles;
 // - running
-var _ parsertask.Parser = &AirflowWorkerParser{}
+var _ legacyparser.Parser = &AirflowWorkerParser{}
 
 type AirflowWorkerParser struct {
 	queryTaskId   taskid.TaskReference[[]*log.Log]

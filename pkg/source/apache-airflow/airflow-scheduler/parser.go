@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -81,7 +81,7 @@ func (t *AirflowSchedulerParser) TargetLogType() enum.LogType {
 	return t.targetLogType
 }
 
-var _ parsertask.Parser = &AirflowSchedulerParser{}
+var _ legacyparser.Parser = &AirflowSchedulerParser{}
 
 func (*AirflowSchedulerParser) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}

@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -172,9 +172,9 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 	return nil
 }
 
-var _ parsertask.Parser = (*multiCloudAuditLogParser)(nil)
+var _ legacyparser.Parser = (*multiCloudAuditLogParser)(nil)
 
-var MultiCloudAuditLogParseJob = parsertask.NewParserTaskFromParser(multicloud_api_taskid.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
+var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(multicloud_api_taskid.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, inspectiontype.GKEMultiCloudClusterInspectionTypes)
 
 type multiCloudResource struct {
 	ClusterType  string // aws or azure

@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -196,9 +196,9 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 	return nil
 }
 
-var _ parsertask.Parser = (*onpremCloudAuditLogParser)(nil)
+var _ legacyparser.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = parsertask.NewParserTaskFromParser(onprem_api_taskid.OnPremCloudAPIParserTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
+var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(onprem_api_taskid.OnPremCloudAPIParserTaskID, &onpremCloudAuditLogParser{}, true, inspectiontype.GDCClusterInspectionTypes)
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/parsertask"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -153,6 +153,6 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 	return nil
 }
 
-var _ parsertask.Parser = (*gceNetworkParser)(nil)
+var _ legacyparser.Parser = (*gceNetworkParser)(nil)
 
-var NetowrkAPIParserTask = parsertask.NewParserTaskFromParser(network_api_taskid.GCPNetworkLogParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
+var NetowrkAPIParserTask = legacyparser.NewParserTaskFromParser(network_api_taskid.GCPNetworkLogParserTaskID, &gceNetworkParser{}, true, inspectiontype.GKEBasedClusterInspectionTypes)
