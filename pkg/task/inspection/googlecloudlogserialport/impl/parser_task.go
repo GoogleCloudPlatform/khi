@@ -80,4 +80,4 @@ func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 var _ legacyparser.Parser = (*SerialPortLogParser)(nil)
 
-var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogserialport_contract.SerialPortLogParserTaskID, &SerialPortLogParser{}, false, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
+var GKESerialPortLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogserialport_contract.SerialPortLogParserTaskID, &SerialPortLogParser{}, 10000, false, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

@@ -33,7 +33,7 @@ import (
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
-var GKENodeLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8snode_contract.GKENodeLogParseTaskID, &k8sNodeParser{}, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
+var GKENodeLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8snode_contract.GKENodeLogParseTaskID, &k8sNodeParser{}, 3000, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
 
 const ContainerdStartingMsg = "starting containerd"
 const DockerdStartingMsg = "Starting up"

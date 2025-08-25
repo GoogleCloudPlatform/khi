@@ -199,4 +199,4 @@ func getRelatedNodepool(l *log.Log) (string, error) {
 
 var _ legacyparser.Parser = (*gkeAuditLogParser)(nil)
 
-var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudloggkeapiaudit_contract.GKEAuditParserTaskID, &gkeAuditLogParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
+var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudloggkeapiaudit_contract.GKEAuditParserTaskID, &gkeAuditLogParser{}, 5000, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

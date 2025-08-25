@@ -128,7 +128,7 @@ func (r *RecorderTaskManager) Register(registry coretask.TaskRegistry, inspectio
 	}
 	waiterTask := inspectiontaskbase.NewInspectionTask(r.taskID, recorderTaskIds, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
-	}, inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, true, inspectionTypes...))
+	}, inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Log", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, 1000, true, inspectionTypes...))
 	err := registry.AddTask(waiterTask)
 	return err
 }

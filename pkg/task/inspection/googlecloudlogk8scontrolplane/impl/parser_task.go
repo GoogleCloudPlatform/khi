@@ -82,4 +82,4 @@ func (k *k8sControlPlaneComponentParser) Parse(ctx context.Context, l *log.Log, 
 
 var _ legacyparser.Parser = (*k8sControlPlaneComponentParser)(nil)
 
-var GKEK8sControlPlaneComponentLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, true, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
+var GKEK8sControlPlaneComponentLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentParserTaskID, &k8sControlPlaneComponentParser{}, 9000, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)

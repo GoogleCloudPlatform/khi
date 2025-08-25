@@ -197,7 +197,7 @@ func (*onpremCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *his
 
 var _ legacyparser.Parser = (*onpremCloudAuditLogParser)(nil)
 
-var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogParseTaskID, &onpremCloudAuditLogParser{}, true, googlecloudinspectiontypegroup_contract.GDCClusterInspectionTypes)
+var OnPremCloudAuditLogParseTask = legacyparser.NewParserTaskFromParser(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogParseTaskID, &onpremCloudAuditLogParser{}, 5000, true, googlecloudinspectiontypegroup_contract.GDCClusterInspectionTypes)
 
 type onpremResource struct {
 	ClusterType  string // aws or azure

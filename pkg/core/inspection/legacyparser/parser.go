@@ -65,7 +65,7 @@ type Parser interface {
 }
 
 // NewParserTaskFromParser generates a coretask.Task that consumes array of LogEntities, grouping them by given log field key and call parse function concurrently.
-func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
+func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parser Parser, featureOrder int, isDefaultFeature bool, availableInspectionTypes []string, labelOpts ...coretask.LabelOpt) coretask.Task[struct{}] {
 	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(parser.Dependencies(), parser.LogTask()), func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
@@ -179,6 +179,6 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 		return struct{}{}, nil
 	},
 		append([]coretask.LabelOpt{
-			inspectioncore_contract.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), isDefaultFeature, availableInspectionTypes...),
+			inspectioncore_contract.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), featureOrder, isDefaultFeature, availableInspectionTypes...),
 		}, labelOpts...)...)
 }

@@ -122,16 +122,16 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 		formtask.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspectioncore_contract.InspectionTypeLabel("bar")),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, false, "foo")),
+		}, inspectioncore_contract.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, 10, false, "foo")),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo2-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, false, "foo")),
+		}, inspectioncore_contract.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, 10, false, "foo")),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, false, "bar")),
+		}, inspectioncore_contract.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, 10, false, "bar")),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, false, "qux")),
+		}, inspectioncore_contract.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, 10, false, "qux")),
 	}
 
 	for _, task := range tasks {

@@ -100,4 +100,4 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 var _ legacyparser.Parser = (*k8sContainerParser)(nil)
 
 // GKEContainerLogParseJob is a parser task for GKE container logs.
-var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontainer_contract.GKEContainerParserTaskID, &k8sContainerParser{}, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
+var GKEContainerLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8scontainer_contract.GKEContainerParserTaskID, &k8sContainerParser{}, 4000, false, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)

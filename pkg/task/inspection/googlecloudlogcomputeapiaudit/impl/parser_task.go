@@ -116,4 +116,4 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 var _ legacyparser.Parser = (*computeAPIParser)(nil)
 
 // ComputeAPIParserTask is the parser task for compute API logs.
-var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlogcomputeapiaudit_contract.ComputeAPIParserTaskID, &computeAPIParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
+var ComputeAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlogcomputeapiaudit_contract.ComputeAPIParserTaskID, &computeAPIParser{}, 6000, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

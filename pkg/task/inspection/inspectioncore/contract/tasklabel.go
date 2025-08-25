@@ -31,6 +31,8 @@ var (
 	LabelKeyFeatureTaskTitle             = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
 	LabelKeyFeatureTaskTargetLogType     = coretask.NewTaskLabelKey[enum.LogType](InspectionTaskPrefix + "feature/log-type")
 	LabelKeyFeatureTaskDescription       = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
+	// LabelKeyFeatureTaskOrder is a label key of an integer assigned for a feature task. Feature task with smaller order is placed at the top of the feature task list.
+	LabelKeyFeatureTaskOrder = coretask.NewTaskLabelKey[int](InspectionTaskPrefix + "feature/order")
 )
 
 type ProgressReportableTaskLabelOptImpl struct{}
@@ -48,6 +50,7 @@ type FeatureTaskLabelImpl struct {
 	title            string
 	description      string
 	logType          enum.LogType
+	featureOrder     int
 	isDefaultFeature bool
 	inspectionTypes  []string
 }
@@ -57,6 +60,7 @@ func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyFeatureTaskTargetLogType, ftl.logType)
 	typedmap.Set(label, LabelKeyFeatureTaskTitle, ftl.title)
 	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
+	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
 	typedmap.Set(label, LabelKeyInspectionTypes, ftl.inspectionTypes)
 }
@@ -68,7 +72,7 @@ func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTas
 
 var _ coretask.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
-func FeatureTaskLabel(title string, description string, logType enum.LogType, isDefaultFeature bool, inspectionTypes ...string) *FeatureTaskLabelImpl {
+func FeatureTaskLabel(title string, description string, logType enum.LogType, featureOrder int, isDefaultFeature bool, inspectionTypes ...string) *FeatureTaskLabelImpl {
 	for i, t := range inspectionTypes {
 		if t == "" {
 			panic(fmt.Sprintf(`Invalid inspection type at index at #%d. Empty inspection type was given to FeatureTaskLabel function. This may be caused because of initialization order issue of global variables.
@@ -79,6 +83,7 @@ Please define task IDs and types used in its type parameter in a different packa
 		title:            title,
 		description:      description,
 		logType:          logType,
+		featureOrder:     featureOrder,
 		isDefaultFeature: isDefaultFeature,
 		inspectionTypes:  inspectionTypes,
 	}

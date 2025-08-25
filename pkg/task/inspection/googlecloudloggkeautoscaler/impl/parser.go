@@ -229,4 +229,4 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *hi
 
 var _ legacyparser.Parser = (*autoscalerLogParser)(nil)
 
-var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(googlecloudloggkeautoscaler_contract.AutoscalerParserTaskID, &autoscalerLogParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
+var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(googlecloudloggkeautoscaler_contract.AutoscalerParserTaskID, &autoscalerLogParser{}, 8000, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

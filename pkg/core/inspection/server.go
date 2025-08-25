@@ -43,6 +43,8 @@ type FeatureListItem struct {
 	Label       string `json:"label"`
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
+	// Order is the criteria of sorting []FeatureListItem.
+	Order int `json:"-"`
 }
 
 type InspectionDryRunResult struct {

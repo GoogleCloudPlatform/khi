@@ -175,7 +175,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 var _ legacyparser.Parser = (*multiCloudAuditLogParser)(nil)
 
 // MultiCloudAuditLogParseJob is the parser task for multicloud audit logs.
-var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, true, googlecloudinspectiontypegroup_contract.GKEMultiCloudClusterInspectionTypes)
+var MultiCloudAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIParserTaskID, &multiCloudAuditLogParser{}, 5000, true, googlecloudinspectiontypegroup_contract.GKEMultiCloudClusterInspectionTypes)
 
 type multiCloudResource struct {
 	ClusterType  string // aws or azure

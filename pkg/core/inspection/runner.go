@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -40,6 +41,9 @@ import (
 )
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
+
+// DefaultFeatureTaskOrder is a number used for sorting feature task when the task has no LabelKeyFeatureTaskOrder label.
+var DefaultFeatureTaskOrder = 1000000
 
 // InspectionTaskRunner manages the lifecycle of a single inspection instance.
 // It handles task graph resolution, execution, and result retrieval for a given inspection type and feature set.
@@ -119,6 +123,7 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 	for _, featureTask := range featureSet.GetAll() {
 		label := typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", featureTask.UntypedID()))
 		description := typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyFeatureTaskDescription, "")
+		order := typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyFeatureTaskOrder, DefaultFeatureTaskOrder)
 		enabled := false
 		if v, exist := i.enabledFeatures[featureTask.UntypedID().String()]; exist && v {
 			enabled = true
@@ -128,8 +133,10 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 			Label:       label,
 			Description: description,
 			Enabled:     enabled,
+			Order:       order,
 		})
 	}
+	slices.SortFunc(features, func(a FeatureListItem, b FeatureListItem) int { return a.Order - b.Order })
 	return features, nil
 }
 

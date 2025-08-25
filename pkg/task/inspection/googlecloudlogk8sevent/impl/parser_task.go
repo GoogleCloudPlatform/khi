@@ -31,7 +31,7 @@ import (
 )
 
 // GKEK8sEventLogParseJob is the parser task for Kubernetes Event logs.
-var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8sevent_contract.GKEK8sEventLogParserTaskID, &k8sEventParser{}, true, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
+var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8sevent_contract.GKEK8sEventLogParserTaskID, &k8sEventParser{}, 2000, true, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
 
 type k8sEventParser struct {
 }

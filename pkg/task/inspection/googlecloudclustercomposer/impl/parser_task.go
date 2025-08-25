@@ -27,6 +27,7 @@ import (
 var AirflowSchedulerLogParseTask = legacyparser.NewParserTaskFromParser(
 	googlecloudclustercomposer_contract.AirflowSchedulerLogParserTaskID,
 	airflowscheduler.NewAirflowSchedulerParser(googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
+	100000,
 	true,
 	[]string{googlecloudclustercomposer_contract.InspectionTypeId},
 )
@@ -35,6 +36,7 @@ var AirflowSchedulerLogParseTask = legacyparser.NewParserTaskFromParser(
 var AirflowWorkerLogParseTask = legacyparser.NewParserTaskFromParser(
 	googlecloudclustercomposer_contract.AirflowWorkerLogParserTaskID,
 	airflowworker.NewAirflowWorkerParser(googlecloudclustercomposer_contract.ComposerWorkerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
+	101000,
 	true,
 	[]string{googlecloudclustercomposer_contract.InspectionTypeId},
 )
@@ -43,6 +45,7 @@ var AirflowWorkerLogParseTask = legacyparser.NewParserTaskFromParser(
 var AirflowDagProcessorLogParseTask = legacyparser.NewParserTaskFromParser(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogParserTaskID,
 	airflowdagprocessor.NewAirflowDagProcessorParser("/home/airflow/gcs/dags/", googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
+	102000,
 	true,
 	[]string{googlecloudclustercomposer_contract.InspectionTypeId},
 )

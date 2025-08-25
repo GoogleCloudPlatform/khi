@@ -166,4 +166,4 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 var _ legacyparser.Parser = (*gceNetworkParser)(nil)
 
 // NetworkAPIParserTask is the parser task for network API audit logs.
-var NetworkAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlognetworkapiaudit_contract.NetworkAPIParserTaskID, &gceNetworkParser{}, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
+var NetworkAPIParserTask = legacyparser.NewParserTaskFromParser(googlecloudlognetworkapiaudit_contract.NetworkAPIParserTaskID, &gceNetworkParser{}, 7000, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
