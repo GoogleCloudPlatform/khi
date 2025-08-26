@@ -551,3 +551,102 @@ These form field configurations are stored in the form metadata.
 metadata := khictx.MustGetValue(ctx, inspection_task_contextkey.InspectionRunMetadata)
 formFields, found := typedmap.Get(metadata, form_metadata.FormFieldSetMetadataKey)
 ```
+
+## Writing a Task Graph for Log Parsing
+
+KHI uses its robust task system to perform log parsing. This architecture makes KHI highly extensible—new capabilities can be added simply by creating new tasks—and allows it to fully utilize Go's concurrency features.
+
+### Legacy standard parser
+
+```mermaid
+flowchart TD
+    FormFields --> Query
+    Query --> Parser
+```
+
+- **FormFields**: Tasks created using the base task types defined in `pkg/core/inspection/formtask`. These tasks are responsible for receiving user input before an inspection begins.
+- **Query**: Tasks that use `pkg/source/gcp/query`. These tasks take input from the FormField tasks, generate a query, execute it against Cloud Logging, and produce `[]*log.Log` as their result.
+- **Parser**: Tasks that implement the `Parser` interface defined in `pkg/inspection/parsertask`. A parser consumes the logs from a Query task, groups them using a specified function, and processes these groups in parallel.
+
+Most of the currently implemented log parsers in KHI are based on this legacy parser structure.
+
+### The Modern Parser Architecture
+
+Some parsing scenarios require more complex workflows. For instance, a parser might need to process the same logs multiple times or generate intermediate data structures before creating the final `History` objects. A practical example is associating container IDs with container names: it's necessary to first scan all containerd startup logs to build a complete mapping of container IDs to container names. Only then can other logs containing just container IDs be correctly attributed to their respective container names.
+
+Because the task structure required after querying and generating the initial `[]*log.Log` can vary significantly depending on the log source and the desired output, KHI provides a set of fundamental task primitives to build flexible and powerful parsers.
+
+#### FieldSetReadTask
+
+A common and critical step in parsing is reading specific fields from a single log entry. Since this operation is typically independent of other logs, it can be performed in parallel. Instead of having a monolithic parser read fields sequentially, KHI uses the `FieldSetReadTask` to process them concurrently. This task reads predefined fields from each log in parallel and attaches the strongly-typed results (called FieldSets) to the corresponding log object.
+
+For example, you can define `FieldSet` types and their corresponding readers to extract specific data:
+
+```go
+// Define a struct for the data you want to extract.
+type PodInfoFieldSet struct {
+    PodName      string
+    ContainerID  string
+}
+func (fs *PodInfoFieldSet) Kind() string { return "PodInfo" }
+
+// Create a reader that implements the log.FieldSetReader interface.
+type PodInfoReader struct{}
+func (r *PodInfoReader) FieldSetKind() string { return "PodInfo" }
+func (r *PodInfoReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+    // Logic to read from the log's structured data.
+    return &PodInfoFieldSet{
+        PodName:      reader.ReadStringOrDefault("podName", ""),
+        ContainerID:  reader.ReadStringOrDefault("containerID", ""),
+    }, nil
+}
+
+// In your task graph, create a FieldSetReadTask.
+var ReadPodInfoTask = inspectiontaskbase.NewFieldSetReadTask(
+    ReadPodInfoTaskID,
+    SourceLogsTaskID.Ref(), // Depends on a task that returns []*log.Log, likely from a Query.
+    []log.FieldSetReader{&PodInfoReader{}},
+)
+```
+
+This task itself does not return any logs. However, subsequent tasks in the graph can now access the parsed `PodInfoFieldSet` from each log object, ensuring that the expensive parsing step is done only once and in parallel.
+
+#### NewLogGrouperTask
+
+While log parsing often needs to follow a chronological order, operations on different resources (like two different Pods) can usually be processed independently and in parallel. To enable this, `NewLogGrouperTask` is used to group logs based on a specific field, such as a resource name or ID.
+
+```go
+// This task takes a list of logs and a grouper function.
+var GroupLogsByPodTask = inspectiontaskbase.NewLogGrouperTask(
+    GroupLogsByPodTaskID,
+    SourceLogsTaskID.Ref(), // Depends on the source logs
+    func(ctx context.Context, l *log.Log) string {
+        // Group by Pod name. Assumes FieldSetReadTask has already run.
+        if podInfo, ok := log.GetFieldSet(l, &PodInfoFieldSet{}); ok {
+            return podInfo.PodName
+        }
+        return "unknown-pod"
+    },
+)
+```
+
+This allows downstream tasks to process the logs for each Pod in parallel, significantly improving performance.
+
+#### NewLogFilterTask
+
+Often, a parser only needs to operate on a subset of logs. `NewLogFilterTask` provides a simple way to filter a list of logs based on a predicate function. This is useful for narrowing down the scope of subsequent, more expensive processing tasks.
+
+```go
+// This task takes a list of logs and a filter function.
+var FilterPodLogsTask = inspectiontaskbase.NewLogFilterTask(
+    FilterPodLogsTaskID,
+    SourceLogsTaskID.Ref(), // Depends on the source logs
+    func(ctx context.Context, l *log.Log) bool {
+        // Keep only logs related to Pods. Assumes FieldSetReadTask has run.
+        if podInfo, ok := log.GetFieldSet(l, &PodInfoFieldSet{}); ok {
+            return podInfo.PodName != ""
+        }
+        return false
+    },
+)
+```
