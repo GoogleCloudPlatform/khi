@@ -18,8 +18,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestNetworkEndpointGroup(t *testing.T) {

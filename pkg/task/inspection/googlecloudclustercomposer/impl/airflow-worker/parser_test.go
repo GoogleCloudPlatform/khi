@@ -21,8 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/stretchr/testify/assert"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func Test__airflowWorkerRunningHostFn(t *testing.T) {

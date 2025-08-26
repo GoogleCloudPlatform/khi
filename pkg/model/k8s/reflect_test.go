@@ -21,7 +21,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 

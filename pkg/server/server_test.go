@@ -46,8 +46,6 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testPopupForm struct{}

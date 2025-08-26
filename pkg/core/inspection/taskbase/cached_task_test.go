@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"

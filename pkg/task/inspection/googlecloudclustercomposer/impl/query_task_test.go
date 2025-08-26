@@ -33,7 +33,6 @@ import (
 	"fmt"
 	"testing"
 
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"

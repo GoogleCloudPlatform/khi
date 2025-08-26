@@ -18,8 +18,6 @@ import (
 	"errors"
 	"testing"
 	"time"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testLeaseHolder struct {

@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 

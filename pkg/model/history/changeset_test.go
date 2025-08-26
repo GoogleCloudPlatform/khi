@@ -27,8 +27,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testInsertIDTimeStampCommonFieldReader struct {

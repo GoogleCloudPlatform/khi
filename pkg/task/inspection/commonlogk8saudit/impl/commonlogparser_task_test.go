@@ -14,10 +14,6 @@
 
 package commonlogk8saudit_impl
 
-import (
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
-)
-
 // TODO: Move gcp specific extractor tests
 
 // func TestParseResourceSpecificParserInput(t *testing.T) {

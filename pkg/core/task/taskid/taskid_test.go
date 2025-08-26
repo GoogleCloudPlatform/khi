@@ -16,8 +16,6 @@ package taskid
 
 import (
 	"testing"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestNewTaskReference(t *testing.T) {

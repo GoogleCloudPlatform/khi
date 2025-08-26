@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/token"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type mockFailClient struct {

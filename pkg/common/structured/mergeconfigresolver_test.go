@@ -16,8 +16,6 @@ package structured
 
 import (
 	"testing"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestMergeConfigResolverWithoutParent(t *testing.T) {

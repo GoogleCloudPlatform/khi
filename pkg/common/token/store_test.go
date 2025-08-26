@@ -19,8 +19,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestBasicTokenStore_GetType(t *testing.T) {

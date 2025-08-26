@@ -27,8 +27,6 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type stubAuditLogFieldExtractor struct {

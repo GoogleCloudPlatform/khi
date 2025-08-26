@@ -21,25 +21,38 @@ import (
 	"go/format"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 )
 
 const (
-	templatePath     = "scripts/backend-codegen/templates/inspection_registration.go.tpl"
-	outputFilePath   = "pkg/generated/zzz_inspection_registration.generated.go"
-	inspectionPkgDir = "pkg/task/inspection"
-	goModPath        = "go.mod"
+	inspectionRegistrationTemplatePath = "scripts/backend-codegen/templates/zzz_register_inspection.go.tpl"
+	testflagTemplatePath               = "scripts/backend-codegen/templates/zzz_testflag_test.go.tpl"
+	inspectionRegistrationOutputPath   = "pkg/generated/zzz_register_inspection.go"
+	testFlagOutputFileName             = "zzz_testflag_test.go"
+	inspectionPkgDir                   = "pkg/task/inspection"
+	testPkgDir                         = "pkg"
+	goModPath                          = "go.mod"
 )
 
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
-	log.Printf("Successfully generated %s\n", outputFilePath)
 }
 
 func run() error {
+	if err := generateInspectionRegistration(); err != nil {
+		return fmt.Errorf("failed to generate inspection registration: %w", err)
+	}
+	if err := generateTestflags(); err != nil {
+		return fmt.Errorf("failed to generate testflags: %w", err)
+	}
+	return nil
+}
+
+func generateInspectionRegistration() error {
 	repoPackageName, err := getRepoPackageName(goModPath)
 	if err != nil {
 		return fmt.Errorf("failed to get repository package name: %w", err)
@@ -55,7 +68,7 @@ func run() error {
 		return fmt.Errorf("failed to find packages requiring registration: %w", err)
 	}
 
-	tmpl, err := template.ParseFiles(templatePath)
+	tmpl, err := template.ParseFiles(inspectionRegistrationTemplatePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse template: %w", err)
 	}
@@ -70,8 +83,39 @@ func run() error {
 		return fmt.Errorf("failed to format generated code: %w", err)
 	}
 
-	if err := os.WriteFile(outputFilePath, formattedSource, 0644); err != nil {
+	if err := os.WriteFile(inspectionRegistrationOutputPath, formattedSource, 0644); err != nil {
 		return fmt.Errorf("failed to write generated file: %w", err)
+	}
+	return nil
+}
+
+func generateTestflags() error {
+	finder := NewTestPackageFinder(testPkgDir)
+	packages, err := finder.Find()
+	if err != nil {
+		return fmt.Errorf("failed to find test packages: %w", err)
+	}
+
+	tmpl, err := template.ParseFiles(testflagTemplatePath)
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	for _, pkg := range packages {
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, pkg); err != nil {
+			return fmt.Errorf("failed to execute template for %s: %w", pkg.DirectoryPath, err)
+		}
+
+		formattedSource, err := format.Source(buf.Bytes())
+		if err != nil {
+			return fmt.Errorf("failed to format generated code for %s: %w", pkg.DirectoryPath, err)
+		}
+
+		outputPath := filepath.Join(pkg.DirectoryPath, testFlagOutputFileName)
+		if err := os.WriteFile(outputPath, formattedSource, 0644); err != nil {
+			return fmt.Errorf("failed to write generated file for %s: %w", pkg.DirectoryPath, err)
+		}
 	}
 
 	return nil

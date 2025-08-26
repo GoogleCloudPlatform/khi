@@ -17,8 +17,6 @@ package commonlogk8saudit_contract
 import (
 	"fmt"
 	"testing"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestTypesAreFilled(t *testing.T) {

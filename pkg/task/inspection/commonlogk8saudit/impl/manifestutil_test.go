@@ -24,8 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 
 	"github.com/google/go-cmp/cmp"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestParseDeletionStatus(t *testing.T) {

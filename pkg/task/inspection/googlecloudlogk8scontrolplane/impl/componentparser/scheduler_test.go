@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )

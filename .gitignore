@@ -30,3 +30,4 @@ node_modules/
 
 # Generated Golang files
 pkg/generated/*.go
+zzz_*.go

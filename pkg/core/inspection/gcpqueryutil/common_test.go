@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestTimeRangeQuerySection(t *testing.T) {

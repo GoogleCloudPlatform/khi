@@ -24,8 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestAuthParameters(t *testing.T) {

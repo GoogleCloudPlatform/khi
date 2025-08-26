@@ -26,8 +26,6 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testFormConfigurator = func(builder *TextFormTaskBuilder[string])
