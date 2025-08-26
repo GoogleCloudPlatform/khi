@@ -18,8 +18,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestLogMetadata(t *testing.T) {

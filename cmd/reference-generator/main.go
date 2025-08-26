@@ -25,13 +25,9 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/generator"
 	"github.com/GoogleCloudPlatform/khi/pkg/document/model"
-	common_k8saudit "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/generated"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
-
-var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
 
 // fatal logs the error and exits if err is not nil.
 func fatal(err error, msg string) {
@@ -41,14 +37,8 @@ func fatal(err error, msg string) {
 	}
 }
 
-func init() {
-	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
-	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
-	taskSetRegistrer = append(taskSetRegistrer, common_k8saudit.Register)
-}
-
 func main() {
-	ioconfig, err := inspection_contract.NewIOConfigForTest()
+	ioconfig, err := inspectioncore_contract.NewIOConfigForTest()
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		os.Exit(1)
@@ -58,11 +48,10 @@ func main() {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}
 
-	for i, taskSetRegistrer := range taskSetRegistrer {
-		err = taskSetRegistrer(inspectionServer)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to call initialize calls for taskSetRegistrer(#%d)\n%v", i, err))
-		}
+	err = generated.RegisterAllInspectionTasks(inspectionServer)
+	if err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	generator, err := generator.NewDocumentGeneratorFromTemplateFileGlob("./docs/template/reference/*.template.md")

@@ -25,22 +25,21 @@ import (
 	"strings"
 	"syscall"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/accesstoken"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	common "github.com/GoogleCloudPlatform/khi/pkg/source/common/k8s_audit"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/accesstoken"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api/quotaproject"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/oss"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	"cloud.google.com/go/profiler"
 )
@@ -73,8 +72,6 @@ func displayStartMessage(host string, port int) {
 	}
 }
 
-var taskSetRegistrer []coreinspection.InspectionRegistrationFunc = make([]coreinspection.InspectionRegistrationFunc, 0)
-
 func init() {
 	parameters.AddStore(parameters.Help)
 	parameters.AddStore(parameters.Common)
@@ -82,10 +79,6 @@ func init() {
 	parameters.AddStore(parameters.Job)
 	parameters.AddStore(parameters.Auth)
 	parameters.AddStore(parameters.Debug)
-
-	taskSetRegistrer = append(taskSetRegistrer, gcp.Register)
-	taskSetRegistrer = append(taskSetRegistrer, oss.Register)
-	taskSetRegistrer = append(taskSetRegistrer, common.Register)
 }
 
 func handleTerminateSignal(exitCh chan<- int) {
@@ -130,9 +123,9 @@ func run() int {
 
 	k8s.GenerateDefaultMergeConfig()
 	if *parameters.Auth.QuotaProjectID != "" {
-		api.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
+		googlecloudapi.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
 	}
-	ioconfig, err := inspection_contract.NewIOConfigFromParameter(parameters.Common)
+	ioconfig, err := inspectioncore_contract.NewIOConfigFromParameter(parameters.Common)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
 		return 1
@@ -143,11 +136,10 @@ func run() int {
 	}
 
 	if !*parameters.Server.ViewerMode {
-		for i, taskSetRegistrer := range taskSetRegistrer {
-			err = taskSetRegistrer(inspectionServer)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Failed to call initialize calls for taskSetRegistrer(#%d)\n%v", i, err))
-			}
+		err := generated.RegisterAllInspectionTasks(inspectionServer)
+		if err != nil {
+			slog.Error(err.Error())
+			return 1
 		}
 	}
 
@@ -239,7 +231,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
-			err = t.Run(context.Background(), &inspection_contract.InspectionRequest{
+			err = t.Run(context.Background(), &inspectioncore_contract.InspectionRequest{
 				Values: values,
 			})
 			if err != nil {

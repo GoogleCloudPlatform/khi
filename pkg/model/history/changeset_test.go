@@ -18,17 +18,35 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	gcp_log "github.com/GoogleCloudPlatform/khi/pkg/source/gcp/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 	"github.com/google/go-cmp/cmp"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
+
+type testInsertIDTimeStampCommonFieldReader struct {
+}
+
+// FieldSetKind implements log.FieldSetReader.
+func (t *testInsertIDTimeStampCommonFieldReader) FieldSetKind() string {
+	return (&log.CommonFieldSet{}).Kind()
+}
+
+// Read implements log.FieldSetReader.
+func (t *testInsertIDTimeStampCommonFieldReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	return &log.CommonFieldSet{
+		Timestamp: reader.ReadTimestampOrDefault("timestamp", time.Now()),
+		Severity:  enum.SeverityInfo,
+		DisplayID: reader.ReadStringOrDefault("insertID", "unknown"),
+	}, nil
+}
+
+var _ (log.FieldSetReader) = (*testInsertIDTimeStampCommonFieldReader)(nil)
 
 func TestRecordLogSummary(t *testing.T) {
 	log := testlog.NewEmptyLogWithID("foo")
@@ -185,7 +203,7 @@ func TestChangesetFlushIsThreadSafe(t *testing.T) {
 			l[i] = append(l[i], lt.With(
 				testlog.StringField("insertId", fmt.Sprintf("id-group%d-%d", i, li)),
 				testlog.StringField("timestamp", fmt.Sprintf("2024-01-01T%02d:%02d:%02dZ", hour, minute, seconds)),
-			).MustBuildLogEntity(&gcp_log.GCPCommonFieldSetReader{}))
+			).MustBuildLogEntity(&testCommonFieldSetReader{}))
 		}
 	}
 	for _, group := range l {

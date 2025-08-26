@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // PreviousTaskResult is the combination of the cached value and a digest of its dependency.
@@ -37,7 +37,7 @@ type PreviousTaskResult[T any] struct {
 // NewCachedTask generates a task which can reuse the value last time.
 func NewCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue PreviousTaskResult[T]) (PreviousTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.NewTask(taskID, depdendencies, func(ctx context.Context) (T, error) {
-		inspectionSharedMap := khictx.MustGetValue(ctx, inspection_contract.GlobalSharedMap)
+		inspectionSharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.GlobalSharedMap)
 		cacheKey := typedmap.NewTypedKey[PreviousTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
 		cachedResult := typedmap.GetOrDefault(inspectionSharedMap, cacheKey, PreviousTaskResult[T]{
 			Value:            *new(T),

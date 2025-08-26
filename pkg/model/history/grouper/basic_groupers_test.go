@@ -19,8 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestAllDependentLogGrouper(t *testing.T) {

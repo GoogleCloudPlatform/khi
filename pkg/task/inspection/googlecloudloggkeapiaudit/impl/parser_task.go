@@ -1,0 +1,202 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package googlecloudloggkeapiaudit_impl
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
+	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
+)
+
+type gkeAuditLogParser struct {
+}
+
+// TargetLogType implements parsertask.Parser.
+func (p *gkeAuditLogParser) TargetLogType() enum.LogType {
+	return enum.LogTypeGkeAudit
+}
+
+// Dependencies implements parsertask.Parser.
+func (*gkeAuditLogParser) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
+}
+
+// Description implements parsertask.Parser.
+func (*gkeAuditLogParser) Description() string {
+	return `Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool`
+}
+
+// GetParserName implements parsertask.Parser.
+func (*gkeAuditLogParser) GetParserName() string {
+	return `GKE Audit logs`
+}
+
+// LogTask implements parsertask.Parser.
+func (*gkeAuditLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudloggkeapiaudit_contract.GKEAuditLogQueryTaskID.Ref()
+}
+
+func (*gkeAuditLogParser) Grouper() grouper.LogGrouper {
+	return grouper.AllDependentLogGrouper
+}
+
+// Parse implements parsertask.Parser.
+func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	if err != nil {
+		return err
+	}
+	clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
+	isFirst := l.Has("operation.first")
+	isLast := l.Has("operation.last")
+	operationId := l.ReadStringOrDefault("operation.id", "unknown")
+	methodName := l.ReadStringOrDefault("protoPayload.methodName", "unknown")
+	principal := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
+	statusCode := l.ReadIntOrDefault("protoPayload.status.code", 0)
+	shouldRecordResourceRevision := statusCode == 0
+	var operationResourcePath resourcepath.ResourcePath
+
+	nodepoolName, err := getRelatedNodepool(l)
+	if err != nil {
+		// assume this is a cluster operation
+		clusterResourcePath := resourcepath.Cluster(clusterName)
+		if shouldRecordResourceRevision {
+			if strings.HasSuffix(methodName, "CreateCluster") {
+				bodyRaw, _ := l.Serialize("protoPayload.request.cluster", &structured.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the cluster setting when the field is not available.
+				state := enum.RevisionStateExisting
+				if isFirst {
+					state = enum.RevisionStateProvisioning
+				}
+				cs.RecordRevision(clusterResourcePath, &history.StagingResourceRevision{
+					Verb:       enum.RevisionVerbCreate,
+					State:      state,
+					Requestor:  principal,
+					ChangeTime: commonFieldSet.Timestamp,
+					Partial:    false,
+					Body:       string(bodyRaw),
+				})
+			}
+			if strings.HasSuffix(methodName, "DeleteCluster") {
+				state := enum.RevisionStateDeleted
+				if isFirst {
+					state = enum.RevisionStateDeleting
+				}
+				cs.RecordRevision(clusterResourcePath, &history.StagingResourceRevision{
+					Verb:       enum.RevisionVerbDelete,
+					State:      state,
+					Requestor:  principal,
+					ChangeTime: commonFieldSet.Timestamp,
+					Partial:    false,
+					Body:       "",
+				})
+			}
+		}
+
+		methodNameSplitted := strings.Split(methodName, ".")
+		methodVerb := methodNameSplitted[len(methodNameSplitted)-1]
+		operationResourcePath = resourcepath.Operation(clusterResourcePath, methodVerb, operationId)
+
+		cs.RecordEvent(clusterResourcePath)
+	} else {
+		nodepoolResourcePath := resourcepath.Nodepool(clusterName, nodepoolName)
+		if shouldRecordResourceRevision {
+			if strings.HasSuffix(methodName, "CreateNodePool") {
+				bodyRaw, _ := l.Serialize("protoPayload.request.nodePool", &structured.YAMLNodeSerializer{}) // Ignore the error and use "" as the body of the nodepool setting when the field is not available.
+				state := enum.RevisionStateExisting
+				if isFirst {
+					state = enum.RevisionStateProvisioning
+				}
+				cs.RecordRevision(nodepoolResourcePath, &history.StagingResourceRevision{
+					Verb:       enum.RevisionVerbCreate,
+					State:      state,
+					Requestor:  principal,
+					ChangeTime: commonFieldSet.Timestamp,
+					Partial:    false,
+					Body:       string(bodyRaw),
+				})
+			}
+			if strings.HasSuffix(methodName, "DeleteNodePool") {
+				state := enum.RevisionStateDeleted
+				if isFirst {
+					state = enum.RevisionStateDeleting
+				}
+				cs.RecordRevision(nodepoolResourcePath, &history.StagingResourceRevision{
+					Verb:       enum.RevisionVerbDelete,
+					State:      state,
+					Requestor:  principal,
+					ChangeTime: commonFieldSet.Timestamp,
+					Partial:    false,
+					Body:       "",
+				})
+			}
+		}
+		cs.RecordEvent(nodepoolResourcePath)
+		methodNameSplitted := strings.Split(methodName, ".")
+		methodVerb := methodNameSplitted[len(methodNameSplitted)-1]
+		operationResourcePath = resourcepath.Operation(nodepoolResourcePath, methodVerb, operationId)
+	}
+
+	// If this was an operation, it will be recorded as operation data
+	if !(isLast && isFirst) && (isLast || isFirst) && shouldRecordResourceRevision {
+		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structured.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
+		state := enum.RevisionStateOperationStarted
+		verb := enum.RevisionVerbOperationStart
+		if isLast {
+			state = enum.RevisionStateOperationFinished
+			verb = enum.RevisionVerbOperationFinish
+		}
+		cs.RecordRevision(operationResourcePath, &history.StagingResourceRevision{
+			Verb:       verb,
+			State:      state,
+			Requestor:  principal,
+			ChangeTime: commonFieldSet.Timestamp,
+			Partial:    false,
+			Body:       string(requestBodyRaw),
+		})
+	}
+
+	switch {
+	case isFirst && !isLast:
+		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
+	case !isFirst && isLast:
+		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
+	default:
+		cs.RecordLogSummary(methodName)
+	}
+	return nil
+}
+
+func getRelatedNodepool(l *log.Log) (string, error) {
+	nodepoolName, err := l.ReadString("resource.labels.nodepool_name")
+	if err == nil {
+		return nodepoolName, nil
+	}
+	return l.ReadString("protoPayload.request.update.desiredNodePoolId")
+}
+
+var _ legacyparser.Parser = (*gkeAuditLogParser)(nil)
+
+var GKEAuditLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudloggkeapiaudit_contract.GKEAuditParserTaskID, &gkeAuditLogParser{}, 5000, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)

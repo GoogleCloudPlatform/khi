@@ -23,11 +23,9 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testFormConfigurator = func(builder *TextFormTaskBuilder[string])
@@ -196,7 +194,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			taskCtx := context.Background()
 			taskCtx = inspectiontest.WithDefaultTestInspectionTaskContext(taskCtx)
 
-			_, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspection_contract.TaskModeDryRun, map[string]any{
+			_, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore_contract.TaskModeDryRun, map[string]any{
 				"foo": testCase.RequestValue,
 			})
 			if testCase.ExpectedError != "" {
@@ -210,7 +208,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				if err != nil {
 					t.Errorf("task was ended with unexpected error\n%s", err)
 				}
-				metadata := khictx.MustGetValue(taskCtx, inspection_contract.InspectionRunMetadata)
+				metadata := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionRunMetadata)
 
 				fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 				if !found {
@@ -224,7 +222,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 			if testCase.ExpectedError != "" {
 				taskCtx := context.Background()
 				taskCtx = inspectiontest.WithDefaultTestInspectionTaskContext(taskCtx)
-				result, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspection_contract.TaskModeRun, map[string]any{
+				result, _, err := inspectiontest.RunInspectionTask(taskCtx, taskDef, inspectioncore_contract.TaskModeRun, map[string]any{
 					"foo": testCase.RequestValue,
 				})
 
@@ -242,7 +240,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					if result != testCase.RequestValue {
 						t.Errorf("the result is not matching with the expected value\nexpected:%s\nactual:%s", testCase.RequestValue, result)
 					}
-					metadata := khictx.MustGetValue(taskCtx, inspection_contract.InspectionRunMetadata)
+					metadata := khictx.MustGetValue(taskCtx, inspectioncore_contract.InspectionRunMetadata)
 
 					fields, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 					if !found {

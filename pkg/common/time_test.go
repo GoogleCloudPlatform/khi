@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestParseTime(t *testing.T) {

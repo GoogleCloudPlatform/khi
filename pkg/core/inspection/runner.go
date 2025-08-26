@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -35,11 +36,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	inspection_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/impl"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
 )
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
+
+// DefaultFeatureTaskOrder is a number used for sorting feature task when the task has no LabelKeyFeatureTaskOrder label.
+var DefaultFeatureTaskOrder = 1000000
 
 // InspectionTaskRunner manages the lifecycle of a single inspection instance.
 // It handles task graph resolution, execution, and result retrieval for a given inspection type and feature set.
@@ -57,11 +61,11 @@ type InspectionTaskRunner struct {
 	cancel                context.CancelFunc
 	inspectionSharedMap   *typedmap.TypedMap
 	currentInspectionType string
-	ioconfig              *inspection_contract.IOConfig
+	ioconfig              *inspectioncore_contract.IOConfig
 }
 
 // NewInspectionRunner creates a new InspectionTaskRunner.
-func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspection_contract.IOConfig, id string) *InspectionTaskRunner {
+func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig, id string) *InspectionTaskRunner {
 	return &InspectionTaskRunner{
 		inspectionServer:      server,
 		ID:                    id,
@@ -98,9 +102,9 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	if !typeFound {
 		return fmt.Errorf("inspection type %s was not found", inspectionType)
 	}
-	i.availableTasks = coretask.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspection_contract.LabelKeyInspectionTypes, inspectionType, true))
-	defaultFeatures := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_contract.LabelKeyInspectionDefaultFeatureFlag, false))
-	i.requiredTasks = coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_contract.LabelKeyInspectionRequiredFlag, false))
+	i.availableTasks = coretask.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspectioncore_contract.LabelKeyInspectionTypes, inspectionType, true))
+	defaultFeatures := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, false))
+	i.requiredTasks = coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionRequiredFlag, false))
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
 		defaultFeatureIds = append(defaultFeatureIds, featureTask.UntypedID().String())
@@ -114,11 +118,12 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 	if i.availableTasks == nil {
 		return nil, fmt.Errorf("inspection type is not yet initialized")
 	}
-	featureSet := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspection_contract.LabelKeyInspectionFeatureFlag, false))
+	featureSet := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionFeatureFlag, false))
 	features := []FeatureListItem{}
 	for _, featureTask := range featureSet.GetAll() {
-		label := typedmap.GetOrDefault(featureTask.Labels(), inspection_contract.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", featureTask.UntypedID()))
-		description := typedmap.GetOrDefault(featureTask.Labels(), inspection_contract.LabelKeyFeatureTaskDescription, "")
+		label := typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyFeatureTaskTitle, fmt.Sprintf("No label Set!(%s)", featureTask.UntypedID()))
+		description := typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyFeatureTaskDescription, "")
+		order := typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyFeatureTaskOrder, DefaultFeatureTaskOrder)
 		enabled := false
 		if v, exist := i.enabledFeatures[featureTask.UntypedID().String()]; exist && v {
 			enabled = true
@@ -128,8 +133,10 @@ func (i *InspectionTaskRunner) FeatureList() ([]FeatureListItem, error) {
 			Label:       label,
 			Description: description,
 			Enabled:     enabled,
+			Order:       order,
 		})
 	}
+	slices.SortFunc(features, func(a FeatureListItem, b FeatureListItem) int { return a.Order - b.Order })
 	return features, nil
 }
 
@@ -141,7 +148,7 @@ func (i *InspectionTaskRunner) SetFeatureList(featureList []string) error {
 		if err != nil {
 			return err
 		}
-		if !typedmap.GetOrDefault(featureTask.Labels(), inspection_contract.LabelKeyInspectionFeatureFlag, false) {
+		if !typedmap.GetOrDefault(featureTask.Labels(), inspectioncore_contract.LabelKeyInspectionFeatureFlag, false) {
 			return fmt.Errorf("task `%s` is not marked as a feature but requested to be included in the feature set of an inspection", featureTask.UntypedID())
 		}
 		featureTasks = append(featureTasks, featureTask)
@@ -166,7 +173,7 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 		if err != nil {
 			return err
 		}
-		if !typedmap.GetOrDefault(task.Labels(), inspection_contract.LabelKeyInspectionFeatureFlag, false) {
+		if !typedmap.GetOrDefault(task.Labels(), inspectioncore_contract.LabelKeyInspectionFeatureFlag, false) {
 			return fmt.Errorf("task `%s` is not marked as a feature but requested to be included in the feature set of an inspection", task.UntypedID())
 		}
 		if featureMap[featureId] {
@@ -180,23 +187,23 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 }
 
 // withRunContextValues returns a context with the value specific to a single run of task.
-func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspection_contract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
+func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspectioncore_contract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
 	rid := i.runIDGenerator.Generate()
-	runCtx := khictx.WithValue(ctx, inspection_contract.InspectionTaskRunID, rid)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionTaskInspectionID, i.ID)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionSharedMap, i.inspectionSharedMap)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.GlobalSharedMap, inspectionRunnerGlobalSharedMap)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionTaskInput, taskInput)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionTaskMode, runMode)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.CurrentIOConfig, i.ioconfig)
-	runCtx = khictx.WithValue(runCtx, inspection_contract.CurrentHistoryBuilder, history.NewBuilder(i.ioconfig.TemporaryFolder))
+	runCtx := khictx.WithValue(ctx, inspectioncore_contract.InspectionTaskRunID, rid)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionTaskInspectionID, i.ID)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionSharedMap, i.inspectionSharedMap)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.GlobalSharedMap, inspectionRunnerGlobalSharedMap)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionTaskInput, taskInput)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionTaskMode, runMode)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.CurrentIOConfig, i.ioconfig)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.CurrentHistoryBuilder, history.NewBuilder(i.ioconfig.TemporaryFolder))
 
 	return runCtx, nil
 }
 
 // Run executes the inspection. It resolves the task graph, sets up the context
 // and metadata, and starts the task runner asynchronously.
-func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract.InspectionRequest) error {
+func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_contract.InspectionRequest) error {
 	defer i.runnerLock.Unlock()
 	i.runnerLock.Lock()
 	if i.runner != nil {
@@ -208,7 +215,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 		return err
 	}
 
-	runCtx, err := i.withRunContextValues(ctx, inspection_contract.TaskModeRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, inspectioncore_contract.TaskModeRun, req.Values)
 	if err != nil {
 		return err
 	}
@@ -220,7 +227,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 		SuggestedFileName:      "unnamed.khi",
 	}, runnableTaskGraph)
 
-	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionRunMetadata, runMetadata)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionRunMetadata, runMetadata)
 
 	cancelableCtx, cancel := context.WithCancel(runCtx)
 	i.cancel = cancel
@@ -233,7 +240,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 	i.runner = runner
 
 	i.metadata = runMetadata
-	lifecycle.Default.NotifyInspectionStart(khictx.MustGetValue(runCtx, inspection_contract.InspectionTaskRunID), currentInspectionType.Name)
+	lifecycle.Default.NotifyInspectionStart(khictx.MustGetValue(runCtx, inspectioncore_contract.InspectionTaskRunID), currentInspectionType.Name)
 
 	err = i.runner.Run(cancelableCtx)
 	if err != nil {
@@ -262,7 +269,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 			progress.MarkDone()
 			status = "done"
 
-			history, found := typedmap.Get(result, typedmap.NewTypedKey[inspection_contract.Store](inspection_contract.SerializerTaskID.ReferenceIDString()))
+			history, found := typedmap.Get(result, typedmap.NewTypedKey[inspectioncore_contract.Store](inspectioncore_contract.SerializerTaskID.ReferenceIDString()))
 			if !found {
 				slog.ErrorContext(runCtx, fmt.Sprintf("Failed to get generated history after the completion\n%s", err))
 			}
@@ -275,7 +282,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspection_contract
 				}
 			}
 		}
-		lifecycle.Default.NotifyInspectionEnd(khictx.MustGetValue(runCtx, inspection_contract.InspectionTaskRunID), currentInspectionType.Name, status, resultSize)
+		lifecycle.Default.NotifyInspectionEnd(khictx.MustGetValue(runCtx, inspectioncore_contract.InspectionTaskRunID), currentInspectionType.Name, status, resultSize)
 	}()
 	return nil
 }
@@ -292,7 +299,7 @@ func (i *InspectionTaskRunner) Result() (*InspectionRunResult, error) {
 		return nil, err
 	}
 
-	inspectionDataStore, found := typedmap.Get(v, typedmap.NewTypedKey[inspection_contract.Store](inspection_contract.SerializerTaskID.ReferenceIDString()))
+	inspectionDataStore, found := typedmap.Get(v, typedmap.NewTypedKey[inspectioncore_contract.Store](inspectioncore_contract.SerializerTaskID.ReferenceIDString()))
 	if !found {
 		return nil, fmt.Errorf("failed to get the serializer result")
 	}
@@ -321,7 +328,7 @@ func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 
 // DryRun performs a dry run of the inspection.
 // It resolves the task graph and runs it in dry-run mode to collect metadata without executing tasks.
-func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contract.InspectionRequest) (*InspectionDryRunResult, error) {
+func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspectioncore_contract.InspectionRequest) (*InspectionDryRunResult, error) {
 	runnableTaskGraph, err := i.resolveTaskGraph()
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
@@ -333,7 +340,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contr
 		return nil, err
 	}
 
-	runCtx, err := i.withRunContextValues(ctx, inspection_contract.TaskModeDryRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, inspectioncore_contract.TaskModeDryRun, req.Values)
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +348,7 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspection_contr
 
 	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &inspectionmetadata.HeaderMetadata{}, runnableTaskGraph)
 
-	runCtx = khictx.WithValue(runCtx, inspection_contract.InspectionRunMetadata, dryrunMetadata)
+	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionRunMetadata, dryrunMetadata)
 
 	err = runner.Run(runCtx)
 	if err != nil {
@@ -366,7 +373,7 @@ func (i *InspectionTaskRunner) makeLoggers(ctx context.Context, minLevel slog.Le
 	logMetadata := inspectionmetadata.NewLogMetadata()
 	for _, def := range tasks {
 		inspectionID := i.ID
-		runID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskRunID)
+		runID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskRunID)
 		taskID := def.UntypedID()
 		logger.RegisterTaskLogger(inspectionID, taskID, runID, i.makeLogger(minLevel, logMetadata.GetTaskLogBuffer(taskID)))
 	}
@@ -427,13 +434,13 @@ func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
 		return nil, err
 	}
 
-	wrapped, err := set.WrapGraph(taskid.NewDefaultImplementationID[any](inspection_contract.InspectionMainSubgraphName), []taskid.UntypedTaskReference{})
+	wrapped, err := set.WrapGraph(taskid.NewDefaultImplementationID[any](inspectioncore_contract.InspectionMainSubgraphName), []taskid.UntypedTaskReference{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Add required pre process or post process for the subgraph
-	err = wrapped.Add(inspection_impl.SerializeTask)
+	err = wrapped.Add(inspectioncore_impl.SerializeTask)
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +467,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
 
 	progressMeta := inspectionmetadata.NewProgress()
-	progressMeta.SetTotalTaskCount(len(coretask.Subset(taskGraph, filter.NewEnabledFilter(inspection_contract.LabelKeyProgressReportable, false)).GetAll()))
+	progressMeta.SetTotalTaskCount(len(coretask.Subset(taskGraph, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyProgressReportable, false)).GetAll()))
 	typedmap.Set(writableMetadata, inspectionmetadata.ProgressMetadataKey, progressMeta)
 
 	taskGraphStr, err := taskGraph.DumpGraphviz()
@@ -478,7 +485,7 @@ func (i *InspectionTaskRunner) cleanupAfterAnyRun(ctx context.Context, taskGraph
 	tasks := taskGraph.GetAll()
 	for _, task := range tasks {
 		inspectionID := i.ID
-		runID := khictx.MustGetValue(ctx, inspection_contract.InspectionTaskRunID)
+		runID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskRunID)
 		logger.UnregisterTaskLogger(inspectionID, task.UntypedID(), runID)
 	}
 }

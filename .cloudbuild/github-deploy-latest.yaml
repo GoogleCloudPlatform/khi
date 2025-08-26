@@ -30,6 +30,7 @@ steps:
         echo ${TAG_NAME} > VERSION
         apt-get update && apt-get install jq -y
         make prepare-frontend
+        make generate-backend
     id: pre_build_web
     waitFor:
       - dependency_web

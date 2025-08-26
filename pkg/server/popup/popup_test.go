@@ -22,8 +22,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type testPopupForm struct{}

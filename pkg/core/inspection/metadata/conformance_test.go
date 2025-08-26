@@ -17,8 +17,6 @@ package inspectionmetadata
 import (
 	"encoding/json"
 	"testing"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func ConformanceMetadataTypeTest(t *testing.T, m Metadata) {

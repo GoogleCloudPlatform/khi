@@ -27,3 +27,7 @@ node_modules/
 
 # Local environment variables
 .envrc
+
+# Generated Golang files
+pkg/generated/*.go
+zzz_*.go

@@ -18,8 +18,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 type TestFieldSet struct {

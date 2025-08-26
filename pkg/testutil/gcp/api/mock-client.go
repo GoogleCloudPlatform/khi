@@ -17,8 +17,8 @@ package api_test
 import (
 	"context"
 
+	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/source/gcp/api"
 )
 
 type MockApiClient struct {
@@ -26,9 +26,9 @@ type MockApiClient struct {
 	ListLogEntriesFunc  func(ctx context.Context, resourceNames []string, filter string, logSink chan *log.Log) error
 }
 
-// GetClusters implements api.GCPClient.
-func (m *MockApiClient) GetClusters(ctx context.Context, projectId string) ([]api.Cluster, error) {
-	return []api.Cluster{
+// GetClusters implements googlecloudapi.GCPClient.
+func (m *MockApiClient) GetClusters(ctx context.Context, projectId string) ([]googlecloudapi.Cluster, error) {
+	return []googlecloudapi.Cluster{
 		{
 			Name: "gke-cluster-foo",
 		},
@@ -41,12 +41,12 @@ func (m *MockApiClient) GetClusters(ctx context.Context, projectId string) ([]ap
 	}, nil
 }
 
-// ListRegions implements api.GCPClient.
+// ListRegions implements googlecloudapi.GCPClient.
 func (m *MockApiClient) ListRegions(ctx context.Context, projectId string) ([]string, error) {
 	return []string{"us-central1", "us-east1"}, nil
 }
 
-// GetAnthosAWSClusterNames implements api.GCPClient.
+// GetAnthosAWSClusterNames implements googlecloudapi.GCPClient.
 func (m *MockApiClient) GetAnthosAWSClusterNames(ctx context.Context, projectId string) ([]string, error) {
 	if m.GetClusterNamesFunc == nil {
 		return []string{"aws-cluster-foo", "aws-cluster-bar"}, nil
@@ -54,7 +54,7 @@ func (m *MockApiClient) GetAnthosAWSClusterNames(ctx context.Context, projectId 
 	return m.GetClusterNamesFunc(ctx, projectId)
 }
 
-// GetAnthosAzureClusterNames implements api.GCPClient.
+// GetAnthosAzureClusterNames implements googlecloudapi.GCPClient.
 func (m *MockApiClient) GetAnthosAzureClusterNames(ctx context.Context, projectId string) ([]string, error) {
 	if m.GetClusterNamesFunc == nil {
 		return []string{"azure-cluster-foo", "azure-cluster-bar"}, nil
@@ -62,7 +62,7 @@ func (m *MockApiClient) GetAnthosAzureClusterNames(ctx context.Context, projectI
 	return m.GetClusterNamesFunc(ctx, projectId)
 }
 
-// GetAnthosOnBaremetalClusterNames implements api.GCPClient.
+// GetAnthosOnBaremetalClusterNames implements googlecloudapi.GCPClient.
 func (m *MockApiClient) GetAnthosOnBaremetalClusterNames(ctx context.Context, projectId string) ([]string, error) {
 	if m.GetClusterNamesFunc == nil {
 		return []string{"baremetal-cluster-foo", "baremetal-cluster-bar"}, nil
@@ -70,7 +70,7 @@ func (m *MockApiClient) GetAnthosOnBaremetalClusterNames(ctx context.Context, pr
 	return m.GetClusterNamesFunc(ctx, projectId)
 }
 
-// GetAnthosOnVMWareClusterNames implements api.GCPClient.
+// GetAnthosOnVMWareClusterNames implements googlecloudapi.GCPClient.
 func (m *MockApiClient) GetAnthosOnVMWareClusterNames(ctx context.Context, projectId string) ([]string, error) {
 	if m.GetClusterNamesFunc == nil {
 		return []string{"vmware-cluster-foo", "vmware-cluster-bar"}, nil
@@ -78,7 +78,7 @@ func (m *MockApiClient) GetAnthosOnVMWareClusterNames(ctx context.Context, proje
 	return m.GetClusterNamesFunc(ctx, projectId)
 }
 
-// GetClusterNames implements api.GCPClient.
+// GetClusterNames implements googlecloudapi.GCPClient.
 func (m *MockApiClient) GetClusterNames(ctx context.Context, projectId string) ([]string, error) {
 	if m.GetClusterNamesFunc == nil {
 		return []string{"gke-cluster-foo", "gke-cluster-bar"}, nil
@@ -94,7 +94,7 @@ func (m *MockApiClient) GetComposerEnvironmentNames(ctx context.Context, project
 	return m.GetClusterNamesFunc(ctx, projectId)
 }
 
-// ListLogEntries implements api.GCPClient.
+// ListLogEntries implements googlecloudapi.GCPClient.
 func (m *MockApiClient) ListLogEntries(ctx context.Context, resourceNames []string, filter string, logSink chan *log.Log) error {
 	if m.ListLogEntriesFunc == nil {
 		close(logSink)
@@ -103,4 +103,4 @@ func (m *MockApiClient) ListLogEntries(ctx context.Context, resourceNames []stri
 	return m.ListLogEntriesFunc(ctx, resourceNames, filter, logSink)
 }
 
-var _ api.GCPClient = (*MockApiClient)(nil)
+var _ googlecloudapi.GCPClient = (*MockApiClient)(nil)

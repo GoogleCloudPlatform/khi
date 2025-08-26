@@ -20,8 +20,8 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	inspection_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/contract"
-	inspection_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/impl"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
 	"golang.org/x/exp/slices"
 )
 
@@ -43,6 +43,8 @@ type FeatureListItem struct {
 	Label       string `json:"label"`
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
+	// Order is the criteria of sorting []FeatureListItem.
+	Order int `json:"-"`
 }
 
 type InspectionDryRunResult struct {
@@ -51,7 +53,7 @@ type InspectionDryRunResult struct {
 
 type InspectionRunResult struct {
 	Metadata    interface{}
-	ResultStore inspection_contract.Store
+	ResultStore inspectioncore_contract.Store
 }
 
 // InspectionTaskServer manages tasks and provides apis to get task related information in JSON convertible type.
@@ -64,10 +66,10 @@ type InspectionTaskServer struct {
 	inspections           map[string]*InspectionTaskRunner
 	inspectionIDGenerator idgenerator.IDGenerator
 
-	ioConfig *inspection_contract.IOConfig
+	ioConfig *inspectioncore_contract.IOConfig
 }
 
-func NewServer(ioConfig *inspection_contract.IOConfig) (*InspectionTaskServer, error) {
+func NewServer(ioConfig *inspectioncore_contract.IOConfig) (*InspectionTaskServer, error) {
 	ns, err := coretask.NewTaskSet([]coretask.UntypedTask{})
 	if err != nil {
 		return nil, err
@@ -81,7 +83,7 @@ func NewServer(ioConfig *inspection_contract.IOConfig) (*InspectionTaskServer, e
 	}
 
 	// Register mandatory tasks for inspection task
-	err = inspection_impl.Register(server)
+	err = inspectioncore_impl.Register(server)
 	if err != nil {
 		return nil, err
 	}

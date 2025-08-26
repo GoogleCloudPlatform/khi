@@ -19,8 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
-
-	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
 )
 
 func TestBaseTagGenerator(t *testing.T) {
