@@ -28,8 +28,11 @@ type PatternMatchResult[T any] struct {
 // Parameters:
 //   - searchText: The string to search within.
 //   - finder: The PatternFinder implementation to use for matching prefixes.
-//   - includeFirst: If true, a match is attempted from the very beginning of the searchText.
-//   - starterRunes: A set of runes that trigger a match attempt on the subsequent text.
+//   - includeFirst: If true, a match is attempted from the very beginning of the searchText,
+//     without waiting for a starterRune. Useful for cases where the entire
+//     string itself could be a valid pattern.
+//   - starterRunes: A set of runes that act as triggers. When one of these runes is encountered,
+//     a pattern search is attempted on the text immediately following the rune.
 //
 // Returns:
 //
