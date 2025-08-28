@@ -25,7 +25,6 @@ import (
 var (
 	LabelKeyInspectionFeatureFlag        = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
 	LabelKeyInspectionDefaultFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "default-feature")
-	LabelKeyInspectionRequiredFlag       = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "required")
 	LabelKeyProgressReportable           = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "progress-reportable")
 	LabelKeyInspectionTypes              = coretask.NewTaskLabelKey[[]string](InspectionTaskPrefix + "inspection-type")
 	LabelKeyFeatureTaskTitle             = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
@@ -112,15 +111,4 @@ Please define task IDs and types used in its type parameter in a different packa
 	return &InspectionTypeLabelImpl{
 		inspectionTypes: types,
 	}
-}
-
-type RequriredTaskLabelImpl struct{}
-
-func (r *RequriredTaskLabelImpl) Write(label *typedmap.TypedMap) {
-	typedmap.Set(label, LabelKeyInspectionRequiredFlag, true)
-}
-
-// InspectionTypeLabel returns a LabelOpt to mark the task is always included in the result task graph.
-func NewRequiredTaskLabel() *RequriredTaskLabelImpl {
-	return &RequriredTaskLabelImpl{}
 }

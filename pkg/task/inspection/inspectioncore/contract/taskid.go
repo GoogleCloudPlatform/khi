@@ -20,13 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-const (
-	InspectionMainSubgraphName = InspectionTaskPrefix + "inspection-main"
-)
-
-var InspectionMainSubgraphInitTaskID = taskid.NewDefaultImplementationID[any](InspectionMainSubgraphName + "-init")
-var InspectionMainSubgraphDoneTaskID = taskid.NewDefaultImplementationID[any](InspectionMainSubgraphName + "-done")
-
 var InspectionTimeTaskID = taskid.NewDefaultImplementationID[time.Time](InspectionTaskPrefix + "task/time")
 var TimeZoneShiftInputTaskID = taskid.NewDefaultImplementationID[*time.Location](InspectionTaskPrefix + "input-timezone-shift")
 var SerializerTaskID = taskid.NewDefaultImplementationID[*FileSystemStore](InspectionTaskPrefix + "serialize")

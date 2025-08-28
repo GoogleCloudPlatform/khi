@@ -24,6 +24,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
+// DefaultTaskGraphResolver is the default configuration of graph resolver used for constructing complete task graph.
+var DefaultTaskGraphResolver = NewGraphResolver(100,
+	&RequiredTaskLabelGraphResolverRule{},
+	&TaskDependencyGraphResolverRule{},
+	&SubsequentTaskRefsGraphResolverRule{},
+)
+
 // GraphResolverRuleResult represents the result of a single GraphResolverRule execution.
 type GraphResolverRuleResult struct {
 	// Changed indicates whether the rule modified the task list.
@@ -47,6 +54,14 @@ type GraphResolver struct {
 	Rules []GraphResolverRule
 	// MaxIteration is the maximum number of iterations to perform before considering the resolution failed.
 	MaxIteration int
+}
+
+// NewGraphResolver returns a new instance of GraphResolver with given rules and configurations.
+func NewGraphResolver(maxIteration int, rules ...GraphResolverRule) *GraphResolver {
+	return &GraphResolver{
+		Rules:        rules,
+		MaxIteration: maxIteration,
+	}
 }
 
 // Resolve determines the final set of tasks for the task graph.

@@ -32,12 +32,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
-	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
 )
 
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
@@ -54,7 +52,6 @@ type InspectionTaskRunner struct {
 	enabledFeatures       map[string]bool
 	availableTasks        *coretask.TaskSet
 	featureTasks          *coretask.TaskSet
-	requiredTasks         *coretask.TaskSet
 	runner                coretask.TaskRunner
 	runnerLock            sync.Mutex
 	metadata              *typedmap.ReadonlyTypedMap
@@ -73,7 +70,6 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_
 		enabledFeatures:       map[string]bool{},
 		availableTasks:        nil,
 		featureTasks:          nil,
-		requiredTasks:         nil,
 		runner:                nil,
 		runnerLock:            sync.Mutex{},
 		metadata:              nil,
@@ -104,7 +100,6 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	}
 	i.availableTasks = coretask.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspectioncore_contract.LabelKeyInspectionTypes, inspectionType, true))
 	defaultFeatures := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, false))
-	i.requiredTasks = coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionRequiredFlag, false))
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
 		defaultFeatureIds = append(defaultFeatureIds, featureTask.UntypedID().String())
@@ -422,30 +417,16 @@ func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
 	if i.featureTasks == nil || i.availableTasks == nil {
 		return nil, fmt.Errorf("this runner is not ready for resolving graph")
 	}
-	usedTasks := []coretask.UntypedTask{}
-	usedTasks = append(usedTasks, i.featureTasks.GetAll()...)
-	usedTasks = append(usedTasks, i.requiredTasks.GetAll()...)
-	initialTaskSet, err := coretask.NewTaskSet(usedTasks)
+	resolver := coretask.DefaultTaskGraphResolver
+	resolvedTask, err := resolver.Resolve(i.featureTasks.GetAll(), i.availableTasks.GetAll())
 	if err != nil {
 		return nil, err
 	}
-	set, err := initialTaskSet.ResolveTask(i.availableTasks)
+	initialTaskSet, err := coretask.NewTaskSet(resolvedTask)
 	if err != nil {
 		return nil, err
 	}
-
-	wrapped, err := set.WrapGraph(taskid.NewDefaultImplementationID[any](inspectioncore_contract.InspectionMainSubgraphName), []taskid.UntypedTaskReference{})
-	if err != nil {
-		return nil, err
-	}
-
-	// Add required pre process or post process for the subgraph
-	err = wrapped.Add(inspectioncore_impl.SerializeTask)
-	if err != nil {
-		return nil, err
-	}
-
-	return wrapped.ResolveTask(i.availableTasks)
+	return initialTaskSet.ToRunnableTaskSet()
 }
 
 func (i *InspectionTaskRunner) generateMetadataForDryRun(ctx context.Context, initHeader *inspectionmetadata.HeaderMetadata, taskGraph *coretask.TaskSet) *typedmap.ReadonlyTypedMap {

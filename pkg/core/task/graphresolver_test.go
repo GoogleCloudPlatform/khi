@@ -162,7 +162,7 @@ type mockTaskOptions struct {
 
 // newMockTask creates a new mockUntypedTask for testing with custom options.
 func newMockTask(idStr string, implID string, opts mockTaskOptions) UntypedTask {
-	id := taskid.NewImplementationID[any](taskid.NewTaskReference[any](idStr), implID)
+	id := taskid.NewImplementationID(taskid.NewTaskReference[any](idStr), implID)
 	labelOpts := []LabelOpt{WithLabelValue(LabelKeyTaskSelectionPriority, opts.priority)}
 	if len(opts.subsequentTaskRefs) > 0 {
 		labelOpts = append(labelOpts, WithLabelValue(LabelKeySubsequentTaskRefs, opts.subsequentTaskRefs))
