@@ -32,6 +32,7 @@ import {
   DEFAULT_TIMELINE_FILTER,
   TimelineFilter,
 } from '../services/timeline-filter.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 /**
  * Set of properties needed for scrolling behaviors and computed values of TimelineEntry.
@@ -47,6 +48,8 @@ export class TimelinesScrollStrategy {
   private readonly timelineFilter = inject<TimelineFilter>(
     DEFAULT_TIMELINE_FILTER,
   );
+
+  private snackBar = inject(MatSnackBar);
 
   /**
    * Extra margin at the bottom in pixels.
@@ -220,14 +223,23 @@ export class TimelinesScrollStrategy {
       )
       .subscribe(([timeline, timelines, rows, range]) => {
         const index = timelines.indexOf(timeline);
+        if (index === -1) {
+          this.snackBar.open(
+            `Can't navigate to the selected timeline. Did you filtered it out? [path:${timeline.resourcePath}]`,
+            'Close',
+            {
+              duration: 1500,
+            },
+          );
+          return;
+        }
         if (
-          index !== -1 &&
-          (range.start +
+          range.start +
             TimelinesScrollStrategy.VERTICAL_SCROLL_ENABLING_IN_VISIBLE_RANGE_PADDING_INDICES_FROM_EDGE >=
             index ||
-            range.end -
-              TimelinesScrollStrategy.VERTICAL_SCROLL_ENABLING_IN_VISIBLE_RANGE_PADDING_INDICES_FROM_EDGE <=
-              index)
+          range.end -
+            TimelinesScrollStrategy.VERTICAL_SCROLL_ENABLING_IN_VISIBLE_RANGE_PADDING_INDICES_FROM_EDGE <=
+            index
         ) {
           const offset = this.getOffsetForIndex(rows, index);
           this.viewport.scroll({
