@@ -225,10 +225,10 @@ export class TimelinesScrollStrategy {
         const index = timelines.indexOf(timeline);
         if (index === -1) {
           this.snackBar.open(
-            `Can't navigate to the selected timeline. Did you filtered it out? [path:${timeline.resourcePath}]`,
+            `Can't scroll to the selected log. Maybe filtered out? [path:${timeline.resourcePath}]`,
             'Close',
             {
-              duration: 1500,
+              duration: 2000,
             },
           );
           return;
