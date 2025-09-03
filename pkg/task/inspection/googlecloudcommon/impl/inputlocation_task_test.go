@@ -38,8 +38,9 @@ func TestLocationInput(t *testing.T) {
 					Description: "The location(region) to specify the resource exist(s|ed)",
 					HintType:    inspectionmetadata.None,
 				},
-				Suggestions: []string{},
-				Readonly:    false,
+				Suggestions:      []string{},
+				Readonly:         false,
+				ValidationTiming: inspectionmetadata.OnChange,
 			},
 		},
 	})

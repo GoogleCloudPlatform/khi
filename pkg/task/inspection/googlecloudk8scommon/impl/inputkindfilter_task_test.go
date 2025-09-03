@@ -43,8 +43,9 @@ func TestInputKindName(t *testing.T) {
 					HintType:    inspectionmetadata.Error,
 					Hint:        "kind filter can't be empty",
 				},
-				Readonly: false,
-				Default:  "@default",
+				Readonly:         false,
+				Default:          "@default",
+				ValidationTiming: inspectionmetadata.OnChange,
 			},
 		},
 		{
@@ -62,8 +63,9 @@ func TestInputKindName(t *testing.T) {
 					HintType:    inspectionmetadata.None,
 				},
 
-				Readonly: false,
-				Default:  "@default",
+				Readonly:         false,
+				Default:          "@default",
+				ValidationTiming: inspectionmetadata.OnChange,
 			},
 		},
 		{
@@ -80,8 +82,9 @@ func TestInputKindName(t *testing.T) {
 					Hint:        "alias `invalid_alias` was not found",
 					HintType:    inspectionmetadata.Error,
 				},
-				Default:  "@default",
-				Readonly: false,
+				Default:          "@default",
+				Readonly:         false,
+				ValidationTiming: inspectionmetadata.OnChange,
 			},
 		},
 	}, cmpopts.SortSlices(func(a string, b string) bool {
