@@ -26,6 +26,7 @@
       matInput
       [value]="value | async"
       (input)="onInput($event)"
+      (blur)="onBlur($event)"
       [placeholder]="param.default"
       [matAutocomplete]="auto"
       [disabled]="param.readonly"

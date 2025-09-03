@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
@@ -29,6 +30,7 @@ var projectIdValidator = regexp.MustCompile(`^\s*[0-9a-z\.:\-]+\s*$`)
 // InputProjectIdTask defines a form task for inputting the Google Cloud project ID.
 var InputProjectIdTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputProjectIdTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+5000, "Project ID").
 	WithDescription("The project ID containing logs of the cluster to query").
+	WithValidatingTiming(inspectionmetadata.OnBlur).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
 		if !projectIdValidator.Match([]byte(value)) {
 			return "Project ID must match `^*[0-9a-z\\.:\\-]+$`", nil

@@ -104,6 +104,11 @@ export interface TextParameterFormField extends ParameterFormFieldBase {
    * List of strings popped up as the autocomplete list.
    */
   suggestions: string[];
+
+  /**
+   * Type of the validation timing of this field.
+   */
+  validationTiming: 'onchange' | 'onblur';
 }
 
 /**

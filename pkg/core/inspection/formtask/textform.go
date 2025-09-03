@@ -57,6 +57,7 @@ type TextFormTaskBuilder[T any] struct {
 	suggestionsProvider TextFormSuggestionsProvider
 	hintGenerator       TextFormHintGenerator
 	converter           TextFormValueConverter[T]
+	validatingTiming    inspectionmetadata.TextFormValidationTimingType
 }
 
 // NewTextFormTaskBuilder constructs an instace of TextFormDefinitionBuilder.
@@ -90,6 +91,7 @@ func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority i
 		hintGenerator: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 			return "", inspectionmetadata.Info, nil
 		},
+		validatingTiming: inspectionmetadata.OnChange,
 	}
 }
 
@@ -150,6 +152,11 @@ func (b *TextFormTaskBuilder[T]) WithConverter(converter TextFormValueConverter[
 	return b
 }
 
+func (b *TextFormTaskBuilder[T]) WithValidatingTiming(timing inspectionmetadata.TextFormValidationTimingType) *TextFormTaskBuilder[T] {
+	b.validatingTiming = timing
+	return b
+}
+
 func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common_task.Task[T] {
 	return common_task.NewTask(b.id, b.dependencies, func(ctx context.Context) (T, error) {
 		m := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
@@ -166,6 +173,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 		}
 		field := inspectionmetadata.TextParameterFormField{}
 		field.Readonly = readonly
+		field.ValidationTiming = b.validatingTiming
 
 		// Compute the default value of the form
 		var currentValue string

@@ -30,7 +30,14 @@ import {
   MatAutocompleteSelectedEvent,
 } from '@angular/material/autocomplete';
 import { PARAMETER_STORE } from './service/parameter-store';
-import { Observable, Subject, takeUntil } from 'rxjs';
+import {
+  distinctUntilChanged,
+  merge,
+  Observable,
+  ReplaySubject,
+  Subject,
+  takeUntil,
+} from 'rxjs';
 
 /**
  * A form field of parameter in the new-inspection dialog.
@@ -50,27 +57,76 @@ import { Observable, Subject, takeUntil } from 'rxjs';
   ],
 })
 export class TextParameterComponent implements OnInit {
+  /**
+   * Exposes ParameterHintType enum to the template.
+   */
   readonly ParameterHintType = ParameterHintType;
+  /**
+   * Subject that emits when the component is destroyed. Used for unsubscribing from observables.
+   */
   readonly destroyed = new Subject();
   /**
    * The spec of this text type parameter.
    */
   parameter = input.required<TextParameterFormField>();
 
+  /**
+   * Injects the PARAMETER_STORE service.
+   */
   store = inject(PARAMETER_STORE);
 
+  /**
+   * Observable that emits the current display value of the parameter.
+   */
   value!: Observable<string>;
 
+  /**
+   * ReplaySubject that keeps input values when validationTiming is 'onblur'.
+   */
+  private readonly stagingInput = new ReplaySubject<string>(1);
+
+  /**
+   * Initializes the component.
+   * Subscribes to the parameter store and staging input to update the `value` observable.
+   */
   ngOnInit(): void {
-    this.value = this.store
-      .watch<string>(this.parameter().id)
-      .pipe(takeUntil(this.destroyed));
+    this.value = merge(
+      this.store.watch<string>(this.parameter().id),
+      this.stagingInput,
+    ).pipe(distinctUntilChanged(), takeUntil(this.destroyed));
   }
 
+  /**
+   * Handles input events from the text field.
+   * Updates the parameter store immediately if validationTiming is 'onchange', otherwise stages the input.
+   */
   onInput(ev: Event) {
-    this.store.set(this.parameter().id, (ev.target as HTMLInputElement).value);
+    if (this.parameter().validationTiming === 'onchange') {
+      this.store.set(
+        this.parameter().id,
+        (ev.target as HTMLInputElement).value,
+      );
+    } else {
+      this.stagingInput.next((ev.target as HTMLInputElement).value);
+    }
   }
 
+  /**
+   * Handles blur events from the text field.
+   * Updates the parameter store if validationTiming is 'onblur'.
+   */
+  onBlur(ev: Event) {
+    if (this.parameter().validationTiming === 'onblur') {
+      this.store.set(
+        this.parameter().id,
+        (ev.target as HTMLInputElement).value,
+      );
+    }
+  }
+
+  /**
+   * Handles the selection of an option from the autocomplete dropdown.
+   */
   onOptionSelected(ev: MatAutocompleteSelectedEvent) {
     this.store.set(this.parameter().id, ev.option.value);
   }

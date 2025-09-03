@@ -49,6 +49,18 @@ const (
 	Info ParameterHintType = "info"
 )
 
+// TextFormValidationTimingType defines when a text form field's validation should be triggered.
+type TextFormValidationTimingType string
+
+const (
+	// OnChange indicates that validation should occur whenever the field's value changes.
+	OnChange TextFormValidationTimingType = "onchange"
+	// OnBlur indicates that validation should occur when the field loses focus.
+	OnBlur TextFormValidationTimingType = "onblur"
+)
+
+// ParameterFormField is an interface that all specific form field types must implement.
+// It serves as a marker interface for different parameter input types.
 type ParameterFormField interface{}
 
 // ParameterFormFieldBase is the base type of parameter form fields.
@@ -91,6 +103,8 @@ type TextParameterFormField struct {
 	Default string `json:"default"`
 	// Suggestion is the auto complete drop down values.
 	Suggestions []string `json:"suggestions"`
+	// ValidationTiming specifies when the validation for this text field should be triggered.
+	ValidationTiming TextFormValidationTimingType `json:"validationTiming"`
 }
 
 // FileParameterFormField represents File type parameter specific data.
@@ -166,6 +180,7 @@ func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldB
 	}
 }
 
+// NewFormFieldSetMetadata creates and returns a new empty FormFieldSetMetadata instance.
 func NewFormFieldSetMetadata() *FormFieldSetMetadata {
 	return &FormFieldSetMetadata{
 		fields: make([]ParameterFormField, 0),

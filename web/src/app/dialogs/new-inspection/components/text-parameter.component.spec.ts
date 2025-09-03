@@ -50,6 +50,7 @@ describe('TextParameterComponent', () => {
     hint: 'parameter test validation failed',
     readonly: false,
     suggestions: ['foo', 'bar', 'qux'],
+    validationTiming: 'onchange',
   } as TextParameterFormField;
 
   beforeAll(() => {
@@ -96,13 +97,34 @@ describe('TextParameterComponent', () => {
     expect(await matInput.getPlaceholder()).toBe('test-default-value');
   });
 
-  it('should set the value to store when input received', async () => {
+  it('should set the value to store when input received when validatingTiming=onchange', async () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance).toBeTruthy();
     const matInput = await harnessLoader.getHarness(MatInputHarness);
 
     await matInput.setValue('updated value');
+    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+      'test-parameter-id': 'updated value',
+    });
+  });
+
+  it('should not set the parameter when input received when validatingTiming=onblur and emit the value on blur', async () => {
+    fixture.componentRef.setInput('parameter', {
+      ...defaultParameter,
+      validationTiming: 'onblur',
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance).toBeTruthy();
+    const matInput = await harnessLoader.getHarness(MatInputHarness);
+
+    await matInput.setValue('updated value');
+    expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
+      'test-parameter-id': 'the default value',
+    });
+
+    await matInput.blur();
     expect(await firstValueFrom(parameterStore.watchAll())).toEqual({
       'test-parameter-id': 'updated value',
     });
