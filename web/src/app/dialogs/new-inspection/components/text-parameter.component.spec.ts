@@ -19,6 +19,7 @@ import { TextParameterComponent } from './text-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatIconRegistry } from '@angular/material/icon';
 import {
+  ParameterFormValidationTiming,
   ParameterHintType,
   TextParameterFormField,
 } from 'src/app/common/schema/form-types';
@@ -50,7 +51,7 @@ describe('TextParameterComponent', () => {
     hint: 'parameter test validation failed',
     readonly: false,
     suggestions: ['foo', 'bar', 'qux'],
-    validationTiming: 'onchange',
+    validationTiming: ParameterFormValidationTiming.Change,
   } as TextParameterFormField;
 
   beforeAll(() => {
@@ -109,10 +110,10 @@ describe('TextParameterComponent', () => {
     });
   });
 
-  it('should not set the parameter when input received when validatingTiming=onblur and emit the value on blur', async () => {
+  it('should emit value only on blur and not set the parameter on input if validatingTiming=onblur ', async () => {
     fixture.componentRef.setInput('parameter', {
       ...defaultParameter,
-      validationTiming: 'onblur',
+      validationTiming: ParameterFormValidationTiming.Blur,
     });
     fixture.detectChanges();
 

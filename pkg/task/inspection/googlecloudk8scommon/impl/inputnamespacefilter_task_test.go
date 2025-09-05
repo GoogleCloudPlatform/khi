@@ -48,7 +48,7 @@ func TestInputNamespaces(t *testing.T) {
 				},
 				Readonly:         false,
 				Default:          "@all_cluster_scoped @all_namespaced",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -67,7 +67,7 @@ func TestInputNamespaces(t *testing.T) {
 				},
 				Readonly:         false,
 				Default:          "@all_cluster_scoped @all_namespaced",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestInputNamespaces(t *testing.T) {
 				},
 				Readonly:         false,
 				Default:          "@all_cluster_scoped @all_namespaced",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	}, cmpopts.SortSlices(func(a string, b string) bool {

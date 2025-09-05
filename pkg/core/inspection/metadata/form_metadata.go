@@ -53,10 +53,10 @@ const (
 type TextFormValidationTimingType string
 
 const (
-	// OnChange indicates that validation should occur whenever the field's value changes.
-	OnChange TextFormValidationTimingType = "onchange"
-	// OnBlur indicates that validation should occur when the field loses focus.
-	OnBlur TextFormValidationTimingType = "onblur"
+	// Change indicates that validation should occur whenever the field's value changes.
+	Change TextFormValidationTimingType = "change"
+	// Blur indicates that validation should occur when the field loses focus.
+	Blur TextFormValidationTimingType = "blur"
 )
 
 // ParameterFormField is an interface that all specific form field types must implement.

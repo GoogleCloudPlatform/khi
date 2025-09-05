@@ -40,7 +40,7 @@ func TestLocationInput(t *testing.T) {
 				},
 				Suggestions:      []string{},
 				Readonly:         false,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	})

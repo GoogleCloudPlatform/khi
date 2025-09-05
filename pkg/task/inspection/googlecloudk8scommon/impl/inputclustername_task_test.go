@@ -48,7 +48,7 @@ func TestClusterNameInput(t *testing.T) {
 				},
 				Suggestions:      []string{"foo-cluster", "bar-cluster"},
 				Default:          "foo-cluster",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestClusterNameInput(t *testing.T) {
 				},
 				Suggestions:      []string{"foo-cluster", "bar-cluster"},
 				Default:          "foo-cluster",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestClusterNameInput(t *testing.T) {
 				},
 				Suggestions:      common.SortForAutocomplete("An invalid cluster name", []string{"foo-cluster", "bar-cluster"}),
 				Default:          "foo-cluster",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -104,7 +104,7 @@ func TestClusterNameInput(t *testing.T) {
 				},
 				Suggestions:      []string{"foo-cluster", "bar-cluster"},
 				Default:          "foo-cluster",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	})

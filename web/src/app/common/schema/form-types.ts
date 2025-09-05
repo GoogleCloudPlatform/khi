@@ -87,6 +87,20 @@ export interface GroupParameterFormField extends ParameterFormFieldBase {
 }
 
 /**
+ * Timings to validate the parameter input form.
+ */
+export enum ParameterFormValidationTiming {
+  /**
+   * Triggers validations on every input value change.
+   */
+  Change = 'change',
+  /**
+   * Triggers validations on blur.
+   */
+  Blur = 'blur',
+}
+
+/**
  * Text type parameter specific data.
  */
 export interface TextParameterFormField extends ParameterFormFieldBase {
@@ -108,7 +122,7 @@ export interface TextParameterFormField extends ParameterFormFieldBase {
   /**
    * Type of the validation timing of this field.
    */
-  validationTiming: 'onchange' | 'onblur';
+  validationTiming: ParameterFormValidationTiming;
 }
 
 /**

@@ -52,7 +52,7 @@ func TestDurationInput(t *testing.T) {
 				},
 				Suggestions:      expectedSuggestions,
 				Default:          "1h",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -69,7 +69,7 @@ func TestDurationInput(t *testing.T) {
 				},
 				Default:          "1h",
 				Suggestions:      expectedSuggestions,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -86,7 +86,7 @@ func TestDurationInput(t *testing.T) {
 				},
 				Suggestions:      expectedSuggestions,
 				Default:          "1h",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -109,7 +109,7 @@ Query range:
 				},
 				Suggestions:      expectedSuggestions,
 				Default:          "1h",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -130,7 +130,7 @@ Query range:
 				},
 				Suggestions:      expectedSuggestions,
 				Default:          "1h",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	})

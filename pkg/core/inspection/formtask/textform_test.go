@@ -50,7 +50,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					HintType: inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -67,7 +67,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				},
 				Readonly:         false,
 				Default:          "foo-default",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -86,7 +86,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					Hint:     "foo validation error",
 				},
 				Readonly:         false,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -104,7 +104,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					HintType: inspectionmetadata.None,
 				},
 				Readonly:         true,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -123,7 +123,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				},
 				Readonly:         true,
 				Default:          "foo-from-default",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -142,7 +142,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					Hint:     "foo-hint",
 				},
 				Readonly:         false,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -161,7 +161,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 				},
 				Readonly:         true,
 				Default:          "foo-from-default",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -186,7 +186,7 @@ func TestTextFormDefinitionBuilder(t *testing.T) {
 					"foo-suggest2",
 					"foo-suggest3",
 				},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	}

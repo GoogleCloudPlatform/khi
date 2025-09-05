@@ -39,7 +39,7 @@ func TestProjectIdInput(t *testing.T) {
 					Description: wantDescription,
 					HintType:    inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnBlur,
+				ValidationTiming: inspectionmetadata.Blur,
 			},
 		},
 		{
@@ -57,7 +57,7 @@ func TestProjectIdInput(t *testing.T) {
 				},
 				Readonly:         true,
 				Default:          "bar-project",
-				ValidationTiming: inspectionmetadata.OnBlur,
+				ValidationTiming: inspectionmetadata.Blur,
 			},
 			Before: func() {
 				expectedFixedProjectId := "bar-project"
@@ -81,7 +81,7 @@ func TestProjectIdInput(t *testing.T) {
 					HintType:    inspectionmetadata.Error,
 					Hint:        "Project ID must match `^*[0-9a-z\\.:\\-]+$`",
 				},
-				ValidationTiming: inspectionmetadata.OnBlur,
+				ValidationTiming: inspectionmetadata.Blur,
 			},
 		},
 		{
@@ -97,7 +97,7 @@ func TestProjectIdInput(t *testing.T) {
 					Description: wantDescription,
 					HintType:    inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnBlur,
+				ValidationTiming: inspectionmetadata.Blur,
 			},
 		},
 		{
@@ -113,7 +113,7 @@ func TestProjectIdInput(t *testing.T) {
 					Label:       "Project ID",
 					HintType:    inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnBlur,
+				ValidationTiming: inspectionmetadata.Blur,
 			},
 		},
 	})

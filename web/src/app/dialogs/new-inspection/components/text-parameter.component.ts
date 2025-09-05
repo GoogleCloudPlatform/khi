@@ -22,6 +22,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { ParameterHintComponent } from './parameter-hint.component';
 import {
+  ParameterFormValidationTiming,
   ParameterHintType,
   TextParameterFormField,
 } from 'src/app/common/schema/form-types';
@@ -98,10 +99,12 @@ export class TextParameterComponent implements OnInit {
 
   /**
    * Handles input events from the text field.
-   * Updates the parameter store immediately if validationTiming is 'onchange', otherwise stages the input.
+   * Updates the parameter store immediately if validationTiming is 'ParameterFormValidationTiming.Change', otherwise stages the input.
    */
   onInput(ev: Event) {
-    if (this.parameter().validationTiming === 'onchange') {
+    if (
+      this.parameter().validationTiming === ParameterFormValidationTiming.Change
+    ) {
       this.store.set(
         this.parameter().id,
         (ev.target as HTMLInputElement).value,
@@ -113,10 +116,12 @@ export class TextParameterComponent implements OnInit {
 
   /**
    * Handles blur events from the text field.
-   * Updates the parameter store if validationTiming is 'onblur'.
+   * Updates the parameter store if validationTiming is 'ParameterFormValidationTiming.Blur'.
    */
   onBlur(ev: Event) {
-    if (this.parameter().validationTiming === 'onblur') {
+    if (
+      this.parameter().validationTiming === ParameterFormValidationTiming.Blur
+    ) {
       this.store.set(
         this.parameter().id,
         (ev.target as HTMLInputElement).value,

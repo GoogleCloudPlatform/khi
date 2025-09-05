@@ -38,7 +38,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 					HintType:    inspectionmetadata.None,
 				},
 				Readonly:         false,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -52,7 +52,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 					Description: wantDescription,
 					HintType:    inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 					Description: wantDescription,
 					HintType:    inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -81,7 +81,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 					Hint:        "substring `invalid=node=name` is not valid as a substring of node name",
 					HintType:    inspectionmetadata.Error,
 				},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -95,7 +95,7 @@ func TestNodeNameFiltertask(t *testing.T) {
 					Description: wantDescription,
 					HintType:    inspectionmetadata.None,
 				},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	})

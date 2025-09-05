@@ -54,7 +54,7 @@ func TestInputEndtime(t *testing.T) {
 				},
 				Default:          "2020-01-02T03:04:05Z",
 				Suggestions:      []string{},
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -70,7 +70,7 @@ func TestInputEndtime(t *testing.T) {
 				},
 				Suggestions:      []string{},
 				Default:          "2020-01-02T03:04:05Z",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -86,7 +86,7 @@ func TestInputEndtime(t *testing.T) {
 				},
 				Suggestions:      []string{},
 				Default:          "2020-01-02T12:04:05+09:00",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	})

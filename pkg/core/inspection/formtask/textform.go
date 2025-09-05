@@ -91,7 +91,7 @@ func NewTextFormTaskBuilder[T any](id taskid.TaskImplementationID[T], priority i
 		hintGenerator: func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 			return "", inspectionmetadata.Info, nil
 		},
-		validatingTiming: inspectionmetadata.OnChange,
+		validatingTiming: inspectionmetadata.Change,
 	}
 }
 

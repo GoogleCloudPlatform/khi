@@ -45,7 +45,7 @@ func TestInputKindName(t *testing.T) {
 				},
 				Readonly:         false,
 				Default:          "@default",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestInputKindName(t *testing.T) {
 
 				Readonly:         false,
 				Default:          "@default",
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 		{
@@ -84,7 +84,7 @@ func TestInputKindName(t *testing.T) {
 				},
 				Default:          "@default",
 				Readonly:         false,
-				ValidationTiming: inspectionmetadata.OnChange,
+				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
 	}, cmpopts.SortSlices(func(a string, b string) bool {
