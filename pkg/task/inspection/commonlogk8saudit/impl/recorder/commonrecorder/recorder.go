@@ -49,7 +49,11 @@ func Register(manager *recorder.RecorderTaskManager) error {
 
 func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevState *commonRecorderStatus, l *commonlogk8saudit_contract.AuditLogParserInput, cs *history.ChangeSet) (*commonRecorderStatus, error) {
 	commonField := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
-	resourcePath := resourcepath.FromK8sOperation(*l.Operation)
+	resourcePath := resourcepath.ResourcePath{
+		Path:               resourcePathString,
+		ParentRelationship: enum.RelationshipChild,
+	}
+
 	if l.IsErrorResponse {
 		cs.RecordEvent(resourcePath)
 		cs.RecordLogSeverity(enum.SeverityError)
