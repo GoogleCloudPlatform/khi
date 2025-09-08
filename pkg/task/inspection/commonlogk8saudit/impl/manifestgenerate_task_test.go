@@ -178,6 +178,36 @@ timestamp: 2024-01-01T00:00:00+09:00`,
 		expectedComment:  []string{bodyPlaceholderForMetadataLevelAuditLog, bodyPlaceholderForMetadataLevelAuditLog},
 		expectedBodyBase: bodyPlaceholderForMetadataLevelAuditLog,
 		expectedBodyOpts: [][]testlog.TestLogOpt{{}, {}},
+	}, {
+		Name: "Patch operation with uid changing in middle",
+		baseLog: `insertId: foo
+protoPayload:
+  authenticationInfo:
+    principalEmail: user@example.com
+  methodName: io.k8s.core.v1.pods.patch
+  resourceName: core/v1/namespaces/default/pods/my-pod
+  request:
+    '@type': k8s.io/Patch
+    metadata:
+      uid: foo
+  status:
+    code: 0
+timestamp: 2024-01-01T00:00:00+09:00`,
+		logOpts: [][]testlog.TestLogOpt{{
+			testlog.StringField("protoPayload.request.metadata.labels.foo", "bar"),
+		}, {
+			testlog.StringField("protoPayload.request.metadata.labels.bar", "qux"), // This patch newly adds metadata.labels.bar
+			testlog.StringField("protoPayload.request.metadata.uid", "bar"),        // But this resource uid was changed, thus the previous labels.foo=bar must not be retained
+		}},
+		expectedComment:  []string{"", ""},
+		expectedBodyBase: "",
+		expectedBodyOpts: [][]testlog.TestLogOpt{{
+			testlog.StringField("metadata.uid", "foo"),
+			testlog.StringField("metadata.labels.foo", "bar"),
+		}, {
+			testlog.StringField("metadata.uid", "bar"),
+			testlog.StringField("metadata.labels.bar", "qux"),
+		}},
 	}}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
