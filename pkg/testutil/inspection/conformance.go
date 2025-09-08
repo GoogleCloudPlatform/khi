@@ -42,16 +42,15 @@ func ConformanceEveryInspectionTasksAreResolvable(t *testing.T) {
 
 	for _, targetTask := range testServer.GetAllRegisteredTasks() {
 		t.Run(fmt.Sprintf("%s-must-be-resolvable", targetTask.UntypedID().String()), func(t *testing.T) {
-			availableSet, err := coretask.NewTaskSet(testServer.GetAllRegisteredTasks())
+			resolved, err := coretask.DefaultTaskGraphResolver.Resolve([]coretask.UntypedTask{targetTask}, testServer.GetAllRegisteredTasks())
 			if err != nil {
-				t.Errorf("unexpected error %v", err)
+				t.Errorf("failed to resolve task dependencies of a graph.\nerror:%s", err.Error())
 			}
-			originalSet, err := coretask.NewTaskSet([]coretask.UntypedTask{targetTask})
+			ts, err := coretask.NewTaskSet(resolved)
 			if err != nil {
-				t.Errorf("unexpected error %v", err)
+				t.Fatalf("unexpecetd err %v", err)
 			}
-
-			rs, err := originalSet.ResolveTask(availableSet)
+			rs, err := ts.ToRunnableTaskSet()
 			if err != nil {
 				t.Errorf("given graph with a single task %s couldn't be resolved.\n unexpected error %v", targetTask.UntypedID().String(), err)
 			}
