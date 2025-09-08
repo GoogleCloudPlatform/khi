@@ -46,7 +46,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			MethodName:   "io.k8s.core.v1.nodes.delete",
 			ExpectedK8sOp: &model.KubernetesObjectOperation{
 				APIVersion:      "io.k8s.core/v1",
-				Namespace:       "Cluster-Scope",
+				Namespace:       "cluster-scope",
 				Name:            "foo",
 				PluralKind:      "nodes",
 				SubResourceName: "",
@@ -69,7 +69,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			MethodName:   "io.k8s.core.v1.namespaces.finalize.update",
 			ExpectedK8sOp: &model.KubernetesObjectOperation{
 				APIVersion:      "core/v1",
-				Namespace:       "Cluster-Scope",
+				Namespace:       "cluster-scope",
 				Name:            "001-jobs",
 				PluralKind:      "namespaces",
 				SubResourceName: "finalize",
@@ -81,7 +81,7 @@ func TestParseKubernetesOperation(t *testing.T) {
 			MethodName:   "io.k8s.core.v1.namespaces.create",
 			ExpectedK8sOp: &model.KubernetesObjectOperation{
 				APIVersion:      "core/v1",
-				Namespace:       "Cluster-Scope",
+				Namespace:       "cluster-scope",
 				Name:            "001-jobs",
 				PluralKind:      "namespaces",
 				SubResourceName: "",

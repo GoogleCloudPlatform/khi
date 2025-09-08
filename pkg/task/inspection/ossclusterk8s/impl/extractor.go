@@ -36,9 +36,6 @@ func (g *OSSJSONLAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *l
 	subresource := l.ReadStringOrDefault("objectRef.subresource", "")
 	verb := l.ReadStringOrDefault("verb", "")
 
-	if subresource == "status" {
-		subresource = "" // status subresource response should contain the full body data of its parent
-	}
 	if name == "unknown" && verb == "create" {
 		// the name may be generated from the server side.
 		name = l.ReadStringOrDefault("responseObject.metadata.name", "unknown")

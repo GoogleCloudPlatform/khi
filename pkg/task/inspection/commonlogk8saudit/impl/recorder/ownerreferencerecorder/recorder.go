@@ -18,6 +18,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -33,7 +34,7 @@ func Register(manager *recorder.RecorderTaskManager) error {
 	return nil
 }
 
-func recordChangeSetForLog(ctx context.Context, resourcePath string, log *commonlogk8saudit_contract.AuditLogParserInput, cs *history.ChangeSet, builder *history.Builder) error {
+func recordChangeSetForLog(ctx context.Context, resourcePathString string, log *commonlogk8saudit_contract.AuditLogParserInput, cs *history.ChangeSet, builder *history.Builder) error {
 	if !log.ResourceBodyReader.Has("metadata.ownerReferences") {
 		return nil
 	}
@@ -64,10 +65,13 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, log *common
 			namespace = "cluster-scope"
 		}
 
-		ownedResource := resourcepath.FromK8sOperation(*log.Operation)
+		path := resourcepath.ResourcePath{
+			Path:               resourcePathString,
+			ParentRelationship: enum.RelationshipChild,
+		}
 		ownerResource := resourcepath.NameLayerGeneralItem(apiVersion, strings.ToLower(kind), namespace, name)
 		ownerSubresource := resourcepath.OwnerSubresource(ownerResource, log.Operation.Name, log.Operation.GetSingularKindName())
-		cs.RecordResourceAlias(ownedResource, ownerSubresource)
+		cs.RecordResourceAlias(path, ownerSubresource)
 	}
 	return nil
 }
