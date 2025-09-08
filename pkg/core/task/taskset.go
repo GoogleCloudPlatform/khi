@@ -112,48 +112,6 @@ func (s *TaskSet) Get(id string) (UntypedTask, error) {
 	return nil, fmt.Errorf("task %s was not found", id)
 }
 
-// WrapGraph adds init task and done task to the runnable graph.
-// The init task named as `subgraphId`-init has the dependency provided in the subgraphDependency argument. And the init task will be dependency of the tasks that had no dependency before calling this method.
-// The done task named as `subgraphId`-done has the dependency of the tasks that were not dependent from any other tasks.
-// The result task set will be resolvable with `[the init task] -> [the other tasks] -> [the done task]`
-func (s *TaskSet) WrapGraph(subgraphId taskid.UntypedTaskImplementationID, subgraphDependency []taskid.UntypedTaskReference) (*TaskSet, error) {
-	initTaskId := taskid.NewImplementationID(taskid.NewTaskReference[any](fmt.Sprintf("%s-init", subgraphId.ReferenceIDString())), subgraphId.GetTaskImplementationHash())
-	doneTaskId := taskid.NewImplementationID(taskid.NewTaskReference[any](fmt.Sprintf("%s-done", subgraphId.ReferenceIDString())), subgraphId.GetTaskImplementationHash())
-	rewiredTasks := []UntypedTask{}
-	tasksNotDependentFromAnyMap := map[string]struct{}{}
-	for _, t := range s.tasks {
-		if len(t.Dependencies()) == 0 {
-			capturedTask := t
-			rewiredTask := &wrapGraphFirstTask{
-				task:         capturedTask,
-				dependencies: []taskid.UntypedTaskReference{initTaskId.Ref()},
-			}
-			rewiredTasks = append(rewiredTasks, rewiredTask)
-		} else {
-			rewiredTasks = append(rewiredTasks, t)
-		}
-		tasksNotDependentFromAnyMap[t.UntypedID().GetUntypedReference().String()] = struct{}{}
-	}
-	for _, t := range s.tasks {
-		for _, dep := range t.Dependencies() {
-			delete(tasksNotDependentFromAnyMap, dep.String())
-		}
-	}
-
-	doneTaskDependencies := []taskid.UntypedTaskReference{
-		initTaskId.Ref(),
-	}
-	for k := range tasksNotDependentFromAnyMap {
-		doneTaskDependencies = append(doneTaskDependencies, taskid.NewTaskReference[any](k))
-	}
-	// Sort to make result stable
-	slices.SortFunc(doneTaskDependencies, func(a, b taskid.UntypedTaskReference) int { return strings.Compare(a.String(), b.String()) })
-	initTask := NewTask(initTaskId, subgraphDependency, func(ctx context.Context) (any, error) { return nil, nil })
-	doneTask := NewTask(doneTaskId, doneTaskDependencies, func(ctx context.Context) (any, error) { return nil, nil })
-	rewiredTasks = append(rewiredTasks, initTask, doneTask)
-	return NewTaskSet(rewiredTasks)
-}
-
 func (s *TaskSet) sortTaskGraph() *sortTaskResult {
 	// To check if there were no cyclic task path or missing inputs,
 	// perform the topological sorting algorithm known as Kahn's algorithm
@@ -242,59 +200,28 @@ func (s *TaskSet) sortTaskGraph() *sortTaskResult {
 	}
 }
 
-// ResolveTask generate a super set of this task set with adding required tasks from availableTaskSet.
-// The returned TaskSet of this method will be `runnable` and topologically sorted.
-func (s *TaskSet) ResolveTask(availableTaskSet *TaskSet) (*TaskSet, error) {
+// ToRunnableTaskSet sorts given task list as topological order.
+func (s *TaskSet) ToRunnableTaskSet() (*TaskSet, error) {
 	sourceTaskSet := s
 	sortResult := sourceTaskSet.sortTaskGraph()
 	if sortResult.Runnable {
 		return &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}, nil
 	} else {
-		// the sourceTaskSet can't be topologically sorted with its own tasks.
-		// Try to add missing dependencies from availableTaskSet
-		complementedTask := []UntypedTask{}
-		resolutionFailure := false
-		var missingTaskId taskid.UntypedTaskReference
-		for _, missingSource := range sortResult.MissingDependencies {
-			matched := []UntypedTask{}
-			for _, task := range availableTaskSet.tasks {
-				missingSourceReference := missingSource.ReferenceIDString()
-				if task.UntypedID().ReferenceIDString() == missingSourceReference {
-					matched = append(matched, task)
-				}
-			}
-			// sort matched tasks with selection priority for in case when there are 2 or more tasks can be usable for resolving required dependency
-			maxPriority := -1
-			var maxPriorityTask UntypedTask
-			for _, task := range matched {
-				priority := typedmap.GetOrDefault(task.Labels(), LabelKeyTaskSelectionPriority, 0)
-				if priority >= maxPriority {
-					maxPriority = priority
-					maxPriorityTask = task
-				}
-			}
-
-			if maxPriorityTask != nil {
-				complementedTask = append(complementedTask, maxPriorityTask)
-			} else {
-				resolutionFailure = true
-				missingTaskId = missingSource
-			}
-		}
-
 		if sortResult.CyclicDependencyPath != "" {
-			return nil, fmt.Errorf("failed to resolve the task graph. \n The graph contains cyclic dependency\n%s", sortResult.CyclicDependencyPath)
+			return nil, fmt.Errorf("failed to sort as a runnable task graph. \n The graph contains cyclic dependency\n%s", sortResult.CyclicDependencyPath)
 		}
 
-		if !resolutionFailure {
-			tasks := append(slices.Clone(sourceTaskSet.tasks), complementedTask...)
-			sourceTaskSet = &TaskSet{
-				tasks:    tasks,
-				runnable: false,
+		if len(sortResult.MissingDependencies) > 0 {
+			slices.SortFunc(sortResult.MissingDependencies, func(a, b taskid.UntypedTaskReference) int {
+				return strings.Compare(a.ReferenceIDString(), b.ReferenceIDString())
+			})
+			missingDependenciesStr := &strings.Builder{}
+			for _, missingRef := range sortResult.MissingDependencies {
+				missingDependenciesStr.WriteString(fmt.Sprintf("* %s\n", missingRef.ReferenceIDString()))
 			}
-			return sourceTaskSet.ResolveTask(availableTaskSet)
+			return nil, fmt.Errorf("missing dependency found int he given task set.\n Missing %s", missingDependenciesStr.String())
 		}
-		return nil, fmt.Errorf("failed to resolve the task set.\n Missing %s\nAvailable tasks:\n%v", missingTaskId.ReferenceIDString(), dumpTaskIDList(availableTaskSet))
+		return nil, fmt.Errorf("failed to sort as a runnable task graph. unreachable")
 	}
 }
 
@@ -416,19 +343,6 @@ func getSortTaskResultWithDetailCyclicDependency(
 	}
 	// This should be unreachable if the graph has a cyclic dependency
 	panic(fmt.Sprintf("unreachable. findCyclicDependency was called on a task graph with a task graph without any cyclic dependency. \n debug info: \n non resolved tasks: %v \n missing dependencies: %s", nonResolvedTaskKeys, missingSourceDependencyInfo))
-}
-
-func dumpTaskIDList(taskSet *TaskSet) string {
-	taskIDs := []string{}
-	for _, task := range taskSet.tasks {
-		taskIDs = append(taskIDs, task.UntypedID().String())
-	}
-	slices.SortFunc(taskIDs, strings.Compare)
-	result := ""
-	for _, taskID := range taskIDs {
-		result += fmt.Sprintf("- %s\n", taskID)
-	}
-	return result
 }
 
 // wrapGraphFirstTask is an implementation of Task to rewrite its dependency for wrapping graphs as a sub graph.

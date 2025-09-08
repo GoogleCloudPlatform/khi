@@ -59,15 +59,16 @@ func RunTask[T any](baseContext context.Context, task coretask.Task[T], taskDepe
 func RunTaskWithDependency[T any](baseContext context.Context, mainTask coretask.Task[T], dependencies []coretask.UntypedTask) (T, error) {
 	taskCtx := prepareTaskContext(baseContext, mainTask)
 
-	taskSet, err := coretask.NewTaskSet([]coretask.UntypedTask{mainTask})
+	resolved, err := coretask.DefaultTaskGraphResolver.Resolve([]coretask.UntypedTask{mainTask}, dependencies)
 	if err != nil {
 		return *new(T), err
 	}
-	allTaskSet, err := coretask.NewTaskSet(dependencies)
+
+	taskSet, err := coretask.NewTaskSet(resolved)
 	if err != nil {
 		return *new(T), err
 	}
-	resolvedTaskSet, err := taskSet.ResolveTask(allTaskSet)
+	resolvedTaskSet, err := taskSet.ToRunnableTaskSet()
 	if err != nil {
 		return *new(T), err
 	}

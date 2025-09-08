@@ -180,5 +180,6 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 	},
 		append([]coretask.LabelOpt{
 			inspectioncore_contract.FeatureTaskLabel(parser.GetParserName(), parser.Description(), parser.TargetLogType(), featureOrder, isDefaultFeature, availableInspectionTypes...),
+			coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
 		}, labelOpts...)...)
 }
