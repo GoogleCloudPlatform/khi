@@ -44,6 +44,9 @@ type AuditLogParserInput struct {
 	// Current resource body changed by this request.
 	ResourceBodyReader *structured.NodeReader
 	ResourceBodyYaml   string
+
+	// ResourceUID is the `metadata.uid` of the resource.
+	ResourceUID string
 	// The response code from the API server.
 	IsErrorResponse      bool
 	ResponseErrorCode    int
