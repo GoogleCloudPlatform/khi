@@ -67,6 +67,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 	statuses := []corev1.ContainerStatus{}
 	statuses = append(statuses, pod.Status.ContainerStatuses...)
 	statuses = append(statuses, pod.Status.InitContainerStatuses...)
+	statuses = append(statuses, pod.Status.EphemeralContainerStatuses...)
 	for i, status := range statuses {
 		statusYaml, err := yaml.Marshal(status)
 		if err != nil {
