@@ -31,8 +31,8 @@ func (d *DefaultK8sControlPlaneComponentParser) Process(ctx context.Context, l *
 	clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "Unknown")
 	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 
-	cs.RecordLogSummary(mainMessageFieldSet.MainMessage)
-	cs.RecordEvent(resourcepath.ControlplaneComponent(clusterName, component))
+	cs.SetLogSummary(mainMessageFieldSet.MainMessage)
+	cs.AddEvent(resourcepath.ControlplaneComponent(clusterName, component))
 	return false, nil
 }
 

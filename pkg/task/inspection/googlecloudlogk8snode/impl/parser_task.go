@@ -86,7 +86,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 	commonMessageFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 	if !mainMessageFieldSet.HasKLogField("") {
-		cs.RecordLogSummary(mainMessageFieldSet.MainMessage)
+		cs.SetLogSummary(mainMessageFieldSet.MainMessage)
 		return nil
 	}
 
@@ -98,11 +98,11 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 	if err != nil {
 		return err
 	}
-	cs.RecordLogSummary(summary)
+	cs.SetLogSummary(summary)
 
 	severity := mainMessageFieldSet.KLogSeverity()
 
-	cs.RecordLogSeverity(severity)
+	cs.SetLogSeverity(severity)
 
 	supportsLifetimeParse := false
 	syslogIdentifier := p.GetSyslogIdentifier(l)
@@ -112,7 +112,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 		logName := l.ReadStringOrDefault("logName", "")
 		if strings.HasSuffix(logName, "kube-proxy") {
 			kubeProxyPodPath := resourcepath.Pod("kube-system", fmt.Sprintf("kube-proxy-%s", nodeName))
-			cs.RecordEvent(kubeProxyPodPath)
+			cs.AddEvent(kubeProxyPodPath)
 			return nil
 		}
 	}
@@ -127,7 +127,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 			return err
 		}
 		if msg == ContainerdStartingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
@@ -143,7 +143,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 			return err
 		}
 		if msg == DockerdStartingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
@@ -152,7 +152,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 				})
 		}
 		if msg == DockerdTerminatingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbDelete,
 					State:      enum.RevisionStateDeleted,
@@ -168,7 +168,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 			return err
 		}
 		if msg == ConfigureShStartingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
@@ -177,7 +177,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 				})
 		}
 		if msg == ConfigureShTerminatingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbDelete,
 					State:      enum.RevisionStateDeleted,
@@ -193,7 +193,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 			return err
 		}
 		if msg == ConfigureHelperShStartingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateExisting,
@@ -202,7 +202,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 				})
 		}
 		if msg == ConfigureHelperShTerminatingMsg {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbDelete,
 					State:      enum.RevisionStateDeleted,
@@ -216,9 +216,9 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 		klogExitCode, err := mainMessageFieldSet.KLogField("exitCode")
 		if err == nil && klogExitCode != "" && klogExitCode != "0" {
 			if klogExitCode == "137" {
-				cs.RecordLogSeverity(enum.SeverityError)
+				cs.SetLogSeverity(enum.SeverityError)
 			} else {
-				cs.RecordLogSeverity(enum.SeverityWarning)
+				cs.SetLogSeverity(enum.SeverityWarning)
 			}
 		}
 	}
@@ -227,7 +227,7 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 	if !supportsLifetimeParse {
 		tb := builder.GetTimelineBuilder(nodeComponentPath.Path)
 		if tb.GetLatestRevision() == nil {
-			cs.RecordRevision(nodeComponentPath,
+			cs.AddRevision(nodeComponentPath,
 				&history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      enum.RevisionStateInferred,
@@ -237,20 +237,20 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 		}
 	}
 
-	cs.RecordEvent(nodeComponentPath)
+	cs.AddEvent(nodeComponentPath)
 
 	klognode, err := mainMessageFieldSet.KLogField("node")
 	if err == nil && klognode != "" {
-		cs.RecordEvent(resourcepath.Node(klognode))
+		cs.AddEvent(resourcepath.Node(klognode))
 	}
 
 	resourceBindings := builder.ClusterResource.NodeResourceLogBinder.GetBoundResourcesForLogBody(nodeName, mainMessageFieldSet.MainMessage)
 	for _, rb := range resourceBindings {
-		cs.RecordEvent(rb.GetResourcePath())
+		cs.AddEvent(rb.GetResourcePath())
 		summary = rb.RewriteLogSummary(summary)
 	}
 	if len(resourceBindings) > 0 {
-		cs.RecordLogSummary(summary)
+		cs.SetLogSummary(summary)
 	} else {
 		// When this log can't be associated with resource by container id or pod sandbox id, try to get it from klog fields.
 		podNameWithNamespace, err := mainMessageFieldSet.KLogField("pod")
@@ -264,11 +264,11 @@ func (p *k8sNodeParser) Parse(ctx context.Context, l *log.Log, cs *history.Chang
 			}
 			containerName, err := mainMessageFieldSet.KLogField("containerName")
 			if err == nil && containerName != "" {
-				cs.RecordEvent(resourcepath.Container(podNamespace, podName, containerName))
-				cs.RecordLogSummary(fmt.Sprintf("%s【%s】", summary, toReadableContainerName(podNamespace, podName, containerName)))
+				cs.AddEvent(resourcepath.Container(podNamespace, podName, containerName))
+				cs.SetLogSummary(fmt.Sprintf("%s【%s】", summary, toReadableContainerName(podNamespace, podName, containerName)))
 			} else {
-				cs.RecordEvent(resourcepath.Pod(podNamespace, podName))
-				cs.RecordLogSummary(fmt.Sprintf("%s【%s】", summary, toReadablePodSandboxName(podNamespace, podName)))
+				cs.AddEvent(resourcepath.Pod(podNamespace, podName))
+				cs.SetLogSummary(fmt.Sprintf("%s【%s】", summary, toReadablePodSandboxName(podNamespace, podName)))
 			}
 		}
 	}

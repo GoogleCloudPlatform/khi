@@ -89,10 +89,10 @@ func (*k8sContainerParser) Parse(ctx context.Context, l *log.Log, cs *history.Ch
 	}
 	severityOverride := ParseSeverity(mainMessage)
 	containerPath := resourcepath.Container(namespace, podName, containerName)
-	cs.RecordEvent(containerPath)
-	cs.RecordLogSummary(mainMessage)
+	cs.AddEvent(containerPath)
+	cs.SetLogSummary(mainMessage)
 	if severityOverride != enum.SeverityUnknown {
-		cs.RecordLogSeverity(severityOverride)
+		cs.SetLogSeverity(severityOverride)
 	}
 	return nil
 }

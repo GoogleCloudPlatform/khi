@@ -72,16 +72,16 @@ func (c *ControllerManagerComponentParser) Process(ctx context.Context, l *log.L
 		if err != nil {
 			return true, nil
 		}
-		cs.RecordEvent(path)
+		cs.AddEvent(path)
 	} else {
 		kindLogResourcePath, err := c.kindLogToResourcePath(ctx, l)
 		if err == nil {
-			cs.RecordEvent(kindLogResourcePath)
+			cs.AddEvent(kindLogResourcePath)
 		}
 		paths, err := c.controllerLogToResourcePath(l)
 		if err == nil {
 			for _, path := range paths {
-				cs.RecordEvent(path)
+				cs.AddEvent(path)
 			}
 		}
 	}

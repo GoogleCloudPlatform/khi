@@ -26,127 +26,143 @@ import (
 // history.ChangeSet is set of changes applicable to history.
 // A parser ingest a log.LogEntry and returns a ChangeSet. ChangeSet contains multiple changes against the history.
 // This change is applied atomically, when the parser returns an error, no partial changes would be written.
+// **IMPORTANT** Note this type is not expected to be used from multi threads.
+// Parsers will write its result to this type once and it will be flushed to the History type with acuireing locks.
 type ChangeSet struct {
-	associatedLog                *log.Log
-	revisions                    map[string][]*StagingResourceRevision
-	events                       map[string][]*ResourceEvent
-	resourceRelationshipRewrites map[string]enum.ParentRelationship
-	annotations                  []LogAnnotation
-	logSummaryRewrite            string
-	logSeverityRewrite           enum.Severity
-	aliases                      map[string][]string
+	// Log is the related log of this ChangeSet.
+	Log *log.Log
+	// RevisionMap is the map of a list of StagingResourceRevision staged on this ChangeSet.
+	RevisionsMap map[string][]*StagingResourceRevision
+	// EventsMap is the map of a list of StagingResourceEvent staged on this ChangeSet.
+	EventsMap map[string][]*ResourceEvent
+	// ResourceRelationshipRewrites is the map from its resourcePath to its ParentRelationship.
+	// TODO: A resource can have same name subresource with different relationship in future?
+	ResourceRelationshipRewrites map[string]enum.ParentRelationship
+	// Annotations is the list of extra information associated to this log.
+	Annotations []LogAnnotation
+	// LogSummary is the summary string of this log to be rewritten with.
+	LogSummary string
+	// LogSeverity is the severity of this log to be rewritten with.
+	LogSeverity enum.Severity
+	// Aliases are the map of timeline aliases. The key is the source resource resource path and the list is the destination of its alias.
+	Aliases map[string][]string
 }
 
 func NewChangeSet(l *log.Log) *ChangeSet {
 	return &ChangeSet{
-		associatedLog:                l,
-		revisions:                    make(map[string][]*StagingResourceRevision),
-		events:                       make(map[string][]*ResourceEvent),
-		resourceRelationshipRewrites: make(map[string]enum.ParentRelationship),
-		logSummaryRewrite:            "",
-		logSeverityRewrite:           enum.SeverityUnknown,
-		annotations:                  []LogAnnotation{},
-		aliases:                      map[string][]string{},
+		Log:                          l,
+		RevisionsMap:                 make(map[string][]*StagingResourceRevision),
+		EventsMap:                    make(map[string][]*ResourceEvent),
+		ResourceRelationshipRewrites: make(map[string]enum.ParentRelationship),
+		LogSummary:                   "",
+		LogSeverity:                  enum.SeverityUnknown,
+		Annotations:                  []LogAnnotation{},
+		Aliases:                      map[string][]string{},
 	}
 }
 
-func (cs *ChangeSet) RecordLogSummary(summary string) {
-	cs.logSummaryRewrite = summary
+// SetLogSummary sets the summary string for the log associated with this ChangeSet.
+func (cs *ChangeSet) SetLogSummary(summary string) {
+	cs.LogSummary = summary
 }
 
-// GetLogSummary returns the summary of log to be written with the log.
-func (cs *ChangeSet) GetLogSummary() string {
-	return cs.logSummaryRewrite
+// SetLogSeverity sets the severity for the log associated with this ChangeSet.
+func (cs *ChangeSet) SetLogSeverity(severity enum.Severity) {
+	cs.LogSeverity = severity
 }
 
-func (cs *ChangeSet) RecordLogSeverity(severity enum.Severity) {
-	cs.logSeverityRewrite = severity
-}
-
-func (cs *ChangeSet) RecordRevision(resourcePath resourcepath.ResourcePath, revision *StagingResourceRevision) {
-	if _, exist := cs.revisions[resourcePath.Path]; !exist {
-		cs.revisions[resourcePath.Path] = make([]*StagingResourceRevision, 0)
+// AddRevision adds a StagingResourceRevision to the ChangeSet for a given resource path.
+func (cs *ChangeSet) AddRevision(resourcePath resourcepath.ResourcePath, revision *StagingResourceRevision) {
+	if _, exist := cs.RevisionsMap[resourcePath.Path]; !exist {
+		cs.RevisionsMap[resourcePath.Path] = make([]*StagingResourceRevision, 0)
 	}
-	cs.revisions[resourcePath.Path] = append(cs.revisions[resourcePath.Path], revision)
+	cs.RevisionsMap[resourcePath.Path] = append(cs.RevisionsMap[resourcePath.Path], revision)
 	if !revision.Inferred {
-		cs.annotations = append(cs.annotations, NewResourceReferenceAnnotation(resourcePath.Path))
+		cs.Annotations = append(cs.Annotations, NewResourceReferenceAnnotation(resourcePath.Path))
 	}
-	cs.recordResourceRelationship(resourcePath)
+	cs.addResourceRelationship(resourcePath)
 }
 
 // GetAllResourcePaths returns the all of resource paths included in this ChangeSet.
 func (cs *ChangeSet) GetAllResourcePaths() []string {
 	paths := []string{}
-	for k := range cs.revisions {
+	for k := range cs.RevisionsMap {
 		paths = append(paths, k)
 	}
-	for k := range cs.events {
+	for k := range cs.EventsMap {
 		paths = append(paths, k)
 	}
 	return common.DedupStringArray(paths)
-
 }
 
 // GetRevisions returns every StagingResourceRevisions at the specified resource path.
+// If no revisions exist for the given path, it returns nil.
 func (cs *ChangeSet) GetRevisions(resourcePath resourcepath.ResourcePath) []*StagingResourceRevision {
-	if revisions, exist := cs.revisions[resourcePath.Path]; exist {
+	if revisions, exist := cs.RevisionsMap[resourcePath.Path]; exist {
 		return revisions
 	}
 	return nil
 }
 
-func (cs *ChangeSet) RecordEvent(resourcePath resourcepath.ResourcePath) {
+// AddEvent adds a ResourceEvent to the ChangeSet for a given resource path.
+func (cs *ChangeSet) AddEvent(resourcePath resourcepath.ResourcePath) {
 	event := ResourceEvent{
-		Log: cs.associatedLog.ID,
+		Log: cs.Log.ID,
 	}
-	if _, exist := cs.events[resourcePath.Path]; !exist {
-		cs.events[resourcePath.Path] = make([]*ResourceEvent, 0)
+	if _, exist := cs.EventsMap[resourcePath.Path]; !exist {
+		cs.EventsMap[resourcePath.Path] = make([]*ResourceEvent, 0)
 	}
-	cs.events[resourcePath.Path] = append(cs.events[resourcePath.Path], &event)
-	cs.annotations = append(cs.annotations, NewResourceReferenceAnnotation(resourcePath.Path))
-	cs.recordResourceRelationship(resourcePath)
+	cs.EventsMap[resourcePath.Path] = append(cs.EventsMap[resourcePath.Path], &event)
+	cs.Annotations = append(cs.Annotations, NewResourceReferenceAnnotation(resourcePath.Path))
+	cs.addResourceRelationship(resourcePath)
 }
 
 // GetEvents returns every ResourceEvents at the specified resource path.
+// If no events exist for the given path, it returns nil.
 func (cs *ChangeSet) GetEvents(resourcePath resourcepath.ResourcePath) []*ResourceEvent {
-	if events, exist := cs.events[resourcePath.Path]; exist {
+	if events, exist := cs.EventsMap[resourcePath.Path]; exist {
 		return events
 	}
 	return nil
 }
 
-func (cs *ChangeSet) RecordResourceAlias(sourceResourcePath resourcepath.ResourcePath, destResourcePath resourcepath.ResourcePath) {
-	if _, exist := cs.aliases[sourceResourcePath.Path]; !exist {
-		cs.aliases[sourceResourcePath.Path] = make([]string, 0)
+// AddResourceAlias adds an alias from a source resource path to a destination resource path.
+func (cs *ChangeSet) AddResourceAlias(sourceResourcePath resourcepath.ResourcePath, destResourcePath resourcepath.ResourcePath) {
+	if _, exist := cs.Aliases[sourceResourcePath.Path]; !exist {
+		cs.Aliases[sourceResourcePath.Path] = make([]string, 0)
 	}
-	for _, d := range cs.aliases[sourceResourcePath.Path] {
+	for _, d := range cs.Aliases[sourceResourcePath.Path] {
 		if d == destResourcePath.Path {
 			return
 		}
 	}
-	cs.aliases[sourceResourcePath.Path] = append(cs.aliases[sourceResourcePath.Path], destResourcePath.Path)
-	cs.recordResourceRelationship(destResourcePath)
+	cs.Aliases[sourceResourcePath.Path] = append(cs.Aliases[sourceResourcePath.Path], destResourcePath.Path)
+	cs.addResourceRelationship(destResourcePath)
 }
 
-func (cs *ChangeSet) recordResourceRelationship(resourcePath resourcepath.ResourcePath) error {
-	if lastRelationship, found := cs.resourceRelationshipRewrites[resourcePath.Path]; found {
+// addResourceRelationship records the parent relationship for a given resource path.
+// It returns an error if the relationship for the given path has already been set to a different value.
+func (cs *ChangeSet) addResourceRelationship(resourcePath resourcepath.ResourcePath) error {
+	if lastRelationship, found := cs.ResourceRelationshipRewrites[resourcePath.Path]; found {
 		if lastRelationship != resourcePath.ParentRelationship {
 			return fmt.Errorf("failed to rewrite the parentRelationship of %s. It was already rewritten to %d", resourcePath.Path, lastRelationship)
 		}
 	} else {
-		cs.resourceRelationshipRewrites[resourcePath.Path] = resourcePath.ParentRelationship
+		cs.ResourceRelationshipRewrites[resourcePath.Path] = resourcePath.ParentRelationship
 	}
 	return nil
 }
 
 // FlushToHistory writes the recorded changeset to the history and returns resource paths where the resource modified.
+// This method applies all staged revisions, events, log properties, aliases, and resource relationships
+// to the provided Builder. It returns a list of resource paths that were modified and any error encountered.
 func (cs *ChangeSet) FlushToHistory(builder *Builder) ([]string, error) {
 	changedPaths := []string{}
 	// Write revisions in this ChangeSet
-	for resourcePath, revisions := range cs.revisions {
+	for resourcePath, revisions := range cs.RevisionsMap {
 		tb := builder.GetTimelineBuilder(resourcePath)
 		for _, stagingRevision := range revisions {
-			revision, err := stagingRevision.commit(builder.binaryChunk, cs.associatedLog)
+			revision, err := stagingRevision.commit(builder.binaryChunk, cs.Log)
 			if err != nil {
 				return nil, err
 			}
@@ -155,7 +171,7 @@ func (cs *ChangeSet) FlushToHistory(builder *Builder) ([]string, error) {
 		changedPaths = append(changedPaths, resourcePath)
 	}
 	// Write events in this ChangeSet
-	for resourcePath, events := range cs.events {
+	for resourcePath, events := range cs.EventsMap {
 		tb := builder.GetTimelineBuilder(resourcePath)
 		for _, event := range events {
 			tb.AddEvent(event)
@@ -164,23 +180,23 @@ func (cs *ChangeSet) FlushToHistory(builder *Builder) ([]string, error) {
 	}
 
 	// Write log related properties
-	if cs.logSummaryRewrite != "" {
-		builder.setLogSummary(cs.associatedLog.ID, cs.logSummaryRewrite)
+	if cs.LogSummary != "" {
+		builder.setLogSummary(cs.Log.ID, cs.LogSummary)
 	}
-	if cs.logSeverityRewrite != enum.SeverityUnknown {
-		builder.setLogSeverity(cs.associatedLog.ID, cs.logSeverityRewrite)
+	if cs.LogSeverity != enum.SeverityUnknown {
+		builder.setLogSeverity(cs.Log.ID, cs.LogSeverity)
 	}
-	builder.setLogAnnotations(cs.associatedLog.ID, cs.annotations)
+	builder.setLogAnnotations(cs.Log.ID, cs.Annotations)
 
 	// Write the alias relationships
-	for source, destinations := range cs.aliases {
+	for source, destinations := range cs.Aliases {
 		for _, dest := range destinations {
 			builder.addTimelineAlias(source, dest)
 		}
 	}
 
 	// Write resource related properties
-	for resourcePath, relationship := range cs.resourceRelationshipRewrites {
+	for resourcePath, relationship := range cs.ResourceRelationshipRewrites {
 		err := builder.rewriteRelationship(resourcePath, relationship)
 		if err != nil {
 			return nil, err

@@ -44,7 +44,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 	podScheduledStatusPath := resourcepath.Status(resourcepath.Pod(l.Operation.Namespace, l.Operation.Name), "PodScheduled")
 	nodeBindingResourcePath := resourcepath.NodeBinding(target, l.Operation.Namespace, l.Operation.Name)
 	if l.Operation.Verb == enum.RevisionVerbCreate {
-		cs.RecordRevision(nodeBindingResourcePath, &history.StagingResourceRevision{
+		cs.AddRevision(nodeBindingResourcePath, &history.StagingResourceRevision{
 			Verb:       enum.RevisionVerbCreate,
 			Body:       l.ResourceBodyYaml,
 			Partial:    false,
@@ -52,7 +52,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			ChangeTime: commonField.Timestamp,
 			State:      enum.RevisionStateExisting,
 		})
-		cs.RecordRevision(podScheduledStatusPath, &history.StagingResourceRevision{
+		cs.AddRevision(podScheduledStatusPath, &history.StagingResourceRevision{
 			Verb:       enum.RevisionVerbStatusTrue,
 			Body:       "# PodScheduled status was inferred to be `True` from a binding resource",
 			Partial:    false,
@@ -61,7 +61,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			State:      enum.RevisionStateConditionTrue,
 		})
 	} else {
-		cs.RecordRevision(nodeBindingResourcePath, &history.StagingResourceRevision{
+		cs.AddRevision(nodeBindingResourcePath, &history.StagingResourceRevision{
 			Verb:       enum.RevisionVerbDelete,
 			Body:       l.ResourceBodyYaml,
 			Partial:    false,
@@ -69,7 +69,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			ChangeTime: commonField.Timestamp,
 			State:      enum.RevisionStateDeleted,
 		})
-		cs.RecordRevision(podScheduledStatusPath, &history.StagingResourceRevision{
+		cs.AddRevision(podScheduledStatusPath, &history.StagingResourceRevision{
 			Verb:       enum.RevisionVerbStatusFalse,
 			Body:       "# PodScheduled status was inferred to be `False` from a binding resource",
 			Partial:    false,

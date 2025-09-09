@@ -101,7 +101,7 @@ func recordChangeSetForLog(ctx context.Context, l *commonlogk8saudit_contract.Au
 		// record conditions as subresource of pod.
 		if endpointParseResult.hasCoditionChanged && endpointParseResult.isEndpointForPod {
 			podEndpointSliceResourcePath := resourcepath.PodEndpointSlice(l.Operation.Namespace, l.Operation.Name, endpoint.TargetRef.Namespace, endpoint.TargetRef.Name)
-			cs.RecordRevision(podEndpointSliceResourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(podEndpointSliceResourcePath, &history.StagingResourceRevision{
 				Body:       endpointParseResult.manifest,
 				State:      endpointParseResult.state,
 				Verb:       endpointParseResult.verb,
@@ -122,7 +122,7 @@ func recordChangeSetForLog(ctx context.Context, l *commonlogk8saudit_contract.Au
 			if prevEndpoint.TargetRef != nil {
 				podEndpointSliceResourcePath := resourcepath.PodEndpointSlice(l.Operation.Namespace, l.Operation.Name, prevEndpoint.TargetRef.Namespace, prevEndpoint.TargetRef.Name)
 				// Only process endpoints not included in current endpoint slices
-				cs.RecordRevision(podEndpointSliceResourcePath, &history.StagingResourceRevision{
+				cs.AddRevision(podEndpointSliceResourcePath, &history.StagingResourceRevision{
 					Body:       "# This endpoint removed from endpoint list of the EndpointSlice",
 					State:      enum.RevisionStateDeleted,
 					Verb:       enum.RevisionVerbDelete,
@@ -138,7 +138,7 @@ func recordChangeSetForLog(ctx context.Context, l *commonlogk8saudit_contract.Au
 			slog.WarnContext(ctx, fmt.Sprintf("failed to parse an endpoint\n%s", err.Error()))
 		} else {
 			serviceEndpointSliceResourcePath := resourcepath.ServiceEndpointSlice(l.Operation.Namespace, l.Operation.Name, relatedServiceName)
-			cs.RecordRevision(serviceEndpointSliceResourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(serviceEndpointSliceResourcePath, &history.StagingResourceRevision{
 				Body:       endpointsParseResults.manifest,
 				State:      endpointsParseResults.state,
 				Verb:       endpointsParseResults.verb,

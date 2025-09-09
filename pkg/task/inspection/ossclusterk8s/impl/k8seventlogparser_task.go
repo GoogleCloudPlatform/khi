@@ -66,14 +66,14 @@ func (o *OSSK8sEventFromK8sAudit) Parse(ctx context.Context, l *log.Log, cs *his
 	subresource := l.ReadStringOrDefault("responseObject.involvedObject.subresource", "")
 
 	if subresource == "" {
-		cs.RecordEvent(resourcepath.NameLayerGeneralItem(apiVersion, kind, namespace, name))
+		cs.AddEvent(resourcepath.NameLayerGeneralItem(apiVersion, kind, namespace, name))
 	} else {
-		cs.RecordEvent(resourcepath.SubresourceLayerGeneralItem(apiVersion, kind, namespace, name, subresource))
+		cs.AddEvent(resourcepath.SubresourceLayerGeneralItem(apiVersion, kind, namespace, name, subresource))
 	}
 
 	reason := l.ReadStringOrDefault("responseObject.reason", "???")
 	message := l.ReadStringOrDefault("responseObject.message", "")
-	cs.RecordLogSummary(fmt.Sprintf("【%s】%s", reason, message))
+	cs.SetLogSummary(fmt.Sprintf("【%s】%s", reason, message))
 	return nil
 }
 

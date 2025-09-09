@@ -73,8 +73,8 @@ func (*SerialPortLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 	mainMessageFieldSet := log.MustGetFieldSet(l, &log.MainMessageFieldSet{})
 	escapedMainMessage := logutil.ConvertSpecialSequences(mainMessageFieldSet.MainMessage, serialportSequenceConverters...)
 	serialPortResourcePath := resourcepath.NodeSerialport(nodeName)
-	cs.RecordEvent(serialPortResourcePath)
-	cs.RecordLogSummary(escapedMainMessage)
+	cs.AddEvent(serialPortResourcePath)
+	cs.SetLogSummary(escapedMainMessage)
 	return nil
 }
 
