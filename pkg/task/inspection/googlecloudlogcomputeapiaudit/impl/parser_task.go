@@ -90,7 +90,7 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 		}
 		requestBodyRaw, _ := l.Serialize("protoPayload.request", &structured.YAMLNodeSerializer{}) // ignore the error to set the empty body when the field is not available in the log.
 		operationPath := resourcepath.Operation(nodeResourcePath, methodNameSplitted[len(methodNameSplitted)-1], operationId)
-		cs.RecordRevision(operationPath, &history.StagingResourceRevision{
+		cs.AddRevision(operationPath, &history.StagingResourceRevision{
 			Body:       string(requestBodyRaw),
 			Verb:       verb,
 			State:      state,
@@ -99,15 +99,15 @@ func (*computeAPIParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 			Partial:    false,
 		})
 	}
-	cs.RecordEvent(nodeResourcePath)
+	cs.AddEvent(nodeResourcePath)
 
 	switch {
 	case isFirst && !isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Started", methodName))
 	case !isFirst && isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Finished", methodName))
 	default:
-		cs.RecordLogSummary(methodName)
+		cs.SetLogSummary(methodName)
 	}
 
 	return nil

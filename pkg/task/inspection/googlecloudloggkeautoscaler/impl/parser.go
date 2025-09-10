@@ -98,7 +98,7 @@ func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history
 			return err
 		}
 	}
-	cs.RecordEvent(resourcepath.Autoscaler(clusterName))
+	cs.AddEvent(resourcepath.Autoscaler(clusterName))
 	return nil
 }
 
@@ -118,14 +118,14 @@ func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *hist
 		requestedSum := 0
 		for _, mig := range scaleUp.IncreasedMigs {
 			migResourcePath := resourcepath.Mig(clusterName, mig.Mig.Nodepool, mig.Mig.Name)
-			cs.RecordEvent(migResourcePath)
+			cs.AddEvent(migResourcePath)
 			nodepoolNames = append(nodepoolNames, mig.Mig.Nodepool)
 			requestedSum += mig.RequestedNodes
 		}
 		for _, pod := range scaleUp.TriggeringPods {
-			cs.RecordEvent(resourcepath.Pod(pod.Namespace, pod.Name))
+			cs.AddEvent(resourcepath.Pod(pod.Namespace, pod.Name))
 		}
-		cs.RecordLogSummary(fmt.Sprintf("Scaling up nodepools by autoscaler: %s (requested: %d in total)", strings.Join(common.DedupStringArray(nodepoolNames), ","), requestedSum))
+		cs.SetLogSummary(fmt.Sprintf("Scaling up nodepools by autoscaler: %s (requested: %d in total)", strings.Join(common.DedupStringArray(nodepoolNames), ","), requestedSum))
 	}
 	// Parse scale down event
 	if decision.ScaleDown != nil {
@@ -133,37 +133,37 @@ func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *hist
 		nodepoolNames := []string{}
 		for _, nodeToBeRemoved := range scaleDown.NodesToBeRemoved {
 			migResourcePath := resourcepath.Mig(clusterName, nodeToBeRemoved.Node.Mig.Nodepool, nodeToBeRemoved.Node.Name)
-			cs.RecordEvent(resourcepath.Node(nodeToBeRemoved.Node.Name))
-			cs.RecordEvent(migResourcePath)
+			cs.AddEvent(resourcepath.Node(nodeToBeRemoved.Node.Name))
+			cs.AddEvent(migResourcePath)
 			for _, pod := range nodeToBeRemoved.EvictedPods {
-				cs.RecordEvent(resourcepath.Pod(pod.Namespace, pod.Name))
+				cs.AddEvent(resourcepath.Pod(pod.Namespace, pod.Name))
 			}
 			nodepoolNames = append(nodepoolNames, nodeToBeRemoved.Node.Mig.Nodepool)
 		}
-		cs.RecordLogSummary(fmt.Sprintf("Scaling down nodepools by autoscaler: %s (Removing %d nodes in total)", strings.Join(common.DedupStringArray(nodepoolNames), ","), len(scaleDown.NodesToBeRemoved)))
+		cs.SetLogSummary(fmt.Sprintf("Scaling down nodepools by autoscaler: %s (Removing %d nodes in total)", strings.Join(common.DedupStringArray(nodepoolNames), ","), len(scaleDown.NodesToBeRemoved)))
 	}
 	// Nodepool creation event
 	if decision.NodePoolCreated != nil {
 		nodePoolCreated := decision.NodePoolCreated
 		nodepools := []string{}
 		for _, nodepool := range nodePoolCreated.NodePools {
-			cs.RecordEvent(resourcepath.Nodepool(clusterName, nodepool.Name))
+			cs.AddEvent(resourcepath.Nodepool(clusterName, nodepool.Name))
 			for _, mig := range nodepool.Migs {
 				migResourcePath := resourcepath.Mig(clusterName, mig.Nodepool, mig.Name)
-				cs.RecordEvent(migResourcePath)
+				cs.AddEvent(migResourcePath)
 			}
 			nodepools = append(nodepools, nodepool.Name)
 		}
-		cs.RecordLogSummary(fmt.Sprintf("Nodepool created by node auto provisioner: %s", strings.Join(nodepools, ",")))
+		cs.SetLogSummary(fmt.Sprintf("Nodepool created by node auto provisioner: %s", strings.Join(nodepools, ",")))
 	}
 	if decision.NodePoolDeleted != nil {
 		nodepoolDeleted := decision.NodePoolDeleted
 		for _, nodepool := range nodepoolDeleted.NodePoolNames {
-			cs.RecordEvent(resourcepath.Nodepool(clusterName, nodepool))
+			cs.AddEvent(resourcepath.Nodepool(clusterName, nodepool))
 		}
-		cs.RecordLogSummary(fmt.Sprintf("Nodepool deleted by node auto provisioner: %s", strings.Join(nodepoolDeleted.NodePoolNames, ",")))
+		cs.SetLogSummary(fmt.Sprintf("Nodepool deleted by node auto provisioner: %s", strings.Join(nodepoolDeleted.NodePoolNames, ",")))
 	}
-	cs.RecordLogSeverity(enum.SeverityWarning)
+	cs.SetLogSeverity(enum.SeverityWarning)
 	return nil
 }
 
@@ -180,9 +180,9 @@ func parseNoDecision(ctx context.Context, clusterName string, l *log.Log, cs *hi
 		noScaleUp := noDecision.NoScaleUp
 		for _, mig := range noScaleUp.SkippedMigs {
 			migResourcePath := resourcepath.Mig(clusterName, mig.Mig.Nodepool, mig.Mig.Name)
-			cs.RecordEvent(migResourcePath)
+			cs.AddEvent(migResourcePath)
 		}
-		cs.RecordLogSummary("autoscaler decided not to scale up")
+		cs.SetLogSummary("autoscaler decided not to scale up")
 		// TODO: support unhandled migs
 	}
 
@@ -190,16 +190,16 @@ func parseNoDecision(ctx context.Context, clusterName string, l *log.Log, cs *hi
 		noScaleDown := noDecision.NoScaleDown
 		migs := map[string]mig{}
 		for _, node := range noScaleDown.Nodes {
-			cs.RecordEvent(resourcepath.Node(node.Node.Name))
+			cs.AddEvent(resourcepath.Node(node.Node.Name))
 			migs[node.Node.Mig.Id()] = node.Node.Mig
 		}
 		for _, mig := range migs {
 			migResourcePath := resourcepath.Mig(clusterName, mig.Nodepool, mig.Name)
-			cs.RecordEvent(migResourcePath)
+			cs.AddEvent(migResourcePath)
 		}
-		cs.RecordLogSummary("autoscaler decided not to scale down")
+		cs.SetLogSummary("autoscaler decided not to scale down")
 	}
-	cs.RecordLogSeverity(enum.SeverityInfo)
+	cs.SetLogSeverity(enum.SeverityInfo)
 	return nil
 }
 
@@ -222,8 +222,8 @@ func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *hi
 		}
 		statuses = append(statuses, status)
 	}
-	cs.RecordLogSeverity(enum.SeverityInfo)
-	cs.RecordLogSummary(fmt.Sprintf("autoscaler finished events: %s", strings.Join(statuses, ",")))
+	cs.SetLogSeverity(enum.SeverityInfo)
+	cs.SetLogSummary(fmt.Sprintf("autoscaler finished events: %s", strings.Join(statuses, ",")))
 	return nil
 }
 

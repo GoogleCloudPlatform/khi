@@ -101,7 +101,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 			state = enum.RevisionStateOperationFinished
 		}
 		operationPath := resourcepath.Operation(negResourcePath, methodNameSplitted[len(methodNameSplitted)-1], operationId)
-		cs.RecordRevision(operationPath, &history.StagingResourceRevision{
+		cs.AddRevision(operationPath, &history.StagingResourceRevision{
 			Verb:       enum.RevisionVerbCreate,
 			State:      state,
 			Requestor:  principal,
@@ -109,7 +109,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 			Partial:    false,
 		})
 	default:
-		cs.RecordEvent(negResourcePath)
+		cs.AddEvent(negResourcePath)
 	}
 	if isFirst {
 		method := methodNameSplitted[len(methodNameSplitted)-1]
@@ -140,7 +140,7 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 						state = enum.RevisionStateConditionFalse
 						verb = enum.RevisionVerbNonReady
 					}
-					cs.RecordRevision(negSubresourcePath, &history.StagingResourceRevision{
+					cs.AddRevision(negSubresourcePath, &history.StagingResourceRevision{
 						Verb:       verb,
 						State:      state,
 						Requestor:  principal,
@@ -153,11 +153,11 @@ func (*gceNetworkParser) Parse(ctx context.Context, l *log.Log, cs *history.Chan
 	}
 	switch {
 	case isFirst && !isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Started", methodName))
 	case !isFirst && isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Finished", methodName))
 	default:
-		cs.RecordLogSummary(methodName)
+		cs.SetLogSummary(methodName)
 	}
 
 	return nil

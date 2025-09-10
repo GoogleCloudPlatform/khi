@@ -116,7 +116,7 @@ func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.Log, cs *hist
 
 	resourcePath := resourcepath.AirflowTaskInstance(ti)
 	verb, state := apacheairflowcommon.TiStatusToVerb(ti)
-	cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
+	cs.AddRevision(resourcePath, &history.StagingResourceRevision{
 		Verb:       verb,
 		State:      state,
 		Requestor:  "airflow-scheduler",
@@ -125,13 +125,13 @@ func (t *AirflowSchedulerParser) Parse(ctx context.Context, l *log.Log, cs *hist
 		Body:       ti.ToYaml(),
 	})
 
-	cs.RecordLogSummary(mainMessage.MainMessage)
-	cs.RecordEvent(resourcePath)
+	cs.SetLogSummary(mainMessage.MainMessage)
+	cs.AddEvent(resourcePath)
 
 	// if the ti status is zombie, record it on worker
 	if ti.Status() == model.TASKINSTANCE_ZOMBIE && ti.Host() != "" {
 		host := model.NewAirflowWorker(ti.Host())
-		cs.RecordEvent(resourcepath.AirflowWorker(host))
+		cs.AddEvent(resourcepath.AirflowWorker(host))
 	}
 
 	return nil

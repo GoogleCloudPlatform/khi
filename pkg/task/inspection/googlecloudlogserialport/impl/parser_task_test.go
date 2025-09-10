@@ -37,7 +37,7 @@ func TestSerialPortLogParser_ParseBasicSerialPortLog(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
