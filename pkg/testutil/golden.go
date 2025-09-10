@@ -25,7 +25,7 @@ import (
 var ForceUpdateGolden = false
 
 // VerifyWithGolden test if the given body is matching with the golden file saved for each tests under /test/golden/
-func VerifyWithGolden(t *testing.T, verificationTargetName string, body string) {
+func VerifyWithGolden(t testing.TB, verificationTargetName string, body string) {
 	t.Helper()
 	_, updateGolden := os.LookupEnv("UPDATE_GOLDEN")
 	goldenName := t.Name() + "-" + verificationTargetName
@@ -45,6 +45,7 @@ func VerifyWithGolden(t *testing.T, verificationTargetName string, body string) 
 		golden := MustReadText(goldenPath)
 		if diff := cmp.Diff(golden, body); diff != "" {
 			t.Errorf("input is not matching with the golden (-want,+got):\n%s", diff)
+			t.Logf("If you think this change is valid, run 'UPDATE_GOLDEN=1 go test ./...' to update the golden.\n It updates all the goldens, make sure the other golden tests are also valid before updating golden.")
 		}
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -65,7 +66,7 @@ func AssertChangeSetHasEventForResourcePath(t testing.TB, cs *history.ChangeSet,
 
 // AssertChangeSetHasRevisionForResourcePath asserts that the ChangeSet contains
 // the expected revision for the given resource path.
-func AssertChangeSetHasRevisionForResourcePath(t testing.TB, cs *history.ChangeSet, resourcePath resourcepath.ResourcePath, revision *history.StagingResourceRevision) {
+func AssertChangeSetHasRevisionForResourcePath(t testing.TB, cs *history.ChangeSet, resourcePath resourcepath.ResourcePath, revision *history.StagingResourceRevision, opts ...cmp.Option) {
 	t.Helper()
 	revisions := cs.GetRevisions(resourcePath)
 	if len(revisions) == 0 {
@@ -79,7 +80,7 @@ func AssertChangeSetHasRevisionForResourcePath(t testing.TB, cs *history.ChangeS
 
 	found := false
 	for _, r := range revisions {
-		if cmp.Equal(r, revision) {
+		if cmp.Equal(r, revision, opts...) {
 			found = true
 			break
 		}
@@ -88,6 +89,32 @@ func AssertChangeSetHasRevisionForResourcePath(t testing.TB, cs *history.ChangeS
 	if !found {
 		t.Errorf("Did not find the expected revision for resource path '%s'.\nExpected: %+v\nFound: %+v", resourcePath.Path, revision, revisions)
 	}
+}
+
+// AssertChangeSetHasCountOfRevisionsForResourcePath asserts that the ChangeSet contains
+// the expected number of revisions for the given resource path.
+func AssertChangeSetHasCountOfRevisionsForResourcePath(t testing.TB, cs *history.ChangeSet, resourcePath resourcepath.ResourcePath, count int) {
+	t.Helper()
+	revisions := cs.GetRevisions(resourcePath)
+	if len(revisions) != count {
+		t.Errorf("got %d revisions, want %d", len(revisions), count)
+	}
+}
+
+// AssertChangeSetHasRevisionMatchingBodyGoldensForResourcePath asserts that the ChangeSet contains
+// revisions whose bodies match the golden file for the given resource path.
+// The `validationTargetName` is used as the suffix of golden file name.
+func AssertChangeSetHasRevisionMatchingBodyGoldensForResourcePath(t testing.TB, cs *history.ChangeSet, resourcePath resourcepath.ResourcePath, validationTargetName string) {
+	t.Helper()
+	revisions := cs.GetRevisions(resourcePath)
+	wholeBody := ""
+	for _, rev := range revisions {
+		if wholeBody != "" {
+			wholeBody += "==================================================\n"
+		}
+		wholeBody += rev.Body + "\n"
+	}
+	testutil.VerifyWithGolden(t, validationTargetName, wholeBody)
 }
 
 // AssertChangeSetHasAliasForResourcePath asserts that the ChangeSet contains the
