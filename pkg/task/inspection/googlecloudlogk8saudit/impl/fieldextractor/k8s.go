@@ -32,7 +32,7 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	switch {
 	case methodNameFragments[4] == "namespaces":
 		// Branch for namespace resource
-		namespace = "Cluster-Scope"
+		namespace = "cluster-scope"
 		name = resourceNameFragments[3]
 		pluralKind = "namespaces"
 		if len(resourceNameFragments) > 4 {
@@ -48,7 +48,7 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 			subResourceName = resourceNameFragments[6]
 		}
 	case len(resourceNameFragments) >= 3:
-		namespace = "Cluster-Scope"
+		namespace = "cluster-scope"
 		if len(resourceNameFragments) > 3 {
 			name = resourceNameFragments[3]
 		}

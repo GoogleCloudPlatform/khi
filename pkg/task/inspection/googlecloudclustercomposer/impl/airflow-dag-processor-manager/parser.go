@@ -75,7 +75,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *h
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
 	if err != nil {
-		cs.RecordLogSummary(mainMessage.MainMessage)
+		cs.SetLogSummary(mainMessage.MainMessage)
 	}
 
 	dagFileProcessorStats := a.fromLogEntity(mainMessage.MainMessage)
@@ -83,7 +83,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *h
 		// this is not a dag file processor stats log, skip
 		return nil
 	}
-	cs.RecordRevision(resourcepath.DagFileProcessorStats(dagFileProcessorStats), &history.StagingResourceRevision{
+	cs.AddRevision(resourcepath.DagFileProcessorStats(dagFileProcessorStats), &history.StagingResourceRevision{
 		Verb:       enum.RevisionVerbComposerTaskInstanceStats,
 		State:      enum.RevisionStateConditionTrue,
 		Requestor:  "dag-processor-manager",
@@ -95,7 +95,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *h
 
 	// Emphasize "Error" for parsing dag failures
 	if dagFileProcessorStats.NumberOfErrors() != "0" {
-		cs.RecordLogSeverity(enum.SeverityError)
+		cs.SetLogSeverity(enum.SeverityError)
 	}
 
 	var summary string
@@ -106,7 +106,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *h
 		summary = fmt.Sprintf("dags=%s, errors= %s",
 			dagFileProcessorStats.NumberOfDags(), dagFileProcessorStats.NumberOfErrors())
 	}
-	cs.RecordLogSummary(summary)
+	cs.SetLogSummary(summary)
 	return nil
 }
 

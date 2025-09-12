@@ -98,10 +98,10 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 	host, _ := l.ReadString("labels.worker_id")
 	worker := model.NewAirflowWorker(host)
-	cs.RecordEvent(resourcepath.AirflowWorker(worker))
+	cs.AddEvent(resourcepath.AirflowWorker(worker))
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 	mainMessage, _ := log.GetFieldSet(l, &log.MainMessageFieldSet{})
-	cs.RecordLogSummary(mainMessage.MainMessage)
+	cs.SetLogSummary(mainMessage.MainMessage)
 
 	for _, p := range parsers {
 		ti, err := p.fn(l)
@@ -111,7 +111,7 @@ func (*AirflowWorkerParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 		r := resourcepath.AirflowTaskInstance(ti)
 		verb, state := apacheairflowcommon.TiStatusToVerb(ti)
-		cs.RecordRevision(r, &history.StagingResourceRevision{
+		cs.AddRevision(r, &history.StagingResourceRevision{
 			Verb:       verb,
 			State:      state,
 			Requestor:  "airflow-worker",

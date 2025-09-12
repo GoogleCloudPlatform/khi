@@ -268,7 +268,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameButNotWithContainerName(t *test
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
@@ -300,7 +300,7 @@ func TestK8sNodeParser_ParseKubeletLogWithPodNameAndContainerName(t *testing.T) 
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
@@ -326,7 +326,7 @@ func TestK8sNodeParser_ParseContainerdRunPod(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
@@ -360,7 +360,7 @@ func TestK8sNodeParser_ParseCreateContainer(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
@@ -395,7 +395,7 @@ func TestK8sNodeParser_ParseContainerdIncludingContainerIdOnly(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}

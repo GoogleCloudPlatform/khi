@@ -18,6 +18,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -39,6 +40,187 @@ func (f *stubAuditLogFieldExtractor) ExtractFields(ctx context.Context, log *log
 }
 
 var _ commonlogk8saudit_contract.AuditLogFieldExtractor = (*stubAuditLogFieldExtractor)(nil)
+
+// mustTestYAMLReader returns structured.NodeReader from given string.
+func mustTestYAMLReader(t *testing.T, yaml string) *structured.NodeReader {
+	n, err := structured.FromYAML(yaml)
+	if err != nil {
+		t.Fatalf("failed to parse yaml %s\n%s", err.Error(), yaml)
+	}
+	return structured.NewNodeReader(n)
+}
+
+func TestDefaultGroupDecider(t *testing.T) {
+	decider := &defaultResourceGroupDecider{}
+	testCases := []struct {
+		desc      string
+		inputOp   model.KubernetesObjectOperation
+		wantGroup string
+	}{
+		{
+			desc: "with a basic pod resource",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion: "core/v1",
+				PluralKind: "pods",
+				Namespace:  "default",
+				Name:       "foo",
+				Verb:       enum.RevisionVerbCreate,
+			},
+			wantGroup: "core/v1#pod#default#foo",
+		},
+		{
+			desc: "with namepsace deleting delete collection",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion: "core/v1",
+				PluralKind: "pods",
+				Namespace:  "default",
+				Name:       "",
+				Verb:       enum.RevisionVerbDeleteCollection,
+			},
+			wantGroup: "core/v1#pod#default#", // TODO: This is OK for now. This will be fixed with #267 'Changes made by delete collection operation may generate wrong resource timeline'
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			group, err := decider.GetResourceGroup(&commonlogk8saudit_contract.AuditLogParserInput{
+				Operation: &tc.inputOp,
+			})
+			if err != nil {
+				t.Error(err)
+			}
+			if group != tc.wantGroup {
+				t.Errorf("got %s, want %s", group, tc.wantGroup)
+			}
+		})
+	}
+}
+
+func TestSubresourceGroupDecider(t *testing.T) {
+	decider := &subresourceResourceGroupDecider{
+		defaultBehaviorOverrides: map[string]subresourceDefaultBehavior{
+			"status": Parent,
+		},
+	}
+
+	testCases := []struct {
+		desc                string
+		inputOp             model.KubernetesObjectOperation
+		inputRequestReader  *structured.NodeReader
+		inputResponseReader *structured.NodeReader
+		wantGroup           string
+	}{
+		{
+			desc: "must ignore non subresource group",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion: "core/v1",
+				PluralKind: "pods",
+				Namespace:  "default",
+				Name:       "foo",
+				Verb:       enum.RevisionVerbCreate,
+			},
+			wantGroup: "",
+		},
+		{
+			desc: "subresource respond with its parent resource",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion:      "certificates.k8s.io/v1",
+				PluralKind:      "certificatesigningrequests",
+				Namespace:       "default",
+				Name:            "foo",
+				SubResourceName: "approve",
+				Verb:            enum.RevisionVerbPatch,
+			},
+			inputRequestReader: nil,
+			inputResponseReader: mustTestYAMLReader(t, `apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+`),
+			wantGroup: "certificates.k8s.io/v1#certificatesigningrequest#default#foo",
+		},
+		{
+			desc: "subresource respond with its subresource",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion:      "v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				Name:            "foo",
+				SubResourceName: "binding",
+				Verb:            enum.RevisionVerbPatch,
+			},
+			inputRequestReader: nil,
+			inputResponseReader: mustTestYAMLReader(t, `apiVersion: v1
+kind: Binding`),
+			wantGroup: "core/v1#pod#default#foo#binding",
+		},
+		{
+			desc: "subresource respond with status resource",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion:      "v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				Name:            "foo",
+				SubResourceName: "binding",
+				Verb:            enum.RevisionVerbPatch,
+			},
+			inputResponseReader: mustTestYAMLReader(t, `apiVersion: v1
+kind: Status
+`),
+			inputRequestReader: mustTestYAMLReader(t, `apiVersion: v1
+kind: Binding`),
+			wantGroup: "core/v1#pod#default#foo#binding",
+		},
+		{
+			desc: "request and response wasn't enough informative to determine its associated resource type and its default behavior was overriden to use Parent",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion:      "v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				Name:            "foo",
+				SubResourceName: "status",
+				Verb:            enum.RevisionVerbPatch,
+			},
+			inputRequestReader: mustTestYAMLReader(t, `metadata:
+  uid: foobar
+status:
+  phase: Running
+`),
+			inputResponseReader: nil,
+			wantGroup:           "core/v1#pod#default#foo",
+		},
+		{
+			desc: "request and response wasn't enough informative to determine its associated resource type and its default behavior wasn't overriden",
+			inputOp: model.KubernetesObjectOperation{
+				APIVersion:      "foo/v1",
+				PluralKind:      "bars",
+				Namespace:       "default",
+				Name:            "qux",
+				SubResourceName: "quux",
+				Verb:            enum.RevisionVerbPatch,
+			},
+			inputRequestReader: mustTestYAMLReader(t, `metadata:
+  uid: abcdefg
+status:
+  phase: Running
+`),
+			inputResponseReader: nil,
+			wantGroup:           "foo/v1#bar#default#qux#quux",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			group, err := decider.GetResourceGroup(&commonlogk8saudit_contract.AuditLogParserInput{
+				Operation: &tc.inputOp,
+				Request:   tc.inputRequestReader,
+				Response:  tc.inputResponseReader,
+			})
+			if err != nil {
+				t.Error(err)
+			}
+			if group != tc.wantGroup {
+				t.Errorf("got %s, want %s", group, tc.wantGroup)
+			}
+		})
+	}
+}
 
 func TestGroupByTimelineTask(t *testing.T) {
 	t.Run("it ignores dryrun mode", func(t *testing.T) {

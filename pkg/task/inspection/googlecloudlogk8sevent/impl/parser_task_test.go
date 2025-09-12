@@ -33,7 +33,7 @@ func TestK8sEventParser_ParseSampleLog(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
@@ -51,7 +51,7 @@ func TestK8sEventParser_ClusterScope(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(event))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
