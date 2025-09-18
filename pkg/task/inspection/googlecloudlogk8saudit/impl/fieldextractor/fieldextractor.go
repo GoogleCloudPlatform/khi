@@ -40,12 +40,6 @@ func (g *GCPAuditLogFieldExtractor) ExtractFields(ctx context.Context, l *log.Lo
 	userEmail := l.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
 
 	operation := parseKubernetesOperation(resourceName, methodName)
-	// /status subresource contains the actual content of the parent.
-	// It's easier to see timeline merged with the parent timeline instead of showing status as the single subresource timeline.
-	// TODO: There would be the other subresources needed to be cared like this.
-	if operation.SubResourceName == "status" {
-		operation.SubResourceName = ""
-	}
 
 	responseErrorCode := l.ReadIntOrDefault("protoPayload.status.code", 0)
 	responseErrorMessage := l.ReadStringOrDefault("protoPayload.status.message", "")

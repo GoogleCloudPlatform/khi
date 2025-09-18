@@ -20,7 +20,7 @@ func HasDependency(taskSet *TaskSet, dependencyFrom UntypedTask, dependencyTo Un
 	if err != nil {
 		return false, err
 	}
-	resolvedSet, err := sourceSet.ResolveTask(taskSet)
+	resolvedSet, err := sourceSet.ToRunnableTaskSet()
 	if err != nil {
 		return false, err
 	}

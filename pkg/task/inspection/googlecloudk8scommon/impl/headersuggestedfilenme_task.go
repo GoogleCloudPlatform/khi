@@ -47,7 +47,7 @@ var HeaderSuggestedFileNameTask = inspectiontaskbase.NewInspectionTask(googleclo
 	header.SuggestedFileName = getSuggestedFileName(clusterName, startTime, endTime)
 
 	return struct{}{}, nil
-}, inspectioncore_contract.NewRequiredTaskLabel(), inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...))
+}, coretask.NewRequiredTaskLabel(), inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...))
 
 func getSuggestedFileName(clusterName string, startTime, endTime time.Time) string {
 	return fmt.Sprintf("%s-%s-%s.khi", clusterName, startTime.Format("2006_01_02_1504"), endTime.Format("2006_01_02_1504"))
