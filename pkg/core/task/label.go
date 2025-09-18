@@ -14,7 +14,10 @@
 
 package coretask
 
-import "github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+)
 
 // TaskLabelKey is a key of labels given to task.
 type TaskLabelKey[LabelValueType any] = typedmap.TypedKey[LabelValueType]
@@ -84,3 +87,45 @@ func FromLabels(labels *typedmap.ReadonlyTypedMap) []LabelOpt {
 	}
 	return result
 }
+
+type requiredTaskLabelImpl struct{}
+
+func (r *requiredTaskLabelImpl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyRequiredTask, true)
+}
+
+// InspectionTypeLabel returns a LabelOpt to mark the task is always included in the result task graph.
+func NewRequiredTaskLabel() *requiredTaskLabelImpl {
+	return &requiredTaskLabelImpl{}
+}
+
+type withSubsequentTaskRef struct {
+	additionalSubsequentTaskRefs []taskid.UntypedTaskReference
+}
+
+// NewSubsequentTaskRefsTaskLabel returns a LabelOpt to add subsequent task to the current task.
+func NewSubsequentTaskRefsTaskLabel(refs ...taskid.UntypedTaskReference) LabelOpt {
+	return &withSubsequentTaskRef{
+		additionalSubsequentTaskRefs: refs,
+	}
+}
+
+// Write implements LabelOpt.
+func (w *withSubsequentTaskRef) Write(labels *typedmap.TypedMap) {
+	subsequentTasks := typedmap.GetOrDefault(labels, LabelKeySubsequentTaskRefs, []taskid.UntypedTaskReference{})
+	for _, additional := range w.additionalSubsequentTaskRefs {
+		found := false
+		for _, alreadyIncluded := range subsequentTasks {
+			if additional.ReferenceIDString() == alreadyIncluded.ReferenceIDString() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			subsequentTasks = append(subsequentTasks, additional)
+		}
+	}
+	typedmap.Set(labels, LabelKeySubsequentTaskRefs, subsequentTasks)
+}
+
+var _ LabelOpt = (*withSubsequentTaskRef)(nil)

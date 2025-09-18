@@ -36,6 +36,12 @@ const (
 
 var LabelKeyTaskSelectionPriority = NewTaskLabelKey[int](KHISystemPrefix + "task-selection-priority")
 
+// LabelKeyRequiredTask is the task label to tell task resolver to always include the task in the task graph when the task is available.
+var LabelKeyRequiredTask = NewTaskLabelKey[bool](KHISystemPrefix + "required-task")
+
+// LabelKeySubsequentTaskRefs is the list of task references. These tasks are included in the task graph later and the included task reference this task.
+var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](KHISystemPrefix + "subsquent-task-refs")
+
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
 	// Labels returns KHITaskLabelSet assigned to this task unit.

@@ -17,5 +17,5 @@ package inspectioncore_impl
 import coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 
 func Register(registry coretask.TaskRegistry) error {
-	return coretask.RegisterTasks(registry, InspectionTimeProducer, TimeZoneShiftInputTask)
+	return coretask.RegisterTasks(registry, InspectionTimeProducer, TimeZoneShiftInputTask, SerializeTask)
 }

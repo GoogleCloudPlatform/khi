@@ -204,28 +204,36 @@ func GetFeatureDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*
 
 // getDependentQueryTasks returns the list of query tasks required by the feature task.
 func getDependentQueryTasks(taskServer *coreinspection.InspectionTaskServer, featureTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
-	resolveSource, err := coretask.NewTaskSet([]coretask.UntypedTask{featureTask})
+	resolved, err := coretask.DefaultTaskGraphResolver.Resolve([]coretask.UntypedTask{featureTask}, taskServer.RootTaskSet.GetAll())
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := resolveSource.ResolveTask(taskServer.RootTaskSet)
+	ts, err := coretask.NewTaskSet(resolved)
 	if err != nil {
 		return nil, err
 	}
-	return coretask.Subset(resolved, filter.NewEnabledFilter(inspectioncore_contract.TaskLabelKeyIsQueryTask, false)).GetAll(), nil
+	runnable, err := ts.ToRunnableTaskSet()
+	if err != nil {
+		return nil, err
+	}
+	return coretask.Subset(runnable, filter.NewEnabledFilter(inspectioncore_contract.TaskLabelKeyIsQueryTask, false)).GetAll(), nil
 }
 
 // getDependentFormTasks returns the list of form tasks required by the feature task.
 func getDependentFormTasks(taskServer *coreinspection.InspectionTaskServer, featureTask coretask.UntypedTask) ([]coretask.UntypedTask, error) {
-	resolveSource, err := coretask.NewTaskSet([]coretask.UntypedTask{featureTask})
+	resolved, err := coretask.DefaultTaskGraphResolver.Resolve([]coretask.UntypedTask{featureTask}, taskServer.RootTaskSet.GetAll())
 	if err != nil {
 		return nil, err
 	}
-	resolved, err := resolveSource.ResolveTask(taskServer.RootTaskSet)
+	ts, err := coretask.NewTaskSet(resolved)
 	if err != nil {
 		return nil, err
 	}
-	return coretask.Subset(resolved, filter.NewEnabledFilter(inspectioncore_contract.TaskLabelKeyIsFormTask, false)).GetAll(), nil
+	runnable, err := ts.ToRunnableTaskSet()
+	if err != nil {
+		return nil, err
+	}
+	return coretask.Subset(runnable, filter.NewEnabledFilter(inspectioncore_contract.TaskLabelKeyIsFormTask, false)).GetAll(), nil
 }
 
 // getAvailableInspectionTypes returns the list of information about inspection type that supports this feature.

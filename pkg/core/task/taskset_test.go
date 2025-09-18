@@ -16,7 +16,6 @@ package coretask
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"testing"
 
@@ -188,198 +187,18 @@ func TestResolveGraphWithCircularDependency(t *testing.T) {
 	}
 }
 
-// assertResolveTask is a test helper that verifies the ResolveTask results
-// match the expected task IDs and selection priorities.
-func assertResolveTask(t *testing.T, tasks []UntypedTask, availableTasks []UntypedTask, expectedTaskIDs []string) {
-	t.Helper() // Mark this as a helper function to improve test output
-
-	// Create task sets
-	taskSet := &TaskSet{tasks: tasks}
-	availableSet, err := NewTaskSet(availableTasks)
-	if err != nil {
-		t.Fatalf("Failed to create available task set: %v", err)
-	}
-
-	// Resolve tasks
-	resolvedTaskSet, err := taskSet.ResolveTask(availableSet)
-	if err != nil {
-		t.Fatalf("ResolveTask failed: %v", err)
-	}
-
-	// Verify the task set is runnable
-	if !resolvedTaskSet.runnable {
-		t.Errorf("Expected resolved task set to be runnable, but it is not")
-	}
-
-	// Extract and verify the task IDs in the expected order
-	actualTaskIDs := make([]string, 0, len(resolvedTaskSet.tasks))
-	for _, task := range resolvedTaskSet.tasks {
-		actualTaskIDs = append(actualTaskIDs, task.UntypedID().ReferenceIDString())
-	}
-
-	if diff := cmp.Diff(actualTaskIDs, expectedTaskIDs); diff != "" {
-		t.Errorf("Task selection mismatch (-actual,+expected):\n%s", diff)
-	}
-}
-
-func TestWrapGraph(t *testing.T) {
-	testCases := []struct {
-		ResolvedShape string
-		Tasks         []UntypedTask
-	}{
-		{
-			//https://dreampuf.github.io/GraphvizOnline/#digraph%20G%20%7B%0Astart%20%5Bshape%3D%22diamond%22%2Cfillcolor%3Dgray%2Cstyle%3Dfilled%5D%0Atest_init%20%5Bshape%3D%22circle%22%2Clabel%3D%22test-init%22%5D%0Atest_done%20%5Bshape%3D%22circle%22%2Clabel%3D%22test-done%22%5D%0Astart%20-%3E%20test_init%0Atest_init%20-%3E%20test_done%0A%7D
-			ResolvedShape: `digraph G {
-start [shape="diamond",fillcolor=gray,style=filled]
-test_init_default [shape="circle",label="test-init#default"]
-test_done_default [shape="circle",label="test-done#default"]
-start -> test_init_default
-test_init_default -> test_done_default
-}`,
-			Tasks: []UntypedTask{},
-		},
-		{
-			//https://dreampuf.github.io/GraphvizOnline/#digraph%20G%20%7B%0Astart%20%5Bshape%3D%22diamond%22%2Cfillcolor%3Dgray%2Cstyle%3Dfilled%5D%0Atest_init%20%5Bshape%3D%22circle%22%2Clabel%3D%22test-init%22%5D%0Abar%20%5Bshape%3D%22circle%22%2Clabel%3D%22bar%22%5D%0Afoo%20%5Bshape%3D%22circle%22%2Clabel%3D%22foo%22%5D%0Aquux%20%5Bshape%3D%22circle%22%2Clabel%3D%22quux%22%5D%0Aquz%20%5Bshape%3D%22circle%22%2Clabel%3D%22quz%22%5D%0Atest_done%20%5Bshape%3D%22circle%22%2Clabel%3D%22test-done%22%5D%0Astart%20-%3E%20test_init%0Atest_init%20-%3E%20bar%0Atest_init%20-%3E%20foo%0Atest_init%20-%3E%20quux%0Atest_init%20-%3E%20quz%0Atest_init%20-%3E%20test_done%0Afoo%20-%3E%20test_done%0Abar%20-%3E%20test_done%0Aquz%20-%3E%20test_done%0Aquux%20-%3E%20test_done%0A%7D
-			ResolvedShape: `digraph G {
-start [shape="diamond",fillcolor=gray,style=filled]
-test_init_default [shape="circle",label="test-init#default"]
-quz_default [shape="circle",label="quz#default"]
-quux_default [shape="circle",label="quux#default"]
-foo_default [shape="circle",label="foo#default"]
-bar_default [shape="circle",label="bar#default"]
-test_done_default [shape="circle",label="test-done#default"]
-start -> test_init_default
-test_init_default -> quz_default
-test_init_default -> quux_default
-test_init_default -> foo_default
-test_init_default -> bar_default
-bar_default -> test_done_default
-foo_default -> test_done_default
-quux_default -> test_done_default
-quz_default -> test_done_default
-test_init_default -> test_done_default
-}`,
-			Tasks: []UntypedTask{
-				newDebugTask("foo", []string{}),
-				newDebugTask("bar", []string{}),
-				newDebugTask("quz", []string{}),
-				newDebugTask("quux", []string{}),
-			},
-		},
-		{
-			//https://dreampuf.github.io/GraphvizOnline/#digraph%20G%20%7B%0Astart%20%5Bshape%3D%22diamond%22%2Cfillcolor%3Dgray%2Cstyle%3Dfilled%5D%0Atest_init%20%5Bshape%3D%22circle%22%2Clabel%3D%22test-init%22%5D%0Afoo%20%5Bshape%3D%22circle%22%2Clabel%3D%22foo%22%5D%0Aquux%20%5Bshape%3D%22circle%22%2Clabel%3D%22quux%22%5D%0Aquz%20%5Bshape%3D%22circle%22%2Clabel%3D%22quz%22%5D%0Abar%20%5Bshape%3D%22circle%22%2Clabel%3D%22bar%22%5D%0Atest_done%20%5Bshape%3D%22circle%22%2Clabel%3D%22test-done%22%5D%0Astart%20-%3E%20test_init%0Atest_init%20-%3E%20foo%0Atest_init%20-%3E%20quux%0Atest_init%20-%3E%20quz%0Afoo%20-%3E%20bar%0Aquz%20-%3E%20bar%0Atest_init%20-%3E%20test_done%0Abar%20-%3E%20test_done%0Aquux%20-%3E%20test_done%0A%7D
-			ResolvedShape: `digraph G {
-start [shape="diamond",fillcolor=gray,style=filled]
-test_init_default [shape="circle",label="test-init#default"]
-quz_default [shape="circle",label="quz#default"]
-quux_default [shape="circle",label="quux#default"]
-foo_default [shape="circle",label="foo#default"]
-bar_default [shape="circle",label="bar#default"]
-test_done_default [shape="circle",label="test-done#default"]
-start -> test_init_default
-test_init_default -> quz_default
-test_init_default -> quux_default
-test_init_default -> foo_default
-foo_default -> bar_default
-quz_default -> bar_default
-bar_default -> test_done_default
-quux_default -> test_done_default
-test_init_default -> test_done_default
-}`,
-			Tasks: []UntypedTask{
-				newDebugTask("foo", []string{}),
-				newDebugTask("bar", []string{"foo", "quz"}),
-				newDebugTask("quz", []string{}),
-				newDebugTask("quux", []string{}),
-			},
-		},
-	}
-
-	for i, testCase := range testCases {
-		t.Run(fmt.Sprintf("testcase-%d", i), func(t *testing.T) {
-			originalSet, err := NewTaskSet(testCase.Tasks)
-			if err != nil {
-				t.Errorf("unexpected error %v", err)
-			}
-			wrapped, err := originalSet.WrapGraph(taskid.NewDefaultImplementationID[any]("test"), []taskid.UntypedTaskReference{})
-			if err != nil {
-				t.Errorf("unexpected error %v", err)
-			}
-
-			runnableSet, err := wrapped.ResolveTask(wrapped)
-			if err != nil {
-				t.Errorf("unexpected error %v", err)
-			}
-
-			graphviz, err := runnableSet.DumpGraphviz()
-			if err != nil {
-				t.Errorf("unexpected error %v", err)
-			}
-
-			if graphviz != testCase.ResolvedShape {
-				t.Errorf("the resolved task shape is not matching with the expected shape\nExpected\n%s\n\nActual\n%s", testCase.ResolvedShape, graphviz)
-			}
-		})
-		t.Run(fmt.Sprintf("testcase-%d-stable-check", i), func(t *testing.T) {
-			COUNT := 0
-			var prev *TaskSet
-			for i := 0; i < COUNT; i++ {
-				originalSet, err := NewTaskSet(testCase.Tasks)
-				if err != nil {
-					t.Errorf("unexpected error %v", err)
-				}
-				wrapped, err := originalSet.WrapGraph(taskid.NewDefaultImplementationID[any]("test"), []taskid.UntypedTaskReference{})
-				if err != nil {
-					t.Errorf("unexpected error %v", err)
-				}
-				runnableSet, err := wrapped.ResolveTask(wrapped)
-				if err != nil {
-					t.Errorf("unexpected error %v", err)
-				}
-				if prev == nil {
-					prev = runnableSet
-				} else {
-					if diff := cmp.Diff(prev, runnableSet); diff != "" {
-						t.Errorf("the result is not same with the previous result. WrapGraph returns unstable result\n%s", diff)
-					}
-				}
-			}
-		})
-	}
-}
-
-func TestResolveTaskWithValidTaskSet(t *testing.T) {
-	tasks := []UntypedTask{
-		newDebugTask("foo", []string{"bar"}),
-		newDebugTask("bar", []string{"qux"}),
-	}
-
-	availableTasks := []UntypedTask{
-		newDebugTask("qux", []string{"quux"}),
-		newDebugTask("quux", []string{}),
-		newDebugTask("hoge", []string{"fuga"}),
-	}
-
-	// Expected resolved tasks in topological order
-	expectedTaskIDs := []string{"quux", "qux", "bar", "foo"}
-
-	assertResolveTask(t, tasks, availableTasks, expectedTaskIDs)
-}
-
 func TestDumpGraphviz(t *testing.T) {
-	featureTasks := []UntypedTask{
+	inputTasks := []UntypedTask{
 		newDebugTask("foo", []string{"bar"}),
 		newDebugTask("bar", []string{"qux", "quux"}),
-	}
-	featureTaskSet := TaskSet{tasks: featureTasks, runnable: false}
-	availableTasks := []UntypedTask{
 		newDebugTask("qux", []string{}),
 		newDebugTask("quux", []string{}),
-		newDebugTask("hoge", []string{"fuga"}),
 	}
-	availableTaskSet := TaskSet{tasks: availableTasks, runnable: false}
-
-	resolvedTaskSet, err := featureTaskSet.ResolveTask(&availableTaskSet)
+	ts, err := NewTaskSet(inputTasks)
+	if err != nil {
+		t.Fatalf("unexpected err:%s", err.Error())
+	}
+	resolvedTaskSet, err := ts.ToRunnableTaskSet()
 	if err != nil {
 		t.Errorf("unexpected err:%s", err.Error())
 	}
@@ -410,17 +229,16 @@ func TestDumpGraphvizReturnsStableResult(t *testing.T) {
 	for i := 0; i < COUNT; i++ {
 		featureTasks := []UntypedTask{
 			newDebugTask("foo", []string{"qux", "quux", "hoge"}),
-		}
-		featureTaskSet := TaskSet{tasks: featureTasks, runnable: false}
-		availableTasks := []UntypedTask{
 			newDebugTask("qux", []string{}),
 			newDebugTask("quux", []string{}),
 			newDebugTask("hoge", []string{"fuga"}),
 			newDebugTask("fuga", []string{}),
 		}
-		availableTaskSet := TaskSet{tasks: availableTasks, runnable: false}
-
-		resolvedTaskSet, err := featureTaskSet.ResolveTask(&availableTaskSet)
+		ts, err := NewTaskSet(featureTasks)
+		if err != nil {
+			t.Fatalf("unexpected err:%s", err.Error())
+		}
+		resolvedTaskSet, err := ts.ToRunnableTaskSet()
 		if err != nil {
 			t.Errorf("unexpected err:%s", err.Error())
 			break
