@@ -55,14 +55,14 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevS
 	}
 
 	if l.IsErrorResponse {
-		cs.RecordEvent(resourcePath)
-		cs.RecordLogSeverity(enum.SeverityError)
-		cs.RecordLogSummary(fmt.Sprintf("【%s】%s", l.ResponseErrorMessage, l.RequestTarget))
+		cs.AddEvent(resourcePath)
+		cs.SetLogSeverity(enum.SeverityError)
+		cs.SetLogSummary(fmt.Sprintf("【%s】%s", l.ResponseErrorMessage, l.RequestTarget))
 		return prevState, nil
 	}
 	if !l.GeneratedFromDeleteCollectionOperation {
 		logSummary := fmt.Sprintf("%s on %s.%s.%s(%s in %s)", enum.RevisionVerbs[l.Operation.Verb].Label, l.Operation.Namespace, l.Operation.Name, l.Operation.SubResourceName, l.Operation.PluralKind, l.Operation.APIVersion)
-		cs.RecordLogSummary(logSummary)
+		cs.SetLogSummary(logSummary)
 	}
 
 	if l.Operation.Verb == enum.RevisionVerbDeleteCollection {
@@ -73,7 +73,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevS
 		creationTime := commonlogk8saudit_impl.ParseCreationTime(l.ResourceBodyReader, commonField.Timestamp)
 		minimumDeltaToRecordInferredRevision := time.Second * 10
 		if commonField.Timestamp.Sub(creationTime) > minimumDeltaToRecordInferredRevision {
-			cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(resourcePath, &history.StagingResourceRevision{
 				Verb: enum.RevisionVerbCreate,
 				Body: `# Resource existence is inferred from '.metadata.creationTimestamp' of later logs.
 # The actual resource body is not available but this resource body may be available by extending log query range.`,
@@ -93,7 +93,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevS
 	} else if deletionStatus == commonlogk8saudit_impl.DeletionStatusDeleted {
 		state = enum.RevisionStateDeleted
 	}
-	cs.RecordRevision(resourcePath, &history.StagingResourceRevision{
+	cs.AddRevision(resourcePath, &history.StagingResourceRevision{
 		Verb:       l.Operation.Verb,
 		Body:       l.ResourceBodyYaml,
 		Partial:    false,

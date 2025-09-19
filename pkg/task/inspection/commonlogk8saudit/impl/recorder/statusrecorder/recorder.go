@@ -93,7 +93,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			creationTime := commonlogk8saudit_impl.ParseCreationTime(l.ResourceBodyReader, time.Time{})
 
 			if err == nil && conditionTime.Sub(creationTime) != 0 {
-				cs.RecordRevision(statusPath, &history.StagingResourceRevision{
+				cs.AddRevision(statusPath, &history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbStatusUnknown,
 					Body:       "# status is unknown but existence is inferred from the later log.",
 					Partial:    false,
@@ -112,7 +112,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			if err != nil {
 				continue
 			}
-			cs.RecordRevision(statusPath, &history.StagingResourceRevision{
+			cs.AddRevision(statusPath, &history.StagingResourceRevision{
 				Verb:       conditionStateToRevisionVerb(condition.Status),
 				Body:       string(conditionYaml),
 				Partial:    false,
@@ -122,7 +122,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			})
 		}
 		if isDeletionRequest {
-			cs.RecordRevision(statusPath, &history.StagingResourceRevision{
+			cs.AddRevision(statusPath, &history.StagingResourceRevision{
 				Verb:       enum.RevisionVerbDelete,
 				Body:       "",
 				Partial:    false,

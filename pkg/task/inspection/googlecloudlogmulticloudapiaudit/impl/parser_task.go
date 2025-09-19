@@ -88,7 +88,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the cluster info from the log\n%v", err))
 			}
-			cs.RecordRevision(clusterResourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(clusterResourcePath, &history.StagingResourceRevision{
 				Verb:       enum.RevisionVerbCreate,
 				State:      enum.RevisionStateExisting,
 				Requestor:  principal,
@@ -98,7 +98,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 			})
 		}
 		if filterMethodNameOperation(methodName, "Delete", "Cluster") && isFirst && isSucceedRequest {
-			cs.RecordRevision(clusterResourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(clusterResourcePath, &history.StagingResourceRevision{
 				Verb:       enum.RevisionVerbDelete,
 				State:      enum.RevisionStateDeleted,
 				Requestor:  principal,
@@ -110,7 +110,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 		methodNameSplitted := strings.Split(methodName, ".")
 		methodVerb := methodNameSplitted[len(methodNameSplitted)-1]
 		operationResourcePath = resourcepath.Operation(clusterResourcePath, methodVerb, operationId)
-		cs.RecordEvent(clusterResourcePath)
+		cs.AddEvent(clusterResourcePath)
 	} else {
 		nodepoolResourcePath := resourcepath.Nodepool(resource.ClusterName, resource.NodepoolName)
 		if filterMethodNameOperation(methodName, "Create", "NodePool") && isFirst && isSucceedRequest {
@@ -119,7 +119,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to get the nodepool info from the log\n%v", err))
 			}
-			cs.RecordRevision(nodepoolResourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(nodepoolResourcePath, &history.StagingResourceRevision{
 				Verb:       enum.RevisionVerbCreate,
 				State:      enum.RevisionStateExisting,
 				Requestor:  principal,
@@ -129,7 +129,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 			})
 		}
 		if filterMethodNameOperation(methodName, "Delete", "NodePool") && isFirst && isSucceedRequest {
-			cs.RecordRevision(nodepoolResourcePath, &history.StagingResourceRevision{
+			cs.AddRevision(nodepoolResourcePath, &history.StagingResourceRevision{
 				Verb:       enum.RevisionVerbDelete,
 				State:      enum.RevisionStateDeleted,
 				Requestor:  principal,
@@ -138,7 +138,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 				Body:       "",
 			})
 		}
-		cs.RecordEvent(nodepoolResourcePath)
+		cs.AddEvent(nodepoolResourcePath)
 		methodNameSplitted := strings.Split(methodName, ".")
 		methodVerb := methodNameSplitted[len(methodNameSplitted)-1]
 		operationResourcePath = resourcepath.Operation(nodepoolResourcePath, methodVerb, operationId)
@@ -152,7 +152,7 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 			state = enum.RevisionStateOperationFinished
 			verb = enum.RevisionVerbOperationFinish
 		}
-		cs.RecordRevision(operationResourcePath, &history.StagingResourceRevision{
+		cs.AddRevision(operationResourcePath, &history.StagingResourceRevision{
 			Verb:       verb,
 			State:      state,
 			Requestor:  principal,
@@ -163,11 +163,11 @@ func (*multiCloudAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *hist
 
 	switch {
 	case isFirst && !isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Started", methodName))
 	case !isFirst && isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Finished", methodName))
 	default:
-		cs.RecordLogSummary(methodName)
+		cs.SetLogSummary(methodName)
 	}
 	return nil
 }

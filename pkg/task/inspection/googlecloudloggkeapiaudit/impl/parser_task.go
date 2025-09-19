@@ -90,7 +90,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 				if isFirst {
 					state = enum.RevisionStateProvisioning
 				}
-				cs.RecordRevision(clusterResourcePath, &history.StagingResourceRevision{
+				cs.AddRevision(clusterResourcePath, &history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      state,
 					Requestor:  principal,
@@ -104,7 +104,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 				if isFirst {
 					state = enum.RevisionStateDeleting
 				}
-				cs.RecordRevision(clusterResourcePath, &history.StagingResourceRevision{
+				cs.AddRevision(clusterResourcePath, &history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbDelete,
 					State:      state,
 					Requestor:  principal,
@@ -119,7 +119,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 		methodVerb := methodNameSplitted[len(methodNameSplitted)-1]
 		operationResourcePath = resourcepath.Operation(clusterResourcePath, methodVerb, operationId)
 
-		cs.RecordEvent(clusterResourcePath)
+		cs.AddEvent(clusterResourcePath)
 	} else {
 		nodepoolResourcePath := resourcepath.Nodepool(clusterName, nodepoolName)
 		if shouldRecordResourceRevision {
@@ -129,7 +129,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 				if isFirst {
 					state = enum.RevisionStateProvisioning
 				}
-				cs.RecordRevision(nodepoolResourcePath, &history.StagingResourceRevision{
+				cs.AddRevision(nodepoolResourcePath, &history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbCreate,
 					State:      state,
 					Requestor:  principal,
@@ -143,7 +143,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 				if isFirst {
 					state = enum.RevisionStateDeleting
 				}
-				cs.RecordRevision(nodepoolResourcePath, &history.StagingResourceRevision{
+				cs.AddRevision(nodepoolResourcePath, &history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbDelete,
 					State:      state,
 					Requestor:  principal,
@@ -153,7 +153,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 				})
 			}
 		}
-		cs.RecordEvent(nodepoolResourcePath)
+		cs.AddEvent(nodepoolResourcePath)
 		methodNameSplitted := strings.Split(methodName, ".")
 		methodVerb := methodNameSplitted[len(methodNameSplitted)-1]
 		operationResourcePath = resourcepath.Operation(nodepoolResourcePath, methodVerb, operationId)
@@ -168,7 +168,7 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 			state = enum.RevisionStateOperationFinished
 			verb = enum.RevisionVerbOperationFinish
 		}
-		cs.RecordRevision(operationResourcePath, &history.StagingResourceRevision{
+		cs.AddRevision(operationResourcePath, &history.StagingResourceRevision{
 			Verb:       verb,
 			State:      state,
 			Requestor:  principal,
@@ -180,11 +180,11 @@ func (p *gkeAuditLogParser) Parse(ctx context.Context, l *log.Log, cs *history.C
 
 	switch {
 	case isFirst && !isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Started", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Started", methodName))
 	case !isFirst && isLast:
-		cs.RecordLogSummary(fmt.Sprintf("%s Finished", methodName))
+		cs.SetLogSummary(fmt.Sprintf("%s Finished", methodName))
 	default:
-		cs.RecordLogSummary(methodName)
+		cs.SetLogSummary(methodName)
 	}
 	return nil
 }

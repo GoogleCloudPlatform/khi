@@ -207,7 +207,7 @@ func createDeletionRequestsByDeleteColection(groups []*commonlogk8saudit_contrac
 				if l.Operation.Verb == enum.RevisionVerbDeleteCollection {
 					for _, childGroup := range groups {
 						// find any timelines under current timeline
-						if childGroup.TimelineResourcePath != group.TimelineResourcePath && strings.HasPrefix(childGroup.TimelineResourcePath, group.TimelineResourcePath) {
+						if childGroup.TimelineResourcePath != group.TimelineResourcePath && strings.HasPrefix(childGroup.TimelineResourcePath, group.TimelineResourcePath) && strings.Count(childGroup.TimelineResourcePath, "#") == 3 {
 							refLog := childGroup.PreParsedLogs[0]
 							k8sOp := model.KubernetesObjectOperation{
 								APIVersion: refLog.Operation.APIVersion,
