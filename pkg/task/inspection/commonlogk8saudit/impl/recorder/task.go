@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
@@ -47,11 +48,12 @@ type RecorderRequest struct {
 	LogParseResult             *commonlogk8saudit_contract.AuditLogParserInput
 	LastLogParseResult         *commonlogk8saudit_contract.AuditLogParserInput
 	// PreviousState is any type value returned from the last recorder call. Recorder can have state gathered until its current log here.
-	PreviousState any
-	ChangeSet     *history.ChangeSet
-	Builder       *history.Builder
-	IsFirstLog    bool
-	IsLastLog     bool
+	PreviousState           any
+	ParentTimelineRevisions []*history.ResourceRevision
+	ChangeSet               *history.ChangeSet
+	Builder                 *history.Builder
+	IsFirstLog              bool
+	IsLastLog               bool
 }
 
 // RecorderFunc records events/revisions...etc on the given ChangeSet. If it returns an error, then the result is ignored.
@@ -125,6 +127,14 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 
 		hierarchicalGroupedLogs.Run(ctx, func(group *commonlogk8saudit_contract.TimelineGrouperResult) {
 			var prevState any = nil
+
+			groupPath := resourcepath.ResourcePath{
+				Path:               group.TimelineResourcePath,
+				ParentRelationship: enum.RelationshipChild,
+			}
+			tb := builder.GetTimelineBuilder(groupPath.GetParentPathString())
+			parentTimelineRevisions := tb.GetRevisions()
+
 			for i, l := range group.PreParsedLogs {
 				if !logFilter(ctx, l) {
 					processedLogCount.Add(1)
@@ -140,6 +150,7 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 					LogParseResult:             l,
 					LastLogParseResult:         prevLog,
 					PreviousState:              prevState,
+					ParentTimelineRevisions:    parentTimelineRevisions,
 					ChangeSet:                  cs,
 					Builder:                    builder,
 					IsFirstLog:                 i == 0,

@@ -25,11 +25,13 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/recorderutil"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 type commonRecorderStatus struct {
+	parentDeletionHandler *recorderutil.ParentDeletionHandler
 }
 
 func Register(manager *recorder.RecorderTaskManager) error {
@@ -41,13 +43,16 @@ func Register(manager *recorder.RecorderTaskManager) error {
 
 func recordChangeSetForLog(ctx context.Context, req *recorder.RecorderRequest) (*commonRecorderStatus, error) {
 	commonField := log.MustGetFieldSet(req.LogParseResult.Log, &log.CommonFieldSet{})
+
 	resourcePath := resourcepath.ResourcePath{
 		Path:               req.TimelineResourceStringPath,
 		ParentRelationship: enum.RelationshipChild,
 	}
 	var prevState *commonRecorderStatus
 	if req.PreviousState == nil {
-		prevState = &commonRecorderStatus{}
+		prevState = &commonRecorderStatus{
+			parentDeletionHandler: &recorderutil.ParentDeletionHandler{},
+		}
 	} else {
 		prevState = req.PreviousState.(*commonRecorderStatus)
 	}
@@ -91,6 +96,9 @@ func recordChangeSetForLog(ctx context.Context, req *recorder.RecorderRequest) (
 	} else if deletionStatus == commonlogk8saudit_impl.DeletionStatusDeleted {
 		state = enum.RevisionStateDeleted
 	}
+
+	prevState.parentDeletionHandler.BeforeRecordingCurrent(req, []resourcepath.ResourcePath{resourcePath})
+
 	req.ChangeSet.AddRevision(resourcePath, &history.StagingResourceRevision{
 		Verb:       req.LogParseResult.Operation.Verb,
 		Body:       req.LogParseResult.ResourceBodyYaml,
@@ -99,6 +107,8 @@ func recordChangeSetForLog(ctx context.Context, req *recorder.RecorderRequest) (
 		ChangeTime: commonField.Timestamp,
 		State:      state,
 	})
+
+	prevState.parentDeletionHandler.AfterRecordingCurrent(req, []resourcepath.ResourcePath{resourcePath})
 
 	return prevState, nil
 }
