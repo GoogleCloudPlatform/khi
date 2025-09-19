@@ -34,7 +34,7 @@ type SchedulerComponentParser struct{}
 func (s *SchedulerComponentParser) Process(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) (bool, error) {
 	path, err := s.podRelatedLogsToResourcePath(ctx, l)
 	if err == nil {
-		cs.RecordEvent(path)
+		cs.AddEvent(path)
 	}
 	return true, nil
 }

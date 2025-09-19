@@ -85,7 +85,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 				running := status.State.Running
 				time := running.StartedAt.Time
 				if last != nil && time.Sub(last.ChangeTime) > 0 && commonFieldSet.Timestamp.Sub(time) > 0 && status.Ready {
-					cs.RecordRevision(cpath, &history.StagingResourceRevision{
+					cs.AddRevision(cpath, &history.StagingResourceRevision{
 						Verb:       enum.RevisionVerbContainerNonReady,
 						Body:       string(statusYaml),
 						Requestor:  "",
@@ -99,7 +99,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 					if !isInitContainer && last != nil && containersReadyTime.Sub(last.ChangeTime) > 0 {
 						readinessChangeTime = containersReadyTime
 					}
-					cs.RecordRevision(cpath, &history.StagingResourceRevision{
+					cs.AddRevision(cpath, &history.StagingResourceRevision{
 						Verb:       enum.RevisionVerbContainerReady,
 						Body:       string(statusYaml),
 						Requestor:  "",
@@ -108,7 +108,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 						State:      enum.RevisionStateContainerRunningReady,
 					})
 				} else {
-					cs.RecordRevision(cpath, &history.StagingResourceRevision{
+					cs.AddRevision(cpath, &history.StagingResourceRevision{
 						Verb:       enum.RevisionVerbContainerNonReady,
 						Body:       string(statusYaml),
 						Requestor:  "",
@@ -134,7 +134,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 						verb = enum.RevisionVerbContainerError
 						state = enum.RevisionStateContainerTerminatedWithError
 					}
-					cs.RecordRevision(cpath, &history.StagingResourceRevision{
+					cs.AddRevision(cpath, &history.StagingResourceRevision{
 						Verb:       verb,
 						Body:       string(statusYaml),
 						Requestor:  "",
@@ -146,7 +146,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 
 			case status.State.Waiting != nil:
 				// Current container is waiting
-				cs.RecordRevision(cpath, &history.StagingResourceRevision{
+				cs.AddRevision(cpath, &history.StagingResourceRevision{
 					Verb:       enum.RevisionVerbContainerWaiting,
 					Body:       string(statusYaml),
 					Requestor:  "",
@@ -158,7 +158,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 		}
 
 		if isDeletionRequest {
-			cs.RecordRevision(cpath, &history.StagingResourceRevision{
+			cs.AddRevision(cpath, &history.StagingResourceRevision{
 				Verb:       enum.RevisionVerbDelete,
 				Body:       "",
 				Requestor:  "",

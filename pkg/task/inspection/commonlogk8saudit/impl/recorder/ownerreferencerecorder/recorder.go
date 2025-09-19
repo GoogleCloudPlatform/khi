@@ -71,7 +71,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, log *
 		}
 		ownerResource := resourcepath.NameLayerGeneralItem(apiVersion, strings.ToLower(kind), namespace, name)
 		ownerSubresource := resourcepath.OwnerSubresource(ownerResource, log.Operation.Name, log.Operation.GetSingularKindName())
-		cs.RecordResourceAlias(path, ownerSubresource)
+		cs.AddResourceAlias(path, ownerSubresource)
 	}
 	return nil
 }

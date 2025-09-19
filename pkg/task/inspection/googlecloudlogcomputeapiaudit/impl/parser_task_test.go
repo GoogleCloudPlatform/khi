@@ -59,7 +59,7 @@ func TestComputeApiParser_Parse_OperationFirstLog(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(nodeEvent))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}
@@ -97,7 +97,7 @@ func TestComputeApiParser_Parse_OperationLastLog(t *testing.T) {
 		t.Errorf("got %d events, want 1", len(nodeEvent))
 	}
 
-	gotLogSummary := cs.GetLogSummary()
+	gotLogSummary := cs.LogSummary
 	if gotLogSummary != wantLogSummary {
 		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
 	}

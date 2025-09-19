@@ -69,8 +69,8 @@ func (*k8sEventParser) Parse(ctx context.Context, l *log.Log, cs *history.Change
 		// Event exporter ingests cluster scoped logs without jsonPayload
 		if textPayload, err := l.ReadString("textPayload"); err == nil {
 			clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "Unknown")
-			cs.RecordEvent(resourcepath.Cluster(clusterName))
-			cs.RecordLogSummary(textPayload)
+			cs.AddEvent(resourcepath.Cluster(clusterName))
+			cs.SetLogSummary(textPayload)
 			return nil
 		}
 		return err
@@ -88,8 +88,8 @@ func (*k8sEventParser) Parse(ctx context.Context, l *log.Log, cs *history.Change
 		apiVersion = "core/" + apiVersion
 	}
 
-	cs.RecordEvent(resourcepath.NameLayerGeneralItem(apiVersion, strings.ToLower(kind), namespace, name))
-	cs.RecordLogSummary(fmt.Sprintf("【%s】%s", l.ReadStringOrDefault("jsonPayload.reason", "Unknown"), l.ReadStringOrDefault("jsonPayload.message", "")))
+	cs.AddEvent(resourcepath.NameLayerGeneralItem(apiVersion, strings.ToLower(kind), namespace, name))
+	cs.SetLogSummary(fmt.Sprintf("【%s】%s", l.ReadStringOrDefault("jsonPayload.reason", "Unknown"), l.ReadStringOrDefault("jsonPayload.message", "")))
 	return nil
 }
 
