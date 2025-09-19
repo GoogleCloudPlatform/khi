@@ -28,8 +28,8 @@ import (
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("owner-references", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
-		return nil, recordChangeSetForLog(ctx, resourcePath, currentLog, cs, builder)
+	manager.AddRecorder("owner-references", []taskid.UntypedTaskReference{}, func(ctx context.Context, req *recorder.RecorderRequest) (any, error) {
+		return nil, recordChangeSetForLog(ctx, req.TimelineResourceStringPath, req.LogParseResult, req.ChangeSet, req.Builder)
 	}, recorder.AnyLogGroupFilter(), recorder.AndLogFilter(recorder.OnlySucceedLogs(), recorder.OnlyWithResourceBody()))
 	return nil
 }

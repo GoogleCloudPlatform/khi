@@ -34,12 +34,12 @@ import (
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("resource-status", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, l *commonlogk8saudit_contract.AuditLogParserInput, prevState any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
+	manager.AddRecorder("resource-status", []taskid.UntypedTaskReference{}, func(ctx context.Context, req *recorder.RecorderRequest) (any, error) {
 		var prevResourceStatus *model.K8sResourceContainingStatus
-		if prevState != nil {
-			prevResourceStatus = prevState.(*model.K8sResourceContainingStatus)
+		if req.PreviousState != nil {
+			prevResourceStatus = req.PreviousState.(*model.K8sResourceContainingStatus)
 		}
-		return recordChangeSetForLog(ctx, resourcePath, l, prevResourceStatus, cs, builder)
+		return recordChangeSetForLog(ctx, req.TimelineResourceStringPath, req.LogParseResult, prevResourceStatus, req.ChangeSet, req.Builder)
 	}, recorder.AnyLogGroupFilter(), recorder.AndLogFilter(recorder.OnlySucceedLogs(), recorder.OnlyWithResourceBody()))
 	return nil
 }
