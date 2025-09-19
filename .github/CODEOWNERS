@@ -4,9 +4,9 @@
 .cloudbuild/ @kyasbal
 
 # Golang related files
-cmd/ @kyasbal @RyuSA @jyane @yfuruyama
-pkg/ @kyasbal @RyuSA @jyane @yfuruyama
-test/ @kyasbal @RyuSA @jyane @yfuruyama
+cmd/ @kyasbal @RyuSA @jyane @yfuruyama @kkuchima
+pkg/ @kyasbal @RyuSA @jyane @yfuruyama @kkuchima
+test/ @kyasbal @RyuSA @jyane @yfuruyama @kkuchima
 
 # Web front related files
 web/ @kyasbal @renamoo @jyane
