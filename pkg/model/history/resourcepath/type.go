@@ -14,7 +14,11 @@
 
 package resourcepath
 
-import "github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+import (
+	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+)
 
 // ResourcePath contains the path representing location of a timeline in the history.
 type ResourcePath struct {
@@ -25,4 +29,13 @@ type ResourcePath struct {
 	// ParentRelationship explains between the location represented with this ResourcePath and its parent.
 	// KHI shows various resources in a single history with mixing many types of children. It's not only like child-parent relationship, but also pseudo relationship like node-node's component relationship.
 	ParentRelationship enum.ParentRelationship
+}
+
+// GetParentPathString returns the string representation of the parent path.
+func (p *ResourcePath) GetParentPathString() string {
+	parts := strings.Split(p.Path, "#")
+	if len(parts) <= 1 {
+		return ""
+	}
+	return strings.Join(parts[:len(parts)-1], "#")
 }
