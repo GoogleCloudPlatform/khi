@@ -53,7 +53,7 @@ func TestRecordLogSummary(t *testing.T) {
 	cs := NewChangeSet(log)
 	cs.SetLogSummary("bar")
 	if cs.LogSummary != "bar" {
-		t.Errorf("logSummaryRewrite is not rewritten to the expected value")
+		t.Errorf("SetLogSummary is not rewritten to the expected value")
 	}
 }
 
@@ -62,7 +62,7 @@ func TestRecordLogSeverity(t *testing.T) {
 	cs := NewChangeSet(log)
 	cs.SetLogSeverity(enum.SeverityWarning)
 	if cs.LogSeverity != enum.SeverityWarning {
-		t.Errorf("logSeverityRewrite is not rewritten to the expected value")
+		t.Errorf("SetLogSeverity is not rewritten to the expected value")
 	}
 }
 
@@ -75,7 +75,7 @@ func TestRecordEvents(t *testing.T) {
 		"A#B": {{Log: "foo"}},
 		"A#C": {{Log: "foo"}},
 	}); diff != "" {
-		t.Errorf("RecordEvent didn't modify ChangeSet as expected\n%s", diff)
+		t.Errorf("AddEvent didn't modify ChangeSet as expected\n%s", diff)
 	}
 }
 
@@ -126,14 +126,14 @@ func TestRecordRevisions(t *testing.T) {
 		"A#B": {{Inferred: true}, {}},
 		"A#C": {{}},
 	}); diff != "" {
-		t.Errorf("RecordRevision didn't modify ChangeSet as expected\n%s", diff)
+		t.Errorf("AddRevision didn't modify ChangeSet as expected\n%s", diff)
 	}
 
 	if diff := cmp.Diff(cs.Annotations, []LogAnnotation{
 		&ResourceReferenceAnnotation{Path: "A#B"},
 		&ResourceReferenceAnnotation{Path: "A#C"},
 	}); diff != "" {
-		t.Errorf("RecordRevision didn't modify log annotations in ChangeSet as expected\n%s", diff)
+		t.Errorf("AddRevision didn't modify log annotations in ChangeSet as expected\n%s", diff)
 	}
 }
 
