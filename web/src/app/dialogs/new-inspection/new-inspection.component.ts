@@ -21,6 +21,7 @@ import {
   Subject,
   filter,
   map,
+  merge,
   shareReplay,
   switchMap,
   take,
@@ -234,21 +235,33 @@ export class NewInspectionDialogComponent implements OnDestroy {
     map((result) => result.metadata),
   );
 
-  parameterViewModel = this.currentDryrunMetadata.pipe(
-    map((metadata) => {
-      const errorFieldCount = this.countErrorFields(metadata.form);
-      const fieldCount = this.countAllFields(metadata.form);
-      return {
-        rootGroupForm: {
-          type: ParameterInputType.Group,
-          children: metadata.form,
-        },
-        queries: metadata.query,
-        plan: metadata.plan,
-        errorFieldCount: errorFieldCount,
-        fieldCount: fieldCount,
-      } as ParameterPageViewModel;
-    }),
+  /**
+   * parameterViewModelResetSubject emits null when the previous parameterViewModel needs to be refreshed.
+   */
+  private parameterViewModelResetSubject = new Subject<null>();
+
+  /**
+   * parameterViewModel emits the current ParameterViewModel.
+   * This emits null as its initial value on opening the parameter page.
+   */
+  parameterViewModel = merge(
+    this.currentDryrunMetadata.pipe(
+      map((metadata) => {
+        const errorFieldCount = this.countErrorFields(metadata.form);
+        const fieldCount = this.countAllFields(metadata.form);
+        return {
+          rootGroupForm: {
+            type: ParameterInputType.Group,
+            children: metadata.form,
+          },
+          queries: metadata.query,
+          plan: metadata.plan,
+          errorFieldCount: errorFieldCount,
+          fieldCount: fieldCount,
+        } as ParameterPageViewModel;
+      }),
+    ),
+    this.parameterViewModelResetSubject,
   );
 
   public setInspectionType(inspectionType: InspectionType) {
@@ -260,6 +273,9 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   public selectedStepChange(stepIndex: number) {
     if (stepIndex === NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT) {
+      // Reset the parameter view model every time entering STEP_INDEX_PARAMETER_INPUT otherwise paramater list can be stale.
+      this.parameterViewModelResetSubject.next(null);
+
       this.dryrunRequest.next({});
     }
   }
