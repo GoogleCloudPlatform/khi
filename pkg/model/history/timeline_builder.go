@@ -90,6 +90,15 @@ func (b *TimelineBuilder) GetLatestRevisionBody() (string, error) {
 	return string(body), nil
 }
 
+// GetClonedEvents copies the list o ResourceEvent. This method is for testing purpose.
+func (b *TimelineBuilder) GetClonedEvents() []ResourceEvent {
+	var events []ResourceEvent
+	for _, event := range b.timeline.Events {
+		events = append(events, *event)
+	}
+	return events
+}
+
 func (b *TimelineBuilder) sortWithoutLock() {
 	if b.sorted {
 		return
