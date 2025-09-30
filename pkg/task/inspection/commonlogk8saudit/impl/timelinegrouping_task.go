@@ -198,6 +198,7 @@ var TimelineGroupingTask = inspectiontaskbase.NewProgressReportableInspectionTas
 	return result, nil
 })
 
+// TODO(#278): move this logic to outside of the grouping task with refactoring.
 func createDeletionRequestsByDeleteColection(groups []*commonlogk8saudit_contract.TimelineGrouperResult) {
 	requireSortTimelinePaths := map[string]struct{}{}
 	for _, group := range groups {
@@ -207,7 +208,11 @@ func createDeletionRequestsByDeleteColection(groups []*commonlogk8saudit_contrac
 				if l.Operation.Verb == enum.RevisionVerbDeleteCollection {
 					for _, childGroup := range groups {
 						// find any timelines under current timeline
-						if childGroup.TimelineResourcePath != group.TimelineResourcePath && strings.HasPrefix(childGroup.TimelineResourcePath, group.TimelineResourcePath) {
+						// Example: current timeline v1/core#pods#default
+						// Example childGroups:
+						// * v1/core#pods#default#foo -> match
+						// * v1/core#pods#default#foo#binding -> not match. Subresource deletions are handled in each parsers for resource.
+						if childGroup.TimelineResourcePath != group.TimelineResourcePath && strings.HasPrefix(childGroup.TimelineResourcePath, group.TimelineResourcePath) && strings.Count(childGroup.TimelineResourcePath, "#") == 3 {
 							refLog := childGroup.PreParsedLogs[0]
 							k8sOp := model.KubernetesObjectOperation{
 								APIVersion: refLog.Operation.APIVersion,
