@@ -50,13 +50,13 @@ func (m *mockHistoryModifier) ModifyChangeSetFromLog(ctx context.Context, l *log
 	// encode current group count to severity to use them assert in tasecases to verify the prevData is correctly handled.
 	switch prevData.CurrentGroupLogCount {
 	case 0:
-		cs.RecordLogSeverity(enum.SeverityInfo)
+		cs.SetLogSeverity(enum.SeverityInfo)
 	case 1:
-		cs.RecordLogSeverity(enum.SeverityWarning)
+		cs.SetLogSeverity(enum.SeverityWarning)
 	case 2:
-		cs.RecordLogSeverity(enum.SeverityError)
+		cs.SetLogSeverity(enum.SeverityError)
 	default:
-		cs.RecordLogSeverity(enum.SeverityFatal)
+		cs.SetLogSeverity(enum.SeverityFatal)
 	}
 	shouldErr := l.ReadBoolOrDefault("error", false)
 	if shouldErr {
@@ -64,7 +64,7 @@ func (m *mockHistoryModifier) ModifyChangeSetFromLog(ctx context.Context, l *log
 			CurrentGroupLogCount: prevData.CurrentGroupLogCount + 1,
 		}, fmt.Errorf("test error")
 	}
-	cs.RecordEvent(resourcepath.NameLayerGeneralItem(
+	cs.AddEvent(resourcepath.NameLayerGeneralItem(
 		l.ReadStringOrDefault("apiVersion", "unknown"),
 		l.ReadStringOrDefault("kind", "unknown"),
 		l.ReadStringOrDefault("namespace", "unknown"),
