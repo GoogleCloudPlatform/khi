@@ -65,8 +65,8 @@ var ManifestGenerateTask = inspectiontaskbase.NewProgressReportableInspectionTas
 	for _, group := range groups {
 		currentGroup := group
 		workerPool.Run(func() {
-			prevRevisionBody := ""
-			prevResourceUID := "unknown"
+			var prevRevisionBody string
+			var prevResourceUID string
 			prevRevisionReader := structured.NewNodeReader(structured.NewEmptyMapNode())
 			for _, log := range currentGroup.PreParsedLogs {
 				var currentRevisionBodyType commonlogk8saudit_contract.RequestResponseType
