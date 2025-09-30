@@ -380,3 +380,8 @@ func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[str
 	}
 	return fileSize, nil
 }
+
+// DangerouslyGetRawHistory returns the raw history value written by this builder. This method is only used for testing purpose.
+func (b *Builder) DangerouslyGetRawHistory() *History {
+	return b.history
+}

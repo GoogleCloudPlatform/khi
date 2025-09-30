@@ -34,14 +34,17 @@ type InspectionTaskFunc[T any] = func(ctx context.Context, taskMode inspectionco
 
 // NewProgressReportableInspectionTask generates a task with progress reporting capabilities.
 // This task can report its progress during execution through the TaskProgress object.
-// Use NewInspectionTask instead for tasks immediately ends.
-// Parameters:
-//   - taskId: Unique identifier for the task
-//   - dependencies: List of task references this task depends on
-//   - taskFunc: Task execution function with progress reporting capability
-//   - labelOpts: Label options to apply to the task
+// Use NewInspectionTask for tasks that complete immediately.
 //
-// Returns: A task with progress reporting capabilities
+// Parameters:
+//   - taskId: The unique identifier for the task.
+//   - dependencies: A list of task references that this task depends on.
+//   - taskFunc: The function to execute, which includes progress reporting.
+//   - labelOpts: Optional labels to apply to the task.
+//
+// Returns:
+//
+//	A task with progress reporting capabilities.
 func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc ProgressReportableInspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 
 	return NewInspectionTask(taskId, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (T, error) {
@@ -61,13 +64,16 @@ func NewProgressReportableInspectionTask[T any](taskId taskid.TaskImplementation
 
 // NewInspectionTask creates a basic inspection task.
 // The task is executed based on the task mode retrieved from the context.
-// Parameters:
-//   - taskId: Unique identifier for the task
-//   - dependencies: List of task references this task depends on
-//   - taskFunc: Task execution function
-//   - labelOpts: Label options to apply to the task
 //
-// Returns: An inspection task
+// Parameters:
+//   - taskId: The unique identifier for the task.
+//   - dependencies: A list of task references that this task depends on.
+//   - taskFunc: The function to execute for the task.
+//   - labelOpts: Optional labels to apply to the task.
+//
+// Returns:
+//
+//	An inspection task.
 func NewInspectionTask[T any](taskId taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc InspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.NewTask(taskId, dependencies, func(ctx context.Context) (T, error) {
 		taskMode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)
