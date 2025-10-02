@@ -65,13 +65,15 @@ var ManifestGenerateTask = inspectiontaskbase.NewProgressReportableInspectionTas
 	for _, group := range groups {
 		currentGroup := group
 		workerPool.Run(func() {
-			prevRevisionBody := ""
+			var prevRevisionBody string
+			var prevResourceUID string
 			prevRevisionReader := structured.NewNodeReader(structured.NewEmptyMapNode())
 			for _, log := range currentGroup.PreParsedLogs {
 				var currentRevisionBodyType commonlogk8saudit_contract.RequestResponseType
 				if log.IsErrorResponse || log.GeneratedFromDeleteCollectionOperation {
 					log.ResourceBodyYaml = prevRevisionBody
 					log.ResourceBodyReader = prevRevisionReader
+					log.ResourceUID = prevResourceUID
 					processedCount.Add(1)
 					continue
 				}
@@ -85,9 +87,21 @@ var ManifestGenerateTask = inspectiontaskbase.NewProgressReportableInspectionTas
 				// Manifest is unknown because it doesn't contain request or response in the body.
 				if currentRevisionReader == nil {
 					log.ResourceBodyYaml = bodyPlaceholderForMetadataLevelAuditLog
+					log.ResourceUID = prevResourceUID
 					processedCount.Add(1)
 					continue
+				} else {
+					uid, err := currentRevisionReader.ReadString("metadata.uid")
+					if err == nil {
+						// uid is different from the past. The resource must be newly created.
+						if uid != prevResourceUID {
+							prevRevisionBody = ""
+							prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
+							prevResourceUID = uid
+						}
+					}
 				}
+				log.ResourceUID = prevResourceUID
 
 				isPartial := currentRevisionBodyType == commonlogk8saudit_contract.RTypePatch
 				currentRevisionBodyRaw, err := currentRevisionReader.Serialize("", &structured.YAMLNodeSerializer{})

@@ -163,6 +163,13 @@
             </button>
           </div>
         </div>
+      } @else {
+        <div class="progress-parameters-forms">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <p class="message">
+            Loading a parameter list for the given setting. Wait a few seconds.
+          </p>
+        </div>
       }
     </mat-step>
   </mat-stepper>
