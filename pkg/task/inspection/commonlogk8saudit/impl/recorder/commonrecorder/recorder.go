@@ -23,57 +23,60 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	commonlogk8saudit_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder"
+	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder/recorderutil"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
 type commonRecorderStatus struct {
-	IsFirstRevision bool
+	parentDeletionHandler *recorderutil.ParentDeletionHandler
 }
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("common", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, l *commonlogk8saudit_contract.AuditLogParserInput, prevState any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
-		prevTypedState := &commonRecorderStatus{
-			IsFirstRevision: true,
-		}
-		if prevState != nil {
-			prevTypedState = prevState.(*commonRecorderStatus)
-		}
-		return recordChangeSetForLog(ctx, resourcePath, prevTypedState, l, cs)
+	manager.AddRecorder("common", []taskid.UntypedTaskReference{}, func(ctx context.Context, req *recorder.RecorderRequest) (any, error) {
+		return recordChangeSetForLog(ctx, req)
 	}, recorder.AnyLogGroupFilter(), recorder.AnyLogFilter())
 	return nil
 }
 
-func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevState *commonRecorderStatus, l *commonlogk8saudit_contract.AuditLogParserInput, cs *history.ChangeSet) (*commonRecorderStatus, error) {
-	commonField := log.MustGetFieldSet(l.Log, &log.CommonFieldSet{})
+func recordChangeSetForLog(ctx context.Context, req *recorder.RecorderRequest) (*commonRecorderStatus, error) {
+	commonField := log.MustGetFieldSet(req.LogParseResult.Log, &log.CommonFieldSet{})
+
 	resourcePath := resourcepath.ResourcePath{
-		Path:               resourcePathString,
+		Path:               req.TimelineResourceStringPath,
 		ParentRelationship: enum.RelationshipChild,
 	}
+	var prevState *commonRecorderStatus
+	if req.PreviousState == nil {
+		prevState = &commonRecorderStatus{
+			parentDeletionHandler: &recorderutil.ParentDeletionHandler{},
+		}
+	} else {
+		prevState = req.PreviousState.(*commonRecorderStatus)
+	}
 
-	if l.IsErrorResponse {
-		cs.AddEvent(resourcePath)
-		cs.SetLogSeverity(enum.SeverityError)
-		cs.SetLogSummary(fmt.Sprintf("【%s】%s", l.ResponseErrorMessage, l.RequestTarget))
+	if req.LogParseResult.IsErrorResponse {
+		req.ChangeSet.AddEvent(resourcePath)
+		req.ChangeSet.SetLogSeverity(enum.SeverityError)
+		req.ChangeSet.SetLogSummary(fmt.Sprintf("【%s】%s", req.LogParseResult.ResponseErrorMessage, req.LogParseResult.RequestTarget))
 		return prevState, nil
 	}
-	if !l.GeneratedFromDeleteCollectionOperation {
-		logSummary := fmt.Sprintf("%s on %s.%s.%s(%s in %s)", enum.RevisionVerbs[l.Operation.Verb].Label, l.Operation.Namespace, l.Operation.Name, l.Operation.SubResourceName, l.Operation.PluralKind, l.Operation.APIVersion)
-		cs.SetLogSummary(logSummary)
+	if !req.LogParseResult.GeneratedFromDeleteCollectionOperation {
+		logSummary := fmt.Sprintf("%s on %s.%s.%s(%s in %s)", enum.RevisionVerbs[req.LogParseResult.Operation.Verb].Label, req.LogParseResult.Operation.Namespace, req.LogParseResult.Operation.Name, req.LogParseResult.Operation.SubResourceName, req.LogParseResult.Operation.PluralKind, req.LogParseResult.Operation.APIVersion)
+		req.ChangeSet.SetLogSummary(logSummary)
 	}
 
-	if l.Operation.Verb == enum.RevisionVerbDeleteCollection {
+	if req.LogParseResult.Operation.Verb == enum.RevisionVerbDeleteCollection {
 		return prevState, nil
 	}
 
-	if prevState.IsFirstRevision {
-		creationTime := commonlogk8saudit_impl.ParseCreationTime(l.ResourceBodyReader, commonField.Timestamp)
+	if req.IsFirstLog {
+		creationTime := commonlogk8saudit_impl.ParseCreationTime(req.LogParseResult.ResourceBodyReader, commonField.Timestamp)
 		minimumDeltaToRecordInferredRevision := time.Second * 10
 		if commonField.Timestamp.Sub(creationTime) > minimumDeltaToRecordInferredRevision {
-			cs.AddRevision(resourcePath, &history.StagingResourceRevision{
+			req.ChangeSet.AddRevision(resourcePath, &history.StagingResourceRevision{
 				Verb: enum.RevisionVerbCreate,
 				Body: `# Resource existence is inferred from '.metadata.creationTimestamp' of later logs.
 # The actual resource body is not available but this resource body may be available by extending log query range.`,
@@ -86,23 +89,26 @@ func recordChangeSetForLog(ctx context.Context, resourcePathString string, prevS
 		}
 	}
 
-	deletionStatus := commonlogk8saudit_impl.ParseDeletionStatus(ctx, l.ResourceBodyReader, l.Operation)
+	deletionStatus := commonlogk8saudit_impl.ParseDeletionStatus(ctx, req.LogParseResult.ResourceBodyReader, req.LogParseResult.Operation)
 	state := enum.RevisionStateExisting
 	if deletionStatus == commonlogk8saudit_impl.DeletionStatusDeleting {
 		state = enum.RevisionStateDeleting
 	} else if deletionStatus == commonlogk8saudit_impl.DeletionStatusDeleted {
 		state = enum.RevisionStateDeleted
 	}
-	cs.AddRevision(resourcePath, &history.StagingResourceRevision{
-		Verb:       l.Operation.Verb,
-		Body:       l.ResourceBodyYaml,
+
+	prevState.parentDeletionHandler.BeforeRecordingCurrent(req, []resourcepath.ResourcePath{resourcePath})
+
+	req.ChangeSet.AddRevision(resourcePath, &history.StagingResourceRevision{
+		Verb:       req.LogParseResult.Operation.Verb,
+		Body:       req.LogParseResult.ResourceBodyYaml,
 		Partial:    false,
-		Requestor:  l.Requestor,
+		Requestor:  req.LogParseResult.Requestor,
 		ChangeTime: commonField.Timestamp,
 		State:      state,
 	})
 
-	return &commonRecorderStatus{
-		IsFirstRevision: false,
-	}, nil
+	prevState.parentDeletionHandler.AfterRecordingCurrent(req, []resourcepath.ResourcePath{resourcePath})
+
+	return prevState, nil
 }

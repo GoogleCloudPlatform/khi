@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -150,6 +151,11 @@ var ManifestGenerateTask = inspectiontaskbase.NewProgressReportableInspectionTas
 		})
 	}
 	workerPool.Wait()
+
+	slices.SortFunc(groups, func(a, b *commonlogk8saudit_contract.TimelineGrouperResult) int {
+		return strings.Compare(a.TimelineResourcePath, b.TimelineResourcePath)
+	})
+
 	return groups, nil
 })
 
