@@ -223,6 +223,32 @@ status:
 }
 
 func TestGroupByTimelineTask(t *testing.T) {
+	stubExtractor := &stubAuditLogFieldExtractor{
+		Extractor: func(ctx context.Context, log *log.Log) (*commonlogk8saudit_contract.AuditLogParserInput, error) {
+			resourceName := log.ReadStringOrDefault("protoPayload.resourceName", "")
+			var podName, subresourceName string
+			switch resourceName {
+			case "core/v1/namespaces/default/pods/foo/binding":
+				podName = "foo"
+				subresourceName = "binding"
+			case "core/v1/namespaces/default/pods/foo":
+				podName = "foo"
+			case "core/v1/namespaces/default/pods/bar":
+				podName = "bar"
+			}
+			return &commonlogk8saudit_contract.AuditLogParserInput{
+				Log: log,
+				Operation: &model.KubernetesObjectOperation{
+					APIVersion:      "core/v1",
+					PluralKind:      "pods",
+					Namespace:       "default",
+					Name:            podName,
+					SubResourceName: subresourceName,
+					Verb:            enum.RevisionVerbCreate,
+				},
+			}, nil
+		},
+	}
 	t.Run("it ignores dryrun mode", func(t *testing.T) {
 		ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
 		result, _, err := inspectiontest.RunInspectionTask(ctx, TimelineGroupingTask, inspectioncore_contract.TaskModeDryRun, map[string]any{},
@@ -269,35 +295,8 @@ timestamp: 2024-01-01T00:00:00+09:00`
 		result, _, err := inspectiontest.RunInspectionTaskWithDependency(ctx, TimelineGroupingTask, []coretask.UntypedTask{
 			CommonLogParserTask,
 			tasktest.StubTaskFromReferenceID(commonlogk8saudit_contract.CommonAuitLogSource, &commonlogk8saudit_contract.AuditLogParserLogSource{
-				Logs: logs,
-				Extractor: &stubAuditLogFieldExtractor{
-					Extractor: func(ctx context.Context, log *log.Log) (*commonlogk8saudit_contract.AuditLogParserInput, error) {
-						resourceName := log.ReadStringOrDefault("protoPayload.resourceName", "")
-						if resourceName == "core/v1/namespaces/default/pods/foo" {
-							return &commonlogk8saudit_contract.AuditLogParserInput{
-								Log: log,
-								Operation: &model.KubernetesObjectOperation{
-									APIVersion: "core/v1",
-									PluralKind: "pods",
-									Namespace:  "default",
-									Name:       "foo",
-									Verb:       enum.RevisionVerbCreate,
-								},
-							}, nil
-						} else {
-							return &commonlogk8saudit_contract.AuditLogParserInput{
-								Log: log,
-								Operation: &model.KubernetesObjectOperation{
-									APIVersion: "core/v1",
-									PluralKind: "pods",
-									Namespace:  "default",
-									Name:       "bar",
-									Verb:       enum.RevisionVerbCreate,
-								},
-							}, nil
-						}
-					},
-				},
+				Logs:      logs,
+				Extractor: stubExtractor,
 			}, nil),
 		}, inspectioncore_contract.TaskModeRun, map[string]any{})
 		if err != nil {
@@ -308,6 +307,59 @@ timestamp: 2024-01-01T00:00:00+09:00`
 				t.Errorf("unexpected timeline %s not found", result.TimelineResourcePath)
 			} else if count != len(result.PreParsedLogs) {
 				t.Errorf("expected log count is not matching in a timeline:%s", result.TimelineResourcePath)
+			}
+		}
+	})
+
+	t.Run("generates its result with sorting timeline", func(t *testing.T) {
+		baseLog := `insertId: foo
+protoPayload:
+  authenticationInfo:
+    principalEmail: user@example.com
+  methodName: io.k8s.core.v1.pods.create
+  status:
+    code: 200
+timestamp: 2024-01-01T00:00:00+09:00`
+		logOpts := [][]testlog.TestLogOpt{
+			{
+				testlog.StringField("protoPayload.resourceName", "core/v1/namespaces/default/pods/foo"),
+			},
+			{
+				testlog.StringField("protoPayload.resourceName", "core/v1/namespaces/default/pods/bar"),
+			},
+			{
+				testlog.StringField("protoPayload.resourceName", "core/v1/namespaces/default/pods/foo/binding"),
+			},
+		}
+		tl := testlog.New(testlog.YAML(baseLog))
+		logs := []*log.Log{}
+		for _, opt := range logOpts {
+			logs = append(logs, tl.With(opt...).MustBuildLogEntity())
+		}
+		wantTimelineInOrder := []string{
+			"core/v1#pod#default#bar",
+			"core/v1#pod#default#foo",
+			"core/v1#pod#default#foo#binding",
+		}
+
+		ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
+		gotGrouperResult, _, err := inspectiontest.RunInspectionTaskWithDependency(ctx, TimelineGroupingTask, []coretask.UntypedTask{
+			CommonLogParserTask,
+			tasktest.StubTaskFromReferenceID(commonlogk8saudit_contract.CommonAuitLogSource, &commonlogk8saudit_contract.AuditLogParserLogSource{
+				Logs:      logs,
+				Extractor: stubExtractor,
+			}, nil),
+		}, inspectioncore_contract.TaskModeRun, map[string]any{})
+		if err != nil {
+			t.Error(err)
+		}
+
+		if len(gotGrouperResult) != len(wantTimelineInOrder) {
+			t.Fatalf("the count of timeline is not matching: got %d, want %d", len(gotGrouperResult), len(wantTimelineInOrder))
+		}
+		for i, g := range gotGrouperResult {
+			if g.TimelineResourcePath != wantTimelineInOrder[i] {
+				t.Errorf("the order of timeline is not matching at index %d: got %s, want %s", i, g.TimelineResourcePath, wantTimelineInOrder[i])
 			}
 		}
 	})

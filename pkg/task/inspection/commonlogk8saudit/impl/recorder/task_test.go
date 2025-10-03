@@ -26,17 +26,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestConvertTimelineGroupListToHierarcicalTimelineGroup(t *testing.T) {
+func TestConvertTimelineGroupListToHierarchicalTimelineGroup(t *testing.T) {
 	tests := []struct {
 		name  string
 		input []*commonlogk8saudit_contract.TimelineGrouperResult
-		want  *hierarcicalTimelineGroupWorker
+		want  *hierarchicalTimelineGroupWorker
 	}{
 		{
 			name:  "empty",
 			input: []*commonlogk8saudit_contract.TimelineGrouperResult{},
-			want: &hierarcicalTimelineGroupWorker{
-				children: map[string]*hierarcicalTimelineGroupWorker{},
+			want: &hierarchicalTimelineGroupWorker{
+				children: map[string]*hierarchicalTimelineGroupWorker{},
 				group:    nil,
 			},
 		},
@@ -46,14 +46,14 @@ func TestConvertTimelineGroupListToHierarcicalTimelineGroup(t *testing.T) {
 				{TimelineResourcePath: "a"},
 				{TimelineResourcePath: "b"},
 			},
-			want: &hierarcicalTimelineGroupWorker{
-				children: map[string]*hierarcicalTimelineGroupWorker{
+			want: &hierarchicalTimelineGroupWorker{
+				children: map[string]*hierarchicalTimelineGroupWorker{
 					"a": {
-						children: map[string]*hierarcicalTimelineGroupWorker{},
+						children: map[string]*hierarchicalTimelineGroupWorker{},
 						group:    &commonlogk8saudit_contract.TimelineGrouperResult{TimelineResourcePath: "a"},
 					},
 					"b": {
-						children: map[string]*hierarcicalTimelineGroupWorker{},
+						children: map[string]*hierarchicalTimelineGroupWorker{},
 						group:    &commonlogk8saudit_contract.TimelineGrouperResult{TimelineResourcePath: "b"},
 					},
 				},
@@ -66,14 +66,14 @@ func TestConvertTimelineGroupListToHierarcicalTimelineGroup(t *testing.T) {
 				{TimelineResourcePath: "a#b"},
 				{TimelineResourcePath: "a#b#c"},
 			},
-			want: &hierarcicalTimelineGroupWorker{
-				children: map[string]*hierarcicalTimelineGroupWorker{
+			want: &hierarchicalTimelineGroupWorker{
+				children: map[string]*hierarchicalTimelineGroupWorker{
 					"a": {
-						children: map[string]*hierarcicalTimelineGroupWorker{
+						children: map[string]*hierarchicalTimelineGroupWorker{
 							"b": {
-								children: map[string]*hierarcicalTimelineGroupWorker{
+								children: map[string]*hierarchicalTimelineGroupWorker{
 									"c": {
-										children: map[string]*hierarcicalTimelineGroupWorker{},
+										children: map[string]*hierarchicalTimelineGroupWorker{},
 										group:    &commonlogk8saudit_contract.TimelineGrouperResult{TimelineResourcePath: "a#b#c"},
 									},
 								},
@@ -92,16 +92,16 @@ func TestConvertTimelineGroupListToHierarcicalTimelineGroup(t *testing.T) {
 				{TimelineResourcePath: "a#b"},
 				{TimelineResourcePath: "a#c"},
 			},
-			want: &hierarcicalTimelineGroupWorker{
-				children: map[string]*hierarcicalTimelineGroupWorker{
+			want: &hierarchicalTimelineGroupWorker{
+				children: map[string]*hierarchicalTimelineGroupWorker{
 					"a": {
-						children: map[string]*hierarcicalTimelineGroupWorker{
+						children: map[string]*hierarchicalTimelineGroupWorker{
 							"b": {
-								children: map[string]*hierarcicalTimelineGroupWorker{},
+								children: map[string]*hierarchicalTimelineGroupWorker{},
 								group:    &commonlogk8saudit_contract.TimelineGrouperResult{TimelineResourcePath: "a#b"},
 							},
 							"c": {
-								children: map[string]*hierarcicalTimelineGroupWorker{},
+								children: map[string]*hierarchicalTimelineGroupWorker{},
 								group:    &commonlogk8saudit_contract.TimelineGrouperResult{TimelineResourcePath: "a#c"},
 							},
 						},
@@ -116,7 +116,7 @@ func TestConvertTimelineGroupListToHierarcicalTimelineGroup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := convertTimelineGroupListToHierarcicalTimelineGroup(tt.input)
 			opts := []cmp.Option{
-				cmp.AllowUnexported(hierarcicalTimelineGroupWorker{}),
+				cmp.AllowUnexported(hierarchicalTimelineGroupWorker{}),
 			}
 			if diff := cmp.Diff(tt.want, got, opts...); diff != "" {
 				t.Errorf("convertTimelineGroupListToHierarcicalTimelineGroup() mismatch (-want +got): \n %s", diff)

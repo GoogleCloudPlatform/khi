@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -194,6 +195,12 @@ var TimelineGroupingTask = inspectiontaskbase.NewProgressReportableInspectionTas
 			PreParsedLogs:        group,
 		})
 	}
+
+	// Sort timelines by resource paths. This ensures parent timeline must appear before its children. (e.g A#B#C appear after A#B or A)
+	slices.SortFunc(result, func(a, b *commonlogk8saudit_contract.TimelineGrouperResult) int {
+		return strings.Compare(a.TimelineResourcePath, b.TimelineResourcePath)
+	})
+
 	createDeletionRequestsByDeleteColection(result)
 	return result, nil
 })

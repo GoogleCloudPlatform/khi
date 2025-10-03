@@ -44,26 +44,26 @@ type LogFilterFunc = func(ctx context.Context, l *commonlogk8saudit_contract.Aud
 // RecorderFunc records events/revisions...etc on the given ChangeSet. If it returns an error, then the result is ignored.
 type RecorderFunc = func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error)
 
-// hierarcicalTimelineGroupWorker represents a node in a hierarchical tree structure of timeline groups.
+// hierarchicalTimelineGroupWorker represents a node in a hierarchical tree structure of timeline groups.
 // It is used to organize and process timeline groups based on their resource paths to process them from ancestor to children.
-type hierarcicalTimelineGroupWorker struct {
-	children map[string]*hierarcicalTimelineGroupWorker
+type hierarchicalTimelineGroupWorker struct {
+	children map[string]*hierarchicalTimelineGroupWorker
 	group    *commonlogk8saudit_contract.TimelineGrouperResult
 }
 
 // Run traverses the hierarchical timeline group structure and executes a given function `f`
 // for each `TimelineGrouperResult` found. It uses a worker pool to process groups concurrently.
-func (h *hierarcicalTimelineGroupWorker) Run(ctx context.Context, f func(group *commonlogk8saudit_contract.TimelineGrouperResult)) {
+func (h *hierarchicalTimelineGroupWorker) Run(ctx context.Context, f func(group *commonlogk8saudit_contract.TimelineGrouperResult)) {
 	if h.group != nil {
 		f(h.group)
 	}
 	wg := sync.WaitGroup{}
 	for _, child := range h.children {
 		wg.Add(1)
-		go func() {
+		go func(child *hierarchicalTimelineGroupWorker) {
 			defer wg.Done()
 			child.Run(ctx, f)
-		}()
+		}(child)
 	}
 	wg.Wait()
 }
@@ -177,9 +177,9 @@ func filterMatchedGroupedLogs(ctx context.Context, logGroups []*commonlogk8saudi
 // convertTimelineGroupListToHierarcicalTimelineGroup converts a flat list of `TimelineGrouperResult`
 // into a hierarchical tree structure represented by `hierarcicalTimelineGroupWorker`.
 // logGroup must be sorted by its path because this assume parent must appear before its children.
-func convertTimelineGroupListToHierarcicalTimelineGroup(logGroup []*commonlogk8saudit_contract.TimelineGrouperResult) *hierarcicalTimelineGroupWorker {
-	root := &hierarcicalTimelineGroupWorker{
-		children: map[string]*hierarcicalTimelineGroupWorker{},
+func convertTimelineGroupListToHierarcicalTimelineGroup(logGroup []*commonlogk8saudit_contract.TimelineGrouperResult) *hierarchicalTimelineGroupWorker {
+	root := &hierarchicalTimelineGroupWorker{
+		children: map[string]*hierarchicalTimelineGroupWorker{},
 		group:    nil,
 	}
 	for _, group := range logGroup {
@@ -187,8 +187,8 @@ func convertTimelineGroupListToHierarcicalTimelineGroup(logGroup []*commonlogk8s
 		segments := strings.Split(group.TimelineResourcePath, "#")
 		for i, segment := range segments {
 			if _, ok := current.children[segment]; !ok {
-				current.children[segment] = &hierarcicalTimelineGroupWorker{
-					children: map[string]*hierarcicalTimelineGroupWorker{},
+				current.children[segment] = &hierarchicalTimelineGroupWorker{
+					children: map[string]*hierarchicalTimelineGroupWorker{},
 					group:    nil,
 				}
 			}

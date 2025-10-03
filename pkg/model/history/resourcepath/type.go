@@ -33,9 +33,8 @@ type ResourcePath struct {
 
 // GetParentPathString returns the string representation of the parent path.
 func (p *ResourcePath) GetParentPathString() string {
-	parts := strings.Split(p.Path, "#")
-	if len(parts) <= 1 {
-		return ""
+	if i := strings.LastIndex(p.Path, "#"); i != -1 {
+		return p.Path[:i]
 	}
-	return strings.Join(parts[:len(parts)-1], "#")
+	return ""
 }
