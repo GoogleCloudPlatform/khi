@@ -32,7 +32,7 @@ type ClientFactoryContextModifiers = func(ctx context.Context, container Resourc
 
 // ClientFactoryOptionsModifiers defines a function type for modifying the client options
 // before creating a Google Cloud client.
-type ClientFactoryOptionsModifiers = func(ctx []option.ClientOption, container ResourceContainer) ([]option.ClientOption, error)
+type ClientFactoryOptionsModifiers = func(opts []option.ClientOption, container ResourceContainer) ([]option.ClientOption, error)
 
 // ClientFactoryOption defines a function type for configuring a ClientFactory.
 type ClientFactoryOption = func(s *ClientFactory) error
@@ -84,102 +84,84 @@ func (s *ClientFactory) options(container ResourceContainer) ([]option.ClientOpt
 	return options, nil
 }
 
-// ContainerClusterManagerClient returns the ClusterManagerClient of container.googleapis.com from given context and the resource container.
-func (s *ClientFactory) ContainerClusterManagerClient(ctx context.Context, c ResourceContainer) (*container.ClusterManagerClient, error) {
+// prepareServiceInput returns the context and options needed for initializing clients.
+func (s *ClientFactory) prepareServiceInput(ctx context.Context, c ResourceContainer) (context.Context, []option.ClientOption, error) {
 	ctx, err := s.context(ctx, c)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	options, err := s.options(c)
+
+	return ctx, options, err
+}
+
+// ContainerClusterManagerClient returns the ClusterManagerClient of container.googleapis.com from given context and the resource container.
+func (s *ClientFactory) ContainerClusterManagerClient(ctx context.Context, c ResourceContainer) (*container.ClusterManagerClient, error) {
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
-	return container.NewClusterManagerClient(ctx, options...)
+	return container.NewClusterManagerClient(ctx, opts...)
 }
 
 // GKEHubMembershipClient returns the MembershipClient of gkehub.googleapis.com from given context and the resource container.
 func (s *ClientFactory) GKEHubMembershipClient(ctx context.Context, c ResourceContainer) (*gkehub.GkeHubMembershipClient, error) {
-	ctx, err := s.context(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-	options, err := s.options(c)
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
-	return gkehub.NewGkeHubMembershipClient(ctx, options...)
+	return gkehub.NewGkeHubMembershipClient(ctx, opts...)
 }
 
 // GKEMultiCloudAWSClustersClient returns the AwsClusterClient of gkemulticloud.googleapis.com from given context and the resource container.
 func (s *ClientFactory) GKEMultiCloudAWSClustersClient(ctx context.Context, c ResourceContainer) (*gkemulticloud.AwsClustersClient, error) {
-	ctx, err := s.context(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-	options, err := s.options(c)
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
-	return gkemulticloud.NewAwsClustersClient(ctx, options...)
+	return gkemulticloud.NewAwsClustersClient(ctx, opts...)
 }
 
 // GKEMultiCloudAzureClustersClient returns the AzureClustersClient of gkemulticloud.googleapis.com from given context and the resource container.
 func (s *ClientFactory) GKEMultiCloudAzureClustersClient(ctx context.Context, c ResourceContainer) (*gkemulticloud.AzureClustersClient, error) {
-	ctx, err := s.context(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-	options, err := s.options(c)
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
-	return gkemulticloud.NewAzureClustersClient(ctx, options...)
+	return gkemulticloud.NewAzureClustersClient(ctx, opts...)
 }
 
 // LoggingClient returns the client for logging.googleapis.com from given context and the resource container.
 func (s *ClientFactory) LoggingClient(ctx context.Context, c ResourceContainer) (*logging.Client, error) {
-	ctx, err := s.context(ctx, c)
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
-	options, err := s.options(c)
-	if err != nil {
-		return nil, err
-	}
-
-	return logging.NewClient(ctx, options...)
+	return logging.NewClient(ctx, opts...)
 }
 
 // ComposerService returns the client for composer.googleapis.com from given context and the resource container.
 // Cloud Composer has no package defined by 'cloud.google.com/go', this method returns the low level API client from 'google.golang.org/api/composer/v1'
 func (s *ClientFactory) ComposerService(ctx context.Context, c ResourceContainer) (*composer.Service, error) {
-	ctx, err := s.context(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-	options, err := s.options(c)
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
-	return composer.NewService(ctx, options...)
+	return composer.NewService(ctx, opts...)
 }
 
 // GKEOnPremService returns the client for gkeonprem.googleapis.com from the given context and the resource cntainer.
 // GKEOnPrem has no package defined by `cloud.google.com/go`, this method returns the low level API client from '"google.golang.org/api/gkeonprem/v1'.
 func (s *ClientFactory) GKEOnPremService(ctx context.Context, c ResourceContainer) (*gkeonprem.Service, error) {
-	ctx, err := s.context(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-	options, err := s.options(c)
+	ctx, opts, err := s.prepareServiceInput(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
-	return gkeonprem.NewService(ctx, options...)
+	return gkeonprem.NewService(ctx, opts...)
 }

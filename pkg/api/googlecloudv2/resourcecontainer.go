@@ -17,8 +17,8 @@ package googlecloudv2
 // ResourceContainerType represents the type of a Google Cloud resource container.
 type ResourceContainerType int
 
-// ResourceContainer is an interface that represents a container for Google Cloud resources(e.g project,organization, folder or billing account).
-// ClientFactory receive a resource container to generate a client. This is needed because KHI can use multiple clients when it needs to gather logs or resource info from multiple projects.
+// ResourceContainer is an interface that represents a container for Google Cloud resources (e.g., project, organization, folder, or billing account).
+// ClientFactory receives a resource container to generate a client. This is needed because KHI can use multiple clients when it needs to gather logs or resource info from multiple projects.
 type ResourceContainer interface {
 	GetType() ResourceContainerType
 }
@@ -30,26 +30,32 @@ const (
 	ResourceContainerProject ResourceContainerType = iota
 )
 
-// ProjectResourceContainer is an implementation of ResourceContainer for a Google Cloud project.
-type ProjectResourceContainer struct {
+// ProjectResourceContainer is an interface that represents a Google Cloud project resource container.
+type ProjectResourceContainer interface {
+	ResourceContainer
+	ProjectID() string
+}
+
+// projectResourceContainerImpl is an implementation of ResourceContainer for a Google Cloud project.
+type projectResourceContainerImpl struct {
 	projectID string
 }
 
 // Project creates a new ResourceContainer for a Google Cloud project with the given project ID.
 func Project(projectID string) ResourceContainer {
-	return &ProjectResourceContainer{
+	return &projectResourceContainerImpl{
 		projectID: projectID,
 	}
 }
 
-// GetType returns the ResourceContainerType for a ProjectResourceContainer, which is 'project'.
-func (p *ProjectResourceContainer) GetType() ResourceContainerType {
+// GetType returns the ResourceContainerType for a projectResourceContainer, which is 'project'.
+func (p *projectResourceContainerImpl) GetType() ResourceContainerType {
 	return ResourceContainerProject
 }
 
 // ProjectID returns the projectID of this container.
-func (p *ProjectResourceContainer) ProjectID() string {
+func (p *projectResourceContainerImpl) ProjectID() string {
 	return p.projectID
 }
 
-var _ ResourceContainer = (*ProjectResourceContainer)(nil)
+var _ ProjectResourceContainer = (*projectResourceContainerImpl)(nil)

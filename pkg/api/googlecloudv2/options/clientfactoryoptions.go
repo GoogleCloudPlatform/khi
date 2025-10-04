@@ -31,7 +31,7 @@ func ServiceAccountKey(keyPath string) googlecloudv2.ClientFactoryOptionsModifie
 // ServiceAccountKeyForProject returns a googlecloudv2.ClientFactoryOptionsModifiers to use the given service account key for a specific project.
 func ServiceAccountKeyForProject(keyPath string, projectID string) googlecloudv2.ClientFactoryOptionsModifiers {
 	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
-		if p, ok := c.(*googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
+		if p, ok := c.(googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
 			opts = append(opts, option.WithCredentialsFile(keyPath))
 		}
 		return opts, nil
@@ -49,7 +49,7 @@ func TokenSource(source oauth2.TokenSource) googlecloudv2.ClientFactoryOptionsMo
 // TokenSourceForProject returns a googlecloudv2.ClientFactoryOptionsModifiers to use the given oauth2.TokenSource for a specific project.
 func TokenSourceForProject(projectID string, source oauth2.TokenSource) googlecloudv2.ClientFactoryOptionsModifiers {
 	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
-		if p, ok := c.(*googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
+		if p, ok := c.(googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
 			opts = append(opts, option.WithTokenSource(source))
 		}
 		return opts, nil
