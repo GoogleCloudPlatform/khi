@@ -91,8 +91,8 @@ func TestNewOAuthServer(t *testing.T) {
 	if server == nil {
 		t.Fatal("NewOAuthServer() returned nil")
 	}
-	if server.oauthhRedirectTargetServingPath != testRedirectPath {
-		t.Errorf("got %q, want %q", server.oauthhRedirectTargetServingPath, testRedirectPath)
+	if server.oauthRedirectTargetServingPath != testRedirectPath {
+		t.Errorf("got %q, want %q", server.oauthRedirectTargetServingPath, testRedirectPath)
 	}
 	if server.oauthStateCodeSuffix != testStateSuffix {
 		t.Errorf("got %q, want %q", server.oauthStateCodeSuffix, testStateSuffix)
@@ -107,7 +107,7 @@ func TestNewOAuthServer(t *testing.T) {
 		t.Error("server.tokenSource is nil")
 	}
 
-	if _, ok := server.tokenExchanger.(*defualtTokenExchanger); !ok {
+	if _, ok := server.tokenExchanger.(*defaultTokenExchanger); !ok {
 		t.Error("default token exchanger should be of type defualtTokenExchanger")
 	}
 }

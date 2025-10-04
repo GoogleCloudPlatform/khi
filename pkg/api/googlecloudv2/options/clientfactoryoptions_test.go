@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/oauth"
+	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
@@ -161,5 +163,21 @@ func TestTokenSourceForProject(t *testing.T) {
 				t.Errorf("Expected %d options, but got %d", expectedLen, len(opts))
 			}
 		})
+	}
+}
+
+func TestOAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	conf := &oauth2.Config{}
+	server := oauth.NewOAuthServer(engine, conf, "/callback", "-suffix")
+	modifier := OAuth(server)
+	container := googlecloudv2.Project("any-project")
+	opts, err := modifier([]option.ClientOption{}, container)
+	if err != nil {
+		t.Fatalf("modifier returned an unexpected error: %v", err)
+	}
+	if len(opts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(opts))
 	}
 }
