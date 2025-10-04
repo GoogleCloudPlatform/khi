@@ -79,16 +79,16 @@ type tokenExchanger interface {
 	Exchange(ctx context.Context, code string) (*oauth2.Token, error)
 }
 
-type defualtTokenExchanger struct {
+type defaultTokenExchanger struct {
 	oauthConfig *oauth2.Config
 }
 
 // Exchange implements tokenExchanger.
-func (d *defualtTokenExchanger) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
+func (d *defaultTokenExchanger) Exchange(ctx context.Context, code string) (*oauth2.Token, error) {
 	return d.oauthConfig.Exchange(ctx, code)
 }
 
-var _ tokenExchanger = (*defualtTokenExchanger)(nil)
+var _ tokenExchanger = (*defaultTokenExchanger)(nil)
 
 // OAuthServer provides server logic to use OAuth token of the user.
 // !!VERY IMPORTANT; PLEASE READ!!: KHI is not expected to be shared by multiple users because it's designed as just a log visualizer used in local environment of each engineers.
@@ -99,15 +99,15 @@ type OAuthServer struct {
 	engine      *gin.Engine
 	oauthConfig *oauth2.Config
 
-	// oauthhRedirectTargetServingPath is the path from the given gin root path receiving token with redirect.
-	oauthhRedirectTargetServingPath string
-	oauthStateCodeSuffix            string
-	oauthRedirectTimeout            time.Duration
-	oauthStateCodesMutex            sync.Mutex
-	oauthStateCodes                 map[string]struct{}
-	resolvedToken                   chan *oauth2.Token
-	tokenResolutionError            chan error
-	tokenExchanger                  tokenExchanger
+	// oauthRedirectTargetServingPath is the path from the given gin root path receiving token with redirect.
+	oauthRedirectTargetServingPath string
+	oauthStateCodeSuffix           string
+	oauthRedirectTimeout           time.Duration
+	oauthStateCodesMutex           sync.Mutex
+	oauthStateCodes                map[string]struct{}
+	resolvedToken                  chan *oauth2.Token
+	tokenResolutionError           chan error
+	tokenExchanger                 tokenExchanger
 
 	tokenSource oauth2.TokenSource
 }
@@ -115,15 +115,15 @@ type OAuthServer struct {
 // NewOAuthServer creates and initializes a new OAuthServer.
 func NewOAuthServer(engine *gin.Engine, oauthConfig *oauth2.Config, oauthRedirectTargetServingPath string, oauthStateCodeSuffix string) *OAuthServer {
 	server := &OAuthServer{
-		engine:                          engine,
-		oauthConfig:                     oauthConfig,
-		oauthhRedirectTargetServingPath: oauthRedirectTargetServingPath,
-		oauthRedirectTimeout:            5 * time.Minute,
-		oauthStateCodeSuffix:            oauthStateCodeSuffix,
-		oauthStateCodes:                 map[string]struct{}{},
-		resolvedToken:                   make(chan *oauth2.Token),
-		tokenResolutionError:            make(chan error),
-		tokenExchanger:                  &defualtTokenExchanger{oauthConfig: oauthConfig},
+		engine:                         engine,
+		oauthConfig:                    oauthConfig,
+		oauthRedirectTargetServingPath: oauthRedirectTargetServingPath,
+		oauthRedirectTimeout:           5 * time.Minute,
+		oauthStateCodeSuffix:           oauthStateCodeSuffix,
+		oauthStateCodes:                map[string]struct{}{},
+		resolvedToken:                  make(chan *oauth2.Token),
+		tokenResolutionError:           make(chan error),
+		tokenExchanger:                 &defaultTokenExchanger{oauthConfig: oauthConfig},
 	}
 	server.configureServer()
 	server.tokenSource = oauth2.ReuseTokenSource(nil, &oauthTokenSource{
@@ -135,7 +135,7 @@ func NewOAuthServer(engine *gin.Engine, oauthConfig *oauth2.Config, oauthRedirec
 // configureServer configures the Gin engine to handle OAuth redirect callbacks. It registers a GET handler for the specified
 // oauthhRedirectTargetServingPath.
 func (s *OAuthServer) configureServer() {
-	s.engine.GET(s.oauthhRedirectTargetServingPath, func(ctx *gin.Context) {
+	s.engine.GET(s.oauthRedirectTargetServingPath, func(ctx *gin.Context) {
 		if handleErrorRedirect(ctx) {
 			s.tokenResolutionError <- fmt.Errorf("authentication failed with redirect error")
 			return
