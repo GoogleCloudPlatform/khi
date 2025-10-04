@@ -295,6 +295,18 @@ func NewEmptyMapNode() Node {
 	}
 }
 
+// NewStandardMap returns a map node from given key and values with keeping the order of map keys.
+func NewStandardMap(keys []string, values []Node) Node {
+	result := &StandardMapNode{
+		keys:   make([]unique.Handle[string], 0, len(keys)),
+		values: values,
+	}
+	for _, key := range keys {
+		result.keys = append(result.keys, unique.Make(key))
+	}
+	return result
+}
+
 // getYAMLMarshaler returns the yaml.Marshaller from Node interface.
 func getYAMLMarshaler(node Node) (yaml.Marshaler, error) {
 	standardRootNode, err := cloneStandardNodeFromNode(node)
