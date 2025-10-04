@@ -16,6 +16,7 @@ package options
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/oauth"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
 )
@@ -52,6 +53,16 @@ func TokenSourceForProject(projectID string, source oauth2.TokenSource) googlecl
 		if p, ok := c.(googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
 			opts = append(opts, option.WithTokenSource(source))
 		}
+		return opts, nil
+	}
+}
+
+// OAuth returns a googlecloudv2.ClientFactoryOptionsModifiers that configures the client to use
+// the oauth2.TokenSource provided by the given oauth.OAuthServer.
+// This allows the Google Cloud client to obtain access tokens via an OAuth 2.0 flow managed by the OAuthServer.
+func OAuth(server *oauth.OAuthServer) googlecloudv2.ClientFactoryOptionsModifiers {
+	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+		opts = append(opts, option.WithTokenSource(server.TokenSource()))
 		return opts, nil
 	}
 }
