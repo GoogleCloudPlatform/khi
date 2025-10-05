@@ -15,6 +15,8 @@
 package server
 
 import (
+	"sync"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/server/option"
@@ -27,16 +29,21 @@ var DefaultServerFactory *ServerFactory = &ServerFactory{}
 // ServerFactory is responsible for creating and configuring Gin engine instances.
 type ServerFactory struct {
 	Options []option.Option
+	mu      sync.Mutex
 }
 
 // AddOptions adds one or more Option instances to the factory's configuration.
 func (s *ServerFactory) AddOptions(opt ...option.Option) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.Options = append(s.Options, opt...)
 }
 
 // CreateInstance creates a new Gin engine and applies all registered options to it.
 // It returns the configured Gin engine or an error if any option fails to apply.
 func (s *ServerFactory) CreateInstance(mode string) (*gin.Engine, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	gin.SetMode(mode)
 	engine := gin.New()
 	err := option.ApplyOptions(engine, s.Options)

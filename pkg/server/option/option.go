@@ -120,12 +120,6 @@ func (l *accessLogOption) Order() int {
 	return 2
 }
 
-func NewLogOption(ignoredPath []string) Option {
-	return &accessLogOption{
-		ignoredPath: ignoredPath,
-	}
-}
-
 func (l *accessLogOption) ID() string {
 	return "access-log"
 }

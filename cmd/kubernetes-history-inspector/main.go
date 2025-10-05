@@ -188,6 +188,7 @@ func run() int {
 		engine, err := server.DefaultServerFactory.CreateInstance(serverMode)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Failed to create a server instance\n%v", err))
+			return 1
 		}
 		engine = server.CreateKHIServer(engine, inspectionServer, &config)
 
