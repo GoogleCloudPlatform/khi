@@ -48,49 +48,39 @@ func LogEntryToNode(l *loggingpb.LogEntry) (structured.Node, error) {
 	}
 
 	if l.Operation != nil {
-		keys = append(keys, "operation")
-		operationMap, err := protoToMapNode(l.Operation)
+		err := addProtoField(&keys, &values, "operation", l.Operation)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, operationMap)
 	}
 
 	if l.HttpRequest != nil {
-		keys = append(keys, "httpRequest")
-		httpRequestMap, err := protoToMapNode(l.HttpRequest)
+		err := addProtoField(&keys, &values, "httpRequest", l.HttpRequest)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, httpRequestMap)
 	}
 
 	if protoPayload := l.GetProtoPayload(); protoPayload != nil {
-		keys = append(keys, "protoPayload")
-		protoPayload, err := protoToMapNode(protoPayload)
+		err := addProtoField(&keys, &values, "protoPayload", protoPayload)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, protoPayload)
 	} else if jsonPayload := l.GetJsonPayload(); jsonPayload != nil {
-		keys = append(keys, "jsonPayload")
-		jsonPayloadNode, err := protoToMapNode(jsonPayload)
+		err := addProtoField(&keys, &values, "jsonPayload", jsonPayload)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, jsonPayloadNode)
 	} else if textPayload := l.GetTextPayload(); textPayload != "" {
 		keys = append(keys, "textPayload")
 		values = append(values, structured.NewStandardScalarNode(textPayload))
 	}
 
 	if l.Resource != nil {
-		keys = append(keys, "resource")
-		resource, err := protoToMapNode(l.Resource)
+		err := addProtoField(&keys, &values, "resource", l.Resource)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, resource)
 	}
 
 	if l.Severity != ltype.LogSeverity_DEFAULT {
@@ -124,21 +114,17 @@ func LogEntryToNode(l *loggingpb.LogEntry) (structured.Node, error) {
 	}
 
 	if l.SourceLocation != nil {
-		keys = append(keys, "sourceLocation")
-		sourceLocation, err := protoToMapNode(l.SourceLocation)
+		err := addProtoField(&keys, &values, "sourceLocation", l.SourceLocation)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, sourceLocation)
 	}
 
 	if l.Split != nil {
-		keys = append(keys, "split")
-		split, err := protoToMapNode(l.Split)
+		err := addProtoField(&keys, &values, "split", l.Split)
 		if err != nil {
 			return nil, err
 		}
-		values = append(values, split)
 	}
 
 	return structured.NewStandardMap(keys, values), nil
@@ -147,19 +133,28 @@ func LogEntryToNode(l *loggingpb.LogEntry) (structured.Node, error) {
 // getLogLabelsMap converts a map of string labels into a structured.Node representing a map.
 // The keys in the resulting structured.Node are sorted alphabetically.
 func getLogLabelsMap(l map[string]string) (structured.Node, error) {
-	keys := make([]string, 0)
-	values := make([]structured.Node, 0)
-	valuesMap := make(map[string]structured.Node)
-
-	for k, v := range l {
+	keys := make([]string, 0, len(l))
+	for k := range l {
 		keys = append(keys, k)
-		valuesMap[k] = structured.NewStandardScalarNode(v)
 	}
 	slices.Sort(keys)
+	values := make([]structured.Node, 0, len(l))
 	for _, k := range keys {
-		values = append(values, valuesMap[k])
+		values = append(values, structured.NewStandardScalarNode(l[k]))
 	}
 	return structured.NewStandardMap(keys, values), nil
+}
+
+// addProtoField adds a map node parsed from given proto data to given key and value pointers.
+// Users must assert p is not nil before calling this func.
+func addProtoField(keys *[]string, values *[]structured.Node, key string, p proto.Message) error {
+	node, err := protoToMapNode(p)
+	if err != nil {
+		return err
+	}
+	*keys = append(*keys, key)
+	*values = append(*values, node)
+	return nil
 }
 
 // protoToMapNode converts a protobuf message into a structured.Node.
