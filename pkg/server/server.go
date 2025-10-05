@@ -33,7 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
@@ -56,18 +55,12 @@ func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
 	}
 }
 
-func CreateKHIServer(inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
-	engine := instanciateGinServer(parameters.Debug.Verbose != nil && *parameters.Debug.Verbose)
-	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowAllOrigins = true
-
+func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
 	appHtmlPath := path.Join(serverConfig.StaticFolderPath, "/index.html")
 
 	basePathWithoutTrailingSlash := strings.TrimSuffix(serverConfig.ServerBasePath, "/")
 	engine.Use(redirectMiddleware(basePathWithoutTrailingSlash+"/", basePathWithoutTrailingSlash+"/session/0")) // Request for `/` shouldn't be handled by `static.Serve`, redirect `/session/0` to be handled by patternToString
 	engine.Use(static.Serve(basePathWithoutTrailingSlash+"/", static.LocalFile(serverConfig.StaticFolderPath, false)))
-	engine.Use(gin.Recovery())
-	engine.Use(cors.New(corsConfig))
 	router := engine.Group(basePathWithoutTrailingSlash)
 
 	// frontend uses Angular router. All frontend routing path should return the app html
@@ -423,20 +416,6 @@ func CreateKHIServer(inspectionServer *coreinspection.InspectionTaskServer, serv
 
 			ctx.String(http.StatusOK, "")
 		})
-	}
-	return engine
-}
-
-// instanciateGinServer generates a new instance of *gin.Engine with provided debug mode flag.
-func instanciateGinServer(debugMode bool) *gin.Engine {
-	if debugMode {
-		gin.SetMode(gin.DebugMode)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
-	}
-	engine := gin.New()
-	if debugMode {
-		engine.Use(gin.Logger())
 	}
 	return engine
 }
