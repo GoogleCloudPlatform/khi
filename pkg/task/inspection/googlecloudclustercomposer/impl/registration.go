@@ -27,6 +27,9 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		return err
 	}
 	return coretask.RegisterTasks(registry,
+		ComposerEnvironmentListFetcherTask,
+		ComposerEnvironmentClusterFinderTask,
+
 		AutocompleteComposerClusterNamesTask,
 		ComposerClusterNamePrefixTask,
 

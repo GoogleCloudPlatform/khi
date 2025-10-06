@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -28,13 +27,10 @@ import (
 
 // AutocompleteComposerEnvironmentNamesTask is the task that autocompletes composer environment names.
 var AutocompleteComposerEnvironmentNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentNamesTaskID, []taskid.UntypedTaskReference{
+	googlecloudclustercomposer_contract.ComposerEnvironmentListFetcherTaskID.Ref(),
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[[]string]) (inspectiontaskbase.CacheableTaskResult[[]string], error) {
-	client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
-	if err != nil {
-		return inspectiontaskbase.CacheableTaskResult[[]string]{}, err
-	}
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	location := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLocationsTaskID.Ref())
 	dependencyDigest := fmt.Sprintf("%s-%s", projectID, location)
@@ -44,7 +40,8 @@ var AutocompleteComposerEnvironmentNamesTask = inspectiontaskbase.NewCachedTask(
 	}
 
 	if projectID != "" && location != "" {
-		clusterNames, err := client.GetComposerEnvironmentNames(ctx, projectID, location)
+		composerEnvironmentFetcher := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ComposerEnvironmentListFetcherTaskID.Ref())
+		environments, err := composerEnvironmentFetcher.GetEnvironmentNames(ctx, projectID, location)
 		if err != nil {
 			// Failed to read the composer environments in the (project,location)
 			return inspectiontaskbase.CacheableTaskResult[[]string]{
@@ -54,7 +51,7 @@ var AutocompleteComposerEnvironmentNamesTask = inspectiontaskbase.NewCachedTask(
 		}
 		return inspectiontaskbase.CacheableTaskResult[[]string]{
 			DependencyDigest: dependencyDigest,
-			Value:            clusterNames,
+			Value:            environments,
 		}, nil
 	}
 	return inspectiontaskbase.CacheableTaskResult[[]string]{
