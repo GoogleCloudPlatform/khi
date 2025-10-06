@@ -32,10 +32,10 @@ import (
 // AutocompleteGKEClusterNamesTask is a task that provides autocomplete suggestions for GKE cluster names.
 var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustergke_contract.AutocompleteGKEClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 	client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
+		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
 	}
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
@@ -47,7 +47,7 @@ var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googleclo
 		clusterNames, err := client.GetClusterNames(ctx, projectID)
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
-			return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+			return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 				DependencyDigest: projectID,
 				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 					ClusterNames: []string{},
@@ -55,7 +55,7 @@ var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googleclo
 				},
 			}, nil
 		}
-		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 			DependencyDigest: projectID,
 			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 				ClusterNames: clusterNames,
@@ -63,7 +63,7 @@ var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googleclo
 			},
 		}, nil
 	}
-	return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+	return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 		DependencyDigest: projectID,
 		Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 			ClusterNames: []string{},

@@ -25,11 +25,11 @@ import (
 )
 
 func TestCachedTask(t *testing.T) {
-	prevValues := []PreviousTaskResult[string]{}
+	prevValues := []CachableTaskResult[string]{}
 	testTaskID := taskid.NewDefaultImplementationID[string]("foo")
-	task := NewCachedTask(testTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, prevValue PreviousTaskResult[string]) (PreviousTaskResult[string], error) {
+	task := NewCachedTask(testTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, prevValue CachableTaskResult[string]) (CachableTaskResult[string], error) {
 		prevValues = append(prevValues, prevValue)
-		return PreviousTaskResult[string]{
+		return CachableTaskResult[string]{
 			Value:            "foo",
 			DependencyDigest: "foo",
 		}, nil
@@ -45,7 +45,7 @@ func TestCachedTask(t *testing.T) {
 		t.Errorf("unexpected task error result %v", err)
 	}
 
-	if diff := cmp.Diff(prevValues, []PreviousTaskResult[string]{
+	if diff := cmp.Diff(prevValues, []CachableTaskResult[string]{
 		{
 			Value:            "",
 			DependencyDigest: "",

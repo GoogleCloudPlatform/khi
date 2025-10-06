@@ -33,11 +33,11 @@ import (
 var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 
 	client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
+		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
 	}
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
@@ -47,7 +47,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 	// when the user is inputing these information, abort
 	isWIP := projectID == "" || environment == ""
 	if isWIP {
-		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 			DependencyDigest: dependencyDigest,
 			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 				ClusterNames: []string{},
@@ -63,7 +63,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 	// fetch all GKE clusters in the project
 	clusters, err := client.GetClusters(ctx, projectID)
 	if err != nil {
-		return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 			DependencyDigest: dependencyDigest,
 			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 				ClusterNames: []string{},
@@ -76,7 +76,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 	// = the gke cluster where the composer is running
 	for _, cluster := range clusters {
 		if cluster.ResourceLabels["goog-composer-environment"] == environment {
-			return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+			return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 				DependencyDigest: dependencyDigest,
 				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 					ClusterNames: []string{cluster.Name},
@@ -85,7 +85,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 		}
 	}
 
-	return inspectiontaskbase.PreviousTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+	return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 		DependencyDigest: dependencyDigest,
 		Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 			ClusterNames: []string{},
