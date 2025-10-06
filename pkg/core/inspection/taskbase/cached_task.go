@@ -25,8 +25,8 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// CachableTaskResult is the combination of the cached value and a digest of its dependency.
-type CachableTaskResult[T any] struct {
+// CacheableTaskResult is the combination of the cached value and a digest of its dependency.
+type CacheableTaskResult[T any] struct {
 	// Value is the value used previous run.
 	Value T
 	// DependencyDigest is a string representation of digest of its inputs.
@@ -35,11 +35,11 @@ type CachableTaskResult[T any] struct {
 }
 
 // NewCachedTask generates a task which can reuse the value last time.
-func NewCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue CachableTaskResult[T]) (CachableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
+func NewCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
 	return coretask.NewTask(taskID, depdendencies, func(ctx context.Context) (T, error) {
 		inspectionSharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.GlobalSharedMap)
-		cacheKey := typedmap.NewTypedKey[CachableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
-		cachedResult := typedmap.GetOrDefault(inspectionSharedMap, cacheKey, CachableTaskResult[T]{
+		cacheKey := typedmap.NewTypedKey[CacheableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
+		cachedResult := typedmap.GetOrDefault(inspectionSharedMap, cacheKey, CacheableTaskResult[T]{
 			Value:            *new(T),
 			DependencyDigest: "",
 		})

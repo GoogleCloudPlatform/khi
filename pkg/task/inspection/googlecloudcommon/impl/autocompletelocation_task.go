@@ -30,10 +30,10 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 	[]taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 	},
-	func(ctx context.Context, prevValue inspectiontaskbase.CachableTaskResult[[]string]) (inspectiontaskbase.CachableTaskResult[[]string], error) {
+	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[[]string]) (inspectiontaskbase.CacheableTaskResult[[]string], error) {
 		client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 		if err != nil {
-			return inspectiontaskbase.CachableTaskResult[[]string]{}, err
+			return inspectiontaskbase.CacheableTaskResult[[]string]{}, err
 		}
 		projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
@@ -42,7 +42,7 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 			return prevValue, nil
 		}
 
-		defaultResult := inspectiontaskbase.CachableTaskResult[[]string]{
+		defaultResult := inspectiontaskbase.CacheableTaskResult[[]string]{
 			DependencyDigest: dependencyDigest,
 			Value:            []string{},
 		}

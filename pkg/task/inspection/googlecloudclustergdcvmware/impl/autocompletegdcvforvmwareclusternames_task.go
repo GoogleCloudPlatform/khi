@@ -32,10 +32,10 @@ import (
 // AutocompleteGDCVForVMWareClusterNamesTask is a task that provides autocomplete suggestions for GDCV for VMWare cluster names.
 var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustergdcvmware_contract.AutocompleteGDCVForVMWareClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 	client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
 	if err != nil {
-		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
+		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
 	}
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
@@ -47,7 +47,7 @@ var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask
 		clusterNames, err := client.GetAnthosOnVMWareClusterNames(ctx, projectID)
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
-			return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 				DependencyDigest: projectID,
 				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 					ClusterNames: []string{},
@@ -55,7 +55,7 @@ var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask
 				},
 			}, nil
 		}
-		return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 			DependencyDigest: projectID,
 			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 				ClusterNames: clusterNames,
@@ -63,7 +63,7 @@ var AutocompleteGDCVForVMWareClusterNamesTask = inspectiontaskbase.NewCachedTask
 			},
 		}, nil
 	}
-	return inspectiontaskbase.CachableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 		DependencyDigest: projectID,
 		Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 			ClusterNames: []string{},
