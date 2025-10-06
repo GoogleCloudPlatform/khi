@@ -15,20 +15,17 @@
 package googlecloudclustergke_impl
 
 import (
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"context"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-// Register registers all googlecloudclustergke inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergke_contract.GKEInspectionType)
-	if err != nil {
-		return err
-	}
-	return coretask.RegisterTasks(registry,
-		AutocompleteGKEClusterNamesTask,
-		GKEClusterNamePrefixTask,
-		ClusterListFetcherTask,
-	)
-}
+// ClusterListFetcherTask is a task to inject ClusterListFetcherImpl instance and enable tests to inject mock instance.
+var ClusterListFetcherTask = coretask.NewTask(googlecloudclustergke_contract.ClusterListFetcherTaskID, []taskid.UntypedTaskReference{
+	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+}, func(ctx context.Context) (googlecloudclustergke_contract.ClusterListFetcher, error) {
+	return &googlecloudclustergke_contract.ClusterListFetcherImpl{}, nil
+})
