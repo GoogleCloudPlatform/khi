@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -31,20 +30,17 @@ import (
 
 // AutocompleteGKEOnAWSClusterNames is a task that provides a list of GKE on AWS cluster names for autocompletion.
 var AutocompleteGKEOnAWSClusterNames = inspectiontaskbase.NewCachedTask(googlecloudclustergkeonaws_contract.AutocompleteGKEOnAWSClusterNamesTaskID, []taskid.UntypedTaskReference{
+	googlecloudclustergkeonaws_contract.ClusterListFetcherTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
-	client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
-	if err != nil {
-		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{}, err
-	}
-
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	if projectID != "" && projectID == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
 
 	if projectID != "" {
-		clusterNames, err := client.GetAnthosAWSClusterNames(ctx, projectID)
+		clusterListFetcher := coretask.GetTaskResult(ctx, googlecloudclustergkeonaws_contract.ClusterListFetcherTaskID.Ref())
+		clusterNames, err := clusterListFetcher.GetClusterNames(ctx, projectID)
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
 			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
