@@ -19,8 +19,14 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
+// ClusterGKEOnAzureTaskCommonPrefix is the task id prefix defined in googlecloudclustergkeonazure.
+var ClusterGKEOnAzureTaskCommonPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-azure/"
+
 // AutocompleteGKEOnAzureClusterNamesTaskID is the task ID for listing up GKE on Azure cluster names.
 var AutocompleteGKEOnAzureClusterNamesTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-azure")
 
 // ClusterNamePrefixTaskID is the task ID for the GKE on Azure cluster name prefix.
 var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-azure")
+
+// ClusterListFetcherTaskID is the task ID for getting ClusterListFetcher interface.
+var ClusterListFetcherTaskID = taskid.NewDefaultImplementationID[ClusterListFetcher](ClusterGKEOnAzureTaskCommonPrefix + "cluster-list-fetcher")
