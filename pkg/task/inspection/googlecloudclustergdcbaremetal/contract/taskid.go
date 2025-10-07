@@ -19,8 +19,14 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
+// ClusterGDCBaremetalCommonTaskPrefix is the common task id prefix for GDC Baremetal clusters.
+var ClusterGDCBaremetalCommonTaskPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "gdc-baremetal"
+
 // AutocompleteGDCVForBaremetalClusterNamesTaskID is the task ID for listing up GDCV for Baremetal cluster names on the project.
 var AutocompleteGDCVForBaremetalClusterNamesTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-baremetal")
 
 // ClusterNamePrefixTaskIDForGDCVForBaremetal is the task ID for the GDCV for Baremetal cluster name prefix.
 var ClusterNamePrefixTaskIDForGDCVForBaremetal = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gdcv-for-baremetal")
+
+// ClusterListFetcherTaskID is the task ID to inject ClusterListFetcher instance.
+var ClusterListFetcherTaskID = taskid.NewDefaultImplementationID[ClusterListFetcher](ClusterGDCBaremetalCommonTaskPrefix + "cluster-list-fetcher")
