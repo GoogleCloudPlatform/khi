@@ -15,20 +15,17 @@
 package googlecloudclustergdcbaremetal_impl
 
 import (
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"context"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergdcbaremetal_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-// Register registers all googlecloudclustergdcbaremetal inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergdcbaremetal_contract.GDCVForBaremetalInspectionType)
-	if err != nil {
-		return err
-	}
-	return coretask.RegisterTasks(registry,
-		AutocompleteGDCVForBaremetalClusterNamesTask,
-		GDCVForBaremetalClusterNamePrefixTask,
-		ClusterListFetcherTask,
-	)
-}
+// ClusterListFetcherTask inject the default implementation for ClusterListFetcher
+var ClusterListFetcherTask = coretask.NewTask(googlecloudclustergdcbaremetal_contract.ClusterListFetcherTaskID, []taskid.UntypedTaskReference{
+	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+}, func(ctx context.Context) (googlecloudclustergdcbaremetal_contract.ClusterListFetcher, error) {
+	return &googlecloudclustergdcbaremetal_contract.ClusterListFetcherImpl{}, nil
+})
