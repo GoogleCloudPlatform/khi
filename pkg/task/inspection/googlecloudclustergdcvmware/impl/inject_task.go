@@ -15,20 +15,17 @@
 package googlecloudclustergdcvmware_impl
 
 import (
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"context"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-// Register registers all googlecloudclustergdcvmware inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergdcvmware_contract.GDCVForVMWareInspectionType)
-	if err != nil {
-		return err
-	}
-	return coretask.RegisterTasks(registry,
-		AutocompleteGDCVForVMWareClusterNamesTask,
-		GDCVForVMWareClusterNamePrefixTask,
-		ClusterListFetcherTask,
-	)
-}
+// ClusterListFetcherTask inject the default implementation for ClusterListFetcher
+var ClusterListFetcherTask = coretask.NewTask(googlecloudclustergdcvmware_contract.ClusterListFetcherTaskID, []taskid.UntypedTaskReference{
+	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+}, func(ctx context.Context) (googlecloudclustergdcvmware_contract.ClusterListFetcher, error) {
+	return &googlecloudclustergdcvmware_contract.ClusterListFetcherImpl{}, nil
+})
