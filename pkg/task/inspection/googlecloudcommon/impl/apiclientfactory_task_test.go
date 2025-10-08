@@ -15,6 +15,7 @@
 package googlecloudcommon_impl
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
@@ -31,19 +32,29 @@ func TestAPIClientFactoryTask(t *testing.T) {
 		return nil
 	}
 	testCases := []struct {
-		desc                        string
-		options                     []googlecloudv2.ClientFactoryOption
-		expectedMockOptionCallCount int
+		desc                string
+		options             []googlecloudv2.ClientFactoryOption
+		wantOptionCallCount int
+		wantErr             bool
 	}{
 		{
-			desc:                        "no options",
-			options:                     nil,
-			expectedMockOptionCallCount: 0,
+			desc:                "no options",
+			options:             nil,
+			wantOptionCallCount: 0,
 		},
 		{
-			desc:                        "with options",
-			options:                     []googlecloudv2.ClientFactoryOption{mockOption},
-			expectedMockOptionCallCount: 1,
+			desc:                "with options",
+			options:             []googlecloudv2.ClientFactoryOption{mockOption},
+			wantOptionCallCount: 1,
+		},
+		{
+			desc: "error option",
+			options: []googlecloudv2.ClientFactoryOption{
+				func(_ *googlecloudv2.ClientFactory) error {
+					return errors.New("test error")
+				},
+			},
+			wantErr: true,
 		},
 	}
 
@@ -52,8 +63,14 @@ func TestAPIClientFactoryTask(t *testing.T) {
 			mockOptionCalledCount = 0
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			clientFactory, _, err := inspectiontest.RunInspectionTask(ctx, APIClientFactoryTask, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(), tc.options))
-			if err != nil {
+			if !tc.wantErr && err != nil {
 				t.Errorf("APIClientFactoryTask failed: %v", err)
+			}
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("APIClientFactoryTask didn't return error unexpectedly")
+				}
+				return
 			}
 			if clientFactory == nil {
 				t.Errorf("APIClientFactoryTask returned nil")
@@ -66,8 +83,8 @@ func TestAPIClientFactoryTask(t *testing.T) {
 			if clientFactory != clientFactory2 {
 				t.Errorf("APIClientFactoryTask returned different instances")
 			}
-			if mockOptionCalledCount != tc.expectedMockOptionCallCount {
-				t.Errorf("mockOption was called %d times, expected %d", mockOptionCalledCount, tc.expectedMockOptionCallCount)
+			if mockOptionCalledCount != tc.wantOptionCallCount {
+				t.Errorf("mockOption was called %d times, want %d", mockOptionCalledCount, tc.wantOptionCallCount)
 			}
 		})
 	}
