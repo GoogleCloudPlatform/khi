@@ -12,27 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcpqueryutil
+package googlecloudcommon_contract
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
+	"cloud.google.com/go/logging/apiv2/loggingpb"
 	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -59,36 +64,75 @@ type ProjectIDDefaultResourceNamesGenerator struct{}
 
 // GenerateResourceNames implements DefaultResourceNamesGenerator.
 func (p *ProjectIDDefaultResourceNamesGenerator) GenerateResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, InputProjectIdTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
 }
 
 // GetDependentTasks implements DefaultResourceNamesGenerator.
 func (p *ProjectIDDefaultResourceNamesGenerator) GetDependentTasks() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		InputProjectIdTaskID.Ref(),
 	}
 }
 
-var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(nil)
+func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, progressDest *inspectionmetadata.TaskProgressMetadata) {
+	wg.Add(1)
+	startingTime := time.Now()
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case progress, ok := <-source:
+				if !ok {
+					return
+				}
+				current := time.Now()
+				elapsed := current.Sub(startingTime).Seconds()
+				progressDest.Update(progress.Progress, fmt.Sprintf("%d logs fetched(%f lps)", progress.LogCount, float64(progress.LogCount)/elapsed))
+			}
+		}
+	}()
+}
 
-var queryThreadPool = worker.NewPool(16)
+func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case l, ok := <-source:
+				if !ok {
+					return
+				}
+				node, err := logconvert.LogEntryToNode(l)
+				if err != nil {
+					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
+					continue
+				}
+				*dest = append(*dest, log.NewLog(structured.NewNodeReader(node)))
+			}
+		}
+	}()
+}
+
+var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(nil)
 
 // NewCloudLoggingListLogTask creates a new task that lists log entries from Cloud Logging.
 func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
-		googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
-		googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
-		googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref(),
+		InputStartTimeTaskID.Ref(),
+		InputEndTimeTaskID.Ref(),
+		InputLoggingFilterResourceNameTaskID.Ref(),
+		LoggingFetcherTaskID.Ref(),
 	), func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
-		client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
-		if err != nil {
-			return nil, err
-		}
 
 		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
-		resourceNames := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.Ref())
+		resourceNames := coretask.GetTaskResult(ctx, InputLoggingFilterResourceNameTaskID.Ref())
 		taskInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 
 		defaultResourceNames, err := resourceNamesGenerator.GenerateResourceNames(ctx)
@@ -118,8 +162,8 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 			}
 		}
 
-		startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
-		endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
+		startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
+		endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
 
 		queryStrings, err := generator(ctx, taskMode)
 		if err != nil {
@@ -141,7 +185,7 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 			if len(queryStrings) > 1 {
 				readableQueryNameForQueryIndex = fmt.Sprintf("%s-%d", readableQueryName, queryIndex)
 			}
-			finalQuery := fmt.Sprintf("%s\n%s", queryString, TimeRangeQuerySection(startTime, endTime, true))
+			finalQuery := fmt.Sprintf("%s\n%s", queryString, gcpqueryutil.TimeRangeQuerySection(startTime, endTime, true))
 			if len(finalQuery) > 20000 {
 				slog.WarnContext(ctx, fmt.Sprintf("Logging filter is exceeding Cloud Logging limitation 20000 charactors\n%s", finalQuery))
 			}
@@ -149,38 +193,35 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 			// TODO: not to store whole logs on memory to avoid OOM
 			// Run query only when thetask mode is for running
 			if taskMode == inspectioncore_contract.TaskModeRun {
-				worker := NewParallelCloudLoggingListWorker(queryThreadPool, client, queryString, startTime, endTime, 5)
-				queryLogs, queryErr := worker.Query(ctx, resourceNamesFromInput, progress)
-				if queryErr != nil {
+
+				logFetcher := coretask.GetTaskResult(ctx, LoggingFetcherTaskID.Ref())
+				progressReportableLogFetcher := NewTimePartitioningProgressReportableLogFetcher(logFetcher, 500*time.Millisecond, 10, runtime.GOMAXPROCS(0))
+
+				var wg sync.WaitGroup
+				var logChan = make(chan *loggingpb.LogEntry)
+				var progressChan = make(chan LogFetchProgress)
+				monitorProgress(ctx, &wg, progressChan, progress)
+				convertLogsArray(ctx, &wg, logChan, &allLogs)
+				err := progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, queryString, resourceNamesFromInput)
+				wg.Wait()
+
+				if err != nil {
 					errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
 					if !found {
 						return nil, fmt.Errorf("error message set metadata was not found")
 					}
-					if strings.HasPrefix(queryErr.Error(), "401:") {
-						errorMessageSet.AddErrorMessage(inspectionmetadata.NewUnauthorizedErrorMessage())
-					}
-					// TODO: these errors are shown to frontend but it's not well implemented.
-					if strings.HasPrefix(queryErr.Error(), "403:") {
-						errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
-							ErrorId: 0,
-							Message: queryErr.Error(),
-						})
-					}
-					if strings.HasPrefix(queryErr.Error(), "404:") {
-						errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
-							ErrorId: 0,
-							Message: queryErr.Error(),
-						})
-					}
-					return nil, queryErr
+					errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
+						ErrorId: 0,
+						Message: err.Error(),
+					})
+					return nil, err
 				}
-				allLogs = append(allLogs, queryLogs...)
 			}
 		}
 
 		for _, l := range allLogs {
-			l.SetFieldSetReader(&GCPCommonFieldSetReader{})
-			l.SetFieldSetReader(&GCPMainMessageFieldSetReader{})
+			l.SetFieldSetReader(&gcpqueryutil.GCPCommonFieldSetReader{})
+			l.SetFieldSetReader(&gcpqueryutil.GCPMainMessageFieldSetReader{})
 		}
 
 		if taskMode == inspectioncore_contract.TaskModeRun {
