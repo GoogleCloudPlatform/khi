@@ -17,6 +17,7 @@ package googlecloudcommon_contract
 import (
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
@@ -45,3 +46,9 @@ var InputStartTimeTaskID = taskid.NewDefaultImplementationID[time.Time](GoogleCl
 
 // InputLocationsTaskID is the task ID for the locations of the target resource.
 var InputLocationsTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonTaskIDPrefix + "input-location")
+
+// APIClientFactoryTaskID is the task ID to generate the ClientFactory. This factory is instanciated with the options generated from the task with APIClientFactoryOptionsTaskID.
+var APIClientFactoryTaskID = taskid.NewDefaultImplementationID[*googlecloudv2.ClientFactory](GoogleCloudCommonTaskIDPrefix + "api-client-factory")
+
+// APIClientFactoryOptionsTaskID is the task ID to generate options list for the ClientFactory. This can be overriden with the selection priority label defined in the coretask package.
+var APIClientFactoryOptionsTaskID = taskid.NewDefaultImplementationID[[]googlecloudv2.ClientFactoryOption](GoogleCloudCommonTaskIDPrefix + "api-client-factory-options")

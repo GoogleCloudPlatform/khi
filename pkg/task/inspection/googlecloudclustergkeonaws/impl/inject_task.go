@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,20 +15,21 @@
 package googlecloudclustergkeonaws_impl
 
 import (
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	"context"
+
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
 
-// Register registers all googlecloudclustergkeonaws inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergkeonaws_contract.AnthosOnAWSInspectionType)
-	if err != nil {
-		return err
-	}
-	return coretask.RegisterTasks(registry,
-		AutocompleteGKEOnAWSClusterNames,
-		AnthosOnAWSClusterNamePrefixTask,
-		ClusterListFetcherTask,
-	)
-}
+// ClusterListFetcherTask is a task to inject ClusterListFetcher reference.
+var ClusterListFetcherTask = coretask.NewTask(
+	googlecloudclustergkeonaws_contract.ClusterListFetcherTaskID,
+	[]taskid.UntypedTaskReference{
+		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+	},
+	func(ctx context.Context) (googlecloudclustergkeonaws_contract.ClusterListFetcher, error) {
+		return &googlecloudclustergkeonaws_contract.ClusterListFetcherImpl{}, nil
+	},
+)
