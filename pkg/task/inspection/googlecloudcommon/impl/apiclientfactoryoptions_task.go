@@ -1,0 +1,38 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package googlecloudcommon_impl
+
+import (
+	"context"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+)
+
+// APIClientFactoryOptionsTask is the default implementation to provide the list of googlecloudv2.ClientFactoryOption.
+// User can extend this behavior with defining new task for googlecloudcommon_contract.APIClientFactoryOptionsTaskID with higher selection priority.
+var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
+	googlecloudcommon_contract.APIClientFactoryOptionsTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloudv2.ClientFactoryOption, error) {
+		// TODO: return authentication setting related options regarding program parameters.
+		return []googlecloudv2.ClientFactoryOption{}, nil
+	},
+	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTaskPriority),
+)
