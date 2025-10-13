@@ -44,12 +44,21 @@ func (c *nonProjectContainer) GetType() googlecloudv2.ResourceContainerType {
 var _ googlecloudv2.ResourceContainer = (*nonProjectContainer)(nil)
 
 func TestServiceAccountKey(t *testing.T) {
-	modifier := ServiceAccountKey("test-key-path")
+	optionFunc := ServiceAccountKey("test-key-path")
 	container := googlecloudv2.Project("any-project")
-
-	opts, err := modifier([]option.ClientOption{}, container)
+	clientFactory := googlecloudv2.ClientFactory{}
+	err := optionFunc(&clientFactory)
 	if err != nil {
-		t.Fatalf("modifier returned an unexpected error: %v", err)
+		t.Errorf("optionFunc returned an unexpected error: %v", err)
+	}
+	clientOpts := clientFactory.ClientOptions
+	if len(clientOpts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(clientOpts))
+	}
+
+	opts, err := clientOpts[0]([]option.ClientOption{}, container)
+	if err != nil {
+		t.Errorf("client option returned an unexpected error: %v", err)
 	}
 
 	if len(opts) != 1 {
@@ -85,11 +94,21 @@ func TestServiceAccountKeyForProject(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			modifier := ServiceAccountKeyForProject(keyPath, projectID)
-			opts, err := modifier([]option.ClientOption{}, tc.container)
+			optionFunc := ServiceAccountKeyForProject(keyPath, projectID)
 
+			clientFactory := googlecloudv2.ClientFactory{}
+			err := optionFunc(&clientFactory)
 			if err != nil {
-				t.Fatalf("modifier returned an unexpected error: %v", err)
+				t.Errorf("optionFunc returned an unexpected error: %v", err)
+			}
+			clientOpts := clientFactory.ClientOptions
+			if len(clientOpts) != 1 {
+				t.Errorf("Expected 1 option to be added, but got %d", len(clientOpts))
+			}
+
+			opts, err := clientOpts[0]([]option.ClientOption{}, tc.container)
+			if err != nil {
+				t.Errorf("client option returned an unexpected error: %v", err)
 			}
 
 			expectedLen := 0
@@ -106,12 +125,22 @@ func TestServiceAccountKeyForProject(t *testing.T) {
 
 func TestTokenSource(t *testing.T) {
 	source := &mockTokenSource{}
-	modifier := TokenSource(source)
+	optionFunc := TokenSource(source)
 	container := googlecloudv2.Project("any-project")
 
-	opts, err := modifier([]option.ClientOption{}, container)
+	clientFactory := googlecloudv2.ClientFactory{}
+	err := optionFunc(&clientFactory)
 	if err != nil {
-		t.Fatalf("modifier returned an unexpected error: %v", err)
+		t.Errorf("optionFunc returned an unexpected error: %v", err)
+	}
+	clientOpts := clientFactory.ClientOptions
+	if len(clientOpts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(clientOpts))
+	}
+
+	opts, err := clientOpts[0]([]option.ClientOption{}, container)
+	if err != nil {
+		t.Errorf("client option returned an unexpected error: %v", err)
 	}
 
 	if len(opts) != 1 {
@@ -147,11 +176,20 @@ func TestTokenSourceForProject(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			modifier := TokenSourceForProject(projectID, source)
-			opts, err := modifier([]option.ClientOption{}, tc.container)
-
+			optionFunc := TokenSourceForProject(projectID, source)
+			clientFactory := googlecloudv2.ClientFactory{}
+			err := optionFunc(&clientFactory)
 			if err != nil {
-				t.Fatalf("modifier returned an unexpected error: %v", err)
+				t.Errorf("optionFunc returned an unexpected error: %v", err)
+			}
+			clientOpts := clientFactory.ClientOptions
+			if len(clientOpts) != 1 {
+				t.Errorf("Expected 1 option to be added, but got %d", len(clientOpts))
+			}
+
+			opts, err := clientOpts[0]([]option.ClientOption{}, tc.container)
+			if err != nil {
+				t.Errorf("client option returned an unexpected error: %v", err)
 			}
 
 			expectedLen := 0
@@ -171,11 +209,21 @@ func TestOAuth(t *testing.T) {
 	engine := gin.New()
 	conf := &oauth2.Config{}
 	server := oauth.NewOAuthServer(engine, conf, "/callback", "-suffix")
-	modifier := OAuth(server)
+	optionFunc := OAuth(server)
 	container := googlecloudv2.Project("any-project")
-	opts, err := modifier([]option.ClientOption{}, container)
+	clientFactory := googlecloudv2.ClientFactory{}
+	err := optionFunc(&clientFactory)
 	if err != nil {
-		t.Fatalf("modifier returned an unexpected error: %v", err)
+		t.Errorf("optionFunc returned an unexpected error: %v", err)
+	}
+	clientOpts := clientFactory.ClientOptions
+	if len(clientOpts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(clientOpts))
+	}
+
+	opts, err := clientOpts[0]([]option.ClientOption{}, container)
+	if err != nil {
+		t.Errorf("client option returned an unexpected error: %v", err)
 	}
 	if len(opts) != 1 {
 		t.Errorf("Expected 1 option to be added, but got %d", len(opts))
