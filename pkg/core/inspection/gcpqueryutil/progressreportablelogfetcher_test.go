@@ -315,6 +315,7 @@ timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 func TestTimePartitioningProgressReportableLogFetcher_FetchLogsWithProgress(t *testing.T) {
 	beginTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 	tick := 300 * time.Millisecond
+	testErr := errors.New("test error")
 	testCases := []struct {
 		desc             string
 		fetcherFactory   func(t *testing.T) *mockLogFetcher
@@ -325,12 +326,11 @@ func TestTimePartitioningProgressReportableLogFetcher_FetchLogsWithProgress(t *t
 		wantCompleteTime time.Duration
 		wantProgress     []LogFetchProgress
 		wantLogs         []*loggingpb.LogEntry
-		wantErr          bool
+		wantErr          error
 	}{
 		{
 			desc: "2 partition with 2 parallelism",
 			fetcherFactory: func(t *testing.T) *mockLogFetcher {
-				beginTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
 					newFakeLogUpstreamPair(`test filter
 timestamp >= "2025-01-01T00:30:00+0000"
@@ -378,7 +378,6 @@ timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 		{
 			desc: "2 partition with 1 parallelism",
 			fetcherFactory: func(t *testing.T) *mockLogFetcher {
-				beginTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
 					newFakeLogUpstreamPair(`test filter
 timestamp >= "2025-01-01T00:30:00+0000"
@@ -422,7 +421,6 @@ timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 		{
 			desc: "2 partition with 2 parallelism with error",
 			fetcherFactory: func(t *testing.T) *mockLogFetcher {
-				beginTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
 					newFakeLogUpstreamPair(`test filter
 timestamp >= "2025-01-01T00:30:00+0000"
@@ -431,7 +429,7 @@ timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 						<-time.After(tick)
 						logSource <- &loggingpb.LogEntry{LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45))}
 						<-time.After(tick)
-						errSource <- errors.New("test error")
+						errSource <- testErr
 						<-time.After(10 * tick) // shouldn't wait channel close after error happen
 					}),
 					newFakeLogUpstreamPair(`test filter
@@ -449,7 +447,7 @@ timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			partitionCount:   2,
 			maxParallelism:   2,
 			wantCompleteTime: 5 * tick,
-			wantErr:          true,
+			wantErr:          testErr,
 			wantProgress: []LogFetchProgress{
 				{},
 				{},
@@ -467,7 +465,6 @@ timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 		{
 			desc: "3 partition with 2 parallelism with cancel",
 			fetcherFactory: func(t *testing.T) *mockLogFetcher {
-				beginTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
 				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
 					newFakeLogUpstreamPair(`test filter
 timestamp >= "2025-01-01T00:20:00+0000"
@@ -494,7 +491,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			maxParallelism:   2,
 			cancelAfter:      time.Duration(2*tick + tick/4),
 			wantCompleteTime: 5 * tick,
-			wantErr:          true,
+			wantErr:          context.Canceled,
 			wantProgress: []LogFetchProgress{
 				{},
 				{},
@@ -546,11 +543,14 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			}
 
 			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", []string{})
-			if !tc.wantErr && err != nil {
+			if tc.wantErr != nil {
+				if err == nil {
+					t.Errorf("FetchLogsWithProgress() expected error, but got nil")
+				} else if !errors.Is(err, tc.wantErr) && err.Error() != tc.wantErr.Error() {
+					t.Errorf("FetchLogsWithProgress() returned wrong error type. got: %v, want: %v", err, tc.wantErr)
+				}
+			} else if err != nil {
 				t.Errorf("FetchLogsWithProgress() returned unexpected error: %v", err)
-			}
-			if tc.wantErr && err == nil {
-				t.Errorf("FetchLogsWithProgress() didn't return expected error")
 			}
 			wg.Wait()
 			close(afterFetchDone)

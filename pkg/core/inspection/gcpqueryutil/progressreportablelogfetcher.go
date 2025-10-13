@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"golang.org/x/sync/errgroup"
 )
 
 // LogFetchProgress represents the progress of a log fetching operation.
@@ -170,11 +171,6 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 	ticker := time.NewTicker(t.reportInterval)
 	defer ticker.Stop()
 
-	subErrChan := make(chan error, 1)
-	semaphore := make(chan struct{}, t.maxParallelism)
-	defer close(subErrChan)
-	defer close(semaphore)
-
 	select {
 	case progressChan <- LogFetchProgress{
 		LogCount: 0,
@@ -208,24 +204,20 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 
 	times := t.getPartitionedTimes(beginTime, endTime)
 
-	wg := sync.WaitGroup{}
-	wg.Add(t.partitionCount)
+	wg, groupCtx := errgroup.WithContext(cancellableCtx)
+	wg.SetLimit(t.maxParallelism)
+
 	for i := 0; i < t.partitionCount; i++ {
-		partitionBeginTime := times[i]
-		partitionEndTime := times[i+1]
+		subProgressIndex := i
+		wg.Go(func() error {
+			select {
+			case <-groupCtx.Done():
+				return groupCtx.Err()
+			default:
+			}
+			partitionBeginTime := times[i]
+			partitionEndTime := times[i+1]
 
-		select {
-		case <-cancellableCtx.Done():
-			wg.Done()
-			continue
-		case semaphore <- struct{}{}:
-		}
-
-		go func(subProgressIndex int) {
-			defer wg.Done()
-			defer func() {
-				<-semaphore
-			}()
 			childWg := sync.WaitGroup{}
 			childWg.Add(2)
 
@@ -237,7 +229,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 				defer childWg.Done()
 				for {
 					select {
-					case <-cancellableCtx.Done():
+					case <-groupCtx.Done():
 						return
 					case logEntry, ok := <-subLogChan:
 						if !ok {
@@ -245,7 +237,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 						}
 						select {
 						case logChan <- logEntry:
-						case <-cancellableCtx.Done():
+						case <-groupCtx.Done():
 							return
 						}
 					}
@@ -257,7 +249,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 				defer childWg.Done()
 				for {
 					select {
-					case <-cancellableCtx.Done():
+					case <-groupCtx.Done():
 						return
 					case progress, ok := <-subProgressChan:
 						if !ok {
@@ -270,22 +262,19 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 
 			err := t.client.FetchLogsWithProgress(subLogChan, subProgressChan, cancellableCtx, partitionBeginTime, partitionEndTime, filterWithoutTimeRange, resourceContainers)
 			if err != nil {
-				select {
-				case subErrChan <- err:
-				default: // When an error happens, the other subroutine will finish with cancelled error. And receiver only receive the first error, thus ignore the error if no receiver active.
-				}
 				cancel()
-				return
+				return err
 			}
 			childWg.Wait()
-		}(i)
+			return nil
+		})
 	}
 
-	wg.Wait()
+	err := wg.Wait()
 	cancel()
 	rootGoroutineWaitGroup.Wait()
-	if len(subErrChan) > 0 {
-		return <-subErrChan
+	if err != nil {
+		return err
 	}
 	sumLog := 0
 	for _, subProgress := range subProgresses {
