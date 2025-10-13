@@ -21,7 +21,7 @@ import (
 	"google.golang.org/api/composer/v1"
 )
 
-func TestApiResponseToClusterNameList(t *testing.T) {
+func TestApiEnvironmentToClusterName(t *testing.T) {
 	tests := []struct {
 		name     string
 		resp     *composer.Environment

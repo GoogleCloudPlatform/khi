@@ -27,20 +27,20 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type mockComposerEnironmentFetcher struct {
+type mockComposerEnvironmentFetcher struct {
 	responsePairs map[string][]string // {projectID}/{location}
 	responseError bool
 }
 
 // GetEnvironmentNames implements googlecloudclustercomposer_contract.ComposerEnvironmentListFetcher.
-func (m *mockComposerEnironmentFetcher) GetEnvironmentNames(ctx context.Context, projectID string, location string) ([]string, error) {
+func (m *mockComposerEnvironmentFetcher) GetEnvironmentNames(ctx context.Context, projectID string, location string) ([]string, error) {
 	if m.responseError {
 		return nil, fmt.Errorf("test error")
 	}
 	return m.responsePairs[projectID+"/"+location], nil
 }
 
-var _ googlecloudclustercomposer_contract.ComposerEnvironmentListFetcher = (*mockComposerEnironmentFetcher)(nil)
+var _ googlecloudclustercomposer_contract.ComposerEnvironmentListFetcher = (*mockComposerEnvironmentFetcher)(nil)
 
 func TestAutocompleteComposerEnvironmentNamesTask(t *testing.T) {
 	testCases := []struct {
@@ -89,9 +89,9 @@ func TestAutocompleteComposerEnvironmentNamesTask(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 
-			mockComposerEnironmentFetcherInput := tasktest.NewTaskDependencyValuePair[googlecloudclustercomposer_contract.ComposerEnvironmentListFetcher](
+			mockComposerEnvironmentFetcherInput := tasktest.NewTaskDependencyValuePair[googlecloudclustercomposer_contract.ComposerEnvironmentListFetcher](
 				googlecloudclustercomposer_contract.ComposerEnvironmentListFetcherTaskID.Ref(),
-				&mockComposerEnironmentFetcher{
+				&mockComposerEnvironmentFetcher{
 					responsePairs: tc.projectIDLocationToClusterNames,
 					responseError: tc.listError,
 				},
@@ -100,7 +100,7 @@ func TestAutocompleteComposerEnvironmentNamesTask(t *testing.T) {
 			for i := 0; i < len(tc.projectIDs); i++ {
 				projectIDInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
 				locationInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLocationsTaskID.Ref(), tc.locations[i])
-				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerEnvironmentNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, locationInput, mockComposerEnironmentFetcherInput)
+				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerEnvironmentNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, locationInput, mockComposerEnvironmentFetcherInput)
 				if err != nil {
 					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)
 				}
