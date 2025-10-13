@@ -41,7 +41,7 @@ func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID 
 
 	gkeMultiCloudAzureClient, err := cf.GKEMultiCloudAzureClustersClient(ctx, googlecloudv2.Project(projectID))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the logging instance:%v", err)
+		return nil, fmt.Errorf("failed to get the GKE on Azure client:%v", err)
 	}
 	defer gkeMultiCloudAzureClient.Close()
 
