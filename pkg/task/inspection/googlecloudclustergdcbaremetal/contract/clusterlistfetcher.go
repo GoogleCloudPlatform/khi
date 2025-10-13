@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/gkeonprem/v1"
 )
 
@@ -43,31 +43,31 @@ func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string
 
 	parent := fmt.Sprintf("projects/%s/locations/-", project)
 	resultCh := make(chan []string, 2)
-	wg := sync.WaitGroup{}
-	wg.Add(2)
+	errGrp, groupCtx := errgroup.WithContext(ctx)
 
-	go func() {
-		defer wg.Done()
-		adminClusters, err := getAdminClusters(onpremAPI, parent)
+	errGrp.Go(func() error {
+		adminClusters, err := getAdminClusters(groupCtx, onpremAPI, parent)
 		if err != nil {
-			resultCh <- nil
-			return
+			return err
 		}
 		resultCh <- adminClusters
-	}()
+		return nil
+	})
 
-	go func() {
-		defer wg.Done()
-		userClusters, err := getUserClusters(onpremAPI, parent)
+	errGrp.Go(func() error {
+		userClusters, err := getUserClusters(groupCtx, onpremAPI, parent)
 		if err != nil {
-			resultCh <- nil
-			return
+			return err
 		}
 		resultCh <- userClusters
-	}()
+		return nil
+	})
 
-	wg.Wait()
+	err = errGrp.Wait()
 	close(resultCh)
+	if err != nil {
+		return nil, err
+	}
 
 	var result []string
 	for clusters := range resultCh {
@@ -78,12 +78,12 @@ func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string
 
 var _ ClusterListFetcher = (*ClusterListFetcherImpl)(nil)
 
-func getAdminClusters(client *gkeonprem.Service, parent string) ([]string, error) {
+func getAdminClusters(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
 	var nextPageToken string
 	var result []string
 	for {
 		req := client.Projects.Locations.BareMetalAdminClusters.List(parent).PageToken(nextPageToken)
-		resp, err := req.Do()
+		resp, err := req.Context(ctx).Do()
 		if err != nil {
 			return nil, err
 		}
@@ -98,12 +98,12 @@ func getAdminClusters(client *gkeonprem.Service, parent string) ([]string, error
 	return result, nil
 }
 
-func getUserClusters(client *gkeonprem.Service, parent string) ([]string, error) {
+func getUserClusters(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
 	var nextPageToken string
 	var result []string
 	for {
 		req := client.Projects.Locations.BareMetalClusters.List(parent).PageToken(nextPageToken)
-		resp, err := req.Do()
+		resp, err := req.Context(ctx).Do()
 		if err != nil {
 			return nil, err
 		}
