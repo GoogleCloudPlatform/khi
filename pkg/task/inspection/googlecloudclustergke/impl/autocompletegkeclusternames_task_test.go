@@ -79,7 +79,7 @@ func TestAutocompleteGKEClusterNamesTask(t *testing.T) {
 			},
 		},
 		{
-			desc: "multiple call for single project",
+			desc: "multiple calls for different projects",
 			clusterList: map[string][]string{
 				"foo": {"qux", "quux"},
 				"bar": {"hoge", "fuga"},

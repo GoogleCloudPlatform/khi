@@ -43,7 +43,7 @@ var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googleclo
 	if projectID != "" {
 		clusters, err := listFetcher.GetClusterNames(ctx, projectID)
 		if err != nil {
-			slog.WarnContext(ctx, fmt.Sprintf("Failed to read the cluster names in the project %s\n%s", projectID, err))
+			slog.WarnContext(ctx, "Failed to read cluster names for project", "projectID", projectID, "error", err)
 			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
 				DependencyDigest: projectID,
 				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{

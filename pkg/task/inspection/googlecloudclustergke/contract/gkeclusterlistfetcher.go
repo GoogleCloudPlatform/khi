@@ -39,7 +39,7 @@ func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID 
 
 	ccmc, err := cf.ContainerClusterManagerClient(ctx, googlecloudv2.Project(projectID))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the logging instance:%v", err)
+		return nil, fmt.Errorf("failed to create container cluster manager client: %w", err)
 	}
 	defer ccmc.Close()
 
@@ -47,7 +47,7 @@ func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID 
 		Parent: fmt.Sprintf("projects/%s/locations/-", projectID),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the cluster names in the project %s\n%s", projectID, err)
+		return nil, fmt.Errorf("failed to read the cluster names in the project %s: %w", projectID, err)
 	}
 
 	return apiResponseToClusterNameList(clusters), nil
@@ -57,6 +57,9 @@ var _ ClusterListFetcher = (*ClusterListFetcherImpl)(nil)
 
 // apiResponseToClusterNameList returns the list of cluster names from the API response.
 func apiResponseToClusterNameList(response *containerpb.ListClustersResponse) []string {
+	if response == nil {
+		return []string{}
+	}
 	result := make([]string, 0, len(response.Clusters))
 	for _, cluster := range response.Clusters {
 		result = append(result, cluster.Name)

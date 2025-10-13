@@ -42,6 +42,11 @@ func TestApiResponseToClusterNameList(t *testing.T) {
 			},
 			want: []string{"foo", "bar"},
 		},
+		{
+			desc:     "nil response",
+			response: nil,
+			want:     []string{},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {

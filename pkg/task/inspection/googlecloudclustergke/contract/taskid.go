@@ -20,7 +20,7 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-// ClusterGKETaskCommonPrefix is the task id prefix oritinally defined in googlecloudclustergke.
+// ClusterGKETaskCommonPrefix is the task id prefix originally defined in googlecloudclustergke.
 var ClusterGKETaskCommonPrefix = googlecloudcommon_contract.GoogleCloudCommonTaskIDPrefix + "cluster/gke/"
 
 // AutocompleteGKEClusterNamesTaskID is the task ID for listing up GKE cluster names on the project.
