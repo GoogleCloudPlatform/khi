@@ -41,7 +41,7 @@ func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID 
 
 	gkeMultiCloudAwsClient, err := cf.GKEMultiCloudAWSClustersClient(ctx, googlecloudv2.Project(projectID))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the logging instance:%v", err)
+		return nil, fmt.Errorf("failed to get the GKE on AWS client:%v", err)
 	}
 	defer gkeMultiCloudAwsClient.Close()
 
