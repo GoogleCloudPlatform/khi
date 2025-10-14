@@ -81,13 +81,27 @@ KHI is originally developed by the Google Cloud Support team before it became op
 > The container image repository has been moved from `asia.gcr.io` to `gcr.io`. While the old repository is still available, we recommend switching to the new one as the old one will be deprecated in the future.
 
 > [!TIP]
-> If you want to run KHI with the other environment where the metadata server is not available,
-> you can pass the access token via the program argument.
+> If you want to run KHI in an environment where the metadata server is not available, you can use Application Default Credentials (ADC) by mounting your ADC file from your host filesystem to the container.
 >
->```bash
->docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
->```
+> **For Linux, MacOS or WSL**
 >
+> ```bash
+> gcloud auth application-default login
+> docker run \
+>  -p 127.0.0.1:8080:8080 \
+>  -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro \
+>  gcr.io/kubernetes-history-inspector/release:latest
+> ```
+>
+> **For Windows PowerShell**
+>
+> ```bash
+> gcloud auth application-default login
+> docker run `
+> -p 127.0.0.1:8080:8080 `
+> -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro `
+> gcr.io/kubernetes-history-inspector/release:latest
+> ```
 
 For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
@@ -142,10 +156,6 @@ The following permissions are required or recommended.
 - **Setting**
   - Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
   - Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account.
-
-> [!WARNING]
-> KHI does not respect [ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc) – running KHI on a Compute Engine Instances will always use the attached service account regardless of ADC.
-> This specification is subject to change in the future.
 
 #### Audit Logging
 
