@@ -94,14 +94,20 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 >
 >```bash
 > gcloud auth application-default login
-> docker run -p 127.0.0.1:8080:8080 -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
+> docker run \
+>  -p 127.0.0.1:8080:8080 \
+>  -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro \
+>  gcr.io/kubernetes-history-inspector/release:latest
 >```
 >
 > **Windows PowerShell 環境**
 >
 > ```bash
 > gcloud auth application-default login
-> docker run -p 127.0.0.1:8080:8080 -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
+> docker run `
+> -p 127.0.0.1:8080:8080 `
+> -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro `
+> gcr.io/kubernetes-history-inspector/release:latest
 > ```
 >
 

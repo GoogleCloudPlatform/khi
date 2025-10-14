@@ -87,14 +87,20 @@ KHI is originally developed by the Google Cloud Support team before it became op
 >
 > ```bash
 > gcloud auth application-default login
-> docker run -p 127.0.0.1:8080:8080 -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
+> docker run \
+>  -p 127.0.0.1:8080:8080 \
+>  -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro \
+>  gcr.io/kubernetes-history-inspector/release:latest
 > ```
 >
 > **For Windows PowerShell**
 >
 > ```bash
 > gcloud auth application-default login
-> docker run -p 127.0.0.1:8080:8080 -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
+> docker run `
+> -p 127.0.0.1:8080:8080 `
+> -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro `
+> gcr.io/kubernetes-history-inspector/release:latest
 > ```
 
 For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
