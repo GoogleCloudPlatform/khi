@@ -97,14 +97,14 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 > [!TIP]
 > メタデータサーバが利用できない他の環境で KHI を実行する場合は、[アプリケーションのデフォルト認証情報](https://cloud.google.com/docs/authentication/provide-credentials-adc)をホストのファイルシステムからコンテナにマウントして認証できます。
 >
-> - Linux, MacOS or WSL 環境
+> **Linux, MacOS or WSL 環境**
 >
 >```bash
 > gcloud auth application-default login
 > docker run -p 127.0.0.1:8080:8080 -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
 >```
 >
-> - Windows Power-Shell 環境
+> **Windows PowerShell 環境**
 >
 > ```bash
 > gcloud auth application-default login

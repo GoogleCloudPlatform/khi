@@ -81,23 +81,21 @@ KHI is originally developed by the Google Cloud Support team before it became op
 > The container image repository has been moved from `asia.gcr.io` to `gcr.io`. While the old repository is still available, we recommend switching to the new one as the old one will be deprecated in the future.
 
 > [!TIP]
-> If you want to run KHI with the other environment where the metadata server is not available,
-> you can mount your own [application default credentials(ADC)](https://cloud.google.com/docs/authentication/provide-credentials-adc) configuration tfile to authenticate with from your host filesystem to the container.
+> If you want to run KHI in an environment where the metadata server is not available, you can use Application Default Credentials (ADC) by mounting your ADC file from your host filesystem to the container.
 >
-> - For Linux, MacOS or WSL
+> **For Linux, MacOS or WSL**
 >
->```bash
+> ```bash
 > gcloud auth application-default login
 > docker run -p 127.0.0.1:8080:8080 -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
->```
+> ```
 >
-> - For Windows Power-Shell
+> **For Windows PowerShell**
 >
 > ```bash
 > gcloud auth application-default login
 > docker run -p 127.0.0.1:8080:8080 -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
 > ```
->
 
 For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
