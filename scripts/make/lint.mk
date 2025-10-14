@@ -29,6 +29,9 @@ ifeq ($(GOLANGCILINT_CMD),)
 		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
 	endif
 else
+	@if ! $(GOLANGCILINT_CMD) version | grep -q "$(subst v,,$(GOLANGCILINT_VERSION))"; then \
+		printf "\e[0;33mWarning: local golangci-lint version ($$($(GOLANGCILINT_CMD) version)) does not match $(GOLANGCILINT_VERSION). Results may differ from CI.\e[0m\n"; \
+	fi
 	$(GOLANGCILINT_CMD) run --config=.golangci.yaml
 endif
 
