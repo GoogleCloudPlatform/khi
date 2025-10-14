@@ -37,6 +37,7 @@ linters:
             - $all
             - '!$test'
             - '!**/pkg/testutil/**/*.go'
+            - '!**/pkg/**/test/*.go'
           deny:
             - desc: Production code should not depend on test utilities.
               pkg: github.com/GoogleCloudPlatform/khi/pkg/testutil
