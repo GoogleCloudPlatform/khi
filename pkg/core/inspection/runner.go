@@ -94,7 +94,9 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 		RunContextOptionFromValue(inspectioncore_contract.InspectionSharedMap, i.inspectionSharedMap),
 		RunContextOptionFromValue(inspectioncore_contract.GlobalSharedMap, inspectionRunnerGlobalSharedMap),
 		RunContextOptionFromValue(inspectioncore_contract.CurrentIOConfig, i.ioconfig),
-		RunContextOptionFromValue(inspectioncore_contract.CurrentHistoryBuilder, history.NewBuilder(i.ioconfig.TemporaryFolder)),
+		RunContextOptionFromFunc(inspectioncore_contract.CurrentHistoryBuilder, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (*history.Builder, error) {
+			return history.NewBuilder(i.ioconfig.TemporaryFolder), nil
+		}),
 	}
 
 	i.runContextOptions = append(i.runContextOptions, defaultRunContextOptions...)
@@ -204,8 +206,9 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 // withRunContextValues returns a context with the value specific to a single run of task.
 func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspectioncore_contract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
 
-	// Add options only for this run.
-	opts := i.runContextOptions
+	opts := make([]RunContextOption, 0, len(i.runContextOptions)+2)
+	opts = append(opts, i.runContextOptions...)
+	// Add option values determined for this run call.
 	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.InspectionTaskInput, taskInput))
 	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.InspectionTaskMode, runMode))
 

@@ -159,7 +159,7 @@ func (s *InspectionTaskServer) GetAllRegisteredTasks() []coretask.UntypedTask {
 	return s.RootTaskSet.GetAll()
 }
 
-// AddRunContextOption registers the default RunContextOptions used to instanciate a task runner.
+// AddRunContextOption adds a RunContextOption that will be applied to all new inspection runners.
 func (s *InspectionTaskServer) AddRunContextOption(option RunContextOption) {
 	s.runContextOptions = append(s.runContextOptions, option)
 }
