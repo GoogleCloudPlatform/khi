@@ -88,11 +88,28 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 > コンテナイメージのレポジトリが `asia.gcr.io` から `gcr.io` に変更されました。古いレポジトリも当面の間利用可能ですが、将来的には廃止される予定のため、新しいレポジトリへの切り替えを推奨します。
 
 > [!TIP]
-> メタデータサーバーが利用できない他の環境で KHI を実行する場合は、プログラム引数でアクセストークンを渡します。
+> メタデータサーバが利用できない他の環境で KHI を実行する場合は、[アプリケーションのデフォルト認証情報](https://cloud.google.com/docs/authentication/provide-credentials-adc)をホストのファイルシステムからコンテナにマウントして認証できます。
+>
+> **Linux, MacOS or WSL 環境**
+>
+>```bash
+> gcloud auth application-default login
+> docker run \
+>  -p 127.0.0.1:8080:8080 \
+>  -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro \
+>  gcr.io/kubernetes-history-inspector/release:latest
+>```
+>
+> **Windows PowerShell 環境**
 >
 > ```bash
-> docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
+> gcloud auth application-default login
+> docker run `
+> -p 127.0.0.1:8080:8080 `
+> -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro `
+> gcr.io/kubernetes-history-inspector/release:latest
 > ```
+>
 
 詳細は [Getting Started](/docs/en/tutorial/getting-started.md) を参照してください。
 
@@ -148,10 +165,6 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 
   - Compute Engine 仮想マシン上など、サービスアカウントがアタッチされた Google Cloud 環境で KHI を実行する場合、対応するリソースにアタッチされたサービスアカウントに上記権限を付与します。
   - ローカル環境や Cloud Shell など、ユーザアカウント権限で KHI を実行する場合、対応するユーザ上記権限を付与します。
-
-> [!WARNING]
-> KHI は、Compute Engine インスタンス上で実行した際は必ずアタッチされたサービスアカウントを使用するなど、[ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc)が反映されません。
-> この仕様は今後修正される場合があります。
 
 #### 監査ログ出力設定
 
