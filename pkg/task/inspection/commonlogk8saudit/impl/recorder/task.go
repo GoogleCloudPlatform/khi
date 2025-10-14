@@ -17,11 +17,12 @@ package recorder
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
@@ -34,12 +35,38 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
+// LogGroupFilterFunc defines a function signature for filtering log groups based on their resource path.
 type LogGroupFilterFunc = func(ctx context.Context, resourcePath string) bool
 
+// LogFilterFunc defines a function signature for filtering individual audit logs.
 type LogFilterFunc = func(ctx context.Context, l *commonlogk8saudit_contract.AuditLogParserInput) bool
 
 // RecorderFunc records events/revisions...etc on the given ChangeSet. If it returns an error, then the result is ignored.
 type RecorderFunc = func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error)
+
+// hierarchicalTimelineGroupWorker represents a node in a hierarchical tree structure of timeline groups.
+// It is used to organize and process timeline groups based on their resource paths to process them from ancestor to children.
+type hierarchicalTimelineGroupWorker struct {
+	children map[string]*hierarchicalTimelineGroupWorker
+	group    *commonlogk8saudit_contract.TimelineGrouperResult
+}
+
+// Run traverses the hierarchical timeline group structure and executes a given function `f`
+// for each `TimelineGrouperResult` found. It uses a worker pool to process groups concurrently.
+func (h *hierarchicalTimelineGroupWorker) Run(ctx context.Context, f func(group *commonlogk8saudit_contract.TimelineGrouperResult)) {
+	if h.group != nil {
+		f(h.group)
+	}
+	wg := sync.WaitGroup{}
+	for _, child := range h.children {
+		wg.Add(1)
+		go func(child *hierarchicalTimelineGroupWorker) {
+			defer wg.Done()
+			child.Run(ctx, f)
+		}(child)
+	}
+	wg.Wait()
+}
 
 // RecorderTaskManager provides the way of extending resource specific
 type RecorderTaskManager struct {
@@ -56,6 +83,8 @@ func NewAuditRecorderTaskManager(taskID taskid.TaskImplementationID[struct{}], r
 	}
 }
 
+// AddRecorder adds a new recorder task to the manager.
+// Each recorder task processes grouped audit logs and applies custom recording logic.
 func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.UntypedTaskReference, recorder RecorderFunc, logGroupFilter LogGroupFilterFunc, logFilter LogFilterFunc) {
 	dependenciesBase := []taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.LogConvertTaskID.Ref(),
@@ -77,37 +106,36 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 		})
 		updator.Start(ctx)
 		defer updator.Done()
-		workerPool := worker.NewPool(16)
-		for _, loopGroup := range filteredLogs {
-			group := loopGroup
+
+		hierarchicalGroupedLogs := convertTimelineGroupListToHierarcicalTimelineGroup(filteredLogs)
+
+		hierarchicalGroupedLogs.Run(ctx, func(group *commonlogk8saudit_contract.TimelineGrouperResult) {
 			var prevState any = nil
-			workerPool.Run(func() {
-				for _, l := range group.PreParsedLogs {
-					if !logFilter(ctx, l) {
-						processedLogCount.Add(1)
-						continue
-					}
-					cs := history.NewChangeSet(l.Log)
-					currentState, err := recorder(ctx, group.TimelineResourcePath, l, prevState, cs, builder)
-					if err != nil {
-						processedLogCount.Add(1)
-						continue
-					}
-					prevState = currentState
-					cp, err := cs.FlushToHistory(builder)
-					if err != nil {
-						processedLogCount.Add(1)
-						continue
-					}
-					for _, path := range cp {
-						tb := builder.GetTimelineBuilder(path)
-						tb.Sort()
-					}
+			for _, l := range group.PreParsedLogs {
+				if !logFilter(ctx, l) {
 					processedLogCount.Add(1)
+					continue
 				}
-			})
-		}
-		workerPool.Wait()
+				cs := history.NewChangeSet(l.Log)
+				currentState, err := recorder(ctx, group.TimelineResourcePath, l, prevState, cs, builder)
+				if err != nil {
+					processedLogCount.Add(1)
+					continue
+				}
+				prevState = currentState
+				cp, err := cs.FlushToHistory(builder)
+				if err != nil {
+					processedLogCount.Add(1)
+					continue
+				}
+				for _, path := range cp {
+					tb := builder.GetTimelineBuilder(path)
+					tb.Sort()
+				}
+				processedLogCount.Add(1)
+			}
+		})
+
 		return struct{}{}, nil
 	})
 	r.recorderTasks = append(r.recorderTasks, newTask)
@@ -144,4 +172,31 @@ func filterMatchedGroupedLogs(ctx context.Context, logGroups []*commonlogk8saudi
 		}
 	}
 	return result, totalLogCount
+}
+
+// convertTimelineGroupListToHierarcicalTimelineGroup converts a flat list of `TimelineGrouperResult`
+// into a hierarchical tree structure represented by `hierarcicalTimelineGroupWorker`.
+// logGroup must be sorted by its path because this assume parent must appear before its children.
+func convertTimelineGroupListToHierarcicalTimelineGroup(logGroup []*commonlogk8saudit_contract.TimelineGrouperResult) *hierarchicalTimelineGroupWorker {
+	root := &hierarchicalTimelineGroupWorker{
+		children: map[string]*hierarchicalTimelineGroupWorker{},
+		group:    nil,
+	}
+	for _, group := range logGroup {
+		current := root
+		segments := strings.Split(group.TimelineResourcePath, "#")
+		for i, segment := range segments {
+			if _, ok := current.children[segment]; !ok {
+				current.children[segment] = &hierarchicalTimelineGroupWorker{
+					children: map[string]*hierarchicalTimelineGroupWorker{},
+					group:    nil,
+				}
+			}
+			current = current.children[segment]
+			if i == len(segments)-1 {
+				current.group = group
+			}
+		}
+	}
+	return root
 }

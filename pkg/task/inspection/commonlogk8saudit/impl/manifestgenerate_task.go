@@ -150,6 +150,7 @@ var ManifestGenerateTask = inspectiontaskbase.NewProgressReportableInspectionTas
 		})
 	}
 	workerPool.Wait()
+
 	return groups, nil
 })
 
