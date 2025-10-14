@@ -82,11 +82,21 @@ KHI is originally developed by the Google Cloud Support team before it became op
 
 > [!TIP]
 > If you want to run KHI with the other environment where the metadata server is not available,
-> you can pass the access token via the program argument.
+> you can mount your own [application default credentials(ADC)](https://cloud.google.com/docs/authentication/provide-credentials-adc) configuration tfile to authenticate with from your host filesystem to the container.
+>
+> - For Linux, MacOS or WSL
 >
 >```bash
->docker run -p 127.0.0.1:8080:8080 gcr.io/kubernetes-history-inspector/release:latest -access-token=`gcloud auth print-access-token`
+> gcloud auth application-default login
+> docker run -p 127.0.0.1:8080:8080 -v ~/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
 >```
+>
+> - For Windows Power-Shell
+>
+> ```bash
+> gcloud auth application-default login
+> docker run -p 127.0.0.1:8080:8080 -v $env:APPDATA\gcloud\application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro gcr.io/kubernetes-history-inspector/release:latest
+> ```
 >
 
 For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
@@ -142,10 +152,6 @@ The following permissions are required or recommended.
 - **Setting**
   - Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
   - Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account.
-
-> [!WARNING]
-> KHI does not respect [ADC](https://cloud.google.com/docs/authentication/provide-credentials-adc) – running KHI on a Compute Engine Instances will always use the attached service account regardless of ADC.
-> This specification is subject to change in the future.
 
 #### Audit Logging
 
