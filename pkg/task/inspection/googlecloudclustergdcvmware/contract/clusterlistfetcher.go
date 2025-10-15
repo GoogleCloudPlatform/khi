@@ -41,12 +41,25 @@ func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string
 		return nil, fmt.Errorf("failed to generate onprem API client: %v", err)
 	}
 
+	return getAdminAndUserClusters(ctx, project, func(ctx context.Context, parent string) ([]string, error) {
+		return getAdminClustersFromAPI(ctx, onpremAPI, parent)
+	}, func(ctx context.Context, parent string) ([]string, error) {
+		return getUserClustersFromAPI(ctx, onpremAPI, parent)
+	})
+}
+
+var _ ClusterListFetcher = (*ClusterListFetcherImpl)(nil)
+
+type fetchClusterFunc = func(ctx context.Context, parent string) ([]string, error)
+
+// getAdminAndUserClusters returns the list of clusters obtained from APIs.
+func getAdminAndUserClusters(ctx context.Context, project string, fetchAdminCluster, fetchUserCluster fetchClusterFunc) ([]string, error) {
 	parent := fmt.Sprintf("projects/%s/locations/-", project)
 	resultCh := make(chan []string, 2)
-	wg, groupCtx := errgroup.WithContext(ctx)
+	errGrp, groupCtx := errgroup.WithContext(ctx)
 
-	wg.Go(func() error {
-		adminClusters, err := getAdminClusters(groupCtx, onpremAPI, parent)
+	errGrp.Go(func() error {
+		adminClusters, err := fetchAdminCluster(groupCtx, parent)
 		if err != nil {
 			return err
 		}
@@ -54,8 +67,8 @@ func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string
 		return nil
 	})
 
-	wg.Go(func() error {
-		userClusters, err := getUserClusters(groupCtx, onpremAPI, parent)
+	errGrp.Go(func() error {
+		userClusters, err := fetchUserCluster(groupCtx, parent)
 		if err != nil {
 			return err
 		}
@@ -63,7 +76,7 @@ func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string
 		return nil
 	})
 
-	err = wg.Wait()
+	err := errGrp.Wait()
 	close(resultCh)
 	if err != nil {
 		return nil, err
@@ -76,9 +89,7 @@ func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string
 	return result, nil
 }
 
-var _ ClusterListFetcher = (*ClusterListFetcherImpl)(nil)
-
-func getAdminClusters(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
+func getAdminClustersFromAPI(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
 	var nextPageToken string
 	var result []string
 	for {
@@ -98,7 +109,7 @@ func getAdminClusters(ctx context.Context, client *gkeonprem.Service, parent str
 	return result, nil
 }
 
-func getUserClusters(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
+func getUserClustersFromAPI(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
 	var nextPageToken string
 	var result []string
 	for {
