@@ -55,3 +55,9 @@ var AirflowDagProcessorManagerLogParserTaskID taskid.TaskImplementationID[struct
 
 // AirflowWorkerLogParserTaskID is the task id for the task that parses Airflow worker logs.
 var AirflowWorkerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "composer/dagprocessor")
+
+// ComposerEnvironmentListFetcherTaskID is the task id for injecting ComposerEnvironmentListFetcher instance.
+var ComposerEnvironmentListFetcherTaskID = taskid.NewDefaultImplementationID[ComposerEnvironmentListFetcher](GoogleCloudComposerTaskIDPrefix + "composer-environment-list-fetcher")
+
+// ComposerEnvironmentClusterFinderTaskID is the task id for injecting ComposerEnvironmentClusterFinder instance.
+var ComposerEnvironmentClusterFinderTaskID = taskid.NewDefaultImplementationID[ComposerEnvironmentClusterFinder](GoogleCloudComposerTaskIDPrefix + "composer-environment-cluster-finder")
