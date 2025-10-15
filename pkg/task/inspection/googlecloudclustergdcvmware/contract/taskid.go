@@ -19,8 +19,14 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
+// ClusterGDCVMWareCommonTaskPrefix is the common task id prefix for GDC Vmware cluster related tasks.
+var ClusterGDCVMWareCommonTaskPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "gdc-vmware"
+
 // AutocompleteGDCVForVMWareClusterNamesTaskID is the task ID for listing up GDCV for VMWare cluster names on the project.
 var AutocompleteGDCVForVMWareClusterNamesTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-vmware")
 
 // ClusterNamePrefixTaskIDForGDCVForVMWare is the task ID for the GDCV for VMWare cluster name prefix.
 var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gdcv-for-vmware")
+
+// ClusterListFetcherTaskID injects the ClusterListFetcher implementation.
+var ClusterListFetcherTaskID = taskid.NewDefaultImplementationID[ClusterListFetcher](ClusterGDCVMWareCommonTaskPrefix + "cluster-list-fetcher")
