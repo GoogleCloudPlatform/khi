@@ -105,7 +105,7 @@ func (b *TimelineBuilder) GetRevisionBefore(time time.Time) *ResourceRevision {
 	return b.timeline.Revisions[min]
 }
 
-// GetRevisionBefore find a revision after the given time. If no revision found, then this function returns nil.
+// GetRevisionAfter find a revision after the given time. If no revision found, then this function returns nil.
 // Computational complexity is O(logN)
 func (b *TimelineBuilder) GetRevisionAfter(time time.Time) *ResourceRevision {
 	b.lock.Lock()

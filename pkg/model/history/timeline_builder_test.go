@@ -77,13 +77,7 @@ func TestTimelineBuilder_GetRevision(t *testing.T) {
 		t.Run("GetRevisionAfter/"+tc.name, func(t *testing.T) {
 			got := builder.GetRevisionAfter(tc.time)
 			if got != tc.expected {
-				if tc.expected == nil {
-					if builder.GetRevisionAfter(tc.time) != nil {
-						t.Errorf("GetRevisionAfter(%v) = %v, want %v", tc.time, got, tc.expected)
-					}
-				} else {
-					t.Errorf("GetRevisionAfter(%v) = %v, want %v", tc.time, got, tc.expected)
-				}
+				t.Errorf("GetRevisionAfter(%v) = %v, want %v", tc.time, got, tc.expected)
 			}
 		})
 	}
