@@ -45,7 +45,9 @@ func (l *locationFetcherImpl) FetchRegions(ctx context.Context, projectId string
 			}
 			return nil, err
 		}
-		result = append(result, *region.Name)
+		if region != nil {
+			result = append(result, *region.Name)
+		}
 	}
 	return result, nil
 }

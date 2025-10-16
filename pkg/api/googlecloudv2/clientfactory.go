@@ -45,12 +45,12 @@ type ClientFactory struct {
 	ClientOptions    []ClientFactoryOptionsModifiers
 	ContextModifiers []ClientFactoryContextModifiers
 
-	RegionsClientOptions                    []ClientFactoryContextModifiers
 	ContainerClusterManagerClientOptions    []ClientFactoryOptionsModifiers
 	GKEHubMembershipClientOptions           []ClientFactoryOptionsModifiers
 	GKEMultiCloudAWSClustersClientOptions   []ClientFactoryOptionsModifiers
 	GKEMultiCloudAzureClustersClientOptions []ClientFactoryOptionsModifiers
 	LoggingClientOptions                    []ClientFactoryOptionsModifiers
+	RegionsClientOptions                    []ClientFactoryOptionsModifiers
 	ComposerServiceOptions                  []ClientFactoryOptionsModifiers
 	GKEOnPremServiceOptions                 []ClientFactoryOptionsModifiers
 }
@@ -158,8 +158,8 @@ func (s *ClientFactory) LoggingClient(ctx context.Context, c ResourceContainer, 
 }
 
 // RegionsClient returns the client for listing GCE regions. https://cloud.google.com/compute/docs/reference/rest/v1#rest-resource:-v1.regions
-func (s *ClientFactory) RegionsClient(ctx context.Context, c ResourceContainer) (*compute.RegionsClient, error) {
-	ctx, opts, err := s.prepareServiceInput(ctx, c, s.GKEOnPremServiceOptions)
+func (s *ClientFactory) RegionsClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*compute.RegionsClient, error) {
+	ctx, opts, err := s.prepareServiceInput(ctx, c, s.RegionsClientOptions, opts...)
 	if err != nil {
 		return nil, err
 	}
