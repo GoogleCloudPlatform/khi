@@ -21,48 +21,55 @@ import (
 	"google.golang.org/api/option"
 )
 
-// ServiceAccountKey returns a googlecloudv2.ClientFactoryOptionsModifiers to use the given service account key for any projects.
-func ServiceAccountKey(keyPath string) googlecloudv2.ClientFactoryOptionsModifiers {
-	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
-		opts = append(opts, option.WithCredentialsFile(keyPath))
-		return opts, nil
+func fromClientFactoryOptionsModifier(modifier googlecloudv2.ClientFactoryOptionsModifiers) googlecloudv2.ClientFactoryOption {
+	return func(s *googlecloudv2.ClientFactory) error {
+		s.ClientOptions = append(s.ClientOptions, modifier)
+		return nil
 	}
 }
 
-// ServiceAccountKeyForProject returns a googlecloudv2.ClientFactoryOptionsModifiers to use the given service account key for a specific project.
-func ServiceAccountKeyForProject(keyPath string, projectID string) googlecloudv2.ClientFactoryOptionsModifiers {
-	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+// ServiceAccountKey returns a googlecloudv2.ClientFactoryOption to use the given service account key for any projects.
+func ServiceAccountKey(keyPath string) googlecloudv2.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+		opts = append(opts, option.WithCredentialsFile(keyPath))
+		return opts, nil
+	})
+}
+
+// ServiceAccountKeyForProject returns a googlecloudv2.ClientFactoryOption to use the given service account key for a specific project.
+func ServiceAccountKeyForProject(keyPath string, projectID string) googlecloudv2.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
 		if p, ok := c.(googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
 			opts = append(opts, option.WithCredentialsFile(keyPath))
 		}
 		return opts, nil
-	}
+	})
 }
 
-// TokenSource returns a googlecloudv2.ClientFactoryOptionsModifiers to use the given oauth2.TokenSource for any projects.
-func TokenSource(source oauth2.TokenSource) googlecloudv2.ClientFactoryOptionsModifiers {
-	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+// TokenSource returns a googlecloudv2.ClientFactoryOption to use the given oauth2.TokenSource for any projects.
+func TokenSource(source oauth2.TokenSource) googlecloudv2.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
 		opts = append(opts, option.WithTokenSource(source))
 		return opts, nil
-	}
+	})
 }
 
-// TokenSourceForProject returns a googlecloudv2.ClientFactoryOptionsModifiers to use the given oauth2.TokenSource for a specific project.
-func TokenSourceForProject(projectID string, source oauth2.TokenSource) googlecloudv2.ClientFactoryOptionsModifiers {
-	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+// TokenSourceForProject returns a googlecloudv2.ClientFactoryOption to use the given oauth2.TokenSource for a specific project.
+func TokenSourceForProject(projectID string, source oauth2.TokenSource) googlecloudv2.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
 		if p, ok := c.(googlecloudv2.ProjectResourceContainer); ok && p.ProjectID() == projectID {
 			opts = append(opts, option.WithTokenSource(source))
 		}
 		return opts, nil
-	}
+	})
 }
 
-// OAuth returns a googlecloudv2.ClientFactoryOptionsModifiers that configures the client to use
+// OAuth returns a googlecloudv2.ClientFactoryOption that configures the client to use
 // the oauth2.TokenSource provided by the given oauth.OAuthServer.
 // This allows the Google Cloud client to obtain access tokens via an OAuth 2.0 flow managed by the OAuthServer.
-func OAuth(server *oauth.OAuthServer) googlecloudv2.ClientFactoryOptionsModifiers {
-	return func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+func OAuth(server *oauth.OAuthServer) googlecloudv2.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
 		opts = append(opts, option.WithTokenSource(server.TokenSource()))
 		return opts, nil
-	}
+	})
 }

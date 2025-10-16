@@ -45,17 +45,17 @@ func TestNewClientFactory(t *testing.T) {
 			name: "With options",
 			options: []ClientFactoryOption{
 				func(s *ClientFactory) error {
-					s.contextModifiers = append(s.contextModifiers, nopContextModifier)
+					s.ContextModifiers = append(s.ContextModifiers, nopContextModifier)
 					return nil
 				},
 				func(s *ClientFactory) error {
-					s.clientOptions = append(s.clientOptions, nopOptionsModifier)
+					s.ClientOptions = append(s.ClientOptions, nopOptionsModifier)
 					return nil
 				},
 			},
 			want: &ClientFactory{
-				contextModifiers: []ClientFactoryContextModifiers{nopContextModifier},
-				clientOptions:    []ClientFactoryOptionsModifiers{nopOptionsModifier},
+				ContextModifiers: []ClientFactoryContextModifiers{nopContextModifier},
+				ClientOptions:    []ClientFactoryOptionsModifiers{nopOptionsModifier},
 			},
 		},
 		{
@@ -76,7 +76,7 @@ func TestNewClientFactory(t *testing.T) {
 				t.Errorf("NewClientFactory() error = %v, expectError %v", err, tc.wantErr)
 				return
 			}
-			if !tc.wantErr && (len(factory.contextModifiers) != len(tc.want.contextModifiers) || len(factory.clientOptions) != len(tc.want.clientOptions)) {
+			if !tc.wantErr && (len(factory.ContextModifiers) != len(tc.want.ContextModifiers) || len(factory.ClientOptions) != len(tc.want.ClientOptions)) {
 				t.Errorf("NewClientFactory() = %v, want %v", factory, tc.want)
 			}
 		})
@@ -109,14 +109,14 @@ func TestClientFactory_context(t *testing.T) {
 		{
 			name: "Multiple modifiers",
 			factory: &ClientFactory{
-				contextModifiers: []ClientFactoryContextModifiers{modifier1, modifier2},
+				ContextModifiers: []ClientFactoryContextModifiers{modifier1, modifier2},
 			},
 			expectedCtx: map[interface{}]interface{}{"key1": "value1", "key2": "value2"},
 		},
 		{
 			name: "Modifier returns error",
 			factory: &ClientFactory{
-				contextModifiers: []ClientFactoryContextModifiers{errorModifier},
+				ContextModifiers: []ClientFactoryContextModifiers{errorModifier},
 			},
 			expectError: true,
 		},
@@ -165,14 +165,14 @@ func TestClientFactory_options(t *testing.T) {
 		{
 			name: "Multiple modifiers",
 			factory: &ClientFactory{
-				clientOptions: []ClientFactoryOptionsModifiers{modifier1, modifier2},
+				ClientOptions: []ClientFactoryOptionsModifiers{modifier1, modifier2},
 			},
 			expectedCount: 2,
 		},
 		{
 			name: "Modifier returns error",
 			factory: &ClientFactory{
-				clientOptions: []ClientFactoryOptionsModifiers{errorModifier},
+				ClientOptions: []ClientFactoryOptionsModifiers{errorModifier},
 			},
 			expectError: true,
 		},
@@ -180,7 +180,7 @@ func TestClientFactory_options(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts, err := tc.factory.options(Project("test-project"))
+			opts, err := tc.factory.options(Project("test-project"), []ClientFactoryOptionsModifiers{})
 			if (err != nil) != tc.expectError {
 				t.Errorf("options() error = %v, expectError %v", err, tc.expectError)
 				return
