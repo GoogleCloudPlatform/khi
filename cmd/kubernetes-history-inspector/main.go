@@ -37,7 +37,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
+	"github.com/GoogleCloudPlatform/khi/pkg/server/option"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
@@ -152,6 +155,21 @@ func run() int {
 
 		slog.Info("Starting Kubernetes History Inspector server...")
 
+		// Setting up options or parameters needed to instanciate gin.Engine
+		serverMode := gin.ReleaseMode
+		server.DefaultServerFactory.AddOptions(option.Required())
+
+		corsConfig := cors.DefaultConfig()
+		corsConfig.AllowAllOrigins = true
+		server.DefaultServerFactory.AddOptions(option.CORS(corsConfig))
+
+		if *parameters.Debug.Verbose {
+			server.DefaultServerFactory.AddOptions(
+				option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoreing noisy paths
+			)
+			serverMode = gin.DebugMode
+		}
+
 		uploadFileStoreFolder := "/tmp"
 
 		if parameters.Common.UploadFileStoreFolder != nil {
@@ -167,7 +185,12 @@ func run() int {
 			ServerBasePath:   *parameters.Server.BasePath,
 			UploadFileStore:  upload.DefaultUploadFileStore,
 		}
-		engine := server.CreateKHIServer(inspectionServer, &config)
+		engine, err := server.DefaultServerFactory.CreateInstance(serverMode)
+		if err != nil {
+			slog.Error(fmt.Sprintf("Failed to create a server instance\n%v", err))
+			return 1
+		}
+		engine = server.CreateKHIServer(engine, inspectionServer, &config)
 
 		if parameters.Auth.OAuthEnabled() {
 			err := accesstoken.DefaultOAuthTokenResolver.SetServer(engine)

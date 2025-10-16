@@ -34,6 +34,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/gin-gonic/gin"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/config"
@@ -247,7 +248,8 @@ func TestApiResponses(t *testing.T) {
 		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 		ServerBasePath:   "/foo",
 	}
-	engine := CreateKHIServer(inspectionServer, &serverConfig)
+	engine := gin.New()
+	engine = CreateKHIServer(engine, inspectionServer, &serverConfig)
 
 	// Perform requests with following oinvalidrder and verify if responses are matching with the expected values.
 	scenarioSteps := []testScenarioStep{
@@ -788,7 +790,8 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
 			}
-			engine := CreateKHIServer(inspectionServer, &config)
+			engine := gin.New()
+			engine = CreateKHIServer(engine, inspectionServer, &config)
 			req, _ := http.NewRequest(tc.requestMethod, tc.requestPath, bytes.NewReader([]byte{}))
 			engine.ServeHTTP(recorer, req)
 			if recorer.Code != tc.wantCode {
@@ -840,7 +843,8 @@ func TestKHIServerRedirects(t *testing.T) {
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
 			}
-			engine := CreateKHIServer(inspectionServer, &config)
+			engine := gin.New()
+			engine = CreateKHIServer(engine, inspectionServer, &config)
 			req, _ := http.NewRequest(tc.requestMethod, tc.requestPath, bytes.NewReader([]byte{}))
 			engine.ServeHTTP(recorer, req)
 			if recorer.Code != tc.wantCode {
@@ -914,7 +918,8 @@ func TestKHIDirectFileUpload(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error %s", err)
 			}
-			engine := CreateKHIServer(inspectionServer, &serverConfig)
+			engine := gin.New()
+			engine = CreateKHIServer(engine, inspectionServer, &serverConfig)
 			parameters.Server.MaxUploadFileSizeInBytes = testutil.P(tc.maxUploadFileSize)
 
 			var buf bytes.Buffer
