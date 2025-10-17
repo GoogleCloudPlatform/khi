@@ -59,11 +59,12 @@ type InspectionTaskRunner struct {
 	inspectionSharedMap   *typedmap.TypedMap
 	currentInspectionType string
 	ioconfig              *inspectioncore_contract.IOConfig
+	runContextOptions     []RunContextOption
 }
 
 // NewInspectionRunner creates a new InspectionTaskRunner.
-func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig, id string) *InspectionTaskRunner {
-	return &InspectionTaskRunner{
+func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig, id string, options ...RunContextOption) *InspectionTaskRunner {
+	runner := &InspectionTaskRunner{
 		inspectionServer:      server,
 		ID:                    id,
 		runIDGenerator:        idgenerator.NewPrefixIDGenerator("run-"),
@@ -77,7 +78,28 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_
 		cancel:                nil,
 		currentInspectionType: "N/A",
 		ioconfig:              ioConfig,
+		runContextOptions:     options,
 	}
+	runner.addDefaultRunContextOptions()
+	return runner
+}
+
+func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
+	// Options common for any run from this runner.
+	defaultRunContextOptions := []RunContextOption{
+		RunContextOptionFromFunc(inspectioncore_contract.InspectionTaskRunID, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
+			return i.runIDGenerator.Generate(), nil
+		}),
+		RunContextOptionFromValue(inspectioncore_contract.InspectionTaskInspectionID, i.ID),
+		RunContextOptionFromValue(inspectioncore_contract.InspectionSharedMap, i.inspectionSharedMap),
+		RunContextOptionFromValue(inspectioncore_contract.GlobalSharedMap, inspectionRunnerGlobalSharedMap),
+		RunContextOptionFromValue(inspectioncore_contract.CurrentIOConfig, i.ioconfig),
+		RunContextOptionFromFunc(inspectioncore_contract.CurrentHistoryBuilder, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (*history.Builder, error) {
+			return history.NewBuilder(i.ioconfig.TemporaryFolder), nil
+		}),
+	}
+
+	i.runContextOptions = append(i.runContextOptions, defaultRunContextOptions...)
 }
 
 // Started returns true if the inspection has been started.
@@ -183,17 +205,20 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 
 // withRunContextValues returns a context with the value specific to a single run of task.
 func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspectioncore_contract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
-	rid := i.runIDGenerator.Generate()
-	runCtx := khictx.WithValue(ctx, inspectioncore_contract.InspectionTaskRunID, rid)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionTaskInspectionID, i.ID)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionSharedMap, i.inspectionSharedMap)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.GlobalSharedMap, inspectionRunnerGlobalSharedMap)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionTaskInput, taskInput)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionTaskMode, runMode)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.CurrentIOConfig, i.ioconfig)
-	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.CurrentHistoryBuilder, history.NewBuilder(i.ioconfig.TemporaryFolder))
 
-	return runCtx, nil
+	opts := make([]RunContextOption, 0, len(i.runContextOptions)+2)
+	opts = append(opts, i.runContextOptions...)
+	// Add option values determined for this run call.
+	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.InspectionTaskInput, taskInput))
+	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.InspectionTaskMode, runMode))
+
+	var err error
+	for _, opt := range opts {
+		if ctx, err = opt(ctx, runMode); err != nil {
+			return nil, err
+		}
+	}
+	return ctx, nil
 }
 
 // Run executes the inspection. It resolves the task graph, sets up the context
