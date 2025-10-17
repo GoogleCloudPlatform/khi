@@ -67,6 +67,8 @@ type InspectionTaskServer struct {
 	inspectionIDGenerator idgenerator.IDGenerator
 
 	ioConfig *inspectioncore_contract.IOConfig
+
+	runContextOptions []RunContextOption
 }
 
 func NewServer(ioConfig *inspectioncore_contract.IOConfig) (*InspectionTaskServer, error) {
@@ -117,7 +119,7 @@ func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 // CreateInspection generates an inspection and returns inspection ID
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
 	id := s.inspectionIDGenerator.Generate()
-	inspectionTask := NewInspectionRunner(s, s.ioConfig, id)
+	inspectionTask := NewInspectionRunner(s, s.ioConfig, id, s.runContextOptions...)
 	err := inspectionTask.SetInspectionType(inspectionType)
 	if err != nil {
 		return "", err
@@ -155,6 +157,11 @@ func (s *InspectionTaskServer) GetAllRunners() []*InspectionTaskRunner {
 // GetAllRegisteredTasks returns a cloned list of all tasks registered in this server.
 func (s *InspectionTaskServer) GetAllRegisteredTasks() []coretask.UntypedTask {
 	return s.RootTaskSet.GetAll()
+}
+
+// AddRunContextOption adds a RunContextOption that will be applied to all new inspection runners.
+func (s *InspectionTaskServer) AddRunContextOption(option RunContextOption) {
+	s.runContextOptions = append(s.runContextOptions, option)
 }
 
 var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)
