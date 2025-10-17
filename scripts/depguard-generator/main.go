@@ -37,7 +37,7 @@ func main() {
 	_ = mustListAllPackages(packageRootAbs) // TODO: the list of packages would be used in the later change to add more complex rules.
 
 	// All packages not end with _test.go must not depend pkg/testutil/*
-	restrictTestUtil := NewGeneratedRule("no-testutil-in-non-test-files", []string{"$all", "!$test", "!**/pkg/testutil/**/*.go"})
+	restrictTestUtil := NewGeneratedRule("no-testutil-in-non-test-files", []string{"$all", "!$test", "!**/pkg/testutil/**/*.go", "!**/pkg/**/test/*.go"})
 	restrictTestUtil.AddDeny([]string{"github.com/GoogleCloudPlatform/khi/pkg/testutil"}, "Production code should not depend on test utilities.")
 
 	// All packages under pkg/common must not depend other pacakge in this project

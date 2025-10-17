@@ -13,6 +13,7 @@
 # limitations under the License.
 
 GOLANGCILINT_VERSION := v2.1.6
+GOLANGCILINT_CMD ?= $(shell command -v golangci-lint)
 CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 
 .PHONY: lint-web
@@ -21,10 +22,17 @@ lint-web: prepare-frontend ## Run frontend linter
 
 .PHONY: lint-go
 lint-go: ## Run backend linter
-ifeq ($(CONTAINER_CMD),)
-	$(error "lint-go requires docker or podman, but neither was found.")
+ifeq ($(GOLANGCILINT_CMD),)
+	ifeq ($(CONTAINER_CMD),)
+		$(error "lint-go requires golangci-lint,docker or podman, but neither was found.")
+	else
+		$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+	endif
 else
-	$(CONTAINER_CMD) run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:$(GOLANGCILINT_VERSION) golangci-lint run --config=.golangci.yaml
+	@if ! $(GOLANGCILINT_CMD) version | grep -q "$(subst v,,$(GOLANGCILINT_VERSION))"; then \
+		printf "\e[0;33mWarning: local golangci-lint version ($$($(GOLANGCILINT_CMD) version)) does not match $(GOLANGCILINT_VERSION). Results may differ from CI.\e[0m\n"; \
+	fi
+	$(GOLANGCILINT_CMD) run --config=.golangci.yaml
 endif
 
 .PHONY: format-go
