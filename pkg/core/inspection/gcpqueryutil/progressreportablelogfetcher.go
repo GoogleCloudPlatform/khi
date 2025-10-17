@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"golang.org/x/sync/errgroup"
 )
 
 // LogFetchProgress represents the progress of a log fetching operation.
@@ -145,3 +146,153 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 }
 
 var _ ProgressReportableLogFetcher = (*StandardProgressReportableLogFetcher)(nil)
+
+type TimePartitioningProgressReportableLogFetcher struct {
+	client         *StandardProgressReportableLogFetcher
+	partitionCount int
+	maxParallelism int
+	reportInterval time.Duration
+}
+
+func NewTimePartitioningProgressReportableLogFetcher(fetcher LogFetcher, interval time.Duration, partitionCount int, maxParallelism int) *TimePartitioningProgressReportableLogFetcher {
+	return &TimePartitioningProgressReportableLogFetcher{
+		client:         NewStandardProgressReportableLogFetcher(fetcher, interval),
+		partitionCount: partitionCount,
+		maxParallelism: maxParallelism,
+		reportInterval: interval,
+	}
+}
+
+// FetchLogsWithProgress implements ProgressReportableLogFetcher.
+func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(logChan chan<- *loggingpb.LogEntry, progressChan chan<- LogFetchProgress, ctx context.Context, beginTime time.Time, endTime time.Time, filterWithoutTimeRange string, resourceContainers []string) error {
+	defer close(logChan)
+	defer close(progressChan)
+
+	ticker := time.NewTicker(t.reportInterval)
+	defer ticker.Stop()
+
+	select {
+	case progressChan <- LogFetchProgress{
+		LogCount: 0,
+		Progress: 0,
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	subProgresses := make([]LogFetchProgress, t.partitionCount)
+	cancellableCtx, cancel := context.WithCancel(ctx)
+	rootGoroutineWaitGroup := sync.WaitGroup{}
+	rootGoroutineWaitGroup.Add(1)
+
+	go func() {
+		defer rootGoroutineWaitGroup.Done()
+		for {
+			select {
+			case <-cancellableCtx.Done():
+				return
+			case <-ticker.C:
+				result := LogFetchProgress{}
+				for _, subProgress := range subProgresses {
+					result.LogCount += subProgress.LogCount
+					result.Progress += subProgress.Progress / float32(t.partitionCount)
+				}
+				progressChan <- result
+			}
+		}
+	}()
+
+	times := t.getPartitionedTimes(beginTime, endTime)
+
+	wg, groupCtx := errgroup.WithContext(cancellableCtx)
+	wg.SetLimit(t.maxParallelism)
+
+	for i := 0; i < t.partitionCount; i++ {
+		subProgressIndex := i
+		wg.Go(func() error {
+			select {
+			case <-groupCtx.Done():
+				return groupCtx.Err()
+			default:
+			}
+			partitionBeginTime := times[i]
+			partitionEndTime := times[i+1]
+
+			childWg := sync.WaitGroup{}
+			childWg.Add(2)
+
+			subLogChan := make(chan *loggingpb.LogEntry)
+			subProgressChan := make(chan LogFetchProgress)
+
+			// Consume the subLogChan and route the log to the parent channel.
+			go func() {
+				defer childWg.Done()
+				for {
+					select {
+					case <-groupCtx.Done():
+						return
+					case logEntry, ok := <-subLogChan:
+						if !ok {
+							return
+						}
+						select {
+						case logChan <- logEntry:
+						case <-groupCtx.Done():
+							return
+						}
+					}
+				}
+			}()
+
+			// Consume the subProgressChan and store it to the progress array.
+			go func(subProgressIndex int) {
+				defer childWg.Done()
+				for {
+					select {
+					case <-groupCtx.Done():
+						return
+					case progress, ok := <-subProgressChan:
+						if !ok {
+							return
+						}
+						subProgresses[subProgressIndex] = progress
+					}
+				}
+			}(subProgressIndex)
+
+			err := t.client.FetchLogsWithProgress(subLogChan, subProgressChan, cancellableCtx, partitionBeginTime, partitionEndTime, filterWithoutTimeRange, resourceContainers)
+			if err != nil {
+				cancel()
+				return err
+			}
+			childWg.Wait()
+			return nil
+		})
+	}
+
+	err := wg.Wait()
+	cancel()
+	rootGoroutineWaitGroup.Wait()
+	if err != nil {
+		return err
+	}
+	sumLog := 0
+	for _, subProgress := range subProgresses {
+		sumLog += subProgress.LogCount
+	}
+	select {
+	case progressChan <- LogFetchProgress{
+		LogCount: sumLog,
+		Progress: 1,
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+func (t *TimePartitioningProgressReportableLogFetcher) getPartitionedTimes(beginTime, endTime time.Time) []time.Time {
+	return divideTimeSegments(beginTime, endTime, t.partitionCount)
+}
+
+var _ ProgressReportableLogFetcher = (*TimePartitioningProgressReportableLogFetcher)(nil)
