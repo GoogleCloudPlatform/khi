@@ -311,3 +311,259 @@ timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 		})
 	}
 }
+
+func TestTimePartitioningProgressReportableLogFetcher_FetchLogsWithProgress(t *testing.T) {
+	beginTime := time.Date(2025, time.January, 1, 0, 0, 0, 0, time.UTC)
+	tick := 300 * time.Millisecond
+	testErr := errors.New("test error")
+	testCases := []struct {
+		desc             string
+		fetcherFactory   func(t *testing.T) *mockLogFetcher
+		duration         time.Duration
+		partitionCount   int
+		maxParallelism   int
+		cancelAfter      time.Duration
+		wantCompleteTime time.Duration
+		wantProgress     []LogFetchProgress
+		wantLogs         []*loggingpb.LogEntry
+		wantErr          error
+	}{
+		{
+			desc: "2 partition with 2 parallelism",
+			fetcherFactory: func(t *testing.T) *mockLogFetcher {
+				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:30:00+0000"
+timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 4)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45))}
+						<-time.After(tick)
+					}),
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:00:00+0000"
+timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 4)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 15))}
+						<-time.After(tick)
+					}),
+				})
+			},
+			duration:         time.Hour,
+			partitionCount:   2,
+			maxParallelism:   2,
+			wantCompleteTime: 3 * tick,
+			wantProgress: []LogFetchProgress{
+				{},
+				{},
+				{
+					LogCount: 2,
+					Progress: 0.5, // still the both channels are not closed. progress is calculated from log timestamp.
+				},
+				{
+					LogCount: 2,
+					Progress: 1, // both channels are closed. all sub progresses are 1.
+				},
+			},
+			wantLogs: []*loggingpb.LogEntry{
+				{
+					LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 15)),
+				},
+				{
+					LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45)),
+				},
+			},
+		},
+		{
+			desc: "2 partition with 1 parallelism",
+			fetcherFactory: func(t *testing.T) *mockLogFetcher {
+				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:30:00+0000"
+timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 8)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45))}
+						<-time.After(tick)
+					}),
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:00:00+0000"
+timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 8)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 15))}
+						<-time.After(tick)
+					}),
+				})
+			},
+			duration:         time.Hour,
+			partitionCount:   2,
+			maxParallelism:   1,
+			wantCompleteTime: 5 * tick,
+			wantProgress: []LogFetchProgress{
+				{},
+				{},
+				{LogCount: 1, Progress: 0.25},
+				{LogCount: 1, Progress: 0.5},
+				{LogCount: 2, Progress: 0.75},
+				{LogCount: 2, Progress: 1},
+			},
+			wantLogs: []*loggingpb.LogEntry{
+				{
+					LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 15)),
+				},
+				{
+					LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45)),
+				},
+			},
+		},
+		{
+			desc: "2 partition with 2 parallelism with error",
+			fetcherFactory: func(t *testing.T) *mockLogFetcher {
+				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:30:00+0000"
+timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 4)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45))}
+						<-time.After(tick)
+						errSource <- testErr
+						<-time.After(10 * tick) // shouldn't wait channel close after error happen
+					}),
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:00:00+0000"
+timestamp < "2025-01-01T00:30:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 4)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 15))}
+						<-time.After(2 * tick)
+						logSource <- &loggingpb.LogEntry{LogName: "never", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 20))}
+					}),
+				})
+			},
+			duration:         time.Hour,
+			partitionCount:   2,
+			maxParallelism:   2,
+			wantCompleteTime: 5 * tick,
+			wantErr:          testErr,
+			wantProgress: []LogFetchProgress{
+				{},
+				{},
+				{LogCount: 2, Progress: 0.5},
+			},
+			wantLogs: []*loggingpb.LogEntry{
+				{
+					LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 15)),
+				},
+				{
+					LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 45)),
+				},
+			},
+		},
+		{
+			desc: "3 partition with 2 parallelism with cancel",
+			fetcherFactory: func(t *testing.T) *mockLogFetcher {
+				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:20:00+0000"
+timestamp < "2025-01-01T00:40:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 4)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 30))}
+						<-time.After(tick)
+						<-time.After(10 * tick) // shouldn't wait channel close after cancel happen
+					}),
+					newFakeLogUpstreamPair(`test filter
+timestamp >= "2025-01-01T00:00:00+0000"
+timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						<-time.After(tick / 4)
+						<-time.After(tick)
+						logSource <- &loggingpb.LogEntry{LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 10))}
+						<-time.After(2 * tick)
+						logSource <- &loggingpb.LogEntry{LogName: "never", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 20))}
+					}),
+				})
+			},
+			duration:         time.Hour,
+			partitionCount:   3,
+			maxParallelism:   2,
+			cancelAfter:      time.Duration(2*tick + tick/4),
+			wantCompleteTime: 5 * tick,
+			wantErr:          context.Canceled,
+			wantProgress: []LogFetchProgress{
+				{},
+				{},
+				{LogCount: 2, Progress: float32(1) / float32(3)},
+			},
+			wantLogs: []*loggingpb.LogEntry{
+				{
+					LogName: "bar", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 10)),
+				},
+				{
+					LogName: "foo", Timestamp: timestamppb.New(beginTime.Add(time.Minute * 30)),
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			wg := sync.WaitGroup{}
+			endTime := beginTime.Add(tc.duration)
+			fetcher := tc.fetcherFactory(t)
+
+			var logs []*loggingpb.LogEntry
+			var progresses []LogFetchProgress
+			logReceiveChan := channelToArrayParallel(t.Context(), &wg, &logs)
+			progressReceiveChan := channelToArrayParallel(t.Context(), &wg, &progresses)
+
+			progressReportableFetcher := NewTimePartitioningProgressReportableLogFetcher(fetcher, tick/2, tc.partitionCount, tc.maxParallelism)
+			progressReportableFetcher.reportInterval = tick // To make this test stable, the parent progress reporter tick interval is 2 times longer than its child reporter.
+
+			afterFetchDone := make(chan struct{})
+			go func() {
+				select {
+				case <-time.After(tc.wantCompleteTime):
+					t.Errorf("FetchLogWithProgress didn't return within expected completion time %d ms. ", tc.wantCompleteTime.Microseconds())
+				case <-afterFetchDone:
+					return
+				}
+			}()
+
+			cancellableCtx, cancel := context.WithCancel(t.Context())
+			if tc.cancelAfter != 0 {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-time.After(tc.cancelAfter)
+					cancel()
+				}()
+			}
+
+			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", []string{})
+			if tc.wantErr != nil {
+				if err == nil {
+					t.Errorf("FetchLogsWithProgress() expected error, but got nil")
+				} else if !errors.Is(err, tc.wantErr) && err.Error() != tc.wantErr.Error() {
+					t.Errorf("FetchLogsWithProgress() returned wrong error type. got: %v, want: %v", err, tc.wantErr)
+				}
+			} else if err != nil {
+				t.Errorf("FetchLogsWithProgress() returned unexpected error: %v", err)
+			}
+			wg.Wait()
+			close(afterFetchDone)
+
+			slices.SortFunc(logs, func(a, b *loggingpb.LogEntry) int { return a.Timestamp.AsTime().Compare(b.Timestamp.AsTime()) })
+
+			if diff := cmp.Diff(tc.wantLogs, logs, protocmp.Transform(), cmpopts.IgnoreUnexported()); diff != "" {
+				t.Errorf("FetchLogsWithProgress() produced non expected result: (-want, +got):\n%v", diff)
+			}
+			if diff := cmp.Diff(tc.wantProgress, progresses); diff != "" {
+				t.Errorf("FetchLogsWithProgress() produced non expected progress: (-want, +got):\n%v", diff)
+			}
+			cancel()
+		})
+	}
+}
