@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -31,8 +32,11 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID,
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloudv2.ClientFactoryOption, error) {
-		// TODO: return authentication setting related options regarding program parameters.
-		return []googlecloudv2.ClientFactoryOption{}, nil
+		options, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
+		if err != nil || options == nil {
+			return []googlecloudv2.ClientFactoryOption{}, nil
+		}
+		return *options, nil
 	},
 	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTaskPriority),
 )

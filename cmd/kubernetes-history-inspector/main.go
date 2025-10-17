@@ -26,8 +26,9 @@ import (
 	"syscall"
 
 	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/accesstoken"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/quotaproject"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/options"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
@@ -42,6 +43,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
 	"cloud.google.com/go/profiler"
@@ -193,11 +195,10 @@ func run() int {
 		engine = server.CreateKHIServer(engine, inspectionServer, &config)
 
 		if parameters.Auth.OAuthEnabled() {
-			err := accesstoken.DefaultOAuthTokenResolver.SetServer(engine)
-			if err != nil {
-				slog.Error("failed to register the web server to OAuth Token resolver")
-				return 1
-			}
+			oauthServer := oauth.NewOAuthServer(engine, parameters.Auth.GetOAuthConfig(), *parameters.Auth.OAuthRedirectTargetServingPath, *parameters.Auth.OAuthStateSuffix)
+			inspectionServer.AddRunContextOption(
+				coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.OAuth(oauthServer)),
+			)
 		}
 
 		go func() {
