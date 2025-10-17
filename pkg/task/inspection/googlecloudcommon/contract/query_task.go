@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -156,7 +156,7 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 			hadError := false
 			for _, resourceNameFromInput := range resourceNamesFromInput {
 				resourceNameWithoutSurroundingSpace := strings.TrimSpace(resourceNameFromInput)
-				err := googlecloudapi.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
+				err := googlecloudv2.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
 				if err != nil {
 					hadError = true
 					break
