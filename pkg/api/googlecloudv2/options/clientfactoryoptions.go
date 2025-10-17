@@ -73,3 +73,11 @@ func OAuth(server *oauth.OAuthServer) googlecloudv2.ClientFactoryOption {
 		return opts, nil
 	})
 }
+
+// QuotaProject returns a googlecloudv2.ClientFactoryOption that configures the client to use the specified quota project.
+func QuotaProject(projectID string) googlecloudv2.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloudv2.ResourceContainer) ([]option.ClientOption, error) {
+		opts = append(opts, option.WithQuotaProject(projectID))
+		return opts, nil
+	})
+}

@@ -41,8 +41,6 @@ func TestAuthParameters(t *testing.T) {
 		{
 			name: "default",
 			want: &AuthParameters{
-				AccessToken:                    testutil.P(""),
-				DisableMetadataServer:          testutil.P(false),
 				FixedProjectID:                 testutil.P(""),
 				QuotaProjectID:                 testutil.P(""),
 				OAuthClientID:                  testutil.P(""),
