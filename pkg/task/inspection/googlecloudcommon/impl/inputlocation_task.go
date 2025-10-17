@@ -17,6 +17,7 @@ package googlecloudcommon_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -40,6 +41,6 @@ var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contr
 			return previousValues, nil
 		}
 		regions := coretask.GetTaskResult(ctx, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
-		return regions, nil
+		return common.SortForAutocomplete(value, regions), nil
 	}).
 	Build()
