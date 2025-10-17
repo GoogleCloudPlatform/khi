@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	queryutil "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -28,7 +27,7 @@ import (
 )
 
 // ComposerSchedulerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerSchedulerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
+var ComposerSchedulerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID,
 	"Composer Environment/Airflow Scheduler",
 	enum.LogTypeComposerEnvironment,
@@ -36,13 +35,13 @@ var ComposerSchedulerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
+	&googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-scheduler"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-scheduler"),
 )
 
 // ComposerDagProcessorManagerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerDagProcessorManagerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
+var ComposerDagProcessorManagerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID,
 	"Composer Environment/DAG Processor Manager",
 	enum.LogTypeComposerEnvironment,
@@ -50,13 +49,13 @@ var ComposerDagProcessorManagerLogQueryTask = queryutil.NewCloudLoggingListLogTa
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
+	&googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("dag-processor-manager"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "dag-processor-manager"),
 )
 
 // ComposerMonitoringLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerMonitoringLogQueryTask = queryutil.NewCloudLoggingListLogTask(
+var ComposerMonitoringLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerMonitoringLogQueryTaskID,
 	"Composer Environment/Airflow Monitoring",
 	enum.LogTypeComposerEnvironment,
@@ -64,13 +63,13 @@ var ComposerMonitoringLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
+	&googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-monitoring"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-monitoring"),
 )
 
 // ComposerWorkerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerWorkerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
+var ComposerWorkerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerWorkerLogQueryTaskID,
 	"Composer Environment/Airflow Worker",
 	enum.LogTypeComposerEnvironment,
@@ -78,7 +77,7 @@ var ComposerWorkerLogQueryTask = queryutil.NewCloudLoggingListLogTask(
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	},
-	&queryutil.ProjectIDDefaultResourceNamesGenerator{},
+	&googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{},
 	createGenerator("airflow-worker"),
 	generateQueryForComponent("sample-composer-environment", "test-project", "airflow-worker"),
 )

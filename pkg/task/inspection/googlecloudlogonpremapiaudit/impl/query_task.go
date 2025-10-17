@@ -18,10 +18,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -36,9 +36,9 @@ protoPayload.resourceName:"%s"
 }
 
 // OnPremCloudAuditLogQueryTask defines a task that gathers on-prem API audit logs from Cloud Logging.
-var OnPremCloudAuditLogQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
+var OnPremCloudAuditLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	return []string{generateQuery(clusterName)}, nil
 }, generateQuery("baremetalClusters/my-cluster"))
