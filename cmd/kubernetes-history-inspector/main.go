@@ -25,8 +25,6 @@ import (
 	"strings"
 	"syscall"
 
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/oauth"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/options"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
@@ -127,9 +125,7 @@ func run() int {
 	slog.Info("Initializing Kubernetes History Inspector...")
 
 	k8s.GenerateDefaultMergeConfig()
-	if *parameters.Auth.QuotaProjectID != "" {
-		googlecloudapi.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
-	}
+
 	ioconfig, err := inspectioncore_contract.NewIOConfigFromParameter(parameters.Common)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
@@ -138,6 +134,10 @@ func run() int {
 	inspectionServer, err := coreinspection.NewServer(ioconfig)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
+	}
+
+	if *parameters.Auth.QuotaProjectID != "" {
+		inspectionServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.QuotaProject(*parameters.Auth.QuotaProjectID)))
 	}
 
 	if !*parameters.Server.ViewerMode {

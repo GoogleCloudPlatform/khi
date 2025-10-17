@@ -15,16 +15,16 @@
 package gcp_test
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"testing"
 
+	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"google.golang.org/api/iterator"
 )
+
+const testProjectID = "kubernetes-history-inspector"
 
 func IsValidLogQuery(t *testing.T, query string) error {
 	t.Helper()
@@ -32,17 +32,29 @@ func IsValidLogQuery(t *testing.T, query string) error {
 	if *testflags.SkipCloudLogging {
 		t.Skip("cloud logging tests are skipped")
 	}
-	accessToken, found := os.LookupEnv("GCP_ACCESS_TOKEN")
-	if found {
-		parameters.Auth.AccessToken = &accessToken
-	}
-	gcpApi, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
+
+	factory, err := googlecloudv2.NewClientFactory()
 	if err != nil {
-		return err
+		t.Fatalf("failed to initialize ClientFactory: %v", err)
+	}
+	lc, err := factory.LoggingClient(t.Context(), googlecloudv2.Project(testProjectID))
+	if err != nil {
+		t.Fatalf("failed to initialize LoggingClient: %v", err)
 	}
 	query = fmt.Sprintf(`%s
 timestamp >= "2024-01-01T00:00:00Z"
 timestamp <= "2024-01-01T00:00:01Z"`, query)
 
-	return gcpApi.ListLogEntries(context.Background(), []string{"projects/kubernetes-history-inspector"}, query, make(chan *log.Log))
+	iter := lc.ListLogEntries(t.Context(), &loggingpb.ListLogEntriesRequest{
+		ResourceNames: []string{fmt.Sprintf("projects/%s", testProjectID)},
+		Filter:        query,
+		PageSize:      1,
+	})
+
+	_, err = iter.Next()
+	if err != iterator.Done {
+		return err
+	}
+
+	return nil
 }
