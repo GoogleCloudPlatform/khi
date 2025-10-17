@@ -24,6 +24,8 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+const testProjectID = "kubernetes-history-inspector"
+
 func IsValidLogQuery(t *testing.T, query string) error {
 	t.Helper()
 
@@ -35,7 +37,7 @@ func IsValidLogQuery(t *testing.T, query string) error {
 	if err != nil {
 		t.Fatalf("failed to initialize ClientFactory: %v", err)
 	}
-	lc, err := factory.LoggingClient(t.Context(), googlecloudv2.Project("kubernetes-history-inspector"))
+	lc, err := factory.LoggingClient(t.Context(), googlecloudv2.Project(testProjectID))
 	if err != nil {
 		t.Fatalf("failed to initialize LoggingClient: %v", err)
 	}
@@ -44,7 +46,7 @@ timestamp >= "2024-01-01T00:00:00Z"
 timestamp <= "2024-01-01T00:00:01Z"`, query)
 
 	iter := lc.ListLogEntries(t.Context(), &loggingpb.ListLogEntriesRequest{
-		ResourceNames: []string{"projects/kubernetes-history-inspector"},
+		ResourceNames: []string{fmt.Sprintf("projects/%s", testProjectID)},
 		Filter:        query,
 		PageSize:      1,
 	})
