@@ -32,5 +32,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		APIClientFactoryTask,
 		APIClientFactoryOptionsTask,
 		LocationFetcherTask,
+		LoggingFetcherTask,
 	)
 }

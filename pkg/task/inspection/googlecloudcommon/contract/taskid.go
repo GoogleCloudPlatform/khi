@@ -55,3 +55,6 @@ var APIClientFactoryOptionsTaskID = taskid.NewDefaultImplementationID[[]googlecl
 
 // LocationFetcherTaskID is the task ID to inject the instance of LocationFetcher.
 var LocationFetcherTaskID = taskid.NewDefaultImplementationID[LocationFetcher](GoogleCloudCommonTaskIDPrefix + "location-fetcher")
+
+// LoggingFetcherTaskID is the task ID to inject the instance of LogFetcher.
+var LoggingFetcherTaskID = taskid.NewDefaultImplementationID[LogFetcher](GoogleCloudCommonTaskIDPrefix + "log-fetcher")

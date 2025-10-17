@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcpqueryutil
+package googlecloudcommon_contract
 
 import (
 	"context"

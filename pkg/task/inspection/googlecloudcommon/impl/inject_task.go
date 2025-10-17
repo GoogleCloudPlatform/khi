@@ -36,3 +36,17 @@ var LocationFetcherTask = coretask.NewTask(googlecloudcommon_contract.LocationFe
 	}
 	return googlecloudcommon_contract.NewLocationFetcher(regionClient), nil
 })
+
+// LoggingFetcherTask is a task to inject the reference to LogFetcher.
+var LoggingFetcherTask = coretask.NewTask(googlecloudcommon_contract.LoggingFetcherTaskID, []taskid.UntypedTaskReference{
+	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+}, func(ctx context.Context) (googlecloudcommon_contract.LogFetcher, error) {
+	clientFactory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	loggingClient, err := clientFactory.LoggingClient(ctx, googlecloudv2.Project(projectID))
+	if err != nil {
+		return nil, err
+	}
+	return googlecloudcommon_contract.NewLogFetcher(loggingClient, 1000), nil
+})

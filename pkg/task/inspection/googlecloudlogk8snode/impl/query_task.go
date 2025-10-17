@@ -47,11 +47,11 @@ func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
 }
 
 // GKENodeQueryTask defines a task that queries GKE node logs from Cloud Logging.
-var GKENodeQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogk8snode_contract.GKENodeLogQueryTaskID, "Kubernetes node log", enum.LogTypeNode, []taskid.UntypedTaskReference{
+var GKENodeQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogk8snode_contract.GKENodeLogQueryTaskID, "Kubernetes node log", enum.LogTypeNode, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
-}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())

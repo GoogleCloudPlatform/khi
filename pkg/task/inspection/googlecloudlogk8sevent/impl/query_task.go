@@ -73,11 +73,11 @@ func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) 
 }
 
 // GKEK8sEventLogQueryTask defines a task that queries Kubernetes Event logs from Cloud Logging.
-var GKEK8sEventLogQueryTask = gcpqueryutil.NewCloudLoggingListLogTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
+var GKEK8sEventLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
-}, &gcpqueryutil.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())

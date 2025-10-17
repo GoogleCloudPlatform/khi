@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcpqueryutil
+package googlecloudcommon_contract
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -65,7 +66,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	stubChan := make(chan *loggingpb.LogEntry)
 	subroutineCtx, cancelSubroutine := context.WithCancel(ctx)
 
-	filter := fmt.Sprintf("%s\n%s", filterWithoutTimeRange, TimeRangeQuerySection(beginTime, endTime, false))
+	filter := fmt.Sprintf("%s\n%s", filterWithoutTimeRange, gcpqueryutil.TimeRangeQuerySection(beginTime, endTime, false))
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -296,3 +297,18 @@ func (t *TimePartitioningProgressReportableLogFetcher) getPartitionedTimes(begin
 }
 
 var _ ProgressReportableLogFetcher = (*TimePartitioningProgressReportableLogFetcher)(nil)
+
+// divideTimeSegments divides a given time range into count of partitioned time segments.
+// First element is the begin time of the first segment, the last element is the end time of the last segment, otherwise the nth time.Time is (n-1)th begin time and n th end time.
+func divideTimeSegments(startTime time.Time, endTime time.Time, count int) []time.Time {
+	duration := endTime.Sub(startTime)
+	subIntervalDuration := duration / time.Duration(count)
+	subIntervals := make([]time.Time, count+1)
+	currentStart := startTime
+	for i := range subIntervals {
+		subIntervals[i] = currentStart
+		currentStart = currentStart.Add(subIntervalDuration)
+	}
+	subIntervals[len(subIntervals)-1] = endTime
+	return subIntervals
+}
