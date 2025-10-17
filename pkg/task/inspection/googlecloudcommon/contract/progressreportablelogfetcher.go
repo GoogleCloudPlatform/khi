@@ -302,14 +302,13 @@ var _ ProgressReportableLogFetcher = (*TimePartitioningProgressReportableLogFetc
 // First element is the begin time of the first segment, the last element is the end time of the last segment, otherwise the nth time.Time is (n-1)th begin time and n th end time.
 func divideTimeSegments(startTime time.Time, endTime time.Time, count int) []time.Time {
 	duration := endTime.Sub(startTime)
-	sub_interval_duration := duration / time.Duration(count)
-
-	sub_intervals := make([]time.Time, count+1)
-	current_start := startTime
-	for i := range sub_intervals {
-		sub_intervals[i] = current_start
-		current_start = current_start.Add(sub_interval_duration)
+	subIntervalDuration := duration / time.Duration(count)
+	subIntervals := make([]time.Time, count+1)
+	currentStart := startTime
+	for i := range subIntervals {
+		subIntervals[i] = currentStart
+		currentStart = currentStart.Add(subIntervalDuration)
 	}
-	sub_intervals[len(sub_intervals)-1] = endTime
-	return sub_intervals
+	subIntervals[len(subIntervals)-1] = endTime
+	return subIntervals
 }

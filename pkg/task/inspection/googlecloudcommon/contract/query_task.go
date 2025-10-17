@@ -30,6 +30,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -90,7 +92,11 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 				}
 				current := time.Now()
 				elapsed := current.Sub(startingTime).Seconds()
-				progressDest.Update(progress.Progress, fmt.Sprintf("%d logs fetched(%f lps)", progress.LogCount, float64(progress.LogCount)/elapsed))
+				var lps float64
+				if elapsed > 0 {
+					lps = float64(progress.LogCount) / elapsed
+				}
+				progressDest.Update(progress.Progress, fmt.Sprintf("%d logs fetched(%.2f lps)", progress.LogCount, lps))
 			}
 		}
 	}()
@@ -209,6 +215,15 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 					errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
 					if !found {
 						return nil, fmt.Errorf("error message set metadata was not found")
+					}
+					st, ok := status.FromError(err)
+					if !ok {
+						switch st.Code() {
+						case codes.Unauthenticated:
+							errorMessageSet.AddErrorMessage(inspectionmetadata.NewUnauthorizedErrorMessage())
+							return nil, err
+						default:
+						}
 					}
 					errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
 						ErrorId: 0,
