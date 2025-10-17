@@ -17,6 +17,7 @@ package googlecloudv2
 import (
 	"context"
 
+	compute "cloud.google.com/go/compute/apiv1"
 	container "cloud.google.com/go/container/apiv1"
 	gkehub "cloud.google.com/go/gkehub/apiv1beta1"
 	gkemulticloud "cloud.google.com/go/gkemulticloud/apiv1"
@@ -49,6 +50,7 @@ type ClientFactory struct {
 	GKEMultiCloudAWSClustersClientOptions   []ClientFactoryOptionsModifiers
 	GKEMultiCloudAzureClustersClientOptions []ClientFactoryOptionsModifiers
 	LoggingClientOptions                    []ClientFactoryOptionsModifiers
+	RegionsClientOptions                    []ClientFactoryOptionsModifiers
 	ComposerServiceOptions                  []ClientFactoryOptionsModifiers
 	GKEOnPremServiceOptions                 []ClientFactoryOptionsModifiers
 }
@@ -153,6 +155,16 @@ func (s *ClientFactory) LoggingClient(ctx context.Context, c ResourceContainer, 
 		return nil, err
 	}
 	return logging.NewClient(ctx, opts...)
+}
+
+// RegionsClient returns the client for listing GCE regions. https://cloud.google.com/compute/docs/reference/rest/v1#rest-resource:-v1.regions
+func (s *ClientFactory) RegionsClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*compute.RegionsClient, error) {
+	ctx, opts, err := s.prepareServiceInput(ctx, c, s.RegionsClientOptions, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return compute.NewRegionsRESTClient(ctx, opts...)
 }
 
 // ComposerService returns the client for composer.googleapis.com from given context and the resource container.

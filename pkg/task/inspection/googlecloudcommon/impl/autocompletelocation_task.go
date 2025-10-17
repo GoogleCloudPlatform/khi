@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -29,12 +28,9 @@ import (
 var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommon_contract.AutocompleteLocationTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
+		googlecloudcommon_contract.LocationFetcherTaskID.Ref(),
 	},
 	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[[]string]) (inspectiontaskbase.CacheableTaskResult[[]string], error) {
-		client, err := googlecloudapi.DefaultGCPClientFactory.NewClient()
-		if err != nil {
-			return inspectiontaskbase.CacheableTaskResult[[]string]{}, err
-		}
 		projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
 
@@ -51,7 +47,8 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 			return defaultResult, nil
 		}
 
-		regions, err := client.ListRegions(ctx, projectID)
+		locationFetcher := coretask.GetTaskResult(ctx, googlecloudcommon_contract.LocationFetcherTaskID.Ref())
+		regions, err := locationFetcher.FetchRegions(ctx, projectID)
 		if err != nil {
 			return defaultResult, nil
 		}
