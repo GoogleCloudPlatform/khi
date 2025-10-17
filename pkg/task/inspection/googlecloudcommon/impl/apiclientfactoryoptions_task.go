@@ -33,7 +33,7 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloudv2.ClientFactoryOption, error) {
 		options, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
-		if err != nil {
+		if err != nil || options == nil {
 			return []googlecloudv2.ClientFactoryOption{}, nil
 		}
 		return *options, nil
