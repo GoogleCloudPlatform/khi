@@ -17,8 +17,8 @@ package options
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -35,18 +35,18 @@ func (m *mockTokenSource) Token() (*oauth2.Token, error) {
 // nonProjectContainer is a dummy implementation of ResourceContainer for testing.
 type nonProjectContainer struct{}
 
-// GetType implements googlecloudv2.ResourceContainer.
-func (c *nonProjectContainer) GetType() googlecloudv2.ResourceContainerType {
-	return googlecloudv2.ResourceContainerInvalid
+// GetType implements googlecloud.ResourceContainer.
+func (c *nonProjectContainer) GetType() googlecloud.ResourceContainerType {
+	return googlecloud.ResourceContainerInvalid
 }
 
 // Ensure nonProjectContainer implements the interface.
-var _ googlecloudv2.ResourceContainer = (*nonProjectContainer)(nil)
+var _ googlecloud.ResourceContainer = (*nonProjectContainer)(nil)
 
 func TestServiceAccountKey(t *testing.T) {
 	optionFunc := ServiceAccountKey("test-key-path")
-	container := googlecloudv2.Project("any-project")
-	clientFactory := googlecloudv2.ClientFactory{}
+	container := googlecloud.Project("any-project")
+	clientFactory := googlecloud.ClientFactory{}
 	err := optionFunc(&clientFactory)
 	if err != nil {
 		t.Errorf("optionFunc returned an unexpected error: %v", err)
@@ -72,17 +72,17 @@ func TestServiceAccountKeyForProject(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		container     googlecloudv2.ResourceContainer
+		container     googlecloud.ResourceContainer
 		expectsOption bool
 	}{
 		{
 			name:          "Matching project",
-			container:     googlecloudv2.Project(projectID),
+			container:     googlecloud.Project(projectID),
 			expectsOption: true,
 		},
 		{
 			name:          "Non-matching project",
-			container:     googlecloudv2.Project("other-project"),
+			container:     googlecloud.Project("other-project"),
 			expectsOption: false,
 		},
 		{
@@ -96,7 +96,7 @@ func TestServiceAccountKeyForProject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			optionFunc := ServiceAccountKeyForProject(keyPath, projectID)
 
-			clientFactory := googlecloudv2.ClientFactory{}
+			clientFactory := googlecloud.ClientFactory{}
 			err := optionFunc(&clientFactory)
 			if err != nil {
 				t.Errorf("optionFunc returned an unexpected error: %v", err)
@@ -126,9 +126,9 @@ func TestServiceAccountKeyForProject(t *testing.T) {
 func TestTokenSource(t *testing.T) {
 	source := &mockTokenSource{}
 	optionFunc := TokenSource(source)
-	container := googlecloudv2.Project("any-project")
+	container := googlecloud.Project("any-project")
 
-	clientFactory := googlecloudv2.ClientFactory{}
+	clientFactory := googlecloud.ClientFactory{}
 	err := optionFunc(&clientFactory)
 	if err != nil {
 		t.Errorf("optionFunc returned an unexpected error: %v", err)
@@ -154,17 +154,17 @@ func TestTokenSourceForProject(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		container     googlecloudv2.ResourceContainer
+		container     googlecloud.ResourceContainer
 		expectsOption bool
 	}{
 		{
 			name:          "Matching project",
-			container:     googlecloudv2.Project(projectID),
+			container:     googlecloud.Project(projectID),
 			expectsOption: true,
 		},
 		{
 			name:          "Non-matching project",
-			container:     googlecloudv2.Project("other-project"),
+			container:     googlecloud.Project("other-project"),
 			expectsOption: false,
 		},
 		{
@@ -177,7 +177,7 @@ func TestTokenSourceForProject(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			optionFunc := TokenSourceForProject(projectID, source)
-			clientFactory := googlecloudv2.ClientFactory{}
+			clientFactory := googlecloud.ClientFactory{}
 			err := optionFunc(&clientFactory)
 			if err != nil {
 				t.Errorf("optionFunc returned an unexpected error: %v", err)
@@ -210,8 +210,8 @@ func TestOAuth(t *testing.T) {
 	conf := &oauth2.Config{}
 	server := oauth.NewOAuthServer(engine, conf, "/callback", "-suffix")
 	optionFunc := OAuth(server)
-	container := googlecloudv2.Project("any-project")
-	clientFactory := googlecloudv2.ClientFactory{}
+	container := googlecloud.Project("any-project")
+	clientFactory := googlecloud.ClientFactory{}
 	err := optionFunc(&clientFactory)
 	if err != nil {
 		t.Errorf("optionFunc returned an unexpected error: %v", err)

@@ -19,7 +19,7 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/container/apiv1/containerpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
@@ -37,7 +37,7 @@ type ClusterListFetcherImpl struct{}
 func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 
-	ccmc, err := cf.ContainerClusterManagerClient(ctx, googlecloudv2.Project(projectID))
+	ccmc, err := cf.ContainerClusterManagerClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container cluster manager client: %w", err)
 	}

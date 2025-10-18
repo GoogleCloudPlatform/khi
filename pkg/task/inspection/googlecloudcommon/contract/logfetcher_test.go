@@ -24,19 +24,19 @@ import (
 	logging "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
 // getLoggingClientImpl returns a logging client for testing project.
 func getLoggingClientImpl(t *testing.T) *logging.Client {
 	t.Helper()
 
-	cf, err := googlecloudv2.NewClientFactory()
+	cf, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to instanciate client factory: %v", err)
 	}
 
-	logging, err := cf.LoggingClient(t.Context(), googlecloudv2.Project("kubernetes-history-inspector"))
+	logging, err := cf.LoggingClient(t.Context(), googlecloud.Project("kubernetes-history-inspector"))
 	if err != nil {
 		t.Fatalf("failed to instanciate logging client:%v", err)
 	}

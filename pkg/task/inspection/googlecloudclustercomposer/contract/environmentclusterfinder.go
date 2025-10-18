@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/container/apiv1/containerpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
@@ -37,7 +37,7 @@ type EnvironmentClusterFinderImpl struct{}
 func (e *EnvironmentClusterFinderImpl) GetGKEClusterName(ctx context.Context, projectID string, environment string) (string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 
-	containerClusterManagerClient, err := cf.ContainerClusterManagerClient(ctx, googlecloudv2.Project(projectID))
+	containerClusterManagerClient, err := cf.ContainerClusterManagerClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return "", err
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudv2
+package googlecloud
 
 // ResourceContainerType represents the type of a Google Cloud resource container.
 type ResourceContainerType int

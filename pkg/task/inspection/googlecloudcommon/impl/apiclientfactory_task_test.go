@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -27,13 +27,13 @@ import (
 
 func TestAPIClientFactoryTask(t *testing.T) {
 	mockOptionCalledCount := 0
-	mockOption := func(s *googlecloudv2.ClientFactory) error {
+	mockOption := func(s *googlecloud.ClientFactory) error {
 		mockOptionCalledCount++
 		return nil
 	}
 	testCases := []struct {
 		desc                string
-		options             []googlecloudv2.ClientFactoryOption
+		options             []googlecloud.ClientFactoryOption
 		wantOptionCallCount int
 		wantErr             bool
 	}{
@@ -44,13 +44,13 @@ func TestAPIClientFactoryTask(t *testing.T) {
 		},
 		{
 			desc:                "with options",
-			options:             []googlecloudv2.ClientFactoryOption{mockOption},
+			options:             []googlecloud.ClientFactoryOption{mockOption},
 			wantOptionCallCount: 1,
 		},
 		{
 			desc: "error option",
-			options: []googlecloudv2.ClientFactoryOption{
-				func(_ *googlecloudv2.ClientFactory) error {
+			options: []googlecloud.ClientFactoryOption{
+				func(_ *googlecloud.ClientFactory) error {
 					return errors.New("test error")
 				},
 			},

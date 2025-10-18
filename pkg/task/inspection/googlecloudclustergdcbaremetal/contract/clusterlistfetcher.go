@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"golang.org/x/sync/errgroup"
@@ -36,7 +36,7 @@ type ClusterListFetcherImpl struct{}
 func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 
-	onpremAPI, err := cf.GKEOnPremService(ctx, googlecloudv2.Project(project))
+	onpremAPI, err := cf.GKEOnPremService(ctx, googlecloud.Project(project))
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate onprem API client: %v", err)
 	}

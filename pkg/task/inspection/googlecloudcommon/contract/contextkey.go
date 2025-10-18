@@ -15,8 +15,8 @@
 package googlecloudcommon_contract
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
-var APIClientFactoryOptionsContextKey = typedmap.NewTypedKey[*[]googlecloudv2.ClientFactoryOption]("api-client-factory-options")
+var APIClientFactoryOptionsContextKey = typedmap.NewTypedKey[*[]googlecloud.ClientFactoryOption]("api-client-factory-options")
