@@ -36,6 +36,7 @@ type EnvironmentClusterFinderImpl struct{}
 // GetGKEClusterName implements EnvironmentClusterFinder.
 func (e *EnvironmentClusterFinderImpl) GetGKEClusterName(ctx context.Context, projectID string, environment string) (string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	containerClusterManagerClient, err := cf.ContainerClusterManagerClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
@@ -43,6 +44,7 @@ func (e *EnvironmentClusterFinderImpl) GetGKEClusterName(ctx context.Context, pr
 	}
 	defer containerClusterManagerClient.Close()
 
+	ctx = injector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	cluster, err := containerClusterManagerClient.ListClusters(ctx, &containerpb.ListClustersRequest{
 		Parent: fmt.Sprintf("projects/%s/locations/-", projectID),
 	})

@@ -35,6 +35,7 @@ type ComposerEnvironmentListFetcherImpl struct{}
 // GetEnvironmentNames implements ComposerEnvironmentListFetcher.
 func (c *ComposerEnvironmentListFetcherImpl) GetEnvironmentNames(ctx context.Context, projectID string, location string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	composerClient, err := cf.ComposerService(ctx, googlecloud.Project(projectID))
 	if err != nil {
@@ -45,6 +46,7 @@ func (c *ComposerEnvironmentListFetcherImpl) GetEnvironmentNames(ctx context.Con
 	var nextPageToken string
 	for {
 		req := composerClient.Projects.Locations.Environments.List(fmt.Sprintf("projects/%s/locations/%s", projectID, location)).PageToken(nextPageToken)
+		injector.InjectToCall(req, googlecloud.Project(projectID))
 		resp, err := req.Do()
 		if err != nil {
 			return nil, err

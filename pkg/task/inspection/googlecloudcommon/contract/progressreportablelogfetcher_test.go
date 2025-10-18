@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -38,7 +39,7 @@ type mockLogFetcher struct {
 // FetchLogs simulates fetching logs from an upstream source.
 // It sends logs from `m.logUpstream` and errors from `m.errUpstream` to the `dest` channel.
 // It respects context cancellation.
-func (m *mockLogFetcher) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, resourceContainers []string) error {
+func (m *mockLogFetcher) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, container googlecloud.ResourceContainer, resourceContainers []string) error {
 	errUpstream := m.errUpstream(filter)
 	logUpstream := m.logUpstream(filter)
 
@@ -289,7 +290,7 @@ timestamp < "2025-01-01T01:00:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				}()
 			}
 
-			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", []string{})
+			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", googlecloud.Project("foobar"), []string{})
 			if tc.wantErr == nil && err != nil {
 				t.Errorf("FetchLogsWithProgress() returned unexpected error: %v", err)
 			}
@@ -542,7 +543,7 @@ timestamp < "2025-01-01T00:20:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				}()
 			}
 
-			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", []string{})
+			err := progressReportableFetcher.FetchLogsWithProgress(logReceiveChan, progressReceiveChan, cancellableCtx, beginTime, endTime, "test filter", googlecloud.Project("foobar"), []string{})
 			if tc.wantErr != nil {
 				if err == nil {
 					t.Errorf("FetchLogsWithProgress() expected error, but got nil")

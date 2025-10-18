@@ -50,9 +50,10 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 	}
 
 	fetcher := logFetcherImpl{
-		client:   getLoggingClientImpl(t),
-		pageSize: 1,
-		orderBy:  "timestamp desc", // just need the latest log. getting oldest log takes longer time.
+		client:             getLoggingClientImpl(t),
+		pageSize:           1,
+		orderBy:            "timestamp desc", // just need the latest log. getting oldest log takes longer time.
+		callOptionInjector: googlecloud.NewCallOptionInjector(),
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -74,7 +75,7 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 		}
 	}()
 
-	err := fetcher.FetchLogs(destChan, ctx, "", []string{"projects/kubernetes-history-inspector"})
+	err := fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
 	if err != nil && !errors.Is(err, context.Canceled) {
 		t.Errorf("failed to fetch logs:%v", err)
 	}
@@ -88,8 +89,9 @@ func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
 	}
 
 	fetcher := logFetcherImpl{
-		client:   getLoggingClientImpl(t),
-		pageSize: 1000,
+		client:             getLoggingClientImpl(t),
+		pageSize:           1000,
+		callOptionInjector: googlecloud.NewCallOptionInjector(),
 	}
 
 	fetchLogFinished := make(chan struct{})
@@ -110,7 +112,7 @@ func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
 		}
 	}()
 
-	err := fetcher.FetchLogs(destChan, ctx, "", []string{"projects/kubernetes-history-inspector"})
+	err := fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("the request wasn't ended with canceled but got %v", err)
 	}

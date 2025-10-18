@@ -38,6 +38,7 @@ type ClusterListFetcherImpl struct{}
 // This expects the task googlecloudcommon_contract.APIClientFactoryTaskID is already resolved.
 func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	gkeMultiCloudAwsClient, err := cf.GKEMultiCloudAWSClustersClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
@@ -45,6 +46,7 @@ func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID 
 	}
 	defer gkeMultiCloudAwsClient.Close()
 
+	ctx = injector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	itr := gkeMultiCloudAwsClient.ListAwsClusters(ctx, &gkemulticloudpb.ListAwsClustersRequest{
 		Parent: fmt.Sprintf("projects/%s/locations/-", projectID),
 	})

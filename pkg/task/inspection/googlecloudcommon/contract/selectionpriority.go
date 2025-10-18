@@ -14,5 +14,5 @@
 
 package googlecloudcommon_contract
 
-// DefaultAPIClientOptionTaskPriority is the selection priority of the default implementation for APIClientFactoryOptionsTaskID. Users can define another task for the task ID with higher priority to override the options.
-var DefaultAPIClientOptionTaskPriority = 1000
+// DefaultAPIClientOptionTasksPriority is the selection priority of the default implementation for APIClientFactoryOptionsTaskID and APICallOptionsInjectorTask. Users can define another task for the task ID with higher priority to override the options.
+var DefaultAPIClientOptionTasksPriority = 1000

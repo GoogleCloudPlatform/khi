@@ -26,6 +26,7 @@ import (
 // ClusterListFetcherTask inject the default implementation for ClusterListFetcher
 var ClusterListFetcherTask = coretask.NewTask(googlecloudclustergdcvmware_contract.ClusterListFetcherTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 }, func(ctx context.Context) (googlecloudclustergdcvmware_contract.ClusterListFetcher, error) {
 	return &googlecloudclustergdcvmware_contract.ClusterListFetcherImpl{}, nil
 })

@@ -133,6 +133,7 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
 		InputStartTimeTaskID.Ref(),
 		InputEndTimeTaskID.Ref(),
+		InputProjectIdTaskID.Ref(), // TODO: To support mulit project query, this task needs to provide a way to change this dependency
 		InputLoggingFilterResourceNameTaskID.Ref(),
 		LoggingFetcherTaskID.Ref(),
 	), func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
@@ -170,6 +171,7 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 
 		startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
+		projectID := coretask.GetTaskResult(ctx, InputProjectIdTaskID.Ref())
 
 		queryStrings, err := generator(ctx, taskMode)
 		if err != nil {
@@ -208,7 +210,7 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 				var progressChan = make(chan LogFetchProgress)
 				monitorProgress(ctx, &wg, progressChan, progress)
 				convertLogsArray(ctx, &wg, logChan, &allLogs)
-				err := progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, queryString, resourceNamesFromInput)
+				err := progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, queryString, googlecloud.Project(projectID), resourceNamesFromInput)
 				wg.Wait()
 
 				if err != nil {
