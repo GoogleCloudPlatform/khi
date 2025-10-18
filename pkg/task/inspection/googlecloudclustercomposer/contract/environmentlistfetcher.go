@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"google.golang.org/api/composer/v1"
@@ -36,7 +36,7 @@ type ComposerEnvironmentListFetcherImpl struct{}
 func (c *ComposerEnvironmentListFetcherImpl) GetEnvironmentNames(ctx context.Context, projectID string, location string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 
-	composerClient, err := cf.ComposerService(ctx, googlecloudv2.Project(projectID))
+	composerClient, err := cf.ComposerService(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the composer api client:%v", err)
 	}

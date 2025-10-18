@@ -25,8 +25,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/oauth"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2/options"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"

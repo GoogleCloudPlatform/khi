@@ -17,7 +17,7 @@ package googlecloudcommon_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -26,15 +26,15 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// APIClientFactoryOptionsTask is the default implementation to provide the list of googlecloudv2.ClientFactoryOption.
+// APIClientFactoryOptionsTask is the default implementation to provide the list of googlecloud.ClientFactoryOption.
 // User can extend this behavior with defining new task for googlecloudcommon_contract.APIClientFactoryOptionsTaskID with higher selection priority.
 var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID,
 	[]taskid.UntypedTaskReference{},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloudv2.ClientFactoryOption, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
 		options, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
 		if err != nil || options == nil {
-			return []googlecloudv2.ClientFactoryOption{}, nil
+			return []googlecloud.ClientFactoryOption{}, nil
 		}
 		return *options, nil
 	},

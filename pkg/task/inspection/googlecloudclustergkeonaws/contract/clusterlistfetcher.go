@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/gkemulticloud/apiv1/gkemulticloudpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"google.golang.org/api/iterator"
@@ -39,7 +39,7 @@ type ClusterListFetcherImpl struct{}
 func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 
-	gkeMultiCloudAwsClient, err := cf.GKEMultiCloudAWSClustersClient(ctx, googlecloudv2.Project(projectID))
+	gkeMultiCloudAwsClient, err := cf.GKEMultiCloudAWSClustersClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get the GKE on AWS client:%v", err)
 	}

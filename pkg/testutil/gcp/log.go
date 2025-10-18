@@ -20,7 +20,7 @@ import (
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"google.golang.org/api/iterator"
 )
 
@@ -33,11 +33,11 @@ func IsValidLogQuery(t *testing.T, query string) error {
 		t.Skip("cloud logging tests are skipped")
 	}
 
-	factory, err := googlecloudv2.NewClientFactory()
+	factory, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to initialize ClientFactory: %v", err)
 	}
-	lc, err := factory.LoggingClient(t.Context(), googlecloudv2.Project(testProjectID))
+	lc, err := factory.LoggingClient(t.Context(), googlecloud.Project(testProjectID))
 	if err != nil {
 		t.Fatalf("failed to initialize LoggingClient: %v", err)
 	}
