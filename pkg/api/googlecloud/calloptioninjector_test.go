@@ -18,8 +18,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-
-	"google.golang.org/api/gkeonprem/v1"
 )
 
 // mockCallOptionInjectorOption is a mock implementation of CallOptionInjectorOption for testing.
@@ -38,6 +36,17 @@ func (m *mockCallOptionInjectorOption) ApplyToRawHTTPHeader(header http.Header, 
 	m.applyToRawHTTPHeaderCalled = true
 	header.Set("Test-Header", "Test-Value")
 }
+
+type mockHeaderProviderClient struct {
+	header http.Header
+}
+
+// Header implements headerProvider.
+func (m *mockHeaderProviderClient) Header() http.Header {
+	return m.header
+}
+
+var _ headerProvider = (*mockHeaderProviderClient)(nil)
 
 func TestNewCallOptionInjector(t *testing.T) {
 	option1 := &mockCallOptionInjectorOption{}
@@ -73,13 +82,10 @@ func TestCallOptionInjector_InjectToCall(t *testing.T) {
 	option2 := &mockCallOptionInjectorOption{}
 	injector := NewCallOptionInjector(option1, option2)
 
-	gkeonprem, err := gkeonprem.NewService(t.Context())
-	if err != nil {
-		t.Errorf("failed to initialize gkeonprem client:%v", err)
+	hp := &mockHeaderProviderClient{
+		header: make(http.Header),
 	}
-
-	call := gkeonprem.Projects.Locations.BareMetalClusters.List("projects/foobar") // An example call matches the headerProvider interface
-	injector.InjectToCall(call, Project("foobar"))
+	injector.InjectToCall(hp, Project("foobar"))
 
 	if !option1.applyToRawHTTPHeaderCalled {
 		t.Error("Expected ApplyToRawHTTPHeader to be called on option1, but it was not")
@@ -87,7 +93,7 @@ func TestCallOptionInjector_InjectToCall(t *testing.T) {
 	if !option2.applyToRawHTTPHeaderCalled {
 		t.Error("Expected ApplyToRawHTTPHeader to be called on option2, but it was not")
 	}
-	if call.Header().Get("Test-Header") != "Test-Value" {
+	if hp.Header().Get("Test-Header") != "Test-Value" {
 		t.Error("Expected header to have 'Test-Value' for 'Test-Header'")
 	}
 }
