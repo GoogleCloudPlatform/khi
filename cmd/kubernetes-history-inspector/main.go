@@ -169,7 +169,7 @@ func run() int {
 			return e.ConfigureKHIWebServerFactory(server.DefaultServerFactory)
 		})
 		if err != nil {
-			slog.Error("Initializing KHI failed at ConfigureKHIWebSeerverFactory() step", "error", err)
+			slog.Error("Initializing KHI failed at ConfigureKHIWebServerFactory() step", "error", err)
 			return 1
 		}
 

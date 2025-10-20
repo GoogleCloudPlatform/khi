@@ -117,13 +117,13 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 
 // ConfigureKHIWebServerFactory implements coreinit.InitExtension.
 func (d *DefaultInitExtension) ConfigureKHIWebServerFactory(serverFactory *server.ServerFactory) error {
-	server.DefaultServerFactory.AddOptions(option.Required())
+	serverFactory.AddOptions(option.Required())
 
 	corsConfig := cors.DefaultConfig()
 	corsConfig.AllowAllOrigins = true
-	server.DefaultServerFactory.AddOptions(option.CORS(corsConfig))
+	serverFactory.AddOptions(option.CORS(corsConfig))
 	if *parameters.Debug.Verbose {
-		server.DefaultServerFactory.AddOptions(
+		serverFactory.AddOptions(
 			option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoreing noisy paths
 		)
 	}

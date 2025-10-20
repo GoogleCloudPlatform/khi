@@ -29,7 +29,7 @@ type mockInitExtension struct {
 	configureParameterStore       func() error
 	afterParsingParameters        func() error
 	configureInspectionTaskServer func(taskServer *coreinspection.InspectionTaskServer) error
-	configureKHIWebSeerverFactory func(serverFactory *server.ServerFactory) error
+	configureKHIWebServerFactory  func(serverFactory *server.ServerFactory) error
 	beforeTerminate               func() error
 }
 
@@ -62,8 +62,8 @@ func (m *mockInitExtension) ConfigureInspectionTaskServer(taskServer *coreinspec
 }
 
 func (m *mockInitExtension) ConfigureKHIWebServerFactory(serverFactory *server.ServerFactory) error {
-	if m.configureKHIWebSeerverFactory != nil {
-		return m.configureKHIWebSeerverFactory(serverFactory)
+	if m.configureKHIWebServerFactory != nil {
+		return m.configureKHIWebServerFactory(serverFactory)
 	}
 	return nil
 }
