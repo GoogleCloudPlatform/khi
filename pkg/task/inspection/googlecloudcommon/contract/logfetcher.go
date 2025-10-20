@@ -19,7 +19,7 @@ import (
 
 	logging "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"google.golang.org/api/iterator"
 )
 
@@ -55,7 +55,7 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 		Filter:        filter,
 		OrderBy:       l.orderBy,
 		PageSize:      l.pageSize,
-	}, googlecloudv2.DefaultRetryPolicy, googlecloudv2.NeverTimeout)
+	}, googlecloud.DefaultRetryPolicy, googlecloud.NeverTimeout)
 
 	for {
 		entry, err := iter.Next()

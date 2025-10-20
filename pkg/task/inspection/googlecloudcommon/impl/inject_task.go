@@ -17,7 +17,7 @@ package googlecloudcommon_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloudv2"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -30,7 +30,7 @@ var LocationFetcherTask = coretask.NewTask(googlecloudcommon_contract.LocationFe
 }, func(ctx context.Context) (googlecloudcommon_contract.LocationFetcher, error) {
 	clientFactory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	regionClient, err := clientFactory.RegionsClient(ctx, googlecloudv2.Project(projectID))
+	regionClient, err := clientFactory.RegionsClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ var LoggingFetcherTask = coretask.NewTask(googlecloudcommon_contract.LoggingFetc
 }, func(ctx context.Context) (googlecloudcommon_contract.LogFetcher, error) {
 	clientFactory := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	loggingClient, err := clientFactory.LoggingClient(ctx, googlecloudv2.Project(projectID))
+	loggingClient, err := clientFactory.LoggingClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
 		return nil, err
 	}
