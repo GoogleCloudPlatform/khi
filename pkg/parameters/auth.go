@@ -64,11 +64,11 @@ func (a *AuthParameters) PostProcess() error {
 	if *a.OAuthClientID != "" && *a.OAuthRedirectURI == "" {
 		return fmt.Errorf("--oauth-redirect-uri must be set when --oauth-client-id is set")
 	}
-	if *a.AccessToken != "" {
-		slog.Warn("--access-token parameter is deprecated and not recommended after KHI supporting authentication via Application Default Credentials(ADC)")
-	}
 	if *a.AccessToken != "" && a.OAuthEnabled() {
 		return fmt.Errorf("cannot use --access-token and OAuth parameters at the same time")
+	}
+	if *a.AccessToken != "" {
+		slog.Warn("--access-token parameter is deprecated and not recommended after KHI supporting authentication via Application Default Credentials(ADC)")
 	}
 	return nil
 }
