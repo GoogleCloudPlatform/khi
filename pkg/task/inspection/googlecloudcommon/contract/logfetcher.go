@@ -27,29 +27,32 @@ import (
 // and sending them to a specified channel.
 // The implementation must close the destination channel after the query is done.
 type LogFetcher interface {
-	FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, resourceContainers []string) error
+	FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, container googlecloud.ResourceContainer, resourceContainers []string) error
 }
 
 // logFetcherImpl is the implementation of LogFetcher actually accessing to the Cloud Logging API.
 type logFetcherImpl struct {
-	client   *logging.Client
-	pageSize int32
-	orderBy  string
+	client             *logging.Client
+	callOptionInjector *googlecloud.CallOptionInjector
+	pageSize           int32
+	orderBy            string
 }
 
 // NewLogFetcher returns the instance of LogFetcher initialized with the given logging client.
-func NewLogFetcher(client *logging.Client, pageSize int32) LogFetcher {
+func NewLogFetcher(client *logging.Client, callOptionInjector *googlecloud.CallOptionInjector, pageSize int32) LogFetcher {
 	return &logFetcherImpl{
-		client:   client,
-		pageSize: pageSize,
-		orderBy:  "timestamp asc",
+		client:             client,
+		pageSize:           pageSize,
+		orderBy:            "timestamp asc",
+		callOptionInjector: callOptionInjector,
 	}
 }
 
 // FetchLogs implements LogFetcher.
-func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, resourceContainers []string) error {
+func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, container googlecloud.ResourceContainer, resourceContainers []string) error {
 	defer close(dest)
 
+	ctx = l.callOptionInjector.InjectToCallContext(ctx, container)
 	iter := l.client.ListLogEntries(ctx, &loggingpb.ListLogEntriesRequest{
 		ResourceNames: resourceContainers,
 		Filter:        filter,

@@ -26,6 +26,7 @@ import (
 // ClusterListFetcherTask is a task to inject ClusterListFetcherImpl instance and enable tests to inject mock instance.
 var ClusterListFetcherTask = coretask.NewTask(googlecloudclustergke_contract.ClusterListFetcherTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 }, func(ctx context.Context) (googlecloudclustergke_contract.ClusterListFetcher, error) {
 	return &googlecloudclustergke_contract.ClusterListFetcherImpl{}, nil
 })

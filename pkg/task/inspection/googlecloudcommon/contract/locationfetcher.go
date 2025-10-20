@@ -19,6 +19,7 @@ import (
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"cloud.google.com/go/compute/apiv1/computepb"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"google.golang.org/api/iterator"
 )
 
@@ -27,11 +28,13 @@ type LocationFetcher interface {
 }
 
 type locationFetcherImpl struct {
-	client *compute.RegionsClient
+	client             *compute.RegionsClient
+	callOptionInjector *googlecloud.CallOptionInjector
 }
 
 // FetchRegions implements LocationFetcher.
 func (l *locationFetcherImpl) FetchRegions(ctx context.Context, projectId string) ([]string, error) {
+	ctx = l.callOptionInjector.InjectToCallContext(ctx, googlecloud.Project(projectId))
 	iter := l.client.List(ctx, &computepb.ListRegionsRequest{
 		Project: projectId,
 	})
@@ -52,9 +55,10 @@ func (l *locationFetcherImpl) FetchRegions(ctx context.Context, projectId string
 	return result, nil
 }
 
-func NewLocationFetcher(client *compute.RegionsClient) LocationFetcher {
+func NewLocationFetcher(client *compute.RegionsClient, callOptionInjector *googlecloud.CallOptionInjector) LocationFetcher {
 	return &locationFetcherImpl{
-		client: client,
+		client:             client,
+		callOptionInjector: callOptionInjector,
 	}
 }
 

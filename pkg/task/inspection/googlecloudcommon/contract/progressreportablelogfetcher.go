@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"golang.org/x/sync/errgroup"
 )
@@ -37,7 +38,7 @@ type LogFetchProgress struct {
 type ProgressReportableLogFetcher interface {
 	// FetchLogsWithProgress fetches logs while periodically reporting its progress through a separate channel.
 	// Implementations must close both the dest and progress channels upon completion.
-	FetchLogsWithProgress(dest chan<- *loggingpb.LogEntry, progress chan<- LogFetchProgress, ctx context.Context, beginTime, endTime time.Time, filterWithoutTimeRange string, resourceContainers []string) error
+	FetchLogsWithProgress(dest chan<- *loggingpb.LogEntry, progress chan<- LogFetchProgress, ctx context.Context, beginTime, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) error
 }
 
 // StandardProgressReportableLogFetcher is a decorator for a LogFetcher that adds the ability
@@ -56,7 +57,7 @@ func NewStandardProgressReportableLogFetcher(fetcher LogFetcher, interval time.D
 }
 
 // FetchLogsWithProgress implements FetchLogsWithProgress.
-func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<- *loggingpb.LogEntry, progress chan<- LogFetchProgress, ctx context.Context, beginTime, endTime time.Time, filterWithoutTimeRange string, resourceContainers []string) error {
+func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<- *loggingpb.LogEntry, progress chan<- LogFetchProgress, ctx context.Context, beginTime, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) error {
 	defer close(dest)
 	defer close(progress)
 
@@ -129,7 +130,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 		}
 	}()
 
-	err := s.fetcher.FetchLogs(stubChan, ctx, filter, resourceContainers)
+	err := s.fetcher.FetchLogs(stubChan, ctx, filter, container, resourceContainers)
 	if err != nil {
 		cancelSubroutine()
 		return err
@@ -165,7 +166,7 @@ func NewTimePartitioningProgressReportableLogFetcher(fetcher LogFetcher, interva
 }
 
 // FetchLogsWithProgress implements ProgressReportableLogFetcher.
-func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(logChan chan<- *loggingpb.LogEntry, progressChan chan<- LogFetchProgress, ctx context.Context, beginTime time.Time, endTime time.Time, filterWithoutTimeRange string, resourceContainers []string) error {
+func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(logChan chan<- *loggingpb.LogEntry, progressChan chan<- LogFetchProgress, ctx context.Context, beginTime time.Time, endTime time.Time, filterWithoutTimeRange string, container googlecloud.ResourceContainer, resourceContainers []string) error {
 	defer close(logChan)
 	defer close(progressChan)
 
@@ -261,7 +262,7 @@ func (t *TimePartitioningProgressReportableLogFetcher) FetchLogsWithProgress(log
 				}
 			}(subProgressIndex)
 
-			err := t.client.FetchLogsWithProgress(subLogChan, subProgressChan, cancellableCtx, partitionBeginTime, partitionEndTime, filterWithoutTimeRange, resourceContainers)
+			err := t.client.FetchLogsWithProgress(subLogChan, subProgressChan, cancellableCtx, partitionBeginTime, partitionEndTime, filterWithoutTimeRange, container, resourceContainers)
 			if err != nil {
 				cancel()
 				return err

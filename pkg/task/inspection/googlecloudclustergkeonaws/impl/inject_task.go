@@ -28,6 +28,7 @@ var ClusterListFetcherTask = coretask.NewTask(
 	googlecloudclustergkeonaws_contract.ClusterListFetcherTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+		googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	},
 	func(ctx context.Context) (googlecloudclustergkeonaws_contract.ClusterListFetcher, error) {
 		return &googlecloudclustergkeonaws_contract.ClusterListFetcherImpl{}, nil

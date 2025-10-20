@@ -38,5 +38,16 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 		}
 		return *options, nil
 	},
-	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTaskPriority),
+	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),
+)
+
+// APICallOptionsInjectorTask is the default implementation to provide the CallOptionInjector.
+// Each APIClient use must call this injector method before to supply parameters correctly.
+var APICallOptionsInjectorTask = inspectiontaskbase.NewInspectionTask(
+	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID,
+	[]taskid.UntypedTaskReference{},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
+		return googlecloud.NewCallOptionInjector(), nil
+	},
+	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),
 )

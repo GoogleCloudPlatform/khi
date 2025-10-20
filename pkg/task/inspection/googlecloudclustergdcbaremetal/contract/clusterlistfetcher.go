@@ -35,15 +35,17 @@ type ClusterListFetcherImpl struct{}
 // GetClusters implements ClusterListFetcher.
 func (c *ClusterListFetcherImpl) GetClusters(ctx context.Context, project string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	onpremAPI, err := cf.GKEOnPremService(ctx, googlecloud.Project(project))
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate onprem API client: %v", err)
 	}
+
 	return getAdminAndUserClusters(ctx, project, func(ctx context.Context, parent string) ([]string, error) {
-		return getAdminClustersFromAPI(ctx, onpremAPI, parent)
+		return getAdminClustersFromAPI(ctx, injector, onpremAPI, parent)
 	}, func(ctx context.Context, parent string) ([]string, error) {
-		return getUserClustersFromAPI(ctx, onpremAPI, parent)
+		return getUserClustersFromAPI(ctx, injector, onpremAPI, parent)
 	})
 }
 
@@ -53,12 +55,11 @@ type fetchClusterFunc = func(ctx context.Context, parent string) ([]string, erro
 
 // getAdminAndUserClusters returns the list of clusters obtained from APIs.
 func getAdminAndUserClusters(ctx context.Context, project string, fetchAdminCluster, fetchUserCluster fetchClusterFunc) ([]string, error) {
-	parent := fmt.Sprintf("projects/%s/locations/-", project)
 	resultCh := make(chan []string, 2)
 	errGrp, groupCtx := errgroup.WithContext(ctx)
 
 	errGrp.Go(func() error {
-		adminClusters, err := fetchAdminCluster(groupCtx, parent)
+		adminClusters, err := fetchAdminCluster(groupCtx, project)
 		if err != nil {
 			return err
 		}
@@ -67,7 +68,7 @@ func getAdminAndUserClusters(ctx context.Context, project string, fetchAdminClus
 	})
 
 	errGrp.Go(func() error {
-		userClusters, err := fetchUserCluster(groupCtx, parent)
+		userClusters, err := fetchUserCluster(groupCtx, project)
 		if err != nil {
 			return err
 		}
@@ -88,11 +89,13 @@ func getAdminAndUserClusters(ctx context.Context, project string, fetchAdminClus
 	return result, nil
 }
 
-func getAdminClustersFromAPI(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
+func getAdminClustersFromAPI(ctx context.Context, injector *googlecloud.CallOptionInjector, client *gkeonprem.Service, project string) ([]string, error) {
+	parent := fmt.Sprintf("projects/%s/locations/-", project)
 	var nextPageToken string
 	var result []string
 	for {
 		req := client.Projects.Locations.BareMetalAdminClusters.List(parent).PageToken(nextPageToken)
+		injector.InjectToCall(req, googlecloud.Project(project))
 		resp, err := req.Context(ctx).Do()
 		if err != nil {
 			return nil, err
@@ -108,11 +111,13 @@ func getAdminClustersFromAPI(ctx context.Context, client *gkeonprem.Service, par
 	return result, nil
 }
 
-func getUserClustersFromAPI(ctx context.Context, client *gkeonprem.Service, parent string) ([]string, error) {
+func getUserClustersFromAPI(ctx context.Context, injector *googlecloud.CallOptionInjector, client *gkeonprem.Service, project string) ([]string, error) {
+	parent := fmt.Sprintf("projects/%s/locations/-", project)
 	var nextPageToken string
 	var result []string
 	for {
 		req := client.Projects.Locations.BareMetalClusters.List(parent).PageToken(nextPageToken)
+		injector.InjectToCall(req, googlecloud.Project(project))
 		resp, err := req.Context(ctx).Do()
 		if err != nil {
 			return nil, err

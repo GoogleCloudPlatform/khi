@@ -53,6 +53,9 @@ var APIClientFactoryTaskID = taskid.NewDefaultImplementationID[*googlecloud.Clie
 // APIClientFactoryOptionsTaskID is the task ID to generate options list for the ClientFactory. This can be overridden with the selection priority label defined in the coretask package.
 var APIClientFactoryOptionsTaskID = taskid.NewDefaultImplementationID[[]googlecloud.ClientFactoryOption](GoogleCloudCommonTaskIDPrefix + "api-client-factory-options")
 
+// APIClientCallOptionsInjectorTaskID is the task ID to inject CallOptionInjector reference.
+var APIClientCallOptionsInjectorTaskID = taskid.NewDefaultImplementationID[*googlecloud.CallOptionInjector](GoogleCloudCommonTaskIDPrefix + "api-client-option-injector")
+
 // LocationFetcherTaskID is the task ID to inject the instance of LocationFetcher.
 var LocationFetcherTaskID = taskid.NewDefaultImplementationID[LocationFetcher](GoogleCloudCommonTaskIDPrefix + "location-fetcher")
 

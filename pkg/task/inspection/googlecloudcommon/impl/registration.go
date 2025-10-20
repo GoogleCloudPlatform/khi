@@ -31,6 +31,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		InputLocationsTask,
 		APIClientFactoryTask,
 		APIClientFactoryOptionsTask,
+		APICallOptionsInjectorTask,
 		LocationFetcherTask,
 		LoggingFetcherTask,
 	)

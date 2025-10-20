@@ -36,6 +36,7 @@ type ClusterListFetcherImpl struct{}
 // This expects the task googlecloudcommon_contract.APIClientFactoryTaskID is already resolved.
 func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID string) ([]string, error) {
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	injector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	ccmc, err := cf.ContainerClusterManagerClient(ctx, googlecloud.Project(projectID))
 	if err != nil {
@@ -43,6 +44,7 @@ func (g *ClusterListFetcherImpl) GetClusterNames(ctx context.Context, projectID 
 	}
 	defer ccmc.Close()
 
+	ctx = injector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	clusters, err := ccmc.ListClusters(ctx, &containerpb.ListClustersRequest{
 		Parent: fmt.Sprintf("projects/%s/locations/-", projectID),
 	})
