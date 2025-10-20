@@ -132,7 +132,6 @@ func run() int {
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}
-
 	err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
 		return e.ConfigureInspectionTaskServer(inspectionServer)
 	})
@@ -140,6 +139,7 @@ func run() int {
 		slog.Error("Initializing KHI failed at ConfigureInspectionTaskServer() step", "error", err)
 		return 1
 	}
+
 	lifecycle.Default.NotifyInit()
 
 	// Channel to receive exit codes from concurrent goroutines
