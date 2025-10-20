@@ -25,26 +25,18 @@ import (
 	"strings"
 	"syscall"
 
-	googlecloudapi "github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/accesstoken"
-	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/quotaproject"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
+	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
-	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
-	"github.com/GoogleCloudPlatform/khi/pkg/server/option"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
-	"cloud.google.com/go/profiler"
+	_ "github.com/GoogleCloudPlatform/khi/pkg/core/init/default"
 )
 
 func displayStartMessage(host string, port int) {
@@ -75,15 +67,6 @@ func displayStartMessage(host string, port int) {
 	}
 }
 
-func init() {
-	parameters.AddStore(parameters.Help)
-	parameters.AddStore(parameters.Common)
-	parameters.AddStore(parameters.Server)
-	parameters.AddStore(parameters.Job)
-	parameters.AddStore(parameters.Auth)
-	parameters.AddStore(parameters.Debug)
-}
-
 func handleTerminateSignal(exitCh chan<- int) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
@@ -101,33 +84,45 @@ func main() {
 
 func run() int {
 	defer errorreport.CheckAndReportPanic()
-	logger.InitGlobalKHILogger()
-	err := parameters.Parse()
+	defer func() {
+		err := coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
+			return e.BeforeTerminate()
+		})
+		if err != nil {
+			slog.Error("Calling termination handler on InitExtension failed", "error", err)
+		}
+	}()
+
+	err := coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
+		return e.BeforeAll()
+	})
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Initializing KHI failed at BeforeAll() step", "error", err)
 		return 1
 	}
-	if *parameters.Debug.Verbose {
-		flag.DumpAll(context.Background())
-	}
-	if *parameters.Debug.Profiler {
-		cfg := profiler.Config{
-			Service:        *parameters.Debug.ProfilerService,
-			ProjectID:      *parameters.Debug.ProfilerProject,
-			MutexProfiling: true,
-		}
-		if err := profiler.Start(cfg); err != nil {
-			slog.Error(fmt.Sprintf("Failed to start profiler\n%s", err.Error()))
-		}
-		slog.Info("Cloud Profiler is enabled")
-	}
-	lifecycle.Default.NotifyInit()
-	slog.Info("Initializing Kubernetes History Inspector...")
 
-	k8s.GenerateDefaultMergeConfig()
-	if *parameters.Auth.QuotaProjectID != "" {
-		googlecloudapi.DefaultGCPClientFactory.RegisterHeaderProvider(quotaproject.NewHeaderProvider(*parameters.Auth.QuotaProjectID))
+	err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
+		return e.ConfigureParameterStore()
+	})
+	if err != nil {
+		slog.Error("Initializing KHI failed at ConfigureParameterStore() step", "error", err)
+		return 1
 	}
+
+	err = parameters.Parse()
+	if err != nil {
+		slog.Error("Initializing KHI failed at parameters.Parse()", "error", err)
+		return 1
+	}
+
+	err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
+		return e.AfterParsingParameters()
+	})
+	if err != nil {
+		slog.Error("Initializing KHI failed at AfterParsingParameters() step", "error", err)
+		return 1
+	}
+
 	ioconfig, err := inspectioncore_contract.NewIOConfigFromParameter(parameters.Common)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the IOConfig from parameter\n%v", err))
@@ -137,14 +132,15 @@ func run() int {
 	if err != nil {
 		slog.Error(fmt.Sprintf("Failed to construct the inspection server due to unexpected error\n%v", err))
 	}
-
-	if !*parameters.Server.ViewerMode {
-		err := generated.RegisterAllInspectionTasks(inspectionServer)
-		if err != nil {
-			slog.Error(err.Error())
-			return 1
-		}
+	err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
+		return e.ConfigureInspectionTaskServer(inspectionServer)
+	})
+	if err != nil {
+		slog.Error("Initializing KHI failed at ConfigureInspectionTaskServer() step", "error", err)
+		return 1
 	}
+
+	lifecycle.Default.NotifyInit()
 
 	// Channel to receive exit codes from concurrent goroutines
 	exitCh := make(chan int, 1)
@@ -152,21 +148,12 @@ func run() int {
 	go handleTerminateSignal(exitCh)
 
 	if !*parameters.Job.JobMode {
-
 		slog.Info("Starting Kubernetes History Inspector server...")
 
 		// Setting up options or parameters needed to instanciate gin.Engine
 		serverMode := gin.ReleaseMode
-		server.DefaultServerFactory.AddOptions(option.Required())
-
-		corsConfig := cors.DefaultConfig()
-		corsConfig.AllowAllOrigins = true
-		server.DefaultServerFactory.AddOptions(option.CORS(corsConfig))
 
 		if *parameters.Debug.Verbose {
-			server.DefaultServerFactory.AddOptions(
-				option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoreing noisy paths
-			)
 			serverMode = gin.DebugMode
 		}
 
@@ -177,6 +164,14 @@ func run() int {
 		}
 
 		upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+
+		err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
+			return e.ConfigureKHIWebServerFactory(server.DefaultServerFactory)
+		})
+		if err != nil {
+			slog.Error("Initializing KHI failed at ConfigureKHIWebSeerverFactory() step", "error", err)
+			return 1
+		}
 
 		config := server.ServerConfig{
 			ViewerMode:       *parameters.Server.ViewerMode,
@@ -191,14 +186,6 @@ func run() int {
 			return 1
 		}
 		engine = server.CreateKHIServer(engine, inspectionServer, &config)
-
-		if parameters.Auth.OAuthEnabled() {
-			err := accesstoken.DefaultOAuthTokenResolver.SetServer(engine)
-			if err != nil {
-				slog.Error("failed to register the web server to OAuth Token resolver")
-				return 1
-			}
-		}
 
 		go func() {
 			err = engine.Run(fmt.Sprintf("%s:%d", *parameters.Server.Host, *parameters.Server.Port))
@@ -290,8 +277,5 @@ func run() int {
 			}
 		}()
 	}
-
-	// Wait for exit code from any source
-	code := <-exitCh
-	return code
+	return <-exitCh
 }
