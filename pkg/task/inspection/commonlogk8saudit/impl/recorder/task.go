@@ -29,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 
@@ -41,8 +42,23 @@ type LogGroupFilterFunc = func(ctx context.Context, resourcePath string) bool
 // LogFilterFunc defines a function signature for filtering individual audit logs.
 type LogFilterFunc = func(ctx context.Context, l *commonlogk8saudit_contract.AuditLogParserInput) bool
 
+// RecorderRequest holds the context and data for a recorder function to process.
+type RecorderRequest struct {
+	TimelineResourceStringPath string
+	LogParseResult             *commonlogk8saudit_contract.AuditLogParserInput
+	LastLogParseResult         *commonlogk8saudit_contract.AuditLogParserInput
+	// PreviousState is any type value returned from the last recorder call. Recorder can have state gathered until its current log here.
+	PreviousState           any
+	ParentTimelineRevisions []*history.ResourceRevision
+	ChangeSet               *history.ChangeSet
+	Builder                 *history.Builder
+	IsFirstLog              bool
+	IsLastLog               bool
+}
+
 // RecorderFunc records events/revisions...etc on the given ChangeSet. If it returns an error, then the result is ignored.
-type RecorderFunc = func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error)
+// Recoder has responsibility to determine where the revisions or events are placed regarding the request generated for each logs.
+type RecorderFunc = func(ctx context.Context, req *RecorderRequest) (any, error)
 
 // hierarchicalTimelineGroupWorker represents a node in a hierarchical tree structure of timeline groups.
 // It is used to organize and process timeline groups based on their resource paths to process them from ancestor to children.
@@ -111,13 +127,35 @@ func (r *RecorderTaskManager) AddRecorder(name string, dependencies []taskid.Unt
 
 		hierarchicalGroupedLogs.Run(ctx, func(group *commonlogk8saudit_contract.TimelineGrouperResult) {
 			var prevState any = nil
-			for _, l := range group.PreParsedLogs {
+
+			groupPath := resourcepath.ResourcePath{
+				Path:               group.TimelineResourcePath,
+				ParentRelationship: enum.RelationshipChild,
+			}
+			tb := builder.GetTimelineBuilder(groupPath.GetParentPathString())
+			parentTimelineRevisions := tb.GetRevisions()
+
+			for i, l := range group.PreParsedLogs {
 				if !logFilter(ctx, l) {
 					processedLogCount.Add(1)
 					continue
 				}
 				cs := history.NewChangeSet(l.Log)
-				currentState, err := recorder(ctx, group.TimelineResourcePath, l, prevState, cs, builder)
+				var prevLog *commonlogk8saudit_contract.AuditLogParserInput
+				if i > 0 {
+					prevLog = group.PreParsedLogs[i-1]
+				}
+				currentState, err := recorder(ctx, &RecorderRequest{
+					TimelineResourceStringPath: group.TimelineResourcePath,
+					LogParseResult:             l,
+					LastLogParseResult:         prevLog,
+					PreviousState:              prevState,
+					ParentTimelineRevisions:    parentTimelineRevisions,
+					ChangeSet:                  cs,
+					Builder:                    builder,
+					IsFirstLog:                 i == 0,
+					IsLastLog:                  i == len(group.PreParsedLogs)-1,
+				})
 				if err != nil {
 					processedLogCount.Add(1)
 					continue

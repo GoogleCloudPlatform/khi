@@ -18,15 +18,13 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/impl/recorder"
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("node-fields", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
+	manager.AddRecorder("node-fields", []taskid.UntypedTaskReference{}, func(ctx context.Context, req *recorder.RecorderRequest) (any, error) {
 		// record node name for querying compute engine api later.
-		builder.ClusterResource.AddNode(currentLog.Operation.Name)
+		req.Builder.ClusterResource.AddNode(req.LogParseResult.Operation.Name)
 		return nil, nil
 	}, recorder.ResourceKindLogGroupFilter("node"), recorder.AndLogFilter(recorder.OnlySucceedLogs(), recorder.OnlyWithResourceBody()))
 	return nil

@@ -52,12 +52,12 @@ type endpointsParseResult struct {
 }
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("endpointslices", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
+	manager.AddRecorder("endpointslices", []taskid.UntypedTaskReference{}, func(ctx context.Context, req *recorder.RecorderRequest) (any, error) {
 		var prevEndpointSlice *model.EndpointSlice
-		if prevStateInGroup != nil {
-			prevEndpointSlice = prevStateInGroup.(*model.EndpointSlice)
+		if req.PreviousState != nil {
+			prevEndpointSlice = req.PreviousState.(*model.EndpointSlice)
 		}
-		return recordChangeSetForLog(ctx, currentLog, prevEndpointSlice, cs, builder)
+		return recordChangeSetForLog(ctx, req.LogParseResult, prevEndpointSlice, req.ChangeSet, req.Builder)
 	}, recorder.ResourceKindLogGroupFilter("endpointslice"), recorder.AndLogFilter(recorder.OnlySucceedLogs(), recorder.OnlyWithResourceBody()))
 	return nil
 }

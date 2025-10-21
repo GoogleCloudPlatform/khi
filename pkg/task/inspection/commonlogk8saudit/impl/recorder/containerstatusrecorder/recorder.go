@@ -33,12 +33,12 @@ import (
 )
 
 func Register(manager *recorder.RecorderTaskManager) error {
-	manager.AddRecorder("containers", []taskid.UntypedTaskReference{}, func(ctx context.Context, resourcePath string, currentLog *commonlogk8saudit_contract.AuditLogParserInput, prevStateInGroup any, cs *history.ChangeSet, builder *history.Builder) (any, error) {
+	manager.AddRecorder("containers", []taskid.UntypedTaskReference{}, func(ctx context.Context, req *recorder.RecorderRequest) (any, error) {
 		var prevPod *corev1.Pod
-		if prevStateInGroup != nil {
-			prevPod = prevStateInGroup.(*corev1.Pod)
+		if req.PreviousState != nil {
+			prevPod = req.PreviousState.(*corev1.Pod)
 		}
-		return recordChangeSetForLog(ctx, resourcePath, currentLog, prevPod, cs, builder)
+		return recordChangeSetForLog(ctx, req.TimelineResourceStringPath, req.LogParseResult, prevPod, req.ChangeSet, req.Builder)
 	}, recorder.ResourceKindLogGroupFilter("pod"), recorder.AndLogFilter(recorder.OnlySucceedLogs(), recorder.OnlyWithResourceBody()))
 	return nil
 }
