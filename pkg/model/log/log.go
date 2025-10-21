@@ -69,6 +69,15 @@ func NewLogFromYAMLString(yaml string) (*Log, error) {
 	return NewLog(structured.NewNodeReader(node)), nil
 }
 
+// NewLogWithFieldSetsForTest generate an empty Log with given FieldSet. This is for testing purpose to instanciate a log already parsed.
+func NewLogWithFieldSetsForTest(fieldSets ...FieldSet) *Log {
+	log := NewLog(&structured.NodeReader{})
+	for _, fieldSet := range fieldSets {
+		typedmap.Set(log.fields, typedmap.NewTypedKey[FieldSet](fieldSet.Kind()), fieldSet)
+	}
+	return log
+}
+
 // SetFieldSetReader reads set of fields with the FieldSetReader and keep it in the log.
 func (l *Log) SetFieldSetReader(reader FieldSetReader) error {
 	fieldSet, err := reader.Read(l.NodeReader)

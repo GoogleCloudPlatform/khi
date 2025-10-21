@@ -68,6 +68,72 @@ func (b *TimelineBuilder) AddRevision(revision *ResourceRevision) {
 	}
 }
 
+// GetRevisions return ResourceRevision list already written to this timeline.
+func (b *TimelineBuilder) GetRevisions() []*ResourceRevision {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.sortWithoutLock()
+	return b.timeline.Revisions
+}
+
+// GetRevisionBefore find a revision before the given time. If no revision found, then this function returns nil.
+// Computational complexity is O(logN)
+func (b *TimelineBuilder) GetRevisionBefore(time time.Time) *ResourceRevision {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.sortWithoutLock()
+	if len(b.timeline.Revisions) == 0 {
+		return nil
+	}
+	if b.timeline.Revisions[0].ChangeTime.Sub(time) > 0 {
+		return nil // given time is before the all revisions
+	}
+	if time.Sub(b.timeline.Revisions[len(b.timeline.Revisions)-1].ChangeTime) >= 0 {
+		return b.timeline.Revisions[len(b.timeline.Revisions)-1]
+	}
+
+	min := 0
+	max := len(b.timeline.Revisions) - 1
+	for max-min > 1 {
+		mid := (min + max) / 2
+		if b.timeline.Revisions[mid].ChangeTime.Sub(time) > 0 {
+			max = mid
+		} else {
+			min = mid
+		}
+	}
+	return b.timeline.Revisions[min]
+}
+
+// GetRevisionAfter find a revision after the given time. If no revision found, then this function returns nil.
+// Computational complexity is O(logN)
+func (b *TimelineBuilder) GetRevisionAfter(time time.Time) *ResourceRevision {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.sortWithoutLock()
+	if len(b.timeline.Revisions) == 0 {
+		return nil
+	}
+	if time.Sub(b.timeline.Revisions[len(b.timeline.Revisions)-1].ChangeTime) > 0 {
+		return nil
+	}
+	if b.timeline.Revisions[0].ChangeTime.Sub(time) >= 0 {
+		return b.timeline.Revisions[0]
+	}
+
+	min := 0
+	max := len(b.timeline.Revisions) - 1
+	for max-min > 1 {
+		mid := (min + max) / 2
+		if b.timeline.Revisions[mid].ChangeTime.Sub(time) >= 0 {
+			max = mid
+		} else {
+			min = mid
+		}
+	}
+	return b.timeline.Revisions[max]
+}
+
 // Get the latest revision stored in a specific ResourceHistory.
 // Returns nil when specified resource was nil or no any revisions recorded.
 func (b *TimelineBuilder) GetLatestRevision() *ResourceRevision {
@@ -83,7 +149,7 @@ func (b *TimelineBuilder) GetLatestRevision() *ResourceRevision {
 }
 
 func (b *TimelineBuilder) GetLatestRevisionBody() (string, error) {
-	body, err := b.builder.binaryChunk.Read(b.GetLatestRevision().Body)
+	body, err := b.builder.BinaryBuilder.Read(b.GetLatestRevision().Body)
 	if err != nil {
 		return "", err
 	}

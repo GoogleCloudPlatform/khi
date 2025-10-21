@@ -162,7 +162,7 @@ func (cs *ChangeSet) FlushToHistory(builder *Builder) ([]string, error) {
 	for resourcePath, revisions := range cs.RevisionsMap {
 		tb := builder.GetTimelineBuilder(resourcePath)
 		for _, stagingRevision := range revisions {
-			revision, err := stagingRevision.commit(builder.binaryChunk, cs.Log)
+			revision, err := stagingRevision.commit(builder.BinaryBuilder, cs.Log)
 			if err != nil {
 				return nil, err
 			}

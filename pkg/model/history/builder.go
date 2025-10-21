@@ -43,7 +43,7 @@ type BuilderLogWalker = func(logIndex int, l *log.Log) *ChangeSet
 type Builder struct {
 	history                *History
 	historyLock            sync.Mutex
-	binaryChunk            *binarychunk.Builder
+	BinaryBuilder          *binarychunk.Builder
 	timelinemap            *common.ShardingMap[*ResourceTimeline]
 	timelineBuilders       *common.ShardingMap[*TimelineBuilder]
 	timelineIDGenerator    idgenerator.IDGenerator
@@ -57,7 +57,7 @@ func NewBuilder(tmpFolder string) *Builder {
 	return &Builder{
 		history:                NewHistory(),
 		historyLock:            sync.Mutex{},
-		binaryChunk:            binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(tmpFolder), tmpFolder),
+		BinaryBuilder:          binarychunk.NewBuilder(binarychunk.NewFileSystemGzipCompressor(tmpFolder), tmpFolder),
 		timelinemap:            common.NewShardingMap[*ResourceTimeline](common.NewSuffixShardingProvider(128, 4)),
 		timelineBuilders:       common.NewShardingMap[*TimelineBuilder](common.NewSuffixShardingProvider(128, 4)),
 		timelineIDGenerator:    idgenerator.NewPrefixIDGenerator("t"),
@@ -136,7 +136,7 @@ func (builder *Builder) setLogSummary(logId string, summary string) error {
 			slog.Warn(fmt.Sprintf("log: %s has its summary already. Ignoreing", logId))
 			return nil
 		}
-		summaryRef, err := builder.binaryChunk.Write([]byte(summary))
+		summaryRef, err := builder.BinaryBuilder.Write([]byte(summary))
 		if err != nil {
 			return err
 		}
@@ -154,7 +154,7 @@ func (builder *Builder) setLogAnnotations(logId string, annotations []LogAnnotat
 			return a.Priority() - b.Priority()
 		})
 		for _, annotation := range annotations {
-			result, err := annotation.Serialize(builder.binaryChunk)
+			result, err := annotation.Serialize(builder.BinaryBuilder)
 			if err != nil {
 				return err
 			}
@@ -276,7 +276,7 @@ func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.
 					builder.logIdToSerializableLog.ReleaseShard(logId)
 					return err
 				}
-				bodyRef, err := builder.binaryChunk.Write([]byte(yaml))
+				bodyRef, err := builder.BinaryBuilder.Write([]byte(yaml))
 				if err != nil {
 					builder.logIdToSerializableLog.ReleaseShard(logId)
 					return err
@@ -373,7 +373,7 @@ func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[str
 		fileSize += writtenSize
 	}
 
-	if writtenSize, err := builder.binaryChunk.Build(ctx, writer, progress); err != nil {
+	if writtenSize, err := builder.BinaryBuilder.Build(ctx, writer, progress); err != nil {
 		return 0, err
 	} else {
 		fileSize += writtenSize
