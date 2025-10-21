@@ -16,6 +16,7 @@ package parameters
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	"golang.org/x/oauth2"
@@ -45,6 +46,11 @@ type AuthParameters struct {
 
 	// OAuthStateSuffix is the suffix added to the state parameter in OAuth. The state will be generated in the format of `<random-string><suffix>`.
 	OAuthStateSuffix *string
+
+	// AccessToken is the token used for GCP related requests.
+	//
+	// Deprecated: Passing raw access token string to parameter is deprecated and not recommended. It's recommended to authenticate with Application Default Credentials(ADC).
+	AccessToken *string
 }
 
 // PostProcess implements ParameterStore.
@@ -58,11 +64,18 @@ func (a *AuthParameters) PostProcess() error {
 	if *a.OAuthClientID != "" && *a.OAuthRedirectURI == "" {
 		return fmt.Errorf("--oauth-redirect-uri must be set when --oauth-client-id is set")
 	}
+	if *a.AccessToken != "" && a.OAuthEnabled() {
+		return fmt.Errorf("cannot use --access-token and OAuth parameters at the same time")
+	}
+	if *a.AccessToken != "" {
+		slog.Warn("--access-token parameter is deprecated and not recommended after KHI supporting authentication via Application Default Credentials(ADC)")
+	}
 	return nil
 }
 
 // Prepare implements ParameterStore.
 func (a *AuthParameters) Prepare() error {
+	a.AccessToken = flag.String("access-token", "", "(Deprecated) The token used for GCP related requests. This parameter is deprecated, please consider authenticating with Application Default Credentials(ADC) instead.", "GCP_ACCESS_TOKEN")
 	a.FixedProjectID = flag.String("fixed-project-id", "", "A GCP project ID prefilled in the form. User won't be able to edit it from the form.", "KHI_FIXED_PROJECT_ID")
 	a.QuotaProjectID = flag.String("quota-project-id", "", "A GCP project ID used as the quota project. This is useful when user wants to use KHI against a project with another project with larger logging read quota.", "")
 	a.OAuthClientID = flag.String("oauth-client-id", "", "The client ID used for getting access tokens via OAuth.", "KHI_OAUTH_CLIENT_ID")

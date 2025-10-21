@@ -19,6 +19,7 @@ import (
 	"log/slog"
 
 	"cloud.google.com/go/profiler"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/legacy"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
@@ -125,6 +126,9 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 	}
 	if *parameters.Auth.QuotaProjectID != "" {
 		taskServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.QuotaProject(*parameters.Auth.QuotaProjectID)))
+	}
+	if *parameters.Auth.AccessToken != "" {
+		taskServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.TokenSource(legacy.NewRawTokenTokenSource(*parameters.Auth.AccessToken))))
 	}
 	return nil
 }

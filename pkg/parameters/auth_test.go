@@ -41,6 +41,7 @@ func TestAuthParameters(t *testing.T) {
 		{
 			name: "default",
 			want: &AuthParameters{
+				AccessToken:                    testutil.P(""),
 				FixedProjectID:                 testutil.P(""),
 				QuotaProjectID:                 testutil.P(""),
 				OAuthClientID:                  testutil.P(""),
@@ -161,6 +162,96 @@ func TestAuthParameters_OAuthEnabled(t *testing.T) {
 			got := tc.params.OAuthEnabled()
 			if got != tc.expected {
 				t.Errorf("unexpected result, got %v, want %v", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestAuthParameters_PostProcess(t *testing.T) {
+	testCases := []struct {
+		name      string
+		params    *AuthParameters
+		expectErr bool
+	}{
+		{
+			name: "valid: no auth params",
+			params: &AuthParameters{
+				OAuthClientID:     testutil.P(""),
+				OAuthClientSecret: testutil.P(""),
+				OAuthRedirectURI:  testutil.P(""),
+				AccessToken:       testutil.P(""),
+			},
+			expectErr: false,
+		},
+		{
+			name: "valid: access token only",
+			params: &AuthParameters{
+				OAuthClientID:     testutil.P(""),
+				OAuthClientSecret: testutil.P(""),
+				OAuthRedirectURI:  testutil.P(""),
+				AccessToken:       testutil.P("some-token"),
+			},
+			expectErr: false,
+		},
+		{
+			name: "valid: oauth params",
+			params: &AuthParameters{
+				OAuthClientID:                  testutil.P("id"),
+				OAuthClientSecret:              testutil.P("secret"),
+				OAuthRedirectURI:               testutil.P("uri"),
+				OAuthRedirectTargetServingPath: testutil.P("/oauth/callback"),
+				AccessToken:                    testutil.P(""),
+			},
+			expectErr: false,
+		},
+		{
+			name: "invalid: client id without secret",
+			params: &AuthParameters{
+				OAuthClientID:     testutil.P("id"),
+				OAuthClientSecret: testutil.P(""),
+				OAuthRedirectURI:  testutil.P("uri"),
+				AccessToken:       testutil.P(""),
+			},
+			expectErr: true,
+		},
+		{
+			name: "invalid: client secret without id",
+			params: &AuthParameters{
+				OAuthClientID:     testutil.P(""),
+				OAuthClientSecret: testutil.P("secret"),
+				OAuthRedirectURI:  testutil.P("uri"),
+				AccessToken:       testutil.P(""),
+			},
+			expectErr: true,
+		},
+		{
+			name: "invalid: client id without redirect uri",
+			params: &AuthParameters{
+				OAuthClientID:     testutil.P("id"),
+				OAuthClientSecret: testutil.P("secret"),
+				OAuthRedirectURI:  testutil.P(""),
+				AccessToken:       testutil.P(""),
+			},
+			expectErr: true,
+		},
+		{
+			name: "invalid: access token and oauth params",
+			params: &AuthParameters{
+				OAuthClientID:                  testutil.P("id"),
+				OAuthClientSecret:              testutil.P("secret"),
+				OAuthRedirectURI:               testutil.P("uri"),
+				OAuthRedirectTargetServingPath: testutil.P("/oauth/callback"),
+				AccessToken:                    testutil.P("some-token"),
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.params.PostProcess()
+			if (err != nil) != tc.expectErr {
+				t.Errorf("PostProcess() error = %v, expectErr %v", err, tc.expectErr)
 			}
 		})
 	}
