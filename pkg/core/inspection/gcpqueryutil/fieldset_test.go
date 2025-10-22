@@ -81,6 +81,66 @@ func TestGCPMainMessageFieldSet(t *testing.T) {
 			InputYAML: `jsonPayload:
   message: bar`,
 		},
+		{
+			Name:                "from jsonPayload.MESSAGE field",
+			ExpectedMainMessage: "bar",
+			InputYAML: `jsonPayload:
+  MESSAGE: bar`,
+		},
+		{
+			Name:                "from jsonPayload.msg field",
+			ExpectedMainMessage: "bar",
+			InputYAML: `jsonPayload:
+  msg: bar`,
+		},
+		{
+			Name:                "from jsonPayload.log field",
+			ExpectedMainMessage: "bar",
+			InputYAML: `jsonPayload:
+  log: bar`,
+		},
+		{
+			Name:                "from the whole jsonPayload field",
+			ExpectedMainMessage: `{"foo":"bar"}`,
+			InputYAML: `jsonPayload:
+  foo: bar`,
+		},
+		{
+			Name:                "from the whole labels field",
+			ExpectedMainMessage: `{"foo":"bar"}`,
+			InputYAML: `labels:
+  foo: bar`,
+		},
+		{
+			Name:                "ignore when the message is protoPayload even labels are provided",
+			ExpectedMainMessage: "",
+			InputYAML: `labels:
+  foo: bar
+protoPayload:
+  qux: quux`,
+		},
+		{
+			Name:                "empty if no proper field is given",
+			ExpectedMainMessage: "",
+			InputYAML:           `foo: bar`,
+		},
+		{
+			Name:                "prioritize textPayload rather than jsonPayload.msg or labels",
+			ExpectedMainMessage: "bar",
+			InputYAML: `jsonPayload:
+  msg: foo
+textPayload: bar
+labels:
+  qux: quux`,
+		},
+		{
+			Name:                "prioritize jsonPayload.msg over labels",
+			ExpectedMainMessage: "foo",
+			InputYAML: `jsonPayload:
+  msg: foo
+labels:
+  qux: quux`,
+		},
 	}
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {

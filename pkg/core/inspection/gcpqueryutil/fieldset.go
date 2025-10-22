@@ -48,7 +48,7 @@ func (c *GCPCommonFieldSetReader) Read(reader *structured.NodeReader) (log.Field
 var _ log.FieldSetReader = (*GCPCommonFieldSetReader)(nil)
 
 // GCPMainMessageFieldSetReader read its main message from the content of log stored on Cloud Logging.
-// It treats fields as its main message in the order: `textPayload` > `jsonPayload.****` (**** would be `message`, `msg`...etc)
+// It treats fields as its main message in the order: `textPayload` > `jsonPayload.****` (**** would be `message`, `msg`...etc) > jsonPayload > labels
 type GCPMainMessageFieldSetReader struct{}
 
 func (g *GCPMainMessageFieldSetReader) FieldSetKind() string {
@@ -57,20 +57,37 @@ func (g *GCPMainMessageFieldSetReader) FieldSetKind() string {
 
 func (g *GCPMainMessageFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	result := &log.MainMessageFieldSet{}
-	textPayload, err := reader.ReadString("textPayload")
-	if err == nil {
-		result.MainMessage = textPayload
+	switch {
+	case reader.Has("protoPayload"):
 		return result, nil
+	case reader.Has("textPayload"):
+		result.MainMessage = reader.ReadStringOrDefault("textPayload", "")
+	case reader.Has("jsonPayload"):
+		foundMessageField := false
+		for _, fieldName := range jsonPayloadMessageFieldNames {
+			jsonPayloadMessage, err := reader.ReadString(fmt.Sprintf("jsonPayload.%s", fieldName))
+			if err == nil {
+				result.MainMessage = jsonPayloadMessage
+				foundMessageField = true
+				break
+			}
+		}
+		if !foundMessageField {
+			serialized, err := reader.Serialize("jsonPayload", &structured.JSONNodeSerializer{})
+			if err != nil {
+				return nil, err
+			}
+			result.MainMessage = string(serialized)
+		}
+	case reader.Has("labels"):
+		serialized, err := reader.Serialize("labels", &structured.JSONNodeSerializer{})
+		if err != nil {
+			return nil, err
+		}
+		result.MainMessage = string(serialized)
 	}
 
-	for _, fieldName := range jsonPayloadMessageFieldNames {
-		jsonPayloadMessage, err := reader.ReadString(fmt.Sprintf("jsonPayload.%s", fieldName))
-		if err == nil {
-			result.MainMessage = jsonPayloadMessage
-			return result, nil
-		}
-	}
-	return &log.MainMessageFieldSet{}, nil
+	return result, nil
 }
 
 var _ log.FieldSetReader = (*GCPMainMessageFieldSetReader)(nil)
