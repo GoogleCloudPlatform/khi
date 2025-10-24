@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logconvert
+package googlecloudbigquery_contract
 
-// Imports proto definition here to automatically register them in the default proto resolver.
 import (
-	_ "google.golang.org/api/logging/v2"
-	_ "google.golang.org/genproto/googleapis/cloud/audit"
-	_ "google.golang.org/genproto/googleapis/cloud/bigquery/logging/v1"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 )
+
+var BigQueryTaskIDPrefix = googlecloudcommon_contract.GoogleCloudCommonTaskIDPrefix + "bigquery/"
+
+var BigQueryCompletedEventQueryID = taskid.NewDefaultImplementationID[[]*log.Log](BigQueryTaskIDPrefix + "completedEvent")
+var BigQueryJobParserTaskID = taskid.NewDefaultImplementationID[struct{}](BigQueryTaskIDPrefix + "jobs")

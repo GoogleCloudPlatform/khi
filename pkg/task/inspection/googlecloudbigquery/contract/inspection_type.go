@@ -12,11 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logconvert
+package googlecloudbigquery_contract
 
-// Imports proto definition here to automatically register them in the default proto resolver.
 import (
-	_ "google.golang.org/api/logging/v2"
-	_ "google.golang.org/genproto/googleapis/cloud/audit"
-	_ "google.golang.org/genproto/googleapis/cloud/bigquery/logging/v1"
+	"math"
+
+	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 )
+
+var InspectionTypeId = "gcp-bigquery"
+
+var BigQueryInspectionType = coreinspection.InspectionType{
+	Id:          InspectionTypeId,
+	Name:        "BigQuery",
+	Description: `Visualize BigQuery Job. This inspection allows you to see all BigQuery jobs whitin the specified project.`,
+	Icon:        "assets/icons/composer.webp",
+	Priority:    math.MaxInt - 1001,
+}
