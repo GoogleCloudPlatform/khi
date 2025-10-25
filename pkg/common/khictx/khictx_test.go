@@ -16,9 +16,11 @@ package khictx_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
@@ -49,6 +51,9 @@ func TestGetValue(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error for non-existent value, got nil")
 		}
+		if !errors.Is(err, khierrors.ErrNotFound) {
+			t.Errorf("Expected error to be ErrNotFound, got %v", err)
+		}
 	})
 
 	// Test value exists but is of wrong type
@@ -61,6 +66,9 @@ func TestGetValue(t *testing.T) {
 		_, err := khictx.GetValue(ctx, intKey)
 		if err == nil {
 			t.Error("Expected type conversion error, got nil")
+		}
+		if !errors.Is(err, khierrors.ErrTypeConversionFailed) {
+			t.Errorf("Expected error to be ErrTypeConversionFailed, got %v", err)
 		}
 	})
 }

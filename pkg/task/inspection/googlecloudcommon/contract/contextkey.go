@@ -19,4 +19,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
+// APIClientFactoryOptionsContextKey is the key to retrieve googlecloud.ClientFactoryOption from task context.
+// The value is injected on the task server during the initialization.
 var APIClientFactoryOptionsContextKey = typedmap.NewTypedKey[*[]googlecloud.ClientFactoryOption]("api-client-factory-options")
+
+// APICallOptionsInjectorContextKey is the key to retrieve the list of googlecloud.CallOptionInjectorOption from task context.
+// The value is injected on the task server during the initialization.
+var APICallOptionsInjectorContextKey = typedmap.NewTypedKey[*[]googlecloud.CallOptionInjectorOption]("api-call-option-injector-options")
