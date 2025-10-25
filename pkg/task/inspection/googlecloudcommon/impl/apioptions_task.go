@@ -32,11 +32,12 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID,
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
-		options, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
-		if err != nil || options == nil {
-			return []googlecloud.ClientFactoryOption{}, nil
+		var options []googlecloud.ClientFactoryOption
+		optionsFromContext, _ := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
+		if optionsFromContext != nil {
+			options = *optionsFromContext
 		}
-		return *options, nil
+		return options, nil
 	},
 	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),
 )
@@ -47,7 +48,12 @@ var APICallOptionsInjectorTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID,
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
-		return googlecloud.NewCallOptionInjector(), nil
+		var options []googlecloud.CallOptionInjectorOption
+		optionsFromContext, _ := khictx.GetValue(ctx, googlecloudcommon_contract.APICallOptionsInjectorContextKey)
+		if optionsFromContext != nil {
+			options = *optionsFromContext
+		}
+		return googlecloud.NewCallOptionInjector(options...), nil
 	},
 	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),
 )
