@@ -16,26 +16,20 @@ package googlecloud
 
 import "testing"
 
-func TestProjectResourceContainer_GetType(t *testing.T) {
-	gotType := Project("foo").GetType()
+func TestProjectResourceContainer(t *testing.T) {
+	const projectID = "foo"
+	p := Project(projectID)
 
-	if gotType != ResourceContainerProject {
+	if gotType := p.GetType(); gotType != ResourceContainerProject {
 		t.Errorf("GetType() = %v, want %v", gotType, ResourceContainerProject)
 	}
-}
 
-func TestProjectResourceContainer_Identifier(t *testing.T) {
-	gotIdentifier := Project("foo").Identifier()
-
-	if gotIdentifier != "projects/foo" {
-		t.Errorf("Identifier() = %q, want %q", gotIdentifier, "projects/foo")
+	const wantIdentifier = "projects/foo"
+	if gotIdentifier := p.Identifier(); gotIdentifier != wantIdentifier {
+		t.Errorf("Identifier() = %q, want %q", gotIdentifier, wantIdentifier)
 	}
-}
 
-func TestProjectResourceContainer_ProjectID(t *testing.T) {
-	gotProjectID := Project("foo").ProjectID()
-
-	if gotProjectID != "foo" {
-		t.Errorf("ProjectID() = %q, want %q", gotProjectID, "foo")
+	if gotProjectID := p.ProjectID(); gotProjectID != projectID {
+		t.Errorf("ProjectID() = %q, want %q", gotProjectID, projectID)
 	}
 }

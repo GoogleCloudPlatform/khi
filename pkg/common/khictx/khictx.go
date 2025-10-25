@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"reflect"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 )
 
@@ -29,12 +30,12 @@ func GetValue[T any](ctx context.Context, key typedmap.TypedKey[T]) (T, error) {
 	var zero T
 	valueAny := ctx.Value(key)
 	if valueAny == nil {
-		return zero, fmt.Errorf("value not found for key: %s", key.Key())
+		return zero, fmt.Errorf("value not found for key: %s: %w", key.Key(), khierrors.ErrNotFound)
 	}
 
 	value, convertible := valueAny.(T)
 	if !convertible {
-		return zero, fmt.Errorf("value of type %T cannot be converted to type %T", valueAny, *new(T))
+		return zero, fmt.Errorf("value of type %T cannot be converted to type %T: %w", valueAny, *new(T), khierrors.ErrTypeConversionFailed)
 	}
 	return value, nil
 }

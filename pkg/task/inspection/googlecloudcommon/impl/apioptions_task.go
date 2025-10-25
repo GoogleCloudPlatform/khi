@@ -16,9 +16,11 @@ package googlecloudcommon_impl
 
 import (
 	"context"
+	"errors"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -33,7 +35,10 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
 		var options []googlecloud.ClientFactoryOption
-		optionsFromContext, _ := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
+		optionsFromContext, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
+		if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
+			return nil, err
+		}
 		if optionsFromContext != nil {
 			options = *optionsFromContext
 		}
@@ -49,7 +54,10 @@ var APICallOptionsInjectorTask = inspectiontaskbase.NewInspectionTask(
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
 		var options []googlecloud.CallOptionInjectorOption
-		optionsFromContext, _ := khictx.GetValue(ctx, googlecloudcommon_contract.APICallOptionsInjectorContextKey)
+		optionsFromContext, err := khictx.GetValue(ctx, googlecloudcommon_contract.APICallOptionsInjectorContextKey)
+		if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
+			return nil, err
+		}
 		if optionsFromContext != nil {
 			options = *optionsFromContext
 		}
