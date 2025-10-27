@@ -16,9 +16,11 @@ package googlecloudcommon_impl
 
 import (
 	"context"
+	"errors"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -32,11 +34,15 @@ var APIClientFactoryOptionsTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID,
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]googlecloud.ClientFactoryOption, error) {
-		options, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
-		if err != nil || options == nil {
-			return []googlecloud.ClientFactoryOption{}, nil
+		var options []googlecloud.ClientFactoryOption
+		optionsFromContext, err := khictx.GetValue(ctx, googlecloudcommon_contract.APIClientFactoryOptionsContextKey)
+		if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
+			return nil, err
 		}
-		return *options, nil
+		if optionsFromContext != nil {
+			options = *optionsFromContext
+		}
+		return options, nil
 	},
 	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),
 )
@@ -47,7 +53,15 @@ var APICallOptionsInjectorTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID,
 	[]taskid.UntypedTaskReference{},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloud.CallOptionInjector, error) {
-		return googlecloud.NewCallOptionInjector(), nil
+		var options []googlecloud.CallOptionInjectorOption
+		optionsFromContext, err := khictx.GetValue(ctx, googlecloudcommon_contract.APICallOptionsInjectorContextKey)
+		if err != nil && !errors.Is(err, khierrors.ErrNotFound) {
+			return nil, err
+		}
+		if optionsFromContext != nil {
+			options = *optionsFromContext
+		}
+		return googlecloud.NewCallOptionInjector(options...), nil
 	},
 	coretask.WithSelectionPriority(googlecloudcommon_contract.DefaultAPIClientOptionTasksPriority),
 )

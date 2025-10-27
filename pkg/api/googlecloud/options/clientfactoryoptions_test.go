@@ -35,6 +35,11 @@ func (m *mockTokenSource) Token() (*oauth2.Token, error) {
 // nonProjectContainer is a dummy implementation of ResourceContainer for testing.
 type nonProjectContainer struct{}
 
+// Identifier implements googlecloud.ResourceContainer.
+func (c *nonProjectContainer) Identifier() string {
+	return "testing"
+}
+
 // GetType implements googlecloud.ResourceContainer.
 func (c *nonProjectContainer) GetType() googlecloud.ResourceContainerType {
 	return googlecloud.ResourceContainerInvalid

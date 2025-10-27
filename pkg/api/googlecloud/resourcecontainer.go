@@ -14,13 +14,18 @@
 
 package googlecloud
 
+import "fmt"
+
 // ResourceContainerType represents the type of a Google Cloud resource container.
 type ResourceContainerType int
 
 // ResourceContainer is an interface that represents a container for Google Cloud resources (e.g., project, organization, folder, or billing account).
 // ClientFactory receives a resource container to generate a client. This is needed because KHI can use multiple clients when it needs to gather logs or resource info from multiple projects.
 type ResourceContainer interface {
+	// GetType returns the type of the resource container.
 	GetType() ResourceContainerType
+	// Identifier returns a unique string identifier for the resource container.
+	Identifier() string
 }
 
 const (
@@ -42,7 +47,7 @@ type projectResourceContainerImpl struct {
 }
 
 // Project creates a new ResourceContainer for a Google Cloud project with the given project ID.
-func Project(projectID string) ResourceContainer {
+func Project(projectID string) ProjectResourceContainer {
 	return &projectResourceContainerImpl{
 		projectID: projectID,
 	}
@@ -56,6 +61,12 @@ func (p *projectResourceContainerImpl) GetType() ResourceContainerType {
 // ProjectID returns the projectID of this container.
 func (p *projectResourceContainerImpl) ProjectID() string {
 	return p.projectID
+}
+
+// Identifier returns the unique identifier for this resource container.
+// For a project, this is in the format "projects/projectID".
+func (p *projectResourceContainerImpl) Identifier() string {
+	return fmt.Sprintf("projects/%s", p.projectID)
 }
 
 var _ ProjectResourceContainer = (*projectResourceContainerImpl)(nil)
