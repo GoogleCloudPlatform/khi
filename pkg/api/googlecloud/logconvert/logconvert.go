@@ -16,6 +16,7 @@ package logconvert
 
 import (
 	"slices"
+	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -173,7 +174,7 @@ func protoToMapNode(protoAny proto.Message) (structured.Node, error) {
 }
 
 // protoTimestampToScalar converts a timestamppb.Timestamp protobuf message into a structured.Node
-// containing a scalar string representation of the timestamp in "2006-01-02T15:04:05Z" format.
-func protoTimestampToScalar(time *timestamppb.Timestamp) structured.Node {
-	return structured.NewStandardScalarNode(time.AsTime().UTC().Format("2006-01-02T15:04:05Z"))
+// containing a scalar string representation of the timestamp in RFC3339Nano format.
+func protoTimestampToScalar(pbTime *timestamppb.Timestamp) structured.Node {
+	return structured.NewStandardScalarNode(pbTime.AsTime().UTC().Format(time.RFC3339Nano))
 }

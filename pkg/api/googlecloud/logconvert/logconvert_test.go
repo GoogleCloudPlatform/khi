@@ -33,7 +33,7 @@ import (
 func TestLogEntryToNode(t *testing.T) {
 	now := time.Now()
 	nowpb := timestamppb.New(now)
-	nowFormatted := now.UTC().Format("2006-01-02T15:04:05Z")
+	nowFormatted := now.UTC().Format(time.RFC3339Nano)
 
 	protoPayload, err := anypb.New(&audit.AuditLog{
 		ServiceName: "foo.com",
@@ -268,13 +268,35 @@ func TestGetLogLabelsMap(t *testing.T) {
 }
 
 func TestProtoTimestampToScalar(t *testing.T) {
-	tm := time.Date(2023, 10, 26, 10, 30, 0, 0, time.UTC)
-	ts := timestamppb.New(tm)
-	want := structured.NewStandardScalarNode("2023-10-26T10:30:00Z")
+	testCases := []struct {
+		desc string
+		ts   time.Time
+		want structured.Node
+	}{
+		{
+			desc: "simple",
+			ts:   time.Date(2025, time.January, 2, 3, 4, 5, 0, time.UTC),
+			want: structured.NewStandardScalarNode("2025-01-02T03:04:05Z"),
+		},
+		{
+			desc: "with nano sec",
+			ts:   time.Date(2025, time.January, 2, 3, 4, 5, 500000000, time.UTC),
+			want: structured.NewStandardScalarNode("2025-01-02T03:04:05.5Z"),
+		},
+		{
+			desc: "with full nano sec precision",
+			ts:   time.Date(2025, time.January, 2, 3, 4, 5, 123456789, time.UTC),
+			want: structured.NewStandardScalarNode("2025-01-02T03:04:05.123456789Z"),
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ts := timestamppb.New(tc.ts)
+			got := protoTimestampToScalar(ts)
 
-	got := protoTimestampToScalar(ts)
-
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("protoTimestampToScalar() got = %v, want %v", got, want)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(structured.StandardScalarNode[string]{})); diff != "" {
+				t.Errorf("protoTimestampToScalar() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
