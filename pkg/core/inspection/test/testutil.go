@@ -44,6 +44,17 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 	return taskCtx
 }
 
+// NextRunTaskContext generates a new context used for running inspection task from the task context used for previous task run.
+func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context) context.Context {
+	originalCtx = WithDefaultTestInspectionTaskContext(originalCtx)
+
+	globalSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore_contract.GlobalSharedMap)
+	inspectionSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore_contract.InspectionSharedMap)
+
+	originalCtx = context.WithValue(originalCtx, inspectioncore_contract.GlobalSharedMap, globalSharedMap)
+	return context.WithValue(originalCtx, inspectioncore_contract.InspectionSharedMap, inspectionSharedMap)
+}
+
 // RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
 func RunInspectionTask[T any](baseContext context.Context, task coretask.Task[T], mode inspectioncore_contract.InspectionTaskModeType, input map[string]any, taskDependencyValues ...tasktest.TaskDependencyValues) (T, *typedmap.ReadonlyTypedMap, error) {
 	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionTaskInput, input)

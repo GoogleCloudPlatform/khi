@@ -74,6 +74,8 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 		queryForms = append(queryForms, &inspectionmetadata.TextParameterFormField{
 			ParameterFormFieldBase: formFieldBase,
 			Default:                defaultValue,
+			Suggestions:            form.DefaultResourceNames,
+			ValidationTiming:       inspectionmetadata.Change,
 		})
 	}
 
