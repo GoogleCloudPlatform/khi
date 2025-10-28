@@ -38,6 +38,7 @@ import {
   Subject,
   concat,
   debounceTime,
+  exhaustMap,
   map,
   mergeMap,
   of,
@@ -288,7 +289,7 @@ export class InspectionClient {
 
   public dryRunResult = this.dryRunParameter.pipe(
     debounceTime(InspectionClient.DRYRUN_DEBOUNCE_DURATION),
-    switchMap((param) => this.dryrunDirect(param)),
+    exhaustMap((param) => this.dryrunDirect(param)), // This must be exhaustMap not to cancel a request sent before in slow network environment with switchMap.
     shareReplay(1),
   );
 
