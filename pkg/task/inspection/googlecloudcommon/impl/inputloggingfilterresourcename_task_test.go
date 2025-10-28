@@ -26,18 +26,17 @@ import (
 )
 
 func TestInputLoggingFilterResourceNameTask(t *testing.T) {
+	defaultNames := []string{"projects/foo"}
 	testCases := []struct {
-		desc         string
-		taskMode     inspectioncore_contract.InspectionTaskModeType
-		defaultNames []string
-		inputValue   string
-		wantForm     inspectionmetadata.GroupParameterFormField
+		desc       string
+		taskMode   inspectioncore_contract.InspectionTaskModeType
+		inputValue string
+		wantForm   inspectionmetadata.GroupParameterFormField
 	}{
 		{
-			desc:         "basic input",
-			taskMode:     inspectioncore_contract.TaskModeDryRun,
-			defaultNames: []string{"projects/foo"},
-			inputValue:   "projects/foo",
+			desc:       "basic input",
+			taskMode:   inspectioncore_contract.TaskModeDryRun,
+			inputValue: "projects/foo",
 			wantForm: inspectionmetadata.GroupParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Priority:    -1000000,
@@ -66,10 +65,9 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 			},
 		},
 		{
-			desc:         "invalid input",
-			taskMode:     inspectioncore_contract.TaskModeDryRun,
-			defaultNames: []string{"projects/foo"},
-			inputValue:   "invalid-resource-name",
+			desc:       "invalid input",
+			taskMode:   inspectioncore_contract.TaskModeDryRun,
+			inputValue: "invalid-resource-name",
 			wantForm: inspectionmetadata.GroupParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Priority:    -1000000,
@@ -98,27 +96,58 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 				CollapsedByDefault: true,
 			},
 		},
+		{
+			desc:       "basic input for run mode",
+			taskMode:   inspectioncore_contract.TaskModeRun,
+			inputValue: "projects/foo",
+			wantForm: inspectionmetadata.GroupParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+					Priority:    -1000000,
+					ID:          googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.ReferenceIDString(),
+					Type:        inspectionmetadata.Group,
+					Label:       "Logging filter resource names (advanced)",
+					Description: "Override these parameters when your logs are not on the same project of the cluster, or customize the log filter target resources.",
+					HintType:    inspectionmetadata.None,
+					Hint:        "",
+				},
+				Children: []inspectionmetadata.ParameterFormField{
+					&inspectionmetadata.TextParameterFormField{
+						ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+							ID:       "cloud.google.com/common/input-query-resource-names/test",
+							Type:     "text",
+							Label:    "test",
+							HintType: "none",
+						},
+						Default:          "projects/foo",
+						Suggestions:      []string{"projects/foo"},
+						ValidationTiming: "change",
+					},
+				},
+				Collapsible:        true,
+				CollapsedByDefault: true,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			resourceNames, _, err := inspectiontest.RunInspectionTask(ctx, InputLoggingFilterResourceNameTask, tc.taskMode, map[string]any{})
+			resourceNames, _, err := inspectiontest.RunInspectionTask(ctx, InputLoggingFilterResourceNameTask, inspectioncore_contract.TaskModeDryRun, map[string]any{})
 			if err != nil {
 				t.Fatalf("Failed to call InputLoggingFilterResourceNameTask at 1st time:%v", err)
 			}
 			resourceName := resourceNames.GetResourceNamesForQuery("test")
 
 			newCtx := inspectiontest.NextRunTaskContext(t.Context(), ctx)
-			resourceNames.UpdateDefaultResourceNamesForQuery("test", tc.defaultNames)
+			resourceNames.UpdateDefaultResourceNamesForQuery("test", defaultNames)
 			_, metadata, err := inspectiontest.RunInspectionTask(newCtx, InputLoggingFilterResourceNameTask, tc.taskMode, map[string]any{
 				resourceName.GetInputID(): tc.inputValue,
 			})
 			if err != nil {
-				t.Errorf("Failed to call InputLoggingFilterResourceNameTask at 2nd time:%v", err)
+				t.Fatalf("Failed to call InputLoggingFilterResourceNameTask at 2nd time:%v", err)
 			}
 			formFieldSet, found := typedmap.Get(metadata, inspectionmetadata.FormFieldSetMetadataKey)
 			if !found {
-				t.Errorf("formFieldSet is not set in the metadata")
+				t.Fatalf("formFieldSet is not set in the metadata")
 			}
 			gotForm := formFieldSet.DangerouslyGetField(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID.ReferenceIDString())
 			if diff := cmp.Diff(tc.wantForm, gotForm); diff != "" {

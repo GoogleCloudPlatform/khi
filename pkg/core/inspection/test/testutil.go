@@ -51,8 +51,8 @@ func NextRunTaskContext(originalCtx context.Context, prevRunCtx context.Context)
 	globalSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore_contract.GlobalSharedMap)
 	inspectionSharedMap := khictx.MustGetValue(prevRunCtx, inspectioncore_contract.InspectionSharedMap)
 
-	originalCtx = context.WithValue(originalCtx, inspectioncore_contract.GlobalSharedMap, globalSharedMap)
-	return context.WithValue(originalCtx, inspectioncore_contract.InspectionSharedMap, inspectionSharedMap)
+	originalCtx = khictx.WithValue(originalCtx, inspectioncore_contract.GlobalSharedMap, globalSharedMap)
+	return khictx.WithValue(originalCtx, inspectioncore_contract.InspectionSharedMap, inspectionSharedMap)
 }
 
 // RunInspectionTask execute a single task with given context. Use WithDefaultTestInspectionTaskContext to get the context.
