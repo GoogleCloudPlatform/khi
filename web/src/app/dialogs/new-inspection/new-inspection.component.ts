@@ -159,7 +159,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
         client.dryrun(req);
       });
 
-    // Send dryrun request to server when any of the parameters changed or every secounds to validate parameters.
+    // Send dryrun request to server when any of the parameters changed or every seconds to validate parameters.
     const newValueFromStore = this.store.watchAll();
     const periodicUpdate = interval(1000).pipe(
       withLatestFrom(this.store.watchAll()),
