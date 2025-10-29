@@ -20,6 +20,7 @@ import {
   BehaviorSubject,
   Subject,
   filter,
+  interval,
   map,
   merge,
   shareReplay,
@@ -158,9 +159,13 @@ export class NewInspectionDialogComponent implements OnDestroy {
         client.dryrun(req);
       });
 
-    // Send dryrun request to server when any of the parameters changed to validate parameters.
-    this.store
-      .watchAll()
+    // Send dryrun request to server when any of the parameters changed or every seconds to validate parameters.
+    const newValueFromStore = this.store.watchAll();
+    const periodicUpdate = interval(1000).pipe(
+      withLatestFrom(this.store.watchAll()),
+      map(([, values]) => values),
+    );
+    merge(newValueFromStore, periodicUpdate)
       .pipe(takeUntil(this.destroyed))
       .subscribe((values) => {
         this.dryrunRequest.next(values);

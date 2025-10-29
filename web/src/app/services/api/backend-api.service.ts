@@ -33,11 +33,14 @@ import {
 } from '../../common/schema/api-types';
 import { HttpClient, HttpEvent } from '@angular/common/http';
 import {
+  EMPTY,
   Observable,
   ReplaySubject,
   Subject,
+  catchError,
   concat,
   debounceTime,
+  exhaustMap,
   map,
   mergeMap,
   of,
@@ -288,7 +291,9 @@ export class InspectionClient {
 
   public dryRunResult = this.dryRunParameter.pipe(
     debounceTime(InspectionClient.DRYRUN_DEBOUNCE_DURATION),
-    switchMap((param) => this.dryrunDirect(param)),
+    exhaustMap((param) =>
+      this.dryrunDirect(param).pipe(catchError(() => EMPTY)),
+    ), // This must be exhaustMap not to cancel a request sent before in slow network environment with switchMap.
     shareReplay(1),
   );
 
