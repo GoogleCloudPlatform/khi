@@ -202,7 +202,7 @@ func setErrorMetadataForFetchLogError(ctx context.Context, err error) error {
 	metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 	errorMessageSet, found := typedmap.Get(metadata, inspectionmetadata.ErrorMessageSetMetadataKey)
 	if !found {
-		return fmt.Errorf("error message set metadata was not found")
+		return fmt.Errorf("error message set metadata was not found. originalError=%w", err)
 	}
 	errorMessageSet.AddErrorMessage(&inspectionmetadata.ErrorMessage{
 		ErrorId: 0,
@@ -234,6 +234,8 @@ func groupResourceNamesByContainer(resourceNames []string) ([]*resourceContainer
 			}
 			container = googlecloud.Project(projectID)
 		default:
+			// TODO: Add support for other resource containers like organizations, folders, and billingAccounts.
+			// Unsupported resource container types.
 		}
 		if container == nil {
 			return nil, fmt.Errorf("unsupported resource name %q : %w", resourceName, khierrors.ErrInvalidInput)
