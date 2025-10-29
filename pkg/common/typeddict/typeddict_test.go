@@ -17,11 +17,65 @@ package typeddict
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
 	_ "github.com/GoogleCloudPlatform/khi/internal/testflags"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func TestTypedDict_Keys(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		desc     string
+		setup    func() *TypedDict[string]
+		wantKeys []string
+	}{
+		{
+			desc: "empty dict",
+			setup: func() *TypedDict[string] {
+				return NewTypedDict[string]()
+			},
+			wantKeys: []string{},
+		},
+		{
+			desc: "dict with multiple keys",
+			setup: func() *TypedDict[string] {
+				d := NewTypedDict[string]()
+				Set(d, "key1", "value1")
+				Set(d, "key2", "value2")
+				Set(d, "key3", "value3")
+				return d
+			},
+			wantKeys: []string{"key1", "key2", "key3"},
+		},
+		{
+			desc: "dict after deletion",
+			setup: func() *TypedDict[string] {
+				d := NewTypedDict[string]()
+				Set(d, "keyA", "valueA")
+				Set(d, "keyB", "valueB")
+				Delete(d, "keyA")
+				return d
+			},
+			wantKeys: []string{"keyB"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+			d := tc.setup()
+			gotKeys := d.Keys()
+
+			if diff := cmp.Diff(tc.wantKeys, gotKeys, cmpopts.SortSlices(strings.Compare)); diff != "" {
+				t.Errorf("Keys() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
 
 func TestTypedDict_Set_Get_Delete(t *testing.T) {
 	t.Parallel()
