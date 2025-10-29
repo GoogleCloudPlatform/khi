@@ -21,26 +21,20 @@ import (
 	"testing"
 	"time"
 
-	logging "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
-// getLoggingClientImpl returns a logging client for testing project.
-func getLoggingClientImpl(t *testing.T) *logging.Client {
+// getClientFactory returns a logging client for testing project.
+func getClientFactory(t *testing.T) *googlecloud.ClientFactory {
 	t.Helper()
 
 	cf, err := googlecloud.NewClientFactory()
 	if err != nil {
 		t.Fatalf("failed to instanciate client factory: %v", err)
 	}
-
-	logging, err := cf.LoggingClient(t.Context(), googlecloud.Project("kubernetes-history-inspector"))
-	if err != nil {
-		t.Fatalf("failed to instanciate logging client:%v", err)
-	}
-	return logging
+	return cf
 }
 
 func TestLogFetcherImpl_FetchLogs(t *testing.T) {
@@ -50,7 +44,7 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 	}
 
 	fetcher := logFetcherImpl{
-		client:             getLoggingClientImpl(t),
+		factory:            getClientFactory(t),
 		pageSize:           1,
 		orderBy:            "timestamp desc", // just need the latest log. getting oldest log takes longer time.
 		callOptionInjector: googlecloud.NewCallOptionInjector(),
@@ -89,7 +83,7 @@ func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
 	}
 
 	fetcher := logFetcherImpl{
-		client:             getLoggingClientImpl(t),
+		factory:            getClientFactory(t),
 		pageSize:           1000,
 		callOptionInjector: googlecloud.NewCallOptionInjector(),
 	}

@@ -17,7 +17,6 @@ package googlecloudcommon_contract
 import (
 	"context"
 
-	logging "cloud.google.com/go/logging/apiv2"
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 	"google.golang.org/api/iterator"
@@ -32,16 +31,16 @@ type LogFetcher interface {
 
 // logFetcherImpl is the implementation of LogFetcher actually accessing to the Cloud Logging API.
 type logFetcherImpl struct {
-	client             *logging.Client
+	factory            *googlecloud.ClientFactory
 	callOptionInjector *googlecloud.CallOptionInjector
 	pageSize           int32
 	orderBy            string
 }
 
 // NewLogFetcher returns the instance of LogFetcher initialized with the given logging client.
-func NewLogFetcher(client *logging.Client, callOptionInjector *googlecloud.CallOptionInjector, pageSize int32) LogFetcher {
+func NewLogFetcher(clientFactory *googlecloud.ClientFactory, callOptionInjector *googlecloud.CallOptionInjector, pageSize int32) LogFetcher {
 	return &logFetcherImpl{
-		client:             client,
+		factory:            clientFactory,
 		pageSize:           pageSize,
 		orderBy:            "timestamp asc",
 		callOptionInjector: callOptionInjector,
@@ -51,9 +50,14 @@ func NewLogFetcher(client *logging.Client, callOptionInjector *googlecloud.CallO
 // FetchLogs implements LogFetcher.
 func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.Context, filter string, container googlecloud.ResourceContainer, resourceContainers []string) error {
 	defer close(dest)
+	client, err := l.factory.LoggingClient(ctx, container)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
 
 	ctx = l.callOptionInjector.InjectToCallContext(ctx, container)
-	iter := l.client.ListLogEntries(ctx, &loggingpb.ListLogEntriesRequest{
+	iter := client.ListLogEntries(ctx, &loggingpb.ListLogEntriesRequest{
 		ResourceNames: resourceContainers,
 		Filter:        filter,
 		OrderBy:       l.orderBy,
