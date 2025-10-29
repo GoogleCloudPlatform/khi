@@ -33,7 +33,7 @@ import (
 
 // K8sAuditQueryTask is a query generator task that creates a Google Cloud Logging query
 // to fetch Kubernetes audit logs for a specific cluster.
-var K8sAuditQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogk8saudit_contract.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
+var K8sAuditQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8saudit_contract.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),

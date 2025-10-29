@@ -59,7 +59,7 @@ func generateComputeAPIQueryWithInstanceNameFilter(instanceNameFilter string) st
 }
 
 // ComputeAPIQueryTask defines a task that queries compute API logs from Cloud Logging.
-var ComputeAPIQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
+var ComputeAPIQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogcomputeapiaudit_contract.ComputeAPIQueryTaskID, "Compute API Logs", enum.LogTypeComputeApi, []taskid.UntypedTaskReference{
 	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)

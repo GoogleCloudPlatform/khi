@@ -27,7 +27,7 @@ import (
 )
 
 // ComposerSchedulerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerSchedulerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
+var ComposerSchedulerLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID,
 	"Composer Environment/Airflow Scheduler",
 	enum.LogTypeComposerEnvironment,
@@ -41,7 +41,7 @@ var ComposerSchedulerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingLi
 )
 
 // ComposerDagProcessorManagerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerDagProcessorManagerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
+var ComposerDagProcessorManagerLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID,
 	"Composer Environment/DAG Processor Manager",
 	enum.LogTypeComposerEnvironment,
@@ -55,7 +55,7 @@ var ComposerDagProcessorManagerLogQueryTask = googlecloudcommon_contract.NewClou
 )
 
 // ComposerMonitoringLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerMonitoringLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
+var ComposerMonitoringLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerMonitoringLogQueryTaskID,
 	"Composer Environment/Airflow Monitoring",
 	enum.LogTypeComposerEnvironment,
@@ -69,7 +69,7 @@ var ComposerMonitoringLogQueryTask = googlecloudcommon_contract.NewCloudLoggingL
 )
 
 // ComposerWorkerLogQueryTask defines a task that gather Cloud Composer scheduler logs from Cloud Logging.
-var ComposerWorkerLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(
+var ComposerWorkerLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(
 	googlecloudclustercomposer_contract.ComposerWorkerLogQueryTaskID,
 	"Composer Environment/Airflow Worker",
 	enum.LogTypeComposerEnvironment,

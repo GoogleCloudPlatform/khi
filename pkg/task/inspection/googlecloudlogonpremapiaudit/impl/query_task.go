@@ -36,7 +36,7 @@ protoPayload.resourceName:"%s"
 }
 
 // OnPremCloudAuditLogQueryTask defines a task that gathers on-prem API audit logs from Cloud Logging.
-var OnPremCloudAuditLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
+var OnPremCloudAuditLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())

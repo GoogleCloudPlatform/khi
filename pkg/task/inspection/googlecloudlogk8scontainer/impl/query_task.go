@@ -90,7 +90,7 @@ func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) s
 }
 
 // GKEContainerQueryTask is a query generator task for GKE container logs.
-var GKEContainerQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
+var GKEContainerQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
 	googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),

@@ -68,7 +68,7 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 %s`, instanceNameFilter, nodeNameSubstringFilter)
 }
 
-var GKESerialPortLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogserialport_contract.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
+var GKESerialPortLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogserialport_contract.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
 	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {

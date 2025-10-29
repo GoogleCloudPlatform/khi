@@ -110,6 +110,7 @@ func newFakeLogUpstreamPair(filter string, f func(logSource chan<- *loggingpb.Lo
 	go func() {
 		startLock <- struct{}{}
 		f(logSource, errSource)
+		<-time.After(10 * time.Millisecond) // wait a short time to prevent to close the channel before the test target processes the last element
 		close(logSource)
 		close(errSource)
 	}()

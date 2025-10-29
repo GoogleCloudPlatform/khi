@@ -37,7 +37,7 @@ resource.labels.project_id="%s"
 %s`, clusterName, projectId, generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
 }
 
-var GKEK8sControlPlaneLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentQueryTaskID, "K8s control plane logs", enum.LogTypeControlPlaneComponent, []taskid.UntypedTaskReference{
+var GKEK8sControlPlaneLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8scontrolplane_contract.GKEK8sControlPlaneComponentQueryTaskID, "K8s control plane logs", enum.LogTypeControlPlaneComponent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref(),

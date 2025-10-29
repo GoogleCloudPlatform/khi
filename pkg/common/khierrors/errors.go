@@ -21,3 +21,6 @@ var ErrNotFound = errors.New("not found")
 
 // ErrTypeConversionFailed indicates that a type conversion operation failed.
 var ErrTypeConversionFailed = errors.New("type conversion failed")
+
+// ErrInvalidInput indicates that the provided input is invalid.
+var ErrInvalidInput = errors.New("invalid input")

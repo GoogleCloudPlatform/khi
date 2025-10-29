@@ -15,20 +15,26 @@
 package googlecloudcommon_contract
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typeddict"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // ResourceNamesInput is a container for resource names used in log queries.
 type ResourceNamesInput struct {
-	resourceNames *typedmap.TypedMap
+	resourceNames *typeddict.TypedDict[*QueryResourceNames]
 }
 
 // NewResourceNamesInput creates a new ResourceNamesInput.
 func NewResourceNamesInput() *ResourceNamesInput {
 	return &ResourceNamesInput{
-		resourceNames: typedmap.NewTypedMap(),
+		resourceNames: &typeddict.TypedDict[*QueryResourceNames]{},
 	}
 }
 
@@ -36,6 +42,7 @@ func NewResourceNamesInput() *ResourceNamesInput {
 type QueryResourceNames struct {
 	QueryID              string
 	DefaultResourceNames []string
+	CurrentResourceNames []string
 }
 
 // GetInputID returns the form input ID for the query.
@@ -46,21 +53,31 @@ func (q *QueryResourceNames) GetInputID() string {
 // UpdateDefaultResourceNamesForQuery updates the default resource names for a given query ID.
 func (r *ResourceNamesInput) UpdateDefaultResourceNamesForQuery(queryID string, defaultResourceNames []string) {
 	r.ensureQueryID(queryID)
-	queryResourceNames := typedmap.GetOrDefault(r.resourceNames, getMapKeyForQueryID(queryID), &QueryResourceNames{})
+	queryResourceNames := typeddict.GetOrDefault(r.resourceNames, queryID, &QueryResourceNames{})
 	queryResourceNames.DefaultResourceNames = defaultResourceNames
 }
 
 // GetResourceNamesForQuery returns the resource names for a given query ID.
-func (r *ResourceNamesInput) GetResourceNamesForQuery(queryID string) *QueryResourceNames {
+func (r *ResourceNamesInput) GetResourceNamesForQuery(ctx context.Context, queryID string) *QueryResourceNames {
 	r.ensureQueryID(queryID)
-	return typedmap.GetOrDefault(r.resourceNames, getMapKeyForQueryID(queryID), &QueryResourceNames{})
+	queryNames := typeddict.GetOrDefault(r.resourceNames, queryID, &QueryResourceNames{})
+
+	currentResourceName := r.getResourceNamesFromInput(ctx, queryNames.GetInputID(), queryNames.DefaultResourceNames)
+
+	if err := r.validateResourceNames(currentResourceName); err == nil {
+		queryNames.CurrentResourceNames = currentResourceName
+	} else {
+		queryNames.CurrentResourceNames = queryNames.DefaultResourceNames
+	}
+
+	return queryNames
 }
 
 // GetQueryResourceNamePairs returns all query ID and resource name pairs.
 func (r *ResourceNamesInput) GetQueryResourceNamePairs() []*QueryResourceNames {
 	queries := []*QueryResourceNames{}
 	for _, queryID := range r.resourceNames.Keys() {
-		resourceNames, found := typedmap.Get(r.resourceNames, getMapKeyForQueryID(queryID))
+		resourceNames, found := typeddict.Get(r.resourceNames, queryID)
 		if !found {
 			continue
 		}
@@ -70,15 +87,39 @@ func (r *ResourceNamesInput) GetQueryResourceNamePairs() []*QueryResourceNames {
 }
 
 func (r *ResourceNamesInput) ensureQueryID(queryID string) {
-	_, found := typedmap.Get(r.resourceNames, getMapKeyForQueryID(queryID))
+	_, found := typeddict.Get(r.resourceNames, queryID)
 	if !found {
-		typedmap.Set(r.resourceNames, getMapKeyForQueryID(queryID), &QueryResourceNames{
+		typeddict.Set(r.resourceNames, queryID, &QueryResourceNames{
 			QueryID:              queryID,
 			DefaultResourceNames: []string{},
 		})
 	}
 }
 
-func getMapKeyForQueryID(queryID string) typedmap.TypedKey[*QueryResourceNames] {
-	return typedmap.NewTypedKey[*QueryResourceNames](queryID)
+func (r *ResourceNamesInput) getResourceNamesFromInput(ctx context.Context, inputID string, defaultResourceNames []string) []string {
+	taskInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
+
+	inputAny, found := taskInput[inputID]
+	if !found {
+		return defaultResourceNames
+	}
+	if inputStr, ok := inputAny.(string); !ok {
+		slog.WarnContext(ctx, "non string input was given for resource names", "inputID", inputID)
+		return defaultResourceNames
+	} else {
+		resoruceNames := strings.Split(inputStr, " ")
+		for i, name := range resoruceNames {
+			resoruceNames[i] = strings.TrimSpace(name)
+		}
+		return resoruceNames
+	}
+}
+
+func (r *ResourceNamesInput) validateResourceNames(resourceNames []string) error {
+	for _, resourceName := range resourceNames {
+		if err := googlecloud.ValidateResourceNameOnLogEntriesList(resourceName); err != nil {
+			return err
+		}
+	}
+	return nil
 }

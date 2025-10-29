@@ -33,7 +33,7 @@ logName="projects/%s/logs/cloudaudit.googleapis.com%%2Factivity"
 resource.labels.cluster_name="%s"`, projectName, clusterName)
 }
 
-var GKEAuditQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudloggkeapiaudit_contract.GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []taskid.UntypedTaskReference{
+var GKEAuditQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudloggkeapiaudit_contract.GKEAuditLogQueryTaskID, "GKE Audit logs", enum.LogTypeGkeAudit, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {

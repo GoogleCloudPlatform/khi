@@ -135,8 +135,9 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to call InputLoggingFilterResourceNameTask at 1st time:%v", err)
 			}
-			resourceName := resourceNames.GetResourceNamesForQuery("test")
-
+			resourceName := googlecloudcommon_contract.QueryResourceNames{
+				QueryID: "test",
+			}
 			newCtx := inspectiontest.NextRunTaskContext(t.Context(), ctx)
 			resourceNames.UpdateDefaultResourceNamesForQuery("test", defaultNames)
 			_, metadata, err := inspectiontest.RunInspectionTask(newCtx, InputLoggingFilterResourceNameTask, tc.taskMode, map[string]any{

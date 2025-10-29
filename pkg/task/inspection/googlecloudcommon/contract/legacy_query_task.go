@@ -20,7 +20,6 @@ import (
 	"log/slog"
 	"runtime"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -42,10 +41,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
-
-// SkipQueryBody is a special query body that indicates the query should be skipped.
-// Query task will return @Skip when query builder decided to skip.
-const SkipQueryBody = "@Skip"
 
 // QueryGeneratorFunc is a function type that generates Cloud Logging queries.
 // A query task may return multiple logging filters because a logging filter has a maximum length,
@@ -77,7 +72,7 @@ func (p *ProjectIDDefaultResourceNamesGenerator) GetDependentTasks() []taskid.Un
 	}
 }
 
-func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, progressDest *inspectionmetadata.TaskProgressMetadata) {
+func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, progressDest *inspectionmetadata.TaskProgressMetadata, listCallIndex int, allListCalls int) {
 	wg.Add(1)
 	startingTime := time.Now()
 	go func() {
@@ -96,13 +91,14 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 				if elapsed > 0 {
 					lps = float64(progress.LogCount) / elapsed
 				}
-				progressDest.Update(progress.Progress, fmt.Sprintf("%d logs fetched(%.2f lps)", progress.LogCount, lps))
+				completeRatio := (float32(listCallIndex) + progress.Progress) / float32(allListCalls)
+				progressDest.Update(completeRatio, fmt.Sprintf("%d logs fetched(%.2f lps)[%d/%d]", progress.LogCount, lps, listCallIndex, allListCalls))
 			}
 		}
 	}()
 }
 
-func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log) {
+func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log, logType enum.LogType) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -119,7 +115,9 @@ func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *lo
 					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
 					continue
 				}
-				*dest = append(*dest, log.NewLog(structured.NewNodeReader(node)))
+				khiLog := log.NewLog(structured.NewNodeReader(node))
+				khiLog.LogType = logType
+				*dest = append(*dest, khiLog)
 			}
 		}
 	}()
@@ -127,8 +125,8 @@ func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *lo
 
 var _ DefaultResourceNamesGenerator = (*ProjectIDDefaultResourceNamesGenerator)(nil)
 
-// NewCloudLoggingListLogTask creates a new task that lists log entries from Cloud Logging.
-func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
+// NewLegacyCloudLoggingListLogTask creates a new task that lists log entries from Cloud Logging.
+func NewLegacyCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], readableQueryName string, logType enum.LogType, dependencies []taskid.UntypedTaskReference, resourceNamesGenerator DefaultResourceNamesGenerator, generator QueryGeneratorFunc, sampleQuery string) coretask.Task[[]*log.Log] {
 	return inspectiontaskbase.NewProgressReportableInspectionTask(taskId, append(
 		append(dependencies, resourceNamesGenerator.GetDependentTasks()...),
 		InputStartTimeTaskID.Ref(),
@@ -140,7 +138,6 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 
 		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 		resourceNames := coretask.GetTaskResult(ctx, InputLoggingFilterResourceNameTaskID.Ref())
-		taskInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 
 		defaultResourceNames, err := resourceNamesGenerator.GenerateResourceNames(ctx)
 		if err != nil {
@@ -148,26 +145,8 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 		}
 
 		resourceNames.UpdateDefaultResourceNamesForQuery(taskId.ReferenceIDString(), defaultResourceNames)
-		queryResourceNamePair := resourceNames.GetResourceNamesForQuery(taskId.ReferenceIDString())
-		resourceNamesFromInput := defaultResourceNames
-		inputStr, found := taskInput[queryResourceNamePair.GetInputID()]
-		if found {
-			resourceNamesFromInput = strings.Split(inputStr.(string), " ")
-			resourceNamesList := []string{}
-			hadError := false
-			for _, resourceNameFromInput := range resourceNamesFromInput {
-				resourceNameWithoutSurroundingSpace := strings.TrimSpace(resourceNameFromInput)
-				err := googlecloud.ValidateResourceNameOnLogEntriesList(resourceNameWithoutSurroundingSpace)
-				if err != nil {
-					hadError = true
-					break
-				}
-				resourceNamesList = append(resourceNamesList, resourceNameWithoutSurroundingSpace)
-			}
-			if !hadError {
-				resourceNamesFromInput = resourceNamesList
-			}
-		}
+		queryResourceNamePair := resourceNames.GetResourceNamesForQuery(ctx, taskId.ReferenceIDString())
+		resourceNamesFromInput := queryResourceNamePair.CurrentResourceNames
 
 		startTime := coretask.GetTaskResult(ctx, InputStartTimeTaskID.Ref())
 		endTime := coretask.GetTaskResult(ctx, InputEndTimeTaskID.Ref())
@@ -208,8 +187,8 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 				var wg sync.WaitGroup
 				var logChan = make(chan *loggingpb.LogEntry)
 				var progressChan = make(chan LogFetchProgress)
-				monitorProgress(ctx, &wg, progressChan, progress)
-				convertLogsArray(ctx, &wg, logChan, &allLogs)
+				monitorProgress(ctx, &wg, progressChan, progress, queryIndex, len(queryStrings))
+				convertLogsArray(ctx, &wg, logChan, &allLogs, logType)
 				err := progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, queryString, googlecloud.Project(projectID), resourceNamesFromInput)
 				wg.Wait()
 
@@ -247,9 +226,6 @@ func NewCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.Log], 
 				commonFieldSetForB, _ := log.GetFieldSet(b, &log.CommonFieldSet{})
 				return int(commonFieldSetForA.Timestamp.Sub(commonFieldSetForB.Timestamp))
 			})
-			for _, l := range allLogs {
-				l.LogType = logType
-			}
 			return allLogs, err
 		}
 

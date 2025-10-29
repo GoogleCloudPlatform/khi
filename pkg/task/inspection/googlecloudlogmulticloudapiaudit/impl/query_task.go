@@ -37,7 +37,7 @@ protoPayload.resourceName:"%s"
 }
 
 // MultiCloudAPIQueryTask defines a task that queries multicloud API logs from Cloud Logging.
-var MultiCloudAPIQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
+var MultiCloudAPIQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())

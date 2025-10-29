@@ -56,7 +56,7 @@ func queryFromNegNameFilter(negNameFilter string) string {
 }
 
 // NetworkAPIQueryTask defines a task that queries network API logs from Cloud Logging.
-var NetworkAPIQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlognetworkapiaudit_contract.NetworkAPIQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
+var NetworkAPIQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlognetworkapiaudit_contract.NetworkAPIQueryTaskID, "GCP network log", enum.LogTypeNetworkAPI, []taskid.UntypedTaskReference{
 	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)

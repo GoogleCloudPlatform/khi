@@ -73,7 +73,7 @@ func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) 
 }
 
 // GKEK8sEventLogQueryTask defines a task that queries Kubernetes Event logs from Cloud Logging.
-var GKEK8sEventLogQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
+var GKEK8sEventLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID, "K8s event logs", enum.LogTypeEvent, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),

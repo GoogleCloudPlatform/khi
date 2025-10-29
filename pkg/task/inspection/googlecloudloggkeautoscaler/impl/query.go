@@ -39,7 +39,7 @@ resource.labels.cluster_name="%s"
 logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, projectId, clusterName, excludeStatusQueryFragment, projectId)
 }
 
-var AutoscalerQueryTask = googlecloudcommon_contract.NewCloudLoggingListLogTask(googlecloudloggkeautoscaler_contract.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
+var AutoscalerQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudloggkeautoscaler_contract.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 }, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
