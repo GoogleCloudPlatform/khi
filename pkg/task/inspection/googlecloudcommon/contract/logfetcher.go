@@ -37,7 +37,7 @@ type logFetcherImpl struct {
 	orderBy            string
 }
 
-// NewLogFetcher returns the instance of LogFetcher initialized with the given logging client.
+// NewLogFetcher returns the instance of LogFetcher initialized with the given *googlecloud.ClientFactory.
 func NewLogFetcher(clientFactory *googlecloud.ClientFactory, callOptionInjector *googlecloud.CallOptionInjector, pageSize int32) LogFetcher {
 	return &logFetcherImpl{
 		factory:            clientFactory,

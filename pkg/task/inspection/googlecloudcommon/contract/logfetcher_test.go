@@ -26,25 +26,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
 )
 
-// getClientFactory returns a logging client for testing project.
-func getClientFactory(t *testing.T) *googlecloud.ClientFactory {
-	t.Helper()
-
-	cf, err := googlecloud.NewClientFactory()
-	if err != nil {
-		t.Fatalf("failed to instanciate client factory: %v", err)
-	}
-	return cf
-}
-
 func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 	if *testflags.SkipCloudLogging {
 		t.Skip()
 		return
 	}
 
+	cf, err := googlecloud.NewClientFactory()
+	if err != nil {
+		t.Fatalf("failed to instanciate client factory: %v", err)
+	}
 	fetcher := logFetcherImpl{
-		factory:            getClientFactory(t),
+		factory:            cf,
 		pageSize:           1,
 		orderBy:            "timestamp desc", // just need the latest log. getting oldest log takes longer time.
 		callOptionInjector: googlecloud.NewCallOptionInjector(),
@@ -69,7 +62,7 @@ func TestLogFetcherImpl_FetchLogs(t *testing.T) {
 		}
 	}()
 
-	err := fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
+	err = fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
 	if err != nil && !errors.Is(err, context.Canceled) {
 		t.Errorf("failed to fetch logs:%v", err)
 	}
@@ -82,8 +75,12 @@ func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
 		return
 	}
 
+	cf, err := googlecloud.NewClientFactory()
+	if err != nil {
+		t.Fatalf("failed to instanciate client factory: %v", err)
+	}
 	fetcher := logFetcherImpl{
-		factory:            getClientFactory(t),
+		factory:            cf,
 		pageSize:           1000,
 		callOptionInjector: googlecloud.NewCallOptionInjector(),
 	}
@@ -106,7 +103,7 @@ func TestLogFetcherImpl_FetchLogsIsCancellable(t *testing.T) {
 		}
 	}()
 
-	err := fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
+	err = fetcher.FetchLogs(destChan, ctx, "", googlecloud.Project("kubernetes-history-inspector"), []string{"projects/kubernetes-history-inspector"})
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("the request wasn't ended with canceled but got %v", err)
 	}
