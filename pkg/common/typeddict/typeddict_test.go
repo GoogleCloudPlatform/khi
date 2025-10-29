@@ -66,6 +66,7 @@ func TestTypedDict_Keys(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
 			d := tc.setup()
 			gotKeys := d.Keys()
 
