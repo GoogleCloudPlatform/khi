@@ -47,6 +47,16 @@ func (m *TypedDict[T]) lockKey(key string) func() {
 	}
 }
 
+// Keys returns all keys in the map as a slice of strings
+func (m *TypedDict[T]) Keys() []string {
+	keys := []string{}
+	m.container.Range(func(key, _ any) bool {
+		keys = append(keys, key.(string))
+		return true
+	})
+	return keys
+}
+
 // Get retrieves a value from the dictionary for the given key.
 // It returns the value and true if the key is found, otherwise it returns the zero value of type T and false.
 // It panics if the stored value is not of the expected type T, which indicates a bug or misuse.
