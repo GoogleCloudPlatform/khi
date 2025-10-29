@@ -16,6 +16,8 @@ package googlecloudcommon_contract
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -82,6 +84,7 @@ func TestNewListLogEntriesTask(t *testing.T) {
 	t.Parallel()
 	startTime := time.Date(2025, time.January, 1, 1, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
+	testErr := fmt.Errorf("test error")
 	description := &ListLogEntriesTaskDescription{
 		QueryName:      "query-foo",
 		ExampleQuery:   "resource.type=gce_instance AND severity=ERROR",
@@ -94,7 +97,7 @@ func TestNewListLogEntriesTask(t *testing.T) {
 		mode               inspectioncore_contract.InspectionTaskModeType
 		inputResourceNames string
 		wantLogsString     []string
-		wantError          bool
+		wantError          error
 	}{
 		{
 			desc: "dryrun doesn't call fetcher",
@@ -204,6 +207,28 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				"insertId: quux\nlogName: quux\n",
 			},
 		},
+		{
+			desc: "with error",
+			setting: &mockListLogEntriesTaskSetting{
+				logFilters:         []string{"foo"},
+				resourceNames:      []string{"projects/bar"},
+				timePartitionCount: 1,
+				description:        description,
+			},
+			fetcherFactory: func(t *testing.T) *mockLogFetcher {
+				return getMockFetcherFromFakeLogUpstreamPairs(t, []fakeLogUpstreamPair{
+					newFakeLogUpstreamPair(`foo
+timestamp >= "2025-01-01T01:00:00+0000"
+timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEntry, errSource chan<- error) {
+						logSource <- &loggingpb.LogEntry{InsertId: "foo", LogName: "foo"}
+						<-time.After(time.Second)
+						errSource <- testErr
+					}),
+				})
+			},
+			mode:      inspectioncore_contract.TaskModeRun,
+			wantError: testErr,
+		},
 	}
 
 	for _, tt := range testCase {
@@ -259,8 +284,10 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 				tasktest.NewTaskDependencyValuePair[LogFetcher](LoggingFetcherTaskID.Ref(), fetcher),
 				tasktest.NewTaskDependencyValuePair(InputLoggingFilterResourceNameTaskID.Ref(), resourceNamesInput),
 			)
-			if (err != nil) != tt.wantError {
-				t.Errorf("NewCloudLoggingFilterTask() error = %v, wantErr %v", err, tt.wantError)
+			if tt.wantError != nil {
+				if !errors.Is(err, tt.wantError) {
+					t.Errorf("NewCloudLoggingFilterTask() error = %v, wantErr %v", err, tt.wantError)
+				}
 				return
 			}
 
