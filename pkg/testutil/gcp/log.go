@@ -17,10 +17,12 @@ package gcp_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/internal/testflags"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 )
 
@@ -49,7 +51,7 @@ timestamp <= "2024-01-01T00:00:01Z"`, query)
 		ResourceNames: []string{fmt.Sprintf("projects/%s", testProjectID)},
 		Filter:        query,
 		PageSize:      1,
-	})
+	}, googlecloud.DefaultRetryPolicy, gax.WithTimeout(5*time.Minute))
 
 	_, err = iter.Next()
 	if err != iterator.Done {
