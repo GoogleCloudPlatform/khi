@@ -16,10 +16,13 @@ package googlecloudcommon_contract
 
 import (
 	"context"
+	"time"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
 )
 
 // LogFetcher is an interface for fetching logs from Cloud Logging with a given filter
@@ -62,7 +65,7 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 		Filter:        filter,
 		OrderBy:       l.orderBy,
 		PageSize:      l.pageSize,
-	}, googlecloud.DefaultRetryPolicy, googlecloud.NeverTimeout)
+	}, gax.WithRetry(newCloudLoggingRetrier), googlecloud.NeverTimeout)
 
 	for {
 		entry, err := iter.Next()
@@ -88,4 +91,13 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 
 	}
 	return nil
+}
+
+func newCloudLoggingRetrier() gax.Retryer {
+	// Cloud Logging may return PermissionError even when caller has sufficient permission especially when the project contains many log views.
+	// Allow up to 5 Permission errors in series.
+	return googlecloud.NewRetryWithCountBudget([]codes.Code{
+		codes.PermissionDenied,
+	}, 100*time.Millisecond, 1.0, time.Second, 5, googlecloud.NewDefaultRetryer(),
+	)
 }
