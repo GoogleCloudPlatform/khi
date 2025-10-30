@@ -133,6 +133,7 @@ func (s *StandardProgressReportableLogFetcher) FetchLogsWithProgress(dest chan<-
 	err := s.fetcher.FetchLogs(stubChan, ctx, filter, container, resourceContainers)
 	if err != nil {
 		cancelSubroutine()
+		wg.Wait()
 		return err
 	}
 
