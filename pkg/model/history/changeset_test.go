@@ -209,7 +209,7 @@ func TestChangesetFlushIsThreadSafe(t *testing.T) {
 	for _, group := range l {
 		allLogs = append(allLogs, group...)
 	}
-	err := builder.PrepareParseLogs(context.Background(), allLogs, func() {})
+	err := builder.SerializeLogs(context.Background(), allLogs, func() {})
 	if err != nil {
 		t.Fatal(err.Error())
 	}

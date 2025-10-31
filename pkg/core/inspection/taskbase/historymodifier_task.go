@@ -39,6 +39,10 @@ import (
 // structured history.
 // To process data generated from processing the last log in the same group, the method ModifyChangeSetFromLog receive and return a variable typed T.
 type HistoryModifer[T any] interface {
+	// LogSerializerTask is one of prerequiste task of HistoryModifier serializes its logs to history data before processing with this modifier.
+	LogSerializerTask() taskid.TaskReference[[]*log.Log]
+	// Dependencies are the additional references used in history modifier.
+	Dependencies() []taskid.UntypedTaskReference
 	// GroupedLogTask returns a reference to the task that provides the grouped logs.
 	GroupedLogTask() taskid.TaskReference[LogGroupMap]
 	// ModifyChangeSetFromLog is called for each log entry to modify the corresponding ChangeSet.
@@ -50,15 +54,17 @@ type HistoryModifer[T any] interface {
 // NewHistoryModifierTask creates a task that modifies the history builder based on grouped logs.
 // It processes logs in parallel and applies the logic from the provided HistoryModifer
 // to build a comprehensive history of events.
-func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], historyModifier HistoryModifer[T]) coretask.Task[struct{}] {
-	return NewProgressReportableInspectionTask(tid, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], historyModifier HistoryModifer[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
+	groupedLogTaskID := historyModifier.GroupedLogTask()
+	dependencies := append([]taskid.UntypedTaskReference{historyModifier.LogSerializerTask(), historyModifier.GroupedLogTask()}, historyModifier.Dependencies()...)
+	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
 			return struct{}{}, nil
 		}
 
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
-		groupedLogs := coretask.GetTaskResult(ctx, historyModifier.GroupedLogTask())
+		groupedLogs := coretask.GetTaskResult(ctx, groupedLogTaskID)
 
 		totalLogCount := 0
 		var processedLogCount atomic.Uint32
@@ -72,15 +78,6 @@ func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], hi
 			tp.Message = fmt.Sprintf("%d/%d", current, totalLogCount)
 		})
 		updator.Start(ctx)
-
-		for _, group := range groupedLogs {
-			err := builder.PrepareParseLogs(ctx, group.Logs, func() {
-				processedLogCount.Add(1)
-			})
-			if err != nil {
-				return struct{}{}, err
-			}
-		}
 
 		processedLogCount.Store(0)
 
@@ -118,5 +115,7 @@ func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], hi
 		updator.Done()
 
 		return struct{}{}, nil
-	})
+	}, append([]coretask.LabelOpt{
+		// Tasks modifying history must be dependent from SerializerTask.
+		coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())}, labels...)...)
 }

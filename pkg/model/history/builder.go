@@ -248,9 +248,9 @@ func (builder *Builder) rewriteRelationship(path string, relationship enum.Paren
 	return nil
 }
 
-// PrepareParseLogs will prepare this builder to be ready to handle parsing logs by groups.
-func (builder *Builder) PrepareParseLogs(ctx context.Context, entireLogs []*log.Log, onLogPorcessed func()) error {
-	parallelism := 16
+// SerializeLogs will store given logs to this builder to be ready to handle parsing logs by groups.
+func (builder *Builder) SerializeLogs(ctx context.Context, entireLogs []*log.Log, onLogPorcessed func()) error {
+	parallelism := 10
 	errGrp := errgroup.Group{}
 
 	for i := 0; i < parallelism; i++ {

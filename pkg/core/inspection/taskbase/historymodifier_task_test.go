@@ -33,6 +33,8 @@ import (
 
 var mockHistoryModifierPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-history-modifier-prev")
 
+var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-history-modifier-prev-log-serializer")
+
 type mockHistoryModifierGroupData struct {
 	CurrentGroupLogCount int
 }
@@ -43,6 +45,14 @@ type mockHistoryModifier struct {
 // GroupedLogTask implements HistoryModifer.
 func (m *mockHistoryModifier) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
 	return mockHistoryModifierPrevTaskID.Ref()
+}
+
+func (m *mockHistoryModifier) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
+	return mockLogSerializerPrevTaskID.Ref()
+}
+
+func (m *mockHistoryModifier) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
 }
 
 // ModifyChangeSetFromLog implements HistoryModifer.
@@ -265,8 +275,14 @@ func TestHistoryModifierTask(t *testing.T) {
 			task := NewHistoryModifierTask(tid, &mockHistoryModifier{})
 			builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 
-			_, _, err := inspectiontest.RunInspectionTask(ctx, task, testCase.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockHistoryModifierPrevTaskID.Ref(), testCase.prevLogGroupMap))
+			for _, group := range testCase.prevLogGroupMap {
+				err := builder.SerializeLogs(ctx, group.Logs, func() {})
+				if err != nil {
+					t.Fatalf("failed to serialize logs to history")
+				}
+			}
 
+			_, _, err := inspectiontest.RunInspectionTask(ctx, task, testCase.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockHistoryModifierPrevTaskID.Ref(), testCase.prevLogGroupMap))
 			if (err != nil) != testCase.wantError {
 				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, testCase.wantError)
 			}

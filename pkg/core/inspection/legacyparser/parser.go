@@ -81,7 +81,7 @@ func NewParserTaskFromParser(taskId taskid.TaskImplementationID[struct{}], parse
 			tp.Message = fmt.Sprintf("%d/%d", current, len(logs))
 		})
 		updator.Start(ctx)
-		err := builder.PrepareParseLogs(ctx, logs, func() {
+		err := builder.SerializeLogs(ctx, logs, func() {
 			preparedLogCount.Add(1)
 		})
 		if err != nil {
