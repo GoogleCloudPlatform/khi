@@ -20,9 +20,29 @@ import (
 )
 
 // Register registers all googlecloudlogserialport inspection tasks to the registry.
+/*
+flowchart TD
+    LogQueryTask
+    LogFilterTask
+    FieldSetReadTask
+    LogSerializerTask
+    LogGrouperTask
+    HistoryModifierTask
+
+    LogQueryTask --> FieldSetReadTask
+    FieldSetReadTask --> LogFilterTask
+    LogFilterTask --> LogSerializerTask
+    LogFilterTask --> LogGrouperTask
+    LogGrouperTask --> HistoryModifierTask
+    LogSerializerTask --> HistoryModifierTask
+*/
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		GKESerialPortLogQueryTask,
-		GKESerialPortLogParseTask,
+		LogQueryTask,
+		FieldSetReadTask,
+		LogSerializerTask,
+		LogGrouperTask,
+		LogFilterTask,
+		HistoryModifierTask,
 	)
 }
