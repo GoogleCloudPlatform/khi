@@ -165,7 +165,7 @@ bar: "world"`,
 			}
 
 			testSourceTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("source")
-			testTaskID := taskid.NewDefaultImplementationID[struct{}]("dest")
+			testTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("dest")
 			fieldSetReadTask := NewFieldSetReadTask(testTaskID, testSourceTaskID.Ref(), tc.readers)
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(context.Background())
