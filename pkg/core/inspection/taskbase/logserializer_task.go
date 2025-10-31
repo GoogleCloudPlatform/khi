@@ -40,6 +40,7 @@ func NewLogSerializerTask(taskID taskid.TaskImplementationID[[]*log.Log], input 
 		err := builder.SerializeLogs(ctx, logs, func() {
 			p := float32(processedLogCount) / float32(len(logs))
 			progress.Update(p, fmt.Sprintf("%d/%d", processedLogCount, len(logs)))
+			processedLogCount++
 		})
 
 		if err != nil {
