@@ -55,6 +55,12 @@ const (
 
 	RevisionStateProvisioning RevisionState = 29 // Added since 0.42
 
+	// BigQuery
+	RevisionStateBigQueryJobPending RevisionState = 30
+	RevisionStateBigQueryJobRunning RevisionState = 31
+	RevisionStateBigQueryJobSuccess RevisionState = 32
+	RevisionStateBigQueryJobFailed  RevisionState = 33
+
 	revisionStateUnusedEnd // Adds items above. This value is used for counting items in this enum to test.
 )
 
@@ -253,5 +259,30 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		BackgroundColor: "#4444ff",
 		CSSSelector:     "provisioning",
 		Label:           "Resource is being provisioned",
+	},
+	// BigQuery
+	RevisionStateBigQueryJobPending: {
+		EnumKeyName:     "RevisionStateBigQueryJobPending",
+		BackgroundColor: "#997700",
+		CSSSelector:     "job_pending",
+		Label:           "Job is pending...",
+	},
+	RevisionStateBigQueryJobRunning: {
+		EnumKeyName:     "RevisionStateBigQueryJobRunning",
+		BackgroundColor: "#007700",
+		CSSSelector:     "job_running",
+		Label:           "Job is running...",
+	},
+	RevisionStateBigQueryJobSuccess: {
+		EnumKeyName:     "RevisionStateBigQueryJobSuccess",
+		BackgroundColor: "#113333",
+		CSSSelector:     "job_success",
+		Label:           "Job completed with success state",
+	},
+	RevisionStateBigQueryJobFailed: {
+		EnumKeyName:     "RevisionStateBigQueryJobFailed",
+		BackgroundColor: "#331111",
+		CSSSelector:     "job_failed",
+		Label:           "Job completed with errournous state",
 	},
 }

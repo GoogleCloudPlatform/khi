@@ -1,0 +1,89 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+protoPayload:
+  '@type': type.googleapis.com/google.cloud.audit.AuditLog
+  status: {}
+  authenticationInfo:
+    principalEmail: requester
+  requestMetadata:
+    callerSuppliedUserAgent: BigQuery Data Transfer Service
+    requestAttributes: {}
+    destinationAttributes: {}
+  serviceName: bigquery.googleapis.com
+  methodName: jobservice.jobcompleted
+  resourceName: projects/project-id/jobs/scheduled_query_67fe258f-0000-29b2-818e-2405888306ac
+  serviceData:
+    '@type': type.googleapis.com/google.cloud.bigquery.logging.v1.AuditData
+    jobCompletedEvent:
+      eventName: query_job_completed
+      job:
+        jobName:
+          projectId: project-id
+          jobId: scheduled_query_67fe258f-0000-29b2-818e-2405888306ac
+          location: US
+        jobConfiguration:
+          labels:
+            data_source_id: scheduled_query
+            dts_run_id: 67fe258f-0000-29b2-818e-2405888306ac
+            dts_config_id: 650c58b2-0000-21b9-83ee-94eb2c1b8266
+          query:
+            query: SELECT name from `simple.stringtable`
+            destinationTable:
+              projectId: project-id
+              datasetId: simple
+              tableId: scheduled
+            createDisposition: CREATE_IF_NEEDED
+            writeDisposition: WRITE_APPEND
+            defaultDataset:
+              projectId: '974872342199'
+              datasetId: simple
+            queryPriority: QUERY_BATCH
+            statementType: SELECT
+        jobStatus:
+          state: DONE
+          error:
+            code: 5
+            message: Internal Error
+          additionalErrors:
+            - code: 5
+              message: Internal Error
+        jobStatistics:
+          createTime: '2025-03-18T13:01:01.665Z'
+          startTime: '2025-03-18T13:01:02.015Z'
+          endTime: '2025-03-18T13:01:03.571Z'
+          totalProcessedBytes: '165'
+          totalBilledBytes: '10485760'
+          billingTier: 1
+          totalSlotMs: '1842'
+          referencedTables:
+            - projectId: project-id
+              datasetId: simple
+              tableId: stringtable
+            - projectId: project-id
+              datasetId: simple
+              tableId: stringtable
+          totalTablesProcessed: 1
+          totalViewsProcessed: 1
+          queryOutputRowCount: '17'
+          reservation: unreserved
+insertId: n2r6yzefjaj3
+resource:
+  type: bigquery_resource
+  labels:
+    project_id: project-id
+timestamp: '2025-03-18T13:01:03.600185Z'
+severity: ERROR
+logName: projects/project-id/logs/cloudaudit.googleapis.com%2Fdata_access
+receiveTimestamp: '2025-03-18T13:01:04.019984013Z'

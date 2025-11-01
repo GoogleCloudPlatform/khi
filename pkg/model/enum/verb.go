@@ -56,6 +56,11 @@ const (
 
 	RevisionVerbTerminating RevisionVerb = 31 // Added since 0.41 for endpoint slice
 
+	// BigQuery
+	RevisionVerbBigQuryJobCreate RevisionVerb = 32
+	RevisionVerbBigQuryJobStart  RevisionVerb = 33
+	RevisionVerbBigQuryJobDone   RevisionVerb = 34
+
 	revisionVerbUnusedEnd // Adds items above. This value is used for counting items in this enum to test.
 )
 
@@ -261,5 +266,23 @@ var RevisionVerbs = map[RevisionVerb]RevisionVerbFrontendMetadata{
 		Label:                "Unimplemented",
 		LabelBackgroundColor: "#DDDDDD",
 		CSSSelector:          "composer-taskinstance-unimplemented",
+	},
+	RevisionVerbBigQuryJobCreate: {
+		EnumKeyName:          "RevisionVerbBigQuryJobCreate",
+		Label:                "Create",
+		LabelBackgroundColor: "#FDD835",
+		CSSSelector:          "job-created",
+	},
+	RevisionVerbBigQuryJobStart: {
+		EnumKeyName:          "RevisionVerbBigQuryJobStart",
+		Label:                "Start",
+		LabelBackgroundColor: "#22CC22",
+		CSSSelector:          "job-started",
+	},
+	RevisionVerbBigQuryJobDone: {
+		EnumKeyName:          "RevisionVerbBigQuryJobDone",
+		Label:                "Done",
+		LabelBackgroundColor: "#007700",
+		CSSSelector:          "job-done",
 	},
 }
