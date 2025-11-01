@@ -78,3 +78,20 @@ func (r *MatchResourcePathSet) Assert(t *testing.T, cs *history.ChangeSet) {
 }
 
 var _ ChangeSetAsserter = (*MatchResourcePathSet)(nil)
+
+type HasEvent struct {
+	ResourcePath string
+}
+
+// Assert implements ChangeSetAsserter.
+func (h *HasEvent) Assert(t *testing.T, cs *history.ChangeSet) {
+	t.Helper()
+	events := cs.GetEvents(resourcepath.ResourcePath{
+		Path: h.ResourcePath,
+	})
+	if len(events) == 0 {
+		t.Errorf("no events found for %s", h.ResourcePath)
+	}
+}
+
+var _ ChangeSetAsserter = (*HasEvent)(nil)

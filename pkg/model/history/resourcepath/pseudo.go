@@ -65,10 +65,10 @@ func NodeComponent(nodeName string, syslogIdentifier string) ResourcePath {
 }
 
 // NodeSerialport returns a ResourcePath for the pseudo serial port timeline under nodes.
-func NodeSerialport(nodeName string) ResourcePath {
+func NodeSerialport(nodeName, port string) ResourcePath {
 	node := Node(nodeName)
 	node.ParentRelationship = enum.RelationshipSerialPort
-	node.Path = fmt.Sprintf("%s#serialport", node.Path)
+	node.Path = fmt.Sprintf("%s#%s", node.Path, port)
 	return node
 }
 

@@ -15,6 +15,8 @@
 package logutil
 
 import (
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -24,6 +26,26 @@ var ANSIBeginSequences []string = []string{
 	"\\x1b[",
 	"\\033[",
 	"\\u001B[",
+}
+
+// ansiSuffixCharacter is the characters that can be a suffix of the escape sequences.
+// https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+var ansiSuffixCharacter map[byte]struct{} = map[byte]struct{}{
+	'm': {}, // color
+	'J': {}, // erase function
+	'K': {}, // erase function
+	'H': {}, // others are for cursors
+	'f': {},
+	'A': {},
+	'B': {},
+	'C': {},
+	'D': {},
+	'E': {},
+	'F': {},
+	'G': {},
+	'n': {},
+	's': {},
+	'u': {},
 }
 
 // SpecialSequenceConverter converts specific sequences from string to the other or removes them. (e.g ASCII escape characters, ANSI color characters)
@@ -57,6 +79,43 @@ func (c *SequenceConverter) Convert(s string) string {
 
 var _ SpecialSequenceConverter = (*SequenceConverter)(nil)
 
+type RegexSequenceConverter struct {
+	// Regex is the regular expression to match.
+	Regex *regexp.Regexp
+	// Repl is the replacement string.
+	Repl string
+}
+
+// NewRegexSequenceConverter instanciate RegexSequenceConverter from given string regex and replace target.
+func NewRegexSequenceConverter(regex string, repl string) (*RegexSequenceConverter, error) {
+	if regex == "" {
+		return nil, fmt.Errorf("regex string must not be empty")
+	}
+	r, err := regexp.Compile(regex)
+	if err != nil {
+		return nil, err
+	}
+	return &RegexSequenceConverter{
+		Regex: r,
+		Repl:  repl,
+	}, nil
+}
+
+func MustNewRegexSequenceConverter(regex string, repl string) *RegexSequenceConverter {
+	converter, err := NewRegexSequenceConverter(regex, repl)
+	if err != nil {
+		panic(err)
+	}
+	return converter
+}
+
+// Convert implements SpecialSequenceConverter.
+func (r *RegexSequenceConverter) Convert(s string) string {
+	return r.Regex.ReplaceAllString(s, r.Repl)
+}
+
+var _ SpecialSequenceConverter = (*RegexSequenceConverter)(nil)
+
 // ANSIEscapeSequenceStripper removes ANSI escape sequences.
 type ANSIEscapeSequenceStripper struct {
 }
@@ -67,10 +126,12 @@ func (a *ANSIEscapeSequenceStripper) Convert(s string) string {
 	for i := 0; i < len(s); i++ {
 		ansiFound := false
 		nextFound := len(s)
+		ansiPrefixLength := 0
 		for _, beginSequence := range ANSIBeginSequences {
 			nextFoundForSequence := strings.Index(s[i:], beginSequence)
 			if nextFoundForSequence != -1 && nextFoundForSequence < nextFound {
 				nextFound = nextFoundForSequence
+				ansiPrefixLength = len(beginSequence)
 			}
 		}
 		if nextFound != len(s) {
@@ -78,8 +139,8 @@ func (a *ANSIEscapeSequenceStripper) Convert(s string) string {
 			foundSuffix := false
 			builder.WriteString(s[i : i+nextFound])
 			i += nextFound
-			for j := i; j < len(s); j++ {
-				if s[j] == 'm' {
+			for j := i + ansiPrefixLength; j < len(s); j++ {
+				if _, found := ansiSuffixCharacter[s[j]]; found {
 					i = j
 					foundSuffix = true
 					break

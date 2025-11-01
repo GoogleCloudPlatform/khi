@@ -155,7 +155,7 @@ func TestGetLog(t *testing.T) {
 
 	t.Run("returns an log when the specified log id was found", func(t *testing.T) {
 		builder := NewBuilder("/tmp")
-		err := builder.PrepareParseLogs(context.Background(), []*log.Log{
+		err := builder.SerializeLogs(context.Background(), []*log.Log{
 			testlog.MustLogFromYAML(`insertId: foo
 severity: INFO
 textPayload: fooTextPayload
@@ -197,7 +197,7 @@ timestamp: "2024-01-01T00:00:00Z"`,
 	for _, tc := range testCase {
 		t.Run(tc.Name, func(t *testing.T) {
 			builder := NewBuilder("/tmp")
-			err := builder.PrepareParseLogs(context.Background(), []*log.Log{
+			err := builder.SerializeLogs(context.Background(), []*log.Log{
 				testlog.MustLogFromYAML(tc.LogBody, &testCommonFieldSetReader{}),
 			}, func() {})
 			if err != nil {

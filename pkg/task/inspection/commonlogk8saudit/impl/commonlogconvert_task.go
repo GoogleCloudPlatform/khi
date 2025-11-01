@@ -50,7 +50,7 @@ var CommonLogConvertTask = inspectiontaskbase.NewProgressReportableInspectionTas
 		return struct{}{}, err
 	}
 	defer updator.Done()
-	err = builder.PrepareParseLogs(ctx, logs.Logs, func() {
+	err = builder.SerializeLogs(ctx, logs.Logs, func() {
 		processedCount.Add(1)
 	})
 	if err != nil {

@@ -15,14 +15,27 @@
 package googlecloudlogserialport_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 const TaskIDPrefix = "cloud.google.com/log/serialport/"
 
-// SerialPortLogQueryTaskID is the task id for the task that queries serial port logs from Cloud Logging.
-var SerialPortLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
+// LogQueryTaskID is the task id for the task that queries serial port logs from GCE nodes.
+var LogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
-// SerialPortLogParserTaskID is the task id for the task that parses serial port logs.
-var SerialPortLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "parser")
+// LogFilterTaskID is the task id for filtering empty messages incldued in the serial port logs.
+var LogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "filter")
+
+// FieldSetReadTaskID is the task id for reading serial port node specific fields(GCESerialPortLogFieldSet).
+var FieldSetReadTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "field-set-read")
+
+// LogSerializerTaskID is the task id to serialize logs to history.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+
+// LogGrouperTaskID is the task id to group logs by node name and serial port number.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-grouper")
+
+// HistoryModifierTaskID is the task id to relate serialized logs to events on timeline.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
