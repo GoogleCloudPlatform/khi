@@ -102,11 +102,6 @@ func TestSerialPortSpecialSequenceConverter(t *testing.T) {
 			want:  "Job cri-containerd-06a622d26bbe9788…/stop running (1min 7s / 1min 30s)",
 		},
 		{
-			name:  "unicode unquote",
-			input: "Job cri-containerd-06a622d26bbe9788\\xe2\\x80\\xa6/stop running (1min 7s / 1min 30s)",
-			want:  "Job cri-containerd-06a622d26bbe9788…/stop running (1min 7s / 1min 30s)",
-		},
-		{
 			name:  "unicode and the hyphen escape sequence",
 			input: `         Unmounting \x1b[0;1;39mvar-lib-kubelet\xe2\x80\xa6-collection\\x2dsecret.mount\x1b[0m...\r\n`,
 			want:  "         Unmounting var-lib-kubelet…-collection-secret.mount...",

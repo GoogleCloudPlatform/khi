@@ -33,7 +33,7 @@ var serialportSequenceConverters = []logutil.SpecialSequenceConverter{
 	// 2025-09-29T06:39:24+0000 gke-p0-gke-basic-1-default-6400229f-0hgr kubelet[1949]: I0929 06:39:24.070536    1949 flags.go:64] FLAG: --event-storage-age-limit="default=0"
 	// This is replaced with
 	// kubelet[1949]: I0929 06:39:24.070536    1949 flags.go:64] FLAG: --event-storage-age-limit="default=0"
-	logutil.MustNewRegexSequenceConverter(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{4}\s.[^\s]+\s`, ""),
+	logutil.MustNewRegexSequenceConverter(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{4}\s.\S+\s`, ""),
 }
 
 type GCESerialPortLogFieldSet struct {
@@ -70,8 +70,10 @@ func (g *GCESerialPortLogFieldSetReader) Read(reader *structured.NodeReader) (lo
 	nodeName := reader.ReadStringOrDefault("labels.compute\\.googleapis\\.com/resource_name", "unknown")
 
 	logName := reader.ReadStringOrDefault("logName", "")
-	slashIndex := strings.Index(logName, "%2F")
-	port := logName[slashIndex+3:]
+	port := "unknown_port"
+	if slashIndex := strings.LastIndex(logName, "%2F"); slashIndex != -1 {
+		port = logName[slashIndex+len("%2F"):]
+	}
 
 	return &GCESerialPortLogFieldSet{
 		Message:  escapedTextPayload,
