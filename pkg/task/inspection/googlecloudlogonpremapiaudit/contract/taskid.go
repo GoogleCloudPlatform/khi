@@ -15,6 +15,7 @@
 package googlecloudlogonpremapiaudit_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -22,8 +23,17 @@ import (
 // OnPremCloudAPITaskIDPrefix is the prefix for all task ids related to google cloud on-prem API audit.
 var OnPremCloudAPITaskIDPrefix = "cloud.google.com/onprem-api/"
 
-// OnPremCloudAuditLogQueryTaskID is the task id for the task that queries on-prem API audit logs from Cloud Logging.
-var OnPremCloudAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremCloudAPITaskIDPrefix + "query")
+// ListLogEntriesTaskID is the task id for the task that queries onprem API logs from Cloud Logging.
+var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremCloudAPITaskIDPrefix + "query")
 
-// OnPremCloudAuditLogParseTaskID is the task id for the task that parses on-prem API audit logs.
-var OnPremCloudAuditLogParseTaskID = taskid.NewDefaultImplementationID[struct{}](OnPremCloudAPITaskIDPrefix + "parser")
+// FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremCloudAPITaskIDPrefix + "fieldset-reader")
+
+// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremCloudAPITaskIDPrefix + "log-serializer")
+
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](OnPremCloudAPITaskIDPrefix + "grouper")
+
+// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](OnPremCloudAPITaskIDPrefix + "history-modifier")
