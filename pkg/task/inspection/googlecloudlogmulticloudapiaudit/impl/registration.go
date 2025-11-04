@@ -22,7 +22,10 @@ import (
 // Register registers all googlecloudlogmulticloudapiaudit inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		MultiCloudAPIQueryTask,
-		MultiCloudAuditLogParseJob,
+		ListLogEntriesTask,
+		FieldSetReaderTask,
+		LogGrouperTask,
+		LogSerializerTask,
+		HistoryModifierTask,
 	)
 }
