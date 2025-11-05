@@ -22,9 +22,12 @@ import (
 // Register registers all googlecloudlogk8scontainer inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		GKEContainerQueryTask,
-		GKEContainerLogParseJob,
 		InputContainerQueryNamespaceFilterTask,
 		InputContainerQueryPodNamesFilterMask,
+		ListLogEntriesTask,
+		FieldSetReaderTask,
+		LogGrouperTask,
+		LogSerializerTask,
+		HistoryModifierTask,
 	)
 }

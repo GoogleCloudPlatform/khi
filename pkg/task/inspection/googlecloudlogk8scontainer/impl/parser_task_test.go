@@ -15,24 +15,76 @@
 package googlecloudlogk8scontainer_impl
 
 import (
-	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestK8sContainerParserReceivingLogNotContainingMainMessage(t *testing.T) {
-	parser := k8sContainerParser{}
-	l, err := log.NewLogFromYAMLString("insertID: foo")
-	if err != nil {
-		t.Fatalf("unexpected error on constructing log instance\n%v", err)
+func TestHistoryModifierTask(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		input    googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet
+		asserter []testchangeset.ChangeSetAsserter
+	}{
+		{
+			desc: "simple container log",
+			input: googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				Namespace:     "test-namespace",
+				PodName:       "test-pod",
+				ContainerName: "test-container",
+				Message:       "test message",
+			},
+			asserter: []testchangeset.ChangeSetAsserter{
+				&testchangeset.MatchResourcePathSet{
+					WantResourcePaths: []string{"core/v1#pod#test-namespace#test-pod#test-container"},
+				},
+				&testchangeset.HasEvent{
+					ResourcePath: "core/v1#pod#test-namespace#test-pod#test-container",
+				},
+				&testchangeset.HasLogSummary{
+					WantLogSummary: "test message",
+				},
+			},
+		},
+		{
+			desc: "container log with empty message",
+			input: googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+				Namespace:     "test-namespace",
+				PodName:       "test-pod",
+				ContainerName: "test-container",
+				Message:       "",
+			},
+			asserter: []testchangeset.ChangeSetAsserter{
+				&testchangeset.MatchResourcePathSet{
+					WantResourcePaths: []string{"core/v1#pod#test-namespace#test-pod#test-container"},
+				},
+				&testchangeset.HasEvent{
+					ResourcePath: "core/v1#pod#test-namespace#test-pod#test-container",
+				},
+				&testchangeset.HasLogSummary{
+					WantLogSummary: "",
+				},
+			},
+		},
 	}
-	l.SetFieldSetReader(&gcpqueryutil.GCPMainMessageFieldSetReader{})
-	cs := history.NewChangeSet(l)
-	err = parser.Parse(context.Background(), l, cs, nil)
-	if err != nil {
-		t.Errorf("parser returned error\n%v", err)
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := log.NewLogWithFieldSetsForTest(&tc.input)
+			cs := history.NewChangeSet(l)
+			modifier := containerLogHistoryModifierSetting{}
+
+			_, err := modifier.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+
+			if err != nil {
+				t.Errorf("ModifyChangeSetFromLog() returned an unexpected error, err=%v", err)
+			}
+
+			for _, asserter := range tc.asserter {
+				asserter.Assert(t, cs)
+			}
+		})
 	}
 }

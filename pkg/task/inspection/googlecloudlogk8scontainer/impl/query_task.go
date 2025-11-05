@@ -23,6 +23,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
@@ -89,21 +90,61 @@ func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) s
 	return fmt.Sprintf(`resource.labels.pod_name:(%s)`, strings.Join(podNamesWithQuotes, " OR "))
 }
 
-// GKEContainerQueryTask is a query generator task for GKE container logs.
-var GKEContainerQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8scontainer_contract.GKEContainerLogQueryTaskID, "K8s container logs", enum.LogTypeContainer, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
-	googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+type containerListLogEntriesTaskSetting struct {
+}
+
+// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
+		googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	}
+}
+
+// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+		DefaultLogType: enum.LogTypeContainer,
+		QueryName:      "K8s container logs",
+		ExampleQuery: GenerateK8sContainerQuery("gcp-cluster-name",
+			&gcpqueryutil.SetFilterParseResult{
+				Additives: []string{"default"},
+			},
+			&gcpqueryutil.SetFilterParseResult{
+				Subtractives: []string{"nginx-", "redis"},
+				SubtractMode: true,
+			},
+		),
+	}
+}
+
+// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	namespacesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref())
 	podNamesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref())
 
 	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
-}, GenerateK8sContainerQuery("gcp-cluster-name", &gcpqueryutil.SetFilterParseResult{
-	Additives: []string{"default"},
-},
-	&gcpqueryutil.SetFilterParseResult{
-		Subtractives: []string{"nginx-", "redis"},
-		SubtractMode: true,
-	}))
+}
+
+// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return googlecloudlogk8scontainer_contract.ListLogEntriesTaskID
+}
+
+// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (c *containerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 10, nil
+}
+
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*containerListLogEntriesTaskSetting)(nil)
+
+var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&containerListLogEntriesTaskSetting{})
