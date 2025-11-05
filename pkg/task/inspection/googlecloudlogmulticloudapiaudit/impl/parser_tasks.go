@@ -99,7 +99,6 @@ func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 
 	if !auditFieldSet.ImmediateOperation() {
 		resourceBodyField := ""
-		clusterTypeInMiddle := ""
 
 		if resourceFieldSet.IsCluster() {
 			resourceBodyField = "cluster"
@@ -107,16 +106,14 @@ func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 			resourceBodyField = "nodePool"
 		}
 
-		switch resourceFieldSet.ClusterType {
-		case googlecloudlogmulticloudapiaudit_contract.ClusterTypeAWS:
-			clusterTypeInMiddle = "Aws"
-		case googlecloudlogmulticloudapiaudit_contract.ClusterTypeAzure:
-			clusterTypeInMiddle = "Azure"
+		clusterTypeToFragmentInMethodNameMapping := map[googlecloudlogmulticloudapiaudit_contract.MultiCloudClusterType]string{
+			googlecloudlogmulticloudapiaudit_contract.ClusterTypeAWS:   "Aws",
+			googlecloudlogmulticloudapiaudit_contract.ClusterTypeAzure: "Azure",
 		}
 
 		methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
 		shortMethodName := methodNameParts[len(methodNameParts)-1]
-		shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeInMiddle, "") // Remove type specific part. Example: converting CreateAwsCluster to CreateCluster.
+		shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "") // Remove type specific part. Example: converting CreateAwsCluster to CreateCluster.
 
 		switch shortMethodName {
 		case "CreateCluster", "CreateNodePool":

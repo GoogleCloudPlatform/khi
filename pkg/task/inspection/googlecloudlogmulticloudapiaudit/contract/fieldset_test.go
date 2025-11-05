@@ -38,7 +38,7 @@ func TestMulticloudAPIAuditResourceFieldSetReader(t *testing.T) {
 			},
 		},
 		{
-			desc: "resourceName for nodepool",
+			desc: "resourceName for cluster",
 			input: `protoPayload: 
   resourceName: projects/123456/locations/asia-southeast1/azureClusters/cluster-foo`,
 			want: &MulticloudAPIAuditResourceFieldSet{
