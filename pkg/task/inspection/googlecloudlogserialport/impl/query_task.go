@@ -24,6 +24,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
@@ -68,15 +69,53 @@ LOG_ID("serialconsole.googleapis.com%%2Fserial_port_debug_output")
 %s`, instanceNameFilter, nodeNameSubstringFilter)
 }
 
-var GKESerialPortLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogserialport_contract.SerialPortLogQueryTaskID, "Serial port log", enum.LogTypeSerialPort, []taskid.UntypedTaskReference{
-	googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
-	googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+var LogQueryTask = googlecloudcommon_contract.NewListLogEntriesTask(&serialPortLoggingFilterTaskSetting{})
+
+type serialPortLoggingFilterTaskSetting struct {
+}
+
+// Dependencies implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
+		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
+	}
+}
+
+// Description implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+		DefaultLogType: enum.LogTypeSerialPort,
+		QueryName:      "Serial port log",
+		ExampleQuery: GenerateSerialPortQuery(inspectioncore_contract.TaskModeRun, []string{
+			"gke-test-cluster-node-1",
+			"gke-test-cluster-node-2",
+		}, []string{})[0],
+	}
+}
+
+// LogFilters implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
-
 	return GenerateSerialPortQuery(taskMode, builder.ClusterResource.GetNodes(), nodeNameSubstrings), nil
-}, GenerateSerialPortQuery(inspectioncore_contract.TaskModeRun, []string{
-	"gke-test-cluster-node-1",
-	"gke-test-cluster-node-2",
-}, []string{})[0])
+}
+
+// DefaultResourceNames implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// TaskID implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return googlecloudlogserialport_contract.LogQueryTaskID
+}
+
+// TimePartitionCount implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
+func (s *serialPortLoggingFilterTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 10, nil
+}
+
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*serialPortLoggingFilterTaskSetting)(nil)

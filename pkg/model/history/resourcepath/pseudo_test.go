@@ -156,17 +156,18 @@ func TestNodeComponent(t *testing.T) {
 func TestNodeSerialport(t *testing.T) {
 	expectedParentRelationship := enum.RelationshipSerialPort
 	testCases := []struct {
-		name     string
-		nodeName string
-		expected string
+		name       string
+		nodeName   string
+		serialport string
+		expected   string
 	}{
-		{"Node name specified", "my-node", "core/v1#node#cluster-scope#my-node#serialport"},
-		{"Empty node name", "", "core/v1#node#cluster-scope#unknown#serialport"},
+		{"Node name specified", "my-node", "serial_port_1_output", "core/v1#node#cluster-scope#my-node#serial_port_1_output"},
+		{"Empty node name", "", "serial_port_1_output", "core/v1#node#cluster-scope#unknown#serial_port_1_output"},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := NodeSerialport(tc.nodeName)
+			result := NodeSerialport(tc.nodeName, tc.serialport)
 			if result.Path != tc.expected {
 				t.Errorf("NodeSerialport(%v).Path = %v, want %v", tc.nodeName, result.Path, tc.expected)
 			}
