@@ -100,7 +100,6 @@ func (g *gkeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.C
 	}
 
 	if !auditFieldSet.ImmediateOperation() {
-		methodName := auditFieldSet.MethodName
 		resourceBodyField := ""
 
 		if resourceFieldSet.IsCluster() {
@@ -109,7 +108,11 @@ func (g *gkeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.C
 			resourceBodyField = "nodePool"
 		}
 
-		if strings.HasSuffix(methodName, "CreateCluster") || strings.HasSuffix(methodName, "CreateNodePool") {
+		methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
+		shortMethodName := methodNameParts[len(methodNameParts)-1]
+
+		switch shortMethodName {
+		case "CreateCluster", "CreateNodePool":
 			var bodyRaw []byte
 			state := enum.RevisionStateProvisioning
 			if auditFieldSet.Ending() {
@@ -126,7 +129,7 @@ func (g *gkeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.C
 				Partial:    false,
 				Body:       string(bodyRaw),
 			})
-		} else if strings.HasSuffix(methodName, "DeleteCluster") || strings.HasSuffix(methodName, "DeleteNodePool") {
+		case "DeleteCluster", "DeleteNodePool":
 			state := enum.RevisionStateDeleting
 			if auditFieldSet.Ending() {
 				state = enum.RevisionStateDeleted
