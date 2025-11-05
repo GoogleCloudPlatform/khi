@@ -35,7 +35,6 @@ package inspectiontaskbase
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"sync"
 
@@ -99,13 +98,13 @@ func NewRelationshipMergerTask[T any](setting RelationshipMergerTaskSetting[T]) 
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return *new(T), nil
 		}
-		var discoveryResults []T
+		discoveryResults := make([]T, 0, len(idSource.discoveryTaskRefs))
 		for _, ref := range idSource.discoveryTaskRefs {
 			r, found := coretask.GetTaskResultOptional(ctx, ref)
 			if found {
 				discoveryResults = append(discoveryResults, r)
 			} else {
-				slog.DebugContext(ctx, fmt.Sprintf("discovery result from %q wasn't provided", ref.ReferenceIDString()))
+				slog.DebugContext(ctx, "discovery result not provided", "taskRef", ref.ReferenceIDString())
 			}
 		}
 		return setting.Merge(discoveryResults)
