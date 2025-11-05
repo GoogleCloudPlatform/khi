@@ -65,13 +65,12 @@ func (g *GCPKubernetesEventFieldSetReader) Read(reader *structured.NodeReader) (
 		result.Message = reader.ReadStringOrDefault("textPayload", "")
 		return &result, nil
 	}
-	if kind, err := reader.ReadString("jsonPayload.kind"); err != nil || kind != "Event" {
-		if kind != "Event" {
-			return nil, fmt.Errorf("skipping unknown kind: %q: %w", kind, khierrors.ErrInvalidInput)
-		}
-		if err != nil {
-			return nil, err
-		}
+	kind, err := reader.ReadString("jsonPayload.kind")
+	if err != nil {
+		return nil, err
+	}
+	if kind != "Event" {
+		return nil, fmt.Errorf("skipping unknown kind: %q: %w", kind, khierrors.ErrInvalidInput)
 	}
 	result.APIVersion = reader.ReadStringOrDefault("jsonPayload.involvedObject.apiVersion", "v1")
 	if !strings.Contains(result.APIVersion, "/") {

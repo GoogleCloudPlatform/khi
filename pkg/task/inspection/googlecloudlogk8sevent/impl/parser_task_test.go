@@ -55,7 +55,7 @@ func TestHistoryModifierTask(t *testing.T) {
 
 			_, err := modifier.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
 			if err != nil {
-				t.Errorf("")
+				t.Errorf("ModifyChangeSetFromLog returned an unexpected error: %v", err)
 			}
 
 			for _, asserter := range tc.asserters {

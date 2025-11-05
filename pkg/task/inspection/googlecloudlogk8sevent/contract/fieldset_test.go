@@ -123,7 +123,7 @@ textPayload: Event exporter started watching. Some events may have been lost up 
 
 			err = l.SetFieldSetReader(&GCPKubernetesEventFieldSetReader{})
 			if err != nil {
-				t.Fatalf("")
+				t.Fatalf("l.SetFieldSetReader failed: %v", err)
 			}
 
 			fieldSet := log.MustGetFieldSet(l, &KubernetesEventFieldSet{})
