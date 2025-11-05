@@ -55,7 +55,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogonpremap
 )
 
 // HistoryModifierTask is a task that adds revisions/events regarding logs.
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogonpremapiaudit_contract.HistoryModifierTaskID, &multicloudAuditLogHistoryModifierSetting{},
+var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogonpremapiaudit_contract.HistoryModifierTaskID, &onpremAuditLogHistoryModifierSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`OnPrem API logs`,
 		`Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.`,
 		enum.LogTypeOnPremAPI,
@@ -64,26 +64,26 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GDCClusterInspectionTypes...),
 )
 
-type multicloudAuditLogHistoryModifierSetting struct {
+type onpremAuditLogHistoryModifierSetting struct {
 }
 
 // Dependencies implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+func (m *onpremAuditLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
 // GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+func (m *onpremAuditLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogonpremapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
 // LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
+func (m *onpremAuditLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogonpremapiaudit_contract.LogSerializerTaskID.Ref()
 }
 
 // ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+func (m *onpremAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
 		return struct{}{}, err
@@ -99,7 +99,6 @@ func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 
 	if !auditFieldSet.ImmediateOperation() {
 		resourceBodyField := ""
-		clusterTypeInMiddle := ""
 
 		if resourceFieldSet.IsCluster() {
 			resourceBodyField = "cluster"
@@ -107,22 +106,17 @@ func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 			resourceBodyField = "nodePool"
 		}
 
-		switch resourceFieldSet.ClusterType {
-		case googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalAdmin:
-			clusterTypeInMiddle = "BaremetalAdmin"
-		case googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalStandalone:
-			clusterTypeInMiddle = "BaremetalStandalone"
-		case googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalUser:
-			clusterTypeInMiddle = "Baremetal"
-		case googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareAdmin:
-			clusterTypeInMiddle = "VmwareAdmin"
-		case googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareUser:
-			clusterTypeInMiddle = "Vmware"
+		clusterTypeToFragmentInMethodNameMapping := map[googlecloudlogonpremapiaudit_contract.OnPremClusterType]string{
+			googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalAdmin:      "BaremetalAdmin",
+			googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalStandalone: "BaremetalStandalone",
+			googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalUser:       "Baremetal",
+			googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareAdmin:         "VmwareAdmin",
+			googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareUser:          "Vmware",
 		}
 
 		methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
 		shortMethodName := methodNameParts[len(methodNameParts)-1]
-		shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeInMiddle, "")
+		shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "")
 
 		switch shortMethodName {
 		case "CreateCluster", "CreateNodePool", "EnrollCluster", "EnrollNodePool":

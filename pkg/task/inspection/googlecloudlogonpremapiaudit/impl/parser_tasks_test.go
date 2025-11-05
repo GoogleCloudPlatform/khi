@@ -344,11 +344,39 @@ func TestHistoryModifierTask(t *testing.T) {
 				},
 			},
 		},
+		{
+			desc: "long running operation for unknown cluster",
+			inputResource: googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSet{
+				ClusterName:  "test-cluster",
+				NodepoolName: "test-nodepool",
+				ClusterType:  googlecloudlogonpremapiaudit_contract.ClusterTypeUnknown,
+			},
+			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				OperationID:    "op-2",
+				OperationFirst: true,
+				OperationLast:  false,
+				MethodName:     "google.cloud.gkeonprem.v1.GkeOnPrem.UnknownLongRunningOperation",
+				PrincipalEmail: "foobar@qux.test",
+				Request:        nil,
+			},
+			asserters: []testchangeset.ChangeSetAsserter{
+				&testchangeset.HasRevision{
+					ResourcePath: "@Cluster#nodepool#test-cluster#test-nodepool#UnknownLongRunningOperation-op-2",
+					WantRevision: history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbOperationStart,
+						State:      enum.RevisionStateOperationStarted,
+						Requestor:  "foobar@qux.test",
+						Body:       "",
+						ChangeTime: testTime,
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
-			historyModifierSetting := &multicloudAuditLogHistoryModifierSetting{}
+			historyModifierSetting := &onpremAuditLogHistoryModifierSetting{}
 			cs := history.NewChangeSet(l)
 
 			_, err := historyModifierSetting.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})

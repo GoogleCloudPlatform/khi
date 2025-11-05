@@ -86,7 +86,7 @@ func (m *OnPremAPIAuditResourceFieldSetReader) Read(reader *structured.NodeReade
 	}
 
 	// resourceName should be in the format of
-	// projects/<PROJECT_NUMBER>/locations/<LOCATION>/(aws|azure)Clusters/<CLUSTER_NAME>(/(aws|azure)NodePools/<NODEPOOL_NAME>)
+	// projects/<PROJECT_NUMBER>/locations/<LOCATION>/(baremetal*|vmware*)Clusters/<CLUSTER_NAME>(/(baremetal*|vmware*)NodePools/<NODEPOOL_NAME>)
 	splited := strings.Split(resourceName, "/")
 	if len(splited) > 5 {
 		result.ClusterName = splited[5]
