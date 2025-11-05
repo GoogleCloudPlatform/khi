@@ -99,3 +99,38 @@ func TestGetTaskResult(t *testing.T) {
 		_ = GetTaskResult(ctx, nonExistentRef)
 	})
 }
+
+func TestGetTaskResultOptional(t *testing.T) {
+	// Create reference and task result map
+	strRef := taskid.NewTaskReference[string]("test.string")
+	nonExistentRef := taskid.NewTaskReference[bool]("test.nonexistent")
+
+	// Prepare task result map
+	taskResults := typedmap.NewTypedMap()
+	typedmap.Set(taskResults, typedmap.NewTypedKey[string](strRef.ReferenceIDString()), "test-value")
+
+	// Set up context with task results
+	ctx := context.Background()
+	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskResults)
+
+	// We also need to set TaskImplementationIDContextKey for panic case to work properly
+	taskID := taskid.NewDefaultImplementationID[any]("test.id")
+	ctx = khictx.WithValue[taskid.UntypedTaskImplementationID](ctx, core_contract.TaskImplementationIDContextKey, taskID)
+
+	t.Run("get string result", func(t *testing.T) {
+		result, found := GetTaskResultOptional(ctx, strRef)
+		if result != "test-value" {
+			t.Errorf("Expected 'test-value', got '%s'", result)
+		}
+		if !found {
+			t.Errorf("Expected result to be found, but it was not")
+		}
+	})
+
+	t.Run("nonexistent result must not cause panic", func(t *testing.T) {
+		_, found := GetTaskResultOptional(ctx, nonExistentRef)
+		if found {
+			t.Errorf("Expected result not to be found, but it was")
+		}
+	})
+}

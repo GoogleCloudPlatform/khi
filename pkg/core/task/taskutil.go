@@ -39,6 +39,13 @@ func GetTaskResult[T any](ctx context.Context, reference taskid.TaskReference[T]
 	return result
 }
 
+// GetTaskResultOptional retrieves the result from previously executed task.
+// Use GetTaskResult for the most cases this is for getting the task value from a task but that task won't depend on the task explicitly.
+func GetTaskResultOptional[T any](ctx context.Context, reference taskid.TaskReference[T]) (T, bool) {
+	taskResults := khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey)
+	return typedmap.Get(taskResults, typedmap.NewTypedKey[T](reference.ReferenceIDString()))
+}
+
 // WrapErrorWithTaskInformation annotate given error with the current task information.
 func WrapErrorWithTaskInformation(ctx context.Context, err error) error {
 	taskID := khictx.MustGetValue(ctx, core_contract.TaskImplementationIDContextKey)
