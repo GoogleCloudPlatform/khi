@@ -157,3 +157,30 @@ func TestHistoryModifierTask(t *testing.T) {
 		})
 	}
 }
+
+func TestGetInstanceNameFromResourceName(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		want  string
+	}{
+		{
+			desc:  "standard resource name",
+			input: "projects/123/zones/us-central1-a/instances/my-instance",
+			want:  "my-instance",
+		},
+		{
+			desc:  "empty resource name",
+			input: "",
+			want:  "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := getInstanceNameFromResourceName(tc.input)
+			if got != tc.want {
+				t.Errorf("getInstanceNameFromResourceName(%q) got %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}

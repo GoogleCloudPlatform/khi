@@ -45,11 +45,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputea
 		if err != nil {
 			return "unknown"
 		}
-		resourceNames := strings.Split(audit.ResourceName, "/")
-		if len(resourceNames) > 0 {
-			return resourceNames[len(resourceNames)-1]
-		}
-		return "unknown"
+		return getInstanceNameFromResourceName(audit.ResourceName)
 	})
 
 var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogcomputeapiaudit_contract.HistoryModifierTaskID, &gcpComputeAuditLogHistoryModifierSetting{},
@@ -90,9 +86,7 @@ func (g *gcpComputeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 		return struct{}{}, err
 	}
 
-	resourceNameSplitted := strings.Split(audit.ResourceName, "/")
-	instanceName := resourceNameSplitted[len(resourceNameSplitted)-1]
-	nodeResourcePath := resourcepath.Node(instanceName)
+	nodeResourcePath := resourcepath.Node(getInstanceNameFromResourceName(audit.ResourceName))
 	resourcePath := audit.OperationPath(nodeResourcePath)
 
 	if audit.ImmediateOperation() {
@@ -128,3 +122,11 @@ func (g *gcpComputeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 }
 
 var _ inspectiontaskbase.HistoryModifer[struct{}] = (*gcpComputeAuditLogHistoryModifierSetting)(nil)
+
+func getInstanceNameFromResourceName(resourceName string) string {
+	resourceNameSplitted := strings.Split(resourceName, "/")
+	if len(resourceNameSplitted) < 1 {
+		return ""
+	}
+	return resourceNameSplitted[len(resourceNameSplitted)-1]
+}
