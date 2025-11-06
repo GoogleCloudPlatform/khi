@@ -20,10 +20,35 @@ import (
 )
 
 // Register registers all googlecloudlogk8scontrolplane inspection tasks to the registry.
+/*
+flowchart TD
+    ListLogEntriesTask --> CommonFieldSetReadTask
+    ListLogEntriesTask --> LogSerializerTask
+    CommonFieldSetReadTask --> SchedulerLogFilterTask -->SchedulerFieldSetReaderTask --> SchedulerGroupterTask --> SchedulerHistoryModifierTask --> TailTask
+    CommonFieldSetReadTask --> ControllerManagerLogFilterTask --> ControllerManagerFieldSetReaderTask --> ControllerManagerGrouperTask --> ControllerManagerHistoryModifierTask --> TailTask
+    CommonFieldSetReadTask --> OtherLogFilterTask --> OtherFieldSetReaderTask --> OtherGrouperTask --> OtherHistoryModifierTask --> TailTask
+    LogSerializerTask --> SchedulerHistoryModifierTask
+    LogSerializerTask --> ControllerManagerHistoryModifierTask
+    LogSerializerTask --> OtherHistoryModifierTask
+*/
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		GKEK8sControlPlaneLogQueryTask,
-		GKEK8sControlPlaneComponentLogParseTask,
 		InputControlPlaneComponentNameFilterTask,
+		ListLogEntriesTask,
+		LogSerializerTask,
+		CommonFieldSetReaderTask,
+		SchedulerLogFilterTask,
+		SchedulerLogFieldSetReaderTask,
+		SchedulerGrouperTask,
+		SchedulerHistoryModifierTask,
+		ControllerManagerFilterTask,
+		ControllerManagerLogFieldSetReaderTask,
+		ControllerManagerGrouperTask,
+		ControllerManagerHistoryModifierTask,
+		OtherLogFilterTask,
+		OtherLogFieldSetReaderTask,
+		OtherGrouperTask,
+		OtherHistoryModifierTask,
+		TailTask,
 	)
 }
