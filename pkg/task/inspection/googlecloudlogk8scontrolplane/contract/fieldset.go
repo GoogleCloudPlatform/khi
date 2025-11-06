@@ -203,18 +203,14 @@ func (k *K8sControllerManagerComponentFieldSetReader) Read(reader *structured.No
 }
 
 func (k *K8sControllerManagerComponentFieldSetReader) readController(message string, sourceFile string) (string, error) {
-	logger, _ := logutil.ExtractKLogField(message, "logger")
-	if logger != "" {
+	if logger, _ := logutil.ExtractKLogField(message, "logger"); logger != "" {
 		return logger, nil
-	} else {
-		controller, _ := logutil.ExtractKLogField(message, "controller")
-		if controller != "" {
-			return controller, nil
-		} else {
-			if controller, found := k.WellKnownSourceLocationToControllerMap[sourceFile]; found {
-				return controller, nil
-			}
-		}
+	}
+	if controller, _ := logutil.ExtractKLogField(message, "controller"); controller != "" {
+		return controller, nil
+	}
+	if controller, found := k.WellKnownSourceLocationToControllerMap[sourceFile]; found {
+		return controller, nil
 	}
 	return "", nil
 }
@@ -293,6 +289,9 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 		if matches != nil {
 			apiVersionKind := matches[1]
 			slashIndex := strings.LastIndex(apiVersionKind, "/")
+			if slashIndex == -1 {
+				return result
+			}
 			apiVersion := apiVersionKind[:slashIndex]
 			kind := apiVersionKind[slashIndex+1:]
 			namespace := matches[2]

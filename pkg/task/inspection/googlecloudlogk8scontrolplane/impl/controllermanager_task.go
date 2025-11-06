@@ -66,7 +66,7 @@ var ControllerManagerLogFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadT
 				kindToKLogFieldPair("policy/v1", "poddisruptionbudget", "podDisruptionBudget", true),
 				kindToKLogFieldPair("certificates.k8s.io/v1", "certificatesigningrequest", "csr", false),
 				kindToKLogFieldPair("core/v1", "persistentvolumeclaim", "PVC", true),
-				kindToKLogFieldPair("core/v1", "persistentvolume", "volumeName", true),
+				kindToKLogFieldPair("core/v1", "persistentvolume", "volumeName", false),
 				kindToKLogFieldPair("core/v1", "service", "service", true),
 				kindToKLogFieldPair("core/v1", "node", "node", false),
 				kindToKLogFieldPair("core/v1", "pod", "pod", true),

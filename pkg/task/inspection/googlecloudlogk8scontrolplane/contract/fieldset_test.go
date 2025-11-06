@@ -367,6 +367,11 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 			input: `"Deleting item" logger="garbage-collector-controller" item="malformed-item" propagationPolicy="Background"`,
 			want:  resourcepath.ResourcePath{},
 		},
+		{
+			desc:  "item field malformed - no slash contained in apiVersion",
+			input: `"Deleting item" logger="garbage-collector-controller" item="[Pod, namespace: kube-system, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
+			want:  resourcepath.ResourcePath{},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
