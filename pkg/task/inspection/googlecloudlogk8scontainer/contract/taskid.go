@@ -16,6 +16,7 @@ package googlecloudlogk8scontainer_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -28,8 +29,17 @@ var InputContainerQueryNamespacesTaskID = taskid.NewDefaultImplementationID[*gcp
 // InputContainerQueryPodNamesTaskID is the task ID for the form input that specifies which pod names to query for container logs.
 var InputContainerQueryPodNamesTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](TaskIDPrefix + "input/query-podnames")
 
-// GKEContainerLogQueryTaskID is the task ID for the task that queries GKE container logs from Cloud Logging.
-var GKEContainerLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
+// ListLogEntriesTaskID is the task id for the task that queries container stdout/etderr logs from Cloud Logging.
+var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
-// GKEContainerParserTaskID is the task ID for the task that parses GKE container logs.
-var GKEContainerParserTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "parser")
+// FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "fieldset-reader")
+
+// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
+
+// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
