@@ -21,6 +21,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
@@ -36,11 +37,49 @@ protoPayload.resourceName:"%s"
 `, clusterNameWithPrefix)
 }
 
-// MultiCloudAPIQueryTask defines a task that queries multicloud API logs from Cloud Logging.
-var MultiCloudAPIQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogmulticloudapiaudit_contract.MultiCloudAPIQueryTaskID, "Multicloud API Logs", enum.LogTypeMulticloudAPI, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+type multicloudAPIListLogEntriesTaskSetting struct {
+}
+
+// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	}
+}
+
+// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+		DefaultLogType: enum.LogTypeMulticloudAPI,
+		QueryName:      "Multicloud API Logs",
+		ExampleQuery:   generateQuery("awsClusters/gcp-cluster-name"),
+	}
+}
+
+// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
 	return []string{generateQuery(clusterName)}, nil
-}, generateQuery("awsClusters/cluster-foo"))
+}
+
+// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID
+}
+
+// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (g *multicloudAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 1, nil
+}
+
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*multicloudAPIListLogEntriesTaskSetting)(nil)
+
+var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&multicloudAPIListLogEntriesTaskSetting{})
