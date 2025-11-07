@@ -16,6 +16,7 @@
 package googlecloudlognetworkapiaudit_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -23,8 +24,17 @@ import (
 // NetworkAPILogTaskIDPrefix is the prefix for all task IDs in this package.
 var NetworkAPILogTaskIDPrefix = "cloud.google.com/log/network-api/"
 
-// NetworkAPIQueryTaskID is the task id for the task that queries network API logs from Cloud Logging.
-var NetworkAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "query")
+// ListLogEntriesTaskID is the task id for the task that queries network API audit logs from Cloud Logging.
+var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "query")
 
-// NetworkAPIParserTaskID is the task id for the task that parses network API logs.
-var NetworkAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](NetworkAPILogTaskIDPrefix + "parser")
+// FieldSetReaderTaskID is the task id to read the fieldsets needed for parsing network audit log to process logs in the later task.
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "fieldset-reader")
+
+// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "log-serializer")
+
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](NetworkAPILogTaskIDPrefix + "grouper")
+
+// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](NetworkAPILogTaskIDPrefix + "history-modifier")
