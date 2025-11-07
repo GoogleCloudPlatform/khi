@@ -41,7 +41,7 @@ var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogne
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		// Compute Engine Audit log parser is stateless and it doesn't require grouping to work, but grouping them by its associated instance resource name for better performance to process them in parallel.
+		// Group logs by the NEG resource name.
 		audit, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
 		if err != nil {
 			return "unknown"
