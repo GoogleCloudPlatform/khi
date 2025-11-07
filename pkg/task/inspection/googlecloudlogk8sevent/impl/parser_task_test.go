@@ -17,42 +17,50 @@ package googlecloudlogk8sevent_impl
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	parser_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/parser"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestK8sEventParser_ParseSampleLog(t *testing.T) {
-	wantLogSummary := "【NodeRegistrationCheckerDidNotRunChecks】Fri Sep 13 01:49:48 UTC 2024 - **     Node ready and registered. **"
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_event/sample.yaml", &k8sEventParser{}, nil)
-	if err != nil {
-		t.Errorf("got error %v, want nil", err)
+func TestHistoryModifierTask(t *testing.T) {
+	testCases := []struct {
+		desc      string
+		input     googlecloudlogk8sevent_contract.KubernetesEventFieldSet
+		asserters []testchangeset.ChangeSetAsserter
+	}{
+		{
+			desc: "simple event",
+			input: googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
+				ClusterName:  "test-cluster",
+				APIVersion:   "apps/v1",
+				ResourceKind: "deployment",
+				Namespace:    "default",
+				Resource:     "test-deployment",
+				Reason:       "ScalingReplicaSet",
+				Message:      "Scaled up replica set test-deployment-xyz to 3",
+			},
+			asserters: []testchangeset.ChangeSetAsserter{
+				&testchangeset.MatchResourcePathSet{
+					WantResourcePaths: []string{"apps/v1#deployment#default#test-deployment"},
+				},
+			},
+		},
 	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := log.NewLogWithFieldSetsForTest(&tc.input)
+			cs := history.NewChangeSet(l)
+			modifier := KubernetesEventHistoryModifierSetting{}
 
-	event := cs.GetEvents(resourcepath.Node("gke-gke-basic-1-default-5e5b794d-89xl"))
-	if len(event) != 1 {
-		t.Errorf("got %d events, want 1", len(event))
-	}
+			_, err := modifier.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			if err != nil {
+				t.Errorf("ModifyChangeSetFromLog returned an unexpected error: %v", err)
+			}
 
-	gotLogSummary := cs.LogSummary
-	if gotLogSummary != wantLogSummary {
-		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
-	}
-}
-
-func TestK8sEventParser_ClusterScope(t *testing.T) {
-	wantLogSummary := "Event exporter started watching. Some events may have been lost up to this point."
-	cs, err := parser_test.ParseFromYamlLogFile("test/logs/k8s_event/cluster-scoped.yaml", &k8sEventParser{}, nil)
-	if err != nil {
-		t.Errorf("got error %v, want nil", err)
-	}
-
-	event := cs.GetEvents(resourcepath.Cluster("gke-basic-1"))
-	if len(event) != 1 {
-		t.Errorf("got %d events, want 1", len(event))
-	}
-
-	gotLogSummary := cs.LogSummary
-	if gotLogSummary != wantLogSummary {
-		t.Errorf("got %q log summary, want %q", gotLogSummary, wantLogSummary)
+			for _, asserter := range tc.asserters {
+				asserter.Assert(t, cs)
+			}
+		})
 	}
 }

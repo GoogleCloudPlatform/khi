@@ -17,80 +17,70 @@ package googlecloudlogk8sevent_impl
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// GKEK8sEventLogParseJob is the parser task for Kubernetes Event logs.
-var GKEK8sEventLogParseJob = legacyparser.NewParserTaskFromParser(googlecloudlogk8sevent_contract.GKEK8sEventLogParserTaskID, &k8sEventParser{}, 2000, true, googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes)
+var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8sevent_contract.FieldSetReaderTaskID, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
+	&googlecloudlogk8sevent_contract.GCPKubernetesEventFieldSetReader{},
+})
 
-type k8sEventParser struct {
+var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogk8sevent_contract.LogSerializerTaskID, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref())
+
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8sevent_contract.LogGrouperTaskID, googlecloudlogk8sevent_contract.FieldSetReaderTaskID.Ref(),
+	func(ctx context.Context, l *log.Log) string {
+		event, err := log.GetFieldSet(l, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{})
+		if err != nil {
+			return "unknown"
+		}
+		return event.ResourcePath().Path
+	},
+)
+
+var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8sevent_contract.HistoryModifierTaskID, &KubernetesEventHistoryModifierSetting{}, inspectioncore_contract.FeatureTaskLabel(
+	"Kubernetes Event Logs",
+	"Gather kubernetes event logs and visualize these on the associated resource timeline.",
+	enum.LogTypeEvent,
+	2000,
+	true,
+	googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...,
+))
+
+type KubernetesEventHistoryModifierSetting struct {
 }
 
-// TargetLogType implements parsertask.Parser.
-func (k *k8sEventParser) TargetLogType() enum.LogType {
-	return enum.LogTypeEvent
-}
-
-// Description implements parsertask.Parser.
-func (*k8sEventParser) Description() string {
-	return `Gather kubernetes event logs and visualize these on the associated resource timeline.`
-}
-
-// GetParserName implements parsertask.Parser.
-func (*k8sEventParser) GetParserName() string {
-	return `Kubernetes Event Logs`
-}
-
-func (*k8sEventParser) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.HistoryModifer.
+func (k *KubernetesEventHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (*k8sEventParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8sevent_contract.GKEK8sEventLogQueryTaskID.Ref()
+// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
+func (k *KubernetesEventHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudlogk8sevent_contract.LogGrouperTaskID.Ref()
 }
 
-func (*k8sEventParser) Grouper() grouper.LogGrouper {
-	return grouper.AllDependentLogGrouper
+// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
+func (k *KubernetesEventHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8sevent_contract.LogSerializerTaskID.Ref()
 }
 
-// Parse implements parsertask.Parser.
-func (*k8sEventParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	if kind, err := l.ReadString("jsonPayload.kind"); err != nil {
-		// Event exporter ingests cluster scoped logs without jsonPayload
-		if textPayload, err := l.ReadString("textPayload"); err == nil {
-			clusterName := l.ReadStringOrDefault("resource.labels.cluster_name", "Unknown")
-			cs.AddEvent(resourcepath.Cluster(clusterName))
-			cs.SetLogSummary(textPayload)
-			return nil
-		}
-		return err
-	} else if kind != "Event" {
-		return fmt.Errorf("skipping kind:%s", kind)
-	}
-	apiVersion := l.ReadStringOrDefault("jsonPayload.involvedObject.apiVersion", "v1")
-
-	kind := l.ReadStringOrDefault("jsonPayload.involvedObject.kind", "Unknown")
-
-	name := l.ReadStringOrDefault("jsonPayload.involvedObject.name", "Unknown")
-
-	namespace := l.ReadStringOrDefault("jsonPayload.involvedObject.namespace", "cluster-scope")
-	if !strings.Contains(apiVersion, "/") {
-		apiVersion = "core/" + apiVersion
+// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
+func (k *KubernetesEventHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+	event, err := log.GetFieldSet(l, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{})
+	if err != nil {
+		return struct{}{}, fmt.Errorf("failed to get kubernetes event fieldset: %w", err)
 	}
 
-	cs.AddEvent(resourcepath.NameLayerGeneralItem(apiVersion, strings.ToLower(kind), namespace, name))
-	cs.SetLogSummary(fmt.Sprintf("【%s】%s", l.ReadStringOrDefault("jsonPayload.reason", "Unknown"), l.ReadStringOrDefault("jsonPayload.message", "")))
-	return nil
+	cs.AddEvent(event.ResourcePath())
+	cs.SetLogSummary(fmt.Sprintf("【%s】%s", event.Reason, event.Message))
+	return struct{}{}, nil
 }
 
-var _ legacyparser.Parser = (*k8sEventParser)(nil)
+var _ inspectiontaskbase.HistoryModifer[struct{}] = (*KubernetesEventHistoryModifierSetting)(nil)
