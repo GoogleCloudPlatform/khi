@@ -22,7 +22,10 @@ import (
 // Register registers all googlecloudlognetworkapiaudit inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		NetworkAPIQueryTask,
-		NetworkAPIParserTask,
+		ListLogEntriesTask,
+		FieldSetReaderTask,
+		LogGrouperTask,
+		LogSerializerTask,
+		HistoryModifierTask,
 	)
 }
