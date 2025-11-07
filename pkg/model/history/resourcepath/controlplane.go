@@ -14,7 +14,11 @@
 
 package resourcepath
 
-import "github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+import (
+	"fmt"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+)
 
 func ControlplaneComponent(cluster string, component string) ResourcePath {
 	if cluster == "" {
@@ -26,4 +30,8 @@ func ControlplaneComponent(cluster string, component string) ResourcePath {
 	controlPlaneComponentResourcePath := SubresourceLayerGeneralItem("@Cluster", "controlplane", "cluster-scope", cluster, component)
 	controlPlaneComponentResourcePath.ParentRelationship = enum.RelationshipControlPlaneComponent
 	return controlPlaneComponentResourcePath
+}
+
+func ControllerManagerControlplaneComponent(cluster string, controllerName string) ResourcePath {
+	return ControlplaneComponent(cluster, fmt.Sprintf("%s(controller-manager)", controllerName))
 }

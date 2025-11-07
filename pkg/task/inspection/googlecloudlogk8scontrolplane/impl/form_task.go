@@ -33,7 +33,7 @@ var InputControlPlaneComponentNameFilterTask = formtask.NewTextFormTaskBuilder(
 	priorityForControlPlaneGroup+1000,
 	"Control plane component names",
 ).
-	WithDefaultValueConstant("@any", true).
+	WithDefaultValueConstant("@any -apiserver", true).
 	WithSuggestionsConstant([]string{
 		"apiserver",
 		"controller-manager",
