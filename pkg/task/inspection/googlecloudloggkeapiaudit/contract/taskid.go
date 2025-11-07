@@ -15,14 +15,24 @@
 package googlecloudloggkeapiaudit_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 var GKEAPIAuditLogTaskIDPrefix = "cloud.google.com/log/gke-api/"
 
-// GKEAuditLogQueryTaskID is the task id for the task that queries GKE audit logs from Cloud Logging.
-var GKEAuditLogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "query")
+// ListLogEntriesTaskID is the task id for the task that queries compute API logs from Cloud Logging.
+var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "query")
 
-// GKEAuditParserTaskID is the task id for the task that parses GKE audit logs.
-var GKEAuditParserTaskID = taskid.NewDefaultImplementationID[struct{}](GKEAPIAuditLogTaskIDPrefix + "parser")
+// FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "fieldset-reader")
+
+// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEAPIAuditLogTaskIDPrefix + "log-serializer")
+
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEAPIAuditLogTaskIDPrefix + "grouper")
+
+// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](GKEAPIAuditLogTaskIDPrefix + "history-modifier")

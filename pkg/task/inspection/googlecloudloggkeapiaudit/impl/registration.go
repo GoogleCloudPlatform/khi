@@ -22,7 +22,10 @@ import (
 // Register registers all googlecloudloggkeapiaudit inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		GKEAuditQueryTask,
-		GKEAuditLogParseJob,
+		ListLogEntriesTask,
+		FieldSetReaderTask,
+		LogGrouperTask,
+		LogSerializerTask,
+		HistoryModifierTask,
 	)
 }
