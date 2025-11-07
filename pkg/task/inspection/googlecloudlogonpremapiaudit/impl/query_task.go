@@ -21,6 +21,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
@@ -35,10 +36,48 @@ protoPayload.resourceName:"%s"
 `, clusterNameWithPrefix)
 }
 
-// OnPremCloudAuditLogQueryTask defines a task that gathers on-prem API audit logs from Cloud Logging.
-var OnPremCloudAuditLogQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogonpremapiaudit_contract.OnPremCloudAuditLogQueryTaskID, "OnPrem API Logs", enum.LogTypeOnPremAPI, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+type onpremAPIListLogEntriesTaskSetting struct {
+}
+
+// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (o *onpremAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (o *onpremAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	}
+}
+
+// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (o *onpremAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+		DefaultLogType: enum.LogTypeOnPremAPI,
+		QueryName:      "OnPrem API Logs",
+		ExampleQuery:   generateQuery("baremetalClusters/my-cluster"),
+	}
+}
+
+// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (o *onpremAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	return []string{generateQuery(clusterName)}, nil
-}, generateQuery("baremetalClusters/my-cluster"))
+}
+
+// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (o *onpremAPIListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID
+}
+
+// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (o *onpremAPIListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 1, nil
+}
+
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*onpremAPIListLogEntriesTaskSetting)(nil)
+
+var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&onpremAPIListLogEntriesTaskSetting{})
