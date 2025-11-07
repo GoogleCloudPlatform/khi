@@ -16,6 +16,7 @@
 package googlecloudlogcomputeapiaudit_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -23,8 +24,17 @@ import (
 // ComputeAPIAuditLogTaskIDPrefix is the prefix for the task IDs of the compute API audit log tasks.
 var ComputeAPIAuditLogTaskIDPrefix = "cloud.google.com/log/compute-api/"
 
-// ComputeAPIQueryTaskID is the task id for the task that queries compute API logs from Cloud Logging.
-var ComputeAPIQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "query")
+// ListLogEntriesTaskID is the task id for the task that queries compute API logs from Cloud Logging.
+var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "query")
 
-// ComputeAPIParserTaskID is the task id for the task that parses compute API logs.
-var ComputeAPIParserTaskID = taskid.NewDefaultImplementationID[struct{}](ComputeAPIAuditLogTaskIDPrefix + "parser")
+// FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "fieldset-reader")
+
+// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](ComputeAPIAuditLogTaskIDPrefix + "log-serializer")
+
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](ComputeAPIAuditLogTaskIDPrefix + "grouper")
+
+// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](ComputeAPIAuditLogTaskIDPrefix + "history-modifier")

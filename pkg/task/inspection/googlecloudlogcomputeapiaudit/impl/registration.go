@@ -20,9 +20,27 @@ import (
 )
 
 // Register registers all googlecloudlogcomputeapiaudit inspection tasks to the registry.
+/*
+flowchart TD
+    ListLogEntriesTask
+
+    FieldSetReadTask
+    LogSerializerTask
+    LogGrouperTask
+    HistoryModifierTask
+
+    ListLogEntriesTask --> FieldSetReadTask
+    ListLogEntriesTask -->LogSerializerTask
+    FieldSetReadTask --> LogGrouperTask
+    LogGrouperTask --> HistoryModifierTask
+    LogSerializerTask --> HistoryModifierTask
+*/
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		ComputeAPIQueryTask,
-		ComputeAPIParserTask,
+		ListLogEntriesTask,
+		FieldSetReaderTask,
+		LogGrouperTask,
+		LogSerializerTask,
+		HistoryModifierTask,
 	)
 }
