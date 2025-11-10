@@ -38,7 +38,7 @@ var CommonFieldsetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](T
 // ContainerdLogFilterTaskID is the ID for a task to filter only the logs for containerd.
 var ContainerdLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "containerd-log-filter")
 
-// ContainerdLogFilterTaskID is the ID for a task to group containerd related logs based on instance names.
+// ContainerdLogGroupTaskID is the ID for a task to group containerd related logs based on instance names.
 var ContainerdLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "containerd-log-group")
 
 // ContainerdIDDiscoveryTaskID is the ID for a task to extract pod sandbox IDs and container IDs for the other parsers to corelate a log to Pods or containers.

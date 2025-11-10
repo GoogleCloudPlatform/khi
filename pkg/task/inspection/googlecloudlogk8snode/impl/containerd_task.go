@@ -103,9 +103,9 @@ func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, relatio
 	relationshipRepository.PodSandboxIDInfoFinder.AddPattern(index.PodSandboxID, index)
 }
 
-func findPodSandboxIDInfo(msg string) (*googlecloudlogk8snode_contract.PodSandboxIDInfo, error) {
+func findPodSandboxIDInfo(jsonPayloadMessage string) (*googlecloudlogk8snode_contract.PodSandboxIDInfo, error) {
 	// RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"
-	msg, err := logutil.ExtractKLogField(msg, "msg")
+	msg, err := logutil.ExtractKLogField(jsonPayloadMessage, "msg")
 	if msg == "" || err != nil {
 		return nil, err
 	}
@@ -139,8 +139,8 @@ func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, relation
 	relationshipRepository.ContainerIDInfoFinder.AddPattern(index.ContainerID, index)
 }
 
-func findContainerIDInfo(msg string) (*googlecloudlogk8snode_contract.ContainerIDInfo, error) {
-	msg, err := logutil.ExtractKLogField(msg, "msg")
+func findContainerIDInfo(jsonPayloadMessage string) (*googlecloudlogk8snode_contract.ContainerIDInfo, error) {
+	msg, err := logutil.ExtractKLogField(jsonPayloadMessage, "msg")
 	if msg == "" || err != nil {
 		return nil, err
 	}
@@ -226,7 +226,7 @@ func (c *containerdNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx con
 	severity := logutil.ExractKLogSeverity(nodeLogFieldSet.Message)
 	cs.SetLogSeverity(severity)
 	summary, err := parseDefaultSummary(nodeLogFieldSet.Message)
-	if err != nil {
+	if summary == "" || err != nil {
 		summary = nodeLogFieldSet.Message
 	}
 	for k, v := range summaryReplaceMap {
@@ -243,46 +243,3 @@ func (c *containerdNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx con
 }
 
 var _ inspectiontaskbase.HistoryModifer[struct{}] = (*containerdNodeLogHistoryModifierSetting)(nil)
-
-func parseDefaultSummary(msg string) (string, error) {
-	subinfo := ""
-	klogmain, err := logutil.ExtractKLogField(msg, "")
-	if err != nil {
-		return "", err
-	}
-	errorMsg, err := logutil.ExtractKLogField(msg, "error")
-	if err == nil && errorMsg != "" {
-		subinfo = fmt.Sprintf("error=%s", errorMsg)
-	}
-	probeType, err := logutil.ExtractKLogField(msg, "probeType")
-	if err == nil && probeType != "" {
-		subinfo = fmt.Sprintf("probeType=%s", probeType)
-	}
-	eventMsg, err := logutil.ExtractKLogField(msg, "event")
-	if err == nil && eventMsg != "" {
-		if eventMsg[0] == '&' || eventMsg[0] == '{' {
-			if strings.Contains(eventMsg, "Type:") {
-				subinfo = strings.Split(strings.Split(eventMsg, "Type:")[1], " ")[0]
-			}
-		} else {
-			subinfo = eventMsg
-		}
-	}
-	klogstatus, err := logutil.ExtractKLogField(msg, "status")
-	if err == nil && klogstatus != "" {
-		subinfo = fmt.Sprintf("status=%s", klogstatus)
-	}
-	klogExitCode, err := logutil.ExtractKLogField(msg, "exitCode")
-	if err == nil && klogExitCode != "" {
-		subinfo = fmt.Sprintf("exitCode=%s", klogExitCode)
-	}
-	klogGracePeriod, err := logutil.ExtractKLogField(msg, "gracePeriod")
-	if err == nil && klogGracePeriod != "" {
-		subinfo = fmt.Sprintf("gracePeriod=%ss", klogGracePeriod)
-	}
-	if subinfo == "" {
-		return klogmain, nil
-	} else {
-		return fmt.Sprintf("%s(%s)", klogmain, subinfo), nil
-	}
-}
