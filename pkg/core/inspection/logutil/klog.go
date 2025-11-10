@@ -48,7 +48,7 @@ type klogHeader struct {
 }
 
 // ignore `file`,`threadid` and `line` part.
-var klogHeaderMatcher = regexp.MustCompile(`^([IWEF])(\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{6})\s+.*\](.*)$`)
+var klogHeaderMatcher = regexp.MustCompile(`^([IWEF])(\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{6})\s+[^\]]*\](.*)$`)
 
 func parseKLogHeader(klog string) *klogHeader {
 	matches := klogHeaderMatcher.FindStringSubmatch(klog)
@@ -77,6 +77,7 @@ func parseKLogMessageFragment(klogMessageFragment string) map[string]string {
 	result := map[string]string{}
 	inQuotes := false
 	inGoBrace := false
+	inBracket := false
 	parsingKey := true
 	escaping := false
 	currentKey := ""
@@ -114,8 +115,19 @@ func parseKLogMessageFragment(klogMessageFragment string) map[string]string {
 				currentGroup += string(klogMessageFragment[i])
 				continue
 			}
+			if klogMessageFragment[i] == '[' && !inQuotes && !inGoBrace {
+				inBracket = true
+				currentGroup += string(klogMessageFragment[i])
+				continue
+			}
 
-			if klogMessageFragment[i] == '"' && !inGoBrace {
+			if klogMessageFragment[i] == ']' && !inQuotes && !inGoBrace && inBracket {
+				inBracket = false
+				currentGroup += string(klogMessageFragment[i])
+				continue
+			}
+
+			if klogMessageFragment[i] == '"' && !inGoBrace && !inBracket {
 				if !parsingKey && inQuotes {
 					result[currentKey] = currentGroup
 					parsingKey = true
@@ -125,7 +137,7 @@ func parseKLogMessageFragment(klogMessageFragment string) map[string]string {
 				continue
 			}
 
-			if klogMessageFragment[i] == '=' && !inQuotes && !inGoBrace {
+			if klogMessageFragment[i] == '=' && !inQuotes && !inGoBrace && !inBracket {
 				if parsingKey {
 					currentKey = currentGroup
 					currentGroup = ""
@@ -135,7 +147,7 @@ func parseKLogMessageFragment(klogMessageFragment string) map[string]string {
 			}
 		}
 
-		if klogMessageFragment[i] == ' ' && !inQuotes && !inGoBrace {
+		if klogMessageFragment[i] == ' ' && !inQuotes && !inGoBrace && !inBracket {
 			if !parsingKey {
 				result[currentKey] = currentGroup
 				parsingKey = true

@@ -124,3 +124,13 @@ func StubTaskFromReferenceID[T any](mockTargetReference taskid.TaskReference[T],
 		return mockResult, mockError
 	})
 }
+
+// WithTaskResult adds task result to the given context. It's for testing a function using coretask.GetTaskResult inside.
+func WithTaskResult[T any](ctx context.Context, taskRef taskid.TaskReference[T], value T) context.Context {
+	_, err := khictx.GetValue(ctx, core_contract.TaskResultMapContextKey)
+	if err != nil {
+		ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, typedmap.NewTypedMap())
+	}
+	typedmap.Set(khictx.MustGetValue(ctx, core_contract.TaskResultMapContextKey), typedmap.NewTypedKey[T](taskRef.ReferenceIDString()), value)
+	return ctx
+}
