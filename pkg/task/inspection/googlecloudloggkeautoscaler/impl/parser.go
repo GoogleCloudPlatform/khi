@@ -59,7 +59,9 @@ type autoscalerHistoryModifierTaskSetting struct{}
 
 // Dependencies implements inspectiontaskbase.HistoryModifer.
 func (a *autoscalerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	}
 }
 
 // GroupedLogTask implements inspectiontaskbase.HistoryModifer.
