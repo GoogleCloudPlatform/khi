@@ -60,6 +60,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"@Cluster#nodepool#test-cluster#default-pool#test-cluster-default-pool-a0c72690-grp",
 						"core/v1#pod#default#test-85958b848b-ptc7n",
 					},
@@ -97,6 +98,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"core/v1#node#cluster-scope#test-cluster-default-pool-c47ef39f-p395",
 						"@Cluster#nodepool#test-cluster#default-pool#test-cluster-default-pool-c47ef39f-grp",
 						"core/v1#pod#kube-system#kube-dns-5c44c7b6b6-xvpbk",
@@ -129,6 +131,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"@Cluster#nodepool#test-cluster#nap-n1-standard-1-1kwag2qv",
 						"@Cluster#nodepool#test-cluster#nap-n1-standard-1-1kwag2qv#test-cluster-nap-n1-standard--b4fcc348-grp",
 					},
@@ -152,6 +155,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"@Cluster#nodepool#test-cluster#nap-n1-highcpu-8-ydj4ewil",
 					},
 				},
@@ -197,6 +201,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"@Cluster#nodepool#test-cluster#default-pool#test-cluster-default-pool-b1808ff9-grp",
 						"@Cluster#nodepool#test-cluster#nap-n1-highmem-4-1cywzhvf#test-cluster-nap-n1-highmem-4-fbdca585-grp",
 						"core/v1#pod#autoscaling-1661#memory-reservation2-6zg8m",
@@ -233,6 +238,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"core/v1#node#cluster-scope#test-cluster-default-pool-f74c1617-fbhk",
 						"@Cluster#nodepool#test-cluster#default-pool#test-cluster-default-pool-f74c1617-grp",
 					},
@@ -267,6 +273,7 @@ func TestHistoryModifierTask(t *testing.T) {
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
 					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
 						"core/v1#node#cluster-scope#test-cluster-default-pool-f74c1617-fbhk",
 						"@Cluster#nodepool#test-cluster#default-pool#test-cluster-default-pool-f74c1617-grp",
 					},
@@ -289,7 +296,9 @@ func TestHistoryModifierTask(t *testing.T) {
 			},
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
-					WantResourcePaths: []string{"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler"},
+					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
+					},
 				},
 				&testchangeset.HasLogSummary{
 					WantLogSummary: "autoscaler finished events: 2fca91cd-7345-47fc-9770-838e05e28b17(Success)",
@@ -325,7 +334,9 @@ results:
 			},
 			asserter: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
-					WantResourcePaths: []string{"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler"},
+					WantResourcePaths: []string{
+						"@Cluster#controlplane#cluster-scope#test-cluster#autoscaler",
+					},
 				},
 				&testchangeset.HasLogSummary{
 					WantLogSummary: "autoscaler finished events: ea2e964c-49b8-4cd7-8fa9-fefb0827f9a6(Error:scale.down.error.failed.to.delete.node.min.size.reached(test-cluster-default-pool-5c90f485-nk80))",

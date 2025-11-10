@@ -84,7 +84,10 @@ func (a *autoscalerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx contex
 		parseNoDecision(clusterName, autoscalerFieldSet.NoDecisionLog, cs)
 	}
 	if autoscalerFieldSet.ResultInfoLog != nil {
-		parseResultInfo(clusterName, autoscalerFieldSet.ResultInfoLog, cs)
+		err := parseResultInfo(clusterName, autoscalerFieldSet.ResultInfoLog, cs)
+		if err != nil {
+			return struct{}{}, err
+		}
 	}
 	return struct{}{}, nil
 }
@@ -142,9 +145,10 @@ func parseDecision(clusterName string, decision *googlecloudloggkeautoscaler_con
 		cs.SetLogSummary(fmt.Sprintf("Nodepool deleted by node auto provisioner: %s", strings.Join(nodepoolDeleted.NodePoolNames, ",")))
 	}
 	cs.SetLogSeverity(enum.SeverityWarning)
+	cs.AddEvent(resourcepath.Autoscaler(clusterName))
 }
 
-func parseNoDecision(clusterName string, noDecision *googlecloudloggkeautoscaler_contract.NoDecisionStatusLog, cs *history.ChangeSet) error {
+func parseNoDecision(clusterName string, noDecision *googlecloudloggkeautoscaler_contract.NoDecisionStatusLog, cs *history.ChangeSet) {
 	if noDecision.NoScaleUp != nil {
 		noScaleUp := noDecision.NoScaleUp
 		for _, mig := range noScaleUp.SkippedMigs {
@@ -177,7 +181,7 @@ func parseNoDecision(clusterName string, noDecision *googlecloudloggkeautoscaler
 		cs.SetLogSummary(fmt.Sprintf("autoscaler decided not to scale down: %s%s", noDecision.NoScaleDown.Reason.MessageId, parameterStr))
 	}
 	cs.SetLogSeverity(enum.SeverityInfo)
-	return nil
+	cs.AddEvent(resourcepath.Autoscaler(clusterName))
 }
 
 func parseResultInfo(clusterName string, resultInfo *googlecloudloggkeautoscaler_contract.ResultInfoLog, cs *history.ChangeSet) error {

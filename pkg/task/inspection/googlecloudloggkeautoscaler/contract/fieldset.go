@@ -15,6 +15,8 @@
 package googlecloudloggkeautoscaler_contract
 
 import (
+	"fmt"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -42,13 +44,24 @@ func (a *AutoscalerLogFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (a *AutoscalerLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result AutoscalerLogFieldSet
-	if decisionLog, err := parseDecisionFromReader(reader); err == nil {
+	switch {
+	case reader.Has("jsonPayload.decision"):
+		decisionLog, err := parseDecisionFromReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse decision log: %w", err)
+		}
 		result.DecisionLog = decisionLog
-	}
-	if noDecisionLog, err := parseNoDecisionFromReader(reader); err == nil {
+	case reader.Has("jsonPayload.noDecisionStatus"):
+		noDecisionLog, err := parseNoDecisionFromReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse noDecisionStatus log: %w", err)
+		}
 		result.NoDecisionLog = noDecisionLog
-	}
-	if resultInfoLog, err := parseResultInfoFromReader(reader); err == nil {
+	case reader.Has("jsonPayload.resultInfo"):
+		resultInfoLog, err := parseResultInfoFromReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse resultInfo log: %w", err)
+		}
 		result.ResultInfoLog = resultInfoLog
 	}
 	return &result, nil
