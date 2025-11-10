@@ -61,7 +61,6 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 	containerdInfo := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref())
 
-	checkStartingAndTerminationLog(cs, l, ContainerdStartingMsg, "")
 	cs.AddEvent(componentFieldSet.ResourcePath())
 
 	severity := logutil.ExractKLogSeverity(componentFieldSet.Message)
@@ -123,6 +122,8 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 				cs.AddEvent(resourcepath.Pod(podNamespace, podName))
 				cs.SetLogSummary(fmt.Sprintf("%s %s", summary, toReadablePodSandboxName(podNamespace, podName)))
 			}
+		} else {
+			cs.SetLogSummary(summary)
 		}
 	} else {
 		podNames, err := logutil.ExtractKLogField(componentFieldSet.Message, "pods")

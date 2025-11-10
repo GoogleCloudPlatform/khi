@@ -58,7 +58,9 @@ var ContainerdIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 		doneLogCount := atomic.Int32{}
 		updator := progressutil.NewProgressUpdator(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
 			current := doneLogCount.Load()
-			tp.Percentage = float32(current) / float32(len(logs))
+			if len(logs) > 0 {
+				tp.Percentage = float32(current) / float32(len(logs))
+			}
 			tp.Message = fmt.Sprintf("%d/%d", current, len(logs))
 		})
 		updator.Start(ctx)
