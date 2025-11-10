@@ -55,6 +55,9 @@ const (
 
 	RevisionStateProvisioning RevisionState = 29 // Added since 0.42
 
+	RevisionAutoscalerNoError   RevisionState = 30 // Added since 0.49
+	RevisionAutoscalerHasErrors RevisionState = 31
+
 	revisionStateUnusedEnd // Adds items above. This value is used for counting items in this enum to test.
 )
 
@@ -253,5 +256,17 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		BackgroundColor: "#4444ff",
 		CSSSelector:     "provisioning",
 		Label:           "Resource is being provisioned",
+	},
+	RevisionAutoscalerNoError: {
+		EnumKeyName:     "RevisionAutoscalerNoError",
+		BackgroundColor: "#004400",
+		CSSSelector:     "autoscaler_no_error",
+		Label:           "Autoscaler has no error",
+	},
+	RevisionAutoscalerHasErrors: {
+		EnumKeyName:     "RevisionAutoscalerHasErrors",
+		BackgroundColor: "#EE4400",
+		CSSSelector:     "autoscaler_has_errors",
+		Label:           "Autoscaler has errors",
 	},
 }

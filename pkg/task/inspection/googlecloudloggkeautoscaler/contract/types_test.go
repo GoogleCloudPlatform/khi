@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudloggkeautoscaler_impl
+package googlecloudloggkeautoscaler_contract
 
 import (
 	"encoding/json"
@@ -57,13 +57,13 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 				  "triggeringPodsTotalCount": 1
 				}
 			  }`,
-			ExpectedResult: decision{
+			ExpectedResult: DecisionLog{
 				DecideTime: "1582124907",
 				EventID:    "ed5cb16d-b06f-457c-a46d-f75dcca1f1ee",
-				ScaleUp: &scaleUp{
-					IncreasedMigs: []increasedMig{
+				ScaleUp: &ScaleUpItem{
+					IncreasedMigs: []IncreasedMIGItem{
 						{
-							Mig: mig{
+							Mig: MIGItem{
 								Name:     "test-cluster-default-pool-a0c72690-grp",
 								Nodepool: "default-pool",
 								Zone:     "us-central1-c",
@@ -71,9 +71,9 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 							RequestedNodes: 1,
 						},
 					},
-					TriggeringPods: []pod{
+					TriggeringPods: []PodItem{
 						{
-							Controller: controller{
+							Controller: ControllerItem{
 								ApiVersion: "apps/v1",
 								Kind:       "ReplicaSet",
 								Name:       "test-85958b848b",
@@ -120,15 +120,15 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 					]
 				  }
 			  }`,
-			ExpectedResult: decision{
+			ExpectedResult: DecisionLog{
 				DecideTime: "1580594665",
 				EventID:    "340dac18-8152-46ff-b79a-747f70854c81",
-				ScaleDown: &scaleDown{
-					NodesToBeRemoved: []nodeToBeRemoved{
+				ScaleDown: &ScaleDownItem{
+					NodesToBeRemoved: []NodeToBeRemovedItem{
 						{
-							EvictedPods: []pod{
+							EvictedPods: []PodItem{
 								{
-									Controller: controller{
+									Controller: ControllerItem{
 										ApiVersion: "apps/v1",
 										Kind:       "ReplicaSet",
 										Name:       "kube-dns-5c44c7b6b6",
@@ -138,10 +138,10 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 								},
 							},
 							EvictedPodsTotalCount: 1,
-							Node: node{
+							Node: NodeItem{
 								CpuRatio: 23,
 								MemRatio: 5,
-								Mig: mig{
+								Mig: MIGItem{
 									Name:     "test-cluster-default-pool-c47ef39f-grp",
 									Nodepool: "default-pool",
 									Zone:     "us-central1-f",
@@ -179,15 +179,15 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 				  "triggeringScaleUpId": "d25e0e6e-25e3-4755-98eb-49b38e54a728"
 				}
 			}`,
-			ExpectedResult: decision{
+			ExpectedResult: DecisionLog{
 				DecideTime: "1585838544",
 				EventID:    "822d272c-f4f3-44cf-9326-9cad79c58718",
-				NodePoolCreated: &nodePoolCreated{
+				NodePoolCreated: &NodepoolCreatedItem{
 					TriggeringScaleUpId: "d25e0e6e-25e3-4755-98eb-49b38e54a728",
-					NodePools: []nodepool{
+					NodePools: []NodepoolItem{
 						{
 							Name: "nap-n1-standard-1-1kwag2qv",
-							Migs: []mig{
+							Migs: []MIGItem{
 								{
 									Name:     "test-cluster-nap-n1-standard--b4fcc348-grp",
 									Nodepool: "nap-n1-standard-1-1kwag2qv",
@@ -215,10 +215,10 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 				  ]
 				}
             }`,
-			ExpectedResult: decision{
+			ExpectedResult: DecisionLog{
 				DecideTime: "1585830461",
 				EventID:    "68b0d1c7-b684-4542-bc19-f030922fb820",
-				NodePoolDeleted: &nodePoolDeleted{
+				NodePoolDeleted: &NodepoolDeletedItem{
 					NodePoolNames: []string{"nap-n1-highcpu-8-ydj4ewil"},
 				},
 			},
@@ -227,7 +227,7 @@ func TestAutoscalerDecisionLogTypesToMatchLogString(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			var result decision
+			var result DecisionLog
 			err := json.Unmarshal([]byte(testCase.InputJSON), &result)
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
@@ -243,7 +243,7 @@ func TestAutoscalerNoDecisionLogTypesToMatchLogString(t *testing.T) {
 	testCases := []struct {
 		Name           string
 		InputJSON      string
-		ExpectedResult noDecisionStatus
+		ExpectedResult NoDecisionStatusLog
 	}{
 		{
 			Name: "noScaleUp",
@@ -308,33 +308,33 @@ func TestAutoscalerNoDecisionLogTypesToMatchLogString(t *testing.T) {
 					"unhandledPodGroupsTotalCount": 1
 				  }
 			  }`,
-			ExpectedResult: noDecisionStatus{
+			ExpectedResult: NoDecisionStatusLog{
 				MeasureTime: "1582523362",
-				NoScaleUp: &noScaleUp{
-					SkippedMigs: []skippedMig{
+				NoScaleUp: &NoScaleUpItem{
+					SkippedMigs: []SkippedMIGItem{
 						{
-							Mig: mig{
+							Mig: MIGItem{
 								Name:     "test-cluster-nap-n1-highmem-4-fbdca585-grp",
 								Nodepool: "nap-n1-highmem-4-1cywzhvf",
 								Zone:     "us-central1-f",
 							},
-							Reason: reason{
+							Reason: ReasonItem{
 								MessageId:  "no.scale.up.mig.skipped",
 								Parameters: []string{"max cluster cpu limit reached"},
 							},
 						},
 					},
-					UnhandledPodGroups: []unhandledPodGroup{
+					UnhandledPodGroups: []UnhandledPodGroupItem{
 						{
-							NAPFailureReasons: []napFailureReason{
+							NAPFailureReasons: []NapFailureReasonItem{
 								{
 									MessageId:  "no.scale.up.nap.pod.zonal.resources.exceeded",
 									Parameters: []string{"us-central1-f"},
 								},
 							},
-							PodGroup: podGroup{
-								SamplePod: pod{
-									Controller: controller{
+							PodGroup: PodGroup{
+								SamplePod: PodItem{
+									Controller: ControllerItem{
 										ApiVersion: "v1",
 										Kind:       "ReplicationController",
 										Name:       "memory-reservation2",
@@ -344,14 +344,14 @@ func TestAutoscalerNoDecisionLogTypesToMatchLogString(t *testing.T) {
 								},
 								TotalPodCount: 1,
 							},
-							RejectedMigs: []rejectedMig{
+							RejectedMigs: []RejectedMIGItem{
 								{
-									Mig: mig{
+									Mig: MIGItem{
 										Name:     "test-cluster-default-pool-b1808ff9-grp",
 										Nodepool: "default-pool",
 										Zone:     "us-central1-f",
 									},
-									Reason: reason{
+									Reason: ReasonItem{
 										MessageId:  "no.scale.up.mig.failing.predicate",
 										Parameters: []string{"NodeResourcesFit", "Insufficient memory"},
 									},
@@ -390,13 +390,13 @@ func TestAutoscalerNoDecisionLogTypesToMatchLogString(t *testing.T) {
 					}
 				  }
 			  }`,
-			ExpectedResult: noDecisionStatus{
+			ExpectedResult: NoDecisionStatusLog{
 				MeasureTime: "1582858723",
-				NoScaleDown: &noScaleDown{
-					Nodes: []noScaleDownNode{{
-						Node: node{
+				NoScaleDown: &NoScaleDownItem{
+					Nodes: []NoScaleDownNodeItem{{
+						Node: NodeItem{
 							CpuRatio: 42,
-							Mig: mig{
+							Mig: MIGItem{
 								Name:     "test-cluster-default-pool-f74c1617-grp",
 								Nodepool: "default-pool",
 								Zone:     "us-central1-c",
@@ -406,7 +406,7 @@ func TestAutoscalerNoDecisionLogTypesToMatchLogString(t *testing.T) {
 					},
 					},
 					NodesTotalCount: 1,
-					Reason: reason{
+					Reason: ReasonItem{
 						MessageId: "no.scale.down.in.backoff",
 					},
 				},
@@ -416,7 +416,7 @@ func TestAutoscalerNoDecisionLogTypesToMatchLogString(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			var result noDecisionStatus
+			var result NoDecisionStatusLog
 			err := json.Unmarshal([]byte(testCase.InputJSON), &result)
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)
@@ -452,15 +452,15 @@ func TestAutoscalerResultInfoLogTypesToMatchLogString(t *testing.T) {
 		  }
 		]
 	  }`,
-		ExpectedResult: resultInfo{
+		ExpectedResult: ResultInfoLog{
 			MeasureTime: "1582878896",
-			Results: []result{
+			Results: []Result{
 				{
 					EventID: "2fca91cd-7345-47fc-9770-838e05e28b17",
 				},
 				{
 					EventID: "ea2e964c-49b8-4cd7-8fa9-fefb0827f9a6",
-					ErrorMsg: &errorMsg{
+					ErrorMsg: &ErrorMessageItem{
 						MessageId:  "scale.down.error.failed.to.delete.node.min.size.reached",
 						Parameters: []string{"test-cluster-default-pool-5c90f485-nk80"},
 					},
@@ -470,7 +470,7 @@ func TestAutoscalerResultInfoLogTypesToMatchLogString(t *testing.T) {
 	}}
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
-			var result resultInfo
+			var result ResultInfoLog
 			err := json.Unmarshal([]byte(testCase.InputJSON), &result)
 			if err != nil {
 				t.Errorf("unexpected error\n%v", err)

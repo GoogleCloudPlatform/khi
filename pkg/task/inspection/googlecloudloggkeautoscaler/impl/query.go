@@ -21,6 +21,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
@@ -39,12 +40,50 @@ resource.labels.cluster_name="%s"
 logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, projectId, clusterName, excludeStatusQueryFragment, projectId)
 }
 
-var AutoscalerQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudloggkeautoscaler_contract.AutoscalerQueryTaskID, "Autoscaler logs", enum.LogTypeAutoscaler, []taskid.UntypedTaskReference{
-	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+type autoscalerListLogEntriesTaskSetting struct{}
+
+// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	}
+}
+
+// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+		DefaultLogType: enum.LogTypeAutoscaler,
+		QueryName:      "Cluster autoscaler logs",
+		ExampleQuery:   generateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true),
+	}
+}
+
+// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
 	return []string{generateAutoscalerQuery(projectID, clusterName, true)}, nil
-}, generateAutoscalerQuery("gcp-project-id", "gcp-cluster-name", true))
+
+}
+
+// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID
+}
+
+// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (a *autoscalerListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 1, nil
+}
+
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*autoscalerListLogEntriesTaskSetting)(nil)
+
+var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&autoscalerListLogEntriesTaskSetting{})
