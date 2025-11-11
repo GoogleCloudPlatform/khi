@@ -103,6 +103,15 @@ func TestParseKLogMessageFragment(t *testing.T) {
 				"event": "&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}",
 			},
 		},
+		{
+			Name:             "parse message with array",
+			InputLogFragment: `"SyncLoop DELETE" source="api" pods=["apple","banana","cherry"]`,
+			Expected: map[string]string{
+				"msg":    "SyncLoop DELETE",
+				"source": "api",
+				"pods":   `["apple","banana","cherry"]`,
+			},
+		},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
@@ -192,6 +201,23 @@ func TestExtractKLogField(t *testing.T) {
 				{
 					Field:    "fieldWithoutQuotes",
 					Expected: "qux1234",
+				},
+			},
+		},
+		{
+			InputLog: `I0929 08:30:44.541804    1949 kubelet.go:2458] "SyncLoop DELETE" source="api" pods=["foo/bar"]`,
+			Matches: []match{
+				{
+					Field:    "",
+					Expected: `SyncLoop DELETE`,
+				},
+				{
+					Field:    "source",
+					Expected: "api",
+				},
+				{
+					Field:    "pods",
+					Expected: `["foo/bar"]`,
 				},
 			},
 		},

@@ -90,7 +90,7 @@ func (h *HasEvent) Assert(t *testing.T, cs *history.ChangeSet) {
 		Path: h.ResourcePath,
 	})
 	if len(events) == 0 {
-		t.Errorf("no events found for %s", h.ResourcePath)
+		t.Errorf("no events found for %s. available paths are: %v", h.ResourcePath, cs.GetAllResourcePaths())
 	}
 }
 
@@ -105,6 +105,7 @@ func (h *HasLogSummary) Assert(t *testing.T, cs *history.ChangeSet) {
 	t.Helper()
 	if cs.LogSummary != h.WantLogSummary {
 		t.Errorf("log summary is not matching with the expected: want=%s, got=%s", h.WantLogSummary, cs.LogSummary)
+
 	}
 }
 
