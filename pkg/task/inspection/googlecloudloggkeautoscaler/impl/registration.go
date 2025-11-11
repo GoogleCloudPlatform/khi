@@ -22,7 +22,10 @@ import (
 // Register registers all googlecloudloggkeautoscaler inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
-		AutoscalerQueryTask,
-		AutoscalerParserTask,
+		ListLogEntriesTask,
+		FieldSetReaderTask,
+		LogSerializerTask,
+		LogGrouperTask,
+		HistoryModifierTask,
 	)
 }

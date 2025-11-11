@@ -16,14 +16,24 @@
 package googlecloudloggkeautoscaler_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 const gkeAutoscalerTaskIDPrefix = "cloud.google.com/gke/log/autoscaler/"
 
-// AutoscalerQueryTaskID is the task id for the task that queries GKE autoscaler logs from Cloud Logging.
-var AutoscalerQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "query")
+// ListLogEntriesTaskID is the task id for the task that queries GKE autoscaler logs from Cloud Logging.
+var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "query")
 
-// AutoscalerParserTaskID is the task id for the task that parses GKE autoscaler logs.
-var AutoscalerParserTaskID = taskid.NewDefaultImplementationID[struct{}](gkeAutoscalerTaskIDPrefix + "parser")
+// FieldSetReaderTaskID is the task id for the task that reads the common field set from GKE autoscaler logs.
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "fieldset_reader")
+
+// LogGrouperTaskID is the task id for the task that groups GKE autoscaler logs.
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](gkeAutoscalerTaskIDPrefix + "log_grouper")
+
+// LogSerializerTaskID is the task id for the task that serializes GKE autoscaler logs.
+var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "log_serializer")
+
+// HistoryModifierTaskID is the task id for the task that modifies the history based on GKE autoscaler logs.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](gkeAutoscalerTaskIDPrefix + "history_modifier")

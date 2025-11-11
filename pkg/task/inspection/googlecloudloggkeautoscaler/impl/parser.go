@@ -20,105 +20,90 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"gopkg.in/yaml.v3"
 )
 
-type autoscalerLogParser struct {
-}
+var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
+	&googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSetReader{},
+})
 
-// TargetLogType implements parsertask.Parser.
-func (p *autoscalerLogParser) TargetLogType() enum.LogType {
-	return enum.LogTypeAutoscaler
-}
+var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudloggkeautoscaler_contract.LogSerializerTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref())
 
-// Dependencies implements parsertask.Parser.
-func (*autoscalerLogParser) Dependencies() []taskid.UntypedTaskReference {
+var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeautoscaler_contract.LogGrouperTaskID, googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID.Ref(),
+	func(ctx context.Context, l *log.Log) string {
+		return "" // No grouping
+	},
+)
+
+var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudloggkeautoscaler_contract.HistoryModifierTaskID, &autoscalerHistoryModifierTaskSetting{},
+	inspectioncore_contract.FeatureTaskLabel(`GKE Autoscaler Logs`,
+		`Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.`,
+		enum.LogTypeAutoscaler,
+		8000,
+		true,
+		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...),
+)
+
+type autoscalerHistoryModifierTaskSetting struct{}
+
+// Dependencies implements inspectiontaskbase.HistoryModifer.
+func (a *autoscalerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	}
 }
 
-// Description implements parsertask.Parser.
-func (*autoscalerLogParser) Description() string {
-	return `Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.`
+// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
+func (a *autoscalerHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudloggkeautoscaler_contract.LogGrouperTaskID.Ref()
 }
 
-// GetParserName implements parsertask.Parser.
-func (*autoscalerLogParser) GetParserName() string {
-	return `Autoscaler Logs`
+// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
+func (a *autoscalerHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudloggkeautoscaler_contract.LogSerializerTaskID.Ref()
 }
 
-// LogTask implements parsertask.Parser.
-func (*autoscalerLogParser) LogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudloggkeautoscaler_contract.AutoscalerQueryTaskID.Ref()
-}
-
-func (*autoscalerLogParser) Grouper() grouper.LogGrouper {
-	return grouper.AllDependentLogGrouper
-}
-
-// Parse implements parsertask.Parser.
-func (p *autoscalerLogParser) Parse(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
+// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
+func (a *autoscalerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+	autoscalerFieldSet := log.MustGetFieldSet(l, &googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSet{})
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
-	// scaleUp,scaleDown,nodePoolCreated,nodePoolDeleted
-	if l.Has("jsonPayload.decision") {
-		err := parseDecision(ctx, clusterName, l, cs, builder)
+	if autoscalerFieldSet.DecisionLog != nil {
+		parseDecision(clusterName, autoscalerFieldSet.DecisionLog, cs)
+	}
+	if autoscalerFieldSet.NoDecisionLog != nil {
+		parseNoDecision(clusterName, autoscalerFieldSet.NoDecisionLog, cs)
+	}
+	if autoscalerFieldSet.ResultInfoLog != nil {
+		err := parseResultInfo(clusterName, autoscalerFieldSet.ResultInfoLog, cs)
 		if err != nil {
-			var yaml string
-			yamlBytes, err := l.Serialize("", &structured.YAMLNodeSerializer{})
-			if err != nil {
-				yaml = "ERROR!! Failed to dump in YAML"
-			} else {
-				yaml = string(yamlBytes)
-			}
-			return fmt.Errorf("Failed to parse decision log:\nERROR:%s\n\n:SOURCE LOG:\n%s", err, yaml)
+			return struct{}{}, err
 		}
 	}
-	if l.Has("jsonPayload.noDecisionStatus") {
-		err := parseNoDecision(ctx, clusterName, l, cs, builder)
-		if err != nil {
-			return err
-		}
-	}
-	if l.Has("jsonPayload.resultInfo") {
-		err := parseResultInfo(ctx, clusterName, l, cs, builder)
-		if err != nil {
-			return err
-		}
-	}
-	cs.AddEvent(resourcepath.Autoscaler(clusterName))
-	return nil
+	return struct{}{}, nil
 }
 
-func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	jsonDecisionReader, err := l.GetReader("jsonPayload.decision")
-	if err != nil {
-		return err
-	}
-	decision, err := parseDecisionFromReader(jsonDecisionReader)
-	if err != nil {
-		return err
-	}
+var _ inspectiontaskbase.HistoryModifer[struct{}] = (*autoscalerHistoryModifierTaskSetting)(nil)
+
+func parseDecision(clusterName string, decision *googlecloudloggkeautoscaler_contract.DecisionLog, cs *history.ChangeSet) {
 	// Parse scale up event
 	if decision.ScaleUp != nil {
 		scaleUp := decision.ScaleUp
 		nodepoolNames := []string{}
 		requestedSum := 0
 		for _, mig := range scaleUp.IncreasedMigs {
-			migResourcePath := resourcepath.Mig(clusterName, mig.Mig.Nodepool, mig.Mig.Name)
-			cs.AddEvent(migResourcePath)
+			cs.AddEvent(resourcepath.Mig(clusterName, mig.Mig.Nodepool, mig.Mig.Name))
 			nodepoolNames = append(nodepoolNames, mig.Mig.Nodepool)
 			requestedSum += mig.RequestedNodes
 		}
@@ -132,9 +117,8 @@ func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *hist
 		scaleDown := decision.ScaleDown
 		nodepoolNames := []string{}
 		for _, nodeToBeRemoved := range scaleDown.NodesToBeRemoved {
-			migResourcePath := resourcepath.Mig(clusterName, nodeToBeRemoved.Node.Mig.Nodepool, nodeToBeRemoved.Node.Name)
 			cs.AddEvent(resourcepath.Node(nodeToBeRemoved.Node.Name))
-			cs.AddEvent(migResourcePath)
+			cs.AddEvent(resourcepath.Mig(clusterName, nodeToBeRemoved.Node.Mig.Nodepool, nodeToBeRemoved.Node.Mig.Name))
 			for _, pod := range nodeToBeRemoved.EvictedPods {
 				cs.AddEvent(resourcepath.Pod(pod.Namespace, pod.Name))
 			}
@@ -149,8 +133,7 @@ func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *hist
 		for _, nodepool := range nodePoolCreated.NodePools {
 			cs.AddEvent(resourcepath.Nodepool(clusterName, nodepool.Name))
 			for _, mig := range nodepool.Migs {
-				migResourcePath := resourcepath.Mig(clusterName, mig.Nodepool, mig.Name)
-				cs.AddEvent(migResourcePath)
+				cs.AddEvent(resourcepath.Mig(clusterName, mig.Nodepool, mig.Name))
 			}
 			nodepools = append(nodepools, nodepool.Name)
 		}
@@ -164,31 +147,27 @@ func parseDecision(ctx context.Context, clusterName string, l *log.Log, cs *hist
 		cs.SetLogSummary(fmt.Sprintf("Nodepool deleted by node auto provisioner: %s", strings.Join(nodepoolDeleted.NodePoolNames, ",")))
 	}
 	cs.SetLogSeverity(enum.SeverityWarning)
-	return nil
+	cs.AddEvent(resourcepath.Autoscaler(clusterName))
 }
 
-func parseNoDecision(ctx context.Context, clusterName string, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	jsonNoDecisionReader, err := l.GetReader("jsonPayload.noDecisionStatus")
-	if err != nil {
-		return err
-	}
-	noDecision, err := parseNoDecisionFromReader(jsonNoDecisionReader)
-	if err != nil {
-		return err
-	}
+func parseNoDecision(clusterName string, noDecision *googlecloudloggkeautoscaler_contract.NoDecisionStatusLog, cs *history.ChangeSet) {
 	if noDecision.NoScaleUp != nil {
 		noScaleUp := noDecision.NoScaleUp
 		for _, mig := range noScaleUp.SkippedMigs {
-			migResourcePath := resourcepath.Mig(clusterName, mig.Mig.Nodepool, mig.Mig.Name)
-			cs.AddEvent(migResourcePath)
+			cs.AddEvent(resourcepath.Mig(clusterName, mig.Mig.Nodepool, mig.Mig.Name))
+		}
+		for _, groupItem := range noScaleUp.UnhandledPodGroups {
+			cs.AddEvent(resourcepath.Pod(groupItem.PodGroup.SamplePod.Namespace, groupItem.PodGroup.SamplePod.Name))
+			for _, rejectedMig := range groupItem.RejectedMigs {
+				cs.AddEvent(resourcepath.Mig(clusterName, rejectedMig.Mig.Nodepool, rejectedMig.Mig.Name))
+			}
 		}
 		cs.SetLogSummary("autoscaler decided not to scale up")
-		// TODO: support unhandled migs
 	}
 
 	if noDecision.NoScaleDown != nil {
 		noScaleDown := noDecision.NoScaleDown
-		migs := map[string]mig{}
+		migs := map[string]googlecloudloggkeautoscaler_contract.MIGItem{}
 		for _, node := range noScaleDown.Nodes {
 			cs.AddEvent(resourcepath.Node(node.Node.Name))
 			migs[node.Node.Mig.Id()] = node.Node.Mig
@@ -197,36 +176,62 @@ func parseNoDecision(ctx context.Context, clusterName string, l *log.Log, cs *hi
 			migResourcePath := resourcepath.Mig(clusterName, mig.Nodepool, mig.Name)
 			cs.AddEvent(migResourcePath)
 		}
-		cs.SetLogSummary("autoscaler decided not to scale down")
+		parameterStr := strings.Join(noDecision.NoScaleDown.Reason.Parameters, ",")
+		if parameterStr != "" {
+			parameterStr = fmt.Sprintf("(%s)", parameterStr)
+		}
+		cs.SetLogSummary(fmt.Sprintf("autoscaler decided not to scale down: %s%s", noDecision.NoScaleDown.Reason.MessageId, parameterStr))
 	}
 	cs.SetLogSeverity(enum.SeverityInfo)
-	return nil
+	cs.AddEvent(resourcepath.Autoscaler(clusterName))
 }
 
-func parseResultInfo(ctx context.Context, clusterName string, l *log.Log, cs *history.ChangeSet, builder *history.Builder) error {
-	jsonResultInfoReader, err := l.GetReader("jsonPayload.resultInfo")
-	if err != nil {
-		return err
-	}
-	resultInfo, err := parseResultInfoFromReader(jsonResultInfoReader)
-	if err != nil {
-		return err
-	}
+func parseResultInfo(clusterName string, resultInfo *googlecloudloggkeautoscaler_contract.ResultInfoLog, cs *history.ChangeSet) error {
+	commonFieldSet := log.MustGetFieldSet(cs.Log, &log.CommonFieldSet{})
 	statuses := []string{}
 	for _, r := range resultInfo.Results {
 		status := r.EventID
 		if r.ErrorMsg != nil {
-			status += fmt.Sprintf("(Error:%s)", r.ErrorMsg.MessageId)
+			parameersStr := ""
+			if len(r.ErrorMsg.Parameters) > 0 {
+				parameersStr = fmt.Sprintf("(%s)", strings.Join(r.ErrorMsg.Parameters, ","))
+			}
+			status += fmt.Sprintf("(Error:%s%s)", r.ErrorMsg.MessageId, parameersStr)
 		} else {
 			status += "(Success)"
 		}
 		statuses = append(statuses, status)
 	}
+	revisionState := enum.RevisionAutoscalerNoError
+	if resultInfoHasErrors(resultInfo) {
+		revisionState = enum.RevisionAutoscalerHasErrors
+	}
+
+	serializedResultsRaw, err := yaml.Marshal(resultInfo)
+	if err != nil {
+		return err
+	}
+
+	cs.AddRevision(resourcepath.Autoscaler(clusterName), &history.StagingResourceRevision{
+		ChangeTime: commonFieldSet.Timestamp,
+		State:      revisionState,
+		Requestor:  "cluster-autoscaler",
+		Body:       string(serializedResultsRaw),
+	})
 	cs.SetLogSeverity(enum.SeverityInfo)
 	cs.SetLogSummary(fmt.Sprintf("autoscaler finished events: %s", strings.Join(statuses, ",")))
 	return nil
 }
 
-var _ legacyparser.Parser = (*autoscalerLogParser)(nil)
-
-var AutoscalerParserTask = legacyparser.NewParserTaskFromParser(googlecloudloggkeautoscaler_contract.AutoscalerParserTaskID, &autoscalerLogParser{}, 8000, true, googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes)
+// resultInfoHasErrors returns if the given resultInfo contains any error events.
+func resultInfoHasErrors(resultInfo *googlecloudloggkeautoscaler_contract.ResultInfoLog) bool {
+	if resultInfo == nil {
+		return false
+	}
+	for _, r := range resultInfo.Results {
+		if r.ErrorMsg != nil {
+			return true
+		}
+	}
+	return false
+}
