@@ -19,6 +19,25 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
+/*
+ graph TD
+  subgraph "CSM Access Log"
+    direction LR
+    InputCSMResponseFlagsTask(Input CSM Response Flags)
+    ListLogEntriesTask(List Log Entries)
+    FieldSetReaderTask(Field Set Reader)
+    LogSerializerTask(Log Serializer)
+    LogGrouperTask(Log Grouper)
+    HistoryModifierTask(History Modifier)
+
+    ListLogEntriesTask --> FieldSetReaderTask
+    ListLogEntriesTask --> LogSerializerTask
+    FieldSetReaderTask --> LogGrouperTask
+    LogGrouperTask --> HistoryModifierTask
+    LogSerializerTask --> HistoryModifierTask
+    InputCSMResponseFlagsTask --> ListLogEntriesTask
+  end
+*/
 // Register registers all googlecloudlogcsm inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,

@@ -23,16 +23,20 @@ import (
 
 const TaskIDPrefix = "cloud.google.com/log/csm-accesslog/"
 
+// InputCSMResponseFlagsTaskID is the task ID for the form input that specifies which Envoy response flags to filter CSM access logs by.
 var InputCSMResponseFlagsTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](TaskIDPrefix + "input/response-flags")
 
+// ListLogEntriesTaskID is the task ID for the task that queries CSM access logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "list-log-entries")
 
-// FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
+// FieldSetReaderTaskID is the task id to read the CSM related fieldset for processing the log in the later task.
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "fieldset-reader")
 
 // LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
 var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
 
+// LogGrouperTaskID is the task ID to group CSM access logs by their reporter pod for parallel processing.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
+// HistoryModifier is the task ID for associating CSM access log events with resource timelines.
 var HistoryModifier = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
