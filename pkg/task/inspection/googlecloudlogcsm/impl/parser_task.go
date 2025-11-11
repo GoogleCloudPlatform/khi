@@ -47,7 +47,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcsm_cont
 	},
 )
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogcsm_contract.HistoryModifier, &csmAccessLogHistoryModifierSetting{}, inspectioncore_contract.FeatureTaskLabel(
+var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogcsm_contract.HistoryModifierTaskID, &csmAccessLogHistoryModifierSetting{}, inspectioncore_contract.FeatureTaskLabel(
 	"CSM Access Log",
 	"Gather CSM access logs from Cloud Logging and associate them in client or server Pods on timelines",
 	enum.LogTypeCSMAccessLog,
@@ -84,7 +84,7 @@ func (c *csmAccessLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 		if istioAccessLog.SourceName != "" && istioAccessLog.SourceNamespace != "" {
 			cs.AddEvent(resourcepath.CSMClientAccess(istioAccessLog.SourceNamespace, istioAccessLog.SourceName))
 		}
-		if istioAccessLog.DestinationServiceName != "" {
+		if istioAccessLog.DestinationServiceName != "" && istioAccessLog.DestinationNamespace != "" {
 			cs.AddEvent(resourcepath.CSMServiceServerAccess(istioAccessLog.DestinationNamespace, istioAccessLog.DestinationServiceName))
 		}
 	case googlecloudlogcsm_contract.AccessLogTypeClient:
@@ -92,7 +92,7 @@ func (c *csmAccessLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 		if istioAccessLog.DestinationName != "" && istioAccessLog.DestinationNamespace != "" {
 			cs.AddEvent(resourcepath.CSMServerAccess(istioAccessLog.DestinationNamespace, istioAccessLog.DestinationName, ""))
 		}
-		if istioAccessLog.DestinationServiceName != "" {
+		if istioAccessLog.DestinationServiceName != "" && istioAccessLog.DestinationNamespace != "" {
 			cs.AddEvent(resourcepath.CSMServiceClientAccess(istioAccessLog.DestinationNamespace, istioAccessLog.DestinationServiceName))
 		}
 	}

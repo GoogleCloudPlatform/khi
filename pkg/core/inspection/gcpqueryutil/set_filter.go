@@ -43,7 +43,7 @@ type SetFilterParseResult struct {
 
 // AdditivesWithQuotes returns the additive filter item with wrapped by quotes for every items.
 func (r *SetFilterParseResult) AdditivesWithQuotes() []string {
-	result := []string{}
+	result := make([]string, 0, len(r.Additives))
 	for _, additive := range r.Additives {
 		result = append(result, fmt.Sprintf(`"%s"`, additive))
 	}
@@ -52,7 +52,7 @@ func (r *SetFilterParseResult) AdditivesWithQuotes() []string {
 
 // SubtractivesWithQuotes returns the subtractive filter item with wrapped by quote for every items.
 func (r *SetFilterParseResult) SubtractivesWithQuotes() []string {
-	result := []string{}
+	result := make([]string, 0, len(r.Subtractives))
 	for _, subtractive := range r.Subtractives {
 		result = append(result, fmt.Sprintf(`"%s"`, subtractive))
 	}

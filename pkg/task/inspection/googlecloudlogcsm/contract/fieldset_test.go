@@ -37,6 +37,7 @@ labels:
   source_name: "istio-ingressgateway"
   destination_namespace: "default"
   destination_service_name: "productpage"
+  destination_service_host: productpage.default.svc.cluster.local
 resource:
   labels:
     pod_name: "productpage-v1"
@@ -44,15 +45,16 @@ resource:
     container_name: "istio-proxy"
 `,
 			want: &IstioAccessLogFieldSet{
-				Type:                   AccessLogTypeServer,
-				ResponseFlag:           ResponseFlagNoHealthyUpstream,
-				SourceNamespace:        "default",
-				SourceName:             "istio-ingressgateway",
-				DestinationNamespace:   "default",
-				DestinationServiceName: "productpage",
-				ReporterPodName:        "productpage-v1",
-				ReporterPodNamespace:   "default",
-				ReporterContainerName:  "istio-proxy",
+				Type:                        AccessLogTypeServer,
+				ResponseFlag:                ResponseFlagNoHealthyUpstream,
+				SourceNamespace:             "default",
+				SourceName:                  "istio-ingressgateway",
+				DestinationNamespace:        "default",
+				DestinationServiceName:      "productpage",
+				DestinationServiceNamespace: "default",
+				ReporterPodName:             "productpage-v1",
+				ReporterPodNamespace:        "default",
+				ReporterContainerName:       "istio-proxy",
 			},
 		},
 		{
@@ -66,22 +68,24 @@ labels:
   destination_namespace: "default"
   destination_name: "details-v1"
   destination_service_name: "details"
+  destination_service_host: details.detailer.svc.cluster.local
 resource:
   labels:
     pod_name: "productpage-v1"
     namespace_name: "default"
 `,
 			want: &IstioAccessLogFieldSet{
-				Type:                   AccessLogTypeClient,
-				ResponseFlag:           ResponseFlagNoError,
-				SourceNamespace:        "default",
-				SourceName:             "productpage-v1",
-				DestinationNamespace:   "default",
-				DestinationName:        "details-v1",
-				DestinationServiceName: "details",
-				ReporterPodName:        "productpage-v1",
-				ReporterPodNamespace:   "default",
-				ReporterContainerName:  "",
+				Type:                        AccessLogTypeClient,
+				ResponseFlag:                ResponseFlagNoError,
+				SourceNamespace:             "default",
+				SourceName:                  "productpage-v1",
+				DestinationNamespace:        "default",
+				DestinationServiceNamespace: "detailer",
+				DestinationName:             "details-v1",
+				DestinationServiceName:      "details",
+				ReporterPodName:             "productpage-v1",
+				ReporterPodNamespace:        "default",
+				ReporterContainerName:       "",
 			},
 		},
 		{

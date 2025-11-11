@@ -63,7 +63,7 @@ var InputCSMResponseFlagsTask = formtask.NewTextFormTaskBuilder(googlecloudlogcs
 
 // convertInputOnlyResponseFlagToActualFlag replaces "OK" included in the given flag array to "-" and all other lower cased flags to upper case.
 func convertInputOnlyResponseFlagToActualFlag(flags []string) []string {
-	result := []string{}
+	result := make([]string, 0, len(flags))
 	for _, flag := range flags {
 		if flag == "ok" {
 			result = append(result, string(googlecloudlogcsm_contract.ResponseFlagNoError))

@@ -38,5 +38,5 @@ var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPr
 // LogGrouperTaskID is the task ID to group CSM access logs by their reporter pod for parallel processing.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
-// HistoryModifier is the task ID for associating CSM access log events with resource timelines.
-var HistoryModifier = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
+// HistoryModifierTaskID is the task ID for associating CSM access log events with resource timelines.
+var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")

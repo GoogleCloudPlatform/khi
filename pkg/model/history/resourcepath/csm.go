@@ -20,40 +20,29 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
+func csmAccessPath(base ResourcePath, direction string, containerName string) ResourcePath {
+	path := fmt.Sprintf("%s#%s", base.Path, direction)
+	if containerName != "" {
+		path += ":" + containerName
+	}
+	return ResourcePath{
+		Path:               path,
+		ParentRelationship: enum.RelationshipCSMAccessLog,
+	}
+}
+
 func CSMServerAccess(podNamespace string, podName string, containerName string) ResourcePath {
-	base := Pod(podNamespace, podName)
-	if containerName == "" {
-		return ResourcePath{
-			Path:               fmt.Sprintf("%s#server", base.Path),
-			ParentRelationship: enum.RelationshipCSMAccessLog,
-		}
-	}
-	return ResourcePath{
-		Path:               fmt.Sprintf("%s#server:%s", base.Path, containerName),
-		ParentRelationship: enum.RelationshipCSMAccessLog,
-	}
-}
-
-func CSMClientAccess(podNamespace string, podName string) ResourcePath {
-	base := Pod(podNamespace, podName)
-	return ResourcePath{
-		Path:               fmt.Sprintf("%s#client", base.Path),
-		ParentRelationship: enum.RelationshipCSMAccessLog,
-	}
-}
-
-func CSMServiceClientAccess(serviceNamespace string, serviceName string) ResourcePath {
-	base := Service(serviceNamespace, serviceName)
-	return ResourcePath{
-		Path:               fmt.Sprintf("%s#client", base.Path),
-		ParentRelationship: enum.RelationshipCSMAccessLog,
-	}
+	return csmAccessPath(Pod(podNamespace, podName), "server", containerName)
 }
 
 func CSMServiceServerAccess(serviceNamespace string, serviceName string) ResourcePath {
-	base := Service(serviceNamespace, serviceName)
-	return ResourcePath{
-		Path:               fmt.Sprintf("%s#server", base.Path),
-		ParentRelationship: enum.RelationshipCSMAccessLog,
-	}
+	return csmAccessPath(Service(serviceNamespace, serviceName), "server", "")
+}
+
+func CSMClientAccess(podNamespace string, podName string) ResourcePath {
+	return csmAccessPath(Pod(podNamespace, podName), "client", "")
+}
+
+func CSMServiceClientAccess(serviceNamespace string, serviceName string) ResourcePath {
+	return csmAccessPath(Service(serviceNamespace, serviceName), "client", "")
 }

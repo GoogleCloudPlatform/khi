@@ -38,7 +38,7 @@ func TestCsmAccessLogsFilter(t *testing.T) {
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH" OR "UT")
-protoPayload.resourceName:("/namespaces/default")
+resource.labels.namespace_name:("default")
 resource.labels.cluster_name="test-project"`,
 		},
 		{
@@ -52,7 +52,7 @@ resource.labels.cluster_name="test-project"`,
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 -labels.response_flag:("-")
-protoPayload.resourceName:("/namespaces/default")
+resource.labels.namespace_name:("default")
 resource.labels.cluster_name="test-project"`,
 		},
 		{
@@ -65,7 +65,7 @@ resource.labels.cluster_name="test-project"`,
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
--protoPayload.resourceName:"/namespaces/"
+resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM access log.
 resource.labels.cluster_name="test-project"`,
 		},
 		{
@@ -78,7 +78,7 @@ resource.labels.cluster_name="test-project"`,
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
-(protoPayload.resourceName:("/namespaces/kube-system") OR NOT (protoPayload.resourceName:"/namespaces/"))
+resource.labels.namespace_name:("kube-system")
 resource.labels.cluster_name="test-project"`,
 		},
 		{
@@ -91,7 +91,7 @@ resource.labels.cluster_name="test-project"`,
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
-protoPayload.resourceName:"namespaces/"
+-- No namespace filter
 resource.labels.cluster_name="test-project"`,
 		},
 		{

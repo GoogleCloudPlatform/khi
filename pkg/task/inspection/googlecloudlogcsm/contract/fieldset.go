@@ -112,9 +112,10 @@ type IstioAccessLogFieldSet struct {
 	SourceNamespace string
 	SourceName      string
 
-	DestinationNamespace   string
-	DestinationName        string
-	DestinationServiceName string
+	DestinationNamespace        string
+	DestinationName             string
+	DestinationServiceName      string
+	DestinationServiceNamespace string
 
 	ReporterPodName       string
 	ReporterPodNamespace  string
@@ -152,6 +153,13 @@ func (i *IstioAccessLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	result.DestinationNamespace = reader.ReadStringOrDefault("labels.destination_namespace", "")
 	result.DestinationName = reader.ReadStringOrDefault("labels.destination_name", "")
 	result.DestinationServiceName = reader.ReadStringOrDefault("labels.destination_service_name", "")
+	destinationServiceHost := reader.ReadStringOrDefault("labels.destination_service_host", "")
+	if destinationServiceHost != "" {
+		dotSplittedServiceHost := strings.Split(destinationServiceHost, ".")
+		if len(dotSplittedServiceHost) >= 2 {
+			result.DestinationServiceNamespace = dotSplittedServiceHost[1]
+		}
+	}
 
 	result.ReporterPodName = reader.ReadStringOrDefault("resource.labels.pod_name", "")
 	result.ReporterPodNamespace = reader.ReadStringOrDefault("resource.labels.namespace_name", "")

@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestConvertInputOnlyResponseFlagToActualFlag(t *testing.T) {
@@ -41,14 +42,8 @@ func TestConvertInputOnlyResponseFlagToActualFlag(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			got := convertInputOnlyResponseFlagToActualFlag(tc.input)
-			if len(got) != len(tc.want) {
-				t.Errorf("convertInputOnlyResponseFlagToActualFlag() got = %v, want %v", got, tc.want)
-			}
-			for i := range got {
-				if got[i] != tc.want[i] {
-					t.Errorf("convertInputOnlyResponseFlagToActualFlag() got = %v, want %v", got, tc.want)
-					break
-				}
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("convertInputOnlyResponseFlagToActualFlag() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

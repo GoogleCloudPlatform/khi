@@ -17,7 +17,6 @@ package googlecloudlogcsm_impl
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
@@ -64,35 +63,20 @@ func namespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 	if filter.SubtractMode {
 		return "-- Unsupported operation"
 	} else {
-		hasClusterScope := slices.Contains(filter.Additives, "#cluster-scoped")
-		hasNamespacedScope := slices.Contains(filter.Additives, "#namespaced")
-		if hasClusterScope && hasNamespacedScope {
-			return "-- No namespace filter"
-		}
-		if !hasClusterScope && hasNamespacedScope {
-			return `protoPayload.resourceName:"namespaces/"`
-		}
-		if hasClusterScope && !hasNamespacedScope {
-			if len(filter.Additives) == 1 { // 1 is used for #cluster-scope
-				return `-protoPayload.resourceName:"/namespaces/"`
-			}
-			selectedNamespaces := []string{}
-			for _, additive := range filter.Additives {
-				if strings.HasPrefix(additive, "#") {
-					continue
-				}
-				selectedNamespaces = append(selectedNamespaces, fmt.Sprintf(`"/namespaces/%s"`, additive))
-			}
-			return fmt.Sprintf(`(protoPayload.resourceName:(%s) OR NOT (protoPayload.resourceName:"/namespaces/"))`, strings.Join(selectedNamespaces, " OR "))
-		}
-		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the resources will be selected. Ignoreing namespace filter.`
-		}
 		selectedNamespaces := []string{}
 		for _, additive := range filter.Additives {
-			selectedNamespaces = append(selectedNamespaces, fmt.Sprintf(`"/namespaces/%s"`, additive))
+			if strings.HasPrefix(additive, "#") {
+				if additive == "#namespaced" {
+					return "-- No namespace filter"
+				}
+				continue
+			}
+			selectedNamespaces = append(selectedNamespaces, fmt.Sprintf(`"%s"`, additive))
 		}
-		return fmt.Sprintf(`protoPayload.resourceName:(%s)`, strings.Join(selectedNamespaces, " OR "))
+		if len(selectedNamespaces) == 0 {
+			return `resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM access log.`
+		}
+		return fmt.Sprintf(`resource.labels.namespace_name:(%s)`, strings.Join(selectedNamespaces, " OR "))
 	}
 }
 
