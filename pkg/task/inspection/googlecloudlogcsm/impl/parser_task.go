@@ -84,16 +84,16 @@ func (c *csmAccessLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 		if istioAccessLog.SourceName != "" && istioAccessLog.SourceNamespace != "" {
 			cs.AddEvent(resourcepath.CSMClientAccess(istioAccessLog.SourceNamespace, istioAccessLog.SourceName))
 		}
-		if istioAccessLog.DestinationServiceName != "" && istioAccessLog.DestinationNamespace != "" {
-			cs.AddEvent(resourcepath.CSMServiceServerAccess(istioAccessLog.DestinationNamespace, istioAccessLog.DestinationServiceName))
+		if istioAccessLog.DestinationServiceName != "" && istioAccessLog.DestinationServiceNamespace != "" {
+			cs.AddEvent(resourcepath.CSMServiceServerAccess(istioAccessLog.DestinationServiceNamespace, istioAccessLog.DestinationServiceName))
 		}
 	case googlecloudlogcsm_contract.AccessLogTypeClient:
 		cs.AddEvent(resourcepath.CSMClientAccess(istioAccessLog.ReporterPodNamespace, istioAccessLog.ReporterPodName))
 		if istioAccessLog.DestinationName != "" && istioAccessLog.DestinationNamespace != "" {
 			cs.AddEvent(resourcepath.CSMServerAccess(istioAccessLog.DestinationNamespace, istioAccessLog.DestinationName, ""))
 		}
-		if istioAccessLog.DestinationServiceName != "" && istioAccessLog.DestinationNamespace != "" {
-			cs.AddEvent(resourcepath.CSMServiceClientAccess(istioAccessLog.DestinationNamespace, istioAccessLog.DestinationServiceName))
+		if istioAccessLog.DestinationServiceName != "" && istioAccessLog.DestinationServiceNamespace != "" {
+			cs.AddEvent(resourcepath.CSMServiceClientAccess(istioAccessLog.DestinationServiceNamespace, istioAccessLog.DestinationServiceName))
 		}
 	}
 	summary := fmt.Sprintf("%d %s %s", gcpCommonAccessLog.Status, gcpCommonAccessLog.Method, gcpCommonAccessLog.RequestURL)
