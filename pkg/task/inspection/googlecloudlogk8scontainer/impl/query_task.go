@@ -54,7 +54,7 @@ func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResul
 	}
 
 	if len(namespacesFilter.Additives) == 0 {
-		return `-- Invalid: none of the resources will be selected. Ignoreing kind filter.`
+		return `-- Invalid: none of the resources will be selected. Ignoreing namespace filter.`
 	}
 	namespacesWithQuotes := []string{}
 	for _, namespace := range namespacesFilter.Additives {

@@ -243,3 +243,99 @@ protoPayload: {}
 	}
 
 }
+
+func TestGCPAccessLogFieldSetReader(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		want  *GCPAccessLogFieldSet
+	}{
+		{
+			desc: "basic input",
+			input: `
+httpRequest:
+  requestMethod: "GET"
+  requestUrl: "/path/to/resource"
+  requestSize: "1234"
+  status: 200
+  responseSize: "5678"
+  userAgent: "test-agent"
+  remoteIp: "192.168.1.1"
+  serverIp: "10.0.0.1"
+  referer: "http://example.com"
+  latency: "1s"
+  protocol: "HTTP/1.1"
+`,
+			want: &GCPAccessLogFieldSet{
+				Method:       "GET",
+				RequestURL:   "/path/to/resource",
+				RequestSize:  1234,
+				Status:       200,
+				ResponseSize: 5678,
+				UserAgent:    "test-agent",
+				RemoteIP:     "192.168.1.1",
+				ServerIP:     "10.0.0.1",
+				Referer:      "http://example.com",
+				Latency:      "1s",
+				Protocol:     "HTTP/1.1",
+			},
+		},
+		{
+			desc:  "default input",
+			input: "{}",
+			want: &GCPAccessLogFieldSet{
+				Method:       "",
+				RequestURL:   "",
+				RequestSize:  0,
+				Status:       0,
+				ResponseSize: 0,
+				UserAgent:    "",
+				RemoteIP:     "",
+				ServerIP:     "",
+				Referer:      "",
+				Latency:      "",
+				Protocol:     "",
+			},
+		},
+		{
+			desc: "input with non-numeric sizes",
+			input: `
+httpRequest:
+  requestMethod: "GET"
+  requestUrl: "/path"
+  requestSize: "invalid"
+  status: 200
+  responseSize: "not-a-number"
+`,
+			want: &GCPAccessLogFieldSet{
+				Method:       "GET",
+				RequestURL:   "/path",
+				RequestSize:  0,
+				Status:       200,
+				ResponseSize: 0,
+				UserAgent:    "",
+				RemoteIP:     "",
+				ServerIP:     "",
+				Referer:      "",
+				Latency:      "",
+				Protocol:     "",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l, err := log.NewLogFromYAMLString(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse YAML test input to log: %v", err)
+			}
+			err = l.SetFieldSetReader(&GCPAccessLogFieldSetReader{})
+			if err != nil {
+				t.Errorf("failed to run GCPAccessLogFieldSetReader.Read(): %v", err)
+			}
+			got := log.MustGetFieldSet(l, &GCPAccessLogFieldSet{})
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GCPAccessLogFieldSet mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

@@ -16,6 +16,7 @@ package googlecloudcommon_contract
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
@@ -119,3 +120,63 @@ func (g *GCPOperationAuditLogFieldSetReader) Read(reader *structured.NodeReader)
 }
 
 var _ (log.FieldSetReader) = (*GCPOperationAuditLogFieldSetReader)(nil)
+
+type GCPAccessLogFieldSet struct {
+	Method       string
+	RequestURL   string
+	RequestSize  int64
+	Status       int
+	ResponseSize int64
+	UserAgent    string
+	RemoteIP     string
+	ServerIP     string
+	Referer      string
+	Latency      string
+	Protocol     string
+}
+
+// Kind implements log.FieldSet.
+func (g *GCPAccessLogFieldSet) Kind() string {
+	return "gcp_accesslog"
+}
+
+var _ log.FieldSet = (*GCPAccessLogFieldSet)(nil)
+
+type GCPAccessLogFieldSetReader struct {
+}
+
+// FieldSetKind implements log.FieldSetReader.
+func (g *GCPAccessLogFieldSetReader) FieldSetKind() string {
+	return (&GCPAccessLogFieldSet{}).Kind()
+}
+
+// Read implements log.FieldSetReader.
+func (g *GCPAccessLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	var result GCPAccessLogFieldSet
+	result.Method = reader.ReadStringOrDefault("httpRequest.requestMethod", "")
+	result.RequestURL = reader.ReadStringOrDefault("httpRequest.requestUrl", "")
+	result.Status = reader.ReadIntOrDefault("httpRequest.status", 0)
+	result.UserAgent = reader.ReadStringOrDefault("httpRequest.userAgent", "")
+	result.RemoteIP = reader.ReadStringOrDefault("httpRequest.remoteIp", "")
+	result.ServerIP = reader.ReadStringOrDefault("httpRequest.serverIp", "")
+	result.Referer = reader.ReadStringOrDefault("httpRequest.referer", "")
+	result.Latency = reader.ReadStringOrDefault("httpRequest.latency", "")
+	result.Protocol = reader.ReadStringOrDefault("httpRequest.protocol", "")
+
+	requestSizeStr := reader.ReadStringOrDefault("httpRequest.requestSize", "")
+	responseSizeStr := reader.ReadStringOrDefault("httpRequest.responseSize", "")
+	if requestSizeStr != "" {
+		if size, err := strconv.ParseInt(requestSizeStr, 10, 64); err == nil {
+			result.RequestSize = size
+		}
+	}
+	if responseSizeStr != "" {
+		if size, err := strconv.ParseInt(responseSizeStr, 10, 64); err == nil {
+			result.ResponseSize = size
+		}
+	}
+
+	return &result, nil
+}
+
+var _ log.FieldSetReader = (*GCPAccessLogFieldSetReader)(nil)
