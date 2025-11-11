@@ -32,6 +32,8 @@ const (
 	LogTypeControlPlaneComponent LogType = 12
 	LogTypeSerialPort            LogType = 13
 
+	LogTypeCSMAccessLog LogType = 14 // Added since 0.49
+
 	logTypeUnusedEnd
 )
 
@@ -116,5 +118,10 @@ var LogTypes = map[LogType]LogTypeFrontendMetadata{
 		EnumKeyName:          "LogTypeSerialPort",
 		Label:                "serial_port",
 		LabelBackgroundColor: "#333333",
+	},
+	LogTypeCSMAccessLog: {
+		EnumKeyName:          "LogTypeCSMAccessLog",
+		Label:                "csm_access_log",
+		LabelBackgroundColor: "#FF8500",
 	},
 }

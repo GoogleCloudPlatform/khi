@@ -30,7 +30,8 @@ const (
 	RelationshipControlPlaneComponent ParentRelationship = 10
 	RelationshipSerialPort            ParentRelationship = 11
 	RelationshipAirflowTaskInstance   ParentRelationship = 12
-	relationshipUnusedEnd                                // Add items above. This field is used for counting items in this enum to test.
+	RelationshipCSMAccessLog          ParentRelationship = 13 // Added since 0.49
+	relationshipUnusedEnd                                     // Add items above. This field is used for counting items in this enum to test.
 )
 
 // EnumParentRelationshipLength is the count of ParentRelationship enum elements.
@@ -517,6 +518,22 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 				State:         RevisionStateComposerTiRestarting,
 				SourceLogType: LogTypeControlPlaneComponent,
 				Description:   "Ti.state = restarting",
+			},
+		},
+	},
+	RelationshipCSMAccessLog: {
+		Visible:              true,
+		EnumKeyName:          "RelationshipCSMAccessLog",
+		Label:                "csm",
+		LongName:             "CSM access log",
+		LabelColor:           "#FFFFFF",
+		LabelBackgroundColor: "#FF8500",
+		Hint:                 "CSM Access logs related to this resource",
+		SortPriority:         5001, // just under container logs
+		GeneratableEvents: []GeneratableEventInfo{
+			{
+				SourceLogType: LogTypeCSMAccessLog,
+				Description:   "An access log entry reported from CSM",
 			},
 		},
 	},

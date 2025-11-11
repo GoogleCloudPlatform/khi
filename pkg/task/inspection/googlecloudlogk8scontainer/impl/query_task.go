@@ -54,7 +54,7 @@ func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResul
 	}
 
 	if len(namespacesFilter.Additives) == 0 {
-		return `-- Invalid: none of the resources will be selected. Ignoreing kind filter.`
+		return `-- Invalid: none of the resources will be selected. Ignoring namespace filter.`
 	}
 	namespacesWithQuotes := []string{}
 	for _, namespace := range namespacesFilter.Additives {
@@ -81,7 +81,7 @@ func generatePodNamesFilter(podNamesFilter *gcpqueryutil.SetFilterParseResult) s
 	}
 
 	if len(podNamesFilter.Additives) == 0 {
-		return `-- Invalid: none of the resources will be selected. Ignoreing kind filter.`
+		return `-- Invalid: none of the resources will be selected. Ignoring pod name filter.`
 	}
 	podNamesWithQuotes := []string{}
 	for _, podName := range podNamesFilter.Additives {
