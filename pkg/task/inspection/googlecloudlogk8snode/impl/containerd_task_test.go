@@ -30,6 +30,46 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
+	podSandboxID := "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"
+	testCases := []struct {
+		desc                   string
+		inputComponentFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
+		want                   *googlecloudlogk8snode_contract.PodSandboxIDInfo
+	}{
+		{
+			desc: "valid log message",
+			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				Message: `"RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
+			},
+			want: &googlecloudlogk8snode_contract.PodSandboxIDInfo{
+				PodName:      "podname",
+				PodNamespace: "kube-system",
+				PodSandboxID: podSandboxID,
+			},
+		},
+		{
+			desc: "log message without RunPodSandbox prefix",
+			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				Message: "",
+			},
+			want: nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
+			repository := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
+			processPodSandboxIDDiscoveryForLog(t.Context(), l, repository)
+
+			got, _ := repository.PodSandboxIDInfoFinder.GetPattern(podSandboxID)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("PodSandboxIDInfoFinder mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestFindPodSandboxIDInfo(t *testing.T) {
 	testCases := []struct {
 		desc    string
@@ -69,6 +109,46 @@ func TestFindPodSandboxIDInfo(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("findPodSandboxIDInfo() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
+	containerID := "container123"
+	testCases := []struct {
+		desc                   string
+		inputComponentFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
+		want                   *googlecloudlogk8snode_contract.ContainerIDInfo
+	}{
+		{
+			desc: "valid log message",
+			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				Message: `"CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\""`,
+			},
+			want: &googlecloudlogk8snode_contract.ContainerIDInfo{
+				PodSandboxID:  "sandbox123",
+				ContainerID:   "container123",
+				ContainerName: "container-name",
+			},
+		},
+		{
+			desc: "empty log message",
+			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				Message: "",
+			},
+			want: nil,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
+			repository := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
+			processContainerIDDiscoveryForLog(t.Context(), l, repository)
+
+			got, _ := repository.ContainerIDInfoFinder.GetPattern(containerID)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ContainerIDInfoFinder mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

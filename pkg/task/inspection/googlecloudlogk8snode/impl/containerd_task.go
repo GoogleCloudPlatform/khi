@@ -109,7 +109,7 @@ func findPodSandboxIDInfo(jsonPayloadMessage string) (*googlecloudlogk8snode_con
 	// RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"
 	msg, err := logutil.ExtractKLogField(jsonPayloadMessage, "msg")
 	if msg == "" || err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract main message")
 	}
 	if strings.HasPrefix(msg, "RunPodSandbox") {
 		fields := readGoStructFromString(msg, "PodSandboxMetadata")
@@ -144,7 +144,7 @@ func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, relation
 func findContainerIDInfo(jsonPayloadMessage string) (*googlecloudlogk8snode_contract.ContainerIDInfo, error) {
 	msg, err := logutil.ExtractKLogField(jsonPayloadMessage, "msg")
 	if msg == "" || err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract main message")
 	}
 	if strings.HasPrefix(msg, "CreateContainer") {
 		fields := readGoStructFromString(msg, "ContainerMetadata")
