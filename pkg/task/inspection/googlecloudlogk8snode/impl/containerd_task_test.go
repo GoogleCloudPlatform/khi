@@ -49,7 +49,7 @@ func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
 			},
 		},
 		{
-			desc: "log message without RunPodSandbox prefix",
+			desc: "empty message",
 			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 				Message: "",
 			},
