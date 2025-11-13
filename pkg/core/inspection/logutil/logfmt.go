@@ -19,7 +19,27 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
+
+// logfmtSeverityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
+var logfmtSeverityStringNotation = map[string]enum.Severity{
+	"INFO":    enum.SeverityInfo,
+	"info":    enum.SeverityInfo,
+	"WARN":    enum.SeverityWarning,
+	"warn":    enum.SeverityWarning,
+	"WARNING": enum.SeverityWarning,
+	"warning": enum.SeverityWarning,
+	"ERROR":   enum.SeverityError,
+	"error":   enum.SeverityError,
+	"ERR":     enum.SeverityError,
+	"err":     enum.SeverityError,
+	"FATAL":   enum.SeverityFatal,
+	"fatal":   enum.SeverityFatal,
+	"panic":   enum.SeverityFatal,
+}
+
+var severityLogfmtFieldNames = []string{"level", "severity"}
 
 // LogfmtTextParser parses given logfmt formatted string.
 // Reference: https://github.com/hynek/structlog/issues/511#issuecomment-1916426273
@@ -128,9 +148,13 @@ func (w *logfmtTextParserWorker) parse(message string) (*ParseStructuredLogResul
 		result.Fields[MainMessageStructuredFieldKey] = msg
 	}
 	for _, severityField := range severityLogfmtFieldNames {
-		if severity, ok := result.Fields[severityField]; ok {
-			result.Fields[SeverityStructuredFieldKey] = severity
-			break
+		if severityAny, ok := result.Fields[severityField]; ok {
+			if severityStr, ok := severityAny.(string); ok {
+				if severity, found := logfmtSeverityStringNotation[severityStr]; found {
+					result.Fields[SeverityStructuredFieldKey] = severity
+					break
+				}
+			}
 		}
 	}
 	return result, nil

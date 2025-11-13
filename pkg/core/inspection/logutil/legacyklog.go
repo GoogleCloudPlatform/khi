@@ -21,25 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
-// logfmtSeverityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
-var logfmtSeverityStringNotation = map[string]enum.Severity{
-	"INFO":    enum.SeverityInfo,
-	"info":    enum.SeverityInfo,
-	"WARN":    enum.SeverityWarning,
-	"warn":    enum.SeverityWarning,
-	"WARNING": enum.SeverityWarning,
-	"warning": enum.SeverityWarning,
-	"ERROR":   enum.SeverityError,
-	"error":   enum.SeverityError,
-	"ERR":     enum.SeverityError,
-	"err":     enum.SeverityError,
-	"FATAL":   enum.SeverityFatal,
-	"fatal":   enum.SeverityFatal,
-	"panic":   enum.SeverityFatal,
-}
-
-var severityLogfmtFieldNames = []string{"level", "severity"}
-
 // https://github.com/kubernetes/klog/blob/v2.80.1/klog.go#L626-L645
 // TODO: We need to handle time field in later, but ignore it for now because times can be obtained from the other source.
 type klogHeader struct {

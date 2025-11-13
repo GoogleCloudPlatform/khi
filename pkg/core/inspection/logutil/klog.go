@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
@@ -104,7 +105,7 @@ func (w *klogTextParserWorker) parseSeverity(severityStr string) (enum.Severity,
 	case "F":
 		return enum.SeverityFatal, nil
 	default:
-		return enum.SeverityUnknown, nil
+		return enum.SeverityUnknown, khierrors.ErrInvalidInput
 	}
 }
 

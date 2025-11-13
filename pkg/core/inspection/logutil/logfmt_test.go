@@ -17,6 +17,7 @@ package logutil
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/sync/errgroup"
 )
@@ -67,11 +68,13 @@ func TestLogfmtTextParserWorker_Parse(t *testing.T) {
 	}{
 		{
 			desc:  "simple logfmt message",
-			input: `msg="Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			input: `msg="Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415 severity=info`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
 					MainMessageStructuredFieldKey: "Main message",
+					SeverityStructuredFieldKey:    enum.SeverityInfo,
 					"msg":                         "Main message",
+					"severity":                    "info",
 					"fieldWithQuotes":             "foo",
 					"fieldWithEscape":             `bar "qux"`,
 					"fieldWithoutQuotes":          "3.1415",
