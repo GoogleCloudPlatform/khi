@@ -48,7 +48,7 @@ make setup-hooks
                 "--port",
                 "8080",
                 "--frontend-asset-folder",
-                "./dist",
+                "./pkg/server/dist",
             ],
             "dlvLoadConfig": {
                 "followPointers": true,

@@ -52,7 +52,7 @@ func (s *ServerParameters) Prepare() error {
 	s.Host = flag.String("host", "localhost", "The host address where KHI server serves.", "HOST")
 	s.BasePath = flag.String("base-path", "/", "The base address of API endpoints.", "KHI_BASE_PATH")
 	s.FrontendResourceBasePath = flag.String("frontend-resource-base-path", "", "Another base address only for frontend assets. If this value is not set, this uses `--base-path` value by default.", "KHI_FRONTEND_RESOURCE_PATH")
-	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "./web", "The root folder of the assets used in frontend including index.html.", "KHI_FRONTEND_ASSET_FOLDER")
+	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "", "The root folder of the assets used in frontend including index.html. If this value is not set, the assets embedded into the executable are used.", "KHI_FRONTEND_ASSET_FOLDER")
 	s.MaxUploadFileSizeInBytes = flag.Int("max-upload-file-size-in-bytes", 1024*1024*1024, "The maximum limit of uploaded file. Server returns 400 when the request exceeds it.", "")
 	return nil
 }
