@@ -65,13 +65,6 @@ func BenchmarkKLogTextParser(b *testing.B) {
 	}
 }
 
-func BenchmarkLegacyTextParser(b *testing.B) {
-	input := `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
-	for i := 0; i < b.N; i++ {
-		ExtractKLogField(input, "fieldWithoutQuotes")
-	}
-}
-
 func TestKlogTextParserWorker_Parse(t *testing.T) {
 	testCases := []struct {
 		desc  string

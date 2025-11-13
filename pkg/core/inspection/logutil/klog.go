@@ -27,12 +27,12 @@ import (
 // KLogTextParser parses given klog formatted string.
 // Example klog:  I0929 08:20:24.205299    1949 kubelet_getters.go:219] "Pod status updated" pod="kube-system/kube-proxy-gke-p0-gke-basic-1-default-6400229f-0hgr" status="Running"
 type KLogTextParser struct {
-	workers sync.Pool
+	workers *sync.Pool
 }
 
 func NewKLogTextParser(hasHeader bool) *KLogTextParser {
 	return &KLogTextParser{
-		workers: sync.Pool{
+		workers: &sync.Pool{
 			New: func() any {
 				return newKLogTextParserWorker(hasHeader)
 			},
