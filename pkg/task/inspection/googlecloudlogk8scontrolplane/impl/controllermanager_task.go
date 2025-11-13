@@ -17,6 +17,7 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -72,6 +73,7 @@ var ControllerManagerLogFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadT
 				kindToKLogFieldPair("core/v1", "pod", "pod", true),
 				kindToKLogFieldPair("core/v1", "namespace", "namespace", false),
 			},
+			KLogParser: logutil.NewKLogTextParser(false),
 		},
 	},
 )

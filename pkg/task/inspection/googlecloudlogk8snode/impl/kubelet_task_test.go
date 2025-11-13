@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -30,15 +31,16 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	testCases := []struct {
 		desc                 string
+		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*googlecloudlogk8snode_contract.ContainerIDInfo
 		asserter             []testchangeset.ChangeSetAsserter
 	}{
 		{
-			desc: "log with pod sandbox id",
+			desc:         "log with pod sandbox id",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Generic (PLEG): container finished" podID="4cba26fb-f074-44fe-9afa-5195e903c337" podID="6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="SyncPod received pod \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
@@ -57,14 +59,14 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 					ResourcePath: "core/v1#pod#kube-system#podname",
 				},
 				&testchangeset.HasLogSummary{
-					WantLogSummary: `SyncPod received pod "【podname (Namespace: kube-system)】"`,
+					WantLogSummary: `Generic (PLEG): container finished 【podname (Namespace: kube-system)】`,
 				},
 			},
 		},
 		{
-			desc: "log with container id",
+			desc:         "log with container id",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "ContainerStart: Start container \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\"" podID="4cba26fb-f074-44fe-9afa-5195e903c337"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="ContainerStart: Start container \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\""`,
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
@@ -95,42 +97,9 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "log with container id but not in the main message",
+			desc:         "log with pod from klog fields",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Syncing pod" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pod="kube-system/podname"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="container shim detached" id="fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256"`,
-				Component: "kubelet",
-				NodeName:  "node-1",
-			},
-			inputPodIDInfo: map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo{
-				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
-					PodName:      "podname",
-					PodNamespace: "kube-system",
-					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
-				},
-			},
-			inputContainerIDInfo: map[string]*googlecloudlogk8snode_contract.ContainerIDInfo{
-				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
-					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
-					ContainerName: "fluentbit-gke-init",
-					ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
-				},
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname#fluentbit-gke-init",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `container shim detached 【fluentbit-gke-init (Pod:podname, Namespace:kube-system)】`,
-				},
-			},
-		},
-		{
-			desc: "log with pod from klog fields",
-			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="Syncing pod" pod="kube-system/podname"`,
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
@@ -147,9 +116,9 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "log with pod and container name from klog fields",
+			desc:         "log with pod and container name from klog fields",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Killing container" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pod="kube-system/podname" containerName="containername"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="Killing container" pod="kube-system/podname" containerName="containername"`,
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
@@ -166,9 +135,9 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "log with pod and container name from klog fields and exitCode",
+			desc:         "log with pod and container name from klog fields and exitCode",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Killing container" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pod="kube-system/podname" containerName="containername" exitCode=137`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="Killing container" pod="kube-system/podname" containerName="containername" exitCode="137"`,
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
@@ -185,9 +154,9 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "log with pods klog field",
+			desc:         "log with pods klog field",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "log with multiple pods" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pods=["kube-system/podname1","kube-system/podname2"]`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="log with multiple pods" pods="kube-system/podname1,kube-system/podname2"`,
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
@@ -224,7 +193,9 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 
 			ctx := context.Background()
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(), mockContainerdRelationshipRegistry)
-
+			klogParser := logutil.NewKLogTextParser(true)
+			message := klogParser.TryParse(tc.inputMessage)
+			tc.inputNodeLogFieldSet.Message = message
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: testTime},
 				tc.inputNodeLogFieldSet,

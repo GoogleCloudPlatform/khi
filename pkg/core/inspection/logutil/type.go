@@ -19,6 +19,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
+const OriginalMessageFieldKey = "@original"
+
 // MainMessageStructuredFieldKey is the key used to store the main log message in a structured log result.
 const MainMessageStructuredFieldKey = "@msg"
 
@@ -28,6 +30,15 @@ const SeverityStructuredFieldKey = "@severity"
 // ParseStructuredLogResult represents the result of parsing a structured log message.
 type ParseStructuredLogResult struct {
 	Fields map[string]any
+}
+
+func (p *ParseStructuredLogResult) Raw() string {
+	if value, found := p.Fields[OriginalMessageFieldKey]; found {
+		if valueStr, ok := value.(string); ok {
+			return valueStr
+		}
+	}
+	return ""
 }
 
 // MainMessage returns the main message of the structured log, or an error if not found or not a string.
@@ -75,9 +86,33 @@ type FallbackRawTextLogParser struct{}
 func (f *FallbackRawTextLogParser) TryParse(message string) *ParseStructuredLogResult {
 	return &ParseStructuredLogResult{
 		Fields: map[string]any{
+			OriginalMessageFieldKey:       message,
 			MainMessageStructuredFieldKey: message,
 		},
 	}
 }
 
 var _ StructuredLogParser = (*FallbackRawTextLogParser)(nil)
+
+type MultiTextLogParser struct {
+	parsers []StructuredLogParser
+}
+
+func NewMultiTextLogParser(parsers ...StructuredLogParser) *MultiTextLogParser {
+	return &MultiTextLogParser{
+		parsers: parsers,
+	}
+}
+
+// TryParse implements StructuredLogParser.
+func (m *MultiTextLogParser) TryParse(message string) *ParseStructuredLogResult {
+	for _, parser := range m.parsers {
+		result := parser.TryParse(message)
+		if result != nil {
+			return result
+		}
+	}
+	return nil
+}
+
+var _ StructuredLogParser = (*MultiTextLogParser)(nil)

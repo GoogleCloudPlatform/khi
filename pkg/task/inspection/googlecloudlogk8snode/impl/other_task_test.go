@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -38,13 +39,14 @@ func TestOtherLogHistoryModifier(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	testCase := []struct {
 		desc                 string
+		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		asserter             []testchangeset.ChangeSetAsserter
 	}{
 		{
-			desc: "starting log for component-A",
+			desc:         "starting log for component-A",
+			inputMessage: "component-A start",
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   "component-A start",
 				Component: "component-A",
 				NodeName:  "node-1",
 			},
@@ -67,9 +69,9 @@ func TestOtherLogHistoryModifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "terminating log for component-A",
+			desc:         "terminating log for component-A",
+			inputMessage: "component-A terminate",
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   "component-A terminate",
 				Component: "component-A",
 				NodeName:  "node-1",
 			},
@@ -92,9 +94,9 @@ func TestOtherLogHistoryModifier(t *testing.T) {
 			},
 		},
 		{
-			desc: "no matching log",
+			desc:         "no matching log",
+			inputMessage: "component-A doing something",
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   "component-A doing something",
 				Component: "component-A",
 				NodeName:  "node-1",
 			},
@@ -116,6 +118,9 @@ func TestOtherLogHistoryModifier(t *testing.T) {
 
 	for _, tc := range testCase {
 		t.Run(tc.desc, func(t *testing.T) {
+			parser := logutil.FallbackRawTextLogParser{}
+			message := parser.TryParse(tc.inputMessage)
+			tc.inputNodeLogFieldSet.Message = message
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: testTime},
 				tc.inputNodeLogFieldSet,

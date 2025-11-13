@@ -30,11 +30,11 @@ type KLogTextParser struct {
 	workers sync.Pool
 }
 
-func NewKLogTextParser() *KLogTextParser {
+func NewKLogTextParser(hasHeader bool) *KLogTextParser {
 	return &KLogTextParser{
 		workers: sync.Pool{
 			New: func() any {
-				return newKLogTextParserWorker()
+				return newKLogTextParserWorker(hasHeader)
 			},
 		},
 	}
@@ -58,23 +58,33 @@ const KLogHeaderSourceLocationFieldKey = "@source"
 var klogTimestampRegex = regexp.MustCompile(`^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d{6})\s+(\d+)\s+([^:]+:\d+)]\s+(.*)$`)
 
 type klogTextParserWorker struct {
-	builder strings.Builder
+	builder   strings.Builder
+	hasHeader bool
 }
 
-func newKLogTextParserWorker() *klogTextParserWorker {
+func newKLogTextParserWorker(hasHeader bool) *klogTextParserWorker {
 	return &klogTextParserWorker{
-		builder: strings.Builder{},
+		builder:   strings.Builder{},
+		hasHeader: hasHeader,
 	}
 }
 
 func (w *klogTextParserWorker) parse(message string) *ParseStructuredLogResult {
+	result := &ParseStructuredLogResult{
+		Fields: map[string]any{
+			OriginalMessageFieldKey: message,
+		},
+	}
+	if !w.hasHeader { // GKE control plane can omit the header of klog. example)"Starting watch" path="/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations" resourceVersion="1759127820246769000" labels="" fields="" timeout="9m16s"
+		err := w.parseFields(message, result)
+		if err != nil {
+			return nil
+		}
+		return result
+	}
 	matches := klogTimestampRegex.FindStringSubmatch(message)
 	if matches == nil {
 		return nil
-	}
-
-	result := &ParseStructuredLogResult{
-		Fields: make(map[string]any),
 	}
 
 	severity, err := w.parseSeverity(matches[1])

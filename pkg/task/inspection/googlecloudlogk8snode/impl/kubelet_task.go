@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -63,18 +62,19 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 
 	cs.AddEvent(componentFieldSet.ResourcePath())
 
-	severity := logutil.ExractKLogSeverity(componentFieldSet.Message)
-	cs.SetLogSeverity(severity)
-
+	severity, err := componentFieldSet.Message.Severity()
+	if err == nil {
+		cs.SetLogSeverity(severity)
+	}
 	summaryReplaceMap := map[string]string{}
-	podFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message, containerdInfo.PodSandboxIDInfoFinder, false, '"')
+	podFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message.Raw(), containerdInfo.PodSandboxIDInfoFinder, false, '"')
 
 	for _, result := range podFindResults {
 		cs.AddEvent(result.Value.ResourcePath())
 		summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
 	}
 
-	containerFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message, containerdInfo.ContainerIDInfoFinder, false, '"')
+	containerFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message.Raw(), containerdInfo.ContainerIDInfoFinder, false, '"')
 	for _, result := range containerFindResults {
 		podSandboxID := result.Value.PodSandboxID
 		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, containerdInfo.PodSandboxIDInfoFinder, true)
@@ -87,7 +87,7 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 	}
 
 	// Kubelet specific severity adjustments
-	klogExitCode, err := logutil.ExtractKLogField(componentFieldSet.Message, "exitCode")
+	klogExitCode, err := componentFieldSet.Message.StringField("exitCode")
 	if err == nil && klogExitCode != "" && klogExitCode != "0" {
 		if klogExitCode == "137" {
 			cs.SetLogSeverity(enum.SeverityError)
@@ -96,8 +96,8 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 		}
 	}
 	summary, err := parseDefaultSummary(componentFieldSet.Message)
-	if summary == "" || err != nil {
-		summary = componentFieldSet.Message
+	if err != nil {
+		summary = componentFieldSet.Message.Raw()
 	}
 	for k, v := range summaryReplaceMap {
 		i := strings.Index(summary, k)
@@ -110,11 +110,11 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 
 	// Kubelet specific resource bindings
 	// When this log can't be associated with resource by container id or pod sandbox id, try to get it from klog fields.
-	podNameWithNamespace, err := logutil.ExtractKLogField(componentFieldSet.Message, "pod")
+	podNameWithNamespace, err := componentFieldSet.Message.StringField("pod")
 	if err == nil && podNameWithNamespace != "" {
 		podNamespace, podName, err := slashSplittedPodNameToNamespaceAndName(podNameWithNamespace)
 		if err == nil {
-			containerName, err := logutil.ExtractKLogField(componentFieldSet.Message, "containerName")
+			containerName, err := componentFieldSet.Message.StringField("containerName")
 			if err == nil && containerName != "" {
 				cs.AddEvent(resourcepath.Container(podNamespace, podName, containerName))
 				cs.SetLogSummary(fmt.Sprintf("%s %s", summary, toReadableContainerName(podNamespace, podName, containerName)))
@@ -126,7 +126,7 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 			cs.SetLogSummary(summary)
 		}
 	} else {
-		podNames, err := logutil.ExtractKLogField(componentFieldSet.Message, "pods")
+		podNames, err := componentFieldSet.Message.StringField("pods")
 		if err == nil && podNames != "" {
 			podNames = strings.Trim(podNames, "[]")
 			podNamesSplitted := strings.Split(podNames, ",")

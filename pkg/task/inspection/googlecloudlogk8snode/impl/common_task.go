@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -33,7 +34,13 @@ import (
 var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogk8snode_contract.LogSerializerTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref())
 
 var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{},
+	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{
+		StructuredLogParser: logutil.NewMultiTextLogParser(
+			logutil.NewKLogTextParser(true),
+			logutil.NewLogfmtTextParser(),
+			&logutil.FallbackRawTextLogParser{},
+		),
+	},
 })
 
 var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contract.TailTaskID,

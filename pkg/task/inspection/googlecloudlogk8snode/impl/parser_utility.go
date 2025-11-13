@@ -65,7 +65,7 @@ func readNextQuotedString(msg string) string {
 func checkStartingAndTerminationLog(cs *history.ChangeSet, l *log.Log, startingLog string, terminationLog string) {
 	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	nodeLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
-	mainMessage, _ := logutil.ExtractKLogField(nodeLogFieldSet.Message, "")
+	mainMessage, _ := nodeLogFieldSet.Message.MainMessage()
 	switch mainMessage {
 	case startingLog:
 		if startingLog != "" {
@@ -108,21 +108,21 @@ func toReadableContainerName(namespace string, name string, container string) st
 }
 
 // parseDefaultSummary formats given klog message into a human readable message.
-func parseDefaultSummary(msg string) (string, error) {
+func parseDefaultSummary(structured *logutil.ParseStructuredLogResult) (string, error) {
 	subinfo := ""
-	klogmain, err := logutil.ExtractKLogField(msg, "")
+	klogmain, err := structured.MainMessage()
 	if err != nil {
 		return "", err
 	}
-	errorMsg, err := logutil.ExtractKLogField(msg, "error")
+	errorMsg, err := structured.StringField("error")
 	if err == nil && errorMsg != "" {
 		subinfo = fmt.Sprintf("error=%s", errorMsg)
 	}
-	probeType, err := logutil.ExtractKLogField(msg, "probeType")
+	probeType, err := structured.StringField("probeType")
 	if err == nil && probeType != "" {
 		subinfo = fmt.Sprintf("probeType=%s", probeType)
 	}
-	eventMsg, err := logutil.ExtractKLogField(msg, "event")
+	eventMsg, err := structured.StringField("event")
 	if err == nil && eventMsg != "" {
 		if eventMsg[0] == '&' || eventMsg[0] == '{' {
 			if strings.Contains(eventMsg, "Type:") {
@@ -132,15 +132,15 @@ func parseDefaultSummary(msg string) (string, error) {
 			subinfo = eventMsg
 		}
 	}
-	klogstatus, err := logutil.ExtractKLogField(msg, "status")
+	klogstatus, err := structured.StringField("status")
 	if err == nil && klogstatus != "" {
 		subinfo = fmt.Sprintf("status=%s", klogstatus)
 	}
-	klogExitCode, err := logutil.ExtractKLogField(msg, "exitCode")
+	klogExitCode, err := structured.StringField("exitCode")
 	if err == nil && klogExitCode != "" {
 		subinfo = fmt.Sprintf("exitCode=%s", klogExitCode)
 	}
-	klogGracePeriod, err := logutil.ExtractKLogField(msg, "gracePeriod")
+	klogGracePeriod, err := structured.StringField("gracePeriod")
 	if err == nil && klogGracePeriod != "" {
 		subinfo = fmt.Sprintf("gracePeriod=%ss", klogGracePeriod)
 	}

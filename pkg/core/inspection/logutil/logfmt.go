@@ -83,7 +83,9 @@ func newLogfmtTextParserWorker() *logfmtTextParserWorker {
 func (w *logfmtTextParserWorker) parse(message string) (*ParseStructuredLogResult, error) {
 	w.builder.Reset()
 	result := &ParseStructuredLogResult{
-		Fields: make(map[string]any),
+		Fields: map[string]any{
+			OriginalMessageFieldKey: message,
+		},
 	}
 	parsingKey := true
 	lastKey := ""

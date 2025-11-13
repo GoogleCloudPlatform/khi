@@ -103,9 +103,8 @@ type HasLogSummary struct {
 // Assert implements ChangeSetAsserter.
 func (h *HasLogSummary) Assert(t *testing.T, cs *history.ChangeSet) {
 	t.Helper()
-	if cs.LogSummary != h.WantLogSummary {
-		t.Errorf("log summary is not matching with the expected: want=%s, got=%s", h.WantLogSummary, cs.LogSummary)
-
+	if diff := cmp.Diff(h.WantLogSummary, cs.LogSummary); diff != "" {
+		t.Errorf("log summary is not matching with the expected:(-want,+got)\n%s", diff)
 	}
 }
 

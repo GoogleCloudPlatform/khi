@@ -17,6 +17,7 @@ package googlecloudlogk8snode_contract
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
@@ -37,7 +38,10 @@ resource:
   labels:
     node_name: node-foo`,
 			want: &K8sNodeLogCommonFieldSet{
-				Message:   "test message",
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "test message",
+					logutil.MainMessageStructuredFieldKey: "test message",
+				}},
 				Component: "test-identifier",
 				NodeName:  "node-foo",
 			},
@@ -51,9 +55,11 @@ resource:
   labels:
     node_name: node-foo`,
 			want: &K8sNodeLogCommonFieldSet{
-				Message:   "test message",
-				Component: "dockerd",
-				NodeName:  "node-foo",
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "test message",
+					logutil.MainMessageStructuredFieldKey: "test message",
+				}}, Component: "dockerd",
+				NodeName: "node-foo",
 			},
 		},
 		{
@@ -65,17 +71,21 @@ resource:
   labels:
     node_name: node-foo`,
 			want: &K8sNodeLogCommonFieldSet{
-				Message:   "test message",
-				Component: "kube-proxy",
-				NodeName:  "node-foo",
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "test message",
+					logutil.MainMessageStructuredFieldKey: "test message",
+				}}, Component: "kube-proxy",
+				NodeName: "node-foo",
 			},
 		},
 		{
 			desc:  "without jsonPayload",
 			input: `{}`,
 			want: &K8sNodeLogCommonFieldSet{
-				Message:   "",
-				Component: "",
+				Message: &logutil.ParseStructuredLogResult{Fields: map[string]any{
+					logutil.OriginalMessageFieldKey:       "",
+					logutil.MainMessageStructuredFieldKey: "",
+				}}, Component: "",
 			},
 		},
 	}
@@ -87,7 +97,9 @@ resource:
 				t.Errorf("failed to parse test YAML data: %v", err)
 			}
 
-			err = l.SetFieldSetReader(&K8sNodeLogCommonFieldSetReader{})
+			err = l.SetFieldSetReader(&K8sNodeLogCommonFieldSetReader{
+				StructuredLogParser: &logutil.FallbackRawTextLogParser{},
+			})
 			if err != nil {
 				t.Fatalf("K8sNodeLogCommonFieldSetReader returned an unexpected error:%v", err)
 			}

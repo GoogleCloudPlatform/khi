@@ -17,7 +17,6 @@ package googlecloudlogk8snode_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -78,11 +77,14 @@ func (o *otherNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 
 	cs.AddEvent(componentFieldSet.ResourcePath())
 
-	severity := logutil.ExractKLogSeverity(componentFieldSet.Message)
-	cs.SetLogSeverity(severity)
+	severity, err := componentFieldSet.Message.Severity()
+	if err == nil {
+		cs.SetLogSeverity(severity)
+	}
+
 	summary, err := parseDefaultSummary(componentFieldSet.Message)
 	if summary == "" || err != nil {
-		summary = componentFieldSet.Message
+		summary, _ = componentFieldSet.Message.MainMessage()
 	}
 	cs.SetLogSummary(summary)
 	return struct{}{}, nil

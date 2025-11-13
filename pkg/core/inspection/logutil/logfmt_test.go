@@ -25,16 +25,17 @@ import (
 func TestLogfmtTextParser(t *testing.T) {
 	count := 10000
 	result := make(chan *ParseStructuredLogResult, count)
+	input := `msg="Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
 	want := &ParseStructuredLogResult{
 		Fields: map[string]any{
 			MainMessageStructuredFieldKey: "Main message",
+			OriginalMessageFieldKey:       input,
 			"msg":                         "Main message",
 			"fieldWithQuotes":             "foo",
 			"fieldWithEscape":             `bar "qux"`,
 			"fieldWithoutQuotes":          "3.1415",
 		},
 	}
-	input := `msg="Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
 	parser := NewLogfmtTextParser()
 	errgrp := errgroup.Group{}
 	for i := 0; i < count; i++ {
@@ -135,6 +136,7 @@ func TestLogfmtTextParserWorker_Parse(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			tc.want.Fields[OriginalMessageFieldKey] = tc.input
 			worker := newLogfmtTextParserWorker()
 			got, err := worker.parse(tc.input)
 			if err != nil {

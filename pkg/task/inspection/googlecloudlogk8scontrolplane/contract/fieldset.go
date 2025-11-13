@@ -182,6 +182,7 @@ type KindToKLogFieldPairData struct {
 type K8sControllerManagerComponentFieldSetReader struct {
 	WellKnownSourceLocationToControllerMap map[string]string
 	WellKnownKindToKLogFieldPairs          []*KindToKLogFieldPairData
+	KLogParser                             *logutil.KLogTextParser
 }
 
 // FieldSetKind implements log.FieldSetReader.
@@ -195,19 +196,24 @@ func (k *K8sControllerManagerComponentFieldSetReader) Read(reader *structured.No
 	message := reader.ReadStringOrDefault("jsonPayload.message", "")
 	sourceFile := reader.ReadStringOrDefault("sourceLocation.file", "")
 
-	controller, _ := k.readController(message, sourceFile)
+	structured := k.KLogParser.TryParse(message)
+	controller, _ := k.readController(structured, sourceFile)
 	result.Controller = controller
-	result.AssociatedResources = k.readResourceAssociations(message)
+	if structured != nil {
+		result.AssociatedResources = k.readResourceAssociations(structured)
+	}
 
 	return &result, nil
 }
 
-func (k *K8sControllerManagerComponentFieldSetReader) readController(message string, sourceFile string) (string, error) {
-	if logger, _ := logutil.ExtractKLogField(message, "logger"); logger != "" {
-		return logger, nil
-	}
-	if controller, _ := logutil.ExtractKLogField(message, "controller"); controller != "" {
-		return controller, nil
+func (k *K8sControllerManagerComponentFieldSetReader) readController(structured *logutil.ParseStructuredLogResult, sourceFile string) (string, error) {
+	if structured != nil {
+		if logger, _ := structured.StringField("logger"); logger != "" {
+			return logger, nil
+		}
+		if controller, _ := structured.StringField("controller"); controller != "" {
+			return controller, nil
+		}
 	}
 	if controller, found := k.WellKnownSourceLocationToControllerMap[sourceFile]; found {
 		return controller, nil
@@ -215,15 +221,15 @@ func (k *K8sControllerManagerComponentFieldSetReader) readController(message str
 	return "", nil
 }
 
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(message string) []resourcepath.ResourcePath {
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(structured *logutil.ParseStructuredLogResult) []resourcepath.ResourcePath {
 	var result []resourcepath.ResourcePath
-	fromKindField := k.readResourceAssociationFromKindField(message)
+	fromKindField := k.readResourceAssociationFromKindField(structured)
 	result = append(result, fromKindField...)
 
-	fromControllerSpecificField := k.readResourceAssociationFromControllerSpecificField(message)
+	fromControllerSpecificField := k.readResourceAssociationFromControllerSpecificField(structured)
 	result = append(result, fromControllerSpecificField...)
 
-	fromItems := k.readResourceAssociationFromItems(message)
+	fromItems := k.readResourceAssociationFromItems(structured)
 	if fromItems.Path != "" {
 		result = append(result, fromItems)
 	}
@@ -233,12 +239,12 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(m
 
 // readResourceAssociationFromKindField reads the kind klog field to associate resource with this log.
 // Example log: '"Finished syncing" kind="ReplicaSet" key="1-4-basic-ingresses/ready-repeat-app-554f6b9d95" duration="32.336593ms"'
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromKindField(message string) []resourcepath.ResourcePath {
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromKindField(structured *logutil.ParseStructuredLogResult) []resourcepath.ResourcePath {
 	var result []resourcepath.ResourcePath
-	kind, err := logutil.ExtractKLogField(message, "kind")
+	kind, err := structured.StringField("kind")
 	if err == nil && kind != "" {
 		kind = strings.ToLower(kind)
-		key, err := logutil.ExtractKLogField(message, "key")
+		key, err := structured.StringField("key")
 		if err == nil && kind != "" {
 			for _, pair := range k.WellKnownKindToKLogFieldPairs {
 				if pair.KindName == kind {
@@ -260,10 +266,10 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 
 // readResourceAssociationFromControllerSpecificField reads the associated resource of this log from controller specific key name.
 // Example log: '"Error syncing deployment" deployment="1-4-basic-ingresses/ig-ready-repeat-app" err="Operation cannot be fulfilled on deployments.apps \"ig-ready-repeat-app\": the object has been modified; please apply your changes to the latest version and try again"'
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromControllerSpecificField(message string) []resourcepath.ResourcePath {
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromControllerSpecificField(structured *logutil.ParseStructuredLogResult) []resourcepath.ResourcePath {
 	var result []resourcepath.ResourcePath
 	for _, pair := range k.WellKnownKindToKLogFieldPairs {
-		field, err := logutil.ExtractKLogField(message, pair.KLogField)
+		field, err := structured.StringField(pair.KLogField)
 		if err != nil || field == "" {
 			continue
 		}
@@ -281,9 +287,9 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 }
 
 // Example log: "Deleting item" logger="garbage-collector-controller" item="[coordination.k8s.io/v1/Lease, namespace: kube-node-lease, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"'
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromItems(message string) resourcepath.ResourcePath {
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromItems(structured *logutil.ParseStructuredLogResult) resourcepath.ResourcePath {
 	var result resourcepath.ResourcePath
-	item, err := logutil.ExtractKLogField(message, "item")
+	item, err := structured.StringField("item")
 	if item != "" && err == nil {
 		matches := itemsCaptureRegex.FindStringSubmatch(item)
 		if matches != nil {
