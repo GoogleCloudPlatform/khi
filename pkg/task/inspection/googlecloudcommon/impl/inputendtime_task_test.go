@@ -28,7 +28,7 @@ import (
 func TestInputEndtime(t *testing.T) {
 	expectedDescription := "The endtime of query. Please input it in the format of RFC3339\n(example: 2006-01-02T15:04:05-07:00)"
 	expectedLabel := "End time"
-	expectedValue1, err := time.Parse(time.RFC3339, "2020-01-02T03:04:05Z")
+	expectedValue1, err := time.Parse(time.RFC3339, "2025-01-01T01:01:01Z")
 	if err != nil {
 		t.Errorf("unexpected error\n%s", err)
 	}
@@ -44,7 +44,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with empty",
 			Input:         "",
 			ExpectedValue: expectedValue1,
-			Dependencies:  []coretask.UntypedTask{inspectioncore_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{timezoneTaskUTC},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -52,7 +52,7 @@ func TestInputEndtime(t *testing.T) {
 					Hint:        "invalid time format. Please specify in the format of `2006-01-02T15:04:05-07:00`(RFC3339)",
 					HintType:    inspectionmetadata.Error,
 				},
-				Default:          "2020-01-02T03:04:05Z",
+				Default:          "2025-01-01T01:01:01Z",
 				Suggestions:      []string{},
 				ValidationTiming: inspectionmetadata.Change,
 			},
@@ -61,7 +61,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{inspectioncore_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskUTC},
+			Dependencies:  []coretask.UntypedTask{timezoneTaskUTC},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -69,7 +69,7 @@ func TestInputEndtime(t *testing.T) {
 					HintType:    inspectionmetadata.None,
 				},
 				Suggestions:      []string{},
-				Default:          "2020-01-02T03:04:05Z",
+				Default:          "2025-01-01T01:01:01Z",
 				ValidationTiming: inspectionmetadata.Change,
 			},
 		},
@@ -77,7 +77,7 @@ func TestInputEndtime(t *testing.T) {
 			Name:          "with valid timestamp and non UTC timezone",
 			Input:         "2020-01-02T00:00:00Z",
 			ExpectedValue: expectedValue2,
-			Dependencies:  []coretask.UntypedTask{inspectioncore_impl.TestInspectionTimeTaskProducer("2020-01-02T03:04:05Z"), timezoneTaskJST},
+			Dependencies:  []coretask.UntypedTask{timezoneTaskJST},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					Label:       expectedLabel,
@@ -85,7 +85,7 @@ func TestInputEndtime(t *testing.T) {
 					HintType:    inspectionmetadata.None,
 				},
 				Suggestions:      []string{},
-				Default:          "2020-01-02T12:04:05+09:00",
+				Default:          "2025-01-01T10:01:01+09:00",
 				ValidationTiming: inspectionmetadata.Change,
 			},
 		},

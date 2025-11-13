@@ -46,39 +46,41 @@ var DefaultFeatureTaskOrder = 1000000
 // InspectionTaskRunner manages the lifecycle of a single inspection instance.
 // It handles task graph resolution, execution, and result retrieval for a given inspection type and feature set.
 type InspectionTaskRunner struct {
-	inspectionServer      *InspectionTaskServer
-	ID                    string
-	runIDGenerator        idgenerator.IDGenerator
-	enabledFeatures       map[string]bool
-	availableTasks        *coretask.TaskSet
-	featureTasks          *coretask.TaskSet
-	runner                coretask.TaskRunner
-	runnerLock            sync.Mutex
-	metadata              *typedmap.ReadonlyTypedMap
-	cancel                context.CancelFunc
-	inspectionSharedMap   *typedmap.TypedMap
-	currentInspectionType string
-	ioconfig              *inspectioncore_contract.IOConfig
-	runContextOptions     []RunContextOption
+	inspectionServer       *InspectionTaskServer
+	ID                     string
+	runIDGenerator         idgenerator.IDGenerator
+	enabledFeatures        map[string]bool
+	availableTasks         *coretask.TaskSet
+	featureTasks           *coretask.TaskSet
+	runner                 coretask.TaskRunner
+	runnerLock             sync.Mutex
+	metadata               *typedmap.ReadonlyTypedMap
+	cancel                 context.CancelFunc
+	inspectionSharedMap    *typedmap.TypedMap
+	currentInspectionType  string
+	ioconfig               *inspectioncore_contract.IOConfig
+	runContextOptions      []RunContextOption
+	inspectionCreationTime time.Time
 }
 
 // NewInspectionRunner creates a new InspectionTaskRunner.
 func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig, id string, options ...RunContextOption) *InspectionTaskRunner {
 	runner := &InspectionTaskRunner{
-		inspectionServer:      server,
-		ID:                    id,
-		runIDGenerator:        idgenerator.NewPrefixIDGenerator("run-"),
-		enabledFeatures:       map[string]bool{},
-		availableTasks:        nil,
-		featureTasks:          nil,
-		runner:                nil,
-		runnerLock:            sync.Mutex{},
-		metadata:              nil,
-		inspectionSharedMap:   typedmap.NewTypedMap(),
-		cancel:                nil,
-		currentInspectionType: "N/A",
-		ioconfig:              ioConfig,
-		runContextOptions:     options,
+		inspectionCreationTime: time.Now(),
+		inspectionServer:       server,
+		ID:                     id,
+		runIDGenerator:         idgenerator.NewPrefixIDGenerator("run-"),
+		enabledFeatures:        map[string]bool{},
+		availableTasks:         nil,
+		featureTasks:           nil,
+		runner:                 nil,
+		runnerLock:             sync.Mutex{},
+		metadata:               nil,
+		inspectionSharedMap:    typedmap.NewTypedMap(),
+		cancel:                 nil,
+		currentInspectionType:  "N/A",
+		ioconfig:               ioConfig,
+		runContextOptions:      options,
 	}
 	runner.addDefaultRunContextOptions()
 	return runner
@@ -87,6 +89,7 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_
 func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 	// Options common for any run from this runner.
 	defaultRunContextOptions := []RunContextOption{
+		RunContextOptionFromValue(inspectioncore_contract.InspectionCreationTime, i.inspectionCreationTime),
 		RunContextOptionFromFunc(inspectioncore_contract.InspectionTaskRunID, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
 			return i.runIDGenerator.Generate(), nil
 		}),

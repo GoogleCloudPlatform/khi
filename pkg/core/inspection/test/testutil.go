@@ -16,6 +16,7 @@ package inspectiontest
 
 import (
 	"context"
+	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -26,9 +27,12 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+var TestTime = time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
+
 // WithDefaultTestInspectionTaskContext returns a new context used for running inspection task.
 func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.Context {
-	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionTaskInspectionID, "fake-inspection-id")
+	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionCreationTime, TestTime)
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskInspectionID, "fake-inspection-id")
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskRunID, "fake-run-id")
 
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.GlobalSharedMap, typedmap.NewTypedMap())

@@ -15,6 +15,8 @@
 package inspectioncore_contract
 
 import (
+	"time"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 )
@@ -25,6 +27,9 @@ var InspectionTaskMode = typedmap.NewTypedKey[InspectionTaskModeType]("khi.googl
 // InspectionTaskInput is the context key to access the input parameters for the inspection task.
 // It contains a map of parameter names to their values.
 var InspectionTaskInput = typedmap.NewTypedKey[map[string]any]("khi.google.com/inspection/task-input")
+
+// InspectionCreationTime is the context key to access the time when user created the inspection.
+var InspectionCreationTime = typedmap.NewTypedKey[time.Time]("khi.google.com/inspection/creation-time")
 
 // InspectionSharedMap is the context key to access a shared typed map
 // that persists across multiple executions of an inspection task.

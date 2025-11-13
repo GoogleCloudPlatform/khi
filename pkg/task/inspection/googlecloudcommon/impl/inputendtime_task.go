@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
@@ -31,7 +32,6 @@ import (
 // InputEndTimeTask defines a form task to input the end time for log queries.
 var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputEndTimeTaskID, googlecloudcommon_contract.PriorityForQueryTimeGroup+5000, "End time").
 	WithDependencies([]taskid.UntypedTaskReference{
-		inspectioncore_contract.InspectionTimeTaskID.Ref(),
 		inspectioncore_contract.TimeZoneShiftInputTaskID.Ref(),
 	}).
 	WithDescription(`The endtime of query. Please input it in the format of RFC3339
@@ -43,16 +43,16 @@ var InputEndTimeTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contrac
 		if len(previousValues) > 0 {
 			return previousValues[0], nil
 		}
-		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore_contract.InspectionTimeTaskID.Ref())
+		creationTime := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionCreationTime)
 		timezoneShift := coretask.GetTaskResult(ctx, inspectioncore_contract.TimeZoneShiftInputTaskID.Ref())
 
-		return inspectionTime.In(timezoneShift).Format(time.RFC3339), nil
+		return creationTime.In(timezoneShift).Format(time.RFC3339), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		inspectionTime := coretask.GetTaskResult(ctx, inspectioncore_contract.InspectionTimeTaskID.Ref())
+		creationTime := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionCreationTime)
 
 		specifiedTime := convertedValue.(time.Time)
-		if inspectionTime.Sub(specifiedTime) < 0 {
+		if creationTime.Sub(specifiedTime) < 0 {
 			return fmt.Sprintf("Specified time `%s` is pointing the future. Please make sure if you specified the right value", value), inspectionmetadata.Warning, nil
 		}
 		return "", inspectionmetadata.Info, nil
