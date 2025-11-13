@@ -909,7 +909,7 @@ func TestKHIDirectFileUpload(t *testing.T) {
 			store.GetUploadToken(tc.tokenID, &upload.NopWaitUploadFileVerifier{})
 			serverConfig := ServerConfig{
 				ViewerMode:       false,
-				StaticFolderPath: "../pkg/server/dist",
+				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   "/foo",
 				UploadFileStore:  store,
