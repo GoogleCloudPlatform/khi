@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -224,7 +225,11 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: testTime},
 				&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-					Message:   tc.logMessage,
+					Message: &logutil.ParseStructuredLogResult{
+						Fields: map[string]any{
+							logutil.MainMessageStructuredFieldKey: tc.logMessage,
+						},
+					},
 					Component: "test-component",
 					NodeName:  "test-node",
 				},

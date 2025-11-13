@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,200 +15,215 @@
 package logutil
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
-// severityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
-var severityStringNotation = map[string]enum.Severity{
-	"INFO":    enum.SeverityInfo,
-	"info":    enum.SeverityInfo,
-	"WARN":    enum.SeverityWarning,
-	"warn":    enum.SeverityWarning,
-	"WARNING": enum.SeverityWarning,
-	"warning": enum.SeverityWarning,
-	"ERROR":   enum.SeverityError,
-	"error":   enum.SeverityError,
-	"ERR":     enum.SeverityError,
-	"err":     enum.SeverityError,
-	"FATAL":   enum.SeverityFatal,
-	"fatal":   enum.SeverityFatal,
-	"panic":   enum.SeverityFatal,
+// KLogTextParser parses given klog formatted string.
+// Example klog:  I0929 08:20:24.205299    1949 kubelet_getters.go:219] "Pod status updated" pod="kube-system/kube-proxy-gke-p0-gke-basic-1-default-6400229f-0hgr" status="Running"
+type KLogTextParser struct {
+	workers *sync.Pool
 }
 
-var severityKlogFieldNames = []string{"level", "severity"}
-
-// https://github.com/kubernetes/klog/blob/v2.80.1/klog.go#L626-L645
-// TODO: We need to handle time field in later, but ignore it for now because times can be obtained from the other source.
-type klogHeader struct {
-	Severity enum.Severity
-	Message  string
+func NewKLogTextParser(hasHeader bool) *KLogTextParser {
+	return &KLogTextParser{
+		workers: &sync.Pool{
+			New: func() any {
+				return newKLogTextParserWorker(hasHeader)
+			},
+		},
+	}
 }
 
-// ignore `file`,`threadid` and `line` part.
-var klogHeaderMatcher = regexp.MustCompile(`^([IWEF])(\d{2})(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{6})\s+[^\]]*\](.*)$`)
-
-func parseKLogHeader(klog string) *klogHeader {
-	matches := klogHeaderMatcher.FindStringSubmatch(klog)
-	if len(matches) > 0 {
-		severityStr := matches[1]
-		severity := enum.SeverityUnknown
-		switch severityStr {
-		case "I":
-			severity = enum.SeverityInfo
-		case "W":
-			severity = enum.SeverityWarning
-		case "E":
-			severity = enum.SeverityError
-		case "F":
-			severity = enum.SeverityFatal
-		}
-		return &klogHeader{
-			Severity: severity,
-			Message:  strings.TrimSpace(matches[len(matches)-1]),
-		}
-	}
-	return nil
+// TryParse implements StructuredLogParser.
+func (k *KLogTextParser) TryParse(message string) *ParseStructuredLogResult {
+	worker := k.workers.Get().(*klogTextParserWorker)
+	defer k.workers.Put(worker)
+	return worker.parse(message)
 }
 
-func parseKLogMessageFragment(klogMessageFragment string) map[string]string {
-	result := map[string]string{}
-	inQuotes := false
-	inGoBrace := false
-	inBracket := false
-	parsingKey := true
-	escaping := false
-	currentKey := ""
-	currentGroup := ""
-	// For the log format not starting from the double quote
-	// Example:
-	// Error foo" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234
-	if strings.Count(klogMessageFragment, "\"")%2 == 1 {
-		klogMessageFragment = `"` + klogMessageFragment
+var _ StructuredLogParser = (*KLogTextParser)(nil)
+
+// Special header field keys stored in fields.
+const KLogHeaderDateFieldKey = "@date"
+const KLogHeaderTimeFieldKey = "@time"
+const KLogHeaderThreadIDFieldKey = "@threadid"
+const KLogHeaderSourceLocationFieldKey = "@source"
+
+var klogTimestampRegex = regexp.MustCompile(`^([IWEF])(\d{4})\s+(\d{2}:\d{2}:\d{2}\.\d{6})\s+(\d+)\s+([^:]+:\d+)]\s+(.*)$`)
+
+type klogTextParserWorker struct {
+	builder   strings.Builder
+	hasHeader bool
+}
+
+func newKLogTextParserWorker(hasHeader bool) *klogTextParserWorker {
+	return &klogTextParserWorker{
+		builder:   strings.Builder{},
+		hasHeader: hasHeader,
 	}
-	for i := 0; i < len(klogMessageFragment); i++ {
-		// For log body beginning with `"`, it should be regarded as the msg field.
-		if i == 0 && klogMessageFragment[i] == '"' {
-			inQuotes = true
-			// `msg` is reserved for the main message
-			currentKey = "msg"
-			parsingKey = false
-			continue
-		}
-		if !escaping {
+}
 
-			if klogMessageFragment[i] == '\\' {
-				escaping = true
-				continue
-			}
-
-			if klogMessageFragment[i] == '{' && !inQuotes {
-				inGoBrace = true
-				currentGroup += string(klogMessageFragment[i])
-				continue
-			}
-
-			if klogMessageFragment[i] == '}' && !inQuotes && inGoBrace {
-				inGoBrace = false
-				currentGroup += string(klogMessageFragment[i])
-				continue
-			}
-			if klogMessageFragment[i] == '[' && !inQuotes && !inGoBrace {
-				inBracket = true
-				currentGroup += string(klogMessageFragment[i])
-				continue
-			}
-
-			if klogMessageFragment[i] == ']' && !inQuotes && !inGoBrace && inBracket {
-				inBracket = false
-				currentGroup += string(klogMessageFragment[i])
-				continue
-			}
-
-			if klogMessageFragment[i] == '"' && !inGoBrace && !inBracket {
-				if !parsingKey && inQuotes {
-					result[currentKey] = currentGroup
-					parsingKey = true
-					currentGroup = ""
-				}
-				inQuotes = !inQuotes
-				continue
-			}
-
-			if klogMessageFragment[i] == '=' && !inQuotes && !inGoBrace && !inBracket {
-				if parsingKey {
-					currentKey = currentGroup
-					currentGroup = ""
-					parsingKey = false
-					continue
-				}
-			}
-		}
-
-		if klogMessageFragment[i] == ' ' && !inQuotes && !inGoBrace && !inBracket {
-			if !parsingKey {
-				result[currentKey] = currentGroup
-				parsingKey = true
-				currentGroup = ""
-			}
-			continue
-		}
-
-		if escaping {
-			escaping = false
-		}
-
-		currentGroup += string(klogMessageFragment[i])
+func (w *klogTextParserWorker) parse(message string) *ParseStructuredLogResult {
+	result := &ParseStructuredLogResult{
+		Fields: map[string]any{
+			OriginalMessageFieldKey: message,
+		},
 	}
-	if !parsingKey {
-		result[currentKey] = currentGroup
+	if !w.hasHeader { // GKE control plane can omit the header of klog. example)"Starting watch" path="/apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations" resourceVersion="1759127820246769000" labels="" fields="" timeout="9m16s"
+		err := w.parseFields(message, result)
+		if err != nil {
+			return nil
+		}
+		return result
+	}
+	matches := klogTimestampRegex.FindStringSubmatch(message)
+	if matches == nil {
+		return nil
+	}
+
+	severity, err := w.parseSeverity(matches[1])
+	if err != nil {
+		return nil
+	}
+	result.Fields[SeverityStructuredFieldKey] = severity
+	result.Fields[KLogHeaderDateFieldKey] = matches[2]
+	result.Fields[KLogHeaderTimeFieldKey] = matches[3]
+	result.Fields[KLogHeaderThreadIDFieldKey] = matches[4]
+	result.Fields[KLogHeaderSourceLocationFieldKey] = matches[5]
+
+	err = w.parseFields(matches[6], result)
+	if err != nil {
+		return nil
 	}
 	return result
 }
 
-// https://kubernetes.io/docs/concepts/cluster-administration/system-logs/#klog-output
-func ExtractKLogField(klogBody string, field string) (string, error) {
-	header := parseKLogHeader(klogBody)
-	message := klogBody
-	if header != nil {
-		message = header.Message
-	}
-	fields := parseKLogMessageFragment(message)
-	if field == "" {
-		if message, hasMsg := fields["msg"]; hasMsg {
-			return message, nil
-		}
-		if header != nil {
-			return header.Message, nil
-		}
-		return klogBody, nil
-	} else {
-		if fieldValue, hasField := fields[field]; hasField {
-			return fieldValue, nil
-		} else {
-			return "", nil
-		}
+func (w *klogTextParserWorker) parseSeverity(severityStr string) (enum.Severity, error) {
+	switch severityStr {
+	case "I":
+		return enum.SeverityInfo, nil
+	case "W":
+		return enum.SeverityWarning, nil
+	case "E":
+		return enum.SeverityError, nil
+	case "F":
+		return enum.SeverityFatal, nil
+	default:
+		return enum.SeverityUnknown, khierrors.ErrInvalidInput
 	}
 }
 
-// ExractKLogSeverity returns severity from klog formatted logs.
-func ExractKLogSeverity(klogBody string) enum.Severity {
-	header := parseKLogHeader(klogBody)
-	if header != nil {
-		klogBody = header.Message
-	}
-	fields := parseKLogMessageFragment(klogBody)
-	for _, fieldName := range severityKlogFieldNames {
-		if severityInStr, hasLevel := fields[fieldName]; hasLevel {
-			if khiSeverity, isKnownSeverity := severityStringNotation[severityInStr]; isKnownSeverity {
-				return khiSeverity
+func (w *klogTextParserWorker) parseFields(messagePart string, result *ParseStructuredLogResult) error {
+	w.builder.Reset()
+	escaping := false
+	mainMessageStarted := false
+	mainMessageEnded := false
+	parsingValue := false
+	var lastKey string
+	var endingMark rune
+	includeEndingMark := false
+	for i, c := range messagePart {
+		if !mainMessageStarted {
+			switch c {
+			case ' ':
+			case '"':
+				mainMessageStarted = true
+			default:
+				// If Klog main message starts with non-double quote, then it won't have fields after the main message.
+				// example) object-"1-8-daemonsets"/"kube-root-ca.crt": Failed to watch *v1.ConfigMap: failed to list *v1.ConfigMap: configmaps "kube-root-ca.crt" is forbidden: User "system:node:gke-p0-gke-basic-1-default-6400229f-0hgr" cannot list resource "configmaps" in API group "" in the namespace "1-8-daemonsets": no relationship found between node 'gke-p0-gke-basic-1-default-6400229f-0hgr' and this object
+				result.Fields[MainMessageStructuredFieldKey] = messagePart
+				return nil
+			}
+			continue
+		}
+		if !mainMessageEnded {
+			if escaping {
+				w.builder.WriteRune(c)
+				escaping = false
+				continue
+			}
+			switch c {
+			case '\\':
+				escaping = true
+			case '"':
+				mainMessageEnded = true
+				result.Fields[MainMessageStructuredFieldKey] = w.builder.String()
+				w.builder.Reset()
+			default:
+				w.builder.WriteRune(c)
+			}
+			continue
+		}
+		if !parsingValue {
+			switch c {
+			case '=':
+				parsingValue = true
+				lastKey = w.builder.String()
+				w.builder.Reset()
+			case ' ':
+				if w.builder.Len() > 0 {
+					return fmt.Errorf("found a space in the middle of key name")
+				}
+			default:
+				w.builder.WriteRune(c)
+			}
+		} else {
+			if endingMark == 0 {
+				switch c {
+				case '"':
+					endingMark = '"'
+					includeEndingMark = false
+					continue
+				case '[':
+					endingMark = ']'
+					includeEndingMark = true
+				case '{':
+					endingMark = '}'
+					includeEndingMark = true
+				case '&': // This must be followed by '{'
+					if i+1 < len(messagePart) && messagePart[i+1] == '{' {
+						endingMark = '}'
+						includeEndingMark = true
+					} else {
+						return fmt.Errorf("failed to parse fields. '&' must be followed by '{' in fields")
+					}
+				default:
+					endingMark = ' '
+					includeEndingMark = false
+				}
+			}
+			if escaping {
+				w.builder.WriteRune(c)
+				escaping = false
+				continue
+			}
+			switch c {
+			case endingMark:
+				if includeEndingMark {
+					w.builder.WriteRune(c)
+				}
+				result.Fields[lastKey] = w.builder.String()
+				w.builder.Reset()
+				parsingValue = false
+				lastKey = ""
+				endingMark = 0
+			case '\\':
+				escaping = true
+				continue
+			default:
+				w.builder.WriteRune(c)
 			}
 		}
 	}
-	if header != nil {
-		return header.Severity
+	if parsingValue {
+		result.Fields[lastKey] = w.builder.String()
+		w.builder.Reset()
 	}
-	return enum.SeverityUnknown
+	return nil
 }

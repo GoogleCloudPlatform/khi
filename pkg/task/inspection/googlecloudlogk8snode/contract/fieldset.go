@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -32,7 +33,7 @@ var (
 )
 
 type K8sNodeLogCommonFieldSet struct {
-	Message   string
+	Message   *logutil.ParseStructuredLogResult
 	Component string
 	NodeName  string
 }
@@ -62,7 +63,9 @@ func (k *K8sNodeLogCommonFieldSet) Kind() string {
 
 var _ log.FieldSet = (*K8sNodeLogCommonFieldSet)(nil)
 
-type K8sNodeLogCommonFieldSetReader struct{}
+type K8sNodeLogCommonFieldSetReader struct {
+	StructuredLogParser logutil.StructuredLogParser
+}
 
 // FieldSetKind implements log.FieldSetReader.
 func (k *K8sNodeLogCommonFieldSetReader) FieldSetKind() string {
@@ -72,10 +75,12 @@ func (k *K8sNodeLogCommonFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (k *K8sNodeLogCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result K8sNodeLogCommonFieldSet
-	result.Message = reader.ReadStringOrDefault("jsonPayload.MESSAGE", "")
-	if result.Message == "" {
-		result.Message = reader.ReadStringOrDefault("jsonPayload.message", "")
+	message := reader.ReadStringOrDefault("jsonPayload.MESSAGE", "")
+	if message == "" {
+		message = reader.ReadStringOrDefault("jsonPayload.message", "")
 	}
+	result.Message = k.StructuredLogParser.TryParse(message)
+
 	result.Component = reader.ReadStringOrDefault("jsonPayload.SYSLOG_IDENTIFIER", "")
 	if result.Component == "" { // static pod log doesn't have SYSLOG_IDENTIFIER, use the name included in logName in the case.
 		logName := reader.ReadStringOrDefault("logName", "")

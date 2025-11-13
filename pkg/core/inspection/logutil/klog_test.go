@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,264 +19,202 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/sync/errgroup"
 )
 
-func TestParseKLogHeader(t *testing.T) {
-	testCases := []struct {
-		InputLog string
-		Expected *klogHeader
-	}{
-		{
-			InputLog: `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			Expected: &klogHeader{
-				Severity: enum.SeverityInfo,
-				Message:  `"Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			},
-		},
-		{
-			InputLog: `time="2024-01-09T23:18:46.683566491Z" level=info msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
-			Expected: nil,
+func TestKLogTextParser(t *testing.T) {
+	count := 10000
+	result := make(chan *ParseStructuredLogResult, count)
+	input := `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
+	want := &ParseStructuredLogResult{
+		Fields: map[string]any{
+			SeverityStructuredFieldKey:       enum.SeverityInfo,
+			OriginalMessageFieldKey:          input,
+			KLogHeaderDateFieldKey:           "0930",
+			KLogHeaderTimeFieldKey:           "00:01:02.500000",
+			KLogHeaderThreadIDFieldKey:       "1992",
+			KLogHeaderSourceLocationFieldKey: "prober.go:116",
+			MainMessageStructuredFieldKey:    "Main message",
+			"fieldWithQuotes":                "foo",
+			"fieldWithEscape":                `bar "qux"`,
+			"fieldWithoutQuotes":             "3.1415",
 		},
 	}
-	for _, testCase := range testCases {
-		t.Run(testCase.InputLog, func(t *testing.T) {
-			actual := parseKLogHeader(testCase.InputLog)
-			if diff := cmp.Diff(testCase.Expected, actual); diff != "" {
-				t.Errorf("Result is not matching with the expected outcome.\n%s", diff)
-			}
+	parser := NewKLogTextParser(true)
+	errgrp := errgroup.Group{}
+	for i := 0; i < count; i++ {
+		errgrp.Go(func() error {
+			result <- parser.TryParse(input)
+			return nil
 		})
+	}
+	errgrp.Wait()
+	close(result)
+	for got := range result {
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("parse() mismatch (-want +got):\n%s", diff)
+		}
 	}
 }
 
-func TestParseKLogMessageFragment(t *testing.T) {
-	testCases := []struct {
-		Name             string
-		InputLogFragment string
-		Expected         map[string]string
-	}{
-		{
-			Name:             "parse with basic types and escape",
-			InputLogFragment: `"message" quote="foo" escape="bar \"qux\"" nonQuote=3.1415`,
-			Expected: map[string]string{
-				"msg":      "message",
-				"quote":    "foo",
-				"escape":   `bar "qux"`,
-				"nonQuote": "3.1415",
-			},
-		},
-		{
-			Name:             "parse message not beginning with the main message",
-			InputLogFragment: `time="2024-01-09T23:18:46.683566491Z" level=info msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
-			Expected: map[string]string{
-				"time":               "2024-01-09T23:18:46.683566491Z",
-				"level":              "info",
-				"msg":                "foo bar",
-				"fieldWithEscape":    `foo "bar"`,
-				"fieldWithQuotes":    "foo",
-				"fieldWithoutQuotes": "qux1234",
-			},
-		},
-		{
-			Name:             "parse message containing Golang brace",
-			InputLogFragment: `time="2024-01-01T09:36:50.190865579Z" level=info msg="CreateContainer within sandbox \"0967f41e43a74987c232c287ddf4eb5291cea903aed457eea197b6a0fc8f51a9\" for &ContainerMetadata{Name:config-reloader,Attempt:0,} returns container id \"31569ae45ccb2fe6d89eb298cd1fa124e6522c3c1683b944e4168ee19488430c\""`,
-			Expected: map[string]string{
-				"time":  "2024-01-01T09:36:50.190865579Z",
-				"level": "info",
-				"msg":   `CreateContainer within sandbox "0967f41e43a74987c232c287ddf4eb5291cea903aed457eea197b6a0fc8f51a9" for &ContainerMetadata{Name:config-reloader,Attempt:0,} returns container id "31569ae45ccb2fe6d89eb298cd1fa124e6522c3c1683b944e4168ee19488430c"`,
-			},
-		},
-		{
-			Name:             "parse message containing Golang struct directly in the field",
-			InputLogFragment: `"SyncLoop (PLEG): event for pod" pod="kube-system/fluentbit-gke-bfkqc" event=&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}`,
-			Expected: map[string]string{
-				"msg":   "SyncLoop (PLEG): event for pod",
-				"pod":   "kube-system/fluentbit-gke-bfkqc",
-				"event": "&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}",
-			},
-		},
-		{
-			Name:             "parse message with complex escapes",
-			InputLogFragment: `"SyncLoop (PLEG): event for pod" pod="kube-system/fluentbit-gke-bfkqc" event=&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}`,
-			Expected: map[string]string{
-				"msg":   "SyncLoop (PLEG): event for pod",
-				"pod":   "kube-system/fluentbit-gke-bfkqc",
-				"event": "&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}",
-			},
-		},
-		{
-			Name:             "parse message with array",
-			InputLogFragment: `"SyncLoop DELETE" source="api" pods=["apple","banana","cherry"]`,
-			Expected: map[string]string{
-				"msg":    "SyncLoop DELETE",
-				"source": "api",
-				"pods":   `["apple","banana","cherry"]`,
-			},
-		},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.Name, func(t *testing.T) {
-			actual := parseKLogMessageFragment(testCase.InputLogFragment)
-			if diff := cmp.Diff(testCase.Expected, actual); diff != "" {
-				t.Errorf("Result is not matching with the expected outcome.\n%s", diff)
-			}
-		})
+func BenchmarkKLogTextParser(b *testing.B) {
+	input := `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
+	parser := NewKLogTextParser(false)
+	for i := 0; i < b.N; i++ {
+		parser.TryParse(input)
 	}
 }
 
-func TestExtractKLogField(t *testing.T) {
-	type match struct {
-		Field    string
-		Expected string
-	}
+func TestKlogTextParserWorker_Parse(t *testing.T) {
 	testCases := []struct {
-		InputLog string
-		Matches  []match
+		desc  string
+		input string
+		want  *ParseStructuredLogResult
 	}{
 		{
-			InputLog: `I0930 00:01:02.030000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			Matches: []match{
-				{
-					Field:    "",
-					Expected: "Main message",
-				},
-				{
-					Field:    "fieldWithQuotes",
-					Expected: "foo",
-				},
-				{
-					Field:    "fieldWithEscape",
-					Expected: `bar "qux"`,
-				},
-				{
-					Field:    "fieldWithoutQuotes",
-					Expected: "3.1415",
-				},
-				{
-					Field:    "non-existing-field",
-					Expected: "",
+			desc:  "simple klog message",
+			input: `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					KLogHeaderDateFieldKey:           "0930",
+					KLogHeaderTimeFieldKey:           "00:01:02.500000",
+					KLogHeaderThreadIDFieldKey:       "1992",
+					KLogHeaderSourceLocationFieldKey: "prober.go:116",
+					MainMessageStructuredFieldKey:    "Main message",
+					"fieldWithQuotes":                "foo",
+					"fieldWithEscape":                `bar "qux"`,
+					"fieldWithoutQuotes":             "3.1415",
 				},
 			},
 		},
 		{
-			InputLog: `I1125 05:07:10.533544    1679 flags.go:64] FLAG: --container-runtime-endpoint="unix:///run/containerd/containerd.sock"`,
-			Matches: []match{
-				{
-					Field:    "",
-					Expected: `FLAG: --container-runtime-endpoint="unix:///run/containerd/containerd.sock"`,
+			desc:  "klog message with escaping",
+			input: `I0930 00:01:02.500000    1992 prober.go:116] "Main \"message\"" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					KLogHeaderDateFieldKey:           "0930",
+					KLogHeaderTimeFieldKey:           "00:01:02.500000",
+					KLogHeaderThreadIDFieldKey:       "1992",
+					KLogHeaderSourceLocationFieldKey: "prober.go:116",
+					MainMessageStructuredFieldKey:    "Main \"message\"",
+					"fieldWithQuotes":                "foo",
+					"fieldWithEscape":                `bar "qux"`,
+					"fieldWithoutQuotes":             "3.1415",
 				},
 			},
 		},
 		{
-			InputLog: `Error foo" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
-			Matches: []match{
-				{
-					Field:    "",
-					Expected: `Error foo`,
-				}, {
-					Field:    "fieldWithQuotes",
-					Expected: "foo",
-				}, {
-					Field:    "fieldWithEscape",
-					Expected: `foo "bar"`,
-				},
-				{
-					Field:    "fieldWithoutQuotes",
-					Expected: "qux1234",
+			desc:  "klog message with golang struct pointer in field",
+			input: `I0930 00:01:02.500000    1992 prober.go:116] "SyncLoop (PLEG): event for pod" pod="kube-system/fluentbit-gke-bfkqc" event=&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					KLogHeaderDateFieldKey:           "0930",
+					KLogHeaderTimeFieldKey:           "00:01:02.500000",
+					KLogHeaderThreadIDFieldKey:       "1992",
+					KLogHeaderSourceLocationFieldKey: "prober.go:116",
+					MainMessageStructuredFieldKey:    "SyncLoop (PLEG): event for pod",
+					"pod":                            "kube-system/fluentbit-gke-bfkqc",
+					"event":                          "&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}",
 				},
 			},
 		},
 		{
-			InputLog: `time="2024-01-09T23:18:46.683566491Z" level=info msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
-			Matches: []match{
-				{
-					Field:    "",
-					Expected: `foo bar`,
-				}, {
-					Field:    "fieldWithQuotes",
-					Expected: "foo",
-				}, {
-					Field:    "fieldWithEscape",
-					Expected: `foo "bar"`,
-				},
-				{
-					Field:    "fieldWithoutQuotes",
-					Expected: "qux1234",
+			desc:  "klog message with golang struct in field",
+			input: `I0930 00:01:02.500000    1992 prober.go:116] "SyncLoop (PLEG): event for pod" pod="kube-system/fluentbit-gke-bfkqc" event={ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					KLogHeaderDateFieldKey:           "0930",
+					KLogHeaderTimeFieldKey:           "00:01:02.500000",
+					KLogHeaderThreadIDFieldKey:       "1992",
+					KLogHeaderSourceLocationFieldKey: "prober.go:116",
+					MainMessageStructuredFieldKey:    "SyncLoop (PLEG): event for pod",
+					"pod":                            "kube-system/fluentbit-gke-bfkqc",
+					"event":                          "{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}",
 				},
 			},
 		},
 		{
-			InputLog: `I0929 08:30:44.541804    1949 kubelet.go:2458] "SyncLoop DELETE" source="api" pods=["foo/bar"]`,
-			Matches: []match{
-				{
-					Field:    "",
-					Expected: `SyncLoop DELETE`,
-				},
-				{
-					Field:    "source",
-					Expected: "api",
-				},
-				{
-					Field:    "pods",
-					Expected: `["foo/bar"]`,
+			desc:  "klog message with array in field",
+			input: `I0929 08:30:44.541804    1949 kubelet.go:2458] "SyncLoop DELETE" source="api" pods=["foo/bar","baz/qux"]`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					KLogHeaderDateFieldKey:           "0929",
+					KLogHeaderTimeFieldKey:           "08:30:44.541804",
+					KLogHeaderThreadIDFieldKey:       "1949",
+					KLogHeaderSourceLocationFieldKey: "kubelet.go:2458",
+					MainMessageStructuredFieldKey:    "SyncLoop DELETE",
+					"source":                         "api",
+					"pods":                           `["foo/bar","baz/qux"]`,
 				},
 			},
 		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.InputLog, func(t *testing.T) {
-			for _, match := range testCase.Matches {
-				t.Run(match.Field, func(t *testing.T) {
-					actual, err := ExtractKLogField(testCase.InputLog, match.Field)
-					if err != nil {
-						t.Errorf("unexpected error\n%v", err)
-					}
-					if diff := cmp.Diff(match.Expected, actual); diff != "" {
-						t.Errorf("Result is not matching with the expected outcome.\n%s", diff)
-					}
-				})
-			}
-		})
-	}
-}
-
-func TestExtractKLogSeverity(t *testing.T) {
-	testCases := []struct {
-		name         string
-		log          string
-		wantSeverity enum.Severity
-	}{
 		{
-			name:         "extract severity from header",
-			log:          `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			wantSeverity: enum.SeverityInfo,
-		},
-		{
-			name:         "prioritize severity from fields rather than header",
-			log:          `I0930 00:01:02.500000    1992 prober.go:116] "Main message" level="warning" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			wantSeverity: enum.SeverityWarning,
-		},
-		{
-			name:         "extract severity from level field",
-			log:          `time="2024-01-09T23:18:46.683566491Z" level=info msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
-			wantSeverity: enum.SeverityInfo,
-		},
-		{
-			name:         "extract severity from severity field",
-			log:          `time="2024-01-09T23:18:46.683566491Z" severity=warning msg="foo bar" fieldWithQuotes="foo" fieldWithEscape="foo \"bar\"" fieldWithoutQuotes=qux1234`,
-			wantSeverity: enum.SeverityWarning,
-		},
-		{
-			name:         "return unknown when severity is not found",
-			log:          `"Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
-			wantSeverity: enum.SeverityUnknown,
+			desc:  "klog message with no main message and fields",
+			input: `I0929 08:30:44.541804    1949 kubelet.go:2458] Some plain text message`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					KLogHeaderDateFieldKey:           "0929",
+					KLogHeaderTimeFieldKey:           "08:30:44.541804",
+					KLogHeaderThreadIDFieldKey:       "1949",
+					KLogHeaderSourceLocationFieldKey: "kubelet.go:2458",
+					MainMessageStructuredFieldKey:    "Some plain text message",
+				},
+			},
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotSeverity := ExractKLogSeverity(tc.log)
-			if diff := cmp.Diff(tc.wantSeverity, gotSeverity); diff != "" {
-				t.Errorf("ExractKLogSeverity() mismatch (-want +got):\n%s", diff)
+		t.Run(tc.desc, func(t *testing.T) {
+			tc.want.Fields[OriginalMessageFieldKey] = tc.input
+			worker := newKLogTextParserWorker(true)
+			got := worker.parse(tc.input)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestKlogTextParserWorker_Parse_WithoutHeader(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		want  *ParseStructuredLogResult
+	}{
+		{
+			desc:  "simple klog message",
+			input: `"Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					MainMessageStructuredFieldKey: "Main message",
+					"fieldWithQuotes":             "foo",
+					"fieldWithEscape":             `bar "qux"`,
+					"fieldWithoutQuotes":          "3.1415",
+				},
+			},
+		},
+		{
+			desc:  "klog message with no main message and fields",
+			input: `Some plain text message`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					MainMessageStructuredFieldKey: "Some plain text message",
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			tc.want.Fields[OriginalMessageFieldKey] = tc.input
+			worker := newKLogTextParserWorker(false)
+			got := worker.parse(tc.input)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

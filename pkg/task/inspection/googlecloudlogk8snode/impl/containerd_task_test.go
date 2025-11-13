@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
@@ -40,7 +41,11 @@ func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
 		{
 			desc: "valid log message",
 			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message: `"RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
+				Message: &logutil.ParseStructuredLogResult{
+					Fields: map[string]any{
+						logutil.MainMessageStructuredFieldKey: "RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"",
+					},
+				},
 			},
 			want: &googlecloudlogk8snode_contract.PodSandboxIDInfo{
 				PodName:      "podname",
@@ -51,7 +56,11 @@ func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
 		{
 			desc: "empty message",
 			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message: "",
+				Message: &logutil.ParseStructuredLogResult{
+					Fields: map[string]any{
+						logutil.MainMessageStructuredFieldKey: "",
+					},
+				},
 			},
 			want: nil,
 		},
@@ -79,7 +88,7 @@ func TestFindPodSandboxIDInfo(t *testing.T) {
 	}{
 		{
 			desc: "valid log message",
-			log:  `"RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
+			log:  "RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"",
 			want: &googlecloudlogk8snode_contract.PodSandboxIDInfo{
 				PodName:      "podname",
 				PodNamespace: "kube-system",
@@ -89,13 +98,13 @@ func TestFindPodSandboxIDInfo(t *testing.T) {
 		},
 		{
 			desc:    "log message without RunPodSandbox prefix",
-			log:     `"Some other log message"`,
+			log:     "Some other log message",
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			desc:    "log message without sandbox id",
-			log:     `"RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,}"`,
+			log:     "RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,}",
 			want:    nil,
 			wantErr: true,
 		},
@@ -103,7 +112,12 @@ func TestFindPodSandboxIDInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got, err := findPodSandboxIDInfo(tc.log)
+			input := logutil.ParseStructuredLogResult{
+				Fields: map[string]any{
+					logutil.MainMessageStructuredFieldKey: tc.log,
+				},
+			}
+			got, err := findPodSandboxIDInfo(&input)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("findPodSandboxIDInfo() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -124,7 +138,11 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 		{
 			desc: "valid log message",
 			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message: `"CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\""`,
+				Message: &logutil.ParseStructuredLogResult{
+					Fields: map[string]any{
+						logutil.MainMessageStructuredFieldKey: "CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\"",
+					},
+				},
 			},
 			want: &googlecloudlogk8snode_contract.ContainerIDInfo{
 				PodSandboxID:  "sandbox123",
@@ -135,7 +153,11 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 		{
 			desc: "empty log message",
 			inputComponentFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message: "",
+				Message: &logutil.ParseStructuredLogResult{
+					Fields: map[string]any{
+						logutil.MainMessageStructuredFieldKey: "",
+					},
+				},
 			},
 			want: nil,
 		},
@@ -163,7 +185,7 @@ func TestFindContainerIDInfo(t *testing.T) {
 	}{
 		{
 			desc: "valid log message",
-			log:  `"CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\""`,
+			log:  "CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\"",
 			want: &googlecloudlogk8snode_contract.ContainerIDInfo{
 				PodSandboxID:  "sandbox123",
 				ContainerName: "container-name",
@@ -173,19 +195,19 @@ func TestFindContainerIDInfo(t *testing.T) {
 		},
 		{
 			desc:    "log message without CreateContainer prefix",
-			log:     `"Some other log message"`,
+			log:     "Some other log message",
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			desc:    "log message without sandbox id",
-			log:     `"CreateContainer for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\""`,
+			log:     "CreateContainer for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\"",
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			desc:    "log message without container id",
-			log:     `"CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,}"`,
+			log:     "CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,}",
 			want:    nil,
 			wantErr: true,
 		},
@@ -193,7 +215,12 @@ func TestFindContainerIDInfo(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got, err := findContainerIDInfo(tc.log)
+			input := logutil.ParseStructuredLogResult{
+				Fields: map[string]any{
+					logutil.MainMessageStructuredFieldKey: tc.log,
+				},
+			}
+			got, err := findContainerIDInfo(&input)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("findContainerIDInfo() error = %v, wantErr %v", err, tc.wantErr)
 			}
@@ -236,10 +263,12 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			logs := []*log.Log{}
+			logfmtParser := logutil.NewLogfmtTextParser()
 			for _, msg := range tc.messages {
+				input := logfmtParser.TryParse(msg)
 				logs = append(logs, log.NewLogWithFieldSetsForTest(
 					&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-						Message: msg,
+						Message: input,
 					},
 				))
 			}
@@ -279,15 +308,16 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	testCases := []struct {
 		desc                 string
+		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*googlecloudlogk8snode_contract.ContainerIDInfo
 		asserter             []testchangeset.ChangeSetAsserter
 	}{
 		{
-			desc: "starting log for containerd",
+			desc:         "starting log for containerd",
+			inputMessage: `time="2025-09-29T06:34:07.973711745Z" level=info msg="starting containerd"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="starting containerd"`,
 				Component: "containerd",
 				NodeName:  "node-1",
 			},
@@ -310,9 +340,9 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 			},
 		},
 		{
-			desc: "terminating log for containerd",
+			desc:         "terminating log for containerd",
+			inputMessage: `time="2025-09-29T06:34:07.973711745Z" level=info msg="Stop CRI service"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="Stop CRI service"`,
 				Component: "containerd",
 				NodeName:  "node-1",
 			},
@@ -335,9 +365,9 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 			},
 		},
 		{
-			desc: "log with pod sandbox id",
+			desc:         "log with pod sandbox id",
+			inputMessage: `time="2025-09-29T06:34:07.973711745Z" level=info msg="RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
 				Component: "containerd",
 				NodeName:  "node-1",
 			},
@@ -361,9 +391,9 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 			},
 		},
 		{
-			desc: "log with container id",
+			desc:         "log with container id",
+			inputMessage: `time="2025-09-29T06:34:07.973711745Z" level=info msg="CreateContainer within sandbox \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\""`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Message:   `time="2025-09-29T06:34:07.973711745Z" level=info msg="CreateContainer within sandbox \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\""`,
 				Component: "containerd",
 				NodeName:  "node-1",
 			},
@@ -398,6 +428,7 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		logfmtParser := logutil.NewLogfmtTextParser()
 		t.Run(tc.desc, func(t *testing.T) {
 			// Mock the task results for dependencies
 			mockContainerdRelationshipRegistry := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
@@ -414,7 +445,8 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 
 			ctx := context.Background()
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(), mockContainerdRelationshipRegistry)
-
+			message := logfmtParser.TryParse(tc.inputMessage)
+			tc.inputNodeLogFieldSet.Message = message
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: testTime},
 				tc.inputNodeLogFieldSet,

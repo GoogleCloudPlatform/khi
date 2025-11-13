@@ -105,14 +105,11 @@ func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, relatio
 	relationshipRepository.PodSandboxIDInfoFinder.AddPattern(index.PodSandboxID, index)
 }
 
-func findPodSandboxIDInfo(jsonPayloadMessage string) (*googlecloudlogk8snode_contract.PodSandboxIDInfo, error) {
+func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*googlecloudlogk8snode_contract.PodSandboxIDInfo, error) {
 	// RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"
-	msg, err := logutil.ExtractKLogField(jsonPayloadMessage, "msg")
+	msg, err := jsonPayloadMessage.MainMessage()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
-	}
-	if msg == "" {
-		return nil, fmt.Errorf("main message not found in log")
 	}
 	if strings.HasPrefix(msg, "RunPodSandbox") {
 		fields := readGoStructFromString(msg, "PodSandboxMetadata")
@@ -144,13 +141,10 @@ func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, relation
 	relationshipRepository.ContainerIDInfoFinder.AddPattern(index.ContainerID, index)
 }
 
-func findContainerIDInfo(jsonPayloadMessage string) (*googlecloudlogk8snode_contract.ContainerIDInfo, error) {
-	msg, err := logutil.ExtractKLogField(jsonPayloadMessage, "msg")
+func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*googlecloudlogk8snode_contract.ContainerIDInfo, error) {
+	msg, err := jsonPayloadMessage.MainMessage()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
-	}
-	if msg == "" {
-		return nil, fmt.Errorf("main message not found in log")
 	}
 	if strings.HasPrefix(msg, "CreateContainer") {
 		fields := readGoStructFromString(msg, "ContainerMetadata")
@@ -207,19 +201,19 @@ func (c *containerdNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx con
 
 	checkStartingAndTerminationLog(cs, l, ContainerdStartingMsg, ContainerdTerminationMsg)
 	cs.AddEvent(nodeLogFieldSet.ResourcePath())
-	msg, err := logutil.ExtractKLogField(nodeLogFieldSet.Message, "msg")
-	if msg == "" || err != nil {
+	msg, err := nodeLogFieldSet.Message.MainMessage()
+	if err != nil {
 		return struct{}{}, err
 	}
 	summaryReplaceMap := map[string]string{}
-	podFindResults := patternfinder.FindAllWithStarterRunes(nodeLogFieldSet.Message, containerdInfo.PodSandboxIDInfoFinder, false, '"', '=')
+	podFindResults := patternfinder.FindAllWithStarterRunes(msg, containerdInfo.PodSandboxIDInfoFinder, false, '"', '=')
 
 	for _, result := range podFindResults {
 		cs.AddEvent(result.Value.ResourcePath())
 		summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
 	}
 
-	containerFindResults := patternfinder.FindAllWithStarterRunes(nodeLogFieldSet.Message, containerdInfo.ContainerIDInfoFinder, false, '"', '=')
+	containerFindResults := patternfinder.FindAllWithStarterRunes(msg, containerdInfo.ContainerIDInfoFinder, false, '"', '=')
 	for _, result := range containerFindResults {
 		podSandboxID := result.Value.PodSandboxID
 		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, containerdInfo.PodSandboxIDInfoFinder, true)
@@ -231,11 +225,13 @@ func (c *containerdNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx con
 		summaryReplaceMap[result.Value.ContainerID] = toReadableContainerName(pod.PodNamespace, pod.PodName, result.Value.ContainerName)
 	}
 
-	severity := logutil.ExractKLogSeverity(nodeLogFieldSet.Message)
-	cs.SetLogSeverity(severity)
+	severity, err := nodeLogFieldSet.Message.Severity()
+	if err == nil {
+		cs.SetLogSeverity(severity)
+	}
 	summary, err := parseDefaultSummary(nodeLogFieldSet.Message)
 	if summary == "" || err != nil {
-		summary = nodeLogFieldSet.Message
+		summary = msg
 	}
 	for k, v := range summaryReplaceMap {
 		i := strings.Index(summary, k)

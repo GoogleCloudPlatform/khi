@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
@@ -206,7 +207,8 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadController(t *testing.T
 					"namespace_controller.go": "namespace-controller",
 				},
 			}
-			controller, err := reader.readController(tc.input, tc.inputSource)
+			klogParser := logutil.NewKLogTextParser(false)
+			controller, err := reader.readController(klogParser.TryParse(tc.input), tc.inputSource)
 			if err != nil {
 				t.Errorf("readController() returned an unexpected error: %v", err)
 			}
@@ -273,8 +275,8 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 					},
 				},
 			}
-
-			paths := reader.readResourceAssociationFromKindField(tc.input)
+			klogParser := logutil.NewKLogTextParser(false)
+			paths := reader.readResourceAssociationFromKindField(klogParser.TryParse(tc.input))
 			if diff := cmp.Diff(tc.want, paths); diff != "" {
 				t.Errorf("readResourceAssociationFromKindField() mismatch (-want +got):\n%s", diff)
 			}
@@ -328,7 +330,8 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 				},
 			}
 
-			paths := reader.readResourceAssociationFromControllerSpecificField(tc.input)
+			klogParser := logutil.NewKLogTextParser(false)
+			paths := reader.readResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
 			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b resourcepath.ResourcePath) int { return strings.Compare(a.Path, b.Path) })); diff != "" {
 				t.Errorf("readResourceAssociationFromControllerSpecificField() mismatch (-want +got):\n%s", diff)
 			}
@@ -376,8 +379,8 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			reader := &K8sControllerManagerComponentFieldSetReader{}
-
-			path := reader.readResourceAssociationFromItems(tc.input)
+			klogParser := logutil.NewKLogTextParser(false)
+			path := reader.readResourceAssociationFromItems(klogParser.TryParse(tc.input))
 
 			if diff := cmp.Diff(tc.want, path); diff != "" {
 				t.Errorf("readResourceAssociationFromItems() mismatch (-want +got):\n%s", diff)
