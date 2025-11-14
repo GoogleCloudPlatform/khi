@@ -67,16 +67,17 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 	engine.Use(redirectMiddleware(basePathWithoutTrailingSlash+"/", basePathWithoutTrailingSlash+"/session/0")) // Request for `/` shouldn't be handled by `static.Serve`, redirect `/session/0` to be handled by patternToString
 
 	// By default, use the embedded web files. If the static folder path is set, use the local file system.
-	slog.Debug("Using embedded static web files.")
 	appHtmlPath := path.Join(embeddedStaticFolderPath, "/index.html")
 	webFS := static.EmbedFolder(embeddedStaticFolder, embeddedStaticFolderPath)
+	webFSDebugMessage := "Using embedded static web files."
 	fileReaderFunc := embeddedStaticFolder.ReadFile
 	if serverConfig.StaticFolderPath != "" {
-		slog.Debug(fmt.Sprintf("Using local file system for static web files from %s", serverConfig.StaticFolderPath))
 		appHtmlPath = path.Join(serverConfig.StaticFolderPath, "/index.html")
 		webFS = static.LocalFile(serverConfig.StaticFolderPath, false)
+		webFSDebugMessage = fmt.Sprintf("Using local file system for static web files from %s", serverConfig.StaticFolderPath)
 		fileReaderFunc = os.ReadFile
 	}
+	slog.Debug(webFSDebugMessage)
 	engine.Use(static.Serve(basePathWithoutTrailingSlash+"/", webFS))
 
 	router := engine.Group(basePathWithoutTrailingSlash)
