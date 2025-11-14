@@ -40,7 +40,7 @@ func TestFileSystemGzipCompressor(t *testing.T) {
 			t.Errorf("err was not a nil:%v", err)
 		}
 
-		compressResult, err := c.CompressAll(context.Background(), reader)
+		compressResult, err := c.Compress(context.Background(), reader)
 		if err != nil {
 			t.Errorf("err was not a nil:%v", err)
 		}
