@@ -26,7 +26,7 @@ import (
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 )
 
-const priorityForCSMGroup = googlecloudcommon_contract.FormBasePriority + 30000
+const priorityForCSMGroup = googlecloudcommon_contract.FormBasePriority + 40000
 
 var inputCSMAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{}
 

@@ -35,10 +35,12 @@ func TestFormFieldSetShouldSortOnAddingNewField(t *testing.T) {
 	fsActual.SetField(fieldWithIdAndPriorityForTest("foo", 1))
 	fsActual.SetField(fieldWithIdAndPriorityForTest("bar", 3))
 	fsActual.SetField(fieldWithIdAndPriorityForTest("qux", 2))
+	fsActual.SetField(fieldWithIdAndPriorityForTest("aqux", 2))
 
 	fsExpected := &FormFieldSetMetadata{
 		fields: []ParameterFormField{
 			fieldWithIdAndPriorityForTest("bar", 3),
+			fieldWithIdAndPriorityForTest("aqux", 2),
 			fieldWithIdAndPriorityForTest("qux", 2),
 			fieldWithIdAndPriorityForTest("foo", 1),
 		},

@@ -17,6 +17,7 @@ package inspectionmetadata
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -148,7 +149,14 @@ func (f *FormFieldSetMetadata) SetField(newField ParameterFormField) error {
 	}
 	f.fields = append(f.fields, newField)
 	slices.SortFunc(f.fields, func(a, b ParameterFormField) int {
-		return GetParameterFormFieldBase(b).Priority - GetParameterFormFieldBase(a).Priority
+		paramBBase := GetParameterFormFieldBase(b)
+		paramABase := GetParameterFormFieldBase(a)
+		priorityDiff := paramBBase.Priority - paramABase.Priority
+		if priorityDiff != 0 {
+			return priorityDiff
+		} else {
+			return strings.Compare(paramABase.ID, paramBBase.ID)
+		}
 	})
 	return nil
 }
