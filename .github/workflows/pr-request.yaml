@@ -63,7 +63,7 @@ jobs:
 
     # - name: Backend Test
     #   run: |
-    #     mkdir dist
+    #     mkdir ./pkg/server/dist
     #     # A placeholder frontend code read from backend test
     #     echo "" > ./pkg/server/dist/index.html
     #     make coverage-go
@@ -73,7 +73,7 @@ jobs:
     - name: Backend Test
       run: |
         make generate-backend
-        mkdir -p dist/session
+        mkdir -p pkg/server/dist/session
         # A placeholder frontend code read from backend test
         echo '<!--INJECT GENERATED CODE HERE FROM BACKEND-->' > ./pkg/server/dist/index.html
         go test ./... -args -skip-cloud-logging=true
