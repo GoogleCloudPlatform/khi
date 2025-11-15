@@ -1,0 +1,5 @@
+# This directory is used to write the static web files, so they can be embedded into the executable.
+# We do not want to commit any static web files to the repository.
+*
+# Except this file
+!.gitignore
