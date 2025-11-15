@@ -3,7 +3,7 @@
 .devcontainer/.env
 
 # Build artifacts
-dist/
+pkg/server/dist/*
 /khi
 /khi-debug
 __debug_bin*

@@ -68,5 +68,5 @@ We adhere to the official [Angular Style Guide](https://angular.io/guide/stylegu
 ## 4. Build and Development
 
 - **Development Server**: Run `make watch-web` to start the local development server with live reloading at `http://localhost:4200`.
-- **Production Build**: Run `make build-web` to create a production-optimized build in the `dist/` directory.
+- **Production Build**: Run `make build-web` to create a production-optimized build in the `pkg/server/dist/` directory.
 - **Proxy**: The `proxy.conf.mjs` file is configured to proxy API requests from `http://localhost:4200/api` to the backend server. This is used during development to avoid CORS issues.

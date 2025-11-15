@@ -3,5 +3,5 @@
 .env
 *.md
 *.log
-dist/
+pkg/server/dist/
 node_modules/

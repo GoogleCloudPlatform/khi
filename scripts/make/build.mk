@@ -7,7 +7,7 @@ watch-web: prepare-frontend ## Run frontend development server
 
 .PHONY: build-web
 build-web: prepare-frontend ## Build frontend for production
-	cd web && npx ng build --output-path ../dist -c prod
+	cd web && npx ng build --output-path ../pkg/server/dist -c prod
 
 .PHONY: build-go
 build-go: generate-backend ## Build backend for production

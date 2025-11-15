@@ -137,7 +137,7 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 
 1. [`gcloud` で認証します。](https://cloud.google.com/docs/authentication/gcloud)  
    例: ユーザーアカウントの認証情報を使用する場合は、`gcloud auth login` を実行します。
-2. プロジェクトルートから `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` を実行します。  
+2. プロジェクトルートから `make build-web && KHI_FRONTEND_ASSET_FOLDER=./pkg/server/dist go run cmd/kubernetes-history-inspector/main.go` を実行します。  
    `localhost:8080` を開き、KHI の使用を開始してください！
 
 </details>
