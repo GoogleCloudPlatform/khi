@@ -68,7 +68,7 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 
 	// By default, use the embedded web files. If the static folder path is set, use the local file system.
 	appHtmlPath := path.Join(embeddedStaticFolderPath, "/index.html")
-	webFS := static.EmbedFolder(embeddedStaticFolder, embeddedStaticFolderPath)
+	webFS := embedFolder(embeddedStaticFolder, embeddedStaticFolderPath)
 	webFSDebugMessage := "Using embedded static web files."
 	fileReaderFunc := embeddedStaticFolder.ReadFile
 	if serverConfig.StaticFolderPath != "" {
