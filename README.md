@@ -129,7 +129,7 @@ For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
   e.g. `gcloud auth login` if you use your user account credentials
-1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./dist go run cmd/kubernetes-history-inspector/main.go` from the project root
+1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./pkg/server/dist go run cmd/kubernetes-history-inspector/main.go` from the project root
   Open `localhost:8080` and start working with KHI!
 
 </details>

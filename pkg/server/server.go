@@ -15,8 +15,10 @@
 package server
 
 import (
+	"embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"
@@ -37,6 +39,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const embeddedStaticFolderPath = "dist"
+
+//go:embed dist
+var embeddedStaticFolder embed.FS
+
 type ServerConfig struct {
 	ViewerMode       bool
 	StaticFolderPath string
@@ -56,17 +63,29 @@ func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
 }
 
 func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
-	appHtmlPath := path.Join(serverConfig.StaticFolderPath, "/index.html")
-
 	basePathWithoutTrailingSlash := strings.TrimSuffix(serverConfig.ServerBasePath, "/")
 	engine.Use(redirectMiddleware(basePathWithoutTrailingSlash+"/", basePathWithoutTrailingSlash+"/session/0")) // Request for `/` shouldn't be handled by `static.Serve`, redirect `/session/0` to be handled by patternToString
-	engine.Use(static.Serve(basePathWithoutTrailingSlash+"/", static.LocalFile(serverConfig.StaticFolderPath, false)))
+
+	// By default, use the embedded web files. If the static folder path is set, use the local file system.
+	appHtmlPath := path.Join(embeddedStaticFolderPath, "/index.html")
+	webFS := static.EmbedFolder(embeddedStaticFolder, embeddedStaticFolderPath)
+	webFSDebugMessage := "Using embedded static web files."
+	fileReaderFunc := embeddedStaticFolder.ReadFile
+	if serverConfig.StaticFolderPath != "" {
+		appHtmlPath = path.Join(serverConfig.StaticFolderPath, "/index.html")
+		webFS = static.LocalFile(serverConfig.StaticFolderPath, false)
+		webFSDebugMessage = fmt.Sprintf("Using local file system for static web files from %s", serverConfig.StaticFolderPath)
+		fileReaderFunc = os.ReadFile
+	}
+	slog.Debug(webFSDebugMessage)
+	engine.Use(static.Serve(basePathWithoutTrailingSlash+"/", webFS))
+
 	router := engine.Group(basePathWithoutTrailingSlash)
 
 	// frontend uses Angular router. All frontend routing path should return the app html
 	router.GET("/session/*wild", func(ctx *gin.Context) {
 		ctx.Header("Content-Type", "text/html")
-		file, err := os.ReadFile(appHtmlPath)
+		file, err := fileReaderFunc(appHtmlPath)
 		if err != nil {
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return

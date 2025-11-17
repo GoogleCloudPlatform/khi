@@ -49,7 +49,7 @@ Save the following code as `.vscode/launch.json`.
                 "--port",
                 "8080",
                 "--frontend-asset-folder",
-                "./dist",
+                "./pkg/server/dist",
             ],
             "dlvLoadConfig": {
                 "followPointers": true,
