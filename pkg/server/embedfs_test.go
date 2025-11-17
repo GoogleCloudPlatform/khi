@@ -42,10 +42,10 @@ func TestEmbedFolder_Exists(t *testing.T) {
 			want:   true,
 		},
 		{
-			desc:   "file not exists at root with prefix",
+			desc:   "file doesn't exists at root with prefix",
 			prefix: "/proxy/foo",
 			path:   "index.html",
-			want:   true,
+			want:   false,
 		},
 	}
 

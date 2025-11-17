@@ -31,6 +31,9 @@ type embedFileSystem struct {
 }
 
 func (e embedFileSystem) Exists(prefix string, path string) bool {
+	if !strings.HasPrefix(path, prefix) {
+		return false
+	}
 	_, err := e.Open(strings.TrimPrefix(path, prefix))
 	return err == nil
 }
