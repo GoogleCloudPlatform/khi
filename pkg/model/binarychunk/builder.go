@@ -74,8 +74,6 @@ func (b *Builder) Write(binaryBody []byte) (*BinaryReference, error) {
 	if data, exists := refCache[hash]; exists {
 		return data, nil
 	}
-	b.lock.Lock()
-	defer b.lock.Unlock()
 	b.onceWrite.Do(func() {
 		b.availableWritersChan = make(chan LargeBinaryWriter, b.parallelWriterCount)
 		b.bufferWriters = make([]LargeBinaryWriter, 0, b.parallelWriterCount)
@@ -118,6 +116,8 @@ func (b *Builder) Write(binaryBody []byte) (*BinaryReference, error) {
 }
 
 func (b *Builder) nextNewBinaryWriter() (*FileSystemBinaryWriter, error) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
 	writer, err := NewFileSystemBinaryWriter(b.tmpFolderPath, len(b.bufferWriters), b.maxChunkSize)
 	if err != nil {
 		return nil, err
@@ -178,6 +178,7 @@ func (b *Builder) Build(ctx context.Context, writer io.Writer, progress *inspect
 	compressedBuffers := make([]io.ReadCloser, len(b.bufferWriters))
 	errgrp, childCtx := errgroup.WithContext(ctx)
 	for i, binaryWriter := range b.bufferWriters {
+		i, binaryWriter := i, binaryWriter
 		errgrp.Go(func() error {
 			binaryReader, err := binaryWriter.ChunkReader()
 			if err != nil {

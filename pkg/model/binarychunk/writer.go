@@ -95,7 +95,7 @@ func NewFileSystemBinaryWriter(tmpPath string, bufferIndex int, maxSize int) (*F
 }
 
 func (w *FileSystemBinaryWriter) canWrite(size int) bool {
-	return w.sealed || w.currentLength+size <= w.maximumBufferSize
+	return !w.sealed && w.currentLength+size <= w.maximumBufferSize
 }
 
 func (w *FileSystemBinaryWriter) Write(data []byte) (*BinaryReference, error) {
@@ -138,7 +138,7 @@ func (w *FileSystemBinaryWriter) Read(ref *BinaryReference) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		w.bufferWeak = weak.Make(w.buffer)
+		w.bufferWeak = weak.Make(w.buffer) // This writer must be Sealed when w.buffer = nil, thus we can expect no Write calls after that. Thus it's safe to write bufferWeak with RLock
 		return buf[ref.Offset : ref.Offset+ref.Length], nil
 	}
 }
