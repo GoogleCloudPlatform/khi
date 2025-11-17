@@ -22,7 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/errorreport"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
@@ -85,8 +84,6 @@ func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], hi
 		pool := worker.NewPool(runtime.GOMAXPROCS(0))
 		for _, group := range groupedLogs {
 			pool.Run(func() {
-				defer errorreport.CheckAndReportPanic()
-
 				var groupData T
 				changedPaths := map[string]struct{}{}
 				for _, l := range group.Logs {
@@ -101,8 +98,7 @@ func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], hi
 						} else {
 							yaml = string(yamlBytes)
 						}
-						slog.WarnContext(ctx, fmt.Sprintf("parser end with an error\n%s", err))
-						slog.DebugContext(ctx, yaml)
+						slog.WarnContext(ctx, "parser ended with an error", "error", err, "logContent", yaml)
 						continue
 					}
 					cp, err := cs.FlushToHistory(builder)
