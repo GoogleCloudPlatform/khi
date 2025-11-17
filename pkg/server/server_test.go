@@ -244,7 +244,7 @@ func TestApiResponses(t *testing.T) {
 	}
 	serverConfig := ServerConfig{
 		ViewerMode:       false,
-		StaticFolderPath: "../../dist",
+		StaticFolderPath: "dist",
 		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 		ServerBasePath:   "/foo",
 	}
@@ -782,11 +782,11 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error %s", err)
 			}
-			defer testutil.MustPlaceTemporalFile("../../dist/test.html", "")()
+			defer testutil.MustPlaceTemporalFile("dist/test.html", "")()
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
 				ViewerMode:       tc.viewerMode,
-				StaticFolderPath: "../../dist",
+				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
 			}
@@ -839,7 +839,7 @@ func TestKHIServerRedirects(t *testing.T) {
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
 				ViewerMode:       tc.viewerMode,
-				StaticFolderPath: "../../dist",
+				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
 			}
@@ -909,7 +909,7 @@ func TestKHIDirectFileUpload(t *testing.T) {
 			store.GetUploadToken(tc.tokenID, &upload.NopWaitUploadFileVerifier{})
 			serverConfig := ServerConfig{
 				ViewerMode:       false,
-				StaticFolderPath: "../../dist",
+				StaticFolderPath: "dist",
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   "/foo",
 				UploadFileStore:  store,

@@ -34,15 +34,10 @@ import (
 type testCompressorWaitForSecond struct {
 }
 
-// CompressAll implements Compressor.
-func (*testCompressorWaitForSecond) CompressAll(ctx context.Context, reader io.Reader) (io.Reader, error) {
+// Compress implements Compressor.
+func (*testCompressorWaitForSecond) Compress(ctx context.Context, reader io.Reader) (io.ReadCloser, error) {
 	<-time.After(time.Second)
-	return bytes.NewBuffer([]byte{1, 2, 3, 4}), nil
-}
-
-// Dispose implements Compressor.
-func (*testCompressorWaitForSecond) Dispose() error {
-	return nil
+	return io.NopCloser(bytes.NewBuffer([]byte{1, 2, 3, 4})), nil
 }
 
 var _ Compressor = (*testCompressorWaitForSecond)(nil)
@@ -88,6 +83,7 @@ func TestBuilder(t *testing.T) {
 			t.Errorf("err was not nil:%v", err)
 		}
 		bufferCount := 0
+		gotDecompressedSizeInBytes := 0
 		for {
 			_, err = result.Read(sizeReadBuffer)
 			if errors.Is(err, io.EOF) {
@@ -112,17 +108,16 @@ func TestBuilder(t *testing.T) {
 			if err != nil {
 				t.Errorf("err was not nil:%v", err)
 			}
-
-			if len(decompressed) != 1024*1024*50 {
-				t.Errorf("decompressed buffer size is not matching the source buffer size: %d != %d", len(decompressed), 1024*1024*50)
-			}
+			gotDecompressedSizeInBytes += len(decompressed)
 			bufferCount += 1
 		}
-		if bufferCount != 2 {
+		if bufferCount != 4 {
 			t.Errorf("buffer count is not matching the expected count. %d", bufferCount)
 		}
+		if gotDecompressedSizeInBytes != len(randBuf)*4 {
+			t.Errorf("decompressed size is not matching the expected size. got:%d, want:%d", gotDecompressedSizeInBytes, len(randBuf)*4)
+		}
 	})
-
 	t.Run("binarychunk.Build method must be cancellable", func(t *testing.T) {
 		b := NewBuilder(&testCompressorWaitForSecond{}, "/tmp")
 		b.maxChunkSize = 4
@@ -173,4 +168,112 @@ func TestBuilder(t *testing.T) {
 		}
 		wg.Wait()
 	})
+}
+
+func TestBuilder_Build(t *testing.T) {
+	testCases := []struct {
+		desc                string
+		parallelWriterCount int
+		writeItemeSize      int
+		maxChunkSize        int
+		writeCount          int
+		wantBufferCount     int
+	}{
+		{
+			desc:                "non parallel simple write",
+			parallelWriterCount: 1,
+			writeItemeSize:      1024,
+			maxChunkSize:        1024 * 10,
+			writeCount:          5,
+			wantBufferCount:     1,
+		},
+		{
+			desc:                "parallel simple write not reaching to the parallel limit",
+			parallelWriterCount: 10,
+			writeItemeSize:      1024,
+			maxChunkSize:        1024 * 10,
+			writeCount:          5,
+			wantBufferCount:     5,
+		},
+		{
+			desc:                "parallel simple write reaching to the parallel limit",
+			parallelWriterCount: 5,
+			writeItemeSize:      1024,
+			maxChunkSize:        1024 * 10,
+			writeCount:          10,
+			wantBufferCount:     5,
+		},
+		{
+			desc:                "parallel simple write reaching to the buffer limit",
+			parallelWriterCount: 5,
+			writeItemeSize:      1024,
+			maxChunkSize:        1024 * 2,
+			writeCount:          15,
+			wantBufferCount:     10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			writeData := make([][]byte, tc.writeCount)
+			sizeReadBuf := make([]byte, 4)
+			refs := []*BinaryReference{}
+			for i := 0; i < tc.writeCount; i++ {
+				writeData[i] = make([]byte, tc.writeItemeSize)
+				writeData[i][0] = byte(i)
+			}
+			b := NewBuilder(NewFileSystemGzipCompressor("/tmp"), "/tmp")
+			b.maxChunkSize = tc.maxChunkSize
+			b.parallelWriterCount = tc.parallelWriterCount
+			for i := 0; i < tc.writeCount; i++ {
+				ref, err := b.Write(writeData[i])
+				if err != nil {
+					t.Fatalf("failed to write to buffer: %v", err)
+				}
+				refs = append(refs, ref)
+			}
+
+			var generatedBuffer bytes.Buffer
+			_, err := b.Build(t.Context(), &generatedBuffer, inspectionmetadata.NewTaskProgressMetadata("foo"))
+			if err != nil {
+				t.Fatalf("failed to build result: %v", err)
+			}
+			buffers := [][]byte{}
+			for {
+				_, err = generatedBuffer.Read(sizeReadBuf)
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				if err != nil {
+					t.Errorf("err was not a nil:%v", err)
+				}
+
+				size := binary.BigEndian.Uint32(sizeReadBuf)
+				compressedBuffer := make([]byte, size)
+				_, err = generatedBuffer.Read(compressedBuffer)
+				if err != nil {
+					t.Errorf("err was not a nil:%v", err)
+				}
+
+				gzipReader, err := gzip.NewReader(bytes.NewBuffer(compressedBuffer))
+				if err != nil {
+					t.Errorf("err was not nil:%v", err)
+				}
+				decompressed, err := io.ReadAll(gzipReader)
+				if err != nil {
+					t.Errorf("err was not nil:%v", err)
+				}
+				buffers = append(buffers, decompressed)
+			}
+
+			for i, ref := range refs {
+				gotBuffer := buffers[ref.Buffer][ref.Offset : ref.Offset+ref.Length]
+				if diff := cmp.Diff(writeData[i], gotBuffer); diff != "" {
+					t.Errorf("read data mismatch for ref %+v (-want +got):\n%s", ref, diff)
+				}
+			}
+			if len(buffers) != tc.wantBufferCount {
+				t.Errorf("buffer count mismatch: got %d, want %d", len(buffers), tc.wantBufferCount)
+			}
+		})
+	}
 }

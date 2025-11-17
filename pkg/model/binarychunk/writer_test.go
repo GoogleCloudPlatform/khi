@@ -15,16 +15,18 @@
 package binarychunk
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sync"
 	"testing"
+	"weak"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestFileSystemBinaryWriter(t *testing.T) {
-	t.Run("GetBinary must return a reader pointing at the head", func(t *testing.T) {
+	t.Run("ChunkReader must return a reader pointing at the head", func(t *testing.T) {
 		w, err := NewFileSystemBinaryWriter("/tmp", 0, 100)
 		if err != nil {
 			t.Errorf("err was not a nil:%v", err)
@@ -35,10 +37,15 @@ func TestFileSystemBinaryWriter(t *testing.T) {
 		if err != nil {
 			t.Errorf("err was not a nil:%v", err)
 		}
-		reader, err := w.GetBinary()
+		err = w.Seal()
 		if err != nil {
 			t.Errorf("err was not a nil:%v", err)
 		}
+		reader, err := w.ChunkReader()
+		if err != nil {
+			t.Errorf("err was not a nil:%v", err)
+		}
+		defer reader.Close()
 
 		readResult, err := io.ReadAll(reader)
 		if err != nil {
@@ -49,7 +56,7 @@ func TestFileSystemBinaryWriter(t *testing.T) {
 		}
 	})
 
-	t.Run("GetBinary must return the valid BinaryReference", func(t *testing.T) {
+	t.Run("Write must return the valid BinaryReference", func(t *testing.T) {
 		w, err := NewFileSystemBinaryWriter("/tmp", 1234, 100)
 		if err != nil {
 			t.Errorf("err was not a nil:%v", err)
@@ -119,6 +126,84 @@ func TestFileSystemBinaryWriter(t *testing.T) {
 			}()
 		}
 		wg.Wait()
+	})
 
+	t.Run("Read returns a valid data after the writer being sealed", func(t *testing.T) {
+		w, err := NewFileSystemBinaryWriter("/tmp", 0, 1024*1024*50)
+		if err != nil {
+			t.Errorf("unexpected error")
+		}
+		data1 := []byte{0x01, 0x02, 0x03}
+		data2 := []byte{0x04, 0x05, 0x06, 0x07}
+		ref1, err := w.Write(data1)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		ref2, err := w.Write(data2)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		err = w.Seal()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		readResult1, err := w.Read(ref1)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if diff := cmp.Diff(data1, readResult1); diff != "" {
+			t.Errorf("Read result for ref1 mismatch (-want +got):\n%s", diff)
+		}
+
+		readResult2, err := w.Read(ref2)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if diff := cmp.Diff(data2, readResult2); diff != "" {
+			t.Errorf("Read result for ref2 mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("Read returns a valid data after the writer being sealed and buffer weak pointer is cleared", func(t *testing.T) {
+		w, err := NewFileSystemBinaryWriter("/tmp", 0, 1024*1024*50)
+		if err != nil {
+			t.Errorf("unexpected error")
+		}
+		data1 := []byte{0x01, 0x02, 0x03}
+		data2 := []byte{0x04, 0x05, 0x06, 0x07}
+		ref1, err := w.Write(data1)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		ref2, err := w.Write(data2)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		err = w.Seal()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		// Force release the weak pointer
+		w.bufferWeak = weak.Pointer[bytes.Buffer]{}
+
+		readResult1, err := w.Read(ref1)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if diff := cmp.Diff(data1, readResult1); diff != "" {
+			t.Errorf("Read result for ref1 mismatch (-want +got):\n%s", diff)
+		}
+
+		readResult2, err := w.Read(ref2)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if diff := cmp.Diff(data2, readResult2); diff != "" {
+			t.Errorf("Read result for ref2 mismatch (-want +got):\n%s", diff)
+		}
 	})
 }
