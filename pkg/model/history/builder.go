@@ -121,10 +121,14 @@ func (builder *Builder) ensureResourcePath(resourcePath string) *Resource {
 			}
 			if currentResource != nil {
 				currentResource.mu.Lock()
+			} else {
+				builder.historyLock.Lock()
 			}
 			*currentResourceContainer = append(*currentResourceContainer, &nr)
 			if currentResource != nil {
 				currentResource.mu.Unlock()
+			} else {
+				builder.historyLock.Unlock()
 			}
 			currentResource = &nr
 			currentResourceContainer = &nr.Children
