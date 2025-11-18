@@ -20,10 +20,14 @@ build-go-debug: generate-backend ## Build backend for debugging
 .PHONY: build
 build: build-go build-web ## Build all source code
 
+define build_binary
+	CGO_ENABLED=0 GOOS=$(1) GOARCH=$(2) go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(VERSION)" -o ./bin/khi-$(VERSION)-$(2)-$(1)$(3) ./cmd/kubernetes-history-inspector/...
+endef
+
 .PHONY: build-go-binaries
-build-go-binaries: build-web generate-backend
+build-go-binaries: build-web generate-backend ## Build go binaries for multiple platforms
 	mkdir -p bin
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./bin/khi-$(shell cat ./VERSION)-amd64-windows.exe ./cmd/kubernetes-history-inspector/...
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./bin/khi-$(shell cat ./VERSION)-amd64-linux ./cmd/kubernetes-history-inspector/...
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./bin/khi-$(shell cat ./VERSION)-arm64-darwin ./cmd/kubernetes-history-inspector/...
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./bin/khi-$(shell cat ./VERSION)-amd64-darwin ./cmd/kubernetes-history-inspector/...
+	$(call build_binary,windows,amd64,.exe)
+	$(call build_binary,linux,amd64,)
+	$(call build_binary,darwin,arm64,)
+	$(call build_binary,darwin,amd64,)
