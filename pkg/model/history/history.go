@@ -15,6 +15,7 @@
 package history
 
 import (
+	"sync"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
@@ -36,6 +37,7 @@ type Resource struct {
 	Relationship     enum.ParentRelationship `json:"relationship"`
 	Children         []*Resource             `json:"children"`
 	FullResourcePath string                  `json:"path"`
+	mu               sync.RWMutex
 }
 
 type ResourceTimeline struct {
