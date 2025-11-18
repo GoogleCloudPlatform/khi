@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type resourceChunkSortStrategyTestCase struct {
@@ -47,7 +48,7 @@ func testResourceChunkSortStrategy(t *testing.T, name string, sortStrategy Resou
 					if err != nil {
 						t.Errorf("unexpected error %s", err.Error())
 					}
-					if diff := cmp.Diff(tc.ExpectedChunk, actual); diff != "" {
+					if diff := cmp.Diff(tc.ExpectedChunk, actual, cmpopts.IgnoreUnexported(Resource{})); diff != "" {
 						t.Errorf("non matching result\n%s", diff)
 					}
 				}

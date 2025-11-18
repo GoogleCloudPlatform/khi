@@ -186,6 +186,7 @@ func (builder *Builder) GetTimelineBuilder(resourcePath string) *TimelineBuilder
 	resource.mu.Lock()
 	defer resource.mu.Unlock()
 	if resource.Timeline == "" {
+		builder.historyLock.Lock()
 		tid := builder.timelineIDGenerator.Generate()
 		timelineMap := builder.timelinemap.AcquireShard(tid)
 		timeline := newTimeline(tid)
@@ -193,6 +194,7 @@ func (builder *Builder) GetTimelineBuilder(resourcePath string) *TimelineBuilder
 		builder.history.Timelines = append(builder.history.Timelines, timeline)
 		timelineMap[tid] = timeline
 		builder.timelinemap.ReleaseShard(tid)
+		builder.historyLock.Unlock()
 	}
 
 	// When the timeline builder was already created, then return it

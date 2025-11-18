@@ -87,7 +87,8 @@ func TestHistoryEnsureResourceHistory(t *testing.T) {
 		if diff := cmp.Diff(want, builder.history,
 			cmpopts.IgnoreFields(History{}, "Logs", "Version", "Timelines"),
 			cmpopts.IgnoreFields(ResourceTimeline{}, "Revisions", "Events"),
-			cmpopts.IgnoreFields(Resource{}, "FullResourcePath")); diff != "" {
+			cmpopts.IgnoreFields(Resource{}, "FullResourcePath"),
+			cmpopts.IgnoreUnexported(History{}, Resource{})); diff != "" {
 			t.Errorf("(-want,+got)\n%s", diff)
 		}
 	})
@@ -133,7 +134,8 @@ func TestHistoryEnsureResourceHistory(t *testing.T) {
 		if diff := cmp.Diff(want, builder.history,
 			cmpopts.IgnoreFields(History{}, "Logs", "Version", "Timelines"),
 			cmpopts.IgnoreFields(ResourceTimeline{}, "Revisions", "Events"),
-			cmpopts.IgnoreFields(Resource{}, "FullResourcePath")); diff != "" {
+			cmpopts.IgnoreFields(Resource{}, "FullResourcePath"),
+			cmpopts.IgnoreUnexported(History{}, Resource{})); diff != "" {
 			t.Errorf("(-want, +got)\n%s", diff)
 		}
 	})
