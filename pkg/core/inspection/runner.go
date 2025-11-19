@@ -285,7 +285,8 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 			return err
 		}
 		<-i.runner.Wait()
-		return nil
+		_, err = i.runner.Result()
+		return err
 	}
 
 	for j := len(i.interceptors) - 1; j >= 0; j-- {
@@ -297,11 +298,8 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 	}
 
 	go func() {
+		defer close(i.runComplete)
 		runFunc(cancelableCtx)
-		close(i.runComplete)
-	}()
-	go func() {
-		<-i.runner.Wait()
 		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
 		if !found {
 			slog.ErrorContext(runCtx, "progress metadata was not found")
