@@ -19,3 +19,15 @@ build-go-debug: generate-backend ## Build backend for debugging
 
 .PHONY: build
 build: build-go build-web ## Build all source code
+
+define build_binary
+	CGO_ENABLED=0 GOOS=$(1) GOARCH=$(2) go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(VERSION)" -o ./bin/khi-$(VERSION)-$(2)-$(1)$(3) ./cmd/kubernetes-history-inspector/...
+endef
+
+.PHONY: build-go-binaries
+build-go-binaries: build-web generate-backend ## Build go binaries for multiple platforms
+	mkdir -p bin
+	$(call build_binary,windows,amd64,.exe)
+	$(call build_binary,linux,amd64,)
+	$(call build_binary,darwin,arm64,)
+	$(call build_binary,darwin,amd64,)

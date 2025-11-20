@@ -4,6 +4,7 @@
 
 # Build artifacts
 pkg/server/dist/*
+bin
 /khi
 /khi-debug
 __debug_bin*
