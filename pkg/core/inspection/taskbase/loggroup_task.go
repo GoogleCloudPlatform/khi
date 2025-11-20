@@ -19,12 +19,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // LogGroup holds a collection of logs that belong to the same group.
@@ -74,6 +77,14 @@ func NewLogGrouperTask(taskId taskid.TaskImplementationID[LogGroupMap], logTask 
 			}
 
 			progressUpdator.Done()
+
+			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+			if tracingActive {
+				trace.SpanFromContext(ctx).SetAttributes(
+					attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
+					attribute.String("group_count", fmt.Sprintf("%d", len(groups))),
+				)
+			}
 
 			return groups, nil
 		})

@@ -19,12 +19,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // LogFilterFunc defines the function signature for filtering logs. It returns true if the log should be kept.
@@ -56,6 +59,13 @@ func NewLogFilterTask(tid taskid.TaskImplementationID[[]*log.Log], sourceLogs ta
 		}
 
 		progressUpdator.Done()
+
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		if tracingActive {
+			trace.SpanFromContext(ctx).SetAttributes(
+				attribute.String("log_count", fmt.Sprintf("%d -> %d", len(logs), len(filteredLogs))),
+			)
+		}
 		return filteredLogs, nil
 	})
 }

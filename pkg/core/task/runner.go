@@ -29,6 +29,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Interceptor is a function that can intercept the execution of a task.
+// It allows injecting custom logic before and after the task execution.
+type Interceptor func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error)
+
 // LocalRunner executes a task graph defined by a TaskSet on the local machine.
 // It manages task dependencies, concurrent execution, and result aggregation.
 type LocalRunner struct {
@@ -40,6 +44,7 @@ type LocalRunner struct {
 	taskWaiters     *typedmap.ReadonlyTypedMap
 	waiter          chan interface{}
 	taskStatuses    []*LocalRunnerTaskStat
+	interceptors    []Interceptor
 }
 
 // LocalRunner implements task_interface.TaskRunner
@@ -99,6 +104,12 @@ func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 // to access results using a TaskReference.
 func GetTaskResultFromLocalRunner[TaskResult any](runner *LocalRunner, taskRef taskid.TaskReference[TaskResult]) (TaskResult, bool) {
 	return typedmap.Get(runner.resultVariable, typedmap.NewTypedKey[TaskResult](taskRef.String()))
+}
+
+// AddInterceptor adds an interceptor to the runner.
+// Interceptors are executed in the order they are added.
+func (r *LocalRunner) AddInterceptor(interceptor Interceptor) {
+	r.interceptors = append(r.interceptors, interceptor)
 }
 
 // Run starts the execution of the task graph in a non-blocking manner.
@@ -187,8 +198,21 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 	taskStatus.Phase = LocalRunnerTaskStatPhaseRunning
 	slog.DebugContext(taskCtx, fmt.Sprintf("task %s started", task.UntypedID()))
 
-	// Run the task
-	result, err := task.UntypedRun(taskCtx)
+	// Run the task with interceptors
+	runFunc := func(ctx context.Context) (any, error) {
+		return task.UntypedRun(ctx)
+	}
+
+	// Chain interceptors in reverse order so the first interceptor is the outer-most wrapper
+	for i := len(r.interceptors) - 1; i >= 0; i-- {
+		interceptor := r.interceptors[i]
+		next := runFunc
+		runFunc = func(ctx context.Context) (any, error) {
+			return interceptor(ctx, task, next)
+		}
+	}
+
+	result, err := runFunc(taskCtx)
 
 	taskStatus.Phase = LocalRunnerTaskStatPhaseStopped
 	taskStatus.EndTime = time.Now()
@@ -210,6 +234,10 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 	r.releaseTaskWaiter(task.UntypedID())
 
 	return nil
+}
+
+func (r *LocalRunner) Tasks() []UntypedTask {
+	return r.resolvedTaskSet.GetAll()
 }
 
 // wrapWithTaskError creates a detailed error message, wrapping the original error

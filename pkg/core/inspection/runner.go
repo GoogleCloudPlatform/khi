@@ -38,6 +38,9 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// InspectionInterceptor is a function that can intercept the execution of an inspection task.
+type InspectionInterceptor func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error
+
 var inspectionRunnerGlobalSharedMap = typedmap.NewTypedMap()
 
 // DefaultFeatureTaskOrder is a number used for sorting feature task when the task has no LabelKeyFeatureTaskOrder label.
@@ -61,6 +64,8 @@ type InspectionTaskRunner struct {
 	ioconfig               *inspectioncore_contract.IOConfig
 	runContextOptions      []RunContextOption
 	inspectionCreationTime time.Time
+	interceptors           []InspectionInterceptor
+	runComplete            chan (struct{})
 }
 
 // NewInspectionRunner creates a new InspectionTaskRunner.
@@ -81,8 +86,11 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_
 		currentInspectionType:  "N/A",
 		ioconfig:               ioConfig,
 		runContextOptions:      options,
+		interceptors:           []InspectionInterceptor{},
+		runComplete:            make(chan struct{}),
 	}
 	runner.addDefaultRunContextOptions()
+	runner.interceptors = append(runner.interceptors, InspectionTaskLogger(slog.LevelDebug, slog.LevelInfo, parameters.Debug.NoColor == nil || !*parameters.Debug.NoColor))
 	return runner
 }
 
@@ -103,6 +111,11 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 	}
 
 	i.runContextOptions = append(i.runContextOptions, defaultRunContextOptions...)
+}
+
+// AddInterceptors adds interceptors to the runner.
+func (i *InspectionTaskRunner) AddInterceptors(interceptors ...InspectionInterceptor) {
+	i.interceptors = append(i.interceptors, interceptors...)
 }
 
 // Started returns true if the inspection has been started.
@@ -207,11 +220,12 @@ func (i *InspectionTaskRunner) UpdateFeatureMap(featureMap map[string]bool) erro
 }
 
 // withRunContextValues returns a context with the value specific to a single run of task.
-func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runMode inspectioncore_contract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
+func (i *InspectionTaskRunner) withRunContextValues(ctx context.Context, runner coretask.TaskRunner, runMode inspectioncore_contract.InspectionTaskModeType, taskInput map[string]any) (context.Context, error) {
 
 	opts := make([]RunContextOption, 0, len(i.runContextOptions)+2)
 	opts = append(opts, i.runContextOptions...)
 	// Add option values determined for this run call.
+	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.TaskRunner, runner))
 	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.InspectionTaskInput, taskInput))
 	opts = append(opts, RunContextOptionFromValue(inspectioncore_contract.InspectionTaskMode, runMode))
 
@@ -238,7 +252,13 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 		return err
 	}
 
-	runCtx, err := i.withRunContextValues(ctx, inspectioncore_contract.TaskModeRun, req.Values)
+	runner, err := coretask.NewLocalRunner(runnableTaskGraph)
+	if err != nil {
+		return err
+	}
+	i.runner = runner
+
+	runCtx, err := i.withRunContextValues(ctx, i.runner, inspectioncore_contract.TaskModeRun, req.Values)
 	if err != nil {
 		return err
 	}
@@ -255,24 +275,31 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 	cancelableCtx, cancel := context.WithCancel(runCtx)
 	i.cancel = cancel
 
-	runner, err := coretask.NewLocalRunner(runnableTaskGraph)
-	if err != nil {
-		i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
-		return err
-	}
-	i.runner = runner
-
 	i.metadata = runMetadata
 	lifecycle.Default.NotifyInspectionStart(khictx.MustGetValue(runCtx, inspectioncore_contract.InspectionTaskRunID), currentInspectionType.Name)
 
-	err = i.runner.Run(cancelableCtx)
-	if err != nil {
-		i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
+	// Run the inspection with interceptors
+	runFunc := func(ctx context.Context) error {
+		err := i.runner.Run(ctx)
+		if err != nil {
+			return err
+		}
+		<-i.runner.Wait()
+		_, err = i.runner.Result()
 		return err
 	}
+
+	for j := len(i.interceptors) - 1; j >= 0; j-- {
+		interceptor := i.interceptors[j]
+		next := runFunc
+		runFunc = func(ctx context.Context) error {
+			return interceptor(ctx, req, next)
+		}
+	}
+
 	go func() {
-		defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
-		<-i.runner.Wait()
+		defer close(i.runComplete)
+		runFunc(cancelableCtx)
 		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
 		if !found {
 			slog.ErrorContext(runCtx, "progress metadata was not found")
@@ -363,22 +390,33 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspectioncore_c
 		return nil, err
 	}
 
-	runCtx, err := i.withRunContextValues(ctx, inspectioncore_contract.TaskModeDryRun, req.Values)
+	runCtx, err := i.withRunContextValues(ctx, runner, inspectioncore_contract.TaskModeDryRun, req.Values)
 	if err != nil {
 		return nil, err
 	}
-	defer i.cleanupAfterAnyRun(runCtx, runnableTaskGraph)
 
 	dryrunMetadata := i.generateMetadataForDryRun(runCtx, &inspectionmetadata.HeaderMetadata{}, runnableTaskGraph)
 
 	runCtx = khictx.WithValue(runCtx, inspectioncore_contract.InspectionRunMetadata, dryrunMetadata)
 
-	err = runner.Run(runCtx)
-	if err != nil {
-		return nil, err
+	runFunc := func(ctx context.Context) error {
+		err := runner.Run(ctx)
+		if err != nil {
+			return err
+		}
+		<-runner.Wait()
+		_, err = runner.Result()
+		return err
 	}
-	<-runner.Wait()
-	_, err = runner.Result()
+
+	for j := len(i.interceptors) - 1; j >= 0; j-- {
+		interceptor := i.interceptors[j]
+		next := runFunc
+		runFunc = func(ctx context.Context) error {
+			return interceptor(ctx, req, next)
+		}
+	}
+	err = runFunc(runCtx)
 	if err != nil {
 		slog.ErrorContext(runCtx, err.Error())
 		return nil, err
@@ -390,30 +428,6 @@ func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspectioncore_c
 	return &InspectionDryRunResult{
 		Metadata: md,
 	}, nil
-}
-
-func (i *InspectionTaskRunner) makeLoggers(ctx context.Context, minLevel slog.Level, tasks []coretask.UntypedTask) *inspectionmetadata.LogMetadata {
-	logMetadata := inspectionmetadata.NewLogMetadata()
-	for _, def := range tasks {
-		inspectionID := i.ID
-		runID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskRunID)
-		taskID := def.UntypedID()
-		logger.RegisterTaskLogger(inspectionID, taskID, runID, i.makeLogger(minLevel, logMetadata.GetTaskLogBuffer(taskID)))
-	}
-	return logMetadata
-}
-
-func (i *InspectionTaskRunner) makeLogger(minLevel slog.Level, logBuffer *bytes.Buffer) slog.Handler {
-	stdoutWithColor := true
-	if parameters.Debug.NoColor != nil && *parameters.Debug.NoColor {
-		stdoutWithColor = false
-	}
-	logThrottleCount := 10 // Similar logs over logThrottleCount will be discarded
-
-	return logger.NewTeeHandler(
-		logger.NewThrottleFilter(logThrottleCount, logger.NewSeverityFilter(minLevel, logger.NewKHIFormatLogger(os.Stdout, stdoutWithColor))),
-		logger.NewThrottleFilter(logThrottleCount, logger.NewSeverityFilter(minLevel, logger.NewKHIFormatLogger(logBuffer, false))),
-	)
 }
 
 // GetCurrentMetadata returns the metadata map for the current inspection run.
@@ -437,8 +451,8 @@ func (i *InspectionTaskRunner) Cancel() error {
 }
 
 // Wait returns a channel that is closed when the inspection finishes.
-func (i *InspectionTaskRunner) Wait() <-chan interface{} {
-	return i.runner.Wait()
+func (i *InspectionTaskRunner) Wait() <-chan struct{} {
+	return i.runComplete
 }
 
 func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
@@ -474,6 +488,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, inspectionmetadata.ErrorMessageSetMetadataKey, inspectionmetadata.NewErrorMessageSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.LogMetadataKey, inspectionmetadata.NewLogMetadata())
 
 	progressMeta := inspectionmetadata.NewProgress()
 	progressMeta.SetTotalTaskCount(len(coretask.Subset(taskGraph, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyProgressReportable, false)).GetAll()))
@@ -485,23 +500,40 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	}
 	typedmap.Set(writableMetadata, inspectionmetadata.InspectionPlanMetadataKey, inspectionmetadata.NewInspectionPlanMetadata(taskGraphStr))
 
-	logMetadata := i.makeLoggers(ctx, getLogLevel(), taskGraph.GetAll())
-	typedmap.Set(writableMetadata, inspectionmetadata.LogMetadataKey, logMetadata)
 }
 
-func (i *InspectionTaskRunner) cleanupAfterAnyRun(ctx context.Context, taskGraph *coretask.TaskSet) {
-	// Clean up loggers registered for all tasks
-	tasks := taskGraph.GetAll()
-	for _, task := range tasks {
-		inspectionID := i.ID
+func InspectionTaskLogger(logLevelForRun slog.Level, logLevelForDryRun slog.Level, withColor bool) InspectionInterceptor {
+	return func(ctx context.Context, req *inspectioncore_contract.InspectionRequest, next func(context.Context) error) error {
+		logMetadata := inspectionmetadata.NewLogMetadata()
+		inspectionID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInspectionID)
 		runID := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskRunID)
-		logger.UnregisterTaskLogger(inspectionID, task.UntypedID(), runID)
+		mode := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskMode)
+		runner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
+		logLevel := logLevelForRun
+		if mode == inspectioncore_contract.TaskModeDryRun {
+			logLevel = logLevelForDryRun
+		}
+
+		for _, def := range runner.Tasks() {
+			l := makeLogger(logLevel, logMetadata.GetTaskLogBuffer(def.UntypedID()), withColor)
+			logger.RegisterTaskLogger(inspectionID, def.UntypedID(), runID, l)
+		}
+		err := next(ctx)
+		if err != nil {
+			return err
+		}
+		for _, task := range runner.Tasks() {
+			logger.UnregisterTaskLogger(inspectionID, task.UntypedID(), runID)
+		}
+		return nil
 	}
 }
 
-func getLogLevel() slog.Level {
-	if parameters.Debug.Verbose != nil && *parameters.Debug.Verbose {
-		return slog.LevelDebug
-	}
-	return slog.LevelInfo
+func makeLogger(minLevel slog.Level, logBuffer *bytes.Buffer, withColor bool) slog.Handler {
+	logThrottleCount := 10 // Similar logs over logThrottleCount will be discarded
+
+	return logger.NewTeeHandler(
+		logger.NewThrottleFilter(logThrottleCount, logger.NewSeverityFilter(minLevel, logger.NewKHIFormatLogger(os.Stdout, withColor))),
+		logger.NewThrottleFilter(logThrottleCount, logger.NewSeverityFilter(minLevel, logger.NewKHIFormatLogger(logBuffer, false))),
+	)
 }

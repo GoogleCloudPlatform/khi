@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 )
 
@@ -61,3 +62,11 @@ var CurrentIOConfig = typedmap.NewTypedKey[*IOConfig]("khi.google.com/inspection
 // CurrentHistoryBuilder is the context key to access the history builder instance
 // used for constructing timeline data during inspection execution.
 var CurrentHistoryBuilder = typedmap.NewTypedKey[*history.Builder]("khi.google.com/inspection/current-history-builder")
+
+// TaskRunner is the context key to access the task runner instance
+// used for executing tasks during inspection execution.
+var TaskRunner = typedmap.NewTypedKey[coretask.TaskRunner]("khi.google.com/inspection/task-runner")
+
+// TracingActive is the context key to access the tracing active flag.
+// This flag indicates whether tracing is enabled for the current inspection task.
+var TracingActive = typedmap.NewTypedKey[bool]("khi.google.com/inspection/tracing-active")

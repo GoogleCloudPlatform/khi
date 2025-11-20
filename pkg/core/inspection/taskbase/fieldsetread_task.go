@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/worker"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
@@ -28,6 +29,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // NewFieldSetReadTask creates a task that consumes a list of logs and applies a set of FieldSetReaders
@@ -71,6 +74,13 @@ func NewFieldSetReadTask(taskId taskid.TaskImplementationID[[]*log.Log], logTask
 
 		pool.Wait()
 		progressUpdator.Done()
+
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		if tracingActive {
+			trace.SpanFromContext(ctx).SetAttributes(
+				attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
+			)
+		}
 
 		return logs, nil
 	})

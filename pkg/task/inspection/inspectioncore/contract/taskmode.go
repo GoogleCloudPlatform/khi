@@ -20,3 +20,15 @@ const (
 	TaskModeDryRun InspectionTaskModeType = 1
 	TaskModeRun    InspectionTaskModeType = 2
 )
+
+// TaskModeToString converts an InspectionTaskModeType to a string.
+func TaskModeToString(mode InspectionTaskModeType) string {
+	switch mode {
+	case TaskModeDryRun:
+		return "dry-run"
+	case TaskModeRun:
+		return "run"
+	default:
+		return "unknown"
+	}
+}

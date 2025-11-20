@@ -98,7 +98,11 @@ func (g *globalLoggerHandler) routeHandler(ctx context.Context) slog.Handler {
 				if handler, found := (*g.handlers)[loggerId]; found {
 					return handler
 				} else {
-					slog.Warn(fmt.Sprintf("No logger found for logger id:%s", loggerId))
+					availableKeys := make([]string, 0, len(*g.handlers))
+					for k := range *g.handlers {
+						availableKeys = append(availableKeys, k)
+					}
+					slog.Warn(fmt.Sprintf("No logger found for logger id:%s. available keys: %v", loggerId, availableKeys))
 					return g.defaultHandler
 				}
 			}
@@ -145,11 +149,19 @@ func localInitInspectionLogger(defaultHandler slog.Handler) *globalLoggerHandler
 // RegisterTaskLogger registers a slog.Handler for a specific task run.
 // This allows logs to be routed to a handler tailored for that task.
 func RegisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string, handler slog.Handler) {
-	globalLogHandler.RegisterTaskLogger(inspectionId, taskId, runId, handler)
+	if globalLogHandler != nil {
+		globalLogHandler.RegisterTaskLogger(inspectionId, taskId, runId, handler)
+	} else {
+		panic("globalLogHandler is not initialized. call logger.InitGlobalKHILogger() at first")
+	}
 }
 
 // UnregisterTaskLogger removes the slog.Handler for a specific task run.
 // This should be called when a task run is complete to clean up resources.
 func UnregisterTaskLogger(inspectionId string, taskId taskid.UntypedTaskImplementationID, runId string) {
-	globalLogHandler.UnregisterTaskLogger(inspectionId, taskId, runId)
+	if globalLogHandler != nil {
+		globalLogHandler.UnregisterTaskLogger(inspectionId, taskId, runId)
+	} else {
+		panic("globalLogHandler is not initialized. call logger.InitGlobalKHILogger() at first")
+	}
 }

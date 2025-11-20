@@ -25,4 +25,6 @@ type TaskRunner interface {
 	Run(ctx context.Context) error
 	Wait() <-chan interface{}
 	Result() (*typedmap.ReadonlyTypedMap, error)
+	Tasks() []UntypedTask
+	AddInterceptor(interceptor Interceptor)
 }

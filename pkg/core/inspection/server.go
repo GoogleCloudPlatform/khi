@@ -68,7 +68,8 @@ type InspectionTaskServer struct {
 
 	ioConfig *inspectioncore_contract.IOConfig
 
-	runContextOptions []RunContextOption
+	runContextOptions      []RunContextOption
+	inspectionIntercepters []InspectionInterceptor
 }
 
 func NewServer(ioConfig *inspectioncore_contract.IOConfig) (*InspectionTaskServer, error) {
@@ -116,16 +117,22 @@ func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 	return s.RootTaskSet.Add(task)
 }
 
+// AddInspectionInterceptor adds an interceptor that will be applied to all new inspection runners.
+func (s *InspectionTaskServer) AddInspectionInterceptor(interceptor InspectionInterceptor) {
+	s.inspectionIntercepters = append(s.inspectionIntercepters, interceptor)
+}
+
 // CreateInspection generates an inspection and returns inspection ID
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
 	id := s.inspectionIDGenerator.Generate()
-	inspectionTask := NewInspectionRunner(s, s.ioConfig, id, s.runContextOptions...)
-	err := inspectionTask.SetInspectionType(inspectionType)
+	inspectionRunner := NewInspectionRunner(s, s.ioConfig, id, s.runContextOptions...)
+	inspectionRunner.AddInterceptors(s.inspectionIntercepters...)
+	err := inspectionRunner.SetInspectionType(inspectionType)
 	if err != nil {
 		return "", err
 	}
-	s.inspections[inspectionTask.ID] = inspectionTask
-	return inspectionTask.ID, nil
+	s.inspections[inspectionRunner.ID] = inspectionRunner
+	return inspectionRunner.ID, nil
 }
 
 // Inspection returns an instance of an Inspection queried with given inspection ID.

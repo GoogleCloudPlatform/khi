@@ -38,6 +38,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // maxResourceNameCountPerRequest is the maximum allowed count of resource names per single entries.list. The default quota is 100.
@@ -154,6 +156,13 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 			// GCPCommonFieldSet is always required for any logs retrieved from Cloud Logging.
 			for _, l := range allLogs {
 				l.SetFieldSetReader(&gcpqueryutil.GCPCommonFieldSetReader{})
+			}
+
+			tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+			if tracingActive {
+				trace.SpanFromContext(ctx).SetAttributes(
+					attribute.String("log_count", fmt.Sprintf("%d", len(allLogs))),
+				)
 			}
 
 			return allLogs, nil

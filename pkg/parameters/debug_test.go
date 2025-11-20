@@ -36,11 +36,29 @@ func TestDebugParameters(t *testing.T) {
 			},
 			name: "default",
 			want: &DebugParameters{
-				Profiler:        testutil.P(false),
-				ProfilerService: testutil.P("khi"),
-				ProfilerProject: testutil.P(""),
-				Verbose:         testutil.P(false),
-				NoColor:         testutil.P(false),
+				Profiler:          testutil.P(false),
+				ProfilerService:   testutil.P("khi"),
+				ProfilerProject:   testutil.P(""),
+				Verbose:           testutil.P(false),
+				NoColor:           testutil.P(false),
+				CloudTrace:        testutil.P(false),
+				CloudTraceProject: testutil.P(""),
+			},
+		},
+		{
+			before: func() {
+				os.Args = []string{os.Args[0], "--cloud-trace", "--cloud-trace-project-id", "my-project"}
+				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			},
+			name: "cloud trace enabled",
+			want: &DebugParameters{
+				Profiler:          testutil.P(false),
+				ProfilerService:   testutil.P("khi"),
+				ProfilerProject:   testutil.P(""),
+				Verbose:           testutil.P(false),
+				NoColor:           testutil.P(false),
+				CloudTrace:        testutil.P(true),
+				CloudTraceProject: testutil.P("my-project"),
 			},
 		},
 	}

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/google/go-cmp/cmp"
 )
 
 func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error)) UntypedTask {
@@ -235,5 +236,63 @@ func TestLocalRunner_ContextCancellation(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), context.Canceled.Error()) {
 		t.Errorf("Expected error containing '%s', got '%s'", context.Canceled.Error(), err.Error())
+	}
+}
+
+func TestLocalRunner_AddInterceptor(t *testing.T) {
+	executionOrder := []string{}
+
+	interceptor1 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
+		executionOrder = append(executionOrder, "interceptor1_start")
+		res, err := next(ctx)
+		executionOrder = append(executionOrder, "interceptor1_end")
+		return res, err
+	}
+
+	interceptor2 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
+		executionOrder = append(executionOrder, "interceptor2_start")
+		res, err := next(ctx)
+		executionOrder = append(executionOrder, "interceptor2_end")
+		return res, err
+	}
+
+	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+		executionOrder = append(executionOrder, "task_execution")
+		return "result", nil
+	})
+
+	taskSet, err := NewTaskSet([]UntypedTask{task})
+	if err != nil {
+		t.Fatalf("Failed to create task set: %v", err)
+	}
+
+	sortResult := taskSet.sortTaskGraph()
+	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
+
+	runner, err := NewLocalRunner(runnableSet)
+	if err != nil {
+		t.Fatalf("Failed to create runner: %v", err)
+	}
+
+	runner.AddInterceptor(interceptor1)
+	runner.AddInterceptor(interceptor2)
+
+	err = runner.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to run task: %v", err)
+	}
+
+	<-runner.Wait()
+
+	expectedOrder := []string{
+		"interceptor1_start",
+		"interceptor2_start",
+		"task_execution",
+		"interceptor2_end",
+		"interceptor1_end",
+	}
+
+	if diff := cmp.Diff(expectedOrder, executionOrder); diff != "" {
+		t.Errorf("Execution order mismatch (-want +got):\n%s", diff)
 	}
 }
