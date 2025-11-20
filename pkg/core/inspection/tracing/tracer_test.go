@@ -46,6 +46,7 @@ func TestNewInspectionTraceInterceptor(t *testing.T) {
 	ctx = context.WithValue(ctx, inspectioncore_contract.TaskRunner, mockRunner)
 	ctx = context.WithValue(ctx, inspectioncore_contract.InspectionTaskInspectionID, "test-inspection-id")
 	ctx = context.WithValue(ctx, inspectioncore_contract.InspectionTaskRunID, "test-run-id")
+	ctx = context.WithValue(ctx, inspectioncore_contract.InspectionTaskMode, inspectioncore_contract.TaskModeRun)
 
 	req := &inspectioncore_contract.InspectionRequest{}
 
