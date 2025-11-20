@@ -32,6 +32,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // HistoryModifer defines the interface for modifying the History with change sets based on log entries.
@@ -118,6 +120,13 @@ func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], hi
 		}
 		pool.Wait()
 		updator.Done()
+
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		if tracingActive {
+			trace.SpanFromContext(ctx).SetAttributes(
+				attribute.String("log_count", fmt.Sprintf("%d", totalLogCount)),
+			)
+		}
 
 		return struct{}{}, nil
 	}, append([]coretask.LabelOpt{

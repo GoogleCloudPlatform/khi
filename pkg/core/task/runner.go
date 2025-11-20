@@ -71,7 +71,7 @@ const (
 // NewLocalRunner creates and initializes a new LocalRunner for a given TaskSet.
 // The TaskSet must be runnable (i.e., topologically sorted with all dependencies met).
 // It returns an error if the provided TaskSet is not runnable.
-func NewLocalRunner(taskSet *TaskSet, interceptors ...Interceptor) (*LocalRunner, error) {
+func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 	if !taskSet.runnable {
 		return nil, fmt.Errorf("given taskset must be runnable")
 	}
@@ -96,7 +96,6 @@ func NewLocalRunner(taskSet *TaskSet, interceptors ...Interceptor) (*LocalRunner
 		taskWaiters:     taskWaiters.AsReadonly(),
 		waiter:          make(chan interface{}),
 		taskStatuses:    taskStatuses,
-		interceptors:    interceptors,
 	}, nil
 }
 
@@ -105,6 +104,12 @@ func NewLocalRunner(taskSet *TaskSet, interceptors ...Interceptor) (*LocalRunner
 // to access results using a TaskReference.
 func GetTaskResultFromLocalRunner[TaskResult any](runner *LocalRunner, taskRef taskid.TaskReference[TaskResult]) (TaskResult, bool) {
 	return typedmap.Get(runner.resultVariable, typedmap.NewTypedKey[TaskResult](taskRef.String()))
+}
+
+// AddInterceptor adds an interceptor to the runner.
+// Interceptors are executed in the order they are added.
+func (r *LocalRunner) AddInterceptor(interceptor Interceptor) {
+	r.interceptors = append(r.interceptors, interceptor)
 }
 
 // Run starts the execution of the task graph in a non-blocking manner.

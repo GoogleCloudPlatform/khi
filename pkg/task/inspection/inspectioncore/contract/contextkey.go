@@ -66,3 +66,7 @@ var CurrentHistoryBuilder = typedmap.NewTypedKey[*history.Builder]("khi.google.c
 // TaskRunner is the context key to access the task runner instance
 // used for executing tasks during inspection execution.
 var TaskRunner = typedmap.NewTypedKey[coretask.TaskRunner]("khi.google.com/inspection/task-runner")
+
+// TracingActive is the context key to access the tracing active flag.
+// This flag indicates whether tracing is enabled for the current inspection task.
+var TracingActive = typedmap.NewTypedKey[bool]("khi.google.com/inspection/tracing-active")

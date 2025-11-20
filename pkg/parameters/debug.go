@@ -38,12 +38,22 @@ type DebugParameters struct {
 	// NoColor
 	// If this flag is set, KHI prints logs without color.
 	NoColor *bool
+
+	// CloudTrace
+	// If this flag is set, KHI sends traces to Cloud Trace.
+	CloudTrace *bool
+	// CloudTraceProject
+	// The GCP project ID where the trace sends the data to.
+	CloudTraceProject *string
 }
 
 // PostProcess implements ParameterStore.
 func (d *DebugParameters) PostProcess() error {
 	if *d.Profiler && (d.ProfilerProject == nil || *d.ProfilerProject == "") {
 		return errors.New("--profiler-project is required when --profiler is set")
+	}
+	if *d.CloudTrace && (d.CloudTraceProject == nil || *d.CloudTraceProject == "") {
+		return errors.New("--cloud-trace-project-id is required when --cloud-trace is set")
 	}
 	return nil
 }
@@ -55,6 +65,8 @@ func (d *DebugParameters) Prepare() error {
 	d.ProfilerService = flag.String("profiler-service", "khi", "The service name given to CloudProfiler.", "")
 	d.Verbose = flag.Bool("verbose", false, "If this flag is set, KHI prints verbose logs.", "")
 	d.NoColor = flag.Bool("no-color", false, "If this flag is set, KHI prints logs without color.", "")
+	d.CloudTrace = flag.Bool("cloud-trace", false, "If this flag is set, KHI sends traces to Cloud Trace.", "")
+	d.CloudTraceProject = flag.String("cloud-trace-project-id", "", "The GCP project ID where the trace sends the data to.", "")
 	return nil
 }
 

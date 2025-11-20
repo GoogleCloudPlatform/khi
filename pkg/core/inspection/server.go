@@ -117,6 +117,11 @@ func (s *InspectionTaskServer) AddTask(task coretask.UntypedTask) error {
 	return s.RootTaskSet.Add(task)
 }
 
+// AddInspectionInterceptor adds an interceptor that will be applied to all new inspection runners.
+func (s *InspectionTaskServer) AddInspectionInterceptor(interceptor InspectionInterceptor) {
+	s.inspectionIntercepters = append(s.inspectionIntercepters, interceptor)
+}
+
 // CreateInspection generates an inspection and returns inspection ID
 func (s *InspectionTaskServer) CreateInspection(inspectionType string) (string, error) {
 	id := s.inspectionIDGenerator.Generate()

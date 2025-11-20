@@ -239,7 +239,7 @@ func TestLocalRunner_ContextCancellation(t *testing.T) {
 	}
 }
 
-func TestLocalRunner_Interceptor(t *testing.T) {
+func TestLocalRunner_AddInterceptor(t *testing.T) {
 	executionOrder := []string{}
 
 	interceptor1 := func(ctx context.Context, task UntypedTask, next func(context.Context) (any, error)) (any, error) {
@@ -269,10 +269,13 @@ func TestLocalRunner_Interceptor(t *testing.T) {
 	sortResult := taskSet.sortTaskGraph()
 	runnableSet := &TaskSet{tasks: sortResult.TopologicalSortedTasks, runnable: true}
 
-	runner, err := NewLocalRunner(runnableSet, interceptor1, interceptor2)
+	runner, err := NewLocalRunner(runnableSet)
 	if err != nil {
 		t.Fatalf("Failed to create runner: %v", err)
 	}
+
+	runner.AddInterceptor(interceptor1)
+	runner.AddInterceptor(interceptor2)
 
 	err = runner.Run(context.Background())
 	if err != nil {

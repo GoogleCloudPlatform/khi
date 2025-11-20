@@ -22,10 +22,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/legacy"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/oauth"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/options"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/constants"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/flag"
 	coreinit "github.com/GoogleCloudPlatform/khi/pkg/core/init"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/tracing"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -34,6 +36,12 @@ import (
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 const DefaultInitExtensionOrder = 10000
@@ -111,6 +119,22 @@ func (d *DefaultInitExtension) AfterParsingParameters() error {
 		}
 		slog.Info("Cloud Profiler is enabled")
 	}
+	if *parameters.Debug.CloudTrace {
+		exporter, err := texporter.New(texporter.WithProjectID(*parameters.Debug.CloudTraceProject))
+		if err != nil {
+			return err
+		}
+		tp := sdktrace.NewTracerProvider(
+			sdktrace.WithBatcher(exporter),
+			sdktrace.WithResource(resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String("khi"),
+				semconv.ServiceVersionKey.String(constants.VERSION),
+			)),
+		)
+		otel.SetTracerProvider(tp)
+		slog.Info("Cloud Trace is enabled")
+	}
 	k8s.GenerateDefaultMergeConfig()
 	return nil
 }
@@ -129,6 +153,9 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 	}
 	if *parameters.Auth.AccessToken != "" {
 		taskServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.TokenSource(legacy.NewRawTokenTokenSource(*parameters.Auth.AccessToken))))
+	}
+	if *parameters.Debug.CloudTrace {
+		taskServer.AddInspectionInterceptor(tracing.NewInspectionTraceInterceptor(otel.Tracer("khi")))
 	}
 	return nil
 }

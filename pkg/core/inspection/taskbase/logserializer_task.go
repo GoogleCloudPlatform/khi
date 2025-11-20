@@ -24,6 +24,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // NewLogSerializerTask store its given logs to history to prepare the history type to have ChangeSet associated with the log.
@@ -42,9 +44,15 @@ func NewLogSerializerTask(taskID taskid.TaskImplementationID[[]*log.Log], input 
 			progress.Update(p, fmt.Sprintf("%d/%d", processedLogCount, len(logs)))
 			processedLogCount++
 		})
-
 		if err != nil {
 			return nil, err
+		}
+
+		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
+		if tracingActive {
+			trace.SpanFromContext(ctx).SetAttributes(
+				attribute.String("log_count", fmt.Sprintf("%d", len(logs))),
+			)
 		}
 		return logs, nil
 	},
