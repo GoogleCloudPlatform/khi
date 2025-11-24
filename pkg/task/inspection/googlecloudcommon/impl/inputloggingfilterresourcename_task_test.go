@@ -222,7 +222,7 @@ func TestInputLoggingFilterResourceNameTask(t *testing.T) {
 	}
 }
 
-func TestGetResourceNameInputRequests(t *testing.T) {
+func TestGetCurrentActiveQueryIDsForResourceName(t *testing.T) {
 	t1 := coretask.NewTask(taskid.NewDefaultImplementationID[struct{}]("t1"), nil, nil, coretask.WithLabelValue(
 		googlecloudcommon_contract.RequestOptionalInputResourceNameTaskLabel, "test1",
 	))
