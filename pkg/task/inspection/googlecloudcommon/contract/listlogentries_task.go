@@ -167,6 +167,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 
 			return allLogs, nil
 		}, inspectioncore_contract.NewQueryTaskLabelOpt(description.DefaultLogType, description.ExampleQuery),
+		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
 	)
 }
 
@@ -200,7 +201,7 @@ func setQueryInfo(ctx context.Context, taskID, baseLogFilter string, logFilterIn
 	}
 	finalFilter := fmt.Sprintf("%s\n%s", baseLogFilter, gcpqueryutil.TimeRangeQuerySection(startTime, endTime, true))
 	if len(finalFilter) > 20000 {
-		slog.WarnContext(ctx, fmt.Sprintf("Logging filter is exceeding Cloud Logging limitation 20000 charactors\n%s", finalFilter))
+		slog.WarnContext(ctx, fmt.Sprintf("Logging filter is exceeding Cloud Logging limitation 20000 characters\n%s", finalFilter))
 	}
 	queryInfo.SetQuery(taskID, logFilterName, finalFilter)
 	return nil
