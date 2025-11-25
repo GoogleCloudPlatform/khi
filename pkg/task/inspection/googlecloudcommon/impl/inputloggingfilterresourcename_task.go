@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -34,6 +35,10 @@ var resourceNamesInputKey = typedmap.NewTypedKey[*googlecloudcommon_contract.Res
 // InputLoggingFilterResourceNameTask defines an inspection task that creates a form group
 // for overriding log filter resource names for advanced users.
 var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(googlecloudcommon_contract.InputLoggingFilterResourceNameTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (*googlecloudcommon_contract.ResourceNamesInput, error) {
+	// Tasks requiring active resource names can change, so we always retrieve current tasks that need resource names from the task graph.
+	taskRunner := khictx.MustGetValue(ctx, inspectioncore_contract.TaskRunner)
+	currentActiveResourceNameInputRequests := getCurrentActiveQueryIDsForResourceName(taskRunner)
+	// Since the default resource names registered by the tasks actually used are not known until those tasks are executed, we store them in sharedMap and have the actual tasks update them.
 	sharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionSharedMap)
 	resourceNamesInput := typedmap.GetOrSetFunc(sharedMap, resourceNamesInputKey, googlecloudcommon_contract.NewResourceNamesInput)
 
@@ -46,19 +51,20 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 	requestInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 
 	queryForms := []inspectionmetadata.ParameterFormField{}
-	for _, form := range resourceNamesInput.GetQueryResourceNamePairs() {
-		defaultValue := strings.Join(form.DefaultResourceNames, " ")
+	for _, request := range currentActiveResourceNameInputRequests {
+		queryInfo := resourceNamesInput.GetResourceNamesForQuery(ctx, request)
+		defaultValue := strings.Join(queryInfo.DefaultResourceNames, " ")
 		formFieldBase := inspectionmetadata.ParameterFormFieldBase{
 			Priority:    0,
-			ID:          form.GetInputID(),
+			ID:          queryInfo.GetInputID(),
 			Type:        inspectionmetadata.Text,
-			Label:       form.QueryID,
+			Label:       queryInfo.QueryID,
 			Description: "",
 			HintType:    inspectionmetadata.None,
 			Hint:        "",
 		}
 		// This task validates the inputs only.
-		formInput, found := requestInput[form.GetInputID()]
+		formInput, found := requestInput[queryInfo.GetInputID()]
 		if found {
 			resourceNamesFromInput := strings.Split(formInput.(string), " ")
 			for i, resourceNameFromInput := range resourceNamesFromInput {
@@ -74,7 +80,7 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 		queryForms = append(queryForms, &inspectionmetadata.TextParameterFormField{
 			ParameterFormFieldBase: formFieldBase,
 			Default:                defaultValue,
-			Suggestions:            form.DefaultResourceNames,
+			Suggestions:            queryInfo.DefaultResourceNames,
 			ValidationTiming:       inspectionmetadata.Change,
 		})
 	}
@@ -100,3 +106,17 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 
 	return resourceNamesInput, nil
 })
+
+// getCurrentActiveQueryIDsForResourceName returns the query IDs that are currently active with retrieving them from the current task graph.
+func getCurrentActiveQueryIDsForResourceName(runner coretask.TaskRunner) []string {
+	tasks := runner.Tasks()
+	result := []string{}
+	for _, t := range tasks {
+		requestInput, found := typedmap.Get(t.Labels(), googlecloudcommon_contract.RequestOptionalInputResourceNameTaskLabel)
+		if !found {
+			continue
+		}
+		result = append(result, requestInput)
+	}
+	return result
+}

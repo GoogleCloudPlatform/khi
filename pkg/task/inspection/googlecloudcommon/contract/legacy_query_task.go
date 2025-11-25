@@ -230,5 +230,5 @@ func NewLegacyCloudLoggingListLogTask(taskId taskid.TaskImplementationID[[]*log.
 		}
 
 		return []*log.Log{}, err
-	}, inspectioncore_contract.NewQueryTaskLabelOpt(logType, sampleQuery))
+	}, inspectioncore_contract.NewQueryTaskLabelOpt(logType, sampleQuery), coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskId.ReferenceIDString()))
 }

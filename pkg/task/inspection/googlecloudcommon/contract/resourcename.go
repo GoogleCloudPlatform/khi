@@ -73,19 +73,6 @@ func (r *ResourceNamesInput) GetResourceNamesForQuery(ctx context.Context, query
 	return queryNames
 }
 
-// GetQueryResourceNamePairs returns all query ID and resource name pairs.
-func (r *ResourceNamesInput) GetQueryResourceNamePairs() []*QueryResourceNames {
-	queries := []*QueryResourceNames{}
-	for _, queryID := range r.resourceNames.Keys() {
-		resourceNames, found := typeddict.Get(r.resourceNames, queryID)
-		if !found {
-			continue
-		}
-		queries = append(queries, resourceNames)
-	}
-	return queries
-}
-
 func (r *ResourceNamesInput) ensureQueryID(queryID string) {
 	_, found := typeddict.Get(r.resourceNames, queryID)
 	if !found {
