@@ -77,7 +77,7 @@ func TestDefaultGroupDecider(t *testing.T) {
 				Name:       "",
 				Verb:       enum.RevisionVerbDeleteCollection,
 			},
-			wantGroup: "core/v1#pod#default#", // TODO: This is OK for now. This will be fixed with #267 'Changes made by delete collection operation may generate wrong resource timeline'
+			wantGroup: "core/v1#pod#default#@namespace",
 		},
 	}
 	for _, tc := range testCases {

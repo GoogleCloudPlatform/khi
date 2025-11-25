@@ -53,12 +53,21 @@ func (o *KubernetesObjectOperation) CovertToResourcePath() string {
 			o.SubResourceName,
 		}, "#"))
 	} else {
-		return strings.ToLower(strings.Join([]string{
-			o.APIVersion,
-			o.GetSingularKindName(),
-			o.Namespace,
-			o.Name,
-		}, "#"))
+		if o.Name == "" {
+			return strings.ToLower(strings.Join([]string{
+				o.APIVersion,
+				o.GetSingularKindName(),
+				o.Namespace,
+				"@namespace",
+			}, "#"))
+		} else {
+			return strings.ToLower(strings.Join([]string{
+				o.APIVersion,
+				o.GetSingularKindName(),
+				o.Namespace,
+				o.Name,
+			}, "#"))
+		}
 	}
 }
 
