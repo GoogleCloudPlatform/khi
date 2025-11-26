@@ -46,15 +46,15 @@ func TestLogSorterByTimeTask(t *testing.T) {
 			logs: []*log.CommonFieldSet{
 				{
 					DisplayID: "foo",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 				},
 				{
 					DisplayID: "bar",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
 				},
 				{
 					DisplayID: "qux",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 				},
 			},
 			want: make([]*log.CommonFieldSet, 0),
@@ -65,29 +65,29 @@ func TestLogSorterByTimeTask(t *testing.T) {
 			logs: []*log.CommonFieldSet{
 				{
 					DisplayID: "foo",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 				},
 				{
 					DisplayID: "bar",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
 				},
 				{
 					DisplayID: "qux",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 				},
 			},
 			want: []*log.CommonFieldSet{
 				{
 					DisplayID: "qux",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 				},
 				{
 					DisplayID: "bar",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
 				},
 				{
 					DisplayID: "foo",
-					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.Local),
+					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 				},
 			},
 		},

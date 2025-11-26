@@ -32,6 +32,7 @@ func NewLogSorterByTimeTask(taskID taskid.TaskImplementationID[[]*log.Log], logS
 		}
 		progress.MarkIndeterminate()
 		logs := coretask.GetTaskResult(ctx, logSource)
+		logs = slices.Clone(logs)
 		slices.SortFunc(logs, func(a, b *log.Log) int {
 			aFieldSet := log.MustGetFieldSet(a, &log.CommonFieldSet{})
 			bFieldSet := log.MustGetFieldSet(b, &log.CommonFieldSet{})
