@@ -88,7 +88,9 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 		})
 	}
 
-	grp.Wait()
+	if err := grp.Wait(); err != nil {
+		return nil, err
+	}
 
 	return result, nil
 })
@@ -194,8 +196,6 @@ kind: %s
 		var mergedYAML string
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("failed to merge resource body\n%s", err.Error()))
-			g.prevRevisionBody = "# failed to merge yaml"
-			g.prevRevisionReader = nil
 			return &commonlogk8sauditv2_contract.ResourceChangeLog{
 				Log:                l,
 				ResourceBodyYAML:   g.prevRevisionBody,
