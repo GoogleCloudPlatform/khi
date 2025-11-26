@@ -102,8 +102,12 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 			subResourceName = resourceNameFragments[4]
 		}
 	}
+	var apiVersion string
+	if len(resourceNameFragments) >= 2 {
+		apiVersion = resourceNameFragments[0] + "/" + resourceNameFragments[1]
+	}
 	return &model.KubernetesObjectOperation{
-		APIVersion:      resourceNameFragments[0] + "/" + resourceNameFragments[1],
+		APIVersion:      apiVersion,
 		PluralKind:      pluralKind,
 		Namespace:       namespace,
 		Name:            name,
