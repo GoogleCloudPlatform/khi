@@ -87,3 +87,15 @@ func (o *KubernetesObjectOperation) GetSingularKindName() string {
 	slog.Error(fmt.Sprintf("unknown plural form %s!", o.PluralKind))
 	return o.PluralKind
 }
+
+// Clone returns a copy of the KubernetesObjectOperation.
+func (o *KubernetesObjectOperation) Clone() *KubernetesObjectOperation {
+	return &KubernetesObjectOperation{
+		APIVersion:      o.APIVersion,
+		PluralKind:      o.PluralKind,
+		Namespace:       o.Namespace,
+		Name:            o.Name,
+		SubResourceName: o.SubResourceName,
+		Verb:            o.Verb,
+	}
+}

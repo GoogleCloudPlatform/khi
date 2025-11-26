@@ -125,18 +125,14 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 		foundItemSource := false
 		if fieldSet.Response != nil {
 			reader, err := fieldSet.Response.GetReader("items")
-			foundItemSource = true
 			if err == nil {
+				foundItemSource = true
 				for _, resource := range reader.Children() {
 					name, err := resource.ReadString("metadata.name")
 					if err == nil {
-						removedResourceNames = append(removedResourceNames, &model.KubernetesObjectOperation{
-							APIVersion: op.APIVersion,
-							PluralKind: op.PluralKind,
-							Namespace:  op.Namespace,
-							Name:       name,
-							Verb:       op.Verb,
-						})
+						itemOperation := op.Clone()
+						itemOperation.Name = name
+						removedResourceNames = append(removedResourceNames, itemOperation)
 					}
 				}
 			}
@@ -146,20 +142,12 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 			namespaceKindAPIVersions := fmt.Sprintf("%s/%s/%s", op.APIVersion, op.PluralKind, op.Namespace)
 			knownResources := s.resourcesByNamespaceKindAPIVersions[namespaceKindAPIVersions]
 			for resource := range knownResources {
-				removedResourceNames = append(removedResourceNames, &model.KubernetesObjectOperation{
-					APIVersion: op.APIVersion,
-					PluralKind: op.PluralKind,
-					Namespace:  op.Namespace,
-					Name:       resource,
-					Verb:       op.Verb,
-				})
+				itemOperation := op.Clone()
+				itemOperation.Name = resource
+				removedResourceNames = append(removedResourceNames, itemOperation)
 			}
-			removedResourceNames = append(removedResourceNames, &model.KubernetesObjectOperation{
-				APIVersion: op.APIVersion,
-				PluralKind: op.PluralKind,
-				Namespace:  op.Namespace,
-				Verb:       op.Verb,
-			})
+			namespaceOperation := op.Clone()
+			removedResourceNames = append(removedResourceNames, namespaceOperation)
 		}
 		return removedResourceNames
 	} else {
@@ -168,6 +156,7 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 		} else {
 			// An audit log for subresource may contain a response for its parent.
 			// Response to a subresource may contain its parent resource, so we need to check the response kind.
+			opForSubresource := op.Clone()
 			if fieldSet.Response != nil {
 				apiVersion, err := fieldSet.Response.ReadString("apiVersion")
 				if err == nil {
@@ -176,17 +165,7 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 						// If the response object is v1/Status, then use the request as group name source instead.
 						if apiVersion != "v1" || kind != "Status" {
 							if strings.ToLower(kind) == op.GetSingularKindName() {
-								return []*model.KubernetesObjectOperation{
-									{
-										APIVersion: op.APIVersion,
-										PluralKind: op.PluralKind,
-										Namespace:  op.Namespace,
-										Name:       op.Name,
-										Verb:       op.Verb,
-									},
-								}
-							} else {
-								return []*model.KubernetesObjectOperation{op}
+								opForSubresource.SubResourceName = ""
 							}
 						}
 					}
@@ -196,17 +175,9 @@ func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.
 			// All logs with non-Metadata audit log levels should be captured above, but for logs with Metadata level, we have no way to identify the content.
 			// So just use a predefined map to determine if the log should be annotated on its parent timeline or a subresource timeline.
 			if s.subresourceDefaultBehaviorOverrides[op.SubResourceName] == Parent {
-				return []*model.KubernetesObjectOperation{
-					{
-						APIVersion: op.APIVersion,
-						PluralKind: op.PluralKind,
-						Namespace:  op.Namespace,
-						Name:       op.Name,
-						Verb:       op.Verb,
-					},
-				}
+				opForSubresource.SubResourceName = ""
 			}
-			return []*model.KubernetesObjectOperation{op}
+			return []*model.KubernetesObjectOperation{opForSubresource}
 		}
 	}
 }
