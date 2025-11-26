@@ -67,7 +67,7 @@ func (e *nonSuccessLogHistoryModifierTaskSetting) addEventForLog(l *log.Log, cs 
 		op.SubResourceName = ""
 	}
 	cs.AddEvent(resourcepath.ResourcePath{
-		Path:               op.CovertToResourcePath(),
+		Path:               op.ResourcePath(),
 		ParentRelationship: enum.RelationshipChild,
 	})
 	return nil

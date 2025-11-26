@@ -138,12 +138,12 @@ func TestParseKubernetesOperation(t *testing.T) {
 
 func TestConvertToResourcePath(t *testing.T) {
 	res := parseKubernetesOperation("io.k8s.core/v1/namespaces/foo/pods/bar/status", "io.k8s.core.v1.pods.status.update")
-	if res.CovertToResourcePath() != "io.k8s.core/v1#pod#foo#bar#status" {
-		t.Errorf("Expected resource path mismatch, got %q want 'io.k8s.core/v1#pod#foo#bar#status'", res.CovertToResourcePath())
+	if res.ResourcePath() != "io.k8s.core/v1#pod#foo#bar#status" {
+		t.Errorf("Expected resource path mismatch, got %q want 'io.k8s.core/v1#pod#foo#bar#status'", res.ResourcePath())
 	}
 
 	res = parseKubernetesOperation("io.k8s.core/v1/namespaces/foo/pods/bar", "io.k8s.core.v1.pods.update")
-	if res.CovertToResourcePath() != "io.k8s.core/v1#pod#foo#bar" {
-		t.Errorf("EExpected resource path mismatch, got %q want 'io.k8s.core/v1#pod#foo#bar'", res.CovertToResourcePath())
+	if res.ResourcePath() != "io.k8s.core/v1#pod#foo#bar" {
+		t.Errorf("EExpected resource path mismatch, got %q want 'io.k8s.core/v1#pod#foo#bar'", res.ResourcePath())
 	}
 }

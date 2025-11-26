@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudlogk8saudit_impl
+package googlecloudlogk8saudit_contract
 
 import (
 	"testing"

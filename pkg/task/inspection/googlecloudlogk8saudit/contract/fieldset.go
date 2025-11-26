@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudlogk8saudit_impl
+package googlecloudlogk8saudit_contract
 
 import (
 	"strings"
@@ -73,8 +73,14 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	default:
 		verb = enum.RevisionVerbUnknown
 	}
+	// Example methodName field formats:
+	// namespaced resource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b
+	// namespaced resource with subresource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b/status
+	// cluster scoped resource:  core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq
+	// cluster scoped resource with subresource: core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq/status
+	// namespace resource: core/v1/namespaces/kube-system
+	// namespace resource with subresource: core/v1/namespaces/kube-system/finalize
 	var pluralKind, namespace, name, subResourceName string
-
 	switch {
 	case methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
 		namespace = "cluster-scope"

@@ -36,7 +36,7 @@ var LogSummaryGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	commonlogk8sauditv2_contract.K8sAuditLogProviderRef,
 	func(ctx context.Context, l *log.Log) string {
 		commonFieldSet := log.MustGetFieldSet(l, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
-		return commonFieldSet.K8sOperation.CovertToResourcePath()
+		return commonFieldSet.K8sOperation.ResourcePath()
 	},
 )
 

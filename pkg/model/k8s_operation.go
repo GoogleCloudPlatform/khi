@@ -43,7 +43,7 @@ type KubernetesObjectOperation struct {
 	Verb            enum.RevisionVerb
 }
 
-func (o *KubernetesObjectOperation) CovertToResourcePath() string {
+func (o *KubernetesObjectOperation) ResourcePath() string {
 	if o.SubResourceName != "" {
 		return strings.ToLower(strings.Join([]string{
 			o.APIVersion,
