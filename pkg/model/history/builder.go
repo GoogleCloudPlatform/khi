@@ -33,6 +33,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"golang.org/x/sync/errgroup"
 )
@@ -360,6 +361,8 @@ func (builder *Builder) sortData() error {
 // Finalize flushes the binary chunk data and serialized metadata to the given io.Writer. Returns the written data size in bytes and error.
 func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[string]interface{}, writer io.Writer, progress *inspectionmetadata.TaskProgressMetadata) (int, error) {
 	fileSize := 0
+	progress.Update(0, "Verifying orphan logs")
+	builder.verifyingOrphanLogs()
 	progress.Update(0, "Sorting log entries")
 	progress.MarkIndeterminate()
 	builder.history.Metadata = serializedMetadata
@@ -399,6 +402,26 @@ func (builder *Builder) Finalize(ctx context.Context, serializedMetadata map[str
 		fileSize += writtenSize
 	}
 	return fileSize, nil
+}
+
+func (b *Builder) verifyingOrphanLogs() {
+	logIDs := map[string]struct{}{}
+	for _, timeline := range b.history.Timelines {
+		for _, event := range timeline.Events {
+			logIDs[event.Log] = struct{}{}
+		}
+		for _, revision := range timeline.Revisions {
+			logIDs[revision.Log] = struct{}{}
+		}
+	}
+	for _, log := range b.history.Logs {
+		if _, found := logIDs[log.ID]; !found {
+			tb := b.GetTimelineBuilder(resourcepath.NameLayerGeneralItem("@KHI", "error", "orphan-logs", enum.LogTypes[log.Type].EnumKeyName).Path)
+			tb.AddEvent(&ResourceEvent{
+				Log: log.ID,
+			})
+		}
+	}
 }
 
 // DangerouslyGetRawHistory returns the raw history value written by this builder. This method is only used for testing purpose.
