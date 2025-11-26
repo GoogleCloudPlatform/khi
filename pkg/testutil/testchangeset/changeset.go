@@ -61,6 +61,23 @@ func (r *HasRevision) Assert(t *testing.T, cs *history.ChangeSet) {
 	t.Errorf("no revision found for %s at %s. available times are %v", r.ResourcePath, r.WantRevision.ChangeTime, times)
 }
 
+type MatchChangeSetCount struct {
+	ResourcePath string
+	WantCount    int
+}
+
+func (c *MatchChangeSetCount) Assert(t *testing.T, cs *history.ChangeSet) {
+	t.Helper()
+	revisions := cs.GetRevisions(resourcepath.ResourcePath{
+		Path: c.ResourcePath,
+	})
+	if len(revisions) != c.WantCount {
+		t.Errorf("want %d revisions, but got %d revisions for %s\nfound revisions:%v", c.WantCount, len(revisions), c.ResourcePath, revisions)
+	}
+}
+
+var _ ChangeSetAsserter = (*MatchChangeSetCount)(nil)
+
 var _ ChangeSetAsserter = (*HasRevision)(nil)
 
 type MatchResourcePathSet struct {

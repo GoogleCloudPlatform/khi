@@ -57,7 +57,7 @@ func (d *defaultResourceGroupDecider) Name() string {
 // GetResourceGroup implements resourceGroupDecider. It returns the resource path
 // by converting the log's Operation to a resource path.
 func (d *defaultResourceGroupDecider) GetResourceGroup(log *commonlogk8saudit_contract.AuditLogParserInput) (string, error) {
-	return log.Operation.CovertToResourcePath(), nil
+	return log.Operation.ResourcePath(), nil
 }
 
 // Ensure defaultResourceGroupDecider implements resourceGroupDecider.
@@ -136,7 +136,7 @@ func (s *subresourceResourceGroupDecider) GetResourceGroup(log *commonlogk8saudi
 	if s.defaultBehaviorOverrides[log.Operation.SubResourceName] == Parent {
 		return resourcepath.NameLayerGeneralItem(log.Operation.APIVersion, log.Operation.GetSingularKindName(), log.Operation.Namespace, log.Operation.Name).Path, nil
 	} else {
-		return log.Operation.CovertToResourcePath(), nil
+		return log.Operation.ResourcePath(), nil
 	}
 }
 
