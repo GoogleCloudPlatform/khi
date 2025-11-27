@@ -55,3 +55,13 @@ var NonSuccessLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struc
 
 // LogSorterTaskID is the task ID for the task to sort logs by time.
 var LogSorterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-sorter")
+
+var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
+
+var ResourceRevisionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-revision-history-modifier")
+
+var ResourceOwnerReferenceModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-owner-reference-modifier")
+
+var EndpointResourceHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "endpoint-resource-history-modifier")
+
+var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "manifest-generator")
