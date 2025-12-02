@@ -87,7 +87,7 @@ graph TD
 
 ## Task Descriptions
 
-### Common tasks(filter,grouper,serializers...etc)
+### Common tasks (filter, grouper, serializers, etc.)
 
 - **`K8sAuditLogProviderRef`**: Reference to the external task that provides the raw Kubernetes Audit Logs.
 - **`K8sAuditLogSerializerTask`**: Registers logs into the history data before relating them with any events or revisions.

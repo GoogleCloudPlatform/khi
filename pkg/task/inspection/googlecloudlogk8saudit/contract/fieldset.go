@@ -80,18 +80,24 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	// cluster scoped resource with subresource: core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq/status
 	// namespace resource: core/v1/namespaces/kube-system
 	// namespace resource with subresource: core/v1/namespaces/kube-system/finalize
-	var pluralKind, namespace, name, subResourceName string
+	var apiVersion, pluralKind, namespace, name, subResourceName string
 	switch {
-	case methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
+	case len(methodNameFragments) > 4 && methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
 		namespace = "cluster-scope"
-		name = resourceNameFragments[3]
+		if len(resourceNameFragments) > 3 {
+			name = resourceNameFragments[3]
+		}
 		pluralKind = "namespaces"
 		if len(resourceNameFragments) > 4 {
 			subResourceName = resourceNameFragments[4]
 		}
-	case resourceNameFragments[2] == "namespaces" && len(resourceNameFragments) >= 5:
-		namespace = resourceNameFragments[3]
-		pluralKind = resourceNameFragments[4]
+	case len(resourceNameFragments) >= 5 && resourceNameFragments[2] == "namespaces":
+		if len(resourceNameFragments) > 3 {
+			namespace = resourceNameFragments[3]
+		}
+		if len(resourceNameFragments) > 4 {
+			pluralKind = resourceNameFragments[4]
+		}
 		if len(resourceNameFragments) > 5 {
 			name = resourceNameFragments[5]
 		}
@@ -108,8 +114,11 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 			subResourceName = resourceNameFragments[4]
 		}
 	}
+	if len(resourceNameFragments) >= 2 {
+		apiVersion = resourceNameFragments[0] + "/" + resourceNameFragments[1]
+	}
 	return &model.KubernetesObjectOperation{
-		APIVersion:      resourceNameFragments[0] + "/" + resourceNameFragments[1],
+		APIVersion:      apiVersion,
 		PluralKind:      pluralKind,
 		Namespace:       namespace,
 		Name:            name,
