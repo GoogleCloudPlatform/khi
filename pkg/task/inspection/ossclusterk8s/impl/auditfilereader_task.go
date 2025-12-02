@@ -68,7 +68,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 				return fmt.Errorf("failed to read a log: %w", err)
 			}
 
-			err = l.SetFieldSetReader(&OSSK8sAuditLogCommonFieldSetReader{})
+			err = l.SetFieldSetReader(&ossclusterk8s_contract.OSSK8sAuditLogCommonFieldSetReader{})
 			if err != nil {
 				return err
 			}

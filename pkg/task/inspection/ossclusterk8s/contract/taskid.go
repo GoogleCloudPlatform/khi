@@ -18,16 +18,17 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
 // OSSTaskPrefix is the prefixes of IDs used in OSS related tasks.
 const OSSTaskPrefix = "khi.google.com/oss/"
 
-var OSSK8sAuditLogSourceTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.CommonAuitLogSource, "oss")
 var InputAuditLogFilesFormTaskID = taskid.NewDefaultImplementationID[upload.UploadResult](OSSTaskPrefix + "form/kube-apiserver-audit-log-files")
 var AuditLogFileReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-reader")
 var NonEventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-non-event-audit")
 var EventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-event-audit")
-var OSSK8sAuditLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "audit-parser")
 var OSSK8sEventLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-parser")
+
+var OSSK8sAuditLogProviderTaskID = taskid.NewImplementationID(commonlogk8sauditv2_contract.K8sAuditLogProviderRef, "oss")
+var OSSK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8sauditv2_contract.K8sAuditLogParserTailRef, "oss")

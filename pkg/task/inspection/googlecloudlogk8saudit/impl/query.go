@@ -32,29 +32,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// TODO: Remove this task after the transition to the new task system.
-// K8sAuditQueryTask is a query generator task that creates a Google Cloud Logging query
-// to fetch Kubernetes audit logs for a specific cluster.
-var K8sAuditQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8saudit_contract.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
-	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
-	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
-
-	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
-}, GenerateK8sAuditQuery(
-	"gcp-cluster-name",
-	&gcpqueryutil.SetFilterParseResult{
-		Additives: []string{"deployments", "replicasets", "pods", "nodes"},
-	},
-	&gcpqueryutil.SetFilterParseResult{
-		Additives: []string{"#cluster-scoped", "#namespaced"},
-	},
-))
-
 var GCPK8sAuditLogListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&GCPK8sAuditLogListLogEntriesTaskSetting{})
 
 type GCPK8sAuditLogListLogEntriesTaskSetting struct{}

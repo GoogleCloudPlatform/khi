@@ -26,16 +26,14 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	if err != nil {
 		return err
 	}
-	err = RegisterK8sAuditTasks(registry)
-	if err != nil {
-		return err
-	}
+
 	return coretask.RegisterTasks(registry,
 		InputAuditLogFilesTask,
 		AuditLogFileReaderTask,
 		EventAuditLogFilterTask,
 		NonEventAuditLogFilterTask,
-		OSSK8sAuditLogSourceTask,
 		OSSK8sEventLogParserTask,
+		OSSK8sAuditLogFieldExtractorTask,
+		OSSK8sAuditLogParserTailTask,
 	)
 }
