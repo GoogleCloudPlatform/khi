@@ -61,3 +61,13 @@ func Node(name string) ResourcePath {
 	}
 	return NameLayerGeneralItem("core/v1", "node", "cluster-scope", name)
 }
+
+func EndpointSlice(namespace string, name string) ResourcePath {
+	if namespace == "" {
+		namespace = nonSpecifiedPlaceholder
+	}
+	if name == "" {
+		name = nonSpecifiedPlaceholder
+	}
+	return NameLayerGeneralItem("discovery.k8s.io/v1", "endpointslice", namespace, name)
+}

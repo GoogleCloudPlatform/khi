@@ -41,7 +41,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 	commonField, _ := log.GetFieldSet(l.Log, &log.CommonFieldSet{})
 	target := l.ResourceBodyReader.ReadStringOrDefault("target.name", "unknown")
 
-	podScheduledStatusPath := resourcepath.Status(resourcepath.Pod(l.Operation.Namespace, l.Operation.Name), "PodScheduled")
+	podScheduledStatusPath := resourcepath.Condition(resourcepath.Pod(l.Operation.Namespace, l.Operation.Name), "PodScheduled")
 	nodeBindingResourcePath := resourcepath.NodeBinding(target, l.Operation.Namespace, l.Operation.Name)
 	if l.Operation.Verb == enum.RevisionVerbCreate {
 		cs.AddRevision(nodeBindingResourcePath, &history.StagingResourceRevision{

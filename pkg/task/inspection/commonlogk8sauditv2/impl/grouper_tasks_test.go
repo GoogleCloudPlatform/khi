@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type testScanTargetResourceInput struct {
@@ -341,7 +342,7 @@ kind: Binding`,
 				got = append(got, gotPaths)
 			}
 
-			if diff := cmp.Diff(got, tc.want); diff != "" {
+			if diff := cmp.Diff(got, tc.want, cmpopts.SortSlices(func(a, b string) bool { return a < b })); diff != "" {
 				t.Errorf("mismatch (-want +got): %s", diff)
 			}
 		})

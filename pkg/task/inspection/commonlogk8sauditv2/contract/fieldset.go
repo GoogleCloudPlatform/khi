@@ -21,18 +21,30 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+// K8sAuditLogFieldSet is the field set for k8s audit log.
 type K8sAuditLogFieldSet struct {
-	OperationID   string
-	IsFirst       bool
-	IsLast        bool
-	K8sOperation  *model.KubernetesObjectOperation
-	RequestURI    string
-	Principal     string
-	StatusCode    int
+	// OperationID is the ID of the operation.
+	OperationID string
+	// IsFirst is true if the log is the first log of the operation.
+	IsFirst bool
+	// IsLast is true if the log is the last log of the operation.
+	IsLast bool
+	// K8sOperation is the k8s operation associated with the log.
+	K8sOperation *model.KubernetesObjectOperation
+	// RequestURI is the request URI.
+	RequestURI string
+	// Principal is the principal who issued the request.
+	Principal string
+	// StatusCode is the status code of the response.
+	StatusCode int
+	// StatusMessage is the status message of the response.
 	StatusMessage string
-	IsError       bool
-	Request       *structured.NodeReader
-	Response      *structured.NodeReader
+	// IsError is true if the response is an error.
+	IsError bool
+	// Request is the request body.
+	Request *structured.NodeReader
+	// Response is the response body.
+	Response *structured.NodeReader
 }
 
 // Kind implements log.FieldSet.

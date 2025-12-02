@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudlogk8saudit_contract
+package googlecloudlogk8saudit_impl
 
 import (
 	"strings"
@@ -73,31 +73,19 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	default:
 		verb = enum.RevisionVerbUnknown
 	}
-	// Example methodName field formats:
-	// namespaced resource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b
-	// namespaced resource with subresource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b/status
-	// cluster scoped resource:  core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq
-	// cluster scoped resource with subresource: core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq/status
-	// namespace resource: core/v1/namespaces/kube-system
-	// namespace resource with subresource: core/v1/namespaces/kube-system/finalize
-	var apiVersion, pluralKind, namespace, name, subResourceName string
+	var pluralKind, namespace, name, subResourceName string
+
 	switch {
-	case len(methodNameFragments) > 4 && methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
+	case methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
 		namespace = "cluster-scope"
-		if len(resourceNameFragments) > 3 {
-			name = resourceNameFragments[3]
-		}
+		name = resourceNameFragments[3]
 		pluralKind = "namespaces"
 		if len(resourceNameFragments) > 4 {
 			subResourceName = resourceNameFragments[4]
 		}
-	case len(resourceNameFragments) >= 5 && resourceNameFragments[2] == "namespaces":
-		if len(resourceNameFragments) > 3 {
-			namespace = resourceNameFragments[3]
-		}
-		if len(resourceNameFragments) > 4 {
-			pluralKind = resourceNameFragments[4]
-		}
+	case resourceNameFragments[2] == "namespaces" && len(resourceNameFragments) >= 5:
+		namespace = resourceNameFragments[3]
+		pluralKind = resourceNameFragments[4]
 		if len(resourceNameFragments) > 5 {
 			name = resourceNameFragments[5]
 		}
@@ -114,6 +102,7 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 			subResourceName = resourceNameFragments[4]
 		}
 	}
+	var apiVersion string
 	if len(resourceNameFragments) >= 2 {
 		apiVersion = resourceNameFragments[0] + "/" + resourceNameFragments[1]
 	}
