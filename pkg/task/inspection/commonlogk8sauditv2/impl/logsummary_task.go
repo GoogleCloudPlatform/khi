@@ -26,11 +26,13 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
+// LogSerializerTask is the task to serialize k8s audit logs.
 var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(
 	commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID,
 	commonlogk8sauditv2_contract.K8sAuditLogProviderRef,
 )
 
+// LogSummaryGrouperTask is the task to group logs for summary generation.
 var LogSummaryGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	commonlogk8sauditv2_contract.LogSummaryGrouperTaskID,
 	commonlogk8sauditv2_contract.K8sAuditLogProviderRef,
@@ -40,6 +42,7 @@ var LogSummaryGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
+// LogSummaryHistoryModifierTask is the task to generate log summary from given k8s audit log.
 var LogSummaryHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](
 	commonlogk8sauditv2_contract.LogSummaryHistoryModifierTaskID,
 	&logSummaryHistoryModifierSetting{},
@@ -70,12 +73,13 @@ func (s *logSummaryHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Co
 		cs.SetLogSeverity(enum.SeverityError)
 	}
 
-	cs.SetLogSummary(s.getLogSummary(commonFieldSet))
+	cs.SetLogSummary(s.logSummary(commonFieldSet))
 
 	return struct{}{}, nil
 }
 
-func (s *logSummaryHistoryModifierSetting) getLogSummary(fieldSet *commonlogk8sauditv2_contract.K8sAuditLogFieldSet) string {
+// logSummary generates the summary string from given log field set.
+func (s *logSummaryHistoryModifierSetting) logSummary(fieldSet *commonlogk8sauditv2_contract.K8sAuditLogFieldSet) string {
 	if fieldSet.IsError {
 		return fmt.Sprintf("【%s(%d)】%s %s", fieldSet.StatusMessage, fieldSet.StatusCode, fieldSet.VerbString(), fieldSet.RequestURI)
 	} else {
