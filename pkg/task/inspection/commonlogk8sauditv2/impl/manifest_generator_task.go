@@ -38,6 +38,7 @@ import (
 
 var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
 
+// ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
 var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8sauditv2_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
 	commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID.Ref(),
 	googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref(),
@@ -96,12 +97,17 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 })
 
 type groupManifestGenerator struct {
-	prevRevisionReader  *structured.NodeReader
+	// prevRevisionReader is the reader for the previous revision.
+	prevRevisionReader *structured.NodeReader
+	// mergeConfigRegistry is the registry for merge config.
 	mergeConfigRegistry *k8s.K8sManifestMergeConfigRegistry
-	prevRevisionBody    string
-	resourceName        string
+	// prevRevisionBody is the body of the previous revision.
+	prevRevisionBody string
+	// resourceName is the name of the resource.
+	resourceName string
 }
 
+// Process processes the log to generate manifest.
 func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*commonlogk8sauditv2_contract.ResourceChangeLog, error) {
 	if g.prevRevisionReader == nil {
 		g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
@@ -236,7 +242,7 @@ kind: %s
 	}
 }
 
-// Remove @type in response or request payload
+// removeAtType removes @type in response or request payload.
 func removeAtType(yamlString string) string {
 	lines := strings.Split(yamlString, "\n")
 	var result []string

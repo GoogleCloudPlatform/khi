@@ -19,6 +19,7 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
+// LogSorterTask is the task to sort logs by time.
 var LogSorterTask = inspectiontaskbase.NewLogSorterByTimeTask(
 	commonlogk8sauditv2_contract.LogSorterTaskID,
 	commonlogk8sauditv2_contract.SuccessLogFilterTaskID.Ref(),

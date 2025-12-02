@@ -59,7 +59,7 @@ func TestLogSummaryHistoryModifierSetting_getLogSummary(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			setting := &logSummaryHistoryModifierSetting{}
-			got := setting.getLogSummary(tc.input)
+			got := setting.logSummary(tc.input)
 			if got != tc.want {
 				t.Errorf("got %q, want %q", got, tc.want)
 			}
