@@ -47,8 +47,8 @@ type lifeTimeTrackerGroupState struct {
 }
 
 type lifeTimeTrackerTaskSetting struct {
-	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
-	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
+	// kindsToWaitExactDeletionToDetermineDeletion is the map of kinds to wait exact deletion to determine deletion.
+	kindsToWaitExactDeletionToDetermineDeletion map[string]struct{}
 }
 
 // isDeletiveVerb returns true if the verb is delete or deletecollection.
@@ -157,7 +157,7 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 			prevGroupData.WasCompletelyRemoved = false
 			prevGroupData.DeletionStarted = true
 			apiVersionKind := fmt.Sprintf("%s#%s", k8sFieldSet.K8sOperation.APIVersion, k8sFieldSet.K8sOperation.GetSingularKindName())
-			if _, found := r.kindsToWaitExactDeletionToDeterminDeletion[apiVersionKind]; !found {
+			if _, found := r.kindsToWaitExactDeletionToDetermineDeletion[apiVersionKind]; !found {
 				l.ResourceDeleted = true
 			}
 		default:
@@ -198,7 +198,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 
 		processedLogCount.Store(0)
 		historyModifier := &lifeTimeTrackerTaskSetting{
-			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},
 		}
@@ -225,8 +225,8 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 						slog.WarnContext(ctx, "parser ended with an error", "error", err, "logContent", yaml)
 						continue
 					}
-					processedLogCount.Add(uint32(len(group.Logs)))
 				}
+				processedLogCount.Add(uint32(len(group.Logs)))
 			})
 		}
 		pool.Wait()

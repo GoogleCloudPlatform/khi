@@ -148,7 +148,7 @@ func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSettin
 		}
 
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
-		groupedLogs := coretask.GetTaskResult(ctx, ManifestGeneratorTaskID.Ref())
+		groupedLogs := coretask.GetTaskResult(ctx, setting.GroupedLogTask())
 
 		tp.MarkIndeterminate()
 		trackingGroups, err := setting.ResourcePairs(ctx, groupedLogs)
@@ -168,6 +168,7 @@ func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSettin
 		errGrp.SetLimit(runtime.GOMAXPROCS(0))
 		passCount := setting.PassCount()
 		for _, trackingGroup := range trackingGroups {
+			trackingGroup := trackingGroup
 			errGrp.Go(func() error {
 				defer doneGroupCount.Add(1)
 				changedPaths := map[string]struct{}{}

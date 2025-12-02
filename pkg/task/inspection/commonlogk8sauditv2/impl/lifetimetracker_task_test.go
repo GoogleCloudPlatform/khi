@@ -206,17 +206,17 @@ func TestLifeTimeTrackerTask_Scenarios(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                                       string
-		apiVersion                                 string
-		pluralKind                                 string
-		kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
-		steps                                      []step
+		name                                        string
+		apiVersion                                  string
+		pluralKind                                  string
+		kindsToWaitExactDeletionToDetermineDeletion map[string]struct{}
+		steps                                       []step
 	}{
 		{
 			name:       "Pod deletion scenario",
 			apiVersion: "core/v1",
 			pluralKind: "pods",
-			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},
 			steps: []step{
@@ -277,7 +277,7 @@ status:
 			name:       "Pod deletion scenario (Failed phase)",
 			apiVersion: "core/v1",
 			pluralKind: "pods",
-			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},
 			steps: []step{
@@ -321,7 +321,7 @@ status:
 			name:       "EndpointSlice deletion scenario",
 			apiVersion: "discovery.k8s.io/v1",
 			pluralKind: "endpointslices",
-			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},
 			steps: []step{
@@ -360,7 +360,7 @@ status:
 			name:       "patch and update later",
 			apiVersion: "core/v1",
 			pluralKind: "nodes",
-			kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{},
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{},
 			steps: []step{
 				{
 					verb: enum.RevisionVerbPatch,
@@ -394,7 +394,7 @@ metadata:
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tracker := &lifeTimeTrackerTaskSetting{
-				kindsToWaitExactDeletionToDeterminDeletion: tc.kindsToWaitExactDeletionToDeterminDeletion,
+				kindsToWaitExactDeletionToDetermineDeletion: tc.kindsToWaitExactDeletionToDetermineDeletion,
 			}
 			var state *lifeTimeTrackerGroupState
 			for i, s := range tc.steps {
