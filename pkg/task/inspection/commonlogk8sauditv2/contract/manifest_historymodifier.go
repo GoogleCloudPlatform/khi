@@ -168,6 +168,7 @@ func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSettin
 		errGrp.SetLimit(runtime.GOMAXPROCS(0))
 		passCount := setting.PassCount()
 		for _, trackingGroup := range trackingGroups {
+			trackingGroup := trackingGroup
 			errGrp.Go(func() error {
 				defer doneGroupCount.Add(1)
 				changedPaths := map[string]struct{}{}
