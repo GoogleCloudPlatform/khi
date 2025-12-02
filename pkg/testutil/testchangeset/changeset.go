@@ -160,7 +160,7 @@ func (h *HasAlias) Assert(t *testing.T, cs *history.ChangeSet) {
 		return
 	}
 	for _, alias := range aliases {
-		if alias.Path == h.Destination {
+		if alias == h.Destination {
 			return
 		}
 	}
