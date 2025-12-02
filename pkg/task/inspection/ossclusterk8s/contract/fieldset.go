@@ -106,9 +106,9 @@ func verbStringToEnum(verbStr string) enum.RevisionVerb {
 	case "delete":
 		return enum.RevisionVerbDelete
 	case "deletecollection":
-		return enum.RevisionVerbDelete
+		return enum.RevisionVerbDeleteCollection
 	default:
 		// Add verbs for get/list/watch
-		return enum.RevisionVerbUpdate
+		return enum.RevisionVerbUnknown
 	}
 }
