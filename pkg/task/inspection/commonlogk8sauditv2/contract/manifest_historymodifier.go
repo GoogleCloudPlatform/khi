@@ -148,7 +148,7 @@ func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSettin
 		}
 
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
-		groupedLogs := coretask.GetTaskResult(ctx, ManifestGeneratorTaskID.Ref())
+		groupedLogs := coretask.GetTaskResult(ctx, setting.GroupedLogTask())
 
 		tp.MarkIndeterminate()
 		trackingGroups, err := setting.ResourcePairs(ctx, groupedLogs)
