@@ -160,11 +160,7 @@ func (h *HasAlias) Assert(t *testing.T, cs *history.ChangeSet) {
 		return
 	}
 	for _, alias := range aliases {
-<<<<<<< HEAD
 		if alias == h.Destination {
-=======
-		if alias.Path == h.Destination {
->>>>>>> cc5b4226 (Added several test asserter for changeset testing)
 			return
 		}
 	}
