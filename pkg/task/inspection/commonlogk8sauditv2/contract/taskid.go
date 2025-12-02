@@ -20,6 +20,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+// TaskIDPrefix is the prefix for all task IDs in this package.
 var TaskIDPrefix = "khi.google.com/k8s-common-auditlog-v2/"
 
 // K8sAuditLogProviderRef is the task reference for the task to fetch k8s audit log.
@@ -29,39 +30,53 @@ var K8sAuditLogProviderRef = taskid.NewTaskReference[[]*log.Log](TaskIDPrefix + 
 // K8sAuditLogSerializerTaskID is the task ID for the task to serialize the k8s audit log.
 var K8sAuditLogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "k8s-auditlog-serializer")
 
-// LogSummaryGrouperTaskID is the task ID for the task to group logs for summary generation.
-var LogSummaryGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-summary-grouper")
-
-// ChangeTargetGrouperTaskID is the task ID for the task to group logs by the target resource.
-var ChangeTargetGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "change-target-grouper")
-
-// LogSummaryHistoryModifierTaskID is the task ID for the task to generate log summary from given k8s audit log.
-var LogSummaryHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-summary-history-modifier")
-
-// ConditionHistoryModifierTaskID is the task ID for the task to generate condition history.
-var ConditionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "condition-history-modifier")
-
 // SuccessLogFilterTaskID is the task ID for the task to filter success logs.
 var SuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "success-log-filter")
 
 // NonSuccessLogFilterTaskID is the task ID for the task to filter non-success logs.
 var NonSuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "non-success-log-filter")
 
+// LogSorterTaskID is the task ID for the task to sort logs by time.
+var LogSorterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-sorter")
+
+// LogSummaryGrouperTaskID is the task ID for the task to group logs for summary generation.
+var LogSummaryGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-summary-grouper")
+
 // NonSuccessLogGrouperTaskID is the task ID for the task to group non-success logs.
 var NonSuccessLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "non-success-log-grouper")
+
+// ChangeTargetGrouperTaskID is the task ID for the task to group logs by the target resource.
+var ChangeTargetGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "change-target-grouper")
+
+// NamespaceRequestHistoryModifierTaskID is the task ID for the task recording events for requests against entire resources in namespace.
+var NamespaceRequestHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "namespace-request-history-modifier")
+
+// ManifestGeneratorTaskID is the task ID for the task to generate manifests.
+var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "manifest-generator")
+
+// ResourceLifetimeTrackerTaskID is the task ID for the task to track resource lifetime.
+var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
+
+// LogSummaryHistoryModifierTaskID is the task ID for the task to generate log summary from given k8s audit log.
+var LogSummaryHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-summary-history-modifier")
 
 // NonSuccessLogHistoryModifierTaskID is the task ID for the task to generate history from non-success logs.
 var NonSuccessLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "non-success-history-modifier")
 
-// LogSorterTaskID is the task ID for the task to sort logs by time.
-var LogSorterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-sorter")
-
-var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
-
+// ResourceRevisionHistoryModifierTaskID is the task ID for the task to modify resource revision history.
 var ResourceRevisionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-revision-history-modifier")
 
+// ResourceOwnerReferenceModifierTaskID is the task ID for the task to modify resource owner reference.
 var ResourceOwnerReferenceModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-owner-reference-modifier")
 
+// EndpointResourceHistoryModifierTaskID is the task ID for the task to modify endpoint resource history.
 var EndpointResourceHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "endpoint-resource-history-modifier")
 
-var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "manifest-generator")
+// PodPhaseHistoryModifierTaskID is the task ID for the task to modify pod phase history.
+var PodPhaseHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "pod-phase-history-modifier")
+
+// ContainerHistoryModifierTaskID is the task ID for the task to modify container history.
+var ContainerHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "container-history-modifier")
+
+// ConditionHistoryModifierTaskID is the task ID for the task to generate condition history.
+var ConditionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "condition-history-modifier")

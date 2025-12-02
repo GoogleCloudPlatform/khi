@@ -19,17 +19,27 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
+// ResourceChangeLog is the log with the resource change information.
 type ResourceChangeLog struct {
-	Log                *log.Log
-	ResourceBodyYAML   string
+	// Log is the log.
+	Log *log.Log
+	// ResourceBodyYAML is the YAML representation of the resource body.
+	ResourceBodyYAML string
+	// ResourceBodyReader is the reader for the resource body.
 	ResourceBodyReader *structured.NodeReader
-	ResourceCreated    bool
-	ResourceDeleted    bool
+	// ResourceCreated is true if the resource is created.
+	ResourceCreated bool
+	// ResourceDeleted is true if the resource is deleted.
+	ResourceDeleted bool
 }
 
+// ResourceChangeLogGroup is the group of the resource change logs.
 type ResourceChangeLogGroup struct {
+	// Group is the group name.
 	Group string
-	Logs  []*ResourceChangeLog
+	// Logs is the list of the resource change logs.
+	Logs []*ResourceChangeLog
 }
 
+// ResourceChangeLogGroupMap is the map of the resource change log groups.
 type ResourceChangeLogGroupMap = map[string]*ResourceChangeLogGroup
