@@ -26,6 +26,7 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
+// NonSuccessLogHistoryModifierTask is the task to generate history from non-success logs.
 var NonSuccessLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](commonlogk8sauditv2_contract.NonSuccessLogHistoryModifierTaskID, &nonSuccessLogHistoryModifierTaskSetting{
 	subresourceMapToWriteToParent: map[string]struct{}{
 		"status":   {},
@@ -35,6 +36,7 @@ var NonSuccessLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask
 })
 
 type nonSuccessLogHistoryModifierTaskSetting struct {
+	// subresourceMapToWriteToParent is the map of subresources to write to the parent resource.
 	subresourceMapToWriteToParent map[string]struct{}
 }
 
@@ -60,6 +62,7 @@ func (e *nonSuccessLogHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx con
 
 var _ inspectiontaskbase.HistoryModifer[struct{}] = (*nonSuccessLogHistoryModifierTaskSetting)(nil)
 
+// addEventForLog adds an event for the log.
 func (e *nonSuccessLogHistoryModifierTaskSetting) addEventForLog(l *log.Log, cs *history.ChangeSet) error {
 	fieldSet := log.MustGetFieldSet(l, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	op := *fieldSet.K8sOperation

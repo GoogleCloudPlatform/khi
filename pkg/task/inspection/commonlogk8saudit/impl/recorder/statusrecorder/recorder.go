@@ -73,7 +73,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 			conditionTime = lastProbeTime
 		}
 		// Ignore if the transition time was older than the last revision
-		statusPath := resourcepath.Status(resourcepath.FromK8sOperation(*l.Operation), condition.Type)
+		statusPath := resourcepath.Condition(resourcepath.FromK8sOperation(*l.Operation), condition.Type)
 		if l.Operation.SubResourceName != "" {
 			parentOp := model.KubernetesObjectOperation{
 				APIVersion: l.Operation.APIVersion,
@@ -82,7 +82,7 @@ func recordChangeSetForLog(ctx context.Context, resourcePath string, l *commonlo
 				Name:       l.Operation.Name,
 				Verb:       l.Operation.Verb,
 			}
-			statusPath = resourcepath.Status(resourcepath.FromK8sOperation(parentOp), condition.Type)
+			statusPath = resourcepath.Condition(resourcepath.FromK8sOperation(parentOp), condition.Type)
 		}
 		tb := builder.GetTimelineBuilder(statusPath.Path)
 		latest := tb.GetLatestRevision()

@@ -315,7 +315,7 @@ func TestStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := Status(tc.statusOwner, tc.statusName)
+			result := Condition(tc.statusOwner, tc.statusName)
 			if result.Path != tc.expected {
 				t.Errorf("Status(%v,%v).Path = %v, want %v", tc.statusOwner, tc.statusName, result.Path, tc.expected)
 			}

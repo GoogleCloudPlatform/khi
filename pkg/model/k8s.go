@@ -14,6 +14,11 @@
 
 package model
 
+import (
+	"fmt"
+	"time"
+)
+
 // A kubernetes resource `.status` field
 type K8sResourceContainingStatus struct {
 	Status *K8sResourceStatus `yaml:"status"`
@@ -65,6 +70,42 @@ type K8sResourceStatusCondition struct {
 	Message            string `yaml:"message"`
 	Status             string `yaml:"status"`
 	Reason             string `yaml:"reason"`
+}
+
+func (c *K8sResourceStatusCondition) ToMap() map[string]any {
+	result := map[string]any{}
+	if c.Type != "" {
+		result["type"] = c.Type
+	}
+	if c.LastTransitionTime != "" {
+		result["lastTransitionTime"] = c.LastTransitionTime
+	}
+	if c.LastHeartbeatTime != "" {
+		result["lastHeartbeatTime"] = c.LastHeartbeatTime
+	}
+	if c.LastProbeTime != "" {
+		result["lastProbeTime"] = c.LastProbeTime
+	}
+	if c.Message != "" {
+		result["message"] = c.Message
+	}
+	if c.Status != "" {
+		result["status"] = c.Status
+	}
+	if c.Reason != "" {
+		result["reason"] = c.Reason
+	}
+	return result
+}
+
+func (c *K8sResourceStatusCondition) ProbeLikeTime() (time.Time, error) {
+	if c.LastProbeTime != "" {
+		return time.Parse(time.RFC3339, c.LastProbeTime)
+	}
+	if c.LastHeartbeatTime != "" {
+		return time.Parse(time.RFC3339, c.LastHeartbeatTime)
+	}
+	return time.Time{}, fmt.Errorf("lastProbeTime and lastHeartbeatTime are both empty")
 }
 
 type K8sTargetRef struct {

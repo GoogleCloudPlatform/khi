@@ -19,6 +19,26 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
+// Register registers all googlecloudcommon inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	return coretask.RegisterTasks(registry)
+	return coretask.RegisterTasks(registry,
+		LogSerializerTask,
+		LogSummaryGrouperTask,
+		LogSummaryHistoryModifierTask,
+		SuccessLogFilterTask,
+		NonSuccessLogFilterTask,
+		LogSorterTask,
+		ChangeTargetGrouperTask,
+		ManifestGeneratorTask,
+		ResourceLifetimeTrackerTask,
+		ResourceRevisionHistoryModifierTask,
+		NonSuccessLogGrouperTask,
+		NonSuccessLogHistoryModifierTask,
+		ConditionHistoryModifierTask,
+		ResourceOwnerReferenceModifierTask,
+		PodPhaseHistoryModifierTask,
+		EndpointResourceHistoryModifierTask,
+		ContainerHistoryModifierTask,
+		NamespaceRequestHistoryModifierTask,
+	)
 }

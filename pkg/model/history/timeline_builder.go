@@ -173,7 +173,7 @@ func (b *TimelineBuilder) sortWithoutLock() {
 		return b.timeDiffOfLogIndicces(x.Log, y.Log)
 	})
 	slices.SortStableFunc(b.timeline.Revisions, func(x, y *ResourceRevision) int {
-		return b.timeDiffOfLogIndicces(x.Log, y.Log)
+		return int(x.ChangeTime.Sub(y.ChangeTime))
 	})
 	b.sorted = true
 }
