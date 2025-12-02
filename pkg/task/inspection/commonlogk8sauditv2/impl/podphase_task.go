@@ -72,19 +72,15 @@ func (c *podPhaseTaskSetting) Process(ctx context.Context, passIndex int, event 
 
 // firstPass collects the node name of the pod.
 func (c *podPhaseTaskSetting) firstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
-
-	if event.EventTargetBodyReader != nil {
-		nodeName, found := GetNodeNameOfPod(event.EventTargetBodyReader)
-		if !found {
-			return state, nil
-		}
-		uid, _ := GetUID(event.EventTargetBodyReader)
-
-		if nodeName != "" && uid != "" {
-			state.uidToNodeNameMap[uid] = nodeName
-		}
+	nodeName, found := GetNodeNameOfPod(event.EventTargetBodyReader)
+	if !found {
+		return state, nil
 	}
+	uid, _ := GetUID(event.EventTargetBodyReader)
 
+	if nodeName != "" && uid != "" {
+		state.uidToNodeNameMap[uid] = nodeName
+	}
 	return state, nil
 }
 
