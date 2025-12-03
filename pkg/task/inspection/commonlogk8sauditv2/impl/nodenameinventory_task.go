@@ -26,12 +26,12 @@ import (
 )
 
 // NodeNameInventoryTask provides list of node name found in this inspection for later task usage.
-var NodeNameInventoryTask = commonlogk8sauditv2_contract.NodeNameInventoryBuilder.InventoryTask(&nodeNameRelationshipMergeStrategy{})
+var NodeNameInventoryTask = commonlogk8sauditv2_contract.NodeNameInventoryBuilder.InventoryTask(&nodeNameMergeStrategy{})
 
-type nodeNameRelationshipMergeStrategy struct{}
+type nodeNameMergeStrategy struct{}
 
-// Merge implements inspectiontaskbase.RelationshipMergerTaskSetting.
-func (n *nodeNameRelationshipMergeStrategy) Merge(results [][]string) ([]string, error) {
+// Merge implements inspectiontaskbase.InventoryMergerStrategy.
+func (n *nodeNameMergeStrategy) Merge(results [][]string) ([]string, error) {
 	result := map[string]struct{}{}
 	for _, r := range results {
 		for _, s := range r {
@@ -46,7 +46,7 @@ func (n *nodeNameRelationshipMergeStrategy) Merge(results [][]string) ([]string,
 	return ret, nil
 }
 
-var _ inspectiontaskbase.InventoryMergerStrategy[[]string] = (*nodeNameRelationshipMergeStrategy)(nil)
+var _ inspectiontaskbase.InventoryMergerStrategy[[]string] = (*nodeNameMergeStrategy)(nil)
 
 // NodeNameDiscoveryTask extracts node name from audit logs and node names are registered on NodeNameInventoryTask.
 var NodeNameDiscoveryTask = commonlogk8sauditv2_contract.NodeNameInventoryBuilder.DiscoveryTask(

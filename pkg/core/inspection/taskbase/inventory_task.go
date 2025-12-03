@@ -58,6 +58,7 @@ func NewInventoryTaskBuilder[T any](inventoryTaskID taskid.TaskImplementationID[
 	}
 }
 
+// InventoryTask builds a inventory task with given merger strategy.
 func (s *InventoryTaskBuilder[T]) InventoryTask(strategy InventoryMergerStrategy[T]) coretask.Task[T] {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -78,6 +79,7 @@ func (s *InventoryTaskBuilder[T]) InventoryTask(strategy InventoryMergerStrategy
 	})
 }
 
+// DiscoveryTask builds a discovery task the returned value from discovery tasks are aggregated in inventory task
 func (s *InventoryTaskBuilder[T]) DiscoveryTask(taskID taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, taskFunc ProgressReportableInspectionTaskFunc[T], labelOpts ...coretask.LabelOpt) coretask.Task[T] {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -103,10 +105,10 @@ func (s *InventoryTaskBuilder[T]) DiscoveryTask(taskID taskid.TaskImplementation
 	}, labelOpts...)
 }
 
-// InventoryMergerStrategy defines the strategy how the generated InventoryMergerTasks merges results received from multiple discovery tasks.
+// InventoryMergerStrategy defines the strategy how the generated InventoryTask merges results received from multiple discovery tasks.
 type InventoryMergerStrategy[T any] interface {
 
-	// Merge defines the logic to combine multiple results from various discovery tasks
+	// Merge defines the logic to combine multiple results from various InventoryDiscoveryTasks
 	// into a single, consolidated result.
 	Merge(results []T) (T, error)
 }
