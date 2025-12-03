@@ -103,10 +103,10 @@ func (s *InventoryTaskBuilder[T]) DiscoveryTask(taskID taskid.TaskImplementation
 	}, labelOpts...)
 }
 
-// InventoryMergerStrategy defines the strategy how the generated InventryMergerTasks merges results received from multiple discovery tasks.
+// InventoryMergerStrategy defines the strategy how the generated InventoryMergerTasks merges results received from multiple discovery tasks.
 type InventoryMergerStrategy[T any] interface {
 
-	// Merge defines the logic to combine multiple results from various InventoryDiscoveryTasks
+	// Merge defines the logic to combine multiple results from various discovery tasks
 	// into a single, consolidated result.
 	Merge(results []T) (T, error)
 }
