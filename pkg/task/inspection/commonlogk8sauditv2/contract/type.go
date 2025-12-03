@@ -113,6 +113,30 @@ func (r *ResourceIdentity) ParentIdentity() *ResourceIdentity {
 	}
 }
 
+type ContainerIdentity struct {
+	ContainerID   string
+	ContainerName string
+	PodSandboxID  string
+}
+
+func (c *ContainerIdentity) Merge(other *ContainerIdentity) *ContainerIdentity {
+	result := *c
+	if other.ContainerID != "" {
+		result.ContainerID = other.ContainerID
+	}
+	if other.ContainerName != "" {
+		result.ContainerName = other.ContainerName
+	}
+	if other.PodSandboxID != "" {
+		result.PodSandboxID = other.PodSandboxID
+	}
+	return &result
+}
+
+func (c *ContainerIdentity) ResourcePath(podNamespace string, podName string) resourcepath.ResourcePath {
+	return resourcepath.Container(podNamespace, podName, c.ContainerName)
+}
+
 // ResourceLogGroup is the group of the logs associated with k8s resource.
 type ResourceLogGroup struct {
 	// Resource is the resource identity.

@@ -19,7 +19,21 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 )
 
-var NodeNameInventoryTaskID = taskid.NewDefaultImplementationID[[]string]("node-name-inventory-merger")
+var NodeNameInventoryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-inventory")
 
 // NodeNameInventoryBuilder is the inventory tasks builder for gathering node names
 var NodeNameInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[[]string](NodeNameInventoryTaskID)
+
+type UIDToResourceIdentity = map[string]*ResourceIdentity
+
+var ResourceUIDInventoryTaskID = taskid.NewDefaultImplementationID[UIDToResourceIdentity](TaskIDPrefix + "resource-uid-inventory")
+
+// ResourceUIDInventoryBuilder is the inventory tasks builder for gathering resource uids
+var ResourceUIDInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[UIDToResourceIdentity](ResourceUIDInventoryTaskID)
+
+type ContainerIDToContainerIdentity = map[string]*ContainerIdentity
+
+var ContainerIDInventoryTaskID = taskid.NewDefaultImplementationID[ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-inventory")
+
+// ContainerIDInventoryBuilder is the inventory tasks builder for gathering the relationship between container id and container identity
+var ContainerIDInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[ContainerIDToContainerIdentity](ContainerIDInventoryTaskID)

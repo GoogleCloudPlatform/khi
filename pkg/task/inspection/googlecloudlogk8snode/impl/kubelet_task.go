@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
@@ -41,7 +42,9 @@ type kubeletNodeLogHistoryModifierSetting struct{}
 // Dependencies implements inspectiontaskbase.HistoryModifer.
 func (k *kubeletNodeLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(),
+		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(),
+		commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -58,32 +61,57 @@ func (k *kubeletNodeLogHistoryModifierSetting) LogSerializerTask() taskid.TaskRe
 // ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
 func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
-	containerdInfo := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref())
-
+	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref())
+	podIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
+	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref())
 	cs.AddEvent(componentFieldSet.ResourcePath())
+
+	original := componentFieldSet.Message.Raw()
 
 	severity, err := componentFieldSet.Message.Severity()
 	if err == nil {
 		cs.SetLogSeverity(severity)
 	}
+
+	foundPods := map[string]struct{}{}
 	summaryReplaceMap := map[string]string{}
-	podFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message.Raw(), containerdInfo.PodSandboxIDInfoFinder, false, '"')
+	podFindResults := patternfinder.FindAllWithStarterRunes(original, podIDFinder, false, '"')
 
 	for _, result := range podFindResults {
 		cs.AddEvent(result.Value.ResourcePath())
 		summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
+		foundPods[fmt.Sprintf("%s/%s", result.Value.PodNamespace, result.Value.PodName)] = struct{}{}
 	}
 
-	containerFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message.Raw(), containerdInfo.ContainerIDInfoFinder, false, '"')
+	containerFindResults := patternfinder.FindAllWithStarterRunes(original, containerIDPatternFinder, false, '"')
 	for _, result := range containerFindResults {
 		podSandboxID := result.Value.PodSandboxID
-		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, containerdInfo.PodSandboxIDInfoFinder, true)
+		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, podIDFinder, true)
 		if len(foundPod) == 0 {
 			continue
 		}
 		pod := foundPod[0].Value
 		cs.AddEvent(result.Value.ResourcePath(pod.PodNamespace, pod.PodName))
 		summaryReplaceMap[result.Value.ContainerID] = toReadableContainerName(pod.PodNamespace, pod.PodName, result.Value.ContainerName)
+	}
+
+	resourceFindResults := patternfinder.FindAllWithStarterRunes(original, resourceUIDPatternFinder, false, '"')
+	for _, result := range resourceFindResults {
+		res := result.Value
+		if res.APIVersion == "core/v1" && res.Kind == "pod" {
+			if _, ok := foundPods[fmt.Sprintf("%s/%s", res.Namespace, res.Name)]; ok {
+				continue
+			}
+		}
+		cs.AddEvent(resourcepath.ResourcePath{
+			Path:               res.ResourcePathString(),
+			ParentRelationship: enum.RelationshipChild,
+		})
+		uid, err := result.GetMatchedString(original)
+		if err != nil {
+			continue
+		}
+		summaryReplaceMap[uid] = toReadableResourceName(result.Value.APIVersion, result.Value.Kind, result.Value.Namespace, result.Value.Name)
 	}
 
 	// Kubelet specific severity adjustments
@@ -97,7 +125,7 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 	}
 	summary, err := parseDefaultSummary(componentFieldSet.Message)
 	if err != nil {
-		summary = componentFieldSet.Message.Raw()
+		summary = original
 	}
 	for k, v := range summaryReplaceMap {
 		i := strings.Index(summary, k)

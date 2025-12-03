@@ -16,9 +16,11 @@
 package googlecloudlogk8snode_contract
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
 const (
@@ -41,8 +43,8 @@ var ContainerdLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](Ta
 // ContainerdLogGroupTaskID is the ID for a task to group containerd related logs based on instance names.
 var ContainerdLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "containerd-log-group")
 
-// ContainerdIDDiscoveryTaskID is the ID for a task to extract pod sandbox IDs and container IDs for the other parsers to corelate a log to Pods or containers.
-var ContainerdIDDiscoveryTaskID = taskid.NewDefaultImplementationID[*ContainerdRelationshipRegistry](TaskIDPrefix + "containerd-id-discovery")
+// PodSandboxIDDiscoveryTaskID is the ID for a task to extract pod sandbox IDs for the other parsers to corelate a log to Pods.
+var PodSandboxIDDiscoveryTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*PodSandboxIDInfo]](TaskIDPrefix + "containerd-id-discovery")
 
 // ContainerdLogHistoryModifierTaskID is the ID for a task to add events or revisions based on containerd logs.
 var ContainerdLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "containerd-log-history-modifier")
@@ -67,3 +69,5 @@ var OtherLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](
 
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
+
+var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[commonlogk8sauditv2_contract.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")

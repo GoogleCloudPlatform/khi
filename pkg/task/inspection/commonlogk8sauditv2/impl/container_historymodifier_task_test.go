@@ -352,7 +352,7 @@ state:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			walker := &containerStateWalker{
-				containerIdentity: &containerIdentity{
+				containerIdentity: &containerStatusIdentity{
 					containerName: containerName,
 					containerType: ContainerTypeContainer,
 				},
@@ -417,7 +417,7 @@ status:
 `,
 			initialState: nil,
 			wantState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -440,7 +440,7 @@ status:
 			pass:    0,
 			nilBody: true,
 			wantState: &containerHistoryModifierTaskState{
-				containerIdentities:   map[string]*containerIdentity{},
+				containerIdentities:   map[string]*containerStatusIdentity{},
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			asserters: []testchangeset.ChangeSetAsserter{},
@@ -458,7 +458,7 @@ status:
     ready: true
 `,
 			initialState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -467,7 +467,7 @@ status:
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			wantState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -475,7 +475,7 @@ status:
 				},
 				containerStateWalkers: map[string]*containerStateWalker{
 					"main-container": {
-						containerIdentity: &containerIdentity{
+						containerIdentity: &containerStatusIdentity{
 							containerName: "main-container",
 							containerType: ContainerTypeContainer,
 						},
@@ -508,7 +508,7 @@ status:
   containerStatuses: []
 `,
 			initialState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -517,7 +517,7 @@ status:
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			wantState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -525,7 +525,7 @@ status:
 				},
 				containerStateWalkers: map[string]*containerStateWalker{
 					"main-container": {
-						containerIdentity: &containerIdentity{
+						containerIdentity: &containerStatusIdentity{
 							containerName: "main-container",
 							containerType: ContainerTypeContainer,
 						},
@@ -555,7 +555,7 @@ status:
 			pass:    1,
 			nilBody: true,
 			initialState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -564,7 +564,7 @@ status:
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			wantState: &containerHistoryModifierTaskState{
-				containerIdentities: map[string]*containerIdentity{
+				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
@@ -610,7 +610,7 @@ status:
 				t.Fatalf("Process(%d) failed: %v", tc.pass, err)
 			}
 
-			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerHistoryModifierTaskState{}, containerIdentity{}, containerStateWalker{})); diff != "" {
+			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerHistoryModifierTaskState{}, containerStatusIdentity{}, containerStateWalker{})); diff != "" {
 				t.Errorf("state mismatch (-want +got):\n%s", diff)
 			}
 

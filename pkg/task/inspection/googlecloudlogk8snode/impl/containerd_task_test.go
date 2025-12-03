@@ -19,12 +19,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -68,10 +70,10 @@ func TestProcessPodSandboxIDDiscoveryForLog(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
-			repository := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
-			processPodSandboxIDDiscoveryForLog(t.Context(), l, repository)
+			finder := patternfinder.NewNaivePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
+			processPodSandboxIDDiscoveryForLog(t.Context(), l, finder)
 
-			got, _ := repository.PodSandboxIDInfoFinder.GetPattern(podSandboxID)
+			got, _ := finder.GetPattern(podSandboxID)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("PodSandboxIDInfoFinder mismatch (-want +got):\n%s", diff)
 			}
@@ -133,7 +135,7 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 	testCases := []struct {
 		desc                   string
 		inputComponentFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
-		want                   *googlecloudlogk8snode_contract.ContainerIDInfo
+		want                   *commonlogk8sauditv2_contract.ContainerIdentity
 	}{
 		{
 			desc: "valid log message",
@@ -144,7 +146,7 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 					},
 				},
 			},
-			want: &googlecloudlogk8snode_contract.ContainerIDInfo{
+			want: &commonlogk8sauditv2_contract.ContainerIdentity{
 				PodSandboxID:  "sandbox123",
 				ContainerID:   "container123",
 				ContainerName: "container-name",
@@ -165,10 +167,10 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
-			repository := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
-			processContainerIDDiscoveryForLog(t.Context(), l, repository)
+			gotMap := commonlogk8sauditv2_contract.ContainerIDToContainerIdentity{}
+			processContainerIDDiscoveryForLog(t.Context(), l, gotMap)
 
-			got, _ := repository.ContainerIDInfoFinder.GetPattern(containerID)
+			got := gotMap[containerID]
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ContainerIDInfoFinder mismatch (-want +got):\n%s", diff)
 			}
@@ -180,13 +182,13 @@ func TestFindContainerIDInfo(t *testing.T) {
 	testCases := []struct {
 		desc    string
 		log     string
-		want    *googlecloudlogk8snode_contract.ContainerIDInfo
+		want    *commonlogk8sauditv2_contract.ContainerIdentity
 		wantErr bool
 	}{
 		{
 			desc: "valid log message",
 			log:  "CreateContainer within sandbox \"sandbox123\" for &ContainerMetadata{Name:container-name,Attempt:0,} returns container id \"container123\"",
-			want: &googlecloudlogk8snode_contract.ContainerIDInfo{
+			want: &commonlogk8sauditv2_contract.ContainerIdentity{
 				PodSandboxID:  "sandbox123",
 				ContainerName: "container-name",
 				ContainerID:   "container123",
@@ -233,29 +235,20 @@ func TestFindContainerIDInfo(t *testing.T) {
 
 func TestContainerdIDDiscoveryTask(t *testing.T) {
 	testCases := []struct {
-		desc              string
-		messages          []string
-		wantPodInfo       map[string]googlecloudlogk8snode_contract.PodSandboxIDInfo
-		wantContainerInfo map[string]googlecloudlogk8snode_contract.ContainerIDInfo
+		desc        string
+		messages    []string
+		wantPodInfo map[string]googlecloudlogk8snode_contract.PodSandboxIDInfo
 	}{
 		{
 			desc: "single pod sandbox and container discovery",
 			messages: []string{
 				`time="2025-09-29T06:34:07.973711745Z" level=info msg="RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\""`,
-				`time="2025-09-29T06:34:07.973711745Z" level=info msg="CreateContainer within sandbox \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\""`,
 			},
 			wantPodInfo: map[string]googlecloudlogk8snode_contract.PodSandboxIDInfo{
 				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
 					PodName:      "podname",
 					PodNamespace: "kube-system",
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
-				},
-			},
-			wantContainerInfo: map[string]googlecloudlogk8snode_contract.ContainerIDInfo{
-				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
-					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
-					ContainerName: "fluentbit-gke-init",
-					ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
 				},
 			},
 		},
@@ -274,7 +267,7 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 			}
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			got, _, err := inspectiontest.RunInspectionTask(ctx, ContainerdIDDiscoveryTask, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(
+			got, _, err := inspectiontest.RunInspectionTask(ctx, PodSandboxIDDiscoveryTask, inspectioncore_contract.TaskModeRun, map[string]any{}, tasktest.NewTaskDependencyValuePair(
 				googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(), logs,
 			))
 			if err != nil {
@@ -282,21 +275,12 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 			}
 
 			for k, wantPod := range tc.wantPodInfo {
-				gotPod, err := got.PodSandboxIDInfoFinder.GetPattern(k)
+				gotPod, err := got.GetPattern(k)
 				if err != nil {
 					t.Errorf("PodSandboxIDInfoFinder.GetPattern(%s) error = %v", k, err)
 				}
 				if diff := cmp.Diff(wantPod, *gotPod); diff != "" {
 					t.Errorf("PodSandboxIDInfoFinder mismatch for key %s (-want +got):\n%s", k, diff)
-				}
-			}
-			for k, wantContainer := range tc.wantContainerInfo {
-				gotContainer, err := got.ContainerIDInfoFinder.GetPattern(k)
-				if err != nil {
-					t.Errorf("ContainerIDInfoFinder.GetPattern(%s) error = %v", k, err)
-				}
-				if diff := cmp.Diff(wantContainer, *gotContainer); diff != "" {
-					t.Errorf("ContainerIDInfoFinder mismatch for key %s (-want +got):\n%s", k, diff)
 				}
 			}
 		})
@@ -311,7 +295,7 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
-		inputContainerIDInfo map[string]*googlecloudlogk8snode_contract.ContainerIDInfo
+		inputContainerIDInfo map[string]*commonlogk8sauditv2_contract.ContainerIdentity
 		asserter             []testchangeset.ChangeSetAsserter
 	}{
 		{
@@ -404,7 +388,7 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputContainerIDInfo: map[string]*googlecloudlogk8snode_contract.ContainerIDInfo{
+			inputContainerIDInfo: map[string]*commonlogk8sauditv2_contract.ContainerIdentity{
 				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
 					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 					ContainerName: "fluentbit-gke-init",
@@ -422,7 +406,7 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 					ResourcePath: "core/v1#pod#kube-system#podname#fluentbit-gke-init",
 				},
 				&testchangeset.HasLogSummary{
-					WantLogSummary: `CreateContainer within sandbox "【podname (Namespace: kube-system)】" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id "【fluentbit-gke-init (Pod:podname, Namespace:kube-system)】"`,
+					WantLogSummary: `CreateContainer within sandbox "【podname (Namespace: kube-system)】" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id "【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】"`,
 				},
 			},
 		},
@@ -431,20 +415,22 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 		logfmtParser := logutil.NewLogfmtTextParser()
 		t.Run(tc.desc, func(t *testing.T) {
 			// Mock the task results for dependencies
-			mockContainerdRelationshipRegistry := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
+			finder := patternfinder.NewNaivePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
 			if tc.inputPodIDInfo != nil {
 				for k, v := range tc.inputPodIDInfo {
-					mockContainerdRelationshipRegistry.PodSandboxIDInfoFinder.AddPattern(k, v)
+					finder.AddPattern(k, v)
 				}
 			}
+			containerIDFinder := patternfinder.NewNaivePatternFinder[*commonlogk8sauditv2_contract.ContainerIdentity]()
 			if tc.inputContainerIDInfo != nil {
 				for k, v := range tc.inputContainerIDInfo {
-					mockContainerdRelationshipRegistry.ContainerIDInfoFinder.AddPattern(k, v)
+					containerIDFinder.AddPattern(k, v)
 				}
 			}
 
 			ctx := context.Background()
-			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(), mockContainerdRelationshipRegistry)
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), finder)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 			message := logfmtParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message
 			l := log.NewLogWithFieldSetsForTest(
