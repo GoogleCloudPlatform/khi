@@ -97,15 +97,14 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 	},
 )
 
-var ContainerdIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspectionTask(googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID,
+var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspectionTask(googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*googlecloudlogk8snode_contract.ContainerdRelationshipRegistry, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (patternfinder.PatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo], error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
-		relationshipRepository := googlecloudlogk8snode_contract.NewContainerdRelationshipRegistry()
 		logs := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref())
 
 		doneLogCount := atomic.Int32{}
@@ -121,6 +120,7 @@ var ContainerdIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 
 		logChan := make(chan *log.Log)
 		errGrp, childCtx := errgroup.WithContext(ctx)
+		podSandboxIDFinder := patternfinder.NewTriePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
 		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
 			errGrp.Go(func() error {
 				for {
@@ -131,7 +131,7 @@ var ContainerdIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 						if !ok {
 							return nil
 						}
-						processPodSandboxIDDiscoveryForLog(ctx, l, relationshipRepository)
+						processPodSandboxIDDiscoveryForLog(ctx, l, podSandboxIDFinder)
 						doneLogCount.Add(1)
 					}
 				}
@@ -144,17 +144,17 @@ var ContainerdIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspecti
 		close(logChan)
 		errGrp.Wait()
 
-		return relationshipRepository, nil
+		return podSandboxIDFinder, nil
 	},
 )
 
-func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, relationshipRepository *googlecloudlogk8snode_contract.ContainerdRelationshipRegistry) {
+func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, finder patternfinder.PatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 	index, err := findPodSandboxIDInfo(componentFieldSet.Message)
 	if err != nil {
 		return
 	}
-	relationshipRepository.PodSandboxIDInfoFinder.AddPattern(index.PodSandboxID, index)
+	finder.AddPattern(index.PodSandboxID, index)
 }
 
 func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*googlecloudlogk8snode_contract.PodSandboxIDInfo, error) {
@@ -232,7 +232,7 @@ type containerdNodeLogHistoryModifierSetting struct{}
 // Dependencies implements inspectiontaskbase.HistoryModifer.
 func (c *containerdNodeLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(),
+		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(),
 	}
 }
@@ -249,7 +249,7 @@ func (c *containerdNodeLogHistoryModifierSetting) LogSerializerTask() taskid.Tas
 
 // ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
 func (c *containerdNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	containerdInfo := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref())
+	podSandboxIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref())
 	nodeLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 
@@ -259,18 +259,19 @@ func (c *containerdNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx con
 	if err != nil {
 		return struct{}{}, err
 	}
+	raw := nodeLogFieldSet.Message.Raw()
 	summaryReplaceMap := map[string]string{}
-	podFindResults := patternfinder.FindAllWithStarterRunes(msg, containerdInfo.PodSandboxIDInfoFinder, false, '"', '=')
+	podFindResults := patternfinder.FindAllWithStarterRunes(raw, podSandboxIDFinder, false, '"', '=')
 
 	for _, result := range podFindResults {
 		cs.AddEvent(result.Value.ResourcePath())
 		summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
 	}
 
-	containerFindResults := patternfinder.FindAllWithStarterRunes(msg, containerIDPatternFinder, false, '"', '=')
+	containerFindResults := patternfinder.FindAllWithStarterRunes(raw, containerIDPatternFinder, false, '"', '=')
 	for _, result := range containerFindResults {
 		podSandboxID := result.Value.PodSandboxID
-		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, containerdInfo.PodSandboxIDInfoFinder, true)
+		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, podSandboxIDFinder, true)
 		if len(foundPod) == 0 {
 			continue
 		}

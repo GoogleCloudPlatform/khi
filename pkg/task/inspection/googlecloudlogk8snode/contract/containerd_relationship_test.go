@@ -32,13 +32,3 @@ func TestPodSandboxIDInfo_ResourcePath(t *testing.T) {
 		t.Errorf("ResourcePath() mismatch (-want +got):\n%s", diff)
 	}
 }
-
-func TestNewContainerdRelationshipRegistry(t *testing.T) {
-	registry := NewContainerdRelationshipRegistry()
-	if registry == nil {
-		t.Fatal("NewContainerdRelationshipRegistry() returned nil")
-	}
-	if registry.PodSandboxIDInfoFinder == nil {
-		t.Error("PodSandboxIDInfoFinder is nil")
-	}
-}

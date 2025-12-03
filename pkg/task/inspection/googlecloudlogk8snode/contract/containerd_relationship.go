@@ -15,7 +15,6 @@
 package googlecloudlogk8snode_contract
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 )
 
@@ -27,14 +26,4 @@ type PodSandboxIDInfo struct {
 
 func (p *PodSandboxIDInfo) ResourcePath() resourcepath.ResourcePath {
 	return resourcepath.Pod(p.PodNamespace, p.PodName)
-}
-
-type ContainerdRelationshipRegistry struct {
-	PodSandboxIDInfoFinder patternfinder.PatternFinder[*PodSandboxIDInfo]
-}
-
-func NewContainerdRelationshipRegistry() *ContainerdRelationshipRegistry {
-	return &ContainerdRelationshipRegistry{
-		PodSandboxIDInfoFinder: patternfinder.NewTriePatternFinder[*PodSandboxIDInfo](),
-	}
 }
