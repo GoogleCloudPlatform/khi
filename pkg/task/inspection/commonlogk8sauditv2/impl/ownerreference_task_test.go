@@ -179,7 +179,7 @@ metadata:
 				Log:                   l,
 				EventType:             commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
 				EventTargetBodyReader: reader,
-				EventTargetResource: &commonlogk8sauditv2_contract.K8sResource{
+				EventTargetResource: &commonlogk8sauditv2_contract.ResourceIdentity{
 					APIVersion: "core/v1",
 					Kind:       "pod",
 					Namespace:  podNamespace,

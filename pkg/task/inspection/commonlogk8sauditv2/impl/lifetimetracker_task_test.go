@@ -172,7 +172,7 @@ metadata:
 				reader = structured.NewNodeReader(node)
 			}
 			lifeTimeTracker := &lifeTimeTrackerTaskSetting{}
-			resourceLog := &commonlogk8sauditv2_contract.ResourceChangeLog{
+			resourceLog := &commonlogk8sauditv2_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyReader: reader,
 				ResourceBodyYAML:   tc.resourceBodyYAML,
@@ -408,7 +408,7 @@ metadata:
 					}
 					reader = structured.NewNodeReader(node)
 				}
-				resourceLog := &commonlogk8sauditv2_contract.ResourceChangeLog{
+				resourceLog := &commonlogk8sauditv2_contract.ResourceManifestLog{
 					Log:                logObj,
 					ResourceBodyReader: reader,
 					ResourceBodyYAML:   s.resourceBodyYAML,

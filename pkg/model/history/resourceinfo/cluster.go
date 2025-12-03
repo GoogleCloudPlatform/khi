@@ -15,11 +15,7 @@
 package resourceinfo
 
 import (
-	"sync"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/noderesource"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
-	v1 "k8s.io/api/core/v1"
 )
 
 // NodeResourceIDType is enums to represent the type of ids.
@@ -34,42 +30,15 @@ const (
 // Cluster stores resource information(node name, Pod IP,Host IP...etc) used from another parser.
 // This struct must modify the own fields in thread safe.
 type Cluster struct {
-	lock      sync.Mutex
-	nodeNames map[string]struct{}
-	IPs       *resourcelease.ResourceLeaseHistory[*resourcelease.K8sResourceLeaseHolder]
+	IPs *resourcelease.ResourceLeaseHistory[*resourcelease.K8sResourceLeaseHolder]
 	// records lease history of NEG id to ServiceNetworkEndpointGroup
 	NEGs *resourcelease.ResourceLeaseHistory[*resourcelease.K8sResourceLeaseHolder]
-
-	NodeResourceLogBinder *noderesource.LogBinder
-	ContainerStatuses     *ContainerStatuses
 }
 
 func NewClusterResourceInfo() *Cluster {
 	ips := resourcelease.NewResourceLeaseHistory[*resourcelease.K8sResourceLeaseHolder]()
 	return &Cluster{
-		lock:                  sync.Mutex{},
-		nodeNames:             map[string]struct{}{},
-		IPs:                   ips,
-		NEGs:                  resourcelease.NewResourceLeaseHistory[*resourcelease.K8sResourceLeaseHolder](),
-		NodeResourceLogBinder: noderesource.NewLogBinder(),
-		ContainerStatuses: &ContainerStatuses{
-			lastObservedStatus: make(map[string]v1.ContainerStatus),
-		},
+		IPs:  ips,
+		NEGs: resourcelease.NewResourceLeaseHistory[*resourcelease.K8sResourceLeaseHolder](),
 	}
-}
-
-// AddNode registeres the node name
-func (c *Cluster) AddNode(nodeName string) {
-	defer c.lock.Unlock()
-	c.lock.Lock()
-	c.nodeNames[nodeName] = struct{}{}
-}
-
-// GetNodes returns copy of the list of node names
-func (c *Cluster) GetNodes() []string {
-	result := []string{}
-	for key := range c.nodeNames {
-		result = append(result, key)
-	}
-	return result
 }

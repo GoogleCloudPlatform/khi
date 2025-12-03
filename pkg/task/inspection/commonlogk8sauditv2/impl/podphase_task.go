@@ -16,8 +16,6 @@ package commonlogk8sauditv2_impl
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -148,7 +146,7 @@ func (c *podPhaseTaskSetting) PassCount() int {
 	return 2
 }
 
-func (c *podPhaseTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap] {
+func (c *podPhaseTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
@@ -160,16 +158,17 @@ func (c *podPhaseTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
 	return commonlogk8sauditv2_contract.PodPhaseHistoryModifierTaskID
 }
 
-func (c *podPhaseTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceChangeLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (c *podPhaseTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		// core/v1#pod#namespace#podnanme
-		if strings.HasPrefix(group.Group, "core/v1#pod") && strings.Count(group.Group, "#") == 3 {
-			result = append(result, commonlogk8sauditv2_contract.ResourcePair{
-				TargetGroup: group.Group,
-				SourceGroup: fmt.Sprintf("%s#binding", group.Group),
-			})
+		if group.Resource.Type() != commonlogk8sauditv2_contract.Resource || group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
+			continue
 		}
+		result = append(result, commonlogk8sauditv2_contract.ResourcePair{
+			TargetGroup: group.Resource,
+			SourceGroup: group.Resource.SubresourceIdentity("binding"),
+		})
 	}
 	return result, nil
 }

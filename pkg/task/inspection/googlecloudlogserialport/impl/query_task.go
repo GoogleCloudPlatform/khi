@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -79,7 +78,7 @@ func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTask
 	return []taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
-		commonlogk8sauditv2_contract.K8sAuditLogParserTailRef,
+		commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref(),
 	}
 }
 
@@ -97,9 +96,9 @@ func (s *serialPortLoggingFilterTaskSetting) Description() *googlecloudcommon_co
 
 // LogFilters implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
+	nodeNames := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
-	return GenerateSerialPortQuery(taskMode, builder.ClusterResource.GetNodes(), nodeNameSubstrings), nil
+	return GenerateSerialPortQuery(taskMode, nodeNames, nodeNameSubstrings), nil
 }
 
 // DefaultResourceNames implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.

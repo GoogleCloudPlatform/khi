@@ -17,7 +17,6 @@ package commonlogk8sauditv2_impl
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -81,7 +80,7 @@ func (c *containerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTas
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap] {
+func (c *containerHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
@@ -185,13 +184,13 @@ func (c *containerHistoryModifierTaskSetting) TaskID() taskid.TaskImplementation
 }
 
 // ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceChangeLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (c *containerHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	results := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		// core/v1#pod#namespace#podnanme
-		if strings.HasPrefix(group.Group, "core/v1#pod") {
+		if group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod" {
 			results = append(results, commonlogk8sauditv2_contract.ResourcePair{
-				TargetGroup: group.Group,
+				TargetGroup: group.Resource,
 			})
 		}
 	}

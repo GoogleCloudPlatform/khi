@@ -17,7 +17,6 @@ package commonlogk8sauditv2_impl
 import (
 	"context"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -69,15 +68,14 @@ func (c *conditionHistoryModifierTaskSetting) TaskID() taskid.TaskImplementation
 }
 
 // ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *conditionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceChangeLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (c *conditionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
-		if strings.HasSuffix(group.Group, "@namespace") {
-			continue
+		if group.Resource.Type() == commonlogk8sauditv2_contract.Resource {
+			result = append(result, commonlogk8sauditv2_contract.ResourcePair{
+				TargetGroup: group.Resource,
+			})
 		}
-		result = append(result, commonlogk8sauditv2_contract.ResourcePair{
-			TargetGroup: group.Group,
-		})
 	}
 	return result, nil
 }
@@ -112,7 +110,7 @@ func (c *conditionHistoryModifierTaskSetting) processSecondPass(ctx context.Cont
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	ownerPath := resourcepath.ResourcePath{
-		Path:               event.EventTargetResource.ResourcePath(),
+		Path:               event.EventTargetResource.ResourcePathString(),
 		ParentRelationship: enum.RelationshipChild,
 	}
 	var resourceContainingStatus model.K8sResourceContainingStatus
@@ -194,7 +192,7 @@ func (c *conditionHistoryModifierTaskSetting) PassCount() int {
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (c *conditionHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap] {
+func (c *conditionHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 

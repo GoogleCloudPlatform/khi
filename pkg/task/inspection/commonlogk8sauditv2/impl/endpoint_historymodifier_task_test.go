@@ -444,9 +444,9 @@ metadata:
 				Log:                   l,
 				EventType:             tc.eventType,
 				EventTargetBodyReader: reader,
-				EventTargetResource: &commonlogk8sauditv2_contract.K8sResource{
+				EventTargetResource: &commonlogk8sauditv2_contract.ResourceIdentity{
 					APIVersion: "discovery.k8s.io/v1",
-					Kind:       "EndpointSlice",
+					Kind:       "endpointslice",
 					Namespace:  "default",
 					Name:       "my-endpoint",
 				},

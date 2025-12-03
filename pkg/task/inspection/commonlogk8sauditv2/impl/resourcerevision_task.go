@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -52,7 +51,7 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) Dependencies() []taskid.Unt
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap] {
+func (r *ResourceRevisionHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
@@ -86,27 +85,24 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) TaskID() taskid.TaskImpleme
 }
 
 // ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceChangeLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (r *ResourceRevisionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
-		if strings.HasSuffix(group.Group, "@namespace") {
+		switch group.Resource.Type() {
+		case commonlogk8sauditv2_contract.Namespace:
 			continue
-		}
-		// apiVersion#kind#namespace#name#subresource
-		switch strings.Count(group.Group, "#") {
-		case 3:
+		case commonlogk8sauditv2_contract.Resource:
 			result = append(result, commonlogk8sauditv2_contract.ResourcePair{
-				TargetGroup: group.Group,
+				TargetGroup: group.Resource,
 			})
-		case 4:
-			lastSharpIndex := strings.LastIndex(group.Group, "#")
+			continue
+		case commonlogk8sauditv2_contract.Subresource:
 			result = append(result, commonlogk8sauditv2_contract.ResourcePair{
-				SourceGroup: group.Group[:lastSharpIndex],
-				TargetGroup: group.Group,
+				SourceGroup: group.Resource.ParentIdentity(),
+				TargetGroup: group.Resource,
 			})
 		default:
-			slog.WarnContext(ctx, "invalid resource path count. skipping them to process", "path", group.Group)
-			continue
+			panic(fmt.Sprintf("unknown resource type: %v", group.Resource.Type()))
 		}
 	}
 	return result, nil
@@ -127,7 +123,7 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) handleParentChangeForSubres
 	switch event.EventType {
 	case commonlogk8sauditv2_contract.ChangeEventTypeSourceDeletion:
 		path := resourcepath.ResourcePath{
-			Path:               event.EventTargetResource.ResourcePath(),
+			Path:               event.EventTargetResource.ResourcePathString(),
 			ParentRelationship: enum.RelationshipChild,
 		}
 		commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
@@ -155,7 +151,7 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) handleTargetChange(ctx cont
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	resourcePath := resourcepath.ResourcePath{
-		Path:               event.EventTargetResource.ResourcePath(),
+		Path:               event.EventTargetResource.ResourcePathString(),
 		ParentRelationship: enum.RelationshipChild,
 	}
 	if prevGroupData == nil {

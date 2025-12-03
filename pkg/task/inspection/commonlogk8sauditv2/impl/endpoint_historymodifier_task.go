@@ -324,12 +324,12 @@ func (e *endpointResourceHistoryModifierTaskSetting) TaskID() taskid.TaskImpleme
 }
 
 // ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (e *endpointResourceHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceChangeLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (e *endpointResourceHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
-		if strings.HasPrefix(group.Group, "discovery.k8s.io/v1#endpointslice") {
+		if group.Resource.APIVersion == "discovery.k8s.io/v1" && group.Resource.Kind == "endpointslice" {
 			result = append(result, commonlogk8sauditv2_contract.ResourcePair{
-				TargetGroup: group.Group,
+				TargetGroup: group.Resource,
 			})
 		}
 	}
@@ -342,7 +342,7 @@ func (e *endpointResourceHistoryModifierTaskSetting) Dependencies() []taskid.Unt
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (e *endpointResourceHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap] {
+func (e *endpointResourceHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 

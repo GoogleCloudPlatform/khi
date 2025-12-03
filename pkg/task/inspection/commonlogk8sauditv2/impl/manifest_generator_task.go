@@ -42,30 +42,27 @@ var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. A
 var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8sauditv2_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
 	commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID.Ref(),
 	googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref(),
-}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceChangeLogGroupMap, error) {
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceManifestLogGroupMap, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
-		return map[string]*commonlogk8sauditv2_contract.ResourceChangeLogGroup{}, nil
+		return map[string]*commonlogk8sauditv2_contract.ResourceManifestLogGroup{}, nil
 	}
 
 	logGroups := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID.Ref())
 	mergeConfigRegistry := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref())
-	result := commonlogk8sauditv2_contract.ResourceChangeLogGroupMap{}
+	result := commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{}
 	resultLock := sync.Mutex{}
 
 	grp, childCtx := errgroup.WithContext(ctx)
 	grp.SetLimit(runtime.GOMAXPROCS(0))
 
-	for _, group := range logGroups {
+	for path, group := range logGroups {
+		path := path
+		group := group
 		grp.Go(func() error {
-			resourceLogs := []*commonlogk8sauditv2_contract.ResourceChangeLog{}
-			resourceName := ""
-			resourceNameSplitted := strings.Split(group.Group, "#")
-			if len(resourceNameSplitted) >= 4 {
-				resourceName = resourceNameSplitted[3]
-			}
+			resourceLogs := []*commonlogk8sauditv2_contract.ResourceManifestLog{}
 			generator := groupManifestGenerator{
 				mergeConfigRegistry: mergeConfigRegistry,
-				resourceName:        resourceName,
+				resourceName:        group.Resource.Name,
 			}
 			for _, l := range group.Logs {
 				select {
@@ -81,9 +78,9 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 			}
 			resultLock.Lock()
 			defer resultLock.Unlock()
-			result[group.Group] = &commonlogk8sauditv2_contract.ResourceChangeLogGroup{
-				Group: group.Group,
-				Logs:  resourceLogs,
+			result[path] = &commonlogk8sauditv2_contract.ResourceManifestLogGroup{
+				Resource: group.Resource,
+				Logs:     resourceLogs,
 			}
 			return nil
 		})
@@ -108,7 +105,7 @@ type groupManifestGenerator struct {
 }
 
 // Process processes the log to generate manifest.
-func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*commonlogk8sauditv2_contract.ResourceChangeLog, error) {
+func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*commonlogk8sauditv2_contract.ResourceManifestLog, error) {
 	if g.prevRevisionReader == nil {
 		g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
 	}
@@ -128,7 +125,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	}
 
 	if currentBodyReader == nil {
-		return &commonlogk8sauditv2_contract.ResourceChangeLog{
+		return &commonlogk8sauditv2_contract.ResourceManifestLog{
 			Log:                l,
 			ResourceBodyYAML:   bodyPlaceholderForMetadataLevelAuditLog,
 			ResourceBodyReader: nil,
@@ -138,7 +135,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	if fieldSet.K8sOperation.Verb == enum.RevisionVerbDeleteCollection {
 		items, err := currentBodyReader.GetReader("items")
 		if err != nil {
-			return &commonlogk8sauditv2_contract.ResourceChangeLog{
+			return &commonlogk8sauditv2_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
@@ -176,7 +173,7 @@ kind: %s
 			}
 		}
 		if !found {
-			return &commonlogk8sauditv2_contract.ResourceChangeLog{
+			return &commonlogk8sauditv2_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyYAML:   bodyPlaceholderForMetadataLevelAuditLog,
 				ResourceBodyReader: nil,
@@ -202,7 +199,7 @@ kind: %s
 		var mergedYAML string
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("failed to merge resource body\n%s", err.Error()))
-			return &commonlogk8sauditv2_contract.ResourceChangeLog{
+			return &commonlogk8sauditv2_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
@@ -216,7 +213,7 @@ kind: %s
 			mergedYAML = removeAtType(string(mergedYAMLRaw))
 			g.prevRevisionBody = mergedYAML
 			g.prevRevisionReader = mergedNodeReader
-			return &commonlogk8sauditv2_contract.ResourceChangeLog{
+			return &commonlogk8sauditv2_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
@@ -226,7 +223,7 @@ kind: %s
 		apiVersion := currentBodyReader.ReadStringOrDefault("apiVersion", "")
 		kind := currentBodyReader.ReadStringOrDefault("kind", "")
 		if apiVersion == "meta.k8s.io/__internal" && kind == "DeleteOptions" {
-			return &commonlogk8sauditv2_contract.ResourceChangeLog{
+			return &commonlogk8sauditv2_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
@@ -234,7 +231,7 @@ kind: %s
 		}
 		g.prevRevisionBody = currentRevisionBody
 		g.prevRevisionReader = currentBodyReader
-		return &commonlogk8sauditv2_contract.ResourceChangeLog{
+		return &commonlogk8sauditv2_contract.ResourceManifestLog{
 			Log:                l,
 			ResourceBodyYAML:   g.prevRevisionBody,
 			ResourceBodyReader: g.prevRevisionReader,

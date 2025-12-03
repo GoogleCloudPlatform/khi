@@ -16,7 +16,6 @@ package commonlogk8sauditv2_impl
 
 import (
 	"context"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -45,11 +44,11 @@ var NamespaceRequestHistoryModifierTask = inspectiontaskbase.NewProgressReportab
 
 	changedPaths := map[string]struct{}{}
 	for _, group := range logs {
-		if strings.HasSuffix(group.Group, "@namespace") {
+		if group.Resource.Type() == commonlogk8sauditv2_contract.Namespace {
 			for _, l := range group.Logs {
 				cs := history.NewChangeSet(l)
 				cs.AddEvent(resourcepath.ResourcePath{
-					Path:               group.Group,
+					Path:               group.Resource.ResourcePathString(),
 					ParentRelationship: enum.RelationshipChild,
 				})
 				cp, err := cs.FlushToHistory(builder)
