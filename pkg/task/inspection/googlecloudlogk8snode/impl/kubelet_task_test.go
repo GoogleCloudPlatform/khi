@@ -19,10 +19,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
@@ -34,7 +36,7 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
-		inputContainerIDInfo map[string]*googlecloudlogk8snode_contract.ContainerIDInfo
+		inputContainerIDInfo map[string]*commonlogk8sauditv2_contract.ContainerIdentity
 		asserter             []testchangeset.ChangeSetAsserter
 	}{
 		{
@@ -77,7 +79,7 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputContainerIDInfo: map[string]*googlecloudlogk8snode_contract.ContainerIDInfo{
+			inputContainerIDInfo: map[string]*commonlogk8sauditv2_contract.ContainerIdentity{
 				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
 					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 					ContainerName: "fluentbit-gke-init",
@@ -185,14 +187,16 @@ func TestKubeletLogHistoryModifier(t *testing.T) {
 					mockContainerdRelationshipRegistry.PodSandboxIDInfoFinder.AddPattern(k, v)
 				}
 			}
+			containerIDFinder := patternfinder.NewTriePatternFinder[*commonlogk8sauditv2_contract.ContainerIdentity]()
 			if tc.inputContainerIDInfo != nil {
 				for k, v := range tc.inputContainerIDInfo {
-					mockContainerdRelationshipRegistry.ContainerIDInfoFinder.AddPattern(k, v)
+					containerIDFinder.AddPattern(k, v)
 				}
 			}
 
 			ctx := context.Background()
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(), mockContainerdRelationshipRegistry)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 			klogParser := logutil.NewKLogTextParser(true)
 			message := klogParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message

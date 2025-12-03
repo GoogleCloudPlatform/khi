@@ -21,17 +21,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestContainerIDInfo_ResourcePath(t *testing.T) {
-	info := &ContainerIDInfo{
-		ContainerName: "test-container",
-	}
-	want := resourcepath.Container("test-namespace", "test-pod", "test-container")
-	got := info.ResourcePath("test-namespace", "test-pod")
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("ResourcePath() mismatch (-want +got):\n%s", diff)
-	}
-}
-
 func TestPodSandboxIDInfo_ResourcePath(t *testing.T) {
 	info := &PodSandboxIDInfo{
 		PodNamespace: "test-namespace",
@@ -51,8 +40,5 @@ func TestNewContainerdRelationshipRegistry(t *testing.T) {
 	}
 	if registry.PodSandboxIDInfoFinder == nil {
 		t.Error("PodSandboxIDInfoFinder is nil")
-	}
-	if registry.ContainerIDInfoFinder == nil {
-		t.Error("ContainerIDInfoFinder is nil")
 	}
 }

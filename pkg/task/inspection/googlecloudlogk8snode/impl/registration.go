@@ -118,5 +118,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		OtherLogGroupTask,
 		OtherLogHistoryModifierTask,
 		TailTask,
+		ContainerIDDiscoveryTask,
 	)
 }

@@ -43,5 +43,11 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 		NodeNameInventoryTask,
 		NodeNameDiscoveryTask,
+		ResourceUIDInventoryTask,
+		ResourceUIDDiscoveryTask,
+		UIDPatternFinderTask,
+		ContainerIDInventoryTask,
+		ContainerIDDiscoveryTask,
+		ContainerIDPatternFinderTask,
 	)
 }

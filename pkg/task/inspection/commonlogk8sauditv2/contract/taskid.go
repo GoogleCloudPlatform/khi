@@ -15,6 +15,7 @@
 package commonlogk8sauditv2_contract
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -86,3 +87,15 @@ var ConditionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}]
 
 // NodeNameDiscoveryTaskID is the task ID for extracting node names from audit logs.
 var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-discovery")
+
+// ResourceUIDDiscoveryTaskID is the task ID for extracting resource uids from audit logs.
+var ResourceUIDDiscoveryTaskID = taskid.NewDefaultImplementationID[UIDToResourceIdentity](TaskIDPrefix + "resource-uid-discovery")
+
+// ResourceUIDPatternFinderTaskID is the task ID to build the PatternFinder from aggregated UIDs obtained from the inventory task.
+var ResourceUIDPatternFinderTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*ResourceIdentity]](TaskIDPrefix + "resource-uid-pattern-finder")
+
+// ContainerIDDiscoveryTaskID is the task ID for extracting container ids from audit logs.
+var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")
+
+// ContainerIDPatternFinderTaskID is the task ID to build the PatternFinder from aggregated container ids obtained from the inventory task.
+var ContainerIDPatternFinderTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*ContainerIdentity]](TaskIDPrefix + "container-id-pattern-finder")

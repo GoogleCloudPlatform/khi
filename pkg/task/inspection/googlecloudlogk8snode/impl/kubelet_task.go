@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
@@ -42,6 +43,7 @@ type kubeletNodeLogHistoryModifierSetting struct{}
 func (k *kubeletNodeLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -58,6 +60,7 @@ func (k *kubeletNodeLogHistoryModifierSetting) LogSerializerTask() taskid.TaskRe
 // ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
 func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref())
 	containerdInfo := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ContainerdIDDiscoveryTaskID.Ref())
 
 	cs.AddEvent(componentFieldSet.ResourcePath())
@@ -74,7 +77,7 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 		summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
 	}
 
-	containerFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message.Raw(), containerdInfo.ContainerIDInfoFinder, false, '"')
+	containerFindResults := patternfinder.FindAllWithStarterRunes(componentFieldSet.Message.Raw(), containerIDPatternFinder, false, '"')
 	for _, result := range containerFindResults {
 		podSandboxID := result.Value.PodSandboxID
 		foundPod := patternfinder.FindAllWithStarterRunes(podSandboxID, containerdInfo.PodSandboxIDInfoFinder, true)

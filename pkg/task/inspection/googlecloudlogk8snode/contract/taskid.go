@@ -19,6 +19,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
 const (
@@ -67,3 +68,5 @@ var OtherLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](
 
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
+
+var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[commonlogk8sauditv2_contract.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")

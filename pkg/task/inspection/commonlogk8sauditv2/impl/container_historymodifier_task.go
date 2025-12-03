@@ -40,7 +40,7 @@ const (
 	ContainerTypeEphemeral containerType = "ephemeral"
 )
 
-type containerIdentity struct {
+type containerStatusIdentity struct {
 	// containerName is the name of the container.
 	containerName string
 	// containerType is the type of the container.
@@ -48,7 +48,7 @@ type containerIdentity struct {
 }
 
 // String returns the string representation of the container identity.
-func (c *containerIdentity) String() string {
+func (c *containerStatusIdentity) String() string {
 	switch c.containerType {
 	case ContainerTypeContainer:
 		return c.containerName
@@ -66,7 +66,7 @@ var ContainerHistoryModifierTask = commonlogk8sauditv2_contract.NewManifestHisto
 
 type containerHistoryModifierTaskState struct {
 	// containerIdentities is the map of container identities.
-	containerIdentities map[string]*containerIdentity
+	containerIdentities map[string]*containerStatusIdentity
 	// containerStateWalkers is the map of container state walkers.
 	containerStateWalkers map[string]*containerStateWalker
 }
@@ -98,7 +98,7 @@ func (c *containerHistoryModifierTaskSetting) PassCount() int {
 func (c *containerHistoryModifierTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerHistoryModifierTaskState) (*containerHistoryModifierTaskState, error) {
 	if state == nil {
 		state = &containerHistoryModifierTaskState{
-			containerIdentities:   map[string]*containerIdentity{},
+			containerIdentities:   map[string]*containerStatusIdentity{},
 			containerStateWalkers: map[string]*containerStateWalker{},
 		}
 	}
@@ -124,7 +124,7 @@ func (c *containerHistoryModifierTaskSetting) processFirstPass(ctx context.Conte
 			for _, status := range statuses.Children() {
 				name, err := status.ReadString("name")
 				if err == nil {
-					identity := &containerIdentity{
+					identity := &containerStatusIdentity{
 						containerName: name,
 						containerType: containerType,
 					}
@@ -148,7 +148,7 @@ func (c *containerHistoryModifierTaskSetting) processSecondPass(ctx context.Cont
 			for _, status := range statuses.Children() {
 				name, err := status.ReadString("name")
 				if err == nil {
-					identity := containerIdentity{
+					identity := containerStatusIdentity{
 						containerName: name,
 						containerType: containerType,
 					}
@@ -201,7 +201,7 @@ var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[*container
 
 type containerStateWalker struct {
 	// containerIdentity is the identity of the container.
-	containerIdentity *containerIdentity
+	containerIdentity *containerStatusIdentity
 	// podNamespace is the namespace of the pod.
 	podNamespace string
 	// podName is the name of the pod.
