@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -67,7 +66,7 @@ func isPod(op *model.KubernetesObjectOperation) bool {
 }
 
 // DetectLifetimeLogEvent detects if the log is the timing to create or delete the timeline resource and update the log field.
-func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context, l *commonlogk8sauditv2_contract.ResourceChangeLog, prevGroupData *lifeTimeTrackerGroupState) (*lifeTimeTrackerGroupState, error) {
+func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context, l *commonlogk8sauditv2_contract.ResourceManifestLog, prevGroupData *lifeTimeTrackerGroupState) (*lifeTimeTrackerGroupState, error) {
 	k8sFieldSet := log.MustGetFieldSet(l.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	isFirst := false
 	if prevGroupData == nil {
@@ -169,16 +168,16 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 }
 
 // ResourceLifetimeTrackerTask is the task to track the lifetime of resources.
-var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap](
+var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap](
 	commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID,
 	[]taskid.UntypedTaskReference{
 		commonlogk8sauditv2_contract.ManifestGeneratorTaskID.Ref(),
 		commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceChangeLogGroupMap, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceManifestLogGroupMap, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return commonlogk8sauditv2_contract.ResourceChangeLogGroupMap{}, nil
+			return commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{}, nil
 		}
 
 		groupedLogs := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ManifestGeneratorTaskID.Ref())
@@ -208,7 +207,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 			pool.Run(func() {
 				var groupData *lifeTimeTrackerGroupState
 				// Lifetimetracker doesn't handle namespace resources.
-				if strings.HasSuffix(group.Group, "@namespace") {
+				if group.Resource.Type() == commonlogk8sauditv2_contract.Namespace {
 					return
 				}
 				for _, l := range group.Logs {

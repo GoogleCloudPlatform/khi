@@ -40,5 +40,8 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		EndpointResourceHistoryModifierTask,
 		ContainerHistoryModifierTask,
 		NamespaceRequestHistoryModifierTask,
+
+		NodeNameInventoryTask,
+		NodeNameDiscoveryTask,
 	)
 }

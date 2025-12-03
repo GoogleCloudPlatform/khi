@@ -31,6 +31,7 @@ var OSSK8sAuditLogFieldExtractorTask = inspectiontaskbase.NewFieldSetReadTask(
 	ossclusterk8s_contract.OSSK8sAuditLogProviderTaskID,
 	ossclusterk8s_contract.NonEventAuditLogFilterTaskID.Ref(),
 	[]log.FieldSetReader{(&ossclusterk8s_contract.OSSK8sAuditLogFieldSetReader{})},
+	inspectioncore_contract.InspectionTypeLabel(ossclusterk8s_contract.InspectionTypeID),
 )
 
 var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
@@ -45,6 +46,8 @@ var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		commonlogk8sauditv2_contract.PodPhaseHistoryModifierTaskID.Ref(),
 		commonlogk8sauditv2_contract.EndpointResourceHistoryModifierTaskID.Ref(),
 		commonlogk8sauditv2_contract.ContainerHistoryModifierTaskID.Ref(),
+
+		commonlogk8sauditv2_contract.NodeNameDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

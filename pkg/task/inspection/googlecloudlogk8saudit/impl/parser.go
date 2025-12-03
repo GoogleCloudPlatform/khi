@@ -34,6 +34,7 @@ var GCPK8sAuditLogCommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadT
 	[]log.FieldSetReader{
 		&googlecloudlogk8saudit_contract.GCPK8sAuditLogFieldSetReader{},
 	},
+	inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...),
 )
 
 var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
@@ -48,6 +49,8 @@ var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		commonlogk8sauditv2_contract.PodPhaseHistoryModifierTaskID.Ref(),
 		commonlogk8sauditv2_contract.EndpointResourceHistoryModifierTaskID.Ref(),
 		commonlogk8sauditv2_contract.ContainerHistoryModifierTaskID.Ref(),
+
+		commonlogk8sauditv2_contract.NodeNameDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

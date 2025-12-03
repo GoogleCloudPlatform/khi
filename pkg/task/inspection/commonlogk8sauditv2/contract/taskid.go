@@ -49,16 +49,16 @@ var LogSummaryGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskba
 var NonSuccessLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "non-success-log-grouper")
 
 // ChangeTargetGrouperTaskID is the task ID for the task to group logs by the target resource.
-var ChangeTargetGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "change-target-grouper")
+var ChangeTargetGrouperTaskID = taskid.NewDefaultImplementationID[ResourceLogGroupMap](TaskIDPrefix + "change-target-grouper")
 
 // NamespaceRequestHistoryModifierTaskID is the task ID for the task recording events for requests against entire resources in namespace.
 var NamespaceRequestHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "namespace-request-history-modifier")
 
 // ManifestGeneratorTaskID is the task ID for the task to generate manifests.
-var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "manifest-generator")
+var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "manifest-generator")
 
 // ResourceLifetimeTrackerTaskID is the task ID for the task to track resource lifetime.
-var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceChangeLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
+var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
 
 // LogSummaryHistoryModifierTaskID is the task ID for the task to generate log summary from given k8s audit log.
 var LogSummaryHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-summary-history-modifier")
@@ -83,3 +83,6 @@ var ContainerHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}]
 
 // ConditionHistoryModifierTaskID is the task ID for the task to generate condition history.
 var ConditionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "condition-history-modifier")
+
+// NodeNameDiscoveryTaskID is the task ID for extracting node names from audit logs.
+var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-discovery")

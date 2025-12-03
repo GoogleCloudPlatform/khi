@@ -49,9 +49,6 @@ func (r *resourceOwnerReferenceModifierTaskSetting) Process(ctx context.Context,
 		return struct{}{}, nil
 	}
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
-	if k8sFieldSet.K8sOperation.Name == "" {
-		return struct{}{}, nil
-	}
 	for _, ownerReferenceReader := range ownerReferencesReaders.Children() {
 		kind, err := ownerReferenceReader.ReadString("kind")
 		if err != nil {
@@ -74,7 +71,7 @@ func (r *resourceOwnerReferenceModifierTaskSetting) Process(ctx context.Context,
 			namespace = "cluster-scope"
 		}
 		path := resourcepath.ResourcePath{
-			Path:               event.EventTargetResource.ResourcePath(),
+			Path:               event.EventTargetResource.ResourcePathString(),
 			ParentRelationship: enum.RelationshipChild,
 		}
 		ownerResource := resourcepath.NameLayerGeneralItem(apiVersion, kind, namespace, name)
@@ -90,14 +87,14 @@ func (r *resourceOwnerReferenceModifierTaskSetting) TaskID() taskid.TaskImplemen
 }
 
 // ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *resourceOwnerReferenceModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceChangeLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (r *resourceOwnerReferenceModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := make([]commonlogk8sauditv2_contract.ResourcePair, 0, len(groupedLogs))
 	for _, group := range groupedLogs {
-		if strings.HasSuffix(group.Group, "@namespace") {
+		if group.Resource.Type() == commonlogk8sauditv2_contract.Namespace {
 			continue
 		}
 		result = append(result, commonlogk8sauditv2_contract.ResourcePair{
-			TargetGroup: group.Group,
+			TargetGroup: group.Resource,
 		})
 	}
 	return result, nil
@@ -114,7 +111,7 @@ func (r *resourceOwnerReferenceModifierTaskSetting) PassCount() int {
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (r *resourceOwnerReferenceModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceChangeLogGroupMap] {
+func (r *resourceOwnerReferenceModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 

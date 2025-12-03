@@ -176,7 +176,7 @@ func TestConditionHistoryModifierTask_Process(t *testing.T) {
 	}
 	ctx := context.Background()
 	parentPath := resourcepath.ResourcePath{
-		Path:               "core/v1#Pod#default#nginx",
+		Path:               "core/v1#pod#default#nginx",
 		ParentRelationship: enum.RelationshipChild,
 	}
 
@@ -408,9 +408,9 @@ status:
 				Log:                   l,
 				EventType:             tc.eventType,
 				EventTargetBodyReader: reader,
-				EventTargetResource: &commonlogk8sauditv2_contract.K8sResource{
+				EventTargetResource: &commonlogk8sauditv2_contract.ResourceIdentity{
 					APIVersion: "core/v1",
-					Kind:       "Pod",
+					Kind:       "pod",
 					Namespace:  "default",
 					Name:       "nginx",
 				},

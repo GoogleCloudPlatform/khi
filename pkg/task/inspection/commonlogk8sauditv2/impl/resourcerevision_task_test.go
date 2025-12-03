@@ -480,24 +480,24 @@ status:
 				reader = structured.NewNodeReader(node)
 			}
 
-			var sourceResource *commonlogk8sauditv2_contract.K8sResource
-			var targetResource *commonlogk8sauditv2_contract.K8sResource
+			var sourceResource *commonlogk8sauditv2_contract.ResourceIdentity
+			var targetResource *commonlogk8sauditv2_contract.ResourceIdentity
 			if tc.subResourceName != "" {
-				sourceResource = &commonlogk8sauditv2_contract.K8sResource{
+				sourceResource = &commonlogk8sauditv2_contract.ResourceIdentity{
 					APIVersion: "core/v1",
 					Kind:       "pod",
 					Namespace:  "default",
 					Name:       "test",
 				}
-				targetResource = &commonlogk8sauditv2_contract.K8sResource{
-					APIVersion:  "core/v1",
-					Kind:        "pod",
-					Namespace:   "default",
-					Name:        "test",
-					Subresource: tc.subResourceName,
+				targetResource = &commonlogk8sauditv2_contract.ResourceIdentity{
+					APIVersion:      "core/v1",
+					Kind:            "pod",
+					Namespace:       "default",
+					Name:            "test",
+					SubresourceName: tc.subResourceName,
 				}
 			} else {
-				targetResource = &commonlogk8sauditv2_contract.K8sResource{
+				targetResource = &commonlogk8sauditv2_contract.ResourceIdentity{
 					APIVersion: "core/v1",
 					Kind:       "pod",
 					Namespace:  "default",

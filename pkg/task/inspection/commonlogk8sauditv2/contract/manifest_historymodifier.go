@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -59,34 +58,12 @@ const (
 	ChangeEventTypeTargetModification
 )
 
-// K8sResource represents a k8s resource.
-type K8sResource struct {
-	// APIVersion is the API version of the resource.
-	APIVersion string
-	// Kind is the kind of the resource.
-	Kind string
-	// Name is the name of the resource.
-	Name string
-	// Namespace is the namespace of the resource.
-	Namespace string
-	// Subresource is the subresource name.
-	Subresource string
-}
-
-// ResourcePath returns the resource path.
-func (r *K8sResource) ResourcePath() string {
-	if r.Subresource == "" {
-		return fmt.Sprintf("%s#%s#%s#%s", r.APIVersion, r.Kind, r.Namespace, r.Name)
-	}
-	return fmt.Sprintf("%s#%s#%s#%s#%s", r.APIVersion, r.Kind, r.Namespace, r.Name, r.Subresource)
-}
-
 // ResourcePair is the pair of the target resource and the source resource.
 type ResourcePair struct {
 	// TargetGroup is the resource path of the target resource.
-	TargetGroup string
+	TargetGroup *ResourceIdentity
 	// SourceGroup is the resource path of the source resource.
-	SourceGroup string
+	SourceGroup *ResourceIdentity
 }
 
 // ResourceChangeEvent is the event of the resource change.
@@ -96,9 +73,9 @@ type ResourceChangeEvent struct {
 	// Log is the log associated with the event.
 	Log *log.Log
 	// EventSourceResource is the source resource of the event.
-	EventSourceResource *K8sResource
+	EventSourceResource *ResourceIdentity
 	// EventTargetResource is the target resource of the event.
-	EventTargetResource *K8sResource
+	EventTargetResource *ResourceIdentity
 	// EventSourceBodyYAML is the YAML representation of the source resource body.
 	EventSourceBodyYAML string
 	// EventSourceBodyReader is the reader for the source resource body.
@@ -116,13 +93,13 @@ type ManifestHistoryModifierTaskSetting[T any] interface {
 	// LogSerializerTask returns the task reference for the log serializer task.
 	LogSerializerTask() taskid.TaskReference[[]*log.Log]
 	// GroupedLogTask returns the task reference for the grouped log task.
-	GroupedLogTask() taskid.TaskReference[ResourceChangeLogGroupMap]
+	GroupedLogTask() taskid.TaskReference[ResourceManifestLogGroupMap]
 	// Dependencies returns the dependencies of the task.
 	Dependencies() []taskid.UntypedTaskReference
 	// PassCount returns the number of passes.
 	PassCount() int
 	// ResourcePairs returns the resource pairs.
-	ResourcePairs(ctx context.Context, groupedLogs ResourceChangeLogGroupMap) ([]ResourcePair, error)
+	ResourcePairs(ctx context.Context, groupedLogs ResourceManifestLogGroupMap) ([]ResourcePair, error)
 	// Process processes the event.
 	Process(ctx context.Context, passIndex int, event ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData T) (T, error)
 }
@@ -172,13 +149,19 @@ func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSettin
 			errGrp.Go(func() error {
 				defer doneGroupCount.Add(1)
 				changedPaths := map[string]struct{}{}
-				sourceLogs := groupedLogs[trackingGroup.SourceGroup]
-				targetLogs := groupedLogs[trackingGroup.TargetGroup]
+				var sourceLogs *ResourceManifestLogGroup
+				var targetLogs *ResourceManifestLogGroup
+				if trackingGroup.SourceGroup != nil {
+					sourceLogs = groupedLogs[trackingGroup.SourceGroup.ResourcePathString()]
+				}
+				if trackingGroup.TargetGroup != nil {
+					targetLogs = groupedLogs[trackingGroup.TargetGroup.ResourcePathString()]
+				}
 				if sourceLogs == nil {
-					sourceLogs = &ResourceChangeLogGroup{}
+					sourceLogs = &ResourceManifestLogGroup{}
 				}
 				if targetLogs == nil {
-					targetLogs = &ResourceChangeLogGroup{}
+					targetLogs = &ResourceManifestLogGroup{}
 				}
 				var prevData T
 				for pass := 0; pass < passCount; pass++ {
@@ -212,9 +195,9 @@ func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSettin
 	})
 }
 
-func iterateLogGroupPair(sourceLogs *ResourceChangeLogGroup, targetLogs *ResourceChangeLogGroup) func(func(ResourceChangeEvent) bool) {
-	sResource := PathToK8sResource(sourceLogs.Group)
-	tResource := PathToK8sResource(targetLogs.Group)
+func iterateLogGroupPair(sourceLogs *ResourceManifestLogGroup, targetLogs *ResourceManifestLogGroup) func(func(ResourceChangeEvent) bool) {
+	sResource := sourceLogs.Resource
+	tResource := targetLogs.Resource
 	return func(fn func(ResourceChangeEvent) bool) {
 		slogIndex := 0
 		tlogIndex := 0
@@ -294,33 +277,5 @@ func iterateLogGroupPair(sourceLogs *ResourceChangeLogGroup, targetLogs *Resourc
 				return
 			}
 		}
-	}
-}
-
-// PathToK8sResource converts the resource path to the k8s resource.
-func PathToK8sResource(path string) *K8sResource {
-	pathFragments := strings.Split(path, "#")
-	var apiVersion, kind, namespace, name, subresource string
-	if len(pathFragments) >= 1 {
-		apiVersion = pathFragments[0]
-	}
-	if len(pathFragments) >= 2 {
-		kind = pathFragments[1]
-	}
-	if len(pathFragments) >= 3 {
-		namespace = pathFragments[2]
-	}
-	if len(pathFragments) >= 4 {
-		name = pathFragments[3]
-	}
-	if len(pathFragments) >= 5 {
-		subresource = pathFragments[4]
-	}
-	return &K8sResource{
-		APIVersion:  apiVersion,
-		Kind:        kind,
-		Namespace:   namespace,
-		Name:        name,
-		Subresource: subresource,
 	}
 }

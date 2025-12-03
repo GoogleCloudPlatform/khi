@@ -45,18 +45,18 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 // This task determines the group, specifically handling the following cases:
 // 1. When multiple resources are modified by the operation, the log entry is duplicated and assigned to each group.
 // 2. When a subresource is modified by the operation and its result contains its parent manifest, it uses the parent resource as the group key.
-var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspectionTask[inspectiontaskbase.LogGroupMap](
+var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspectionTask[commonlogk8sauditv2_contract.ResourceLogGroupMap](
 	commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID,
 	[]taskid.UntypedTaskReference{commonlogk8sauditv2_contract.LogSorterTaskID.Ref()},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (inspectiontaskbase.LogGroupMap, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceLogGroupMap, error) {
 		if taskMode != inspectioncore_contract.TaskModeRun {
-			return inspectiontaskbase.LogGroupMap{}, nil
+			return commonlogk8sauditv2_contract.ResourceLogGroupMap{}, nil
 		}
 
 		progress.MarkIndeterminate()
 
 		logs := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.LogSorterTaskID.Ref())
-		result := inspectiontaskbase.LogGroupMap{}
+		result := commonlogk8sauditv2_contract.ResourceLogGroupMap{}
 		scanner := targetResourceScanner{
 			resourcesByNamespaceKindAPIVersions: map[string]map[string]struct{}{},
 			subresourceDefaultBehaviorOverrides: defaultSubresourceDefaultBehaviorOverrides,
@@ -65,11 +65,12 @@ var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspection
 		for _, l := range logs {
 			ops := scanner.scanTargetResource(l)
 			for _, op := range ops {
-				path := op.ResourcePath()
+				resource := commonlogk8sauditv2_contract.ResourceIdentityFromKubernetesOperation(op)
+				path := resource.ResourcePathString()
 				if result[path] == nil {
-					result[path] = &inspectiontaskbase.LogGroup{
-						Logs:  []*log.Log{},
-						Group: path,
+					result[path] = &commonlogk8sauditv2_contract.ResourceLogGroup{
+						Logs:     []*log.Log{},
+						Resource: resource,
 					}
 				}
 				result[path].Logs = append(result[path].Logs, l)
