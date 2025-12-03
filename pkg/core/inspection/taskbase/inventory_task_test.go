@@ -26,11 +26,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type testSimpleStringRelationshipMergerTaskSetting struct {
+type testSimpleStringMergerStrategy struct {
 }
 
-// Merge implements RelationshipMergerTaskSetting.
-func (t *testSimpleStringRelationshipMergerTaskSetting) Merge(results []map[string]struct{}) (map[string]struct{}, error) {
+// Merge implements InventoryMergerTaskSetting.
+func (t *testSimpleStringMergerStrategy) Merge(results []map[string]struct{}) (map[string]struct{}, error) {
 	result := make(map[string]struct{})
 	for _, r := range results {
 		for k := range r {
@@ -40,19 +40,19 @@ func (t *testSimpleStringRelationshipMergerTaskSetting) Merge(results []map[stri
 	return result, nil
 }
 
-var _ InventoryMergerStrategy[map[string]struct{}] = (*testSimpleStringRelationshipMergerTaskSetting)(nil)
+var _ InventoryMergerStrategy[map[string]struct{}] = (*testSimpleStringMergerStrategy)(nil)
 
-// TestRelationshipTask_ProvidedFromSingleDiscoveryTask tests a scenario where the merger task
+// TestInventoryTask_ProvidedFromSingleDiscoveryTask tests a scenario where the merger task
 // receives data from only one of two available discovery tasks.
 // This is because the main user task only depends on the parent of the first discovery task.
 // The test verifies that only the result from the first discovery task ("foo") is present in the final merged map and the task dependency topology doesn't add the discovery-2 task not intentionally.
-func TestRelationshipTask_ProvidedFromSingleDiscoveryTask(t *testing.T) {
+func TestInventoryTask_ProvidedFromSingleDiscoveryTask(t *testing.T) {
 	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	}
 	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test")
 	builder := NewInventoryTaskBuilder(mergerTaskID)
-	mergerTask := builder.InventoryTask(&testSimpleStringRelationshipMergerTaskSetting{})
+	mergerTask := builder.InventoryTask(&testSimpleStringMergerStrategy{})
 	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery1")
 	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery2")
 	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
@@ -88,17 +88,17 @@ func TestRelationshipTask_ProvidedFromSingleDiscoveryTask(t *testing.T) {
 	}
 }
 
-// TestRelationshipTask_ProvidedFromMultipleDiscoveryTask tests a scenario where the merger task
+// TestInventoryTask_ProvidedFromMultipleDiscoveryTask tests a scenario where the merger task
 // receives and merges data from multiple discovery tasks.
 // This is because the main user task depends on the parents of both discovery tasks.
 // The test verifies that the results from both discovery tasks ("foo" and "bar") are present in the final merged map.
-func TestRelationshipTask_ProvidedFromMultipleDiscoveryTask(t *testing.T) {
+func TestInventoryTask_ProvidedFromMultipleDiscoveryTask(t *testing.T) {
 	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	}
 	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test")
 	builder := NewInventoryTaskBuilder(mergerTaskID)
-	mergerTask := builder.InventoryTask(&testSimpleStringRelationshipMergerTaskSetting{})
+	mergerTask := builder.InventoryTask(&testSimpleStringMergerStrategy{})
 	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery1")
 	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery2")
 	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
@@ -135,16 +135,16 @@ func TestRelationshipTask_ProvidedFromMultipleDiscoveryTask(t *testing.T) {
 	}
 }
 
-// TestRelationshipTask_ProvidedFromNoDiscoveryTask tests a scenario where the merger task receives no data.
+// TestInventoryTask_ProvidedFromNoDiscoveryTask tests a scenario where the merger task receives no data.
 // This is because the main user task does not depend on any of the discovery tasks' parents.
 // The test verifies that the final merged map is empty.
-func TestRelationshipTask_ProvidedFromNoDiscoveryTask(t *testing.T) {
+func TestInventoryTask_ProvidedFromNoDiscoveryTask(t *testing.T) {
 	nop := func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	}
 	mergerTaskID := taskid.NewDefaultImplementationID[map[string]struct{}]("test")
 	builder := NewInventoryTaskBuilder(mergerTaskID)
-	mergerTask := builder.InventoryTask(&testSimpleStringRelationshipMergerTaskSetting{})
+	mergerTask := builder.InventoryTask(&testSimpleStringMergerStrategy{})
 	discovery1ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery1")
 	discovery2ID := taskid.NewDefaultImplementationID[map[string]struct{}]("discovery2")
 	discovery1ParentTaskID := taskid.NewDefaultImplementationID[struct{}]("discovery-1-parent")
