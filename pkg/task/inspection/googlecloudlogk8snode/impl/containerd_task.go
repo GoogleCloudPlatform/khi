@@ -69,14 +69,14 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 
 		result := commonlogk8sauditv2_contract.ContainerIDToContainerIdentity{}
 		logChan := make(chan *log.Log)
-		errGrp, childCtx := errgroup.WithContext(ctx)
+		errGrp, childRoutineCtx := errgroup.WithContext(ctx)
 		containerIdentitiesChan := make(chan *commonlogk8sauditv2_contract.ContainerIdentity, runtime.GOMAXPROCS(0))
 		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
 			errGrp.Go(func() error {
 				for {
 					select {
-					case <-childCtx.Done():
-						return childCtx.Err()
+					case <-childRoutineCtx.Done():
+						return childRoutineCtx.Err()
 					case l, ok := <-logChan:
 						if !ok {
 							return nil
@@ -87,12 +87,12 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 				}
 			})
 		}
-		consumerGrp, childCtx := errgroup.WithContext(ctx)
+		consumerGrp, childConsumerRoutineCtx := errgroup.WithContext(ctx)
 		consumerGrp.Go(func() error {
 			for {
 				select {
-				case <-childCtx.Done():
-					return childCtx.Err()
+				case <-childConsumerRoutineCtx.Done():
+					return childConsumerRoutineCtx.Err()
 				case c, ok := <-containerIdentitiesChan:
 					if !ok {
 						return nil
@@ -105,17 +105,14 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 		for _, l := range logs {
 			logChan <- l
 		}
-		close(logChan)
 		err := errGrp.Wait()
+		close(containerIdentitiesChan)
+		consumerErr := consumerGrp.Wait()
 		if err != nil {
-			close(containerIdentitiesChan)
 			return nil, err
 		}
-
-		close(containerIdentitiesChan)
-		err = consumerGrp.Wait()
-		if err != nil {
-			return nil, err
+		if consumerErr != nil {
+			return nil, consumerErr
 		}
 
 		return result, nil
