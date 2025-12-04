@@ -389,6 +389,45 @@ metadata:
 				},
 			},
 		},
+		{
+			name:       "patch deletionGracePeriodSeconds=0 but with finalizer",
+			apiVersion: "core/v1",
+			pluralKind: "nodes",
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{},
+			steps: []step{
+				{
+					verb: enum.RevisionVerbPatch,
+					resourceBodyYAML: `metadata:
+  uid: "test-uid"
+  finalizers:
+    - foo`,
+					wantResourceCreated: true,
+					wantDeletionStarted: false,
+					wantResourceDeleted: false,
+				},
+				{
+					verb: enum.RevisionVerbDeleteCollection,
+					resourceBodyYAML: `metadata:
+  uid: "test-uid"
+  deletionGracePeriodSeconds: 0
+  finalizers:
+    - foo`,
+					wantDeletionStarted: true,
+					wantResourceDeleted: false,
+				},
+				{
+					verb: enum.RevisionVerbPatch,
+					resourceBodyYAML: `apiVersion: v1
+kind: Node
+metadata:
+  uid: "test-uid"
+  deletionGracePeriodSeconds: 0
+  finalizers: []`,
+					wantDeletionStarted: false,
+					wantResourceDeleted: true,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

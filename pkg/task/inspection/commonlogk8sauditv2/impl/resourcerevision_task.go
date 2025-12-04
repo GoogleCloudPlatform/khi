@@ -208,6 +208,7 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) handleTargetChange(ctx cont
 
 		finalizers, found := GetFinalizers(event.EventTargetBodyReader)
 		if found && len(finalizers) > 0 && deletionStarted {
+			deletionCompleted = false
 			underGracefulPeriod = true
 		}
 

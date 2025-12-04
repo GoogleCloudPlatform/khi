@@ -132,6 +132,7 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 
 		finalizers, found := GetFinalizers(l.ResourceBodyReader)
 		if found && len(finalizers) > 0 && deletionStarted {
+			deletionCompleted = false
 			underGracefulPeriod = true
 		}
 
