@@ -379,6 +379,40 @@ status:
 			},
 		},
 		{
+			name: "deletionGracePeriodSeconds=0 but with finalizers",
+			inputState: &resourceRevisionHistoryModifierState{
+				PrevUID: "test-uid",
+			},
+			verb: enum.RevisionVerbPatch,
+			targetResourceBodyYAML: `metadata:
+  uid: "test-uid"
+  deletionGracePeriodSeconds: 0
+  finalizers:
+    - test-finalizer`,
+			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
+			wantState: &resourceRevisionHistoryModifierState{
+				WasCompletelyRemoved: false,
+				DeletionStarted:      true,
+				PrevUID:              "test-uid",
+			},
+			asserters: []testchangeset.ChangeSetAsserter{
+				&testchangeset.HasRevision{
+					ResourcePath: "core/v1#pod#default#test",
+					WantRevision: history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbPatch,
+						State:      enum.RevisionStateDeleting,
+						Requestor:  "",
+						ChangeTime: testTime,
+						Body: `metadata:
+  uid: "test-uid"
+  deletionGracePeriodSeconds: 0
+  finalizers:
+    - test-finalizer`,
+					},
+				},
+			},
+		},
+		{
 			name: "Deletion with finalizers",
 			inputState: &resourceRevisionHistoryModifierState{
 				PrevUID: "test-uid",
