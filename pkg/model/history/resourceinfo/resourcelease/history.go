@@ -143,11 +143,11 @@ func MergeResourceLeaseHistories[H LeaseHolder](histories ...*ResourceLeaseHisto
 	for _, h := range histories {
 		for _, identifier := range h.GetAllIdentifiers() {
 			shard := h.leaseHolders.AcquireShardReadonly(identifier)
-			defer h.leaseHolders.ReleaseShardReadonly(identifier)
 			leases := shard[identifier]
 			for _, lease := range leases {
 				history.TouchResourceLease(identifier, lease.StartAt, lease.Holder)
 			}
+			h.leaseHolders.ReleaseShardReadonly(identifier)
 		}
 	}
 	return history

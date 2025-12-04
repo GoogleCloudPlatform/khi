@@ -148,7 +148,7 @@ func processEndpointSliceResource(ctx context.Context, group *commonlogk8sauditv
 						Namespace:  namespace,
 					})
 				default:
-					slog.WarnContext(context.Background(), "unsupported kind for IP lease history discovery task", "kind", kind)
+					slog.WarnContext(ctx, "unsupported kind for IP lease history discovery task", "kind", kind)
 				}
 			}
 		}
