@@ -21,13 +21,16 @@ import (
 	"strings"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"gopkg.in/yaml.v3"
@@ -77,7 +80,10 @@ type networkAPIHistoryModifierTaskSetting struct{}
 
 // Dependencies implements inspectiontaskbase.HistoryModifer.
 func (n *networkAPIHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.IPLeaseHistoryInventoryTaskID.Ref(),
+	}
 }
 
 // GroupedLogTask implements inspectiontaskbase.HistoryModifer.
@@ -98,12 +104,12 @@ func (n *networkAPIHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx contex
 		prevGroupData = &perNEGHistoryModificationStatus{}
 	}
 
+	negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
 	var negResourcePath resourcepath.ResourcePath
-	negHistory := builder.ClusterResource.NEGs
 	negName := getNegNameFromResourceName(auditFieldSet.ResourceName)
-	lease, err := negHistory.GetResourceLeaseHolderAt(negName, commonFieldSet.Timestamp) // find the associated resource holder from the time and neg name
-	if err == nil {
-		negResourcePath = resourcepath.NetworkEndpointGroup(lease.Holder.Namespace, negName)
+
+	if negResource, found := negs[negName]; found {
+		negResourcePath = resourcepath.NetworkEndpointGroup(negResource.Namespace, negName)
 	} else {
 		negResourcePath = resourcepath.NetworkEndpointGroup("unknown", negName)
 	}
@@ -129,6 +135,7 @@ func (n *networkAPIHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx contex
 		})
 	}
 
+	ipLeases := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.IPLeaseHistoryInventoryTaskID.Ref())
 	// Add neg subresource under resources with the same IP of the endpoint
 	shortMethodName := getShortMethodNameFromMethodName(auditFieldSet.MethodName)
 	var negRequest *negAttachOrDetachRequest
@@ -164,7 +171,7 @@ func (n *networkAPIHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx contex
 	}
 	if negRequest != nil {
 		for _, endpoint := range negRequest.NetworkEndpoints {
-			lease, err := builder.ClusterResource.IPs.GetResourceLeaseHolderAt(endpoint.IpAddress, commonFieldSet.Timestamp)
+			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, commonFieldSet.Timestamp)
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("Failed to identify the holder of the IP %s.\n This might be because the IP holder resource wasn't updated during the log period ", endpoint.IpAddress))
 				continue

@@ -32,7 +32,6 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/binarychunk"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"golang.org/x/sync/errgroup"
@@ -51,7 +50,6 @@ type Builder struct {
 	logIdToSerializableLog *common.ShardingMap[*SerializableLog]
 	historyResourceCache   *common.ShardingMap[*Resource]
 	sorter                 *ResourceSorter
-	ClusterResource        *resourceinfo.Cluster
 }
 
 func NewBuilder(tmpFolder string) *Builder {
@@ -64,7 +62,6 @@ func NewBuilder(tmpFolder string) *Builder {
 		timelineIDGenerator:    idgenerator.NewPrefixIDGenerator("t"),
 		logIdToSerializableLog: common.NewShardingMap[*SerializableLog](common.NewSuffixShardingProvider(128, 4)),
 		historyResourceCache:   common.NewShardingMap[*Resource](common.NewSuffixShardingProvider(128, 4)),
-		ClusterResource:        resourceinfo.NewClusterResourceInfo(),
 		sorter: NewResourceSorter(
 			&FirstRevisionTimeSortStrategy{
 				TargetRelationship: enum.RelationshipPodBinding,
