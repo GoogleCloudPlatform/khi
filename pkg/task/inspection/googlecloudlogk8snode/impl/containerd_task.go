@@ -70,6 +70,7 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 		result := commonlogk8sauditv2_contract.ContainerIDToContainerIdentity{}
 		logChan := make(chan *log.Log)
 		errGrp, childCtx := errgroup.WithContext(ctx)
+		containerIdentitiesChan := make(chan *commonlogk8sauditv2_contract.ContainerIdentity, runtime.GOMAXPROCS(0))
 		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
 			errGrp.Go(func() error {
 				for {
@@ -80,18 +81,42 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 						if !ok {
 							return nil
 						}
-						processContainerIDDiscoveryForLog(ctx, l, result)
+						processContainerIDDiscoveryForLog(ctx, l, containerIdentitiesChan)
 						doneLogCount.Add(1)
 					}
 				}
 			})
 		}
+		consumerGrp, childCtx := errgroup.WithContext(ctx)
+		consumerGrp.Go(func() error {
+			for {
+				select {
+				case <-childCtx.Done():
+					return childCtx.Err()
+				case c, ok := <-containerIdentitiesChan:
+					if !ok {
+						return nil
+					}
+					result[c.ContainerID] = c
+				}
+			}
+		})
 
 		for _, l := range logs {
 			logChan <- l
 		}
 		close(logChan)
-		errGrp.Wait()
+		err := errGrp.Wait()
+		if err != nil {
+			close(containerIdentitiesChan)
+			return nil, err
+		}
+
+		close(containerIdentitiesChan)
+		err = consumerGrp.Wait()
+		if err != nil {
+			return nil, err
+		}
 
 		return result, nil
 	},
@@ -184,13 +209,13 @@ func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) 
 	return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 }
 
-func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTarget commonlogk8sauditv2_contract.ContainerIDToContainerIdentity) {
+func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTarget chan *commonlogk8sauditv2_contract.ContainerIdentity) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 	container, err := findContainerIDInfo(componentFieldSet.Message)
 	if err != nil {
 		return
 	}
-	exportTarget[container.ContainerID] = container
+	exportTarget <- container
 }
 
 func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*commonlogk8sauditv2_contract.ContainerIdentity, error) {

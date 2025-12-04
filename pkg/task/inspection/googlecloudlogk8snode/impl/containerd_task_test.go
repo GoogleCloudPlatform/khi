@@ -131,7 +131,6 @@ func TestFindPodSandboxIDInfo(t *testing.T) {
 }
 
 func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
-	containerID := "container123"
 	testCases := []struct {
 		desc                   string
 		inputComponentFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
@@ -167,10 +166,14 @@ func TestProcessContainerIDDiscoveryForLog(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(tc.inputComponentFieldSet)
-			gotMap := commonlogk8sauditv2_contract.ContainerIDToContainerIdentity{}
-			processContainerIDDiscoveryForLog(t.Context(), l, gotMap)
+			receiver := make(chan *commonlogk8sauditv2_contract.ContainerIdentity, 1)
+			processContainerIDDiscoveryForLog(t.Context(), l, receiver)
 
-			got := gotMap[containerID]
+			var got *commonlogk8sauditv2_contract.ContainerIdentity
+			if len(receiver) != 0 {
+				got = <-receiver
+			}
+
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ContainerIDInfoFinder mismatch (-want +got):\n%s", diff)
 			}
