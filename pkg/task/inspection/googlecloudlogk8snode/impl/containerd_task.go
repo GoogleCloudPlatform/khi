@@ -105,6 +105,7 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 		for _, l := range logs {
 			logChan <- l
 		}
+		close(logChan)
 		err := errGrp.Wait()
 		close(containerIdentitiesChan)
 		consumerErr := consumerGrp.Wait()
