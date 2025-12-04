@@ -49,5 +49,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ContainerIDInventoryTask,
 		ContainerIDDiscoveryTask,
 		ContainerIDPatternFinderTask,
+		IPLeaseHistoryInventoryTask,
+		IPLeaseHistoryDiscoveryTask,
 	)
 }

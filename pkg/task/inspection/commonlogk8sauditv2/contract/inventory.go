@@ -17,6 +17,7 @@ package commonlogk8sauditv2_contract
 import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 )
 
 var NodeNameInventoryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-inventory")
@@ -37,3 +38,9 @@ var ContainerIDInventoryTaskID = taskid.NewDefaultImplementationID[ContainerIDTo
 
 // ContainerIDInventoryBuilder is the inventory tasks builder for gathering the relationship between container id and container identity
 var ContainerIDInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[ContainerIDToContainerIdentity](ContainerIDInventoryTaskID)
+
+type IPLeaseHistory = *resourcelease.ResourceLeaseHistory[*ResourceIdentity]
+
+var IPLeaseHistoryInventoryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-inventory")
+
+var IPLeaseHistoryInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder[IPLeaseHistory](IPLeaseHistoryInventoryTaskID)

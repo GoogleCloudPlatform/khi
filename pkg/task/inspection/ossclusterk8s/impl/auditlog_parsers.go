@@ -48,6 +48,9 @@ var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		commonlogk8sauditv2_contract.ContainerHistoryModifierTaskID.Ref(),
 
 		commonlogk8sauditv2_contract.NodeNameDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.ResourceUIDDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.ContainerIDDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

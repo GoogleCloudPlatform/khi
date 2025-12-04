@@ -19,6 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -41,6 +42,14 @@ type ResourceIdentity struct {
 	Name            string
 	Namespace       string
 	SubresourceName string
+}
+
+// Equals implements resourcelease.LeaseHolder.
+func (r *ResourceIdentity) Equals(holder resourcelease.LeaseHolder) bool {
+	if castedHolder, ok := holder.(*ResourceIdentity); ok {
+		return r.APIVersion == castedHolder.APIVersion && r.Kind == castedHolder.Kind && r.Name == castedHolder.Name && r.Namespace == castedHolder.Namespace && r.SubresourceName == castedHolder.SubresourceName
+	}
+	return false
 }
 
 func ResourceIdentityFromKubernetesOperation(op *model.KubernetesObjectOperation) *ResourceIdentity {
@@ -112,6 +121,8 @@ func (r *ResourceIdentity) ParentIdentity() *ResourceIdentity {
 		panic(fmt.Sprintf("unknown resource identity type: %d", r.Type()))
 	}
 }
+
+var _ resourcelease.LeaseHolder = (*ResourceIdentity)(nil)
 
 type ContainerIdentity struct {
 	ContainerID   string

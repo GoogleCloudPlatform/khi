@@ -40,27 +40,3 @@ func (k *K8sResourceLeaseHolder) Equals(holder LeaseHolder) bool {
 }
 
 var _ LeaseHolder = (*K8sResourceLeaseHolder)(nil)
-
-func NewContainerLeaseHolder(podSandboxId string, containerName string) *ContainerLeaseHolder {
-	return &ContainerLeaseHolder{
-		PodSandboxId:  podSandboxId,
-		ContainerName: containerName,
-	}
-}
-
-type ContainerLeaseHolder struct {
-	// Container Lease Holder object to hold container IDs
-	PodSandboxId  string
-	ContainerName string
-}
-
-// Equals implements LeaseHolder.
-func (c *ContainerLeaseHolder) Equals(holder LeaseHolder) bool {
-	castedHolder, ok := holder.(*ContainerLeaseHolder)
-	if !ok {
-		return false
-	}
-	return c.ContainerName == castedHolder.ContainerName && c.PodSandboxId == castedHolder.PodSandboxId
-}
-
-var _ LeaseHolder = (*ContainerLeaseHolder)(nil)

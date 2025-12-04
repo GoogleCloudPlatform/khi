@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -53,6 +54,8 @@ var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		commonlogk8sauditv2_contract.NodeNameDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.ResourceUIDDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.ContainerIDDiscoveryTaskID.Ref(),
+		commonlogk8sauditv2_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
+		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

@@ -99,3 +99,6 @@ var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[ContainerIDTo
 
 // ContainerIDPatternFinderTaskID is the task ID to build the PatternFinder from aggregated container ids obtained from the inventory task.
 var ContainerIDPatternFinderTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*ContainerIdentity]](TaskIDPrefix + "container-id-pattern-finder")
+
+// IPLeaseHistoryDiscoveryTaskID is the task ID for extracting IP lease history from audit logs.
+var IPLeaseHistoryDiscoveryTaskID = taskid.NewDefaultImplementationID[IPLeaseHistory](TaskIDPrefix + "ip-lease-history-discovery")
