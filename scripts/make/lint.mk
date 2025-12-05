@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANGCILINT_VERSION := v2.1.6
+GOLANGCILINT_VERSION := v2.7.1
 GOLANGCILINT_CMD ?= $(shell command -v golangci-lint)
 CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 
