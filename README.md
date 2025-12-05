@@ -112,7 +112,7 @@ For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
 #### Prerequisites
 
-- Go 1.24.*
+- Go 1.25.*
 - Node.js environment 22.13.*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq` command](https://jqlang.org/)

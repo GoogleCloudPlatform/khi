@@ -120,7 +120,7 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 
 #### ビルドに必要な依存関係
 
-- Go 1.24.\*
+- Go 1.25.\*
 - Node.js 環境 22.13.\*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq`コマンド](https://jqlang.org/)

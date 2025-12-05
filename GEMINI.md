@@ -131,7 +131,7 @@ It does not require the installation of agents in the cluster. By simply loading
 ## Setup Instructions
 
 1. **Install Dependencies:**
-    * Go 1.24.*
+    * Go 1.25.*
     * Node.js 22.13.*
     * `gcloud` CLI
     * `jq`

@@ -320,7 +320,8 @@ func (builder *Builder) SerializeLogs(ctx context.Context, entireLogs []*log.Log
 }
 
 // ParseLogsByGroups parse group of logs with given function and write them into history and sort them everytime.
-// Deprecated: Use ChangeSet.FlushToHistory and sort timelines manually from callers.
+// Deprecated:
+// Use ChangeSet.FlushToHistory and sort timelines manually from callers.
 func (builder *Builder) ParseLogsByGroups(ctx context.Context, groupedLogs []*log.Log, logWalker BuilderLogWalker) error {
 	for i, l := range groupedLogs {
 		select {

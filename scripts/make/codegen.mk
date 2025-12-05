@@ -29,7 +29,7 @@ generate-backend: ## Generate backend source code
 
 .PHONY: add-licenses
 add-licenses: ## Add license headers to all files
-	$(GOPATH)/bin/addlicense  -c "Google LLC" -l apache .
+	go tool addlicense  -c "Google LLC" -l apache .
 
 .PHONY: generate-reference
 generate-reference: ## Generate reference documentation
