@@ -75,9 +75,7 @@ export interface GraphNode extends LabeledGraphElement, GraphResourceData {
 }
 
 export interface PodGraphData
-  extends LabeledGraphElement,
-    NamespacedArchGraphResource,
-    GraphResourceData {
+  extends LabeledGraphElement, NamespacedArchGraphResource, GraphResourceData {
   containers: ContainerGraphData[];
   podIP: string;
   conditions: ArchGraphCondition[];
@@ -98,9 +96,7 @@ export interface ContainerGraphData {
 }
 
 export interface ServiceGraphData
-  extends NamespacedArchGraphResource,
-    LabeledGraphElement,
-    GraphResourceData {
+  extends NamespacedArchGraphResource, LabeledGraphElement, GraphResourceData {
   type: string;
   clusterIp: string;
   connectedPods: PodConnectionGraphData[];
@@ -116,9 +112,7 @@ export interface PodOwnerConnectionGraphData {
 }
 
 export interface GraphPodOwnerBase
-  extends NamespacedArchGraphResource,
-    LabeledGraphElement,
-    GraphResourceData {
+  extends NamespacedArchGraphResource, LabeledGraphElement, GraphResourceData {
   status: { [key: string]: unknown };
 }
 

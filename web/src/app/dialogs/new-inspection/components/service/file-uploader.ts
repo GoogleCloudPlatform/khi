@@ -22,6 +22,7 @@ import {
   BackendAPI,
 } from 'src/app/services/api/backend-api-interface';
 import { HttpEventType } from '@angular/common/http';
+import { unreachable } from 'src/app/common/misc-util';
 
 /**
  * Type for the status reported from the uploader.
@@ -110,7 +111,7 @@ export class KHIServerFileUploader implements FileUploader {
               };
             }
           default:
-            throw new Error('unknown event type' + status.type);
+            unreachable(status);
         }
       }),
     );

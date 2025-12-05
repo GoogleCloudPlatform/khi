@@ -21,9 +21,7 @@ import { combineLatestWith, map, Observable } from 'rxjs';
 /**
  * FilterNamepaceOrKindWithoutResource removes TimelineEntry without any name layer timeline in its children.
  */
-export class FilterNamepaceOrKindWithoutResource
-  implements FilterChainElement<ResourceTimeline>
-{
+export class FilterNamepaceOrKindWithoutResource implements FilterChainElement<ResourceTimeline> {
   chain(items: Observable<ResourceTimeline[]>): Observable<ResourceTimeline[]> {
     return items.pipe(
       map((timelines) => {
@@ -58,9 +56,7 @@ export class FilterNamepaceOrKindWithoutResource
 /**
  * FilterSubresourceWithoutParent removes subresource timelines when its parent resource is filtered out already.
  */
-export class FilterSubresourceWithoutParent
-  implements FilterChainElement<ResourceTimeline>
-{
+export class FilterSubresourceWithoutParent implements FilterChainElement<ResourceTimeline> {
   chain(items: Observable<ResourceTimeline[]>): Observable<ResourceTimeline[]> {
     return items.pipe(
       map((timelines) => {
@@ -90,9 +86,7 @@ export class FilterSubresourceWithoutParent
 /**
  * FilterTimelinesOnlyWithFilteredLogs removes timelines that don't have any logs that are not filtered out.
  */
-export class FilterTimelinesOnlyWithFilteredLogs
-  implements FilterChainElement<ResourceTimeline>
-{
+export class FilterTimelinesOnlyWithFilteredLogs implements FilterChainElement<ResourceTimeline> {
   constructor(
     private readonly filteredOut: Observable<Set<number>>,
     private readonly hideFilteredOut: Observable<boolean>,
@@ -117,9 +111,7 @@ export class FilterTimelinesOnlyWithFilteredLogs
 /**
  * FilterTimelinesOnlyWithFilteredLogs removes subresource layer timelines that don't have any logs that are not filtered out.
  */
-export class FilterSubresourceTimelinesOnlyWithFilteredLogs
-  implements FilterChainElement<ResourceTimeline>
-{
+export class FilterSubresourceTimelinesOnlyWithFilteredLogs implements FilterChainElement<ResourceTimeline> {
   constructor(
     private readonly filteredOut: Observable<Set<number>>,
     private readonly hideFilteredOut: Observable<boolean>,

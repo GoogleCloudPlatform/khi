@@ -31,9 +31,10 @@ export interface FilterChainElement<T> {
  * that filters items based on whether a specified property of the item
  * is present within a given set of properties.
  */
-export class PropertyMatchSetFilterChainElement<T, P>
-  implements FilterChainElement<T>
-{
+export class PropertyMatchSetFilterChainElement<
+  T,
+  P,
+> implements FilterChainElement<T> {
   /**
    * Creates a new PropertyMatchSetFilterChainElement.
    * @param propertyReader A function that extracts the property value from an item.
@@ -62,9 +63,9 @@ export class PropertyMatchSetFilterChainElement<T, P>
 /**
  * PropertyMatchRegexFilterChainElement is a FilterChainElement implementation that filters items based on whether a specified property of the item matches any of the given regular expressions.
  */
-export class PropertyMatchRegexFilterChainElement<T>
-  implements FilterChainElement<T>
-{
+export class PropertyMatchRegexFilterChainElement<
+  T,
+> implements FilterChainElement<T> {
   /**
    * Creates a new PropertyMatchRegexFilterChainElement.
    * @param propertyReader A function that extracts the property value from an item.
