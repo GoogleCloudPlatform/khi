@@ -19,14 +19,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -69,7 +68,7 @@ func (n *networkAPIListLogEntiesTaskSetting) DefaultResourceNames(ctx context.Co
 func (n *networkAPIListLogEntiesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
+		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
 	}
 }
 
@@ -84,8 +83,12 @@ func (n *networkAPIListLogEntiesTaskSetting) Description() *googlecloudcommon_co
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (n *networkAPIListLogEntiesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
-	return generateGCPNetworkAPIQuery(taskMode, builder.ClusterResource.NEGs.GetAllIdentifiers()), nil
+	negs := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref())
+	negNames := []string{}
+	for negName := range negs {
+		negNames = append(negNames, negName)
+	}
+	return generateGCPNetworkAPIQuery(taskMode, negNames), nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

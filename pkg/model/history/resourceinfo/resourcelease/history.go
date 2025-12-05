@@ -136,3 +136,19 @@ func (r *ResourceLeaseHistory[H]) getResourceLeaseHolderAtWithIndex(leaseHolderM
 func (r *ResourceLeaseHistory[H]) GetAllIdentifiers() []string {
 	return r.leaseHolders.AllKeys()
 }
+
+// MergeResourceLeaseHistories merges multiple ResourceLeaseHistory into one.
+func MergeResourceLeaseHistories[H LeaseHolder](histories ...*ResourceLeaseHistory[H]) *ResourceLeaseHistory[H] {
+	history := NewResourceLeaseHistory[H]()
+	for _, h := range histories {
+		for _, identifier := range h.GetAllIdentifiers() {
+			shard := h.leaseHolders.AcquireShardReadonly(identifier)
+			leases := shard[identifier]
+			for _, lease := range leases {
+				history.TouchResourceLease(identifier, lease.StartAt, lease.Holder)
+			}
+			h.leaseHolders.ReleaseShardReadonly(identifier)
+		}
+	}
+	return history
+}

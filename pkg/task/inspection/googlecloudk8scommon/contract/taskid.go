@@ -50,3 +50,6 @@ var InputNamespaceFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.Se
 
 // InputNodeNameFilterTaskID receives space splitted node names to filter node specific logs.
 var InputNodeNameFilterTaskID = taskid.NewDefaultImplementationID[[]string](GoogleCloudCommonK8STaskIDPrefix + "input/node-name-filter")
+
+// NEGNamesDiscoveryTaskID is the task ID for extracting NEG names from audit logs.
+var NEGNamesDiscoveryTaskID = taskid.NewDefaultImplementationID[NEGNameToResourceIdentityMap](GoogleCloudCommonK8STaskIDPrefix + "neg-names-discovery")

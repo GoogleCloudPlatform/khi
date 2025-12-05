@@ -140,6 +140,16 @@ func (cs *ChangeSet) AddResourceAlias(sourceResourcePath resourcepath.ResourcePa
 	cs.addResourceRelationship(destResourcePath)
 }
 
+// GetAliases returns the list of alias destinations for the given source resource path.
+// It returns a list of destination resource path strings.
+func (cs *ChangeSet) GetAliases(sourceResourcePath resourcepath.ResourcePath) []string {
+	destinations, exist := cs.Aliases[sourceResourcePath.Path]
+	if !exist {
+		return nil
+	}
+	return destinations
+}
+
 // addResourceRelationship records the parent relationship for a given resource path.
 // It returns an error if the relationship for the given path has already been set to a different value.
 func (cs *ChangeSet) addResourceRelationship(resourcePath resourcepath.ResourcePath) error {

@@ -17,9 +17,13 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
+	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
@@ -94,7 +98,10 @@ func TestControllerManagerHistoryModifierTask(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputControllerManagerFieldSet, &tc.inputMessageField)
 			modifier := controllerManagerHistoryModifierTaskSetting{}
 			cs := history.NewChangeSet(l)
-			_, err := modifier.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			finder := patternfinder.NewTriePatternFinder[*commonlogk8sauditv2_contract.ResourceIdentity]()
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+			_, err := modifier.ModifyChangeSetFromLog(ctx, l, cs, nil, struct{}{})
 			if err != nil {
 				t.Errorf("ModifyChangeSetFromLog() returned an unexpected error, err=%v", err)
 			}

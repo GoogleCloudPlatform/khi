@@ -20,15 +20,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
-	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -73,8 +72,8 @@ func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.C
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
+		commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref(),
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudlogk8saudit_contract.K8sAuditParseTaskID.Ref(),
 	}
 }
 
@@ -92,8 +91,8 @@ func (c *computeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_c
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
-	return GenerateComputeAPIQuery(taskMode, builder.ClusterResource.GetNodes()), nil
+	nodeNames := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref())
+	return GenerateComputeAPIQuery(taskMode, nodeNames), nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

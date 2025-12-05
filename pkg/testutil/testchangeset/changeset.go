@@ -61,7 +61,41 @@ func (r *HasRevision) Assert(t *testing.T, cs *history.ChangeSet) {
 	t.Errorf("no revision found for %s at %s. available times are %v", r.ResourcePath, r.WantRevision.ChangeTime, times)
 }
 
+type HasNoRevision struct {
+	ResourcePath string
+}
+
+// Assert implements ChangeSetAsserter.
+func (r *HasNoRevision) Assert(t *testing.T, cs *history.ChangeSet) {
+	t.Helper()
+	revisions := cs.GetRevisions(resourcepath.ResourcePath{
+		Path: r.ResourcePath,
+	})
+	if len(revisions) > 0 {
+		t.Errorf("revisions found for %s, want none. found: %v", r.ResourcePath, revisions)
+	}
+}
+
+type MatchRevisionCount struct {
+	ResourcePath string
+	WantCount    int
+}
+
+func (c *MatchRevisionCount) Assert(t *testing.T, cs *history.ChangeSet) {
+	t.Helper()
+	revisions := cs.GetRevisions(resourcepath.ResourcePath{
+		Path: c.ResourcePath,
+	})
+	if len(revisions) != c.WantCount {
+		t.Errorf("want %d revisions, but got %d revisions for %s\nfound revisions:%v", c.WantCount, len(revisions), c.ResourcePath, revisions)
+	}
+}
+
+var _ ChangeSetAsserter = (*MatchRevisionCount)(nil)
+
 var _ ChangeSetAsserter = (*HasRevision)(nil)
+
+var _ ChangeSetAsserter = (*HasNoRevision)(nil)
 
 type MatchResourcePathSet struct {
 	WantResourcePaths []string
@@ -109,3 +143,28 @@ func (h *HasLogSummary) Assert(t *testing.T, cs *history.ChangeSet) {
 }
 
 var _ ChangeSetAsserter = (*HasLogSummary)(nil)
+
+type HasAlias struct {
+	Source      string
+	Destination string
+}
+
+// Assert implements ChangeSetAsserter.
+func (h *HasAlias) Assert(t *testing.T, cs *history.ChangeSet) {
+	t.Helper()
+	aliases := cs.GetAliases(resourcepath.ResourcePath{
+		Path: h.Source,
+	})
+	if len(aliases) == 0 {
+		t.Errorf("no aliases found for %s. available paths are: %v", h.Source, cs.GetAllResourcePaths())
+		return
+	}
+	for _, alias := range aliases {
+		if alias == h.Destination {
+			return
+		}
+	}
+	t.Errorf("alias not found for %s -> %s. available aliases are: %v", h.Source, h.Destination, aliases)
+}
+
+var _ ChangeSetAsserter = (*HasAlias)(nil)

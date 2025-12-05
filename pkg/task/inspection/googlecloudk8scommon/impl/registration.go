@@ -28,5 +28,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		InputKindFilterTask,
 		InputNamespaceFilterTask,
 		InputNodeNameFilterTask,
+		NEGNamesInventoryTask,
+		NEGNamesDiscoveryTask,
 	)
 }

@@ -43,7 +43,7 @@ type KubernetesObjectOperation struct {
 	Verb            enum.RevisionVerb
 }
 
-func (o *KubernetesObjectOperation) CovertToResourcePath() string {
+func (o *KubernetesObjectOperation) ResourcePath() string {
 	if o.SubResourceName != "" {
 		return strings.ToLower(strings.Join([]string{
 			o.APIVersion,
@@ -53,12 +53,21 @@ func (o *KubernetesObjectOperation) CovertToResourcePath() string {
 			o.SubResourceName,
 		}, "#"))
 	} else {
-		return strings.ToLower(strings.Join([]string{
-			o.APIVersion,
-			o.GetSingularKindName(),
-			o.Namespace,
-			o.Name,
-		}, "#"))
+		if o.Name == "" {
+			return strings.ToLower(strings.Join([]string{
+				o.APIVersion,
+				o.GetSingularKindName(),
+				o.Namespace,
+				"@namespace",
+			}, "#"))
+		} else {
+			return strings.ToLower(strings.Join([]string{
+				o.APIVersion,
+				o.GetSingularKindName(),
+				o.Namespace,
+				o.Name,
+			}, "#"))
+		}
 	}
 }
 
@@ -77,4 +86,16 @@ func (o *KubernetesObjectOperation) GetSingularKindName() string {
 	}
 	slog.Error(fmt.Sprintf("unknown plural form %s!", o.PluralKind))
 	return o.PluralKind
+}
+
+// Clone returns a copy of the KubernetesObjectOperation.
+func (o *KubernetesObjectOperation) Clone() *KubernetesObjectOperation {
+	return &KubernetesObjectOperation{
+		APIVersion:      o.APIVersion,
+		PluralKind:      o.PluralKind,
+		Namespace:       o.Namespace,
+		Name:            o.Name,
+		SubResourceName: o.SubResourceName,
+		Verb:            o.Verb,
+	}
 }

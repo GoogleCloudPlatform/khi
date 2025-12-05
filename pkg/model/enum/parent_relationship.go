@@ -24,13 +24,14 @@ const (
 	RelationshipContainer             ParentRelationship = 4
 	RelationshipNodeComponent         ParentRelationship = 5
 	RelationshipOwnerReference        ParentRelationship = 6
-	RelationshipPodBinding            ParentRelationship = 7
+	RelationshipPodBinding            ParentRelationship = 7 // Deprecated and replaced by PodPhase
 	RelationshipNetworkEndpointGroup  ParentRelationship = 8
 	RelationshipManagedInstanceGroup  ParentRelationship = 9
 	RelationshipControlPlaneComponent ParentRelationship = 10
 	RelationshipSerialPort            ParentRelationship = 11
 	RelationshipAirflowTaskInstance   ParentRelationship = 12
 	RelationshipCSMAccessLog          ParentRelationship = 13 // Added since 0.49
+	RelationshipPodPhase              ParentRelationship = 14 // Added since 0.50
 	relationshipUnusedEnd                                     // Add items above. This field is used for counting items in this enum to test.
 )
 
@@ -238,7 +239,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 	RelationshipEndpointSlice: {
 		Visible:              true,
 		EnumKeyName:          "RelationshipEndpointSlice",
-		Label:                "endpointslice",
+		Label:                "endpoint", // renamed from "endpointslice" in 0.50.0
 		LongName:             "Endpoint serving state timeline",
 		LabelColor:           "#FFFFFF",
 		LabelBackgroundColor: "#008000",
@@ -534,6 +535,43 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 			{
 				SourceLogType: LogTypeCSMAccessLog,
 				Description:   "An access log entry reported from CSM",
+			},
+		},
+	},
+	RelationshipPodPhase: {
+		Visible:              true,
+		EnumKeyName:          "RelationshipPodPhase",
+		Label:                "pod",
+		LongName:             "Pod phase",
+		LabelColor:           "#FFFFFF",
+		LabelBackgroundColor: "#FF8855",
+		Hint:                 "Pod phase running on the node",
+		SortPriority:         8000, // just under container logs
+		GeneratableRevisions: []GeneratableRevisionInfo{
+			{
+				State:         RevisionStatePodPhasePending,
+				SourceLogType: LogTypeAudit,
+				Description:   "Pod is pending",
+			},
+			{
+				State:         RevisionStatePodPhaseRunning,
+				SourceLogType: LogTypeAudit,
+				Description:   "Pod is running",
+			},
+			{
+				State:         RevisionStatePodPhaseSucceeded,
+				SourceLogType: LogTypeAudit,
+				Description:   "Pod is succeeded",
+			},
+			{
+				State:         RevisionStatePodPhaseFailed,
+				SourceLogType: LogTypeAudit,
+				Description:   "Pod is failed",
+			},
+			{
+				State:         RevisionStatePodPhaseUnknown,
+				SourceLogType: LogTypeAudit,
+				Description:   "Pod phase is unknown",
 			},
 		},
 	},

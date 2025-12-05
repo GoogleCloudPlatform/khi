@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8saudit/contract"
@@ -31,27 +32,63 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// K8sAuditQueryTask is a query generator task that creates a Google Cloud Logging query
-// to fetch Kubernetes audit logs for a specific cluster.
-var K8sAuditQueryTask = googlecloudcommon_contract.NewLegacyCloudLoggingListLogTask(googlecloudlogk8saudit_contract.K8sAuditQueryTaskID, "K8s audit logs", enum.LogTypeAudit, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
-	googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
-}, &googlecloudcommon_contract.ProjectIDDefaultResourceNamesGenerator{}, func(ctx context.Context, i inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+var GCPK8sAuditLogListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&GCPK8sAuditLogListLogEntriesTaskSetting{})
+
+type GCPK8sAuditLogListLogEntriesTaskSetting struct{}
+
+// DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+}
+
+// Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.InputKindFilterTaskID.Ref(),
+		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
+	}
+}
+
+// Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
+		QueryName:      "K8s audit logs",
+		DefaultLogType: enum.LogTypeAudit,
+		ExampleQuery: GenerateK8sAuditQuery(
+			"gcp-cluster-name",
+			&gcpqueryutil.SetFilterParseResult{
+				Additives: []string{"deployments", "replicasets", "pods", "nodes"},
+			},
+			&gcpqueryutil.SetFilterParseResult{
+				Additives: []string{"#cluster-scoped", "#namespaced"},
+			},
+		),
+	}
+}
+
+// LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	kindFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputKindFilterTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 
 	return []string{GenerateK8sAuditQuery(clusterName, kindFilter, namespaceFilter)}, nil
-}, GenerateK8sAuditQuery(
-	"gcp-cluster-name",
-	&gcpqueryutil.SetFilterParseResult{
-		Additives: []string{"deployments", "replicasets", "pods", "nodes"},
-	},
-	&gcpqueryutil.SetFilterParseResult{
-		Additives: []string{"#cluster-scoped", "#namespaced"},
-	},
-))
+}
+
+// TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+	return googlecloudlogk8saudit_contract.GCPK8sAuditLogListLogEntriesTaskID
+}
+
+// TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
+func (k *GCPK8sAuditLogListLogEntriesTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+	return 10, nil
+}
+
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*GCPK8sAuditLogListLogEntriesTaskSetting)(nil)
 
 // GenerateK8sAuditQuery constructs a Google Cloud Logging query string for fetching
 // Kubernetes audit logs based on cluster name, kind filters, and namespace filters.
