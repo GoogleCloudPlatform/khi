@@ -58,6 +58,19 @@ const (
 	RevisionAutoscalerNoError   RevisionState = 30 // Added since 0.49
 	RevisionAutoscalerHasErrors RevisionState = 31
 
+	RevisionStateConditionNotGiven        RevisionState = 32 // Added since 0.50
+	RevisionStateConditionNoAvailableInfo RevisionState = 33 // Added since 0.50
+
+	RevisionStatePodPhasePending   RevisionState = 34 // Added since 0.50
+	RevisionStatePodPhaseScheduled RevisionState = 35 // Added since 0.50
+	RevisionStatePodPhaseRunning   RevisionState = 36 // Added since 0.50
+	RevisionStatePodPhaseSucceeded RevisionState = 37 // Added since 0.50
+	RevisionStatePodPhaseFailed    RevisionState = 38 // Added since 0.50
+	RevisionStatePodPhaseUnknown   RevisionState = 39 // Added since 0.50
+
+	RevisionStateContainerStatusNotAvailable RevisionState = 40 // Added since 0.50
+	RevisionStateContainerStarted            RevisionState = 41 // Added since 0.50
+
 	revisionStateUnusedEnd // Adds items above. This value is used for counting items in this enum to test.
 )
 
@@ -268,5 +281,65 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		BackgroundColor: "#EE4400",
 		CSSSelector:     "autoscaler_has_errors",
 		Label:           "Autoscaler has errors",
+	},
+	RevisionStateConditionNotGiven: {
+		EnumKeyName:     "RevisionStateConditionNotGiven",
+		BackgroundColor: "#666666",
+		CSSSelector:     "condition_not_given",
+		Label:           "Condition is not defined at this moment",
+	},
+	RevisionStateConditionNoAvailableInfo: {
+		EnumKeyName:     "RevisionStateConditionNoAvailableInfo",
+		BackgroundColor: "#997700",
+		CSSSelector:     "condition_no_available_info",
+		Label:           "No enough information to show condition",
+	},
+	RevisionStatePodPhasePending: {
+		EnumKeyName:     "RevisionStatePodPhasePending",
+		BackgroundColor: "#666666",
+		CSSSelector:     "pod_phase_pending",
+		Label:           "Pod is pending",
+	},
+	RevisionStatePodPhaseScheduled: {
+		EnumKeyName:     "RevisionStatePodPhaseScheduled",
+		BackgroundColor: "#4444ff",
+		CSSSelector:     "pod_phase_scheduled",
+		Label:           "Pod is scheduled",
+	},
+	RevisionStatePodPhaseRunning: {
+		EnumKeyName:     "RevisionStatePodPhaseRunning",
+		BackgroundColor: "#004400",
+		CSSSelector:     "pod_phase_running",
+		Label:           "Pod is running",
+	},
+	RevisionStatePodPhaseSucceeded: {
+		EnumKeyName:     "RevisionStatePodPhaseSucceeded",
+		BackgroundColor: "#113333",
+		CSSSelector:     "pod_phase_succeeded",
+		Label:           "Pod is succeeded",
+	},
+	RevisionStatePodPhaseFailed: {
+		EnumKeyName:     "RevisionStatePodPhaseFailed",
+		BackgroundColor: "#331111",
+		CSSSelector:     "pod_phase_failed",
+		Label:           "Pod is failed",
+	},
+	RevisionStatePodPhaseUnknown: {
+		EnumKeyName:     "RevisionStatePodPhaseUnknown",
+		BackgroundColor: "#000000",
+		CSSSelector:     "pod_phase_unknown",
+		Label:           "Pod status is not available from current log range",
+	},
+	RevisionStateContainerStatusNotAvailable: {
+		EnumKeyName:     "RevisionStateContainerStatusNotAvailable",
+		BackgroundColor: "#666666",
+		CSSSelector:     "container_status_not_available",
+		Label:           "Container status is not available",
+	},
+	RevisionStateContainerStarted: {
+		EnumKeyName:     "RevisionStateContainerStarted",
+		BackgroundColor: "#997700",
+		CSSSelector:     "container_started",
+		Label:           "Container is started but readiness info is not available",
 	},
 }

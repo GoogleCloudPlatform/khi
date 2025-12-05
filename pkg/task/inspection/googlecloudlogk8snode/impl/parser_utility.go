@@ -104,7 +104,12 @@ func toReadablePodSandboxName(namespace string, name string) string {
 
 // toReadableContainerName formats a container's name, its parent pod's name, and namespace into a human-readable string.
 func toReadableContainerName(namespace string, name string, container string) string {
-	return fmt.Sprintf("【%s (Pod:%s, Namespace:%s)】", container, name, namespace)
+	return fmt.Sprintf("【%s (Pod: %s, Namespace: %s)】", container, name, namespace)
+}
+
+// toReadableResourceName formats a resource's name, namespace, API version, and kind into a human-readable string.
+func toReadableResourceName(apiVersion, kind, namespace, name string) string {
+	return fmt.Sprintf("【%s (Namespace: %s, APIVersion: %s, Kind: %s)】", name, namespace, apiVersion, kind)
 }
 
 // parseDefaultSummary formats given klog message into a human readable message.

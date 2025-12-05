@@ -17,11 +17,16 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
@@ -89,11 +94,14 @@ var ControllerManagerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 var ControllerManagerHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerHistoryModifierTaskID, &controllerManagerHistoryModifierTaskSetting{})
 
 type controllerManagerHistoryModifierTaskSetting struct {
+	uidPrefixTokenCandidates []rune
 }
 
 // Dependencies implements inspectiontaskbase.HistoryModifer.
 func (o *controllerManagerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(),
+	}
 }
 
 // GroupedLogTask implements inspectiontaskbase.HistoryModifer.
@@ -108,6 +116,7 @@ func (o *controllerManagerHistoryModifierTaskSetting) LogSerializerTask() taskid
 
 // ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
 func (o *controllerManagerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+	finder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref())
 	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
 	if err != nil {
 		return struct{}{}, err
@@ -121,10 +130,24 @@ func (o *controllerManagerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx
 		return struct{}{}, err
 	}
 
+	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage.Message, finder, false, o.uidPrefixTokenCandidates...)
+	writtenResourcePaths := map[string]struct{}{}
 	cs.SetLogSummary(commonMainMessage.Message)
 	cs.AddEvent(controllerManagerFieldSet.ControlPlaneResourcePath(componentFieldSet.ClusterName))
 	for _, resourcePath := range controllerManagerFieldSet.AssociatedResources {
 		cs.AddEvent(resourcePath)
+		writtenResourcePaths[resourcePath.Path] = struct{}{}
+	}
+	for _, resource := range resources {
+		path := resource.Value.ResourcePathString()
+		if _, ok := writtenResourcePaths[path]; ok {
+			continue
+		}
+		cs.AddEvent(resourcepath.ResourcePath{
+			Path:               path,
+			ParentRelationship: enum.RelationshipChild,
+		})
+		writtenResourcePaths[path] = struct{}{}
 	}
 	return struct{}{}, nil
 }

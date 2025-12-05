@@ -17,6 +17,7 @@ package googlecloudcommon_impl
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
@@ -110,13 +111,18 @@ var InputLoggingFilterResourceNameTask = inspectiontaskbase.NewInspectionTask(go
 // getCurrentActiveQueryIDsForResourceName returns the query IDs that are currently active with retrieving them from the current task graph.
 func getCurrentActiveQueryIDsForResourceName(runner coretask.TaskRunner) []string {
 	tasks := runner.Tasks()
-	result := []string{}
+	resultMap := map[string]struct{}{}
 	for _, t := range tasks {
 		requestInput, found := typedmap.Get(t.Labels(), googlecloudcommon_contract.RequestOptionalInputResourceNameTaskLabel)
 		if !found {
 			continue
 		}
-		result = append(result, requestInput)
+		resultMap[requestInput] = struct{}{}
 	}
+	result := []string{}
+	for k := range resultMap {
+		result = append(result, k)
+	}
+	slices.Sort(result)
 	return result
 }

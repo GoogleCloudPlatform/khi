@@ -301,7 +301,7 @@ func TestOperation(t *testing.T) {
 	}
 }
 
-func TestStatus(t *testing.T) {
+func TestCondition(t *testing.T) {
 	expectedParentRelationship := enum.RelationshipResourceCondition
 	testCases := []struct {
 		name        string
@@ -315,12 +315,12 @@ func TestStatus(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := Status(tc.statusOwner, tc.statusName)
+			result := Condition(tc.statusOwner, tc.statusName)
 			if result.Path != tc.expected {
-				t.Errorf("Status(%v,%v).Path = %v, want %v", tc.statusOwner, tc.statusName, result.Path, tc.expected)
+				t.Errorf("Condition(%v,%v).Path = %v, want %v", tc.statusOwner, tc.statusName, result.Path, tc.expected)
 			}
 			if result.ParentRelationship != expectedParentRelationship {
-				t.Errorf("Status(%v,%v).ParentRelationship = %v, want %v", tc.statusOwner, tc.statusName, result.ParentRelationship, expectedParentRelationship)
+				t.Errorf("Condition(%v,%v).ParentRelationship = %v, want %v", tc.statusOwner, tc.statusName, result.ParentRelationship, expectedParentRelationship)
 			}
 		})
 	}

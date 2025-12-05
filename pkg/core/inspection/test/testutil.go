@@ -22,8 +22,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -38,6 +40,17 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.GlobalSharedMap, typedmap.NewTypedMap())
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionSharedMap, typedmap.NewTypedMap())
+
+	// If this context is used with the task runner, it should have the task result map. But if not, then this must complement the value with the default value.
+	_, err := khictx.GetValue(taskCtx, core_contract.TaskResultMapContextKey)
+	if err != nil {
+		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskResultMapContextKey, typedmap.NewTypedMap())
+	}
+	_, err = khictx.GetValue(taskCtx, core_contract.TaskImplementationIDContextKey)
+	if err != nil {
+		fakeTaskID := taskid.NewDefaultImplementationID[struct{}]("khi.google.com/fake-test-id")
+		taskCtx = khictx.WithValue(taskCtx, core_contract.TaskImplementationIDContextKey, fakeTaskID.(taskid.UntypedTaskImplementationID))
+	}
 
 	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
 	if err != nil {

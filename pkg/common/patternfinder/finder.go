@@ -14,12 +14,22 @@
 
 package patternfinder
 
+import "fmt"
+
 // PatternMatchResult represents a single match found within a larger text.
 // It includes the start and end positions of the match.
 type PatternMatchResult[T any] struct {
 	Value T
 	Start int
 	End   int
+}
+
+// GetMatchedString extracts the matched string from the original string.
+func (p *PatternMatchResult[T]) GetMatchedString(original string) (string, error) {
+	if p.Start < 0 || p.End > len(original) {
+		return "", fmt.Errorf("invalid match range: start=%d, end=%d", p.Start, p.End)
+	}
+	return original[p.Start:p.End], nil
 }
 
 // FindAllWithStarterRunes finds all occurrences of patterns within a search text.

@@ -160,9 +160,17 @@ func TestToReadablePodSandboxName(t *testing.T) {
 
 func TestToReadableContainerName(t *testing.T) {
 	got := toReadableContainerName("ns1", "pod1", "container1")
-	want := "【container1 (Pod:pod1, Namespace:ns1)】"
+	want := "【container1 (Pod: pod1, Namespace: ns1)】"
 	if got != want {
 		t.Errorf("toReadableContainerName() = %v, want %v", got, want)
+	}
+}
+
+func TestToReadableResourceName(t *testing.T) {
+	got := toReadableResourceName("core/v1", "node", "cluster-scope", "node-foo")
+	want := "【node-foo (Namespace: cluster-scope, APIVersion: core/v1, Kind: node)】"
+	if got != want {
+		t.Errorf("toReadableResourceName() = %v, want %v", got, want)
 	}
 }
 

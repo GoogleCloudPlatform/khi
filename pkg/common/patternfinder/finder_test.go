@@ -133,6 +133,52 @@ func TestFindAllWithStarterRunes(t *testing.T) {
 	}
 }
 
+func TestGetMatchedString(t *testing.T) {
+	testCases := []struct {
+		desc     string
+		result   PatternMatchResult[struct{}]
+		original string
+		want     string
+		wantErr  bool
+	}{
+		{
+			desc: "simple case",
+			result: PatternMatchResult[struct{}]{
+				Value: struct{}{},
+				Start: 0,
+				End:   5,
+			},
+			original: "hello",
+			want:     "hello",
+		},
+		{
+			desc: "original message has short length than result",
+			result: PatternMatchResult[struct{}]{
+				Value: struct{}{},
+				Start: 0,
+				End:   5,
+			},
+			original: "",
+			want:     "",
+			wantErr:  true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got, err := tc.result.GetMatchedString(tc.original)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("GetMatchedString() = %v, want error %v", got, tc.want)
+				}
+			} else {
+				if got != tc.want {
+					t.Errorf("GetMatchedString() = %v, want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkFindAllWithStarterRunes(b *testing.B) {
 	finders := []struct {
 		name        string

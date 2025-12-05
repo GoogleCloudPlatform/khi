@@ -109,7 +109,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		CommonFieldSetReaderTask,
 		ContainerdLogFilterTask,
 		ContainerdLogGroupTask,
-		ContainerdIDDiscoveryTask,
+		PodSandboxIDDiscoveryTask,
 		ContainerdNodeLogHistoryModifierTask,
 		KubeletLogFilterTask,
 		KubeletLogGroupTask,
@@ -118,5 +118,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		OtherLogGroupTask,
 		OtherLogHistoryModifierTask,
 		TailTask,
+		ContainerIDDiscoveryTask,
 	)
 }

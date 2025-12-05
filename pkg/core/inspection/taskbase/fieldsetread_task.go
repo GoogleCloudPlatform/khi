@@ -37,7 +37,7 @@ import (
 // to each log concurrently. This allows for parallel processing of log entries to extract specific fields needed in later tasks.
 // Later parser tasks usually process logs from older to newer with grouped by resource, thus it can't be done in parallel.
 // The process of extracting log fields must not depend on the other logs and it can be done in parallel.
-func NewFieldSetReadTask(taskId taskid.TaskImplementationID[[]*log.Log], logTask taskid.TaskReference[[]*log.Log], fieldSetReaders []log.FieldSetReader) coretask.Task[[]*log.Log] {
+func NewFieldSetReadTask(taskId taskid.TaskImplementationID[[]*log.Log], logTask taskid.TaskReference[[]*log.Log], fieldSetReaders []log.FieldSetReader, labelOpts ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
 	return NewProgressReportableInspectionTask(taskId, []taskid.UntypedTaskReference{
 		logTask,
 	}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
@@ -83,5 +83,5 @@ func NewFieldSetReadTask(taskId taskid.TaskImplementationID[[]*log.Log], logTask
 		}
 
 		return logs, nil
-	})
+	}, labelOpts...)
 }

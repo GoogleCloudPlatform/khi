@@ -86,6 +86,18 @@ func NodeBinding(nodeName string, podNamespace string, podName string) ResourceP
 	return node
 }
 
+func EndpointSliceChildPod(endpointSliceNamespace string, endpointSliceName string, podNamespace string, podName string) ResourcePath {
+	eps := EndpointSlice(endpointSliceNamespace, endpointSliceName)
+	if podNamespace != endpointSliceNamespace {
+		podNamespace = fmt.Sprintf("(%s)", podNamespace)
+	} else {
+		podNamespace = ""
+	}
+	eps.Path = fmt.Sprintf("%s#%s%s[pod]", eps.Path, podName, podNamespace)
+	eps.ParentRelationship = enum.RelationshipEndpointSlice
+	return eps
+}
+
 // PodEndpointSlice returns a ResourcePath for the pseudo endpointslice timeline under pods.
 func PodEndpointSlice(endpointSliceNamespace string, endpointSliceName string, podNamespace string, podName string) ResourcePath {
 	if endpointSliceName == "" {
@@ -128,8 +140,8 @@ func Operation(operationOwner ResourcePath, operationMethod string, operationId 
 	}
 }
 
-// Status returns a ResourcePath for the pseudo status timeline under the given name layer resource.
-func Status(statusOwner ResourcePath, statusName string) ResourcePath {
+// Condition returns a ResourcePath for the pseudo status timeline under the given name layer resource.
+func Condition(statusOwner ResourcePath, statusName string) ResourcePath {
 	if statusName == "" {
 		statusName = nonSpecifiedPlaceholder
 	}
@@ -164,5 +176,16 @@ func OwnerSubresource(ownerPath ResourcePath, ownedResourceName string, ownedRes
 	return ResourcePath{
 		Path:               fmt.Sprintf("%s#%s[kind:%s]", ownerPath.Path, ownedResourceName, ownedResourceKind),
 		ParentRelationship: enum.RelationshipOwnerReference,
+	}
+}
+
+func PodPhase(nodeName string, podNamespace, podName, uid string) ResourcePath {
+	if uid == "" {
+		uid = nonSpecifiedPlaceholder
+	}
+	node := Node(nodeName)
+	return ResourcePath{
+		Path:               fmt.Sprintf("%s#%s/%s[%s]", node.Path, podNamespace, podName, uid),
+		ParentRelationship: enum.RelationshipPodPhase,
 	}
 }

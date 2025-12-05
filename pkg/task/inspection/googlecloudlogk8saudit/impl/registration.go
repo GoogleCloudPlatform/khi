@@ -21,11 +21,9 @@ import (
 
 // Register registers all tasks related to GKE Kubernetes audit log.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := RegisterK8sAuditTasks(registry)
-	if err != nil {
-		return err
-	}
 	return coretask.RegisterTasks(registry,
-		K8sAuditQueryTask,
+		GCPK8sAuditLogListLogEntriesTask,
+		GCPK8sAuditLogCommonFieldSetReaderTask,
+		GCPK8sAuditLogParserTailTask,
 	)
 }
