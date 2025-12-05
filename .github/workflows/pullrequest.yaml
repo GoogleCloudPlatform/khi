@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run markdownlint
         uses: DavidAnson/markdownlint-cli2-action@30a0e04f1870d58f8d717450cc6134995f993c63 # 19.1.0
@@ -37,10 +37,10 @@ jobs:
       id-token: 'write'
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
     - name: Backend Test
@@ -74,15 +74,15 @@ jobs:
       contents: 'read'
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version-file: './.node-version'
 
     - name: Set up Go # Go dependency is needed for `make prepare-frontend`
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
 
@@ -118,15 +118,15 @@ jobs:
         configuration: [prod, dev]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version-file: './.node-version'
 
     - name: Set up Go # Go dependency is needed for `make prepare-frontend`
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
 
@@ -140,19 +140,26 @@ jobs:
     - name: Build web
       working-directory: ./web
       run: npx ng build --configuration ${{ matrix.configuration }}
-  build-backend:
+  build-binaries:
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
-    - name: Build backend
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: './.node-version'
+    - name: npm install
+      working-directory: ./web
+      run: npm ci
+    - name: Build binary
       run: make build-go-binaries
 
   license-header-check:
@@ -161,10 +168,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: './go.mod'
 
