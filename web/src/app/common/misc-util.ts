@@ -39,5 +39,5 @@
  */
 export function unreachable(v: never): never {
   console.error('unreachable code reached', v);
-  throw new Error('unreachable code reached');
+  throw new Error(`unreachable code reached with value: ${JSON.stringify(v)}`);
 }
