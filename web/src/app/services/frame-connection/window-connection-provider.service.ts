@@ -34,9 +34,7 @@ interface BroadcastChannelPacketWrap {
 /**
  * WindowConnectionProvider using BroadcastChannel
  */
-export class BroadcastChannelWindowConnectionProvider
-  implements WindowConnectionProvider
-{
+export class BroadcastChannelWindowConnectionProvider implements WindowConnectionProvider {
   private readonly channel: BroadcastChannel;
 
   private readonly messageReceiver: Subject<BroadcastChannelPacketWrap> =
@@ -71,9 +69,7 @@ export class BroadcastChannelWindowConnectionProvider
  * WindowConnectionProvider used for tests.
  * This connection provider allows connecting to the other in the same frame
  */
-export class InMemoryWindowConnectionProvider
-  implements WindowConnectionProvider
-{
+export class InMemoryWindowConnectionProvider implements WindowConnectionProvider {
   private readonly messageReceiver: Subject<KHIWindowPacket<unknown>> =
     new Subject();
 
