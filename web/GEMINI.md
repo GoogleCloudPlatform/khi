@@ -1,5 +1,3 @@
-> **Note:** In this document, "I" refers to the Gemini assistant, and "you" refers to the user.
-
 # GEMINI.md for `web` Directory
 
 This document outlines the development conventions and guidelines for the frontend application located in the `web/` directory. All code within this directory must adhere to these rules, in addition to the global standards defined in the root [`GEMINI.md`](../GEMINI.md).
@@ -19,8 +17,21 @@ We adhere to the official [Angular Style Guide](https://angular.io/guide/stylegu
 
 ### Component Design
 
-- **Standalone by Default**: All new components, directives, and pipes **must** be `standalone: true`. This is the default for modern Angular development.
-- **Signals for Inputs**: Use the `input()` signal function for component inputs instead of the `@Input()` decorator. This improves type safety and integration with the signal-based reactivity model.
+We follow the **Smart (Container) vs. Dumb (Presentational) Component** pattern to maintain separation of concerns.
+
+- **Smart Components (Containers)**:
+  - Responsible for state management, data fetching, and business logic.
+  - Pass data to dumb components via inputs.
+  - Handle events emitted by dumb components.
+  - Often correspond to top-level route components or major feature containers.
+- **Dumb Components (Presentational)**:
+  - Focus purely on rendering the UI and handling user interactions.
+  - Receive data via `input()` signals.
+  - Emit user actions via  `output()`.
+  - Should not contain complex business logic or direct service dependencies (except for purely presentational services).
+
+- **Standalone by Default**: All new components, directives, and pipes **must** be `standalone: true`.
+- **Signals for Inputs**: Use the `input()` signal function for component inputs.
 
     ```typescript
     // Preferred
@@ -30,21 +41,21 @@ We adhere to the official [Angular Style Guide](https://angular.io/guide/stylegu
     }
     ```
 
-- **New Control Flow**: In component templates, use the new built-in control flow syntax (`@if`, `@for`, `@switch`) instead of the older structural directives (`*ngIf`, `*ngFor`, `*ngSwitch`). This offers better type checking and performance.
+- **New Control Flow**: Use `@if`, `@for`, `@switch`.
 
-    ```html
-    <!-- Preferred -->
-    @for (item of items; track item.id) {
-      <li>{{ item.name }}</li>
-    } @empty {
-      <p>No items found.</p>
-    }
-    ```
+### State Management & Services
 
-### State Management
+- **Signals for Local State**: Use signals (`signal()`, `computed()`) for component-level state.
+- **RxJS for Async**: Use RxJS for complex async streams, converting to signals with `toSignal` for template binding.
 
-- **Signals for Local State**: Use signals (`signal()`, `computed()`) for managing component-level state. They are efficient and easy to reason about.
-- **RxJS for Async**: Use RxJS for handling complex asynchronous event streams, such as those from `HttpClient` or `@angular/forms`. Convert RxJS observables to signals using `toSignal` from `@angular/core/rxjs-interop` when binding to the template.
+#### Key Services
+
+The following services play critical roles in the application architecture:
+
+- **`InspectionDataLoaderService`**: Responsible for loading inspection data from various sources (backend, local file) and parsing it into the application's data model.
+- **`InspectionDataStoreService`**: Acts as the central store for the loaded inspection data, holding the global state accessible throughout the application.
+- **`SelectionManagerService`**: Manages the user's current selection state, including selected logs, timelines, and revisions, and handles the synchronization between different views.
+- **`BackendAPI`**: An interface (and implementation) for communicating with the backend server to fetch data or perform actions.
 
 ### Styling (SCSS)
 
