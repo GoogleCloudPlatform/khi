@@ -1,6 +1,6 @@
 module github.com/GoogleCloudPlatform/khi/scripts/depguard-generator
 
-go 1.24.1
+go 1.25.5
 
 require (
 	github.com/google/go-cmp v0.7.0 // indirect
