@@ -174,7 +174,7 @@ func TestConditionWalker(t *testing.T) {
 					},
 				},
 				{
-					name: "initial patch without status",
+					name: "patch without status, with heartbeat",
 					condition: &model.K8sResourceStatusCondition{
 						Type:               conditionType,
 						LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
