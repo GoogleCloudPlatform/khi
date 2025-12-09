@@ -36,7 +36,6 @@ func TestConditionWalker(t *testing.T) {
 		ParentRelationship: enum.RelationshipChild,
 	}
 	conditionType := "Ready"
-	walker := newConditionWalker(parentPath, conditionType)
 
 	baseTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	commonFieldSet := &log.CommonFieldSet{
@@ -49,122 +48,190 @@ func TestConditionWalker(t *testing.T) {
 		Principal: "user-1",
 	}
 
-	tests := []struct {
+	type step struct {
 		name      string
 		condition *model.K8sResourceStatusCondition
 		want      *history.StagingResourceRevision
+	}
+
+	scenarios := []struct {
+		name  string
+		steps []step
 	}{
 		{
-			name: "Initial Condition (TransitionTime)",
-			condition: &model.K8sResourceStatusCondition{
-				Type:               conditionType,
-				Status:             "True",
-				LastTransitionTime: baseTime.Format(time.RFC3339),
-			},
-			want: &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbUpdate,
-				Body:       "lastTransitionTime: \"2024-01-01T00:00:00Z\"\nstatus: \"True\"\ntype: Ready\n",
-				Partial:    false,
-				Requestor:  "user-1",
-				ChangeTime: baseTime,
-				State:      enum.RevisionStateConditionTrue,
+			name: "Standard Lifecycle",
+			steps: []step{
+				{
+					name: "Initial Condition (TransitionTime)",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						Status:             "True",
+						LastTransitionTime: baseTime.Format(time.RFC3339),
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastTransitionTime: \"2024-01-01T00:00:00Z\"\nstatus: \"True\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime,
+						State:      enum.RevisionStateConditionTrue,
+					},
+				},
+				{
+					name: "No Change",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						Status:             "True",
+						LastTransitionTime: baseTime.Format(time.RFC3339),
+					},
+					want: nil,
+				},
+				{
+					name: "Status Change (TransitionTime)",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						Status:             "False",
+						LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastTransitionTime: \"2024-01-01T01:00:00Z\"\nstatus: \"False\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime.Add(1 * time.Hour),
+						State:      enum.RevisionStateConditionFalse,
+					},
+				},
+				{
+					name: "Probe Time Change (ProbeLikeTime)",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						Status:             "False",
+						LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
+						LastHeartbeatTime:  baseTime.Add(2 * time.Hour).Format(time.RFC3339),
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastHeartbeatTime: \"2024-01-01T02:00:00Z\"\nlastTransitionTime: \"2024-01-01T01:00:00Z\"\nstatus: \"False\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime.Add(2 * time.Hour),
+						State:      enum.RevisionStateConditionFalse,
+					},
+				},
+				{
+					name: "No change on LastTransitionTime but changes on LastHeartbeatTime",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						Status:             "False",
+						LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
+						LastHeartbeatTime:  baseTime.Add(3 * time.Hour).Format(time.RFC3339),
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastHeartbeatTime: \"2024-01-01T03:00:00Z\"\nlastTransitionTime: \"2024-01-01T01:00:00Z\"\nstatus: \"False\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime.Add(3 * time.Hour),
+						State:      enum.RevisionStateConditionFalse,
+					},
+				},
+				{
+					name:      "Condition Removal",
+					condition: nil,
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime,
+						State:      enum.RevisionStateConditionNotGiven,
+					},
+				},
+				{
+					name:      "Condition Removal (Already Removed)",
+					condition: nil,
+					want:      nil,
+				},
 			},
 		},
 		{
-			name: "No Change",
-			condition: &model.K8sResourceStatusCondition{
-				Type:               conditionType,
-				Status:             "True",
-				LastTransitionTime: baseTime.Format(time.RFC3339),
+			name: "patch conditions without the full status information",
+			steps: []step{
+				{
+					name: "initial patch without status",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastTransitionTime: \"2024-01-01T01:00:00Z\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime.Add(1 * time.Hour),
+						State:      enum.RevisionStateConditionNoAvailableInfo,
+					},
+				},
+				{
+					name: "initial patch without status",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
+						LastHeartbeatTime:  baseTime.Add(2 * time.Hour).Format(time.RFC3339),
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastHeartbeatTime: \"2024-01-01T02:00:00Z\"\nlastTransitionTime: \"2024-01-01T01:00:00Z\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime.Add(2 * time.Hour),
+						State:      enum.RevisionStateConditionNoAvailableInfo,
+					},
+				},
+				{
+					name: "initial patch without status",
+					condition: &model.K8sResourceStatusCondition{
+						Type:               conditionType,
+						LastTransitionTime: baseTime.Add(3 * time.Hour).Format(time.RFC3339),
+						LastHeartbeatTime:  baseTime.Add(2 * time.Hour).Format(time.RFC3339),
+						Status:             "True",
+					},
+					want: &history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						Body:       "lastHeartbeatTime: \"2024-01-01T02:00:00Z\"\nlastTransitionTime: \"2024-01-01T03:00:00Z\"\nstatus: \"True\"\ntype: Ready\n",
+						Partial:    false,
+						Requestor:  "user-1",
+						ChangeTime: baseTime.Add(3 * time.Hour),
+						State:      enum.RevisionStateConditionTrue,
+					},
+				},
 			},
-			want: nil,
-		},
-		{
-			name: "Status Change (TransitionTime)",
-			condition: &model.K8sResourceStatusCondition{
-				Type:               conditionType,
-				Status:             "False",
-				LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
-			},
-			want: &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbUpdate,
-				Body:       "lastTransitionTime: \"2024-01-01T01:00:00Z\"\nstatus: \"False\"\ntype: Ready\n",
-				Partial:    false,
-				Requestor:  "user-1",
-				ChangeTime: baseTime.Add(1 * time.Hour),
-				State:      enum.RevisionStateConditionFalse,
-			},
-		},
-		{
-			name: "Probe Time Change (ProbeLikeTime)",
-			condition: &model.K8sResourceStatusCondition{
-				Type:               conditionType,
-				Status:             "False",
-				LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
-				LastHeartbeatTime:  baseTime.Add(2 * time.Hour).Format(time.RFC3339),
-			},
-			want: &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbUpdate,
-				Body:       "lastHeartbeatTime: \"2024-01-01T02:00:00Z\"\nlastTransitionTime: \"2024-01-01T01:00:00Z\"\nstatus: \"False\"\ntype: Ready\n",
-				Partial:    false,
-				Requestor:  "user-1",
-				ChangeTime: baseTime.Add(2 * time.Hour),
-				State:      enum.RevisionStateConditionFalse,
-			},
-		},
-		{
-			name: "No change on LastTransitionTime but changes on LastHeartbeatTime",
-			condition: &model.K8sResourceStatusCondition{
-				Type:               conditionType,
-				Status:             "False",
-				LastTransitionTime: baseTime.Add(1 * time.Hour).Format(time.RFC3339),
-				LastHeartbeatTime:  baseTime.Add(3 * time.Hour).Format(time.RFC3339),
-			},
-			want: &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbUpdate,
-				Body:       "lastHeartbeatTime: \"2024-01-01T03:00:00Z\"\nlastTransitionTime: \"2024-01-01T01:00:00Z\"\nstatus: \"False\"\ntype: Ready\n",
-				Partial:    false,
-				Requestor:  "user-1",
-				ChangeTime: baseTime.Add(3 * time.Hour),
-				State:      enum.RevisionStateConditionFalse,
-			},
-		},
-		{
-			name:      "Condition Removal",
-			condition: nil,
-			want: &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbUpdate,
-				Body:       "",
-				Partial:    false,
-				Requestor:  "user-1",
-				ChangeTime: baseTime,
-				State:      enum.RevisionStateConditionNotGiven,
-			},
-		},
-		{
-			name:      "Condition Removal (Already Removed)",
-			condition: nil,
-			want:      nil,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest()
-			cs := history.NewChangeSet(l)
-			walker.CheckAndRecord(commonFieldSet, k8sFieldSet, tt.condition, cs)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			walker := newConditionWalker(parentPath, conditionType)
+			for _, tt := range scenario.steps {
+				t.Run(tt.name, func(t *testing.T) {
+					l := log.NewLogWithFieldSetsForTest()
+					cs := history.NewChangeSet(l)
+					walker.CheckAndRecord(commonFieldSet, k8sFieldSet, tt.condition, cs)
 
-			if tt.want == nil {
-				asserter := testchangeset.HasNoRevision{
-					ResourcePath: resourcepath.Condition(parentPath, conditionType).Path,
-				}
-				asserter.Assert(t, cs)
-			} else {
-				asserter := testchangeset.HasRevision{
-					ResourcePath: resourcepath.Condition(parentPath, conditionType).Path,
-					WantRevision: *tt.want,
-				}
-				asserter.Assert(t, cs)
+					if tt.want == nil {
+						asserter := testchangeset.HasNoRevision{
+							ResourcePath: resourcepath.Condition(parentPath, conditionType).Path,
+						}
+						asserter.Assert(t, cs)
+					} else {
+						asserter := testchangeset.HasRevision{
+							ResourcePath: resourcepath.Condition(parentPath, conditionType).Path,
+							WantRevision: *tt.want,
+						}
+						asserter.Assert(t, cs)
+					}
+				})
 			}
 		})
 	}

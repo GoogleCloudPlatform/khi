@@ -62,7 +62,7 @@ func (b *TimelineBuilder) AddRevision(revision *ResourceRevision) {
 	b.timeline.Revisions = append(b.timeline.Revisions, revision)
 	if len(timeline.Revisions) >= 2 {
 		prev := timeline.Revisions[len(timeline.Revisions)-2]
-		if b.timeDiffOfLogIndicces(revision.Log, prev.Log) < 0 {
+		if revision.ChangeTime.Sub(prev.ChangeTime) < 0 {
 			b.sorted = false
 		}
 	}

@@ -205,12 +205,16 @@ var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[*condition
 
 // conditionStateToRevisionState converts a Kubernetes condition status string ("True", "False", etc.) to a KHI RevisionState enum.
 func conditionStateToRevisionState(conditionState string) enum.RevisionState {
-	if conditionState == "True" {
+	switch conditionState {
+	case "True":
 		return enum.RevisionStateConditionTrue
-	} else if conditionState == "False" {
+	case "False":
 		return enum.RevisionStateConditionFalse
+	case "":
+		return enum.RevisionStateConditionNoAvailableInfo
+	default:
+		return enum.RevisionStateConditionUnknown
 	}
-	return enum.RevisionStateConditionUnknown
 }
 
 type conditionWalker struct {
