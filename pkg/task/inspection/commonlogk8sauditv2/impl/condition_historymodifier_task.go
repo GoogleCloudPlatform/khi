@@ -314,9 +314,7 @@ func (c *conditionWalker) CheckAndRecord(commonLog *log.CommonFieldSet, k8sAudit
 				if condition.Status == "" {
 					referenceCondition := c.getLastCondition(probeLikeTime)
 					if referenceCondition != nil {
-						if condition.Status == "" {
-							condition.Status = referenceCondition.Status
-						}
+						condition.Status = referenceCondition.Status
 						if condition.LastTransitionTime == "" {
 							condition.LastTransitionTime = referenceCondition.LastTransitionTime
 						}
@@ -360,7 +358,10 @@ func (c *conditionWalker) getLastCondition(beforeThan time.Time) *model.K8sResou
 	if len(c.lastTransitionTimeSorted) != len(c.lastTransitionStates) {
 		times := make([]*time.Time, 0, len(c.lastTransitionStates))
 		for k := range c.lastTransitionStates {
-			t, _ := time.Parse(time.RFC3339, k)
+			t, err := time.Parse(time.RFC3339, k)
+			if err != nil {
+				continue
+			}
 			times = append(times, &t)
 		}
 		sort.Slice(times, func(i, j int) bool {
@@ -376,7 +377,7 @@ func (c *conditionWalker) getLastCondition(beforeThan time.Time) *model.K8sResou
 		return nil
 	}
 	idx := sort.Search(len(c.lastTransitionTimeSorted), func(i int) bool {
-		return !c.lastTransitionTimeSorted[i].Before(beforeThan)
+		return c.lastTransitionTimeSorted[i].After(beforeThan)
 	})
 	if idx > 0 {
 		return c.lastTransitionStates[c.lastTransitionTimeSorted[idx-1].Format(time.RFC3339)]
