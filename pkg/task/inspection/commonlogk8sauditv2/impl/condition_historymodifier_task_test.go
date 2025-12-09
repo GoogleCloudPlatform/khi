@@ -471,10 +471,16 @@ status:
 					ResourcePath: resourcepath.Condition(parentPath, "Ready").Path,
 					WantRevision: history.StagingResourceRevision{
 						Verb:       enum.RevisionVerbUpdate,
-						State:      enum.RevisionStateConditionTrue,
+						State:      enum.RevisionStateConditionFalse,
 						ChangeTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						Requestor:  "user-1",
-						Body:       "lastTransitionTime: \"2024-01-01T00:00:00Z\"\nstatus: \"True\"\ntype: Ready\n",
+						Body: `lastProbeTime: "2024-01-01T00:00:00Z"
+lastTransitionTime: "2023-12-31T12:00:00Z"
+message: Something is wrong
+reason: Process is not responsive
+status: "False"
+type: Ready
+`,
 					},
 				},
 			},
