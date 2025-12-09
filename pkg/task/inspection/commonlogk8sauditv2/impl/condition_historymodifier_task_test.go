@@ -246,6 +246,7 @@ func TestConditionHistoryModifierTask_Process(t *testing.T) {
 		Path:               "core/v1#pod#default#nginx",
 		ParentRelationship: enum.RelationshipChild,
 	}
+	oldTime := time.Date(2023, time.December, 31, 12, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
 		name         string
@@ -259,7 +260,7 @@ func TestConditionHistoryModifierTask_Process(t *testing.T) {
 		asserters    []testchangeset.ChangeSetAsserter
 	}{
 		{
-			name: "processFirstPass/Collect AvailableTypes",
+			name: "processFirstPass/Collect AvailableTypes and LastTransitionTime",
 			pass: 0,
 			yaml: `
 status:
@@ -276,8 +277,17 @@ status:
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
 			wantState: &conditionHistoryModifierTaskState{
-				AvailableTypes:   map[string]struct{}{"Ready": {}},
-				ConditionWalkers: map[string]*conditionWalker{},
+				AvailableTypes: map[string]struct{}{"Ready": {}},
+				ConditionWalkers: map[string]*conditionWalker{
+					"Ready": {
+						parentResource: resourcepath.ResourcePath{Path: "core/v1#pod#default#nginx"},
+						conditionType:  "Ready",
+						lastTransitionStates: map[string]*model.K8sResourceStatusCondition{
+							"2024-01-01T00:00:00Z": {Type: "Ready", LastTransitionTime: "2024-01-01T00:00:00Z", Status: "True"},
+						},
+						lastTransitionTimeSorted: []*time.Time{},
+					},
+				},
 			},
 			asserters: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
@@ -293,15 +303,21 @@ status:
   conditions:
   - type: Ready
     status: "True"
-    lastTransitionTime: "2024-01-01T00:00:00Z"
 `,
 			eventType:    commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
 			operation:    enum.RevisionVerbUpdate,
 			timestamp:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			initialState: nil,
 			wantState: &conditionHistoryModifierTaskState{
-				AvailableTypes:   map[string]struct{}{"Ready": {}},
-				ConditionWalkers: map[string]*conditionWalker{},
+				AvailableTypes: map[string]struct{}{"Ready": {}},
+				ConditionWalkers: map[string]*conditionWalker{
+					"Ready": {
+						parentResource:           resourcepath.ResourcePath{Path: "core/v1#pod#default#nginx"},
+						conditionType:            "Ready",
+						lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+						lastTransitionTimeSorted: []*time.Time{},
+					},
+				},
 			},
 			asserters: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
@@ -328,8 +344,21 @@ status:
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
 			wantState: &conditionHistoryModifierTaskState{
-				AvailableTypes:   map[string]struct{}{"Ready": {}, "Scheduled": {}},
-				ConditionWalkers: map[string]*conditionWalker{},
+				AvailableTypes: map[string]struct{}{"Ready": {}, "Scheduled": {}},
+				ConditionWalkers: map[string]*conditionWalker{
+					"Ready": {
+						parentResource:           resourcepath.ResourcePath{Path: "core/v1#pod#default#nginx"},
+						conditionType:            "Ready",
+						lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+						lastTransitionTimeSorted: []*time.Time{},
+					},
+					"Scheduled": {
+						parentResource:           resourcepath.ResourcePath{Path: "core/v1#pod#default#nginx"},
+						conditionType:            "Scheduled",
+						lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+						lastTransitionTimeSorted: []*time.Time{},
+					},
+				},
 			},
 			asserters: []testchangeset.ChangeSetAsserter{
 				&testchangeset.MatchResourcePathSet{
@@ -358,10 +387,82 @@ status:
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
+						parentResource:           parentPath,
+						conditionType:            "Ready",
+						lastStatus:               "True",
+						lastTransitionTime:       "2024-01-01T00:00:00Z",
+						lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+						lastTransitionTimeSorted: []*time.Time{},
+					},
+				},
+			},
+			asserters: []testchangeset.ChangeSetAsserter{
+				&testchangeset.HasRevision{
+					ResourcePath: resourcepath.Condition(parentPath, "Ready").Path,
+					WantRevision: history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbUpdate,
+						State:      enum.RevisionStateConditionTrue,
+						ChangeTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						Requestor:  "user-1",
+						Body:       "lastTransitionTime: \"2024-01-01T00:00:00Z\"\nstatus: \"True\"\ntype: Ready\n",
+					},
+				},
+			},
+		},
+		{
+			name: "processSecondPass/complement condition from other logs",
+			pass: 1,
+			yaml: `
+status:
+  conditions:
+  - type: Ready
+    lastProbeTime: "2024-01-01T00:00:00Z"
+`,
+			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
+			operation: enum.RevisionVerbUpdate,
+			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			initialState: &conditionHistoryModifierTaskState{
+				AvailableTypes: map[string]struct{}{"Ready": {}},
+				ConditionWalkers: map[string]*conditionWalker{
+					"Ready": {
 						parentResource:     parentPath,
 						conditionType:      "Ready",
-						lastStatus:         "True",
-						lastTransitionTime: "2024-01-01T00:00:00Z",
+						lastStatus:         "",
+						lastTransitionTime: "",
+						lastTransitionStates: map[string]*model.K8sResourceStatusCondition{
+							"2023-12-31T12:00:00Z": {
+								Type:               "Ready",
+								Status:             "False",
+								Reason:             "Process is not responsive",
+								Message:            "Something is wrong",
+								LastTransitionTime: "2023-12-31T12:00:00Z",
+							},
+						},
+						lastTransitionTimeSorted: []*time.Time{},
+					},
+				},
+			},
+			wantState: &conditionHistoryModifierTaskState{
+				AvailableTypes: map[string]struct{}{"Ready": {}},
+				ConditionWalkers: map[string]*conditionWalker{
+					"Ready": {
+						parentResource:     parentPath,
+						conditionType:      "Ready",
+						lastStatus:         "",
+						lastTransitionTime: "",
+						lastProbeLikeTime:  "2024-01-01T00:00:00Z",
+						lastTransitionStates: map[string]*model.K8sResourceStatusCondition{
+							"2023-12-31T12:00:00Z": {
+								Type:               "Ready",
+								Status:             "False",
+								Reason:             "Process is not responsive",
+								Message:            "Something is wrong",
+								LastTransitionTime: "2023-12-31T12:00:00Z",
+							},
+						},
+						lastTransitionTimeSorted: []*time.Time{
+							&oldTime,
+						},
 					},
 				},
 			},
@@ -398,10 +499,12 @@ status:
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
-						parentResource: parentPath,
-						conditionType:  "Ready",
-						lastStatus:     "n/a",
-						minChangeTime:  testutil.P(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+						parentResource:           parentPath,
+						conditionType:            "Ready",
+						lastStatus:               "n/a",
+						minChangeTime:            testutil.P(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+						lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+						lastTransitionTimeSorted: []*time.Time{},
 					},
 				},
 			},
@@ -436,10 +539,12 @@ status:
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
-						parentResource: parentPath,
-						conditionType:  "Ready",
-						lastStatus:     "", // Reset() clears this
-						minChangeTime:  testutil.P(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+						parentResource:           parentPath,
+						conditionType:            "Ready",
+						lastStatus:               "", // Reset() clears this
+						minChangeTime:            testutil.P(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+						lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+						lastTransitionTimeSorted: []*time.Time{},
 					},
 				},
 			},

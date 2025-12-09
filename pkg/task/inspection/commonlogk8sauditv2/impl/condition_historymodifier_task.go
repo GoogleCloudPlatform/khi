@@ -17,6 +17,7 @@ package commonlogk8sauditv2_impl
 import (
 	"context"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -82,26 +83,42 @@ func (c *conditionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context,
 
 // processFirstPass collects all available condition types from the log.
 // This is necessary because some conditions might appear later in the history, and we need to know about them upfront to track their state correctly.
-func (c *conditionHistoryModifierTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevResource *conditionHistoryModifierTaskState) (*conditionHistoryModifierTaskState, error) {
-	if prevResource == nil {
-		prevResource = &conditionHistoryModifierTaskState{
+func (c *conditionHistoryModifierTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *conditionHistoryModifierTaskState) (*conditionHistoryModifierTaskState, error) {
+	if state == nil {
+		state = &conditionHistoryModifierTaskState{
 			AvailableTypes:   map[string]struct{}{},
 			ConditionWalkers: map[string]*conditionWalker{},
 		}
 	}
+	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
+	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
+	ownerPath := resourcepath.ResourcePath{
+		Path:               event.EventTargetResource.ResourcePathString(),
+		ParentRelationship: enum.RelationshipChild,
+	}
 	if event.EventTargetBodyReader != nil {
 		conditionsReader, err := event.EventTargetBodyReader.GetReader("status.conditions")
 		if err != nil {
-			return prevResource, nil
+			return state, nil
 		}
 		for _, child := range conditionsReader.Children() {
 			conditionType, err := child.ReadString("type")
 			if err == nil {
-				prevResource.AvailableTypes[conditionType] = struct{}{}
+				state.AvailableTypes[conditionType] = struct{}{}
+				walker := state.ConditionWalkers[conditionType]
+				if walker == nil {
+					walker = newConditionWalker(ownerPath, conditionType)
+					state.ConditionWalkers[conditionType] = walker
+				}
+				var condition model.K8sResourceStatusCondition
+				if err := structured.ReadReflect(&child, "", &condition); err != nil {
+					continue
+				}
+				walker.checkLastTransitionTimes(commonFieldSet, k8sFieldSet, &condition)
 			}
 		}
 	}
-	return prevResource, nil
+	return state, nil
 }
 
 // processSecondPass generates revisions for each condition type based on the collected available types.
@@ -231,16 +248,29 @@ type conditionWalker struct {
 	// minChangeTime is the minimum change time.
 	// This is used not to create a revision too ealier for the resource retaining the condition after recreation.
 	minChangeTime *time.Time
+
+	lastTransitionStates map[string]*model.K8sResourceStatusCondition
+
+	lastTransitionTimeSorted []*time.Time
 }
 
 // newConditionWalker creates a new conditionWalker for a specific condition type.
 func newConditionWalker(parentResource resourcepath.ResourcePath, stateType string) *conditionWalker {
 	return &conditionWalker{
-		parentResource:     parentResource,
-		conditionType:      stateType,
-		lastStatus:         "",
-		lastTransitionTime: "",
-		lastProbeLikeTime:  "",
+		parentResource:           parentResource,
+		conditionType:            stateType,
+		lastStatus:               "",
+		lastTransitionTime:       "",
+		lastProbeLikeTime:        "",
+		lastTransitionStates:     map[string]*model.K8sResourceStatusCondition{},
+		lastTransitionTimeSorted: []*time.Time{},
+	}
+}
+
+// checkLastTransitionTimes memorizes the last transition time of the condition. This value is used for complementing values for logs without the full status information.
+func (c *conditionWalker) checkLastTransitionTimes(commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8sauditv2_contract.K8sAuditLogFieldSet, condition *model.K8sResourceStatusCondition) {
+	if condition != nil && condition.Status != "" && condition.LastTransitionTime != "" {
+		c.lastTransitionStates[condition.LastTransitionTime] = condition
 	}
 }
 
@@ -281,6 +311,23 @@ func (c *conditionWalker) CheckAndRecord(commonLog *log.CommonFieldSet, k8sAudit
 		probeLikeTime, err := condition.ProbeLikeTime()
 		if err == nil {
 			if c.lastProbeLikeTime != probeLikeTime.Format(time.RFC3339) {
+				if condition.Status == "" {
+					referenceCondition := c.getLastCondition(probeLikeTime)
+					if referenceCondition != nil {
+						if condition.Status == "" {
+							condition.Status = referenceCondition.Status
+						}
+						if condition.LastTransitionTime == "" {
+							condition.LastTransitionTime = referenceCondition.LastTransitionTime
+						}
+						if condition.Message == "" {
+							condition.Message = referenceCondition.Message
+						}
+						if condition.Reason == "" {
+							condition.Reason = referenceCondition.Reason
+						}
+					}
+				}
 				state := conditionStateToRevisionState(condition.Status)
 				body := c.serializeCondition(condition)
 				cs.AddRevision(c.conditionPath(), &history.StagingResourceRevision{
@@ -307,6 +354,34 @@ func (c *conditionWalker) RecordDeletion(deletionTime time.Time) {
 // conditionPath returns the ResourcePath for the specific condition type tracked by this walker.
 func (c *conditionWalker) conditionPath() resourcepath.ResourcePath {
 	return resourcepath.Condition(c.parentResource, c.conditionType)
+}
+
+func (c *conditionWalker) getLastCondition(beforeThan time.Time) *model.K8sResourceStatusCondition {
+	if len(c.lastTransitionTimeSorted) != len(c.lastTransitionStates) {
+		times := make([]*time.Time, 0, len(c.lastTransitionStates))
+		for k := range c.lastTransitionStates {
+			t, _ := time.Parse(time.RFC3339, k)
+			times = append(times, &t)
+		}
+		sort.Slice(times, func(i, j int) bool {
+			return times[i].Before(*times[j])
+		})
+		c.lastTransitionTimeSorted = times
+	}
+	if len(c.lastTransitionTimeSorted) == 0 {
+		return nil
+	}
+
+	if c.lastTransitionTimeSorted[0].After(beforeThan) {
+		return nil
+	}
+	idx := sort.Search(len(c.lastTransitionTimeSorted), func(i int) bool {
+		return !c.lastTransitionTimeSorted[i].Before(beforeThan)
+	})
+	if idx > 0 {
+		return c.lastTransitionStates[c.lastTransitionTimeSorted[idx-1].Format(time.RFC3339)]
+	}
+	return nil
 }
 
 // serializeCondition serializes the K8sResourceStatusCondition to a YAML string for storage in the revision body.
