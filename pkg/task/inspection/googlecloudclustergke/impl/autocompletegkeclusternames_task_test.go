@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -33,7 +34,7 @@ type mockGKEClusterListFetcher struct {
 	responseWithError bool
 }
 
-func (m *mockGKEClusterListFetcher) GetClusterNames(ctx context.Context, projectID string) ([]string, error) {
+func (m *mockGKEClusterListFetcher) GetClusterNames(ctx context.Context, projectID string, startTime, endTime time.Time) ([]string, error) {
 	if m.responseWithError {
 		return nil, fmt.Errorf("test error")
 	}
@@ -120,7 +121,10 @@ func TestAutocompleteGKEClusterNamesTask(t *testing.T) {
 			})
 			for i := 0; i < len(tc.projectIDs); i++ {
 				projectIDInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
-				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteGKEClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, mockClusterListFetcherInput)
+				startTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+				endTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC))
+
+				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteGKEClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, startTimeInput, endTimeInput, mockClusterListFetcherInput)
 				if err != nil {
 					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)
 				}

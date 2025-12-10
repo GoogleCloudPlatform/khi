@@ -22,6 +22,7 @@ import (
 	gkehub "cloud.google.com/go/gkehub/apiv1beta1"
 	gkemulticloud "cloud.google.com/go/gkemulticloud/apiv1"
 	logging "cloud.google.com/go/logging/apiv2"
+	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"google.golang.org/api/composer/v1"
 	"google.golang.org/api/gkeonprem/v1"
 	"google.golang.org/api/option"
@@ -53,6 +54,7 @@ type ClientFactory struct {
 	RegionsClientOptions                    []ClientFactoryOptionsModifiers
 	ComposerServiceOptions                  []ClientFactoryOptionsModifiers
 	GKEOnPremServiceOptions                 []ClientFactoryOptionsModifiers
+	MonitoringMetricClientOptions           []ClientFactoryOptionsModifiers
 }
 
 // NewClientFactory creates a new ClientFactory with the given options.
@@ -187,4 +189,14 @@ func (s *ClientFactory) GKEOnPremService(ctx context.Context, c ResourceContaine
 	}
 
 	return gkeonprem.NewService(ctx, opts...)
+}
+
+// MonitoringMetricClient returns the client for monitoring.googleapis.com from given context and the resource container.
+func (s *ClientFactory) MonitoringMetricClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*monitoring.MetricClient, error) {
+	ctx, opts, err := s.prepareServiceInput(ctx, c, s.MonitoringMetricClientOptions, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return monitoring.NewMetricClient(ctx, opts...)
 }
