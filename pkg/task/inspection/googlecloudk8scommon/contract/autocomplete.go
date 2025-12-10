@@ -18,4 +18,5 @@ package googlecloudk8scommon_contract
 type AutocompleteClusterNameList struct {
 	ClusterNames []string
 	Error        string
+	Hint         string
 }

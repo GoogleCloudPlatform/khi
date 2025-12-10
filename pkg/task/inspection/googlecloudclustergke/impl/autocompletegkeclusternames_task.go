@@ -32,28 +32,44 @@ import (
 var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustergke_contract.AutocompleteGKEClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudclustergke_contract.ClusterListFetcherTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
 	listFetcher := coretask.GetTaskResult(ctx, googlecloudclustergke_contract.ClusterListFetcherTaskID.Ref())
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	if projectID != "" && projectID == prevValue.DependencyDigest {
+	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
+
+	currentDigest := fmt.Sprintf("%s-%d-%d", projectID, startTime.Unix(), endTime.Unix())
+	if projectID != "" && currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
 
 	if projectID != "" {
-		clusters, err := listFetcher.GetClusterNames(ctx, projectID)
+		clusters, err := listFetcher.GetClusterNames(ctx, projectID, startTime, endTime)
 		if err != nil {
 			slog.WarnContext(ctx, "Failed to read cluster names for project", "projectID", projectID, "error", err)
 			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
-				DependencyDigest: projectID,
+				DependencyDigest: currentDigest,
 				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 					ClusterNames: []string{},
 					Error:        fmt.Sprintf("Failed to list GKE cluster names: %v", err),
 				},
 			}, nil
 		}
+		if len(clusters) == 0 {
+			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+				DependencyDigest: currentDigest,
+				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
+					ClusterNames: clusters,
+					Error:        "",
+					Hint:         "No GKE cluster was found in the specified project at this time. Please check the project ID, End time and Duration again.\nBut this happens when the metrics is not available for the specified time range.",
+				},
+			}, nil
+		}
 		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
-			DependencyDigest: projectID,
+			DependencyDigest: currentDigest,
 			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 				ClusterNames: clusters,
 				Error:        "",
@@ -61,7 +77,7 @@ var AutocompleteGKEClusterNamesTask = inspectiontaskbase.NewCachedTask(googleclo
 		}, nil
 	}
 	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
-		DependencyDigest: projectID,
+		DependencyDigest: currentDigest,
 		Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
 			ClusterNames: []string{},
 			Error:        "Project ID is empty",

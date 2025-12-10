@@ -61,6 +61,9 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 		if clusters.Error != "" {
 			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), inspectionmetadata.Warning, nil
 		}
+		if clusters.Hint != "" {
+			return clusters.Hint, inspectionmetadata.Info, nil
+		}
 		convertedWithoutPrefix := strings.TrimPrefix(convertedValue.(string), prefix)
 		for _, suggestedCluster := range clusters.ClusterNames {
 			if suggestedCluster == convertedWithoutPrefix {
