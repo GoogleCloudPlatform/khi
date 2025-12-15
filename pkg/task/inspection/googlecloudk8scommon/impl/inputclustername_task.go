@@ -36,10 +36,10 @@ var clusterNameValidator = regexp.MustCompile(`^\s*[0-9a-z\-]+\s*$`)
 // This task return the cluster name with the prefixes defined from the cluster type. For example, a cluster named foo-cluster is `foo-cluster` in GKE but `awsCluster/foo-cluster` in GKE on AWS.
 // This input also supports autocomplete cluster names from some task having ID for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.
 var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputClusterNameTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4000, "Cluster name").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, googlecloudk8scommon_contract.ClusterNamePrefixTaskID}).
+	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref(), googlecloudk8scommon_contract.ClusterNamePrefixTaskID}).
 	WithDescription("The cluster name to gather logs.").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID)
+		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
 		// If the previous value is included in the list of cluster names, the name is used as the default value.
 		if len(previousValues) > 0 && slices.Index(clusters.ClusterNames, previousValues[0]) > -1 {
 			return previousValues[0], nil
@@ -50,16 +50,19 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 		return clusters.ClusterNames[0], nil
 	}).
 	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID)
+		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
 		return common.SortForAutocomplete(value, clusters.ClusterNames), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID)
+		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
 		prefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskID)
 
 		// on failure of getting the list of clusters
 		if clusters.Error != "" {
 			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), inspectionmetadata.Warning, nil
+		}
+		if clusters.Hint != "" {
+			return clusters.Hint, inspectionmetadata.Info, nil
 		}
 		convertedWithoutPrefix := strings.TrimPrefix(convertedValue.(string), prefix)
 		for _, suggestedCluster := range clusters.ClusterNames {

@@ -19,11 +19,9 @@ import (
 
 	compute "cloud.google.com/go/compute/apiv1"
 	container "cloud.google.com/go/container/apiv1"
-	gkehub "cloud.google.com/go/gkehub/apiv1beta1"
-	gkemulticloud "cloud.google.com/go/gkemulticloud/apiv1"
 	logging "cloud.google.com/go/logging/apiv2"
+	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"google.golang.org/api/composer/v1"
-	"google.golang.org/api/gkeonprem/v1"
 	"google.golang.org/api/option"
 )
 
@@ -45,14 +43,11 @@ type ClientFactory struct {
 	ClientOptions    []ClientFactoryOptionsModifiers
 	ContextModifiers []ClientFactoryContextModifiers
 
-	ContainerClusterManagerClientOptions    []ClientFactoryOptionsModifiers
-	GKEHubMembershipClientOptions           []ClientFactoryOptionsModifiers
-	GKEMultiCloudAWSClustersClientOptions   []ClientFactoryOptionsModifiers
-	GKEMultiCloudAzureClustersClientOptions []ClientFactoryOptionsModifiers
-	LoggingClientOptions                    []ClientFactoryOptionsModifiers
-	RegionsClientOptions                    []ClientFactoryOptionsModifiers
-	ComposerServiceOptions                  []ClientFactoryOptionsModifiers
-	GKEOnPremServiceOptions                 []ClientFactoryOptionsModifiers
+	ContainerClusterManagerClientOptions []ClientFactoryOptionsModifiers
+	LoggingClientOptions                 []ClientFactoryOptionsModifiers
+	RegionsClientOptions                 []ClientFactoryOptionsModifiers
+	ComposerServiceOptions               []ClientFactoryOptionsModifiers
+	MonitoringMetricClientOptions        []ClientFactoryOptionsModifiers
 }
 
 // NewClientFactory creates a new ClientFactory with the given options.
@@ -118,36 +113,6 @@ func (s *ClientFactory) ContainerClusterManagerClient(ctx context.Context, c Res
 	return container.NewClusterManagerClient(ctx, opts...)
 }
 
-// GKEHubMembershipClient returns the MembershipClient of gkehub.googleapis.com from given context and the resource container.
-func (s *ClientFactory) GKEHubMembershipClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*gkehub.GkeHubMembershipClient, error) {
-	ctx, opts, err := s.prepareServiceInput(ctx, c, s.GKEHubMembershipClientOptions, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return gkehub.NewGkeHubMembershipClient(ctx, opts...)
-}
-
-// GKEMultiCloudAWSClustersClient returns the AwsClusterClient of gkemulticloud.googleapis.com from given context and the resource container.
-func (s *ClientFactory) GKEMultiCloudAWSClustersClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*gkemulticloud.AwsClustersClient, error) {
-	ctx, opts, err := s.prepareServiceInput(ctx, c, s.GKEMultiCloudAWSClustersClientOptions, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return gkemulticloud.NewAwsClustersClient(ctx, opts...)
-}
-
-// GKEMultiCloudAzureClustersClient returns the AzureClustersClient of gkemulticloud.googleapis.com from given context and the resource container.
-func (s *ClientFactory) GKEMultiCloudAzureClustersClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*gkemulticloud.AzureClustersClient, error) {
-	ctx, opts, err := s.prepareServiceInput(ctx, c, s.GKEMultiCloudAzureClustersClientOptions, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	return gkemulticloud.NewAzureClustersClient(ctx, opts...)
-}
-
 // LoggingClient returns the client for logging.googleapis.com from given context and the resource container.
 func (s *ClientFactory) LoggingClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*logging.Client, error) {
 	ctx, opts, err := s.prepareServiceInput(ctx, c, s.LoggingClientOptions, opts...)
@@ -178,13 +143,12 @@ func (s *ClientFactory) ComposerService(ctx context.Context, c ResourceContainer
 	return composer.NewService(ctx, opts...)
 }
 
-// GKEOnPremService returns the client for gkeonprem.googleapis.com from the given context and the resource cntainer.
-// GKEOnPrem has no package defined by `cloud.google.com/go`, this method returns the low level API client from '"google.golang.org/api/gkeonprem/v1'.
-func (s *ClientFactory) GKEOnPremService(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*gkeonprem.Service, error) {
-	ctx, opts, err := s.prepareServiceInput(ctx, c, s.GKEOnPremServiceOptions, opts...)
+// MonitoringMetricClient returns the client for monitoring.googleapis.com from given context and the resource container.
+func (s *ClientFactory) MonitoringMetricClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*monitoring.MetricClient, error) {
+	ctx, opts, err := s.prepareServiceInput(ctx, c, s.MonitoringMetricClientOptions, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	return gkeonprem.NewService(ctx, opts...)
+	return monitoring.NewMetricClient(ctx, opts...)
 }

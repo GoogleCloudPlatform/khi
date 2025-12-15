@@ -159,8 +159,9 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
 - **必須権限**
   - `logging.logEntries.list`
 - **推奨権限**
-  - 対象のクラスタのタイプに対するリスト権限（例：GKE の場合 `container.clusters.list`）
-    ログフィルタ生成ダイアログの候補の出力に使用します。KHI の主機能の利用に影響はありません。
+  - New Inspectionダイアログでの入力時にオートコンプリートの入力候補を取得するために使用します。権限がなくても問題がありませんが、入力時にクラスタ名の候補が表示されません。
+    - `monitoring.timeSeries.list`
+    - `container.clusters.list` (Cloud Composer向け機能利用時のみ)
 - **設定手順**
 
   - Compute Engine 仮想マシン上など、サービスアカウントがアタッチされた Google Cloud 環境で KHI を実行する場合、対応するリソースにアタッチされたサービスアカウントに上記権限を付与します。
