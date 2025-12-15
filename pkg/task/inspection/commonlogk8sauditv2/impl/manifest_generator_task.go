@@ -21,6 +21,10 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -52,6 +56,20 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 	result := commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{}
 	resultLock := sync.Mutex{}
 
+	doneGroupCount := atomic.Int32{}
+	updator := progressutil.NewProgressUpdator(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
+		current := doneGroupCount.Load()
+		total := len(logGroups)
+		if total > 0 {
+			tp.Percentage = float32(current) / float32(total)
+		} else {
+			tp.Percentage = 1.0
+		}
+		tp.Message = fmt.Sprintf("%d/%d", current, total)
+	})
+	updator.Start(ctx)
+	defer updator.Done()
+
 	grp, childCtx := errgroup.WithContext(ctx)
 	grp.SetLimit(runtime.GOMAXPROCS(0))
 
@@ -59,6 +77,7 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 		path := path
 		group := group
 		grp.Go(func() error {
+			defer doneGroupCount.Add(1)
 			resourceLogs := []*commonlogk8sauditv2_contract.ResourceManifestLog{}
 			generator := groupManifestGenerator{
 				mergeConfigRegistry: mergeConfigRegistry,
