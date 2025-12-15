@@ -32,7 +32,7 @@ var K8sAuditLogProviderRef = taskid.NewTaskReference[[]*log.Log](TaskIDPrefix + 
 var K8sAuditLogParserTailRef = taskid.NewTaskReference[struct{}](TaskIDPrefix + "k8s-auditlog-parser-tail")
 
 // K8sAuditLogIngesterTaskID is the task ID for the task to serialize the k8s audit log.
-var K8sAuditLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "k8s-auditlog-serializer")
+var K8sAuditLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "k8s-auditlog-ingester")
 
 // SuccessLogFilterTaskID is the task ID for the task to filter success logs.
 var SuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "success-log-filter")

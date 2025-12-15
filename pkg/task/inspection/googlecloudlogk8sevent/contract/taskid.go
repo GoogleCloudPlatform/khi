@@ -30,7 +30,7 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sE
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "fieldset-reader")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "log-serializer")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEK8sEventLogTaskIDPrefix + "grouper")

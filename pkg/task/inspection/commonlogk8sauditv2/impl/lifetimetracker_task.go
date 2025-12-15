@@ -197,7 +197,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 		updator.Start(ctx)
 
 		processedLogCount.Store(0)
-		mapperSettingSetting := &lifeTimeTrackerTaskSetting{
+setting := &lifeTimeTrackerTaskSetting{
 			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},

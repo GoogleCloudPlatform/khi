@@ -29,7 +29,7 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCl
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "fieldset-reader")
 
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "log-serializer")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "log-ingester")
 
 // LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](MultiCloudAPIAuditLogTaskIDPrefix + "grouper")

@@ -376,7 +376,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
-			mapperSettingSetting := &onpremAuditLogLogToTimelineMapperSetting{}
+mapperSetting := &onpremAuditLogLogToTimelineMapperSetting{}
 			cs := history.NewChangeSet(l)
 
 			_, err := mapperSettingSetting.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})

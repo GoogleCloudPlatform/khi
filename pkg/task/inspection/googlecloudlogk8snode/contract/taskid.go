@@ -32,7 +32,7 @@ const (
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
 // LogIngesterTaskID is the task ID to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
 
 // CommonFieldsetReaderTaskID is the ID for a task to read the fieldset used by all parsers in node log parsers later.
 var CommonFieldsetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "common-fieldset-reader")

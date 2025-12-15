@@ -55,7 +55,7 @@ func (m *mockLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// ProcessLogByGroup implements HistoryModifer.
+// ProcessLogByGroup implements LogToTimelineMapper.
 func (m *mockLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
 	// encode current group count to severity to use them assert in tasecases to verify the prevData is correctly handled.
 	switch prevData.CurrentGroupLogCount {

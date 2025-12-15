@@ -35,7 +35,7 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sCont
 var CommonFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "fieldset-reader-common")
 
 // LogIngesterTaskID is the task ID to finalize the logs to be included in the final output.
-var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "log-serializer")
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "log-ingester")
 
 // SchedulerLogFilterTaskID is the task ID for filtering scheduler logs.
 var SchedulerLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "scheduler-log-filter")
