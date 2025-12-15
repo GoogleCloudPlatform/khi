@@ -40,7 +40,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogon
 })
 
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogonpremapiaudit_contract.LogIngesterTaskID, googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogonpremapiaudit_contract.LogIngesterTaskID, googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 // LogGrouperTask is a task that groups MulticloudAPI audit logs by their resource path.
 // This grouping allows for parallel processing of logs related to the same resource.

@@ -40,7 +40,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggk
 })
 
 // LogIngesterTask is a task that serializes GKE audit logs for storage in the history builder.
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudloggkeapiaudit_contract.LogIngesterTaskID, googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudloggkeapiaudit_contract.LogIngesterTaskID, googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 // LogGrouperTask is a task that groups GKE audit logs by their resource path.
 // This grouping allows for parallel processing of logs related to the same resource.
@@ -64,7 +64,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[stru
 		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...),
 )
 
-// gkeAuditLogLogToTimelineMapperSetting implements the HistoryModifer interface for GKE audit logs.
+// gkeAuditLogLogToTimelineMapperSetting implements the LogToTimelineMapper interface for GKE audit logs.
 type gkeAuditLogLogToTimelineMapperSetting struct {
 }
 

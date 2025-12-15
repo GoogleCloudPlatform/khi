@@ -197,7 +197,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 		updator.Start(ctx)
 
 		processedLogCount.Store(0)
-setting := &lifeTimeTrackerTaskSetting{
+		setting := &lifeTimeTrackerTaskSetting{
 			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},
@@ -213,7 +213,7 @@ setting := &lifeTimeTrackerTaskSetting{
 				}
 				for _, l := range group.Logs {
 					var err error
-					groupData, err = mapperSettingSetting.DetectLifetimeLogEvent(ctx, l, groupData)
+					groupData, err = setting.DetectLifetimeLogEvent(ctx, l, groupData)
 					if err != nil {
 						var yaml string
 						yamlBytes, err2 := l.Log.Serialize("", &structured.YAMLNodeSerializer{})

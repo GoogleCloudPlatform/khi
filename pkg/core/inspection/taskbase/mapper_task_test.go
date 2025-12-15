@@ -42,7 +42,7 @@ type mockLogToTimelineMapperGroupData struct {
 type mockLogToTimelineMapper struct {
 }
 
-// GroupedLogTask implements HistoryModifer.
+// GroupedLogTask implements LogToTimelineMapper.
 func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
 	return mockLogToTimelineMapperPrevTaskID.Ref()
 }

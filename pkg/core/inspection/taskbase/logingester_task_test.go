@@ -31,7 +31,7 @@ func TestLogIngesterTask_DryRunMode(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	inputTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("input")
 	taskID := taskid.NewDefaultImplementationID[[]*log.Log]("test")
-	task := NewLogIngester(taskID, inputTaskID.Ref())
+	task := NewLogIngesterTask(taskID, inputTaskID.Ref())
 
 	result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(inputTaskID.Ref(), []*log.Log{l}))
@@ -55,7 +55,7 @@ func TestLogIngesterTask_RunMode(t *testing.T) {
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	inputTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("input")
 	taskID := taskid.NewDefaultImplementationID[[]*log.Log]("test")
-	task := NewLogIngester(taskID, inputTaskID.Ref())
+	task := NewLogIngesterTask(taskID, inputTaskID.Ref())
 
 	result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(inputTaskID.Ref(), []*log.Log{l}))

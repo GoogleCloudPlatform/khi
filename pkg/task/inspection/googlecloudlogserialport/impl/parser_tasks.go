@@ -42,7 +42,7 @@ var LogFilterTask = inspectiontaskbase.NewLogFilterTask(googlecloudlogserialport
 
 // LogIngesterTask is the log serializer task for GCE serial port logs.
 // It includes all logs gathered from log list.
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogserialport_contract.LogIngesterTaskID,
 	googlecloudlogserialport_contract.LogFilterTaskID.Ref(),
 )

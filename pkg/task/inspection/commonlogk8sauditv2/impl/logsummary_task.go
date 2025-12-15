@@ -27,7 +27,7 @@ import (
 )
 
 // LogIngesterTask is the task to serialize k8s audit logs.
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID,
 	commonlogk8sauditv2_contract.K8sAuditLogProviderRef,
 )

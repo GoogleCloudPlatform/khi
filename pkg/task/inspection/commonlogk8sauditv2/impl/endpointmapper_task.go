@@ -336,17 +336,17 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ResourcePairs(ctx conte
 	return result, nil
 }
 
-// Dependencies implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// Dependencies implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (e *endpointResourceLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// GroupedLogTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (e *endpointResourceLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// LogIngesterTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (e *endpointResourceLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }

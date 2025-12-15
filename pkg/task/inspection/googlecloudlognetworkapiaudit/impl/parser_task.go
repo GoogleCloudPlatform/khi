@@ -40,7 +40,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogne
 	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
 })
 
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlognetworkapiaudit_contract.LogIngesterTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlognetworkapiaudit_contract.LogIngesterTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {

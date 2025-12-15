@@ -32,7 +32,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8
 	&googlecloudlogk8sevent_contract.GCPKubernetesEventFieldSetReader{},
 })
 
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8sevent_contract.LogIngesterTaskID, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogk8sevent_contract.LogIngesterTaskID, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8sevent_contract.LogGrouperTaskID, googlecloudlogk8sevent_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {

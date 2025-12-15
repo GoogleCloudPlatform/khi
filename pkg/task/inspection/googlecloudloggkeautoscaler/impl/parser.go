@@ -38,7 +38,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggk
 	&googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSetReader{},
 })
 
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudloggkeautoscaler_contract.LogIngesterTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudloggkeautoscaler_contract.LogIngesterTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeautoscaler_contract.LogGrouperTaskID, googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {

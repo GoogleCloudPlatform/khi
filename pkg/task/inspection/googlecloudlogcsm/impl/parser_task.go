@@ -35,7 +35,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogcs
 	&googlecloudlogcsm_contract.IstioAccessLogFieldSetReader{},
 })
 
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogcsm_contract.LogIngesterTaskID,
 	googlecloudlogcsm_contract.ListLogEntriesTaskID.Ref(),
 )

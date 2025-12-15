@@ -198,22 +198,22 @@ func (c *conditionLogToTimelineMapperTaskSetting) processSecondPass(ctx context.
 	return state, nil
 }
 
-// Dependencies implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// Dependencies implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (c *conditionLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// PassCount implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// PassCount implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (c *conditionLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
 }
 
-// GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// GroupedLogTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (c *conditionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+// LogIngesterTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
 func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }

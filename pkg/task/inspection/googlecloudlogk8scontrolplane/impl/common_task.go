@@ -46,4 +46,4 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 
 // LogIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
 // No control plane logs are discarded, thus this LogIngesterTask simply receives logs from the ListLogEntriesTask.
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8scontrolplane_contract.LogIngesterTaskID, googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogk8scontrolplane_contract.LogIngesterTaskID, googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref())

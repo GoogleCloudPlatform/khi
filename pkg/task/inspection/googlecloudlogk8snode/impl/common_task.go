@@ -31,7 +31,7 @@ import (
 
 // LogIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
 // No node logs are discarded, thus this LogIngesterTask simply receives logs from the ListLogEntriesTask.
-var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8snode_contract.LogIngesterTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogk8snode_contract.LogIngesterTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref())
 
 var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
 	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{
