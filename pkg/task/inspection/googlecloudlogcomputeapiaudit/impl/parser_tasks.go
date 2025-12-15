@@ -36,7 +36,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogco
 	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
 })
 
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogcomputeapiaudit_contract.LogSerializerTaskID, googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID, googlecloudlogcomputeapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputeapiaudit_contract.LogGrouperTaskID, googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
@@ -48,7 +48,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputea
 		return getInstanceNameFromResourceName(audit.ResourceName)
 	})
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogcomputeapiaudit_contract.HistoryModifierTaskID, &gcpComputeAuditLogHistoryModifierSetting{},
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`Compute API Logs`,
 		`Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.`,
 		enum.LogTypeComputeApi,
@@ -57,26 +57,26 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...),
 )
 
-type gcpComputeAuditLogHistoryModifierSetting struct {
+type gcpComputeAuditLogLogToTimelineMapperSetting struct {
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (g *gcpComputeAuditLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (g *gcpComputeAuditLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogcomputeapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (g *gcpComputeAuditLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogcomputeapiaudit_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (g *gcpComputeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	commonLogFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
 		return struct{}{}, err
@@ -121,7 +121,7 @@ func (g *gcpComputeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*gcpComputeAuditLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*gcpComputeAuditLogLogToTimelineMapperSetting)(nil)
 
 func getInstanceNameFromResourceName(resourceName string) string {
 	resourceNameSplitted := strings.Split(resourceName, "/")

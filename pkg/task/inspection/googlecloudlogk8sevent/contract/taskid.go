@@ -29,11 +29,11 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sE
 // FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "fieldset-reader")
 
-// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEventLogTaskIDPrefix + "log-serializer")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEK8sEventLogTaskIDPrefix + "grouper")
 
-// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](GKEK8sEventLogTaskIDPrefix + "history-modifier")
+// LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GKEK8sEventLogTaskIDPrefix + "timeline-mapper")

@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestNonSuccessLogHistoryModifierTaskSetting_AddEventForLog(t *testing.T) {
+func TestNonSuccessLogLogToTimelineMapperTaskSetting_AddEventForLog(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		input    *commonlogk8sauditv2_contract.K8sAuditLogFieldSet
@@ -82,7 +82,7 @@ func TestNonSuccessLogHistoryModifierTaskSetting_AddEventForLog(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(tc.input)
 			cs := history.NewChangeSet(l)
 
-			setting := &nonSuccessLogHistoryModifierTaskSetting{
+			setting := &nonSuccessLogLogToTimelineMapperTaskSetting{
 				subresourceMapToWriteToParent: map[string]struct{}{
 					"status": {},
 				},

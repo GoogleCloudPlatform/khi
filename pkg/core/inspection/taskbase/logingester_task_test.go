@@ -26,12 +26,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testlog"
 )
 
-func TestLogSerializerTask_DryRunMode(t *testing.T) {
+func TestLogIngesterTask_DryRunMode(t *testing.T) {
 	l := testlog.MustLogFromYAML("insertId: foo", &mockCommonLogFieldSetReader{})
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	inputTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("input")
 	taskID := taskid.NewDefaultImplementationID[[]*log.Log]("test")
-	task := NewLogSerializerTask(taskID, inputTaskID.Ref())
+	task := NewLogIngester(taskID, inputTaskID.Ref())
 
 	result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeDryRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(inputTaskID.Ref(), []*log.Log{l}))
@@ -40,22 +40,22 @@ func TestLogSerializerTask_DryRunMode(t *testing.T) {
 	}
 
 	if len(result) != 0 {
-		t.Errorf("LogSerializerTask returned a log result for dryrun mode")
+		t.Errorf("LogIngesterTask returned a log result for dryrun mode")
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 	_, err = builder.GetLog(l.ID)
 	if err == nil {
-		t.Errorf("LogSerializerTask must not write serialzied log to the builder when it run for dryrun, but it generated a serialized log.")
+		t.Errorf("LogIngesterTask must not write log to the builder when it run for dryrun, but it wrote a log.")
 	}
 }
 
-func TestLogSerializerTask_RunMode(t *testing.T) {
+func TestLogIngesterTask_RunMode(t *testing.T) {
 	l := testlog.MustLogFromYAML("insertId: foo", &mockCommonLogFieldSetReader{})
 	ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 	inputTaskID := taskid.NewDefaultImplementationID[[]*log.Log]("input")
 	taskID := taskid.NewDefaultImplementationID[[]*log.Log]("test")
-	task := NewLogSerializerTask(taskID, inputTaskID.Ref())
+	task := NewLogIngester(taskID, inputTaskID.Ref())
 
 	result, _, err := inspectiontest.RunInspectionTask(ctx, task, inspectioncore_contract.TaskModeRun, map[string]any{},
 		tasktest.NewTaskDependencyValuePair(inputTaskID.Ref(), []*log.Log{l}))
@@ -64,12 +64,12 @@ func TestLogSerializerTask_RunMode(t *testing.T) {
 	}
 
 	if len(result) != 1 {
-		t.Errorf("LogSerializerTask didn't return a log result for run mode")
+		t.Errorf("LogIngesterTask didn't return a log result for run mode")
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 	_, err = builder.GetLog(l.ID)
 	if err != nil {
-		t.Errorf("LogSerializerTask must write serialzied log to the builder when it run. err=%v", err)
+		t.Errorf("LogIngesterTask must write log to the builder when it run. err=%v", err)
 	}
 }

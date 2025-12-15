@@ -27,20 +27,20 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-// ResourceOwnerReferenceModifierTask is the task to modify resource owner reference.
-var ResourceOwnerReferenceModifierTask = commonlogk8sauditv2_contract.NewManifestHistoryModifier[struct{}](&resourceOwnerReferenceModifierTaskSetting{
+// ResourceOwnerReferenceTimelineMapperTask is the task to map logs into resource owner reference.
+var ResourceOwnerReferenceTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper[struct{}](&resourceOwnerReferenceTimelineMapperTaskSetting{
 	nonNamespacedOwnerTypes: map[string]struct{}{
 		"core/v1#node": {},
 	},
 })
 
-type resourceOwnerReferenceModifierTaskSetting struct {
+type resourceOwnerReferenceTimelineMapperTaskSetting struct {
 	// nonNamespacedOwnerTypes is the set of owner types that are not namespaced.
 	nonNamespacedOwnerTypes map[string]struct{}
 }
 
-// Process implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *resourceOwnerReferenceModifierTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// Process implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	if event.EventTargetBodyReader == nil {
 		return struct{}{}, nil
 	}
@@ -81,13 +81,13 @@ func (r *resourceOwnerReferenceModifierTaskSetting) Process(ctx context.Context,
 	return struct{}{}, nil
 }
 
-// TaskID implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *resourceOwnerReferenceModifierTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8sauditv2_contract.ResourceOwnerReferenceModifierTaskID
+// TaskID implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8sauditv2_contract.ResourceOwnerReferenceTimelineMapperTaskID
 }
 
-// ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *resourceOwnerReferenceModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+// ResourcePairs implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := make([]commonlogk8sauditv2_contract.ResourcePair, 0, len(groupedLogs))
 	for _, group := range groupedLogs {
 		if group.Resource.Type() == commonlogk8sauditv2_contract.Namespace {
@@ -101,23 +101,23 @@ func (r *resourceOwnerReferenceModifierTaskSetting) ResourcePairs(ctx context.Co
 }
 
 // Dependencies implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (r *resourceOwnerReferenceModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
 // PassCount implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (r *resourceOwnerReferenceModifierTaskSetting) PassCount() int {
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) PassCount() int {
 	return 1
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (r *resourceOwnerReferenceModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogSerializerTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (r *resourceOwnerReferenceModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+func (r *resourceOwnerReferenceTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[struct{}] = (*resourceOwnerReferenceModifierTaskSetting)(nil)
+var _ commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting[struct{}] = (*resourceOwnerReferenceTimelineMapperTaskSetting)(nil)

@@ -35,12 +35,12 @@ var KubeletLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contrac
 
 var KubeletLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.KubeletLogGroupTaskID, googlecloudlogk8snode_contract.KubeletLogFilterTaskID.Ref())
 
-var KubeletLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8snode_contract.KubeletLogHistoryModifierTaskID, &kubeletNodeLogHistoryModifierSetting{})
+var KubeletLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8snode_contract.KubeletLogLogToTimelineMapperTaskID, &kubeletNodeLogLogToTimelineMapperSetting{})
 
-type kubeletNodeLogHistoryModifierSetting struct{}
+type kubeletNodeLogLogToTimelineMapperSetting struct{}
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (k *kubeletNodeLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(),
@@ -48,18 +48,18 @@ func (k *kubeletNodeLogHistoryModifierSetting) Dependencies() []taskid.UntypedTa
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (k *kubeletNodeLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (k *kubeletNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8snode_contract.KubeletLogGroupTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (k *kubeletNodeLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8snode_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (k *kubeletNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref())
 	podIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
@@ -173,4 +173,4 @@ func (k *kubeletNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx contex
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*kubeletNodeLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*kubeletNodeLogLogToTimelineMapperSetting)(nil)

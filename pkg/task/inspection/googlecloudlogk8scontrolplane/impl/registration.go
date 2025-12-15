@@ -23,32 +23,32 @@ import (
 /*
 flowchart TD
     ListLogEntriesTask --> CommonFieldSetReadTask
-    ListLogEntriesTask --> LogSerializerTask
-    CommonFieldSetReadTask --> SchedulerLogFilterTask -->SchedulerFieldSetReaderTask --> SchedulerGroupterTask --> SchedulerHistoryModifierTask --> TailTask
-    CommonFieldSetReadTask --> ControllerManagerLogFilterTask --> ControllerManagerFieldSetReaderTask --> ControllerManagerGrouperTask --> ControllerManagerHistoryModifierTask --> TailTask
-    CommonFieldSetReadTask --> OtherLogFilterTask --> OtherFieldSetReaderTask --> OtherGrouperTask --> OtherHistoryModifierTask --> TailTask
-    LogSerializerTask --> SchedulerHistoryModifierTask
-    LogSerializerTask --> ControllerManagerHistoryModifierTask
-    LogSerializerTask --> OtherHistoryModifierTask
+    ListLogEntriesTask --> LogIngesterTask
+    CommonFieldSetReadTask --> SchedulerLogFilterTask -->SchedulerFieldSetReaderTask --> SchedulerGroupterTask --> SchedulerLogToTimelineMapperTask --> TailTask
+    CommonFieldSetReadTask --> ControllerManagerLogFilterTask --> ControllerManagerFieldSetReaderTask --> ControllerManagerGrouperTask --> ControllerManagerLogToTimelineMapperTask --> TailTask
+    CommonFieldSetReadTask --> OtherLogFilterTask --> OtherFieldSetReaderTask --> OtherGrouperTask --> OtherLogToTimelineMapperTask --> TailTask
+    LogIngesterTask --> SchedulerLogToTimelineMapperTask
+    LogIngesterTask --> ControllerManagerLogToTimelineMapperTask
+    LogIngesterTask --> OtherLogToTimelineMapperTask
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		InputControlPlaneComponentNameFilterTask,
 		ListLogEntriesTask,
-		LogSerializerTask,
+		LogIngesterTask,
 		CommonFieldSetReaderTask,
 		SchedulerLogFilterTask,
 		SchedulerLogFieldSetReaderTask,
 		SchedulerGrouperTask,
-		SchedulerHistoryModifierTask,
+		SchedulerLogToTimelineMapperTask,
 		ControllerManagerFilterTask,
 		ControllerManagerLogFieldSetReaderTask,
 		ControllerManagerGrouperTask,
-		ControllerManagerHistoryModifierTask,
+		ControllerManagerLogToTimelineMapperTask,
 		OtherLogFilterTask,
 		OtherLogFieldSetReaderTask,
 		OtherGrouperTask,
-		OtherHistoryModifierTask,
+		OtherLogToTimelineMapperTask,
 		TailTask,
 	)
 }

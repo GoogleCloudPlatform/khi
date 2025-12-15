@@ -30,11 +30,11 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](Network
 // FieldSetReaderTaskID is the task id to read the fieldsets needed for parsing network audit log to process logs in the later task.
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "fieldset-reader")
 
-// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "log-serializer")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](NetworkAPILogTaskIDPrefix + "grouper")
 
-// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](NetworkAPILogTaskIDPrefix + "history-modifier")
+// LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](NetworkAPILogTaskIDPrefix + "timeline-mapper")

@@ -37,7 +37,7 @@ func TestNwewLogGrouperTask(t *testing.T) {
 		name         string
 		taskMode     inspectioncore_contract.InspectionTaskModeType
 		logYamls     []string
-		logGrouper   LogGrouper
+		logGrouper   LogGrouperFunc
 		resultLogIDs map[string][]string
 	}{
 		{

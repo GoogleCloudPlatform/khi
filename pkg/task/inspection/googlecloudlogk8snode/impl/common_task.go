@@ -29,9 +29,9 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// LogSerializerTask serializes logs to history for history modifiers to associate event or revisions in later tasks.
-// No node logs are discarded, thus this LogSerializerTask simply receives logs from the ListLogEntriesTask.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogk8snode_contract.LogSerializerTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref())
+// LogIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
+// No node logs are discarded, thus this LogIngesterTask simply receives logs from the ListLogEntriesTask.
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8snode_contract.LogIngesterTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref())
 
 var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
 	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{
@@ -45,9 +45,9 @@ var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googleclou
 
 var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contract.TailTaskID,
 	[]taskid.UntypedTaskReference{
-		googlecloudlogk8snode_contract.ContainerdLogHistoryModifierTaskID.Ref(),
-		googlecloudlogk8snode_contract.KubeletLogHistoryModifierTaskID.Ref(),
-		googlecloudlogk8snode_contract.OtherLogHistoryModifierTaskID.Ref(),
+		googlecloudlogk8snode_contract.ContainerdLogLogToTimelineMapperTaskID.Ref(),
+		googlecloudlogk8snode_contract.KubeletLogLogToTimelineMapperTaskID.Ref(),
+		googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID.Ref(),
 
 		googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID.Ref(),
 	},

@@ -28,9 +28,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// NewLogSerializerTask store its given logs to history to prepare the history type to have ChangeSet associated with the log.
-// This must be called before HistoryModifier and Logs must be discarded before this task if it shouldn't be included in the result.
-func NewLogSerializerTask(taskID taskid.TaskImplementationID[[]*log.Log], input taskid.TaskReference[[]*log.Log]) coretask.Task[[]*log.Log] {
+// NewLogIngester store its given logs to history to prepare the history type to have ChangeSet associated with the log.
+// This must be called before LogToTimelineMapperTask and Logs must be discarded before this task if it shouldn't be included in the result.
+func NewLogIngester(taskID taskid.TaskImplementationID[[]*log.Log], input taskid.TaskReference[[]*log.Log]) coretask.Task[[]*log.Log] {
 	return NewProgressReportableInspectionTask(taskID, []taskid.UntypedTaskReference{input}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return []*log.Log{}, nil

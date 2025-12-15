@@ -32,11 +32,11 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDP
 // FieldSetReaderTaskID is the task id to read the CSM related fieldset for processing the log in the later task.
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "fieldset-reader")
 
-// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
 
 // LogGrouperTaskID is the task ID to group CSM access logs by their reporter pod for parallel processing.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
-// HistoryModifierTaskID is the task ID for associating CSM access log events with resource timelines.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
+// LogToTimelineMapperTaskID is the task ID for associating CSM access log events with resource timelines.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")

@@ -28,7 +28,7 @@ var OtherLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.
 
 var OtherLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.OtherLogGroupTaskID, googlecloudlogk8snode_contract.OtherLogFilterTaskID.Ref())
 
-var OtherLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8snode_contract.OtherLogHistoryModifierTaskID, &otherNodeLogHistoryModifierSetting{
+var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID, &otherNodeLogLogToTimelineMapperSetting{
 	StartingMessagesByComponent: map[string]string{
 		"dockerd":             "Starting up",
 		"configure.sh":        "Start to install kubernetes files",
@@ -41,28 +41,28 @@ var OtherLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[stru
 	},
 })
 
-type otherNodeLogHistoryModifierSetting struct {
+type otherNodeLogLogToTimelineMapperSetting struct {
 	StartingMessagesByComponent    map[string]string
 	TerminatingMessagesByComponent map[string]string
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (o *otherNodeLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (o *otherNodeLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (o *otherNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8snode_contract.OtherLogGroupTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (o *otherNodeLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8snode_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (o *otherNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (o *otherNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 
 	var startingMessage string
@@ -90,4 +90,4 @@ func (o *otherNodeLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*otherNodeLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*otherNodeLogLogToTimelineMapperSetting)(nil)

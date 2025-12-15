@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestHistoryModifierTask(t *testing.T) {
+func TestLogToTimelineMapperTask(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	testCases := []struct {
 		desc     string
@@ -368,9 +368,9 @@ results:
 			)
 			cs := history.NewChangeSet(l)
 			ctx := tasktest.WithTaskResult(t.Context(), googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster")
-			_, err := (&autoscalerHistoryModifierTaskSetting{}).ModifyChangeSetFromLog(ctx, l, cs, nil, struct{}{})
+			_, err := (&autoscalerLogToTimelineMapperTaskSetting{}).ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
 			if err != nil {
-				t.Fatalf("ModifyChangeSetFromLog() error = %v", err)
+				t.Fatalf("ProcessLogByGroup() error = %v", err)
 			}
 			for _, asserter := range tc.asserter {
 				asserter.Assert(t, cs)

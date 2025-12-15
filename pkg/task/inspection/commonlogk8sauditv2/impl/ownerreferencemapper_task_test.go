@@ -29,8 +29,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestResourceOwnerReferenceModifierTask_Process(t *testing.T) {
-	task := &resourceOwnerReferenceModifierTaskSetting{
+func TestResourceOwnerReferenceTimelineMapperTask_Process(t *testing.T) {
+	task := &resourceOwnerReferenceTimelineMapperTaskSetting{
 		nonNamespacedOwnerTypes: map[string]struct{}{
 			"core/v1#node": {},
 		},

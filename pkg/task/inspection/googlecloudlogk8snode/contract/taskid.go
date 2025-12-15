@@ -31,8 +31,8 @@ const (
 // ListLogEntriesTaskID is the task id for the task that queries k8s node logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
-// LogSerializerTaskID is the task ID to finalize the logs to be included in the final output.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task ID to finalize the logs to be included in the final output.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
 
 // CommonFieldsetReaderTaskID is the ID for a task to read the fieldset used by all parsers in node log parsers later.
 var CommonFieldsetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "common-fieldset-reader")
@@ -46,8 +46,8 @@ var ContainerdLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskb
 // PodSandboxIDDiscoveryTaskID is the ID for a task to extract pod sandbox IDs for the other parsers to corelate a log to Pods.
 var PodSandboxIDDiscoveryTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*PodSandboxIDInfo]](TaskIDPrefix + "containerd-id-discovery")
 
-// ContainerdLogHistoryModifierTaskID is the ID for a task to add events or revisions based on containerd logs.
-var ContainerdLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "containerd-log-history-modifier")
+// ContainerdLogLogToTimelineMapperTaskID is the ID for a task to add events or revisions based on containerd logs.
+var ContainerdLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "containerd-log-timeline-mapper")
 
 // KubeletLogFilterTaskID is the ID for a task to filter only the logs for kubelet.
 var KubeletLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "kubelet-log-filter")
@@ -55,8 +55,8 @@ var KubeletLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskI
 // KubeletLogGroupTaskID is the ID for a task to group kubelet related logs based on instance names.
 var KubeletLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "kubelet-log-group")
 
-// KubeletLogHistoryModifierTaskID is the ID for a task to add events or revisions based on kubelet logs.
-var KubeletLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "kubelet-log-history-modifier")
+// KubeletLogLogToTimelineMapperTaskID is the ID for a task to add events or revisions based on kubelet logs.
+var KubeletLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "kubelet-log-timeline-mapper")
 
 // OtherLogFilterTaskID is the task ID for filtering other logs.
 var OtherLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "other-log-filter")
@@ -64,8 +64,8 @@ var OtherLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDP
 // OtherLogGroupTaskID is the ID for a task to group other related logs based on instance names and component name.
 var OtherLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "other-log-group")
 
-// OtherLogHistoryModifierTaskID is the task ID for a task to add events or revisions based on other logs.
-var OtherLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "other-log-history-modifier")
+// OtherLogLogToTimelineMapperTaskID is the task ID for a task to add events or revisions based on other logs.
+var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "other-log-timeline-mapper")
 
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")

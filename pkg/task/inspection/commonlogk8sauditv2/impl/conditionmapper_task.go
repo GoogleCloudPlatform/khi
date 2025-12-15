@@ -30,26 +30,26 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-// ConditionHistoryModifierTask is a ManifestHistoryModifier task that tracks and records the history of Kubernetes resource conditions.
+// ConditionLogToTimelineMapperTask is a ManifestLogToTimelineMapper task that tracks and records the history of Kubernetes resource conditions.
 // It analyzes status.conditions fields in audit logs to generate revisions for each condition type (e.g., Ready, Scheduled).
-var ConditionHistoryModifierTask = commonlogk8sauditv2_contract.NewManifestHistoryModifier[*conditionHistoryModifierTaskState](&conditionHistoryModifierTaskSetting{
+var ConditionLogToTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper[*conditionLogToTimelineMapperTaskState](&conditionLogToTimelineMapperTaskSetting{
 	minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
 })
 
-type conditionHistoryModifierTaskState struct {
+type conditionLogToTimelineMapperTaskState struct {
 	// AvailableTypes is the set of available condition types.
 	AvailableTypes map[string]struct{}
 	// ConditionWalkers is the map of condition walkers.
 	ConditionWalkers map[string]*conditionWalker
 }
 
-type conditionHistoryModifierTaskSetting struct {
+type conditionLogToTimelineMapperTaskSetting struct {
 	// minimumDeltaTimeToCreateInferredCreationRevision is the minimum delta time to create inferred creation revision.
 	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 }
 
-// Process implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *conditionHistoryModifierTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevResource *conditionHistoryModifierTaskState) (*conditionHistoryModifierTaskState, error) {
+// Process implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *conditionLogToTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevResource *conditionLogToTimelineMapperTaskState) (*conditionLogToTimelineMapperTaskState, error) {
 	if event.EventTargetBodyReader == nil {
 		return prevResource, nil
 	}
@@ -59,17 +59,17 @@ func (c *conditionHistoryModifierTaskSetting) Process(ctx context.Context, passI
 	case 1:
 		return c.processSecondPass(ctx, event, cs, builder, prevResource)
 	default:
-		panic("unreachable. passIndex should be 0 or 1 for condition history modifier")
+		panic("unreachable. passIndex should be 0 or 1 for condition timeline mapper")
 	}
 }
 
-// TaskID implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *conditionHistoryModifierTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8sauditv2_contract.ConditionHistoryModifierTaskID
+// TaskID implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *conditionLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8sauditv2_contract.ConditionLogToTimelineMapperTaskID
 }
 
-// ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *conditionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+// ResourcePairs implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *conditionLogToTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		if group.Resource.Type() == commonlogk8sauditv2_contract.Resource {
@@ -83,9 +83,9 @@ func (c *conditionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context,
 
 // processFirstPass collects all available condition types from the log.
 // This is necessary because some conditions might appear later in the history, and we need to know about them upfront to track their state correctly.
-func (c *conditionHistoryModifierTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *conditionHistoryModifierTaskState) (*conditionHistoryModifierTaskState, error) {
+func (c *conditionLogToTimelineMapperTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *conditionLogToTimelineMapperTaskState) (*conditionLogToTimelineMapperTaskState, error) {
 	if state == nil {
-		state = &conditionHistoryModifierTaskState{
+		state = &conditionLogToTimelineMapperTaskState{
 			AvailableTypes:   map[string]struct{}{},
 			ConditionWalkers: map[string]*conditionWalker{},
 		}
@@ -123,7 +123,7 @@ func (c *conditionHistoryModifierTaskSetting) processFirstPass(ctx context.Conte
 
 // processSecondPass generates revisions for each condition type based on the collected available types.
 // It handles standard updates, inferred creations (when creation time is missing from the log), and deletions.
-func (c *conditionHistoryModifierTaskSetting) processSecondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *conditionHistoryModifierTaskState) (*conditionHistoryModifierTaskState, error) {
+func (c *conditionLogToTimelineMapperTaskSetting) processSecondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *conditionLogToTimelineMapperTaskState) (*conditionLogToTimelineMapperTaskState, error) {
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	ownerPath := resourcepath.ResourcePath{
@@ -199,26 +199,26 @@ func (c *conditionHistoryModifierTaskSetting) processSecondPass(ctx context.Cont
 }
 
 // Dependencies implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (c *conditionHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (c *conditionLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
 // PassCount implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (c *conditionHistoryModifierTaskSetting) PassCount() int {
+func (c *conditionLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (c *conditionHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
+func (c *conditionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogSerializerTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (c *conditionHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+func (c *conditionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[*conditionHistoryModifierTaskState] = (*conditionHistoryModifierTaskSetting)(nil)
+var _ commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting[*conditionLogToTimelineMapperTaskState] = (*conditionLogToTimelineMapperTaskSetting)(nil)
 
 // conditionStateToRevisionState converts a Kubernetes condition status string ("True", "False", etc.) to a KHI RevisionState enum.
 func conditionStateToRevisionState(conditionState string) enum.RevisionState {

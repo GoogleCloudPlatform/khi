@@ -27,9 +27,9 @@ import (
 
 var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplane_contract.TailTaskID,
 	[]taskid.UntypedTaskReference{
-		googlecloudlogk8scontrolplane_contract.SchedulerHistoryModifierTaskID.Ref(),
-		googlecloudlogk8scontrolplane_contract.ControllerManagerHistoryModifierTaskID.Ref(),
-		googlecloudlogk8scontrolplane_contract.OtherHistoryModifierTaskID.Ref(),
+		googlecloudlogk8scontrolplane_contract.SchedulerLogToTimelineMapperTaskID.Ref(),
+		googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID.Ref(),
+		googlecloudlogk8scontrolplane_contract.OtherLogToTimelineMapperTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
@@ -44,6 +44,6 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 	),
 )
 
-// LogSerializerTask serializes logs to history for history modifiers to associate event or revisions in later tasks.
-// No control plane logs are discarded, thus this LogSerializerTask simply receives logs from the ListLogEntriesTask.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogk8scontrolplane_contract.LogSerializerTaskID, googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref())
+// LogIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
+// No control plane logs are discarded, thus this LogIngesterTask simply receives logs from the ListLogEntriesTask.
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8scontrolplane_contract.LogIngesterTaskID, googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref())

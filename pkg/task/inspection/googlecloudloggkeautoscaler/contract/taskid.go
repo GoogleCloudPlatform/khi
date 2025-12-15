@@ -27,13 +27,13 @@ const gkeAutoscalerTaskIDPrefix = "cloud.google.com/gke/log/autoscaler/"
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "query")
 
 // FieldSetReaderTaskID is the task id for the task that reads the common field set from GKE autoscaler logs.
-var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "fieldset_reader")
+var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "fieldset-reader")
 
 // LogGrouperTaskID is the task id for the task that groups GKE autoscaler logs.
-var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](gkeAutoscalerTaskIDPrefix + "log_grouper")
+var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](gkeAutoscalerTaskIDPrefix + "log-grouper")
 
-// LogSerializerTaskID is the task id for the task that serializes GKE autoscaler logs.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "log_serializer")
+// LogIngesterTaskID is the task id for the task that serializes GKE autoscaler logs.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "log-serializer")
 
-// HistoryModifierTaskID is the task id for the task that modifies the history based on GKE autoscaler logs.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](gkeAutoscalerTaskIDPrefix + "history_modifier")
+// LogToTimelineMapperTaskID is the task id for the task that modifies the history based on GKE autoscaler logs.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](gkeAutoscalerTaskIDPrefix + "timeline-mapper")

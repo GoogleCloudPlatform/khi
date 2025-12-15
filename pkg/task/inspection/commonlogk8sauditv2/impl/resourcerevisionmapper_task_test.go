@@ -28,16 +28,16 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
+func TestResourceRevisionLogToTimelineMapperTask_Process(t *testing.T) {
 	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
 		name                   string
-		inputState             *resourceRevisionHistoryModifierState
+		inputState             *resourceRevisionLogToTimelineMapperState
 		verb                   enum.RevisionVerb
 		targetResourceBodyYAML string
 		eventType              commonlogk8sauditv2_contract.ChangeEventType
-		wantState              *resourceRevisionHistoryModifierState
+		wantState              *resourceRevisionLogToTimelineMapperState
 		subResourceName        string
 		asserters              []testchangeset.ChangeSetAsserter
 	}{
@@ -48,7 +48,7 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
 			targetResourceBodyYAML: `metadata:
   uid: "test-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetCreation,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -69,13 +69,13 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
 		},
 		{
 			name: "Delete event without body",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb:                   enum.RevisionVerbDelete,
 			targetResourceBodyYAML: "",
 			eventType:              commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -95,7 +95,7 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
 		},
 		{
 			name: "Delete event with graceful period > 0",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbDelete,
@@ -104,7 +104,7 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
   deletionGracePeriodSeconds: 30
   deletionTimestamp: "2023-10-26T10:00:00Z"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -127,7 +127,7 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
 		},
 		{
 			name: "Delete event with graceful period = 0",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbDelete,
@@ -136,7 +136,7 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
   deletionGracePeriodSeconds: 0
   deletionTimestamp: "2023-10-26T10:00:00Z"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -159,7 +159,7 @@ func TestResourceRevisionHistoryModifierTask_Process(t *testing.T) {
 		},
 		{
 			name: "Pod deletion with Failed phase",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbDelete,
@@ -170,7 +170,7 @@ metadata:
 status:
   phase: Failed`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -195,7 +195,7 @@ status:
 		},
 		{
 			name: "Recreation of resource",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:              "old-uid",
 				WasCompletelyRemoved: true,
 			},
@@ -203,7 +203,7 @@ status:
 			targetResourceBodyYAML: `metadata:
   uid: "new-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetCreation,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "new-uid",
@@ -224,7 +224,7 @@ status:
 		},
 		{
 			name: "DeleteCollection with phase=Failed",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbDeleteCollection,
@@ -233,7 +233,7 @@ status:
 status:
   phase: Failed`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -262,7 +262,7 @@ status:
   uid: "test-uid"
   creationTimestamp: "2023-10-26T09:59:00Z"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetCreation,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -294,14 +294,14 @@ status:
 		},
 		{
 			name: "Pod deletion without explicit signal",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbDelete,
 			targetResourceBodyYAML: `metadata:
   uid: "test-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -322,7 +322,7 @@ status:
 		},
 		{
 			name: "Patch during deletion",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:         "test-uid",
 				DeletionStarted: true,
 			},
@@ -330,7 +330,7 @@ status:
 			targetResourceBodyYAML: `metadata:
   uid: "test-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -351,7 +351,7 @@ status:
 		},
 		{
 			name: "Patch after deletion",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:              "test-uid",
 				WasCompletelyRemoved: true,
 			},
@@ -359,7 +359,7 @@ status:
 			targetResourceBodyYAML: `metadata:
   uid: "test-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -380,7 +380,7 @@ status:
 		},
 		{
 			name: "deletionGracePeriodSeconds=0 but with finalizers",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbPatch,
@@ -390,7 +390,7 @@ status:
   finalizers:
     - test-finalizer`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -414,7 +414,7 @@ status:
 		},
 		{
 			name: "Deletion with finalizers",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: enum.RevisionVerbDelete,
@@ -423,7 +423,7 @@ status:
   finalizers:
   - foregroundDeletion`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -446,7 +446,7 @@ status:
 		},
 		{
 			name: "DeleteCollection on already deleted resource",
-			inputState: &resourceRevisionHistoryModifierState{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:              "test-uid",
 				WasCompletelyRemoved: true,
 			},
@@ -454,7 +454,7 @@ status:
 			targetResourceBodyYAML: `metadata:
   uid: "test-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
-			wantState: &resourceRevisionHistoryModifierState{
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -473,7 +473,7 @@ status:
 			targetResourceBodyYAML: `metadata:
   uid: "test-uid"`,
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeSourceDeletion,
-			wantState: &resourceRevisionHistoryModifierState{},
+			wantState: &resourceRevisionLogToTimelineMapperState{},
 			asserters: []testchangeset.ChangeSetAsserter{
 				&testchangeset.HasRevision{
 					ResourcePath: "core/v1#pod#default#test#binding",
@@ -490,7 +490,7 @@ status:
 		},
 	}
 
-	task := &ResourceRevisionHistoryModifierTaskSetting{
+	task := &ResourceRevisionLogToTimelineMapperTaskSetting{
 		minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 		kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 			"core/v1#pod": {},

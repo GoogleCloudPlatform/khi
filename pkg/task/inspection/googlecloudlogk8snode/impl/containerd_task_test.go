@@ -291,7 +291,7 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 
 }
 
-func TestContainerdHistoryModifierTask(t *testing.T) {
+func TestContainerdLogToTimelineMapperTask(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	testCases := []struct {
 		desc                 string
@@ -441,10 +441,10 @@ func TestContainerdHistoryModifierTask(t *testing.T) {
 				tc.inputNodeLogFieldSet,
 			)
 			cs := history.NewChangeSet(l)
-			modifier := &containerdNodeLogHistoryModifierSetting{}
-			_, err := modifier.ModifyChangeSetFromLog(ctx, l, cs, nil, struct{}{})
+			modifier := &containerdNodeLogLogToTimelineMapperSetting{}
+			_, err := modifier.ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
 			if err != nil {
-				t.Fatalf("ModifyChangeSetFromLog() error = %v", err)
+				t.Fatalf("ProcessLogByGroup() error = %v", err)
 			}
 			for _, asserter := range tc.asserter {
 				asserter.Assert(t, cs)

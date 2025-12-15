@@ -36,29 +36,28 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// HistoryModifer defines the interface for modifying the History with change sets based on log entries.
-// Implementations of this interface can be used to customize how log data is transformed into
-// structured history.
-// To process data generated from processing the last log in the same group, the method ModifyChangeSetFromLog receive and return a variable typed T.
-type HistoryModifer[T any] interface {
-	// LogSerializerTask is one of prerequiste task of HistoryModifier serializes its logs to history data before processing with this modifier.
-	LogSerializerTask() taskid.TaskReference[[]*log.Log]
-	// Dependencies are the additional references used in history modifier.
+// LogToTimelineMapper defines the interface for mapping logs to timeline elements(events or revisions).
+// Implementations of this interface can be used to customize how log data is transformed into timeline elements.
+// To process data generated from processing the last log in the same group, the method ProcessLogByGroup receive and return a variable typed T.
+type LogToTimelineMapper[T any] interface {
+	// LogIngesterTask is one of prerequiste task of LogToTimelineMapper ingesting logs to history data before processing with this mapper.
+	LogIngesterTask() taskid.TaskReference[[]*log.Log]
+	// Dependencies are the additional references used in timeline mapper.
 	Dependencies() []taskid.UntypedTaskReference
 	// GroupedLogTask returns a reference to the task that provides the grouped logs.
 	GroupedLogTask() taskid.TaskReference[LogGroupMap]
-	// ModifyChangeSetFromLog is called for each log entry to modify the corresponding ChangeSet.
+	// ProcessLogByGroup is called for each log entry to modify the corresponding ChangeSet.
 	// This method allows for custom logic to be applied during the history building process.
 	// The prevGroupData is the returned value from the last procesed log in the same group.
-	ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData T) (T, error)
+	ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData T) (T, error)
 }
 
-// NewHistoryModifierTask creates a task that modifies the history builder based on grouped logs.
-// It processes logs in parallel and applies the logic from the provided HistoryModifer
+// NewLogToTimelineMapperTask creates a task that modifies the history builder based on grouped logs.
+// It processes logs in parallel and applies the logic from the provided LogToTimelineMapper
 // to build a comprehensive history of events.
-func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], historyModifier HistoryModifer[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
-	groupedLogTaskID := historyModifier.GroupedLogTask()
-	dependencies := append([]taskid.UntypedTaskReference{historyModifier.LogSerializerTask(), historyModifier.GroupedLogTask()}, historyModifier.Dependencies()...)
+func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[struct{}], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[struct{}] {
+	groupedLogTaskID := mapper.GroupedLogTask()
+	dependencies := append([]taskid.UntypedTaskReference{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
 	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
@@ -91,7 +90,7 @@ func NewHistoryModifierTask[T any](tid taskid.TaskImplementationID[struct{}], hi
 				for _, l := range group.Logs {
 					cs := history.NewChangeSet(l)
 					var err error
-					groupData, err = historyModifier.ModifyChangeSetFromLog(ctx, l, cs, builder, groupData)
+					groupData, err = mapper.ProcessLogByGroup(ctx, l, cs, builder, groupData)
 					if err != nil {
 						var yaml string
 						yamlBytes, err2 := l.Serialize("", &structured.YAMLNodeSerializer{})

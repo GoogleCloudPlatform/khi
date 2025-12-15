@@ -61,43 +61,43 @@ func (c *containerStatusIdentity) String() string {
 	}
 }
 
-// ContainerHistoryModifierTask is the task to generate container history.
-var ContainerHistoryModifierTask = commonlogk8sauditv2_contract.NewManifestHistoryModifier[*containerHistoryModifierTaskState](&containerHistoryModifierTaskSetting{})
+// ContainerLogToTimelineMapperTask is the task to generate container history.
+var ContainerLogToTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](&containerLogToTimelineMapperTaskSetting{})
 
-type containerHistoryModifierTaskState struct {
+type containerLogToTimelineMapperTaskState struct {
 	// containerIdentities is the map of container identities.
 	containerIdentities map[string]*containerStatusIdentity
 	// containerStateWalkers is the map of container state walkers.
 	containerStateWalkers map[string]*containerStateWalker
 }
 
-type containerHistoryModifierTaskSetting struct {
+type containerLogToTimelineMapperTaskSetting struct {
 }
 
-// Dependencies implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogSerializerTask implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// PassCount implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) PassCount() int {
+// PassCount implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
 }
 
-// Process implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerHistoryModifierTaskState) (*containerHistoryModifierTaskState, error) {
+// Process implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerLogToTimelineMapperTaskState) (*containerLogToTimelineMapperTaskState, error) {
 	if state == nil {
-		state = &containerHistoryModifierTaskState{
+		state = &containerLogToTimelineMapperTaskState{
 			containerIdentities:   map[string]*containerStatusIdentity{},
 			containerStateWalkers: map[string]*containerStateWalker{},
 		}
@@ -117,7 +117,7 @@ func (c *containerHistoryModifierTaskSetting) Process(ctx context.Context, passI
 }
 
 // processFirstPass collects all container identities from the log.
-func (c *containerHistoryModifierTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerHistoryModifierTaskState) (*containerHistoryModifierTaskState, error) {
+func (c *containerLogToTimelineMapperTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerLogToTimelineMapperTaskState) (*containerLogToTimelineMapperTaskState, error) {
 	findContainers := func(containerType containerType, fieldName string) {
 		statuses, err := event.EventTargetBodyReader.GetReader(fieldName)
 		if err == nil {
@@ -140,7 +140,7 @@ func (c *containerHistoryModifierTaskSetting) processFirstPass(ctx context.Conte
 }
 
 // processSecondPass generates revisions for each container.
-func (c *containerHistoryModifierTaskSetting) processSecondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerHistoryModifierTaskState) (*containerHistoryModifierTaskState, error) {
+func (c *containerLogToTimelineMapperTaskSetting) processSecondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *containerLogToTimelineMapperTaskState) (*containerLogToTimelineMapperTaskState, error) {
 	currentStateReaders := map[string]*structured.NodeReader{}
 	findContainerStateReaders := func(containerType containerType, fieldName string) {
 		statuses, err := event.EventTargetBodyReader.GetReader(fieldName)
@@ -178,13 +178,13 @@ func (c *containerHistoryModifierTaskSetting) processSecondPass(ctx context.Cont
 	return state, nil
 }
 
-// TaskID implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8sauditv2_contract.ContainerHistoryModifierTaskID
+// TaskID implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8sauditv2_contract.ContainerLogToTimelineMapperTaskID
 }
 
-// ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (c *containerHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+// ResourcePairs implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (c *containerLogToTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	results := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		// core/v1#pod#namespace#podnanme
@@ -197,7 +197,7 @@ func (c *containerHistoryModifierTaskSetting) ResourcePairs(ctx context.Context,
 	return results, nil
 }
 
-var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[*containerHistoryModifierTaskState] = (*containerHistoryModifierTaskSetting)(nil)
+var _ commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting[*containerLogToTimelineMapperTaskState] = (*containerLogToTimelineMapperTaskSetting)(nil)
 
 type containerStateWalker struct {
 	// containerIdentity is the identity of the container.

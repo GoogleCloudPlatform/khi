@@ -388,8 +388,8 @@ state:
 	}
 }
 
-func TestContainerHistoryModifierTask_Process(t *testing.T) {
-	task := &containerHistoryModifierTaskSetting{}
+func TestContainerLogToTimelineMapperTask_Process(t *testing.T) {
+	task := &containerLogToTimelineMapperTaskSetting{}
 	ctx := context.Background()
 	podNamespace := "default"
 	podName := "nginx"
@@ -399,8 +399,8 @@ func TestContainerHistoryModifierTask_Process(t *testing.T) {
 		pass         int
 		yaml         string
 		nilBody      bool
-		initialState *containerHistoryModifierTaskState
-		wantState    *containerHistoryModifierTaskState
+		initialState *containerLogToTimelineMapperTaskState
+		wantState    *containerLogToTimelineMapperTaskState
 		asserters    []testchangeset.ChangeSetAsserter
 	}{
 		{
@@ -416,7 +416,7 @@ status:
   - name: debug-container
 `,
 			initialState: nil,
-			wantState: &containerHistoryModifierTaskState{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -439,7 +439,7 @@ status:
 			name:    "Pass 0: Nil Body",
 			pass:    0,
 			nilBody: true,
-			wantState: &containerHistoryModifierTaskState{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities:   map[string]*containerStatusIdentity{},
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
@@ -457,7 +457,7 @@ status:
         startedAt: "2024-01-01T00:00:00Z"
     ready: true
 `,
-			initialState: &containerHistoryModifierTaskState{
+			initialState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -466,7 +466,7 @@ status:
 				},
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
-			wantState: &containerHistoryModifierTaskState{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -507,7 +507,7 @@ status:
 status:
   containerStatuses: []
 `,
-			initialState: &containerHistoryModifierTaskState{
+			initialState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -516,7 +516,7 @@ status:
 				},
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
-			wantState: &containerHistoryModifierTaskState{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -554,7 +554,7 @@ status:
 			name:    "Pass 1: Nil Body",
 			pass:    1,
 			nilBody: true,
-			initialState: &containerHistoryModifierTaskState{
+			initialState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -563,7 +563,7 @@ status:
 				},
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
-			wantState: &containerHistoryModifierTaskState{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -610,7 +610,7 @@ status:
 				t.Fatalf("Process(%d) failed: %v", tc.pass, err)
 			}
 
-			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerHistoryModifierTaskState{}, containerStatusIdentity{}, containerStateWalker{})); diff != "" {
+			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerLogToTimelineMapperTaskState{}, containerStatusIdentity{}, containerStateWalker{})); diff != "" {
 				t.Errorf("state mismatch (-want +got):\n%s", diff)
 			}
 

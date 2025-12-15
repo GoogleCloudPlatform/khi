@@ -39,13 +39,13 @@ type LogGroup struct {
 // LogGroupMap is a map of log groups, where the key is the group identifier.
 type LogGroupMap = map[string]*LogGroup
 
-// LogGrouper defines a function that returns a group key for a given log.
-type LogGrouper = func(ctx context.Context, log *log.Log) string
+// LogGrouperFunc defines a function that returns a group key for a given log.
+type LogGrouperFunc = func(ctx context.Context, log *log.Log) string
 
 // NewLogGrouperTask creates a task that groups logs based on a grouper function.
 // It processes a list of logs and organizes them into a map of LogGroup,
 // where each group contains logs with the same key.
-func NewLogGrouperTask(taskId taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], grouper LogGrouper) coretask.Task[LogGroupMap] {
+func NewLogGrouperTask(taskId taskid.TaskImplementationID[LogGroupMap], logTask taskid.TaskReference[[]*log.Log], grouper LogGrouperFunc) coretask.Task[LogGroupMap] {
 	return NewProgressReportableInspectionTask(taskId, []taskid.UntypedTaskReference{
 		logTask,
 	},

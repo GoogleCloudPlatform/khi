@@ -237,8 +237,8 @@ func TestConditionWalker(t *testing.T) {
 	}
 }
 
-func TestConditionHistoryModifierTask_Process(t *testing.T) {
-	task := &conditionHistoryModifierTaskSetting{
+func TestConditionLogToTimelineMapperTask_Process(t *testing.T) {
+	task := &conditionLogToTimelineMapperTaskSetting{
 		minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
 	}
 	ctx := context.Background()
@@ -255,8 +255,8 @@ func TestConditionHistoryModifierTask_Process(t *testing.T) {
 		eventType    commonlogk8sauditv2_contract.ChangeEventType
 		operation    enum.RevisionVerb
 		timestamp    time.Time
-		initialState *conditionHistoryModifierTaskState
-		wantState    *conditionHistoryModifierTaskState
+		initialState *conditionLogToTimelineMapperTaskState
+		wantState    *conditionLogToTimelineMapperTaskState
 		asserters    []testchangeset.ChangeSetAsserter
 	}{
 		{
@@ -272,11 +272,11 @@ status:
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
 			operation: enum.RevisionVerbUpdate,
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			initialState: &conditionHistoryModifierTaskState{
+			initialState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes:   map[string]struct{}{},
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -308,7 +308,7 @@ status:
 			operation:    enum.RevisionVerbUpdate,
 			timestamp:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 			initialState: nil,
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -339,11 +339,11 @@ status:
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
 			operation: enum.RevisionVerbUpdate,
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			initialState: &conditionHistoryModifierTaskState{
+			initialState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes:   map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}, "Scheduled": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -379,11 +379,11 @@ status:
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
 			operation: enum.RevisionVerbUpdate,
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			initialState: &conditionHistoryModifierTaskState{
+			initialState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes:   map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -421,7 +421,7 @@ status:
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
 			operation: enum.RevisionVerbUpdate,
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			initialState: &conditionHistoryModifierTaskState{
+			initialState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -442,7 +442,7 @@ status:
 					},
 				},
 			},
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -497,11 +497,11 @@ status:
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetCreation,
 			operation: enum.RevisionVerbCreate,
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			initialState: &conditionHistoryModifierTaskState{
+			initialState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes:   map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {
@@ -537,11 +537,11 @@ status:
 			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
 			operation: enum.RevisionVerbDelete,
 			timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			initialState: &conditionHistoryModifierTaskState{
+			initialState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes:   map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{},
 			},
-			wantState: &conditionHistoryModifierTaskState{
+			wantState: &conditionLogToTimelineMapperTaskState{
 				AvailableTypes: map[string]struct{}{"Ready": {}},
 				ConditionWalkers: map[string]*conditionWalker{
 					"Ready": {

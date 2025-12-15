@@ -31,7 +31,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8
 	&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSetReader{},
 })
 
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogk8scontainer_contract.LogSerializerTaskID, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8scontainer_contract.LogIngesterTaskID, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8scontainer_contract.LogGrouperTaskID, googlecloudlogk8scontainer_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
@@ -43,7 +43,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8sconta
 		return containerFields.ResourcePath().Path
 	})
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8scontainer_contract.HistoryModifierTaskID, &containerLogHistoryModifierSetting{},
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID, &containerLogLogToTimelineMapperSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`Kubernetes container logs`,
 		`Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.`,
 		enum.LogTypeContainer,
@@ -52,26 +52,26 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...),
 )
 
-type containerLogHistoryModifierSetting struct {
+type containerLogLogToTimelineMapperSetting struct {
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (c *containerLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (c *containerLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (c *containerLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (c *containerLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8scontainer_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (c *containerLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8scontainer_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (c *containerLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (c *containerLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (c *containerLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
 	if err != nil {
 		return struct{}{}, nil
@@ -82,4 +82,4 @@ func (c *containerLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*containerLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*containerLogLogToTimelineMapperSetting)(nil)

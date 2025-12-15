@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestHistoryModifierTask(t *testing.T) {
+func TestLogToTimelineMapperTask(t *testing.T) {
 	testCommonFieldSet := &log.CommonFieldSet{
 		Timestamp: time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC),
 	}
@@ -143,10 +143,10 @@ func TestHistoryModifierTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.input)
-			historyModifierSetting := &gcpComputeAuditLogHistoryModifierSetting{}
+			mapperSettingSetting := &gcpComputeAuditLogLogToTimelineMapperSetting{}
 			cs := history.NewChangeSet(l)
 
-			_, err := historyModifierSetting.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			_, err := mapperSettingSetting.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
 			if err != nil {
 				t.Errorf("got error %v, want nil", err)
 			}

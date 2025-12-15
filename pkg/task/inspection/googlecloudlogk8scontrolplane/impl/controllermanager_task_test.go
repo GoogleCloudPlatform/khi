@@ -28,7 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestControllerManagerHistoryModifierTask(t *testing.T) {
+func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	testCases := []struct {
 		desc                           string
 		inputComponentField            googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet
@@ -96,14 +96,14 @@ func TestControllerManagerHistoryModifierTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputControllerManagerFieldSet, &tc.inputMessageField)
-			modifier := controllerManagerHistoryModifierTaskSetting{}
+			modifier := controllerManagerLogToTimelineMapperTaskSetting{}
 			cs := history.NewChangeSet(l)
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			finder := patternfinder.NewTriePatternFinder[*commonlogk8sauditv2_contract.ResourceIdentity]()
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
-			_, err := modifier.ModifyChangeSetFromLog(ctx, l, cs, nil, struct{}{})
+			_, err := modifier.ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
 			if err != nil {
-				t.Errorf("ModifyChangeSetFromLog() returned an unexpected error, err=%v", err)
+				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
 			}
 			for _, asserter := range tc.asserters {
 				asserter.Assert(t, cs)

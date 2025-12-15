@@ -39,8 +39,8 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogon
 	&googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSetReader{},
 })
 
-// LogSerializerTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogonpremapiaudit_contract.LogSerializerTaskID, googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref())
+// LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogonpremapiaudit_contract.LogIngesterTaskID, googlecloudlogonpremapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 // LogGrouperTask is a task that groups MulticloudAPI audit logs by their resource path.
 // This grouping allows for parallel processing of logs related to the same resource.
@@ -54,8 +54,8 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogonpremap
 	},
 )
 
-// HistoryModifierTask is a task that adds revisions/events regarding logs.
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogonpremapiaudit_contract.HistoryModifierTaskID, &onpremAuditLogHistoryModifierSetting{},
+// LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogonpremapiaudit_contract.LogToTimelineMapperTaskID, &onpremAuditLogLogToTimelineMapperSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`OnPrem API logs`,
 		`Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.`,
 		enum.LogTypeOnPremAPI,
@@ -64,26 +64,26 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GDCClusterInspectionTypes...),
 )
 
-type onpremAuditLogHistoryModifierSetting struct {
+type onpremAuditLogLogToTimelineMapperSetting struct {
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (m *onpremAuditLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (m *onpremAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (m *onpremAuditLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (m *onpremAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogonpremapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (m *onpremAuditLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogonpremapiaudit_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (m *onpremAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogonpremapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (m *onpremAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (m *onpremAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
 		return struct{}{}, err

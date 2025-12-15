@@ -22,7 +22,7 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-func TestLogSummaryHistoryModifierSetting_getLogSummary(t *testing.T) {
+func TestLogSummaryLogToTimelineMapperSetting_getLogSummary(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input *commonlogk8sauditv2_contract.K8sAuditLogFieldSet
@@ -58,7 +58,7 @@ func TestLogSummaryHistoryModifierSetting_getLogSummary(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			setting := &logSummaryHistoryModifierSetting{}
+			setting := &logSummaryLogToTimelineMapperSetting{}
 			got := setting.logSummary(tc.input)
 			if got != tc.want {
 				t.Errorf("got %q, want %q", got, tc.want)

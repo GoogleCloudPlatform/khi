@@ -86,12 +86,12 @@ type ResourceChangeEvent struct {
 	EventTargetBodyReader *structured.NodeReader
 }
 
-// ManifestHistoryModifierTaskSetting is the setting for the manifest history modifier task.
-type ManifestHistoryModifierTaskSetting[T any] interface {
+// ManifestLogToTimelineMapperTaskSetting is the setting for the manifest timeline mapper task.
+type ManifestLogToTimelineMapperTaskSetting[T any] interface {
 	// TaskID returns the task ID.
 	TaskID() taskid.TaskImplementationID[struct{}]
-	// LogSerializerTask returns the task reference for the log serializer task.
-	LogSerializerTask() taskid.TaskReference[[]*log.Log]
+	// LogIngesterTask returns the task reference for the log serializer task.
+	LogIngesterTask() taskid.TaskReference[[]*log.Log]
 	// GroupedLogTask returns the task reference for the grouped log task.
 	GroupedLogTask() taskid.TaskReference[ResourceManifestLogGroupMap]
 	// Dependencies returns the dependencies of the task.
@@ -104,8 +104,8 @@ type ManifestHistoryModifierTaskSetting[T any] interface {
 	Process(ctx context.Context, passIndex int, event ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData T) (T, error)
 }
 
-// NewManifestHistoryModifier creates a new manifest history modifier task.
-// ManifestHistoryModifier is a task that generates a timeline of resource changes based on the processed manifests.
+// NewManifestLogToTimelineMapper creates a new timeline mapper task but from resource logs.
+// ManifestLogToTimelineMapper is a task that generates a timeline of resource changes based on the processed manifests.
 // It is designed to handle the relationship between two resources (Source and Target) and generate revisions for the Target resource based on the changes in the Source resource.
 // For example, it can be used to generate a timeline of Pod status changes based on the Pod resource itself (Source=None, Target=Pod), or to generate a timeline of binding subresource but deleted when its parent Pod is deleted (Source=Pod, Target=Source pod's binding).
 // The setting has ResourcePairs method that returns the resource pairs to know these pairs of target and source.
@@ -116,8 +116,8 @@ type ManifestHistoryModifierTaskSetting[T any] interface {
 // Type Parameter T:
 // The type parameter T represents the state that is passed between Process calls for the same resource pair.
 // This allows the implementation to track the history of the resource and detect changes.
-func NewManifestHistoryModifier[T any](setting ManifestHistoryModifierTaskSetting[T]) coretask.Task[struct{}] {
-	dependencies := append([]taskid.UntypedTaskReference{setting.LogSerializerTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
+func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapperTaskSetting[T]) coretask.Task[struct{}] {
+	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
 	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")

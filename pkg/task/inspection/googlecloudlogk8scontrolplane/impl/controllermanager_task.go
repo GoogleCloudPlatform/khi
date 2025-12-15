@@ -91,31 +91,31 @@ var ControllerManagerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-var ControllerManagerHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerHistoryModifierTaskID, &controllerManagerHistoryModifierTaskSetting{})
+var ControllerManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID, &controllerManagerLogToTimelineMapperTaskSetting{})
 
-type controllerManagerHistoryModifierTaskSetting struct {
+type controllerManagerLogToTimelineMapperTaskSetting struct {
 	uidPrefixTokenCandidates []rune
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (o *controllerManagerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (o *controllerManagerLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (o *controllerManagerHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (o *controllerManagerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8scontrolplane_contract.ControllerManagerLogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (o *controllerManagerHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8scontrolplane_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (o *controllerManagerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (o *controllerManagerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (o *controllerManagerLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	finder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref())
 	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
 	if err != nil {

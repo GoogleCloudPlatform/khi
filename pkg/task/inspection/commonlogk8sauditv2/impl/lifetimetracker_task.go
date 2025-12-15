@@ -173,7 +173,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 	commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID,
 	[]taskid.UntypedTaskReference{
 		commonlogk8sauditv2_contract.ManifestGeneratorTaskID.Ref(),
-		commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref(),
+		commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceManifestLogGroupMap, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
@@ -197,7 +197,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 		updator.Start(ctx)
 
 		processedLogCount.Store(0)
-		historyModifier := &lifeTimeTrackerTaskSetting{
+		mapperSettingSetting := &lifeTimeTrackerTaskSetting{
 			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{
 				"core/v1#pod": {},
 			},
@@ -213,7 +213,7 @@ var ResourceLifetimeTrackerTask = inspectiontaskbase.NewProgressReportableInspec
 				}
 				for _, l := range group.Logs {
 					var err error
-					groupData, err = historyModifier.DetectLifetimeLogEvent(ctx, l, groupData)
+					groupData, err = mapperSettingSetting.DetectLifetimeLogEvent(ctx, l, groupData)
 					if err != nil {
 						var yaml string
 						yamlBytes, err2 := l.Log.Serialize("", &structured.YAMLNodeSerializer{})

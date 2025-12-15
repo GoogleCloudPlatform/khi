@@ -31,8 +31,8 @@ var K8sAuditLogProviderRef = taskid.NewTaskReference[[]*log.Log](TaskIDPrefix + 
 // K8sAuditLogParserTailRef is the task reference for the task to depend all enabled k8s audit log parsing sub tasks.
 var K8sAuditLogParserTailRef = taskid.NewTaskReference[struct{}](TaskIDPrefix + "k8s-auditlog-parser-tail")
 
-// K8sAuditLogSerializerTaskID is the task ID for the task to serialize the k8s audit log.
-var K8sAuditLogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "k8s-auditlog-serializer")
+// K8sAuditLogIngesterTaskID is the task ID for the task to serialize the k8s audit log.
+var K8sAuditLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "k8s-auditlog-serializer")
 
 // SuccessLogFilterTaskID is the task ID for the task to filter success logs.
 var SuccessLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "success-log-filter")
@@ -52,8 +52,8 @@ var NonSuccessLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontas
 // ChangeTargetGrouperTaskID is the task ID for the task to group logs by the target resource.
 var ChangeTargetGrouperTaskID = taskid.NewDefaultImplementationID[ResourceLogGroupMap](TaskIDPrefix + "change-target-grouper")
 
-// NamespaceRequestHistoryModifierTaskID is the task ID for the task recording events for requests against entire resources in namespace.
-var NamespaceRequestHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "namespace-request-history-modifier")
+// NamespaceRequestLogToTimelineMapperTaskID is the task ID for the task recording events for requests against entire resources in namespace.
+var NamespaceRequestLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "namespace-request-timeline-mapper")
 
 // ManifestGeneratorTaskID is the task ID for the task to generate manifests.
 var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "manifest-generator")
@@ -61,29 +61,29 @@ var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceManifest
 // ResourceLifetimeTrackerTaskID is the task ID for the task to track resource lifetime.
 var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")
 
-// LogSummaryHistoryModifierTaskID is the task ID for the task to generate log summary from given k8s audit log.
-var LogSummaryHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-summary-history-modifier")
+// LogSummaryLogToTimelineMapperTaskID is the task ID for the task to generate log summary from given k8s audit log.
+var LogSummaryLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "log-summary-timeline-mapper")
 
-// NonSuccessLogHistoryModifierTaskID is the task ID for the task to generate history from non-success logs.
-var NonSuccessLogHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "non-success-history-modifier")
+// NonSuccessLogLogToTimelineMapperTaskID is the task ID for the task to generate history from non-success logs.
+var NonSuccessLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "non-success-timeline-mapper")
 
-// ResourceRevisionHistoryModifierTaskID is the task ID for the task to modify resource revision history.
-var ResourceRevisionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-revision-history-modifier")
+// ResourceRevisionLogToTimelineMapperTaskID is the task ID for the task to map logs into resource revision history.
+var ResourceRevisionLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-revision-timeline-mapper")
 
-// ResourceOwnerReferenceModifierTaskID is the task ID for the task to modify resource owner reference.
-var ResourceOwnerReferenceModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-owner-reference-modifier")
+// ResourceOwnerReferenceTimelineMapperTaskID is the task ID for the task to map logs into resource owner reference.
+var ResourceOwnerReferenceTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "resource-owner-reference-timeline-mapper")
 
-// EndpointResourceHistoryModifierTaskID is the task ID for the task to modify endpoint resource history.
-var EndpointResourceHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "endpoint-resource-history-modifier")
+// EndpointResourceLogToTimelineMapperTaskID is the task ID for the task to map logs into endpoint resource history.
+var EndpointResourceLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "endpoint-resource-timeline-mapper")
 
-// PodPhaseHistoryModifierTaskID is the task ID for the task to modify pod phase history.
-var PodPhaseHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "pod-phase-history-modifier")
+// PodPhaseLogToTimelineMapperTaskID is the task ID for the task to map logs into pod phase history.
+var PodPhaseLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "pod-phase-timeline-mapper")
 
-// ContainerHistoryModifierTaskID is the task ID for the task to modify container history.
-var ContainerHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "container-history-modifier")
+// ContainerLogToTimelineMapperTaskID is the task ID for the task to map logs into container history.
+var ContainerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "container-timeline-mapper")
 
-// ConditionHistoryModifierTaskID is the task ID for the task to generate condition history.
-var ConditionHistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "condition-history-modifier")
+// ConditionLogToTimelineMapperTaskID is the task ID for the task to generate condition history.
+var ConditionLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "condition-timeline-mapper")
 
 // NodeNameDiscoveryTaskID is the task ID for extracting node names from audit logs.
 var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-discovery")

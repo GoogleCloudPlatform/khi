@@ -37,7 +37,7 @@ type podIdentity struct {
 	namespace string
 }
 
-type endpointResourceHistoryModifierState struct {
+type endpointResourceLogToTimelineMapperState struct {
 	// serviceNames is the set of service names.
 	serviceNames map[string]struct{}
 	// foundPods is the map of found pods.
@@ -46,21 +46,21 @@ type endpointResourceHistoryModifierState struct {
 	lastStates map[string]enum.RevisionState
 }
 
-// EndpointResourceHistoryModifierTask is the task to generate endpoint resource history.
-var EndpointResourceHistoryModifierTask = commonlogk8sauditv2_contract.NewManifestHistoryModifier[*endpointResourceHistoryModifierState](&endpointResourceHistoryModifierTaskSetting{})
+// EndpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
+var EndpointResourceLogToTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](&endpointResourceLogToTimelineMapperTaskSetting{})
 
-type endpointResourceHistoryModifierTaskSetting struct {
+type endpointResourceLogToTimelineMapperTaskSetting struct {
 }
 
-// PassCount implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (e *endpointResourceHistoryModifierTaskSetting) PassCount() int {
+// PassCount implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
 }
 
-// Process implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (e *endpointResourceHistoryModifierTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *endpointResourceHistoryModifierState) (*endpointResourceHistoryModifierState, error) {
+// Process implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *endpointResourceLogToTimelineMapperState) (*endpointResourceLogToTimelineMapperState, error) {
 	if state == nil {
-		state = &endpointResourceHistoryModifierState{
+		state = &endpointResourceLogToTimelineMapperState{
 			serviceNames: map[string]struct{}{},
 			foundPods:    map[string]*podIdentity{},
 			lastStates:   map[string]enum.RevisionState{},
@@ -77,7 +77,7 @@ func (e *endpointResourceHistoryModifierTaskSetting) Process(ctx context.Context
 }
 
 // processFirstPass collects all service names and pod identities from the log.
-func (e *endpointResourceHistoryModifierTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *endpointResourceHistoryModifierState) (*endpointResourceHistoryModifierState, error) {
+func (e *endpointResourceLogToTimelineMapperTaskSetting) processFirstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *endpointResourceLogToTimelineMapperState) (*endpointResourceLogToTimelineMapperState, error) {
 	ownerReferences, err := event.EventTargetBodyReader.GetReader("metadata.ownerReferences")
 	if err == nil {
 		// Scan all owner references to collect service names.
@@ -130,7 +130,7 @@ func (e *endpointResourceHistoryModifierTaskSetting) processFirstPass(ctx contex
 }
 
 // processSecondPass generates revisions for each endpoint.
-func (e *endpointResourceHistoryModifierTaskSetting) processSecondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *endpointResourceHistoryModifierState) (*endpointResourceHistoryModifierState, error) {
+func (e *endpointResourceLogToTimelineMapperTaskSetting) processSecondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *endpointResourceLogToTimelineMapperState) (*endpointResourceLogToTimelineMapperState, error) {
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	if event.EventType == commonlogk8sauditv2_contract.ChangeEventTypeTargetCreation && k8sFieldSet.K8sOperation.Verb != enum.RevisionVerbCreate {
@@ -318,13 +318,13 @@ func (e *endpointResourceHistoryModifierTaskSetting) processSecondPass(ctx conte
 	return state, nil
 }
 
-// TaskID implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (e *endpointResourceHistoryModifierTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8sauditv2_contract.EndpointResourceHistoryModifierTaskID
+// TaskID implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8sauditv2_contract.EndpointResourceLogToTimelineMapperTaskID
 }
 
-// ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (e *endpointResourceHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+// ResourcePairs implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		if group.Resource.APIVersion == "discovery.k8s.io/v1" && group.Resource.Kind == "endpointslice" {
@@ -337,18 +337,18 @@ func (e *endpointResourceHistoryModifierTaskSetting) ResourcePairs(ctx context.C
 }
 
 // Dependencies implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (e *endpointResourceHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (e *endpointResourceLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
 // GroupedLogTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (e *endpointResourceHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
+func (e *endpointResourceLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogSerializerTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
-func (e *endpointResourceHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements commonlogk8sauditv2_contract.ResourceBasedHistoryModifer.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
 // endpointConditionToPodEndpointState converts endpoint conditions to revision state.

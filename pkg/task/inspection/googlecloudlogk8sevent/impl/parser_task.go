@@ -32,7 +32,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8
 	&googlecloudlogk8sevent_contract.GCPKubernetesEventFieldSetReader{},
 })
 
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogk8sevent_contract.LogSerializerTaskID, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogk8sevent_contract.LogIngesterTaskID, googlecloudlogk8sevent_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8sevent_contract.LogGrouperTaskID, googlecloudlogk8sevent_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
@@ -44,7 +44,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8sevent
 	},
 )
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogk8sevent_contract.HistoryModifierTaskID, &KubernetesEventHistoryModifierSetting{}, inspectioncore_contract.FeatureTaskLabel(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8sevent_contract.LogToTimelineMapperTaskID, &KubernetesEventLogToTimelineMapperSetting{}, inspectioncore_contract.FeatureTaskLabel(
 	"Kubernetes Event Logs",
 	"Gather kubernetes event logs and visualize these on the associated resource timeline.",
 	enum.LogTypeEvent,
@@ -53,26 +53,26 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 	googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...,
 ))
 
-type KubernetesEventHistoryModifierSetting struct {
+type KubernetesEventLogToTimelineMapperSetting struct {
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (k *KubernetesEventHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (k *KubernetesEventLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (k *KubernetesEventHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (k *KubernetesEventLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8sevent_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (k *KubernetesEventHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8sevent_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (k *KubernetesEventLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8sevent_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (k *KubernetesEventHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (k *KubernetesEventLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	event, err := log.GetFieldSet(l, &googlecloudlogk8sevent_contract.KubernetesEventFieldSet{})
 	if err != nil {
 		return struct{}{}, fmt.Errorf("failed to get kubernetes event fieldset: %w", err)
@@ -83,4 +83,4 @@ func (k *KubernetesEventHistoryModifierSetting) ModifyChangeSetFromLog(ctx conte
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*KubernetesEventHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*KubernetesEventLogToTimelineMapperSetting)(nil)

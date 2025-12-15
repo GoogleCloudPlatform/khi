@@ -39,8 +39,8 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggk
 	&googlecloudloggkeapiaudit_contract.GKEAuditLogResourceFieldSetReader{},
 })
 
-// LogSerializerTask is a task that serializes GKE audit logs for storage in the history builder.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudloggkeapiaudit_contract.LogSerializerTaskID, googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref())
+// LogIngesterTask is a task that serializes GKE audit logs for storage in the history builder.
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudloggkeapiaudit_contract.LogIngesterTaskID, googlecloudloggkeapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 // LogGrouperTask is a task that groups GKE audit logs by their resource path.
 // This grouping allows for parallel processing of logs related to the same resource.
@@ -54,8 +54,8 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiau
 	},
 )
 
-// HistoryModifierTask is a task that adds revisions/events regarding logs.
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudloggkeapiaudit_contract.HistoryModifierTaskID, &gkeAuditLogHistoryModifierSetting{},
+// LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`GKE Audit logs`,
 		`Gather GKE audit log to show creation/upgrade/deletion of logs cluster/nodepool`,
 		enum.LogTypeGkeAudit,
@@ -64,28 +64,28 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...),
 )
 
-// gkeAuditLogHistoryModifierSetting implements the HistoryModifer interface for GKE audit logs.
-type gkeAuditLogHistoryModifierSetting struct {
+// gkeAuditLogLogToTimelineMapperSetting implements the HistoryModifer interface for GKE audit logs.
+type gkeAuditLogLogToTimelineMapperSetting struct {
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-// It returns a list of task references that this history modifier depends on.
-func (g *gkeAuditLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+// It returns a list of task references that this timeline mapper depends on.
+func (g *gkeAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (g *gkeAuditLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gkeAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudloggkeapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (g *gkeAuditLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudloggkeapiaudit_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gkeAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudloggkeapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (g *gkeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
 		return struct{}{}, err
@@ -174,4 +174,4 @@ func (g *gkeAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.C
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*gkeAuditLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*gkeAuditLogLogToTimelineMapperSetting)(nil)

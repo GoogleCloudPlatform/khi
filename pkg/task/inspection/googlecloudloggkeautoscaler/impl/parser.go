@@ -38,7 +38,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudloggk
 	&googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSetReader{},
 })
 
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudloggkeautoscaler_contract.LogSerializerTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudloggkeautoscaler_contract.LogIngesterTaskID, googlecloudloggkeautoscaler_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeautoscaler_contract.LogGrouperTaskID, googlecloudloggkeautoscaler_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
@@ -46,7 +46,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeautos
 	},
 )
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudloggkeautoscaler_contract.HistoryModifierTaskID, &autoscalerHistoryModifierTaskSetting{},
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudloggkeautoscaler_contract.LogToTimelineMapperTaskID, &autoscalerLogToTimelineMapperTaskSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`GKE Autoscaler Logs`,
 		`Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.`,
 		enum.LogTypeAutoscaler,
@@ -55,27 +55,27 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...),
 )
 
-type autoscalerHistoryModifierTaskSetting struct{}
+type autoscalerLogToTimelineMapperTaskSetting struct{}
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (a *autoscalerHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (a *autoscalerLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (a *autoscalerHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (a *autoscalerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudloggkeautoscaler_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (a *autoscalerHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudloggkeautoscaler_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (a *autoscalerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudloggkeautoscaler_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (a *autoscalerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (a *autoscalerLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	autoscalerFieldSet := log.MustGetFieldSet(l, &googlecloudloggkeautoscaler_contract.AutoscalerLogFieldSet{})
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 
@@ -94,7 +94,7 @@ func (a *autoscalerHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx contex
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*autoscalerHistoryModifierTaskSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*autoscalerLogToTimelineMapperTaskSetting)(nil)
 
 func parseDecision(clusterName string, decision *googlecloudloggkeautoscaler_contract.DecisionLog, cs *history.ChangeSet) {
 	// Parse scale up event

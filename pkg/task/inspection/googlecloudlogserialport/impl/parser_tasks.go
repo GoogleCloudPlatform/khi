@@ -40,10 +40,10 @@ var LogFilterTask = inspectiontaskbase.NewLogFilterTask(googlecloudlogserialport
 	},
 )
 
-// LogSerializerTask is the log serializer task for GCE serial port logs.
+// LogIngesterTask is the log serializer task for GCE serial port logs.
 // It includes all logs gathered from log list.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(
-	googlecloudlogserialport_contract.LogSerializerTaskID,
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(
+	googlecloudlogserialport_contract.LogIngesterTaskID,
 	googlecloudlogserialport_contract.LogFilterTaskID.Ref(),
 )
 
@@ -57,10 +57,10 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-// HistoryModifierTask is the task to modify history to generate events on serial port logs.
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](
-	googlecloudlogserialport_contract.HistoryModifierTaskID,
-	&serialportHistoryModifier{},
+// LogToTimelineMapperTask is the task to map logs into events on serial port logs.
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
+	googlecloudlogserialport_contract.LogToTimelineMapperTaskID,
+	&serialportLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabel(
 		"GCE Node Serialport log",
 		`Serialport logs from GCE instances. This helps detailed investigation on VM bootstrapping issue on GCE instance.`,
@@ -69,29 +69,29 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](
 	),
 )
 
-type serialportHistoryModifier struct {
+type serialportLogToTimelineMapper struct {
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (s *serialportHistoryModifier) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (s *serialportLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogserialport_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (s *serialportHistoryModifier) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogserialport_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (s *serialportLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogserialport_contract.LogIngesterTaskID.Ref()
 }
 
-func (s *serialportHistoryModifier) Dependencies() []taskid.UntypedTaskReference {
+func (s *serialportLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (s *serialportHistoryModifier) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	serialportFieldSet := log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{})
 	cs.AddEvent(serialportFieldSet.GetResourcePath())
 	cs.SetLogSummary(serialportFieldSet.Message)
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*serialportHistoryModifier)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*serialportLogToTimelineMapper)(nil)

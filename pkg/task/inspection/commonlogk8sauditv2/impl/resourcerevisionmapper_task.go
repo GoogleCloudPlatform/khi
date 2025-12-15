@@ -28,7 +28,7 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-type resourceRevisionHistoryModifierState struct {
+type resourceRevisionLogToTimelineMapperState struct {
 	// WasCompletelyRemoved is true if the resource was completely removed.
 	WasCompletelyRemoved bool
 	// DeletionStarted is true if the deletion started.
@@ -37,55 +37,55 @@ type resourceRevisionHistoryModifierState struct {
 	PrevUID string
 }
 
-// ResourceRevisionHistoryModifierTaskSetting is the setting for the resource revision history modifier task.
-type ResourceRevisionHistoryModifierTaskSetting struct {
+// ResourceRevisionLogToTimelineMapperTaskSetting is the setting for the resource revision timeline mapper task.
+type ResourceRevisionLogToTimelineMapperTaskSetting struct {
 	// minimumDeltaTimeToCreateInferredCreationRevision is a threshold of a duration that controls if KHI should create an inferred cretion revision from creationTimestamp.
 	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
 }
 
-// Dependencies implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogSerializerTask implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// Process implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData *resourceRevisionHistoryModifierState) (*resourceRevisionHistoryModifierState, error) {
+// Process implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	switch event.EventType {
 	case commonlogk8sauditv2_contract.ChangeEventTypeSourceDeletion:
-		return &resourceRevisionHistoryModifierState{}, r.handleParentChangeForSubresource(ctx, event, cs)
+		return &resourceRevisionLogToTimelineMapperState{}, r.handleParentChangeForSubresource(ctx, event, cs)
 	case commonlogk8sauditv2_contract.ChangeEventTypeSourceModification:
-		return &resourceRevisionHistoryModifierState{}, r.handleParentChangeForSubresource(ctx, event, cs)
+		return &resourceRevisionLogToTimelineMapperState{}, r.handleParentChangeForSubresource(ctx, event, cs)
 	case commonlogk8sauditv2_contract.ChangeEventTypeSourceCreation:
-		return &resourceRevisionHistoryModifierState{}, r.handleParentChangeForSubresource(ctx, event, cs)
+		return &resourceRevisionLogToTimelineMapperState{}, r.handleParentChangeForSubresource(ctx, event, cs)
 	default:
 		return r.handleTargetChange(ctx, event, cs, prevGroupData)
 	}
 }
 
-// PassCount implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) PassCount() int {
+// PassCount implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
 }
 
-// TaskID implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8sauditv2_contract.ResourceRevisionHistoryModifierTaskID
+// TaskID implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8sauditv2_contract.ResourceRevisionLogToTimelineMapperTaskID
 }
 
-// ResourcePairs implements commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting.
-func (r *ResourceRevisionHistoryModifierTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+// ResourcePairs implements commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		switch group.Resource.Type() {
@@ -108,10 +108,10 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) ResourcePairs(ctx context.C
 	return result, nil
 }
 
-var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[*resourceRevisionHistoryModifierState] = (*ResourceRevisionHistoryModifierTaskSetting)(nil)
+var _ commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting[*resourceRevisionLogToTimelineMapperState] = (*ResourceRevisionLogToTimelineMapperTaskSetting)(nil)
 
-// ResourceRevisionHistoryModifierTask is the task to generate resource revision history.
-var ResourceRevisionHistoryModifierTask = commonlogk8sauditv2_contract.NewManifestHistoryModifier(&ResourceRevisionHistoryModifierTaskSetting{
+// ResourceRevisionLogToTimelineMapperTask is the task to generate resource revision history.
+var ResourceRevisionLogToTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper(&ResourceRevisionLogToTimelineMapperTaskSetting{
 	minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 	kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 		"core/v1#pod": {},
@@ -119,7 +119,7 @@ var ResourceRevisionHistoryModifierTask = commonlogk8sauditv2_contract.NewManife
 })
 
 // handleParentChangeForSubresource handles the parent change for subresource.
-func (r *ResourceRevisionHistoryModifierTaskSetting) handleParentChangeForSubresource(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet) error {
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSubresource(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet) error {
 	switch event.EventType {
 	case commonlogk8sauditv2_contract.ChangeEventTypeSourceDeletion:
 		path := resourcepath.ResourcePath{
@@ -147,7 +147,7 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) handleParentChangeForSubres
 }
 
 // handleTargetChange handles the target change.
-func (r *ResourceRevisionHistoryModifierTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, prevGroupData *resourceRevisionHistoryModifierState) (*resourceRevisionHistoryModifierState, error) {
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	resourcePath := resourcepath.ResourcePath{
@@ -155,7 +155,7 @@ func (r *ResourceRevisionHistoryModifierTaskSetting) handleTargetChange(ctx cont
 		ParentRelationship: enum.RelationshipChild,
 	}
 	if prevGroupData == nil {
-		prevGroupData = &resourceRevisionHistoryModifierState{}
+		prevGroupData = &resourceRevisionLogToTimelineMapperState{}
 	}
 
 	if k8sFieldSet.K8sOperation.Verb == enum.RevisionVerbDeleteCollection && prevGroupData.WasCompletelyRemoved {

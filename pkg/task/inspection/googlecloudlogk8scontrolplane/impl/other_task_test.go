@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestOtherHistoryModifierTask(t *testing.T) {
+func TestOtherLogToTimelineMapperTask(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputComponentField googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet
@@ -49,11 +49,11 @@ func TestOtherHistoryModifierTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputMessageField)
-			modifier := otherHistoryModifierTaskSetting{}
+			modifier := otherLogToTimelineMapperTaskSetting{}
 			cs := history.NewChangeSet(l)
-			_, err := modifier.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			_, err := modifier.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
 			if err != nil {
-				t.Errorf("ModifyChangeSetFromLog() returned an unexpected error, err=%v", err)
+				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
 			}
 			for _, asserter := range tc.asserters {
 				asserter.Assert(t, cs)

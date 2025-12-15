@@ -31,32 +31,32 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var mockHistoryModifierPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-history-modifier-prev")
+var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-prev")
 
-var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-history-modifier-prev-log-serializer")
+var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-timeline-mapper-prev-log-serializer")
 
-type mockHistoryModifierGroupData struct {
+type mockLogToTimelineMapperGroupData struct {
 	CurrentGroupLogCount int
 }
 
-type mockHistoryModifier struct {
+type mockLogToTimelineMapper struct {
 }
 
 // GroupedLogTask implements HistoryModifer.
-func (m *mockHistoryModifier) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
-	return mockHistoryModifierPrevTaskID.Ref()
+func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
+	return mockLogToTimelineMapperPrevTaskID.Ref()
 }
 
-func (m *mockHistoryModifier) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
+func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return mockLogSerializerPrevTaskID.Ref()
 }
 
-func (m *mockHistoryModifier) Dependencies() []taskid.UntypedTaskReference {
+func (m *mockLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// ModifyChangeSetFromLog implements HistoryModifer.
-func (m *mockHistoryModifier) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevData mockHistoryModifierGroupData) (mockHistoryModifierGroupData, error) {
+// ProcessLogByGroup implements HistoryModifer.
+func (m *mockLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
 	// encode current group count to severity to use them assert in tasecases to verify the prevData is correctly handled.
 	switch prevData.CurrentGroupLogCount {
 	case 0:
@@ -70,7 +70,7 @@ func (m *mockHistoryModifier) ModifyChangeSetFromLog(ctx context.Context, l *log
 	}
 	shouldErr := l.ReadBoolOrDefault("error", false)
 	if shouldErr {
-		return mockHistoryModifierGroupData{
+		return mockLogToTimelineMapperGroupData{
 			CurrentGroupLogCount: prevData.CurrentGroupLogCount + 1,
 		}, fmt.Errorf("test error")
 	}
@@ -80,12 +80,12 @@ func (m *mockHistoryModifier) ModifyChangeSetFromLog(ctx context.Context, l *log
 		l.ReadStringOrDefault("namespace", "unknown"),
 		l.ReadStringOrDefault("name", "unknown"),
 	))
-	return mockHistoryModifierGroupData{
+	return mockLogToTimelineMapperGroupData{
 		CurrentGroupLogCount: prevData.CurrentGroupLogCount + 1,
 	}, nil
 }
 
-var _ HistoryModifer[mockHistoryModifierGroupData] = (*mockHistoryModifier)(nil)
+var _ LogToTimelineMapper[mockLogToTimelineMapperGroupData] = (*mockLogToTimelineMapper)(nil)
 
 type mockCommonLogFieldSetReader struct {
 }
@@ -118,7 +118,7 @@ func mustNewLogFromYAML(t *testing.T, yaml string) *log.Log {
 	return l
 }
 
-func TestHistoryModifierTask(t *testing.T) {
+func TestLogToTimelineMapperTask(t *testing.T) {
 	testCases := []struct {
 		desc            string
 		taskMode        inspectioncore_contract.InspectionTaskModeType
@@ -268,11 +268,11 @@ func TestHistoryModifierTask(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[struct{}]("mock-history-modifier")
+			tid := taskid.NewDefaultImplementationID[struct{}]("mock-timeline-mapper")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
-			task := NewHistoryModifierTask(tid, &mockHistoryModifier{})
+			task := NewLogToTimelineMapperTask(tid, &mockLogToTimelineMapper{})
 			builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentHistoryBuilder)
 
 			for _, group := range testCase.prevLogGroupMap {
@@ -282,7 +282,7 @@ func TestHistoryModifierTask(t *testing.T) {
 				}
 			}
 
-			_, _, err := inspectiontest.RunInspectionTask(ctx, task, testCase.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockHistoryModifierPrevTaskID.Ref(), testCase.prevLogGroupMap))
+			_, _, err := inspectiontest.RunInspectionTask(ctx, task, testCase.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogToTimelineMapperPrevTaskID.Ref(), testCase.prevLogGroupMap))
 			if (err != nil) != testCase.wantError {
 				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, testCase.wantError)
 			}

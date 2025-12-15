@@ -36,7 +36,7 @@ func testReaderFromYAML(t *testing.T, yaml string) *structured.NodeReader {
 	return structured.NewNodeReader(node)
 }
 
-func TestHistoryModifierTask(t *testing.T) {
+func TestLogToTimelineMapperTask(t *testing.T) {
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 	testCommonFieldSet := &log.CommonFieldSet{
 		Timestamp: testTime,
@@ -376,10 +376,10 @@ func TestHistoryModifierTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
-			historyModifierSetting := &onpremAuditLogHistoryModifierSetting{}
+			mapperSettingSetting := &onpremAuditLogLogToTimelineMapperSetting{}
 			cs := history.NewChangeSet(l)
 
-			_, err := historyModifierSetting.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			_, err := mapperSettingSetting.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
 			if err != nil {
 				t.Errorf("got error %v, want nil", err)
 			}

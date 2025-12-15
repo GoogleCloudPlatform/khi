@@ -26,15 +26,15 @@ import (
     InputCSMResponseFlagsTask(Input CSM Response Flags)
     ListLogEntriesTask(List Log Entries)
     FieldSetReaderTask(Field Set Reader)
-    LogSerializerTask(Log Serializer)
+    LogIngesterTask(Log Serializer)
     LogGrouperTask(Log Grouper)
-    HistoryModifierTask(History Modifier)
+    LogToTimelineMapperTask(TimelineMapper)
 
     ListLogEntriesTask --> FieldSetReaderTask
-    ListLogEntriesTask --> LogSerializerTask
+    ListLogEntriesTask --> LogIngesterTask
     FieldSetReaderTask --> LogGrouperTask
-    LogGrouperTask --> HistoryModifierTask
-    LogSerializerTask --> HistoryModifierTask
+    LogGrouperTask --> LogToTimelineMapperTask
+    LogIngesterTask --> LogToTimelineMapperTask
     InputCSMResponseFlagsTask --> ListLogEntriesTask
   end
 */
@@ -44,8 +44,8 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		InputCSMResponseFlagsTask,
 		ListLogEntriesTask,
 		FieldSetReaderTask,
-		LogSerializerTask,
+		LogIngesterTask,
 		LogGrouperTask,
-		HistoryModifierTask,
+		LogToTimelineMapperTask,
 	)
 }

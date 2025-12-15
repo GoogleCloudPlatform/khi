@@ -29,10 +29,10 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// NamespaceRequestHistoryModifierTask is a task to generate events of requests against namespace wide by deletecollection.
-// TODO: This must be reimplemented with the HistoryModifierTask once it supports receiving group path.
-var NamespaceRequestHistoryModifierTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8sauditv2_contract.NamespaceRequestHistoryModifierTaskID, []taskid.UntypedTaskReference{
-	commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref(),
+// NamespaceRequestLogToTimelineMapperTask is a task to generate events of requests against namespace wide by deletecollection.
+// TODO: This must be reimplemented with the LogToTimelineMapperTask once it supports receiving group path.
+var NamespaceRequestLogToTimelineMapperTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8sauditv2_contract.NamespaceRequestLogToTimelineMapperTaskID, []taskid.UntypedTaskReference{
+	commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref(),
 	commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {

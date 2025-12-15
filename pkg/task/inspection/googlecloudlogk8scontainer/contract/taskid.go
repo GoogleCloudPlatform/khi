@@ -35,11 +35,11 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDP
 // FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "fieldset-reader")
 
-// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
-// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
+// LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")

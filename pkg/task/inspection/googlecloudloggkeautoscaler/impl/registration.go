@@ -24,8 +24,8 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		ListLogEntriesTask,
 		FieldSetReaderTask,
-		LogSerializerTask,
+		LogIngesterTask,
 		LogGrouperTask,
-		HistoryModifierTask,
+		LogToTimelineMapperTask,
 	)
 }

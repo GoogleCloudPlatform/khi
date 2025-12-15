@@ -40,7 +40,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogne
 	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
 })
 
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlognetworkapiaudit_contract.LogSerializerTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref())
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlognetworkapiaudit_contract.LogIngesterTaskID, googlecloudlognetworkapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
@@ -53,7 +53,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworka
 	},
 )
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[*perNEGHistoryModificationStatus](googlecloudlognetworkapiaudit_contract.HistoryModifierTaskID, &networkAPIHistoryModifierTaskSetting{},
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*perNEGHistoryModificationStatus](googlecloudlognetworkapiaudit_contract.LogToTimelineMapperTaskID, &networkAPILogToTimelineMapperTaskSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`GCE Network Logs`,
 		`Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)`,
 		enum.LogTypeNetworkAPI,
@@ -76,28 +76,28 @@ type perNEGHistoryModificationStatus struct {
 	LastNegAttachRequest *negAttachOrDetachRequest
 }
 
-type networkAPIHistoryModifierTaskSetting struct{}
+type networkAPILogToTimelineMapperTaskSetting struct{}
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (n *networkAPIHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (n *networkAPILogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.IPLeaseHistoryInventoryTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (n *networkAPIHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (n *networkAPILogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlognetworkapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (n *networkAPIHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlognetworkapiaudit_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (n *networkAPILogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlognetworkapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (n *networkAPIHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData *perNEGHistoryModificationStatus) (*perNEGHistoryModificationStatus, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (n *networkAPILogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData *perNEGHistoryModificationStatus) (*perNEGHistoryModificationStatus, error) {
 	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	auditFieldSet := log.MustGetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
 	if prevGroupData == nil {
@@ -202,7 +202,7 @@ func (n *networkAPIHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx contex
 	return prevGroupData, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[*perNEGHistoryModificationStatus] = (*networkAPIHistoryModifierTaskSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*perNEGHistoryModificationStatus] = (*networkAPILogToTimelineMapperTaskSetting)(nil)
 
 func getNegNameFromResourceName(resourceName string) string {
 	lastSlashIndex := strings.LastIndex(resourceName, "/")

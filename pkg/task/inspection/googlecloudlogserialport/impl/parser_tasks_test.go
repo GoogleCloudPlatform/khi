@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestHistoryModifierTask(t *testing.T) {
+func TestLogToTimelineMapperTask(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		fieldSet googlecloudlogserialport_contract.GCESerialPortLogFieldSet
@@ -49,11 +49,11 @@ func TestHistoryModifierTask(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(&tc.fieldSet)
-			modifier := serialportHistoryModifier{}
+			modifier := serialportLogToTimelineMapper{}
 			cs := history.NewChangeSet(l)
-			_, err := modifier.ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			_, err := modifier.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
 			if err != nil {
-				t.Errorf("ModifyChangeSetFromLog() returned an unexpected error, err=%v", err)
+				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
 			}
 			for _, asserter := range tc.asserter {
 				asserter.Assert(t, cs)

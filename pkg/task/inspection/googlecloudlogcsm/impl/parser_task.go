@@ -35,8 +35,8 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogcs
 	&googlecloudlogcsm_contract.IstioAccessLogFieldSetReader{},
 })
 
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(
-	googlecloudlogcsm_contract.LogSerializerTaskID,
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(
+	googlecloudlogcsm_contract.LogIngesterTaskID,
 	googlecloudlogcsm_contract.ListLogEntriesTaskID.Ref(),
 )
 
@@ -47,7 +47,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcsm_cont
 	},
 )
 
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogcsm_contract.HistoryModifierTaskID, &csmAccessLogHistoryModifierSetting{}, inspectioncore_contract.FeatureTaskLabel(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogcsm_contract.LogToTimelineMapperTaskID, &csmAccessLogLogToTimelineMapperSetting{}, inspectioncore_contract.FeatureTaskLabel(
 	"CSM Access Log",
 	"Gather CSM access logs from Cloud Logging and associate them in client or server Pods on timelines",
 	enum.LogTypeCSMAccessLog,
@@ -56,25 +56,25 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 	googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...,
 ))
 
-type csmAccessLogHistoryModifierSetting struct{}
+type csmAccessLogLogToTimelineMapperSetting struct{}
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (c *csmAccessLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (c *csmAccessLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (c *csmAccessLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (c *csmAccessLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogcsm_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (c *csmAccessLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogcsm_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (c *csmAccessLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogcsm_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (c *csmAccessLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (c *csmAccessLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	gcpCommonAccessLog := log.MustGetFieldSet(l, &googlecloudcommon_contract.GCPAccessLogFieldSet{})
 	istioAccessLog := log.MustGetFieldSet(l, &googlecloudlogcsm_contract.IstioAccessLogFieldSet{})
 
@@ -104,4 +104,4 @@ func (c *csmAccessLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*csmAccessLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*csmAccessLogLogToTimelineMapperSetting)(nil)

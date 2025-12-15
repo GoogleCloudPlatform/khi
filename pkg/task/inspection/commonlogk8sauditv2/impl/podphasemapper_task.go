@@ -43,12 +43,12 @@ type podPhaseTaskState struct {
 	uidToNodeNameMap map[string]string
 }
 
-type podPhaseTaskSetting struct {
+type podPhaseLogToTimelineMapperTaskSetting struct {
 	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 }
 
 // Process processes the log to generate pod phase history.
-func (c *podPhaseTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
+func (c *podPhaseLogToTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
 	if state == nil {
 		state = &podPhaseTaskState{
 			uidToNodeNameMap: map[string]string{},
@@ -69,7 +69,7 @@ func (c *podPhaseTaskSetting) Process(ctx context.Context, passIndex int, event 
 }
 
 // firstPass collects the node name of the pod.
-func (c *podPhaseTaskSetting) firstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
+func (c *podPhaseLogToTimelineMapperTaskSetting) firstPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
 	nodeName, found := GetNodeNameOfPod(event.EventTargetBodyReader)
 	if !found {
 		return state, nil
@@ -83,7 +83,7 @@ func (c *podPhaseTaskSetting) firstPass(ctx context.Context, event commonlogk8sa
 }
 
 // secondPass generates revisions for pod phase.
-func (c *podPhaseTaskSetting) secondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
+func (c *podPhaseLogToTimelineMapperTaskSetting) secondPass(ctx context.Context, event commonlogk8sauditv2_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	uid, found := GetUID(event.EventTargetBodyReader)
@@ -138,27 +138,27 @@ func (c *podPhaseTaskSetting) secondPass(ctx context.Context, event commonlogk8s
 	return state, nil
 }
 
-func (c *podPhaseTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (c *podPhaseLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (c *podPhaseTaskSetting) PassCount() int {
+func (c *podPhaseLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
 }
 
-func (c *podPhaseTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
+func (c *podPhaseLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8sauditv2_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8sauditv2_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-func (c *podPhaseTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+func (c *podPhaseLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-func (c *podPhaseTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8sauditv2_contract.PodPhaseHistoryModifierTaskID
+func (c *podPhaseLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8sauditv2_contract.PodPhaseLogToTimelineMapperTaskID
 }
 
-func (c *podPhaseTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
+func (c *podPhaseLogToTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8sauditv2_contract.ResourceManifestLogGroupMap) ([]commonlogk8sauditv2_contract.ResourcePair, error) {
 	result := []commonlogk8sauditv2_contract.ResourcePair{}
 	for _, group := range groupedLogs {
 		// core/v1#pod#namespace#podnanme
@@ -173,9 +173,9 @@ func (c *podPhaseTaskSetting) ResourcePairs(ctx context.Context, groupedLogs com
 	return result, nil
 }
 
-var _ commonlogk8sauditv2_contract.ManifestHistoryModifierTaskSetting[*podPhaseTaskState] = (*podPhaseTaskSetting)(nil)
+var _ commonlogk8sauditv2_contract.ManifestLogToTimelineMapperTaskSetting[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
 
-// PodPhaseHistoryModifierTask is the task to generate pod phase history.
-var PodPhaseHistoryModifierTask = commonlogk8sauditv2_contract.NewManifestHistoryModifier[*podPhaseTaskState](&podPhaseTaskSetting{
+// PodPhaseLogToTimelineMapperTask is the task to generate pod phase history.
+var PodPhaseLogToTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSetting{
 	minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 })

@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestHistoryModifier(t *testing.T) {
+func TestLogToTimelineMapper(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputGCPAccessLog   *googlecloudcommon_contract.GCPAccessLogFieldSet
@@ -129,9 +129,9 @@ func TestHistoryModifier(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(tc.inputGCPAccessLog, tc.inputIstioAccessLog)
 			cs := history.NewChangeSet(l)
 
-			_, err := (&csmAccessLogHistoryModifierSetting{}).ModifyChangeSetFromLog(t.Context(), l, cs, nil, struct{}{})
+			_, err := (&csmAccessLogLogToTimelineMapperSetting{}).ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
 			if err != nil {
-				t.Fatalf("ModifyChangeSetFromLog() failed: %v", err)
+				t.Fatalf("ProcessLogByGroup() failed: %v", err)
 			}
 			for _, asserter := range tc.asserters {
 				asserter.Assert(t, cs)

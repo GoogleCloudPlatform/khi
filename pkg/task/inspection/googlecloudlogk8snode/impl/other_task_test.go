@@ -27,8 +27,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestOtherLogHistoryModifier(t *testing.T) {
-	histoyModifier := otherNodeLogHistoryModifierSetting{
+func TestOtherLogLogToTimelineMapper(t *testing.T) {
+	histoyModifier := otherNodeLogLogToTimelineMapperSetting{
 		StartingMessagesByComponent: map[string]string{
 			"component-A": "component-A start",
 		},
@@ -126,9 +126,9 @@ func TestOtherLogHistoryModifier(t *testing.T) {
 				tc.inputNodeLogFieldSet,
 			)
 			cs := history.NewChangeSet(l)
-			_, err := histoyModifier.ModifyChangeSetFromLog(context.Background(), l, cs, nil, struct{}{})
+			_, err := histoyModifier.ProcessLogByGroup(context.Background(), l, cs, nil, struct{}{})
 			if err != nil {
-				t.Fatalf("ModifyChangeSetFromLog() error = %v", err)
+				t.Fatalf("ProcessLogByGroup() error = %v", err)
 			}
 			for _, asserter := range tc.asserter {
 				asserter.Assert(t, cs)

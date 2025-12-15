@@ -26,9 +26,9 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-// LogSerializerTask is the task to serialize k8s audit logs.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(
-	commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID,
+// LogIngesterTask is the task to serialize k8s audit logs.
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(
+	commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID,
 	commonlogk8sauditv2_contract.K8sAuditLogProviderRef,
 )
 
@@ -42,31 +42,31 @@ var LogSummaryGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-// LogSummaryHistoryModifierTask is the task to generate log summary from given k8s audit log.
-var LogSummaryHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](
-	commonlogk8sauditv2_contract.LogSummaryHistoryModifierTaskID,
-	&logSummaryHistoryModifierSetting{},
+// LogSummaryLogToTimelineMapperTask is the task to generate log summary from given k8s audit log.
+var LogSummaryLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
+	commonlogk8sauditv2_contract.LogSummaryLogToTimelineMapperTaskID,
+	&logSummaryLogToTimelineMapperSetting{},
 )
 
-type logSummaryHistoryModifierSetting struct{}
+type logSummaryLogToTimelineMapperSetting struct{}
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (s *logSummaryHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (s *logSummaryLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (s *logSummaryHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (s *logSummaryLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return commonlogk8sauditv2_contract.LogSummaryGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (s *logSummaryHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (s *logSummaryLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (s *logSummaryHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (s *logSummaryLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	commonFieldSet := log.MustGetFieldSet(l, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 
 	if commonFieldSet.IsError {
@@ -79,7 +79,7 @@ func (s *logSummaryHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Co
 }
 
 // logSummary generates the summary string from given log field set.
-func (s *logSummaryHistoryModifierSetting) logSummary(fieldSet *commonlogk8sauditv2_contract.K8sAuditLogFieldSet) string {
+func (s *logSummaryLogToTimelineMapperSetting) logSummary(fieldSet *commonlogk8sauditv2_contract.K8sAuditLogFieldSet) string {
 	if fieldSet.IsError {
 		return fmt.Sprintf("【%s(%d)】%s %s", fieldSet.StatusMessage, fieldSet.StatusCode, fieldSet.VerbString(), fieldSet.RequestURI)
 	} else {
@@ -87,4 +87,4 @@ func (s *logSummaryHistoryModifierSetting) logSummary(fieldSet *commonlogk8saudi
 	}
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*logSummaryHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*logSummaryLogToTimelineMapperSetting)(nil)

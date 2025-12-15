@@ -39,8 +39,8 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogmu
 	&googlecloudlogmulticloudapiaudit_contract.MulticloudAPIAuditResourceFieldSetReader{},
 })
 
-// LogSerializerTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogSerializerTask = inspectiontaskbase.NewLogSerializerTask(googlecloudlogmulticloudapiaudit_contract.LogSerializerTaskID, googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID.Ref())
+// LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
+var LogIngesterTask = inspectiontaskbase.NewLogIngester(googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID, googlecloudlogmulticloudapiaudit_contract.ListLogEntriesTaskID.Ref())
 
 // LogGrouperTask is a task that groups MulticloudAPI audit logs by their resource path.
 // This grouping allows for parallel processing of logs related to the same resource.
@@ -54,8 +54,8 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogmulticlo
 	},
 )
 
-// HistoryModifierTask is a task that adds revisions/events regarding logs.
-var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](googlecloudlogmulticloudapiaudit_contract.HistoryModifierTaskID, &multicloudAuditLogHistoryModifierSetting{},
+// LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogmulticloudapiaudit_contract.LogToTimelineMapperTaskID, &multicloudAuditLogLogToTimelineMapperSetting{},
 	inspectioncore_contract.FeatureTaskLabel(`MultiCloud API logs`,
 		`Gather Anthos Multicloud audit log including cluster creation,deletion and upgrades.`,
 		enum.LogTypeGkeAudit,
@@ -64,26 +64,26 @@ var HistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](go
 		googlecloudinspectiontypegroup_contract.GKEMultiCloudClusterInspectionTypes...),
 )
 
-type multicloudAuditLogHistoryModifierSetting struct {
+type multicloudAuditLogLogToTimelineMapperSetting struct {
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (m *multicloudAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (m *multicloudAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogmulticloudapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogmulticloudapiaudit_contract.LogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
 		return struct{}{}, err
@@ -178,4 +178,4 @@ func (m *multicloudAuditLogHistoryModifierSetting) ModifyChangeSetFromLog(ctx co
 	return struct{}{}, nil
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*multicloudAuditLogHistoryModifierSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*multicloudAuditLogLogToTimelineMapperSetting)(nil)

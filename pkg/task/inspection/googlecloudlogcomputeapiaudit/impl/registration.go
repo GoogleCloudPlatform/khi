@@ -25,22 +25,22 @@ flowchart TD
     ListLogEntriesTask
 
     FieldSetReadTask
-    LogSerializerTask
+    LogIngesterTask
     LogGrouperTask
-    HistoryModifierTask
+    LogToTimelineMapperTask
 
     ListLogEntriesTask --> FieldSetReadTask
-    ListLogEntriesTask -->LogSerializerTask
+    ListLogEntriesTask -->LogIngesterTask
     FieldSetReadTask --> LogGrouperTask
-    LogGrouperTask --> HistoryModifierTask
-    LogSerializerTask --> HistoryModifierTask
+    LogGrouperTask --> LogToTimelineMapperTask
+    LogIngesterTask --> LogToTimelineMapperTask
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		ListLogEntriesTask,
 		FieldSetReaderTask,
 		LogGrouperTask,
-		LogSerializerTask,
-		HistoryModifierTask,
+		LogIngesterTask,
+		LogToTimelineMapperTask,
 	)
 }

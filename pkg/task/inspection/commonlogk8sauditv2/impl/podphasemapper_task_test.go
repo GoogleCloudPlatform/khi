@@ -415,7 +415,7 @@ status:
 		},
 	}
 
-	taskSetting := &podPhaseTaskSetting{
+	taskSetting := &podPhaseLogToTimelineMapperTaskSetting{
 		minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 	}
 

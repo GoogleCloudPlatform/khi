@@ -25,7 +25,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ListLogEntriesTask,
 		FieldSetReaderTask,
 		LogGrouperTask,
-		LogSerializerTask,
-		HistoryModifierTask,
+		LogIngesterTask,
+		LogToTimelineMapperTask,
 	)
 }

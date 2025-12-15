@@ -28,11 +28,11 @@ var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCl
 // FieldSetReaderTaskID is the task id to read the common fieldset for processing the log in the later task.
 var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "fieldset-reader")
 
-// LogSerializerTaskID is the task id to finalize the logs to be included in the final output.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloudAPIAuditLogTaskIDPrefix + "log-serializer")
 
-// LogGrouperTaskID is the task id to group logs by target instance to process logs in HistoryModifier in parallel.
+// LogGrouperTaskID is the task id to group logs by target instance to process logs in LogToTimelineMapper in parallel.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](MultiCloudAPIAuditLogTaskIDPrefix + "grouper")
 
-// HistoryModifierTaskID is the task id for associating events/revisions with a given logs.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](MultiCloudAPIAuditLogTaskIDPrefix + "history-modifier")
+// LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](MultiCloudAPIAuditLogTaskIDPrefix + "timeline-mapper")

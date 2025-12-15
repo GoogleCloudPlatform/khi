@@ -26,8 +26,8 @@ import (
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-// NonSuccessLogHistoryModifierTask is the task to generate history from non-success logs.
-var NonSuccessLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask[struct{}](commonlogk8sauditv2_contract.NonSuccessLogHistoryModifierTaskID, &nonSuccessLogHistoryModifierTaskSetting{
+// NonSuccessLogLogToTimelineMapperTask is the task to generate history from non-success logs.
+var NonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](commonlogk8sauditv2_contract.NonSuccessLogLogToTimelineMapperTaskID, &nonSuccessLogLogToTimelineMapperTaskSetting{
 	subresourceMapToWriteToParent: map[string]struct{}{
 		"status":   {},
 		"finalize": {},
@@ -35,35 +35,35 @@ var NonSuccessLogHistoryModifierTask = inspectiontaskbase.NewHistoryModifierTask
 	},
 })
 
-type nonSuccessLogHistoryModifierTaskSetting struct {
+type nonSuccessLogLogToTimelineMapperTaskSetting struct {
 	// subresourceMapToWriteToParent is the map of subresources to write to the parent resource.
 	subresourceMapToWriteToParent map[string]struct{}
 }
 
-// Dependencies implements inspectiontaskbase.HistoryModifer.
-func (e *nonSuccessLogHistoryModifierTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.HistoryModifer.
-func (e *nonSuccessLogHistoryModifierTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return commonlogk8sauditv2_contract.NonSuccessLogGrouperTaskID.Ref()
 }
 
-// LogSerializerTask implements inspectiontaskbase.HistoryModifer.
-func (e *nonSuccessLogHistoryModifierTaskSetting) LogSerializerTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8sauditv2_contract.K8sAuditLogSerializerTaskID.Ref()
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8sauditv2_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// ModifyChangeSetFromLog implements inspectiontaskbase.HistoryModifer.
-func (e *nonSuccessLogHistoryModifierTaskSetting) ModifyChangeSetFromLog(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	return struct{}{}, e.addEventForLog(l, cs)
 }
 
-var _ inspectiontaskbase.HistoryModifer[struct{}] = (*nonSuccessLogHistoryModifierTaskSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSetting)(nil)
 
 // addEventForLog adds an event for the log.
-func (e *nonSuccessLogHistoryModifierTaskSetting) addEventForLog(l *log.Log, cs *history.ChangeSet) error {
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) addEventForLog(l *log.Log, cs *history.ChangeSet) error {
 	fieldSet := log.MustGetFieldSet(l, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 	op := *fieldSet.K8sOperation
 	if _, ok := e.subresourceMapToWriteToParent[op.SubResourceName]; op.SubResourceName != "" && ok {

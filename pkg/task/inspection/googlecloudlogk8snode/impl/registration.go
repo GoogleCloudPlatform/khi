@@ -38,19 +38,19 @@ graph TD
 	    ContainerdLogFilter
 	    ContainerdLogGroup
 	    ContainerdIDDiscovery
-	    ContainerdHistoryModifier
+	    ContainerdLogToTimelineMapper
 	end
 
 	subgraph Kubelet Pipeline
 	    KubeletLogFilter
 	    KubeletLogGroup
-	    KubeletHistoryModifier
+	    KubeletLogToTimelineMapper
 	end
 
 	subgraph Other Pipeline
 	    OtherLogFilter
 	    OtherLogGroup
-	    OtherHistoryModifier
+	    OtherLogToTimelineMapper
 	end
 
 	subgraph Finalization
@@ -70,27 +70,27 @@ graph TD
 	CommonFieldSetReader --> ContainerdLogFilter
 	ContainerdLogFilter --> ContainerdLogGroup
 	ContainerdLogFilter --> ContainerdIDDiscovery
-	ContainerdIDDiscovery --> ContainerdHistoryModifier
-	ContainerdLogGroup --> ContainerdHistoryModifier
-	LogSerializer --> ContainerdHistoryModifier
+	ContainerdIDDiscovery --> ContainerdLogToTimelineMapper
+	ContainerdLogGroup --> ContainerdLogToTimelineMapper
+	LogSerializer --> ContainerdLogToTimelineMapper
 
 	%% Kubelet Pipeline Dependencies
 	CommonFieldSetReader --> KubeletLogFilter
 	KubeletLogFilter --> KubeletLogGroup
-	ContainerdIDDiscovery --> KubeletHistoryModifier
-	KubeletLogGroup --> KubeletHistoryModifier
-	LogSerializer --> KubeletHistoryModifier
+	ContainerdIDDiscovery --> KubeletLogToTimelineMapper
+	KubeletLogGroup --> KubeletLogToTimelineMapper
+	LogSerializer --> KubeletLogToTimelineMapper
 
 	%% Other Pipeline Dependencies
 	CommonFieldSetReader --> OtherLogFilter
 	OtherLogFilter --> OtherLogGroup
-	OtherLogGroup --> OtherHistoryModifier
-	LogSerializer --> OtherHistoryModifier
+	OtherLogGroup --> OtherLogToTimelineMapper
+	LogSerializer --> OtherLogToTimelineMapper
 
 	%% Finalization
-	ContainerdHistoryModifier --> Tail
-	KubeletHistoryModifier --> Tail
-	OtherHistoryModifier --> Tail
+	ContainerdLogToTimelineMapper --> Tail
+	KubeletLogToTimelineMapper --> Tail
+	OtherLogToTimelineMapper --> Tail
 
 ```
 */
@@ -105,18 +105,18 @@ import (
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		ListLogEntriesTask,
-		LogSerializerTask,
+		LogIngesterTask,
 		CommonFieldSetReaderTask,
 		ContainerdLogFilterTask,
 		ContainerdLogGroupTask,
 		PodSandboxIDDiscoveryTask,
-		ContainerdNodeLogHistoryModifierTask,
+		ContainerdNodeLogLogToTimelineMapperTask,
 		KubeletLogFilterTask,
 		KubeletLogGroupTask,
-		KubeletLogHistoryModifierTask,
+		KubeletLogLogToTimelineMapperTask,
 		OtherLogFilterTask,
 		OtherLogGroupTask,
-		OtherLogHistoryModifierTask,
+		OtherLogLogToTimelineMapperTask,
 		TailTask,
 		ContainerIDDiscoveryTask,
 	)

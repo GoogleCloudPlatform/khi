@@ -31,11 +31,11 @@ var LogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix
 // FieldSetReadTaskID is the task id for reading serial port node specific fields(GCESerialPortLogFieldSet).
 var FieldSetReadTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "field-set-read")
 
-// LogSerializerTaskID is the task id to serialize logs to history.
-var LogSerializerTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
+// LogIngesterTaskID is the task id to serialize logs to history.
+var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-serializer")
 
 // LogGrouperTaskID is the task id to group logs by node name and serial port number.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-grouper")
 
-// HistoryModifierTaskID is the task id to relate serialized logs to events on timeline.
-var HistoryModifierTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "history-modifier")
+// LogToTimelineMapperTaskID is the task id to relate serialized logs to events on timeline.
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
