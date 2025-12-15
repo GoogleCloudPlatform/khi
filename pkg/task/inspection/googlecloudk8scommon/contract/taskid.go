@@ -23,9 +23,11 @@ import (
 // GoogleCloudCommonK8STaskIDPrefix is the prefix for common task used for K8s on Google Cloud related tasks  IDs.
 var GoogleCloudCommonK8STaskIDPrefix = "cloud.google.com/k8s/"
 
-// AutocompleteClusterNamesTaskID is the task ID reference for returning cluster name candidates as AutocompleteClusterNameList.
-// Each cluster types implement their own implementation for this task reference.
-var AutocompleteClusterNamesTaskID = taskid.NewTaskReference[*AutocompleteClusterNameList](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names")
+// AutocompleteClusterNamesMetricsTypeTaskID is the task ID for returning cluster name candidates as AutocompleteClusterNameList.
+var AutocompleteClusterNamesMetricsTypeTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names/metrics-type")
+
+// AutocompleteClusterNamesTaskID is the task ID for returning cluster name candidates as AutocompleteClusterNameList.
+var AutocompleteClusterNamesTaskID = taskid.NewDefaultImplementationID[*AutocompleteClusterNameList](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names")
 
 // HeaderSuggestedFileNameTaskID is the task ID for the suggested file name of the inspection file included in the header metadata. This name is used for the default name of downloaded file.
 var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudCommonK8STaskIDPrefix + "header-suggested-file-name")

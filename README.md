@@ -151,8 +151,9 @@ The following permissions are required or recommended.
 - **Required**
   - `logging.logEntries.list`
 - **Recommended**
-  - Permissions to list clusters for cluster type (eg. `container.clusters.list` for GKE)
-    This permission is used to show autofill candidates for the log filter. KHI's main functionality is not affected without this permission.
+  - These permissions are used to fetch autocomplete candidates in the New Inspection dialog. KHI works without these permissions, but cluster name suggestions will not be displayed.
+    - `monitoring.timeSeries.list`
+    - `container.clusters.list` (Only when using Cloud Composer features)
 - **Setting**
   - Running KHI on environments with a service account attached, such as Google Cloud Compute Engine Instance: Apply the permissions above to the attached service account.
   - Running KHI locally or on Cloud Shell with a user account: Apply the permissions above to your user account.

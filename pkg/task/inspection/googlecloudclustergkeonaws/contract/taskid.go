@@ -22,11 +22,5 @@ import (
 // ClusterGKEOnAWSTaskCommonPrefix is the task id prefix defined in googlecloudclustergkeonaws.
 var ClusterGKEOnAWSTaskCommonPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-aws/"
 
-// AutocompleteGKEOnAWSClusterNamesTaskID is the task ID for listing up GKE on AWS cluster names.
-var AutocompleteGKEOnAWSClusterNamesTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, "anthos-on-aws")
-
 // ClusterNamePrefixTaskID is the task ID for the GKE on AWS cluster name prefix.
 var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-aws")
-
-// ClusterListFetcherTaskID is the task ID for getting ClusterListFetcher interface.
-var ClusterListFetcherTaskID = taskid.NewDefaultImplementationID[ClusterListFetcher](ClusterGKEOnAWSTaskCommonPrefix + "cluster-list-fetcher")

@@ -84,4 +84,6 @@ Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE ques
 			ClusterNames: []string{clusterName},
 		},
 	}, nil
-}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustercomposer_contract.InspectionTypeId))
+}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustercomposer_contract.InspectionTypeId),
+	coretask.WithSelectionPriority(1000), // Setting higher priority compared to the default autocomplete cluster name finder to override it. Composer cluster finder is currently overriding the common autocomplete cluster name finder using Cloud Monitoring to compare the environment label name.
+)
