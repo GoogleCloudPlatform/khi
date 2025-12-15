@@ -36,11 +36,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// LogToTimelineMapper defines the interface for mapping logs to timeline elements(events or revisions).
+// LogToTimelineMapper defines the interface for mapping logs to timeline elements (events or revisions).
 // Implementations of this interface can be used to customize how log data is transformed into timeline elements.
-// To process data generated from processing the last log in the same group, the method ProcessLogByGroup receive and return a variable typed T.
+// To process data generated from processing the last log in the same group, the method ProcessLogByGroup receives and returns a variable typed T.
 type LogToTimelineMapper[T any] interface {
-	// LogIngesterTask is one of prerequiste task of LogToTimelineMapper ingesting logs to history data before processing with this mapper.
+	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs to history data before processing with this mapper.
 	LogIngesterTask() taskid.TaskReference[[]*log.Log]
 	// Dependencies are the additional references used in timeline mapper.
 	Dependencies() []taskid.UntypedTaskReference
