@@ -15,9 +15,11 @@
 -->
 
 <div class="container">
-  <p class="link" *ngFor="let reference of references">
+@for(reference of references; track reference) {
+  <p class="link">
     <a (click)="onLinkClick(reference.linkUrl)"
       >{{ reference.linkText }}<mat-icon class="icon">open_in_new</mat-icon></a
     >
   </p>
+}
 </div>
