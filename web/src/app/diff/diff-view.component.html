@@ -28,12 +28,9 @@ limitations under the License.
       [style.--revision-pane-height.px]="revisionPaneHeight | async"
       tabindex="0"
       (keydown)="keyDown($event)"
-      >
-      @if (
-        diffViewModelValue.selectedTimeline === null) {
-        <div
-          class="all-columns"
-        ></div>
+    >
+      @if (diffViewModelValue.selectedTimeline === null) {
+        <div class="all-columns"></div>
       } @else {
         <cdk-virtual-scroll-viewport class="revision-list">
           <ng-container
@@ -42,7 +39,7 @@ limitations under the License.
               let i = index
             "
             class="revision-element"
-            >
+          >
             @if (revision.logIndex !== -1) {
               @if ($logs | async; as logs) {
                 @if (logs[revision.logIndex]; as log) {
@@ -56,30 +53,30 @@ limitations under the License.
                         revision.logIndex
                       )
                     "
-                    >
+                  >
                     <td
                       class="index"
                       (click)="_selectRevision(revision)"
                       (mouseover)="_highlightRevision(revision)"
-                      >
+                    >
                       {{ i }}
                     </td>
                     <td
                       class="ts"
                       (click)="_selectRevision(revision)"
                       (mouseover)="_highlightRevision(revision)"
-                      >
+                    >
                       {{ revision.startAt | tsf | async }}
                     </td>
                     <td
                       class="operation"
                       (click)="_selectRevision(revision)"
                       (mouseover)="_highlightRevision(revision)"
-                      >
+                    >
                       <span
                         class="operation-span"
                         [ngClass]="revision.verbCSSClass"
-                        >
+                      >
                         {{ revision.verbLabel }}
                       </span>
                     </td>
@@ -88,71 +85,77 @@ limitations under the License.
                         class="author"
                         (click)="_selectRevision(revision)"
                         (mouseover)="_highlightRevision(revision)"
-                        >
+                      >
                         <span>by</span>
                         <span
                           class="author-type"
                           [ngClass]="author.type | lowercase"
                           >{{ author.type }}</span
-                          >
-                          <span class="author-name">{{ author.short }}</span>
-                        </td>
-                      }
-                    </tr>
-                  }
+                        >
+                        <span class="author-name">{{ author.short }}</span>
+                      </td>
+                    }
+                  </tr>
                 }
               }
-            </ng-container>
-          </cdk-virtual-scroll-viewport>
-        }
-      </table>
-      <div class="revision-resizer" (mousedown)="_resizeStart()"></div>
-      @if ((timeline | async) === null) {
-        <div>
-          <p class="empty-message">No resource selected</p>
-        </div>
-      } @else {
-        @if (diffViewModelValue.currentRevision !== null) {
-          <div class="diff">
-            <div class="toolbar">
-              @for (annotator of changePairToolAnnotators | async; track annotator) {
-                <ng-container
-                  *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
-                ></ng-container>
-              }
-            </div>
-            @for (annotator of changePairAnnotators | async; track annotator) {
+            }
+          </ng-container>
+        </cdk-virtual-scroll-viewport>
+      }
+    </table>
+    <div class="revision-resizer" (mousedown)="_resizeStart()"></div>
+    @if ((timeline | async) === null) {
+      <div>
+        <p class="empty-message">No resource selected</p>
+      </div>
+    } @else {
+      @if (diffViewModelValue.currentRevision !== null) {
+        <div class="diff">
+          <div class="toolbar">
+            @for (
+              annotator of changePairToolAnnotators | async;
+              track annotator
+            ) {
               <ng-container
-                *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+                *ngComponentOutlet="
+                  annotator.component;
+                  inputs: annotator.inputs
+                "
               ></ng-container>
             }
-            <div class="diff-inner">
-              @if (
-                diffViewModelValue.previousRevision !== null) {
-                @if (
-                  diffViewModelValue.currentRevision.resourceContent !==
-                  diffViewModelValue.previousRevision.resourceContent) {
-                  <ngx-unified-diff
-                    class="ngx-diff-light-theme"
-                    [before]="diffViewModelValue.previousRevision.resourceContent"
-                    [after]="diffViewModelValue.currentRevision.resourceContent"
-                    >
-                  </ngx-unified-diff>
-                } @else {
-                  <pre
-                    class="log-body-container"
-                    ><code [highlight]="diffViewModelValue.currentRevision.resourceContent" language="yaml" lineNumbers></code></pre>
-                  }
-                } @else {
-                  <ngx-unified-diff
-                    class="ngx-diff-light-theme"
-                    before=""
-                    [after]="diffViewModelValue.currentRevision.resourceContent"
-                  ></ngx-unified-diff>
-                }
-              </div>
-            </div>
+          </div>
+          @for (annotator of changePairAnnotators | async; track annotator) {
+            <ng-container
+              *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+            ></ng-container>
           }
-        }
+          <div class="diff-inner">
+            @if (diffViewModelValue.previousRevision !== null) {
+              @if (
+                diffViewModelValue.currentRevision.resourceContent !==
+                diffViewModelValue.previousRevision.resourceContent
+              ) {
+                <ngx-unified-diff
+                  class="ngx-diff-light-theme"
+                  [before]="diffViewModelValue.previousRevision.resourceContent"
+                  [after]="diffViewModelValue.currentRevision.resourceContent"
+                >
+                </ngx-unified-diff>
+              } @else {
+                <pre
+                  class="log-body-container"
+                ><code [highlight]="diffViewModelValue.currentRevision.resourceContent" language="yaml" lineNumbers></code></pre>
+              }
+            } @else {
+              <ngx-unified-diff
+                class="ngx-diff-light-theme"
+                before=""
+                [after]="diffViewModelValue.currentRevision.resourceContent"
+              ></ngx-unified-diff>
+            }
+          </div>
+        </div>
       }
-    </div>
+    }
+  }
+</div>

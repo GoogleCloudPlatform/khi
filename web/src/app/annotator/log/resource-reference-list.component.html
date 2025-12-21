@@ -27,14 +27,14 @@ limitations under the License.
             [ngClass]="{ current: currentTimelinePath === resource.path }"
             (mouseover)="highlightResource(resource.path)"
             (click)="selectResource(resource.path)"
-            >
+          >
             <span
               ><span class="index">{{ i }}</span
               >{{ resource.label }}</span
-              >
-            </p>
-          }
-        </div>
-      }
-    </div>
-  }
+            >
+          </p>
+        }
+      </div>
+    }
+  </div>
+}

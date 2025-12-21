@@ -27,9 +27,9 @@ limitations under the License.
     <div class="log-body-container-scrollable">
       <pre
         class="log-body-container"
-        ><code [highlight]="(log.body | resolveText | async) ??''" language="yaml" lineNumbers></code></pre>
-      </div>
-    } @else {
-      <p class="empty-message">No log selected</p>
-    }
-  </div>
+      ><code [highlight]="(log.body | resolveText | async) ??''" language="yaml" lineNumbers></code></pre>
+    </div>
+  } @else {
+    <p class="empty-message">No log selected</p>
+  }
+</div>

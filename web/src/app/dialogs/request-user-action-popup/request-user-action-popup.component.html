@@ -22,29 +22,24 @@ limitations under the License.
     <p class="popup-body-title">{{ formRequest.title }}</p>
     <p class="popup-body-description">{{ formRequest.description }}</p>
     <div class="popup-body-input">
-      @if (formRequest.type === 'text') {
-        <ng-container
-          [ngTemplateOutlet]="textInput"
-        ></ng-container>
+      @if (formRequest.type === "text") {
+        <ng-container [ngTemplateOutlet]="textInput"></ng-container>
       }
-      @if (formRequest.type === 'popup_redirect') {
-        <ng-container
-          [ngTemplateOutlet]="popupRedirect"
-          >
-        </ng-container>
+      @if (formRequest.type === "popup_redirect") {
+        <ng-container [ngTemplateOutlet]="popupRedirect"> </ng-container>
       }
       <!--Add other types here-->
     </div>
     <p class="validation-error">{{ validationError | async }}</p>
     <div class="popup-body-footer">
-      @if (nextButtonText !== '') {
+      @if (nextButtonText !== "") {
         <button
           class="submit-button"
           mat-flat-button
           color="primary"
           [disabled]="(isValid | async) === false"
           (click)="onSubmit()"
-          >
+        >
           {{ nextButtonText }}
         </button>
       }

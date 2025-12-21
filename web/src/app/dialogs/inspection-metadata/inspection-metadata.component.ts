@@ -19,7 +19,6 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { InspectionMetadataOfRunResult } from '../../common/schema/api-types';
 import { MatCardModule } from '@angular/material/card';
 
-
 @Component({
   templateUrl: './inspection-metadata.component.html',
   styleUrls: ['./inspection-metadata.component.scss'],

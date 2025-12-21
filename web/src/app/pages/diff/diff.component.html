@@ -31,7 +31,10 @@ limitations under the License.
     <div class="diff">
       <ng-container>
         <div class="toolbar">
-          @for (annotator of changePairToolAnnotators | async; track annotator) {
+          @for (
+            annotator of changePairToolAnnotators | async;
+            track annotator
+          ) {
             <ng-container
               *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
             ></ng-container>
@@ -43,13 +46,12 @@ limitations under the License.
           ></ng-container>
         }
         <div class="diff-inner">
-          @if (
-            pair.previous && pair.previous.resourceContent) {
+          @if (pair.previous && pair.previous.resourceContent) {
             <ngx-side-by-side-diff
               class="ngx-diff-light-theme"
               [before]="pair.previous.resourceContent"
               [after]="pair.current.resourceContent"
-              >
+            >
             </ngx-side-by-side-diff>
           } @else {
             <ngx-side-by-side-diff

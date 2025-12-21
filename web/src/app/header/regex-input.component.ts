@@ -25,11 +25,7 @@ import { MatInputModule } from '@angular/material/input';
   selector: 'khi-header-regex-input',
   templateUrl: './regex-input.component.html',
   styleUrls: ['./regex-input.component.scss'],
-  imports: [
-    MatFormFieldModule,
-    MatInputModule,
-    ReactiveFormsModule
-],
+  imports: [MatFormFieldModule, MatInputModule, ReactiveFormsModule],
 })
 export class RegexInputComponent {
   @Input()

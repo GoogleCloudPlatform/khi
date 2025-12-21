@@ -1,4 +1,3 @@
-import { provideZoneChangeDetection, NgModule } from "@angular/core";
 /**
  * Copyright 2025 Google LLC
  *
@@ -15,6 +14,7 @@ import { provideZoneChangeDetection, NgModule } from "@angular/core";
  * limitations under the License.
  */
 
+import { provideZoneChangeDetection, NgModule } from '@angular/core';
 import { HarnessLoader } from '@angular/cdk/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ParameterHintComponent } from './parameter-hint.component';
@@ -29,9 +29,8 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 
-@NgModule({ providers: [ provideZoneChangeDetection() ] })
+@NgModule({ providers: [provideZoneChangeDetection()] })
 export class ZoneChangeDetectionModule {}
-
 
 describe('ParameterHintComponent', () => {
   let fixture: ComponentFixture<ParameterHintComponent>;

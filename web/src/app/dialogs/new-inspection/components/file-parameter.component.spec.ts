@@ -1,4 +1,3 @@
-import { provideZoneChangeDetection, NgModule } from "@angular/core";
 /**
  * Copyright 2025 Google LLC
  *
@@ -15,6 +14,7 @@ import { provideZoneChangeDetection, NgModule } from "@angular/core";
  * limitations under the License.
  */
 
+import { provideZoneChangeDetection, NgModule } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FileParameterComponent } from './file-parameter.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -40,9 +40,8 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 
-@NgModule({ providers: [ provideZoneChangeDetection() ] })
+@NgModule({ providers: [provideZoneChangeDetection()] })
 export class ZoneChangeDetectionModule {}
-
 
 describe('FileParameterComponent', () => {
   const mockFileUploader = new MockFileUploader();

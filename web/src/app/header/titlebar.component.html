@@ -40,11 +40,9 @@ limitations under the License.
   "
   [matMenuTriggerFor]="sessionMenu"
   [disabled]="(mainPageConenctionEstablished | async) === false"
-  >
+>
   @if (mainPageConenctionEstablished | async) {
-    <p
-      class="session-info-label"
-      >
+    <p class="session-info-label">
       <mat-icon class="icon">sync_alt</mat-icon>
       <span>Session {{ (sessionId | async) || 0 }}</span>
       <span class="session-count">
@@ -54,17 +52,14 @@ limitations under the License.
     </p>
   } @else {
     <ng-container>
-    <mat-icon class="icon connection-error">sync_problem</mat-icon>
-    <span class="connection-error">Lost window connection</span>
+      <mat-icon class="icon connection-error">sync_problem</mat-icon>
+      <span class="connection-error">Lost window connection</span>
     </ng-container>
   }
 </button>
 <mat-menu #sessionMenu="matMenu">
   @for (page of sessionPages | async; track page) {
-    <button
-      mat-menu-item
-      [disabled]="true"
-      >
+    <button mat-menu-item [disabled]="true">
       <mat-icon>tab</mat-icon>
       <span>{{ page.pageType }}</span>
     </button>

@@ -20,163 +20,155 @@ limitations under the License.
     [linear]="true"
     #stepper
     (selectedIndexChange)="selectedStepChange($event)"
-    >
+  >
     <!--Step1 : Select the inspection types-->
     <mat-step [completed]="(currentInspectionType | async) !== null">
       <div class="step1-scroll-wrapper">
         <form>
           <ng-template matStepLabel>
             @if (currentInspectionType | async) {
-              <span
-                >Type: {{ (currentInspectionType | async)!.name }}</span
-                >
-              } @else {
-                Select the inspection target
-              }
-            </ng-template>
-            <div class="inspection-type-spacer"></div>
-            @if (inspectionTypes | async; as types) {
-              @for (inspectionType of types.types; track inspectionType) {
-                <mat-card
-                  class="inspection-type"
-                  (click)="setInspectionType(inspectionType)"
-                  >
-                  <mat-card-header>
-                    <mat-card-title>{{ inspectionType.name }}</mat-card-title>
-                  </mat-card-header>
-                  <mat-card-content>
-                    <div class="inspection-type-icon">
-                      <img [src]="inspectionType.icon" />
-                    </div>
-                    <div
-                      class="inspection-type-description"
-                      [innerHTML]="inspectionType.description | breakline"
-                    ></div>
-                  </mat-card-content>
-                </mat-card>
-              }
+              <span>Type: {{ (currentInspectionType | async)!.name }}</span>
             } @else {
-              <p>Loading list of inspection types...</p>
-              <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+              Select the inspection target
             }
-          </form>
-        </div>
-      </mat-step>
-      <!--Step2 : Select enabled features-->
-      <mat-step>
-        <ng-template matStepLabel>Select what you want to query</ng-template>
-        <div class="features-page">
-          <div class="features-wrapper">
-            @for (feature of currentTaskFeatures | async; track feature) {
+          </ng-template>
+          <div class="inspection-type-spacer"></div>
+          @if (inspectionTypes | async; as types) {
+            @for (inspectionType of types.types; track inspectionType) {
               <mat-card
-                (click)="toggleFeature(feature.id)"
-                [ngClass]="{ selected: feature.enabled }"
-                >
-                @if (feature.enabled) {
-                  <span class="selected-icon">
-                    <mat-icon>check_circle</mat-icon>
-                  </span>
-                }
+                class="inspection-type"
+                (click)="setInspectionType(inspectionType)"
+              >
                 <mat-card-header>
-                  <mat-card-title>{{ feature.label }}</mat-card-title>
+                  <mat-card-title>{{ inspectionType.name }}</mat-card-title>
                 </mat-card-header>
-                <mat-card-content [innerHTML]="feature.description | breakline">
+                <mat-card-content>
+                  <div class="inspection-type-icon">
+                    <img [src]="inspectionType.icon" />
+                  </div>
+                  <div
+                    class="inspection-type-description"
+                    [innerHTML]="inspectionType.description | breakline"
+                  ></div>
                 </mat-card-content>
               </mat-card>
             }
+          } @else {
+            <p>Loading list of inspection types...</p>
+            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          }
+        </form>
+      </div>
+    </mat-step>
+    <!--Step2 : Select enabled features-->
+    <mat-step>
+      <ng-template matStepLabel>Select what you want to query</ng-template>
+      <div class="features-page">
+        <div class="features-wrapper">
+          @for (feature of currentTaskFeatures | async; track feature) {
+            <mat-card
+              (click)="toggleFeature(feature.id)"
+              [ngClass]="{ selected: feature.enabled }"
+            >
+              @if (feature.enabled) {
+                <span class="selected-icon">
+                  <mat-icon>check_circle</mat-icon>
+                </span>
+              }
+              <mat-card-header>
+                <mat-card-title>{{ feature.label }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content [innerHTML]="feature.description | breakline">
+              </mat-card-content>
+            </mat-card>
+          }
+        </div>
+        <div class="features-footer">
+          @if ((featuresEnabled | async) === false) {
+            <p class="errmsg-no-selected-feature">Select at least a feature</p>
+          }
+          <button
+            [disabled]="(featuresEnabled | async) === false"
+            mat-flat-button
+            color="primary"
+            matStepperNext
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </mat-step>
+    <!--Step3 : Input parameters-->
+    <mat-step>
+      <ng-template matStepLabel>Input parameters</ng-template>
+      @if (parameterViewModel | async; as parameterViewModel) {
+        <div class="parameter-view">
+          <div class="parameters-form-view allow-vertical-scroll">
+            <khi-new-inspection-group-parameter
+              [parameter]="parameterViewModel.rootGroupForm"
+            ></khi-new-inspection-group-parameter>
           </div>
-          <div class="features-footer">
-            @if ((featuresEnabled | async) === false) {
-              <p
-                class="errmsg-no-selected-feature"
-                >
-                Select at least a feature
+          <div class="parameters-metadata-view allow-vertical-scroll">
+            <mat-card class="query-section-card">
+              <mat-card-header>
+                <mat-card-title>Query</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                @for (query of parameterViewModel.queries; track query.name) {
+                  <mat-card class="query-card">
+                    <mat-card-header>
+                      <mat-card-title>{{ query.name }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <pre class="query-section-query-pre">{{
+                        query.query
+                      }}</pre>
+                    </mat-card-content>
+                  </mat-card>
+                }
+              </mat-card-content>
+            </mat-card>
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>Inspection plan</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <p>
+                  Copy the following task execution plan and visualize it with
+                  graphviz.
+                </p>
+                <pre class="task-graph-pre">{{
+                  parameterViewModel.plan.taskGraph
+                }}</pre>
+              </mat-card-content>
+            </mat-card>
+          </div>
+          <div class="parameters-footer">
+            @if (parameterViewModel.errorFieldCount !== 0) {
+              <p class="errmsg-parameters-error">
+                Fix the validation errors on the input parameters:
+                {{ parameterViewModel.errorFieldCount }} /
+                {{ parameterViewModel.fieldCount }}
               </p>
             }
             <button
-              [disabled]="(featuresEnabled | async) === false"
-              mat-flat-button
+              [disabled]="hadRun() || parameterViewModel.errorFieldCount !== 0"
+              mat-raised-button
               color="primary"
-              matStepperNext
-              >
-              Next
+              (click)="onRunButtonClick()"
+            >
+              Run
             </button>
           </div>
         </div>
-      </mat-step>
-      <!--Step3 : Input parameters-->
-      <mat-step>
-        <ng-template matStepLabel>Input parameters</ng-template>
-        @if (parameterViewModel | async; as parameterViewModel) {
-          <div class="parameter-view">
-            <div class="parameters-form-view allow-vertical-scroll">
-              <khi-new-inspection-group-parameter
-                [parameter]="parameterViewModel.rootGroupForm"
-              ></khi-new-inspection-group-parameter>
-            </div>
-            <div class="parameters-metadata-view allow-vertical-scroll">
-              <mat-card class="query-section-card">
-                <mat-card-header>
-                  <mat-card-title>Query</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  @for (query of parameterViewModel.queries; track query.name) {
-                    <mat-card class="query-card">
-                      <mat-card-header>
-                        <mat-card-title>{{ query.name }}</mat-card-title>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <pre class="query-section-query-pre">{{
-                          query.query
-                        }}</pre>
-                      </mat-card-content>
-                    </mat-card>
-                  }
-                </mat-card-content>
-              </mat-card>
-              <mat-card>
-                <mat-card-header>
-                  <mat-card-title>Inspection plan</mat-card-title>
-                </mat-card-header>
-                <mat-card-content>
-                  <p>
-                    Copy the following task execution plan and visualize it with
-                    graphviz.
-                  </p>
-                  <pre class="task-graph-pre">{{
-                    parameterViewModel.plan.taskGraph
-                  }}</pre>
-                </mat-card-content>
-              </mat-card>
-            </div>
-            <div class="parameters-footer">
-              @if (parameterViewModel.errorFieldCount !== 0) {
-                <p
-                  class="errmsg-parameters-error"
-                  >
-                  Fix the validation errors on the input parameters:
-                  {{ parameterViewModel.errorFieldCount }} /
-                  {{ parameterViewModel.fieldCount }}
-                </p>
-              }
-              <button
-                [disabled]="hadRun() || parameterViewModel.errorFieldCount !== 0"
-                mat-raised-button
-                color="primary"
-                (click)="onRunButtonClick()"
-                >
-                Run
-              </button>
-            </div>
-          </div>
-        } @else {
-          <div class="progress-parameters-forms">
-            <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-            <p class="message">
-              Loading a parameter list for the given setting. Wait a few seconds.
-            </p>
-          </div>
-        }
-      </mat-step>
-    </mat-stepper>
-  </mat-dialog-content>
+      } @else {
+        <div class="progress-parameters-forms">
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+          <p class="message">
+            Loading a parameter list for the given setting. Wait a few seconds.
+          </p>
+        </div>
+      }
+    </mat-step>
+  </mat-stepper>
+</mat-dialog-content>

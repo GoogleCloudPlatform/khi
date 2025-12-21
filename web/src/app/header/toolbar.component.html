@@ -27,168 +27,168 @@ limitations under the License.
             #openKindFilter="cdkOverlayOrigin"
             (click)="setPopupState('KIND_FILTER_OPEN')"
             matTooltip="Kinds"
-            >
-            <mat-icon class="filter-button-icon">workspaces</mat-icon
-              >@if (showButtonLabel | async) {
+          >
+            <mat-icon class="filter-button-icon">workspaces</mat-icon>
+            @if (showButtonLabel | async) {
               <span
                 >Kinds<span class="count-indicator"
-                >{{ (includedKinds$ | async)!.size
-                }}<span class="divisor">/</span
-                >{{ (kinds$ | async)!.size }}</span
+                  >{{ (includedKinds$ | async)!.size
+                  }}<span class="divisor">/</span
+                  >{{ (kinds$ | async)!.size }}</span
                 ></span
-                >
-              }
-            </button>
-            <ng-template
-              cdkConnectedOverlay
-              [cdkConnectedOverlayOrigin]="openKindFilter"
-              [cdkConnectedOverlayOpen]="popupStatus === 'KIND_FILTER_OPEN'"
-              [cdkConnectedOverlayHasBackdrop]="true"
-              (backdropClick)="setPopupState('NONE_OPEN')"
               >
-              <khi-header-set-input
-                label="Kinds"
-                [choices]="(kinds$ | async)!"
-                [selectedItems]="(includedKinds$ | async)!"
-                (selectedItemsChange)="onKindFilterCommit($event)"
-                (closeButtonClicked)="setPopupState('NONE_OPEN')"
-                >
-              </khi-header-set-input>
-            </ng-template>
-            <!--Namespace filter-->
-            <button
-              mat-stroked-button
-              color="primary"
-              cdkOverlayOrigin
-              #openNamespaceFilter="cdkOverlayOrigin"
-              (click)="setPopupState('NAMESPACE_FILTER_OPEN')"
-              matTooltip="Namespaces"
-              >
-              <mat-icon class="filter-button-icon">folder</mat-icon
-                >@if (showButtonLabel | async) {
-                <span>
-                  Namespaces<span class="count-indicator"
+            }
+          </button>
+          <ng-template
+            cdkConnectedOverlay
+            [cdkConnectedOverlayOrigin]="openKindFilter"
+            [cdkConnectedOverlayOpen]="popupStatus === 'KIND_FILTER_OPEN'"
+            [cdkConnectedOverlayHasBackdrop]="true"
+            (backdropClick)="setPopupState('NONE_OPEN')"
+          >
+            <khi-header-set-input
+              label="Kinds"
+              [choices]="(kinds$ | async)!"
+              [selectedItems]="(includedKinds$ | async)!"
+              (selectedItemsChange)="onKindFilterCommit($event)"
+              (closeButtonClicked)="setPopupState('NONE_OPEN')"
+            >
+            </khi-header-set-input>
+          </ng-template>
+          <!--Namespace filter-->
+          <button
+            mat-stroked-button
+            color="primary"
+            cdkOverlayOrigin
+            #openNamespaceFilter="cdkOverlayOrigin"
+            (click)="setPopupState('NAMESPACE_FILTER_OPEN')"
+            matTooltip="Namespaces"
+          >
+            <mat-icon class="filter-button-icon">folder</mat-icon>
+            @if (showButtonLabel | async) {
+              <span>
+                Namespaces<span class="count-indicator"
                   >{{ (includedNamespaces$ | async)!.size
                   }}<span class="divisor">/</span
                   >{{ (namespaces$ | async)!.size }}</span
-                  ></span
-                  >
-                }
-              </button>
-              <ng-template
-                cdkConnectedOverlay
-                [cdkConnectedOverlayOrigin]="openNamespaceFilter"
-                [cdkConnectedOverlayOpen]="popupStatus === 'NAMESPACE_FILTER_OPEN'"
-                [cdkConnectedOverlayHasBackdrop]="true"
-                (backdropClick)="setPopupState('NONE_OPEN')"
-                >
-                <khi-header-set-input
-                  label="Namespaces"
-                  [choices]="(namespaces$ | async)!"
-                  [selectedItems]="(includedNamespaces$ | async)!"
-                  (selectedItemsChange)="onNamespaceFilterCommit($event)"
-                  (closeButtonClicked)="setPopupState('NONE_OPEN')"
-                ></khi-header-set-input>
-              </ng-template>
-              <!--Subresource relationship filter-->
-              <button
-                mat-stroked-button
-                color="primary"
-                cdkOverlayOrigin
-                #openSubresourceRelationshipFilter="cdkOverlayOrigin"
-                (click)="setPopupState('SUBRESOURCE_FILTER_OPEN')"
-                matTooltip="Subresources"
-                >
-                <mat-icon class="filter-button-icon">page_info</mat-icon
-                  >@if (showButtonLabel | async) {
-                  <span>
-                    Subresources<span class="count-indicator"
-                    >{{ (includedSubresourceRelationships | async)!.size
-                    }}<span class="divisor">/</span
-                    >{{ (subresourceRelationships | async)!.size }}</span
-                    ></span
-                    >
-                  }
-                </button>
-                <ng-template
-                  cdkConnectedOverlay
-                  [cdkConnectedOverlayOrigin]="openSubresourceRelationshipFilter"
+                ></span
+              >
+            }
+          </button>
+          <ng-template
+            cdkConnectedOverlay
+            [cdkConnectedOverlayOrigin]="openNamespaceFilter"
+            [cdkConnectedOverlayOpen]="popupStatus === 'NAMESPACE_FILTER_OPEN'"
+            [cdkConnectedOverlayHasBackdrop]="true"
+            (backdropClick)="setPopupState('NONE_OPEN')"
+          >
+            <khi-header-set-input
+              label="Namespaces"
+              [choices]="(namespaces$ | async)!"
+              [selectedItems]="(includedNamespaces$ | async)!"
+              (selectedItemsChange)="onNamespaceFilterCommit($event)"
+              (closeButtonClicked)="setPopupState('NONE_OPEN')"
+            ></khi-header-set-input>
+          </ng-template>
+          <!--Subresource relationship filter-->
+          <button
+            mat-stroked-button
+            color="primary"
+            cdkOverlayOrigin
+            #openSubresourceRelationshipFilter="cdkOverlayOrigin"
+            (click)="setPopupState('SUBRESOURCE_FILTER_OPEN')"
+            matTooltip="Subresources"
+          >
+            <mat-icon class="filter-button-icon">page_info</mat-icon>
+            @if (showButtonLabel | async) {
+              <span>
+                Subresources<span class="count-indicator"
+                  >{{ (includedSubresourceRelationships | async)!.size
+                  }}<span class="divisor">/</span
+                  >{{ (subresourceRelationships | async)!.size }}</span
+                ></span
+              >
+            }
+          </button>
+          <ng-template
+            cdkConnectedOverlay
+            [cdkConnectedOverlayOrigin]="openSubresourceRelationshipFilter"
             [cdkConnectedOverlayOpen]="
               popupStatus === 'SUBRESOURCE_FILTER_OPEN'
             "
-                  [cdkConnectedOverlayHasBackdrop]="true"
-                  (backdropClick)="setPopupState('NONE_OPEN')"
-                  >
-                  <khi-header-set-input
-                    label="Subresources"
-                    [choices]="(subresourceRelationships | async)!"
-                    [selectedItems]="(includedSubresourceRelationships | async)!"
+            [cdkConnectedOverlayHasBackdrop]="true"
+            (backdropClick)="setPopupState('NONE_OPEN')"
+          >
+            <khi-header-set-input
+              label="Subresources"
+              [choices]="(subresourceRelationships | async)!"
+              [selectedItems]="(includedSubresourceRelationships | async)!"
               (selectedItemsChange)="
                 onSubresourceRelationshipFilterCommit($event)
               "
-                    (closeButtonClicked)="setPopupState('NONE_OPEN')"
-                  ></khi-header-set-input>
-                </ng-template>
-                <!--Regex resource name filter-->
-                <khi-header-regex-input
-                  class="resource-name-filter"
-                  label="Resource name(regex)"
-                  (regexFilterChange)="onNameFilterChange($event)"
-                ></khi-header-regex-input>
-              </div>
-            </div>
-            <div class="center-control"></div>
-            <div class="right-control">
-              <mat-button-toggle-group multiple>
-                <mat-button-toggle
-                  value="filter_subresource"
+              (closeButtonClicked)="setPopupState('NONE_OPEN')"
+            ></khi-header-set-input>
+          </ng-template>
+          <!--Regex resource name filter-->
+          <khi-header-regex-input
+            class="resource-name-filter"
+            label="Resource name(regex)"
+            (regexFilterChange)="onNameFilterChange($event)"
+          ></khi-header-regex-input>
+        </div>
+      </div>
+      <div class="center-control"></div>
+      <div class="right-control">
+        <mat-button-toggle-group multiple>
+          <mat-button-toggle
+            value="filter_subresource"
             [checked]="
               viewStateService.hideSubresourcesWithoutMatchingLogs | async
             "
-                  matTooltip="hide subresource timelines without any logs matched by the log filter"
-                  (change)="onToggleHideSubresourcesWithoutMatchingLogs()"
-                  >
-                  <mat-icon color="primary">page_info</mat-icon>
-                  <mat-icon color="primary">search_off</mat-icon></mat-button-toggle
-                  >
-                  <mat-button-toggle
-                    value="filter_resource"
-                    matTooltip="hide resource timelines without any logs matched by the log filter on it or its children"
+            matTooltip="hide subresource timelines without any logs matched by the log filter"
+            (change)="onToggleHideSubresourcesWithoutMatchingLogs()"
+          >
+            <mat-icon color="primary">page_info</mat-icon>
+            <mat-icon color="primary">search_off</mat-icon></mat-button-toggle
+          >
+          <mat-button-toggle
+            value="filter_resource"
+            matTooltip="hide resource timelines without any logs matched by the log filter on it or its children"
             [checked]="
               viewStateService.hideResourcesWithoutMatchingLogs | async
             "
-                    (change)="onToggleHideResourcesWithoutMatchingLogs()"
-                    >
-                    <mat-icon color="primary">description</mat-icon>
-                    <mat-icon color="primary">search_off</mat-icon>
-                  </mat-button-toggle>
-                </mat-button-toggle-group>
-                <khi-header-regex-input
-                  class="log-filter"
-                  label="Log body(regex)"
-                  (regexFilterChange)="onLogFilterChange($event)"
-                ></khi-header-regex-input>
-                <div class="timezone-control">
-                  <p>UTC+</p>
-                  <input
-                    type="number"
-                    value="0"
-                    name="timezone-shift"
-                    [value]="timezoneShift$ | async"
-                    (change)="onTimezoneshiftCommit($event)"
-                    />
-                  <p>hours</p>
-                </div>
-                <button
-                  mat-raised-button
-                  color="primary"
-                  [disabled]="logOrTimelineNotSelected | async"
-                  (click)="onDrawDiagram()"
-                  matTooltip="Draw diagram at the point of the timeline"
-                  >
-                  <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
-                </button>
-              </div>
-            </div>
-          </div>
+            (change)="onToggleHideResourcesWithoutMatchingLogs()"
+          >
+            <mat-icon color="primary">description</mat-icon>
+            <mat-icon color="primary">search_off</mat-icon>
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+        <khi-header-regex-input
+          class="log-filter"
+          label="Log body(regex)"
+          (regexFilterChange)="onLogFilterChange($event)"
+        ></khi-header-regex-input>
+        <div class="timezone-control">
+          <p>UTC+</p>
+          <input
+            type="number"
+            value="0"
+            name="timezone-shift"
+            [value]="timezoneShift$ | async"
+            (change)="onTimezoneshiftCommit($event)"
+          />
+          <p>hours</p>
         </div>
+        <button
+          mat-raised-button
+          color="primary"
+          [disabled]="logOrTimelineNotSelected | async"
+          (click)="onDrawDiagram()"
+          matTooltip="Draw diagram at the point of the timeline"
+        >
+          <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

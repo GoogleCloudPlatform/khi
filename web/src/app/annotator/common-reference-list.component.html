@@ -15,11 +15,12 @@
 -->
 
 <div class="container">
-@for(reference of references; track reference) {
-  <p class="link">
-    <a (click)="onLinkClick(reference.linkUrl)"
-      >{{ reference.linkText }}<mat-icon class="icon">open_in_new</mat-icon></a
-    >
-  </p>
-}
+  @for (reference of references; track reference) {
+    <p class="link">
+      <a (click)="onLinkClick(reference.linkUrl)"
+        >{{ reference.linkText
+        }}<mat-icon class="icon">open_in_new</mat-icon></a
+      >
+    </p>
+  }
 </div>

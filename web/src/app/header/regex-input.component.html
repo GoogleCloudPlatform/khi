@@ -18,15 +18,13 @@ limitations under the License.
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>{{ label }}</mat-label>
     @if (!regexInput.valid) {
-      <mat-error>{{
-        regexFormErrorMessage()
-      }}</mat-error>
+      <mat-error>{{ regexFormErrorMessage() }}</mat-error>
     }
     <input
       matInput
       [formControl]="regexInput"
       placeholder="Type regex here to filter"
       (input)="onFilterChange()"
-      />
+    />
   </mat-form-field>
 </div>

@@ -1,4 +1,3 @@
-import { provideZoneChangeDetection, NgModule } from "@angular/core";
 /**
  * Copyright 2024 Google LLC
  *
@@ -14,7 +13,7 @@ import { provideZoneChangeDetection, NgModule } from "@angular/core";
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+import { provideZoneChangeDetection, NgModule } from '@angular/core';
 import { map, take, timer } from 'rxjs';
 import { monitorElementHeight } from './observable-util';
 import { TestBed } from '@angular/core/testing';
@@ -23,14 +22,16 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 
-@NgModule({ providers: [ provideZoneChangeDetection() ] })
+@NgModule({ providers: [provideZoneChangeDetection()] })
 export class ZoneChangeDetectionModule {}
-
 
 describe('observable-util', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
-    TestBed.initTestEnvironment([ZoneChangeDetectionModule, BrowserTestingModule], platformBrowserTesting());
+    TestBed.initTestEnvironment(
+      [ZoneChangeDetectionModule, BrowserTestingModule],
+      platformBrowserTesting(),
+    );
   });
   describe('monitorElementHeight', () => {
     it('emits heights on resize events', (done) => {
