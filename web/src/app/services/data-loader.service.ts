@@ -431,7 +431,7 @@ export class InspectionDataLoaderService {
     return magic.every((v, i) => expected[i] === v);
   }
 
-  private decompressGzip(source: Uint8Array): Promise<ArrayBuffer> {
+  private decompressGzip(source: Uint8Array<ArrayBuffer>): Promise<ArrayBuffer> {
     // Predefined DecompressionStream only accepts an argument. This is not aligning with the actual scheme.
     // Casting the constructor to any once to call it with a valid constructor argument.
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */

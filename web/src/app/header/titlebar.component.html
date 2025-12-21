@@ -53,8 +53,10 @@ limitations under the License.
       </span>
     </p>
   } @else {
+    <ng-container>
     <mat-icon class="icon connection-error">sync_problem</mat-icon>
     <span class="connection-error">Lost window connection</span>
+    </ng-container>
   }
 </button>
 <mat-menu #sessionMenu="matMenu">
