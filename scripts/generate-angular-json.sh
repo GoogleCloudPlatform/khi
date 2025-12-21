@@ -25,7 +25,7 @@ DEV_ENV_NAMES=$(echo $DEV_ENV_FILES| jq -R -s -c '[split(" ")[]|capture(".web/sr
 ALL_ENV_NAMES=$(echo $ALL_ENV_FILES| jq -R -s -c '[split(" ")[]|capture(".web/src/environments/environment.(?<env>.*).ts")|.env]')
 
 PROD_BUILD_CONFIGURATIONS=$(echo $PROD_ENV_NAMES | jq '[.[]|{(.):{"outputHashing":"all","fileReplacements":[{"replace":"src/environments/environment.ts","with":("src/environments/environment." + . +".ts")},{"replace":"src/environments/version.ts","with":("src/environments/version." + . +".ts")}]}}]|add')
-DEV_BUILD_CONFIGURATIONS=$(echo $DEV_ENV_NAMES |jq '[.[]|{(.):{"buildOptimizer":false,"optimization":false,"vendorChunk":true,"extractLicenses":false,"sourceMap":true,"namedChunks":true,"fileReplacements":[{"replace":"src/environments/environment.ts","with":("src/environments/environment." + . +".ts")},{"replace":"src/environments/version.ts","with":("src/environments/version." + . +".ts")}]}}]|add')
+DEV_BUILD_CONFIGURATIONS=$(echo $DEV_ENV_NAMES |jq '[.[]|{(.):{"optimization":false,"extractLicenses":false,"sourceMap":true,"namedChunks":true,"fileReplacements":[{"replace":"src/environments/environment.ts","with":("src/environments/environment." + . +".ts")},{"replace":"src/environments/version.ts","with":("src/environments/version." + . +".ts")}]}}]|add')
 
 BUILD_CONFIGURATIONS=$(echo "$PROD_BUILD_CONFIGURATIONS$DEV_BUILD_CONFIGURATIONS" | jq -s add)
 SERVE_CONFIGURATIONS=$(echo $ALL_ENV_NAMES| jq '[.[]|{(.):{"buildTarget":("frontend:build:" + .)}}]|add')
