@@ -15,7 +15,7 @@
  */
 
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
-import { CommonModule } from '@angular/common';
+
 import { Component, Input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -24,7 +24,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
   selector: 'khi-meta-table-row',
   templateUrl: './meta-table-row.component.html',
   styleUrls: ['./meta-table-row.component.scss'],
-  imports: [CommonModule, MatIconModule, MatTooltipModule, CdkCopyToClipboard],
+  imports: [MatIconModule, MatTooltipModule, CdkCopyToClipboard],
 })
 export class MetaTableRowComponent {
   @Input()

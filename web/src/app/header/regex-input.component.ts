@@ -18,7 +18,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RegexValidator } from './regex-validator';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { CommonModule } from '@angular/common';
+
 import { MatInputModule } from '@angular/material/input';
 
 @Component({
@@ -26,11 +26,10 @@ import { MatInputModule } from '@angular/material/input';
   templateUrl: './regex-input.component.html',
   styleUrls: ['./regex-input.component.scss'],
   imports: [
-    CommonModule,
     MatFormFieldModule,
     MatInputModule,
-    ReactiveFormsModule,
-  ],
+    ReactiveFormsModule
+],
 })
 export class RegexInputComponent {
   @Input()

@@ -26,7 +26,7 @@ module.exports = function (config) {
       require('karma-chrome-launcher'),
       require('karma-jasmine-html-reporter'),
       require('karma-coverage'),
-      require('@angular-devkit/build-angular/plugins/karma')
+      
     ],
     files: [
       { pattern: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap', type: "css", included: true, served: false, watched: false },

@@ -1,3 +1,4 @@
+import { provideZoneChangeDetection, NgModule } from "@angular/core";
 /**
  * Copyright 2025 Google LLC
  *
@@ -36,6 +37,10 @@ import {
   platformBrowserTesting,
 } from '@angular/platform-browser/testing';
 
+@NgModule({ providers: [ provideZoneChangeDetection() ] })
+export class ZoneChangeDetectionModule {}
+
+
 describe('TextParameterComponent', () => {
   let fixture: ComponentFixture<TextParameterComponent>;
   let harnessLoader: HarnessLoader;
@@ -57,7 +62,7 @@ describe('TextParameterComponent', () => {
   beforeAll(() => {
     TestBed.resetTestEnvironment();
     TestBed.initTestEnvironment(
-      BrowserTestingModule,
+      [ZoneChangeDetectionModule, BrowserTestingModule],
       platformBrowserTesting(),
       { teardown: { destroyAfterEach: false } },
     );

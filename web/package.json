@@ -4,16 +4,16 @@
   "scripts": {},
   "private": true,
   "dependencies": {
-    "@angular/animations": "^20.0.4",
+    "@angular/animations": "^21.0.6",
     "@angular/cdk": "^20.0.3",
-    "@angular/common": "^20.0.4",
-    "@angular/compiler": "^20.3.15",
-    "@angular/core": "^20.0.4",
-    "@angular/forms": "^20.0.4",
+    "@angular/common": "^21.0.6",
+    "@angular/compiler": "^21.0.6",
+    "@angular/core": "^21.0.6",
+    "@angular/forms": "^21.0.6",
     "@angular/material": "^20.0.3",
-    "@angular/platform-browser": "^20.0.4",
-    "@angular/platform-browser-dynamic": "^20.0.4",
-    "@angular/router": "^20.0.4",
+    "@angular/platform-browser": "^21.0.6",
+    "@angular/platform-browser-dynamic": "^21.0.6",
+    "@angular/router": "^21.0.6",
     "highlight.js": "^11.11.1",
     "highlightjs-line-numbers.js": "^2.9.0",
     "js-yaml": "^4.1.1",
@@ -24,14 +24,14 @@
     "zone.js": "^0.15.1"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^20.0.3",
     "@angular-eslint/builder": "^20.1.0",
     "@angular-eslint/eslint-plugin": "^20.1.0",
     "@angular-eslint/eslint-plugin-template": "^20.1.0",
     "@angular-eslint/schematics": "^20.1.0",
     "@angular-eslint/template-parser": "^20.1.0",
-    "@angular/cli": "~20.0.3",
-    "@angular/compiler-cli": "^20.0.4",
+    "@angular/build": "^21.0.4",
+    "@angular/cli": "~21.0.4",
+    "@angular/compiler-cli": "^21.0.6",
     "@types/gtag.js": "^0.0.20",
     "@types/jasmine": "~5.1.8",
     "@types/js-yaml": "^4.0.9",
@@ -49,6 +49,6 @@
     "stylelint": "^16.20.0",
     "stylelint-config-sass-guidelines": "^12.1.0",
     "stylelint-config-standard": "^38.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }
