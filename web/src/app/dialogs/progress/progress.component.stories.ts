@@ -22,17 +22,17 @@ import {
 } from 'src/app/services/progress/progress-interface';
 import { of } from 'rxjs';
 
-const createProgressDecorator = (progress: CurrentProgress) => moduleMetadata({
-  providers: [
-    {
-      provide: PROGRESS_DIALOG_STATUS_OBSERVER,
-      useValue: {
-        status: () => of(progress as CurrentProgress),
+const createProgressDecorator = (progress: CurrentProgress) =>
+  moduleMetadata({
+    providers: [
+      {
+        provide: PROGRESS_DIALOG_STATUS_OBSERVER,
+        useValue: {
+          status: () => of(progress as CurrentProgress),
+        },
       },
-    },
-  ],
-});
-
+    ],
+  });
 
 const meta: Meta<ProgressDialogComponent> = {
   title: 'Dialogs/ProgressDialog',

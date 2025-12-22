@@ -1,7 +1,7 @@
 {
   "extends": "../tsconfig.app.json",
   "compilerOptions": {
-    "types": ["node","chai"],
+    "types": ["node", "chai"],
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true
   },
