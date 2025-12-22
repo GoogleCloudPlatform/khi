@@ -45,3 +45,6 @@ Thumbs.db
 src/app/generated.*
 angular.json
 src/environments/version.*.ts
+*storybook.log
+storybook-static
+documentation.json

@@ -1,7 +1,10 @@
 {
   "name": "frontend",
   "version": "0.0.0",
-  "scripts": {},
+  "scripts": {
+    "storybook": "ng run frontend:storybook",
+    "build-storybook": "ng run frontend:build-storybook"
+  },
   "private": true,
   "dependencies": {
     "@angular/animations": "^21.0.6",
@@ -24,6 +27,9 @@
     "zone.js": "^0.16.0"
   },
   "devDependencies": {
+    "@angular-devkit/architect": "^0.2100.4",
+    "@angular-devkit/build-angular": "^21.0.4",
+    "@angular-devkit/core": "^21.0.4",
     "@angular-eslint/builder": "^21.1.0",
     "@angular-eslint/eslint-plugin": "^21.1.0",
     "@angular-eslint/eslint-plugin-template": "^21.1.0",
@@ -32,12 +38,17 @@
     "@angular/build": "^21.0.4",
     "@angular/cli": "~21.0.4",
     "@angular/compiler-cli": "^21.0.6",
+    "@compodoc/compodoc": "^1.1.32",
+    "@storybook/addon-docs": "^10.1.10",
+    "@storybook/angular": "^10.1.10",
+    "@types/chai": "^5.2.3",
     "@types/gtag.js": "^0.0.20",
     "@types/jasmine": "~5.1.13",
     "@types/js-yaml": "^4.0.9",
     "@typescript-eslint/eslint-plugin": "8.50.0",
     "@typescript-eslint/parser": "8.50.0",
     "eslint": "^9.39.2",
+    "eslint-plugin-storybook": "^10.1.10",
     "jasmine-core": "~5.13.0",
     "karma": "~6.4.4",
     "karma-chrome-launcher": "~3.2.0",
@@ -46,6 +57,7 @@
     "karma-jasmine-html-reporter": "~2.1.0",
     "postcss": "^8.5.6",
     "prettier": "^3.7.4",
+    "storybook": "^10.1.10",
     "stylelint": "^16.26.1",
     "stylelint-config-sass-guidelines": "^12.1.0",
     "stylelint-config-standard": "^39.0.1",
