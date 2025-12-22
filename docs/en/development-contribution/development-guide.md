@@ -98,7 +98,7 @@ To develop frontend components, we usually start [storybook](https://storybook.j
 make watch-storybook
 ```
 
-Storybook automatically build and serve the new build when you change the frontend code.
+Storybook automatically builds and serves the new build when you change the frontend code.
 
 ## Auto generated codes
 
