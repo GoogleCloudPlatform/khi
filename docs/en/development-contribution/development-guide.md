@@ -90,6 +90,16 @@ When you want to run backend tests without Cloud Logging, run the following code
 go test ./... -args -skip-cloud-logging=true
 ```
 
+### Run storybook
+
+To develop frontend components, we usually start [storybook](https://storybook.js.org/) server on port 6006 with the following code.
+
+```shell
+make watch-storybook
+```
+
+Storybook automatically build and serve the new build when you change the frontend code.
+
 ## Auto generated codes
 
 ### Generated codes from backend codes

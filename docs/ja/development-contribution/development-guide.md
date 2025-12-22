@@ -89,6 +89,16 @@ make test
 go test ./... -args -skip-cloud-logging=true
 ```
 
+### Storybookの起動
+
+フロントエンドの開発を実施する際、下記のコードを実行すると開発環境のStorybookサーバーを6006番ポートで実行できます。
+
+```shell
+make watch-storybook
+```
+
+Storybookは自動的にビルドされ、フロントエンドのコードの変更が自動で適用されます。
+
 ## 自動生成コード
 
 ### バックエンドコードから自動作成されるフロントエンドコード
