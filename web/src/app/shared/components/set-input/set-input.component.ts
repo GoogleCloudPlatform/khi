@@ -120,7 +120,7 @@ export class SetInputComponent {
 
   private inputValue = toSignal(
     this.inputCtrl.valueChanges.pipe(startWith('')),
-    { initialValue: '' }
+    { initialValue: '' },
   );
 
   /**
@@ -136,8 +136,8 @@ export class SetInputComponent {
     if (!name) return available;
     const lowerName = name.toLowerCase();
     // Simple filtering by id
-    return available.filter(
-      (item) => item.id.toLowerCase().includes(lowerName),
+    return available.filter((item) =>
+      item.id.toLowerCase().includes(lowerName),
     );
   });
 
@@ -156,7 +156,10 @@ export class SetInputComponent {
       const existingChoice = this.choices().find((c) => c.id === value);
       if (existingChoice || this.allowCustomValues()) {
         const idToAdd = existingChoice ? existingChoice.id : value;
-        const newItems = this.getUniqueString([...this.selectedItems(), idToAdd]);
+        const newItems = this.getUniqueString([
+          ...this.selectedItems(),
+          idToAdd,
+        ]);
         this.selectedItemsChange.emit(newItems);
       }
     }

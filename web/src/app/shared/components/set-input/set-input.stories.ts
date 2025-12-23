@@ -52,9 +52,7 @@ export const Empty: Story = {
 
 export const ALotOfItems: Story = {
   args: {
-    choices: Array.from({ length: 50 }, (_, i) =>
-      createItem(`Item ${i + 1}`),
-    ),
+    choices: Array.from({ length: 50 }, (_, i) => createItem(`Item ${i + 1}`)),
     selectedItems: ['Item 1', 'Item 2', 'Item 3'],
   },
 };
