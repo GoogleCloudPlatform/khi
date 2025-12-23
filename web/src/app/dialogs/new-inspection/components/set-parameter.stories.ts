@@ -26,7 +26,7 @@ import { of } from 'rxjs';
 const createParameterStoreMock = (initialValue: string[] = []) => ({
   watch: () => of(initialValue),
   watchDirty: () => of(false),
-  set: () => { },
+  set: () => {},
 });
 
 const meta: Meta<SetParameterComponent> = {
@@ -35,9 +35,7 @@ const meta: Meta<SetParameterComponent> = {
   tags: ['autodocs'],
   decorators: [
     moduleMetadata({
-      imports: [
-
-      ],
+      imports: [],
       providers: [
         {
           provide: PARAMETER_STORE,
@@ -60,8 +58,13 @@ export const Default: Story = {
       description: 'Choose one or more options from the list.',
       hint: 'This is a hint.',
       hintType: ParameterHintType.Info,
-      options: ['@managed', '-@any', "-pods", "-nodes"],
-      default: ["@managed", "-@any", "-pods", "-nodes"],
+      options: [
+        { id: '@managed', description: 'Managed namespaces' },
+        { id: '-@any', description: 'Exclude any' },
+        { id: '-pods', description: 'Exclude pods' },
+        { id: '-nodes', description: 'Exclude nodes' },
+      ],
+      default: ['@managed', '-@any', '-pods', '-nodes'],
       allowAddAll: false,
       allowRemoveAll: false,
       allowCustomValue: true,
@@ -72,7 +75,12 @@ export const Default: Story = {
       providers: [
         {
           provide: PARAMETER_STORE,
-          useValue: createParameterStoreMock(['@managed', '-@any', '-pods', '-nodes']),
+          useValue: createParameterStoreMock([
+            '@managed',
+            '-@any',
+            '-pods',
+            '-nodes',
+          ]),
         },
       ],
     }),
@@ -88,7 +96,12 @@ export const WithPreselectedValues: Story = {
       description: 'Some options are already selected.',
       hint: '',
       hintType: ParameterHintType.None,
-      options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+      options: [
+        { id: 'Option 1', description: 'First option' },
+        { id: 'Option 2', description: 'Second option' },
+        { id: 'Option 3', description: 'Third option' },
+        { id: 'Option 4', description: 'Fourth option' },
+      ],
       default: ['Option 1', 'Option 2'],
       allowAddAll: false,
       allowRemoveAll: true,
@@ -116,7 +129,11 @@ export const WithError: Story = {
       description: 'This field has an error.',
       hint: 'You must select at least one option.',
       hintType: ParameterHintType.Error,
-      options: ['Red', 'Green', 'Blue'],
+      options: [
+        { id: 'Red', description: 'Color Red' },
+        { id: 'Green', description: 'Color Green' },
+        { id: 'Blue', description: 'Color Blue' },
+      ],
       default: [],
       allowAddAll: false,
       allowRemoveAll: false,

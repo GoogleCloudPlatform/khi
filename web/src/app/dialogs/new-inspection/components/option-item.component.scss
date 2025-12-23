@@ -13,3 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  padding: 4px 0;
+}
+
+.id {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.description {
+  font-size: 12px;
+  color: #666;
+  white-space: normal; // Allow wrapping if description is long
+}

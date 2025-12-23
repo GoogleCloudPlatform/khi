@@ -38,6 +38,7 @@ import { ParameterHeaderComponent } from './parameter-header.component';
 import { ParameterHintComponent } from './parameter-hint.component';
 import { PARAMETER_STORE } from './service/parameter-store';
 import { SetInputAliasChipComponent } from './alias-chip.component';
+import { SetInputDescriptionOptionComponent } from './option-item.component';
 
 /**
  * A form field for set type parameter in the new-inspection dialog.
@@ -50,10 +51,10 @@ import { SetInputAliasChipComponent } from './alias-chip.component';
     CommonModule,
     ParameterHeaderComponent,
     SetInputComponent,
-    SetInputComponent,
     ReactiveFormsModule,
     ParameterHintComponent,
     SetInputAliasChipComponent,
+    SetInputDescriptionOptionComponent,
   ],
 })
 export class SetParameterComponent implements OnInit, OnDestroy {
@@ -62,18 +63,21 @@ export class SetParameterComponent implements OnInit, OnDestroy {
 
   private readonly store = inject(PARAMETER_STORE);
   private readonly destroyed = new Subject<void>();
-  private readonly stagingInput = signal<string[]>([]);
+  readonly stagingInput = signal<string[]>([]);
 
   choices = computed(() => {
     return this.parameter().options.map(
-      (opt): SetInputItem => ({ id: opt, value: opt }),
+      (opt): SetInputItem => ({ id: opt.id, value: opt }),
     );
   });
 
   ngOnInit(): void {
-    this.store.watch<string[]>(this.parameter().id).pipe(takeUntil(this.destroyed)).subscribe((value) => {
-      this.stagingInput.set(value);
-    });
+    this.store
+      .watch<string[]>(this.parameter().id)
+      .pipe(takeUntil(this.destroyed))
+      .subscribe((value) => {
+        this.stagingInput.set(value);
+      });
   }
 
   ngOnDestroy(): void {

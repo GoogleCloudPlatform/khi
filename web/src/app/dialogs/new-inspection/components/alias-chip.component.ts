@@ -31,7 +31,9 @@ export class SetInputAliasChipComponent {
   item = input.required<SetInputItem>();
   remove = output<void>();
 
-  isAlias = computed(() => this.item().id.startsWith('@') || this.item().id.startsWith("-@"));
+  isAlias = computed(
+    () => this.item().id.startsWith('@') || this.item().id.startsWith('-@'),
+  );
   isExclusion = computed(() => this.item().id.startsWith('-'));
 
   displayLabel = computed(() => {
@@ -41,5 +43,4 @@ export class SetInputAliasChipComponent {
     if (this.isExclusion()) return id.substring(1);
     return id;
   });
-
 }

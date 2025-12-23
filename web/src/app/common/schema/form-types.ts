@@ -158,6 +158,19 @@ export interface FileParameterFormField extends ParameterFormFieldBase {
    */
   status: UploadStatus;
 }
+/**
+ * An option item of set type parameter.
+ */
+export interface SetParameterFormFieldOptionItem {
+  /**
+   * A unique value and the value used as the label of the option.
+   */
+  id: string;
+  /**
+   * The description of the option.
+   */
+  description: string;
+}
 
 /**
  * Set type parameter specific data.
@@ -167,7 +180,8 @@ export interface SetParameterFormField extends ParameterFormFieldBase {
   /**
    * List of available options.
    */
-  options: string[];
+  options: SetParameterFormFieldOptionItem[];
+
   /**
    * Default selected values.
    */
