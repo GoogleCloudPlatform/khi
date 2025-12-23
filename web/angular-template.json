@@ -87,7 +87,11 @@
             "browserTarget": "frontend:build",
             "compodoc": true,
             "compodocArgs": ["-e", "json", "-d", "."],
-            "port": 6006
+            "port": 6006,
+            "styles": [
+              "@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss"
+            ]
           }
         },
         "build-storybook": {
@@ -97,7 +101,11 @@
             "browserTarget": "frontend:build",
             "compodoc": true,
             "compodocArgs": ["-e", "json", "-d", "."],
-            "outputDir": "storybook-static"
+            "outputDir": "storybook-static",
+            "styles": [
+              "@angular/material/prebuilt-themes/indigo-pink.css",
+              "src/styles.scss"
+            ]
           }
         }
       }
