@@ -83,7 +83,7 @@ import { COMMA, ENTER } from '@angular/cdk/keycodes';
 export class SetInputComponent {
   separatorKeysCodes: number[] = [ENTER, COMMA];
   /** The currently selected item IDs. */
-  public selectedItems = input<string[]>([]);
+  selectedItems = input<string[]>([]);
   /** The available choices. */
   public choices = input<SetInputItem[]>([]);
   /** Custom template for rendering selected items (chips). */
