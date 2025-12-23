@@ -87,9 +87,9 @@ export class SetInputComponent {
   /** The available choices. */
   public choices = input<SetInputItem[]>([]);
   /** Custom template for rendering selected items (chips). */
-  public chipTemplate = input<TemplateRef<any> | null>(null);
+  public chipTemplate = input<TemplateRef<unknown> | null>(null);
   /** Custom template for rendering autocomplete options. */
-  public optionTemplate = input<TemplateRef<any> | null>(null);
+  public optionTemplate = input<TemplateRef<unknown> | null>(null);
   /** Whether to allow adding values that are not in the choices list. Defaults to false. */
   public allowCustomValues = input<boolean>(false);
   /** Whether to show the "Add all" button. Defaults to true. */
