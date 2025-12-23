@@ -149,13 +149,13 @@ export class SetInputComponent {
 
   /** Adds an item from the text input (chip input event). */
   addItemFromText(event: MatChipInputEvent): void {
-    const value = (event.value || '').trim();
+    const inputValue = (event.value || '').trim();
 
-    if (value) {
+    if (inputValue) {
       // Find ID if it matches a choice id
-      const existingChoice = this.choices().find((c) => c.id === value);
+      const existingChoice = this.choices().find((c) => c.id === inputValue);
       if (existingChoice || this.allowCustomValues()) {
-        const idToAdd = existingChoice ? existingChoice.id : value;
+        const idToAdd = existingChoice ? existingChoice.id : inputValue;
         const newItems = this.getUniqueString([
           ...this.selectedItems(),
           idToAdd,
