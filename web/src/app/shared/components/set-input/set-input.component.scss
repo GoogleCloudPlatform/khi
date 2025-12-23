@@ -15,16 +15,14 @@
  */
 @use "sass:color";
 
-@use "src/app/common.scss" as common;
-
 .container {
   width: 100%;
 }
 
 mat-form-field {
   width: 100%;
-  --mat-form-field-container-height: 40px;
-  --mat-form-field-container-vertical-padding: 8px;
+  --mat-form-field-container-height: 50px;
+  --mat-form-field-container-vertical-padding: 4px;
 }
 
 .buttons {
@@ -35,10 +33,4 @@ mat-form-field {
   mat-icon {
     margin: 0 5px 0 -5px;
   }
-}
-
-.chip-grid {
-  max-height: 400px;
-
-  @include common.show-vertical-scrollbar-always;
 }

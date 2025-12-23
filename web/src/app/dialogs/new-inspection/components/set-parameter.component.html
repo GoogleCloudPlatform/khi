@@ -27,13 +27,14 @@
     [allowCustomValues]="param.allowCustomValue"
     [chipTemplate]="aliasChip"
     [optionTemplate]="optionItem"
+    [allowSubtractiveValue]="true"
   ></khi-shared-set-input>
+  @if (param.hintType !== ParameterHintType.None) {
+    <khi-new-inspection-parameter-hint
+      [parameter]="param"
+    ></khi-new-inspection-parameter-hint>
+  }
 </div>
-@if (param.hintType !== ParameterHintType.None) {
-  <khi-new-inspection-parameter-hint
-    [parameter]="param"
-  ></khi-new-inspection-parameter-hint>
-}
 
 <ng-template #aliasChip let-item let-remove="remove">
   <khi-new-inspection-alias-chip
