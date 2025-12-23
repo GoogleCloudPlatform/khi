@@ -1,0 +1,31 @@
+<mat-chip-row (removed)="remove.emit()">
+  <span class="display-label">
+    @if (isExclusion()) {
+      <span class="display-label-exclusion">-</span>
+    }
+    @if (isAlias()) {
+      <span class="display-label-alias">@</span>
+    }
+    <span>{{ displayLabel() }}</span>
+  </span>
+
+  @if (isAlias()) {
+    <span
+      class="alias subchip"
+      matTooltip="An alias item. It'll be replaced with another set of values."
+    >
+      @alias
+    </span>
+  }
+  @if (isExclusion()) {
+    <span
+      class="exclusion subchip"
+      matTooltip="An subtractive item. It'll be excluded from the result."
+    >
+      -subtractive
+    </span>
+  }
+  <button matChipRemove>
+    <mat-icon>cancel</mat-icon>
+  </button>
+</mat-chip-row>

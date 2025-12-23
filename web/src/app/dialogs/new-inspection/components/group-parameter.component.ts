@@ -21,6 +21,7 @@ import {
 } from 'src/app/common/schema/form-types';
 import { TextParameterComponent } from './text-parameter.component';
 import { FileParameterComponent } from './file-parameter.component';
+import { SetParameterComponent } from './set-parameter.component';
 import { ParameterHeaderComponent } from './parameter-header.component';
 import { ParameterHintComponent } from './parameter-hint.component';
 import { CommonModule } from '@angular/common';
@@ -47,6 +48,7 @@ import {
     MatButtonModule,
     TextParameterComponent,
     FileParameterComponent,
+    SetParameterComponent,
     ParameterHeaderComponent,
     ParameterHintComponent,
   ],

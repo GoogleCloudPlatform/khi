@@ -1,0 +1,54 @@
+@use "@angular/material" as mat;
+@use "sass:color";
+
+$exclusion-color: #ff4141;
+$alias-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
+
+:host {
+  display: inline-flex;
+}
+
+mat-chip-row {
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 5px,
+    )
+  );
+
+  &.exclusion {
+    background-color: $exclusion-color;
+  }
+}
+
+.display-label {
+  font-weight: 600;
+}
+
+.display-label-alias {
+  color: $alias-color;
+}
+.display-label-exclusion {
+  color: $exclusion-color;
+}
+
+.subchip {
+  border-radius: 5px;
+  color: white;
+  padding: 4px 10px;
+  font-size: 10px;
+  pointer-events: all;
+  margin: 0 2px;
+  mat-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+  }
+}
+
+.alias {
+  background-color: $alias-color;
+}
+
+.exclusion {
+  background-color: $exclusion-color;
+}

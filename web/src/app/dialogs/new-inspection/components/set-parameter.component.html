@@ -1,0 +1,24 @@
+@let param = parameter();
+<khi-new-inspection-parameter-header [parameter]="param">
+</khi-new-inspection-parameter-header>
+<khi-shared-set-input
+  [choices]="choices()"
+  [selectedItems]="stagingInput()"
+  (selectedItemsChange)="onSelectionChange($event)"
+  [showAddAll]="param.allowAddAll"
+  [showRemoveAll]="param.allowRemoveAll"
+  [allowCustomValues]="param.allowCustomValue"
+  [chipTemplate]="aliasChip"
+></khi-shared-set-input>
+@if (param.hintType !== ParameterHintType.None) {
+  <khi-new-inspection-parameter-hint
+    [parameter]="param"
+  ></khi-new-inspection-parameter-hint>
+}
+
+<ng-template #aliasChip let-item let-remove="remove">
+  <khi-new-inspection-alias-chip
+    [item]="item"
+    (remove)="remove()"
+  ></khi-new-inspection-alias-chip>
+</ng-template>
