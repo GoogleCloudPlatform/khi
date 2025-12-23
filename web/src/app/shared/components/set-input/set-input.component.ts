@@ -149,15 +149,12 @@ export class SetInputComponent {
 
   /** Adds an item from the text input (chip input event). */
   addItemFromText(event: MatChipInputEvent): void {
-    console.log("add item from text", event)
     const value = (event.value || '').trim();
 
     if (value) {
       // Find ID if it matches a choice id
       const existingChoice = this.choices().find((c) => c.id === value);
-      if (!existingChoice && !this.allowCustomValues()) {
-        // Do not add if custom values are not allowed and it's not a choice
-      } else {
+      if (existingChoice || this.allowCustomValues()) {
         const idToAdd = existingChoice ? existingChoice.id : value;
         const newItems = this.getUniqueString([...this.selectedItems(), idToAdd]);
         this.selectedItemsChange.emit(newItems);
