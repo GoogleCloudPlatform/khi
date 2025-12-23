@@ -46,6 +46,11 @@
             [parameter]="parameter"
           ></khi-new-inspection-file-parameter>
         }
+        @case (ParameterInputType.Set) {
+          <khi-new-inspection-set-parameter
+            [parameter]="parameter"
+          ></khi-new-inspection-set-parameter>
+        }
         @case (ParameterInputType.Group) {
           <khi-new-inspection-group-parameter
             [parameter]="parameter"

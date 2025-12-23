@@ -21,6 +21,7 @@ export enum ParameterInputType {
   Group = 'group',
   Text = 'text',
   File = 'file',
+  Set = 'set',
 }
 
 /**
@@ -157,8 +158,53 @@ export interface FileParameterFormField extends ParameterFormFieldBase {
    */
   status: UploadStatus;
 }
+/**
+ * An option item of set type parameter.
+ */
+export interface SetParameterFormFieldOptionItem {
+  /**
+   * A unique value and the value used as the label of the option.
+   */
+  id: string;
+  /**
+   * The description of the option.
+   */
+  description: string;
+}
+
+/**
+ * Set type parameter specific data.
+ */
+export interface SetParameterFormField extends ParameterFormFieldBase {
+  type: ParameterInputType.Set;
+  /**
+   * List of available options.
+   */
+  options: SetParameterFormFieldOptionItem[];
+
+  /**
+   * Default selected values.
+   */
+  default: string[];
+
+  /**
+   * If the "Add All" button is enabled or not.
+   */
+  allowAddAll: boolean;
+
+  /**
+   * If the "Remove All" button is enabled or not.
+   */
+  allowRemoveAll: boolean;
+
+  /**
+   * If the text input allows custom values or not.
+   */
+  allowCustomValue: boolean;
+}
 
 export type ParameterFormField =
   | GroupParameterFormField
   | TextParameterFormField
-  | FileParameterFormField;
+  | FileParameterFormField
+  | SetParameterFormField;
