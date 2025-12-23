@@ -1,0 +1,101 @@
+<!--
+Copyright 2025 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<div class="container">
+  <mat-form-field appearance="fill">
+    <mat-chip-grid #chipList class="chip-grid">
+      @for (item of viewSelectedItems(); track item.id) {
+        <ng-container
+          *ngTemplateOutlet="
+            chipTemplate() || defaultChip;
+            context: {
+              $implicit: item,
+              remove: removeItem.bind(this, item),
+              selectOnly: selectOnly.bind(this, item),
+            }
+          "
+        ></ng-container>
+      }
+      <input
+        placeholder="Type here to add..."
+        #inputElement
+        [formControl]="inputCtrl"
+        [matAutocomplete]="auto"
+        [matChipInputFor]="chipList"
+        [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+        (matChipInputTokenEnd)="addItemFromText($event)"
+      />
+    </mat-chip-grid>
+    <mat-autocomplete
+      #auto="matAutocomplete"
+      (optionSelected)="selected($event)"
+    >
+      @for (item of textFieldCandidates(); track item.id) {
+        <mat-option [value]="item.id">
+          <ng-container
+            *ngTemplateOutlet="
+              optionTemplate() || defaultOption;
+              context: { $implicit: item }
+            "
+          ></ng-container>
+        </mat-option>
+      }
+    </mat-autocomplete>
+  </mat-form-field>
+  @if (showAddAll() || showRemoveAll()) {
+    <div class="buttons">
+      @if (showAddAll()) {
+        <button
+          class="add-all-button"
+          mat-stroked-button
+          color="primary"
+          [disabled]="selectedItems().length === choices().length"
+          (click)="addAll()"
+        >
+          <mat-icon>add_circle</mat-icon>Add all
+        </button>
+      }
+      @if (showRemoveAll()) {
+        <button
+          class="remove-all-button"
+          mat-stroked-button
+          color="warn"
+          [disabled]="selectedItems().length === 0"
+          (click)="removeAll()"
+        >
+          <mat-icon>remove_circle</mat-icon>Remove all
+        </button>
+      }
+    </div>
+  }
+</div>
+
+<ng-template
+  #defaultChip
+  let-item
+  let-remove="remove"
+  let-selectOnly="selectOnly"
+>
+  <khi-set-input-default-chip
+    [item]="item"
+    (remove)="remove()"
+    (selectOnly)="selectOnly()"
+  ></khi-set-input-default-chip>
+</ng-template>
+
+<ng-template #defaultOption let-item>
+  <khi-set-input-default-option [item]="item"></khi-set-input-default-option>
+</ng-template>

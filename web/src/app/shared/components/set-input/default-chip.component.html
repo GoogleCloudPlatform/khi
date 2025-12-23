@@ -1,0 +1,17 @@
+<mat-chip-row (removed)="remove.emit()">
+  {{ item().id }}
+  <button class="chip-button only" (click)="selectOnly.emit()">
+    <mat-icon
+      class="chip-button-icon only"
+      [matTooltip]="'Select only ' + item().id"
+      >check_circle</mat-icon
+    >
+  </button>
+  <button class="chip-button remove" (click)="remove.emit()">
+    <mat-icon
+      class="chip-button-icon remove"
+      [matTooltip]="'Unselect ' + item().id"
+      >cancel</mat-icon
+    >
+  </button>
+</mat-chip-row>
