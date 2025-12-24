@@ -97,6 +97,9 @@ export class SetInputComponent {
   /** Whether to show the "Remove all" button. Defaults to true. */
   public showRemoveAll = input<boolean>(true);
 
+  /** Whether to allow subtractive values. Defaults to false. */
+  public allowSubtractiveValue = input<boolean>(false);
+
   /** Emits the updated list of selected item IDs when selection changes. */
   public selectedItemsChange = output<string[]>();
 
@@ -134,7 +137,10 @@ export class SetInputComponent {
     const available = this.choices().filter((c) => !selectedIdSet.has(c.id));
 
     if (!name) return available;
-    const lowerName = name.toLowerCase();
+    let lowerName = name.toLowerCase();
+    if (this.allowSubtractiveValue() && lowerName.startsWith('-')) {
+      lowerName = lowerName.substring(1);
+    }
     // Simple filtering by id
     return available.filter((item) =>
       item.id.toLowerCase().includes(lowerName),
@@ -192,7 +198,11 @@ export class SetInputComponent {
   /** Handle selection from autocomplete. */
   selected(event: MatAutocompleteSelectedEvent): void {
     const id = event.option.value as string;
-    const newItems = this.getUniqueString([...this.selectedItems(), id]);
+    let newItem = id;
+    if (this.allowSubtractiveValue() && this.inputValue().startsWith('-')) {
+      newItem = '-' + id;
+    }
+    const newItems = this.getUniqueString([...this.selectedItems(), newItem]);
     this.selectedItemsChange.emit(newItems);
     this.inputElement.nativeElement.value = '';
     this.inputCtrl.setValue('');
