@@ -20,13 +20,9 @@ You can't create a new branch our repository directly. Please fork our repositor
 Please check [this document](https://docs.github.com/en/authentication/managing-commit-signature-verification) to make sure your commits are signed.
 Our repository can't accept unsigned commits.
 
-### Setup Git hook
+## About the Git hooks
 
-Run the following shell command to setup Git hook. It runs format or lint codes before commiting changes.
-
-```shell
-make setup-hooks
-```
+The `make setup` make target installs git hooks to your local repository. This hook automatically checks license header existence, formats code, and runs linters before your commit. It will reduce the possibility for you to face CI failure with simple format errors.
 
 ### Setup VSCode config
 

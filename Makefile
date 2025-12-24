@@ -37,10 +37,19 @@ format: format-web format-go ## Format all source code
 #  Setup
 # ====================================================================================
 
+.PHONY: setup
+setup: setup-hooks
+	cd web && npm install
+	make build-web
+	make build-go
+
 .PHONY: setup-hooks
 setup-hooks: ## Set up git hooks
-	cp ./scripts/pre-commit .git/hooks/
-	chmod +x .git/hooks/pre-commit
+	@HOOK_DIR=$$(git rev-parse --git-path hooks); \
+	PRE_COMMIT_HOOK="$$HOOK_DIR/pre-commit"; \
+	mkdir -p "$$HOOK_DIR"; \
+	printf '%s\n' '#!/bin/sh' 'cd "$$(git rev-parse --show-toplevel)"' 'exec make pre-commit' > "$$PRE_COMMIT_HOOK"; \
+	chmod +x "$$PRE_COMMIT_HOOK"
 
 # ====================================================================================
 #  Utils

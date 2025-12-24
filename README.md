@@ -123,14 +123,16 @@ For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
   e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
 1. Move to the project root
   e.g. `cd khi`
-1. Run `cd ./web && npm install` from the project root
+1. Run `make setup` from the project root
+(This make target install npm packages, generate some auto generated code and setup git hooks)
 
 #### Build KHI from source and run
 
 1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
   e.g. `gcloud auth login` if you use your user account credentials
-1. Run `make build-web && KHI_FRONTEND_ASSET_FOLDER=./pkg/server/dist go run cmd/kubernetes-history-inspector/main.go` from the project root
-  Open `localhost:8080` and start working with KHI!
+1. Run `make build`
+1. Run the generated executable with `./khi`
+1. Open `localhost:8080` and start working with KHI!
 
 </details>
 
