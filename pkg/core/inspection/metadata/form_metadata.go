@@ -34,6 +34,8 @@ const (
 	Text ParameterInputType = "text"
 	// File is a type of ParameterInputType. This represents the file type input field.
 	File ParameterInputType = "file"
+	// Set is a type of ParameterInputType. This represents the set type input field.
+	Set ParameterInputType = "set"
 )
 
 // ParameterHintType represents the types of hint message shown at the bottom of parameter forms.
@@ -108,6 +110,29 @@ type TextParameterFormField struct {
 	ValidationTiming TextFormValidationTimingType `json:"validationTiming"`
 }
 
+// SetParameterFormFieldOptionItem represents an option item in SetParameterFormField.
+type SetParameterFormFieldOptionItem struct {
+	// ID is the unique identifier of the option.
+	ID string `json:"id"`
+	// Description is a human readable description of the option.
+	Description string `json:"description"`
+}
+
+// SetParameterFormField represents Set type parameter specific data.
+type SetParameterFormField struct {
+	ParameterFormFieldBase
+	// AllowCustomValue allows users to add custom values not in the options list.
+	AllowCustomValue bool `json:"allowCustomValue"`
+	// AllowAddAll shows a button to add all available options.
+	AllowAddAll bool `json:"allowAddAll"`
+	// AllowRemoveAll shows a button to remove all selected values.
+	AllowRemoveAll bool `json:"allowRemoveAll"`
+	// Options is the list of available options.
+	Options []SetParameterFormFieldOptionItem `json:"options"`
+	// Default is the default selected values of this field.
+	Default []string `json:"default"`
+}
+
 // FileParameterFormField represents File type parameter specific data.
 type FileParameterFormField struct {
 	ParameterFormFieldBase
@@ -180,6 +205,8 @@ func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldB
 	case GroupParameterFormField:
 		return v.ParameterFormFieldBase
 	case TextParameterFormField:
+		return v.ParameterFormFieldBase
+	case SetParameterFormField:
 		return v.ParameterFormFieldBase
 	case FileParameterFormField:
 		return v.ParameterFormFieldBase
