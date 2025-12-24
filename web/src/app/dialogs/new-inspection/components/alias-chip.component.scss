@@ -1,0 +1,71 @@
+/**
+ * Copyright 2025 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "@angular/material" as mat;
+@use "sass:color";
+
+$exclusion-color: #ff4141;
+$alias-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
+
+:host {
+  display: inline-flex;
+}
+
+mat-chip-row {
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 5px,
+    )
+  );
+
+  &.exclusion {
+    background-color: $exclusion-color;
+  }
+}
+
+.display-label {
+  font-weight: 600;
+  margin: 0px 4px;
+}
+
+.display-label-alias {
+  color: $alias-color;
+}
+.display-label-exclusion {
+  color: $exclusion-color;
+}
+
+.subchip {
+  border-radius: 5px;
+  color: white;
+  padding: 4px 6px;
+  font-size: 10px;
+  pointer-events: all;
+  margin: 0 2px;
+  mat-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+  }
+}
+
+.alias {
+  background-color: $alias-color;
+}
+
+.exclusion {
+  background-color: $exclusion-color;
+}

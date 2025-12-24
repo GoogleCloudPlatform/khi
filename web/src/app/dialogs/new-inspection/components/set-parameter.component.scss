@@ -13,32 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@use "sass:color";
 
-@use "src/app/common.scss" as common;
+:host {
+  display: block;
+}
 
-.container {
+.parametere-form-field {
   width: 100%;
 }
 
-mat-form-field {
-  width: 100%;
-  --mat-form-field-container-height: 40px;
-  --mat-form-field-container-vertical-padding: 8px;
-}
-
-.buttons {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-
-  mat-icon {
-    margin: 0 5px 0 -5px;
-  }
-}
-
-.chip-grid {
-  max-height: 400px;
-
-  @include common.show-vertical-scrollbar-always;
+.input-container {
+  margin: 0px 10px 0px 20px;
 }
