@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
@@ -29,21 +30,32 @@ var inputKindNameAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]s
 }
 
 // InputKindFilterTask is a form task for inputting the kind filter.
-var InputKindFilterTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputKindFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+5000, "Kind").
-	WithDefaultValueConstant("@default", true).
+var InputKindFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_contract.InputKindFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+5000, "Kind").
+	WithDefaultValueConstant([]string{"@default"}, true).
 	WithDescription("The kinds of resources to gather logs. `@default` is a alias of set of kinds that frequently queried. Specify `@any` to query every kinds of resources").
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		if value == "" {
+	WithAllowAddAll(false).
+	WithAllowRemoveAll(false).
+	WithAllowCustomValue(true).
+	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
+		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@any", Description: "[Alias]An alias matches any of the kinds"})
+		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@default", Description: "[Alias]An alias matches a set of kinds that frequently queried."})
+		return result, nil
+	}).
+	WithValidator(func(ctx context.Context, value []string) (string, error) {
+		if len(value) == 0 {
 			return "kind filter can't be empty", nil
 		}
-		result, err := gcpqueryutil.ParseSetFilter(value, inputKindNameAliasMap, true, true, true)
+		filterInStr := strings.Join(value, " ")
+		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindNameAliasMap, true, true, true)
 		if err != nil {
 			return "", err
 		}
 		return result.ValidationError, nil
 	}).
-	WithConverter(func(ctx context.Context, value string) (*gcpqueryutil.SetFilterParseResult, error) {
-		result, err := gcpqueryutil.ParseSetFilter(value, inputKindNameAliasMap, true, true, true)
+	WithConverter(func(ctx context.Context, value []string) (*gcpqueryutil.SetFilterParseResult, error) {
+		filterInStr := strings.Join(value, " ")
+		result, err := gcpqueryutil.ParseSetFilter(filterInStr, inputKindNameAliasMap, true, true, true)
 		if err != nil {
 			return nil, err
 		}

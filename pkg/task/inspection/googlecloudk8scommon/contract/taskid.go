@@ -23,11 +23,23 @@ import (
 // GoogleCloudCommonK8STaskIDPrefix is the prefix for common task used for K8s on Google Cloud related tasks  IDs.
 var GoogleCloudCommonK8STaskIDPrefix = "cloud.google.com/k8s/"
 
-// AutocompleteClusterNamesMetricsTypeTaskID is the task ID for returning cluster name candidates as AutocompleteClusterNameList.
-var AutocompleteClusterNamesMetricsTypeTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names/metrics-type")
+// AutocompleteMetricsK8sContainerTaskID is the task ID for returning metrics type returning k8s_container resource type.
+var AutocompleteMetricsK8sContainerTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/metrics/k8s_container")
+
+// AutocompleteMetricsK8sNodeTaskID is the task ID for returning metrics type returning k8s_node resource type.
+var AutocompleteMetricsK8sNodeTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/metrics/k8s_node")
 
 // AutocompleteClusterNamesTaskID is the task ID for returning cluster name candidates as AutocompleteClusterNameList.
-var AutocompleteClusterNamesTaskID = taskid.NewDefaultImplementationID[*AutocompleteClusterNameList](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names")
+var AutocompleteClusterNamesTaskID = taskid.NewDefaultImplementationID[*AutocompleteResult](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/cluster-names")
+
+// AutocompleteNamespacesTaskID is the task ID for returning namespace candidates as AutocompleteResult.
+var AutocompleteNamespacesTaskID = taskid.NewDefaultImplementationID[*AutocompleteResult](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/namespaces")
+
+// AutocompleteNodeNamesTaskID is the task ID for returning node name candidates as AutocompleteResult.
+var AutocompleteNodeNamesTaskID = taskid.NewDefaultImplementationID[*AutocompleteResult](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/node-names")
+
+// AutocompletePodNamesTaskID is the task ID for returning pod name candidates as AutocompleteResult.
+var AutocompletePodNamesTaskID = taskid.NewDefaultImplementationID[*AutocompleteResult](GoogleCloudCommonK8STaskIDPrefix + "autocomplete/pod-names")
 
 // HeaderSuggestedFileNameTaskID is the task ID for the suggested file name of the inspection file included in the header metadata. This name is used for the default name of downloaded file.
 var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudCommonK8STaskIDPrefix + "header-suggested-file-name")

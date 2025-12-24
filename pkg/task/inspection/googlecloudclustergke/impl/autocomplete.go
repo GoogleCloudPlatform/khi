@@ -24,8 +24,14 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// AutocompleteClusterNamesMetricsTypeTask returns the metrics type used for autocomplete cluster names in GKE.
+// AutocompleteMetricsK8sContainerTask returns the metrics type used for autocomplete cluster names in GKE.
 // The metrics type "kubernetes.io/container/uptime" is used for GKE instead of the default "kubernetes.io/anthos/container/uptime".
-var AutocompleteClusterNamesMetricsTypeTask = coretask.NewTask(googlecloudclustergke_contract.AutocompleteClusterNamesMetricsTypeTaskIDForGKE, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+var AutocompleteMetricsK8sContainerTask = coretask.NewTask(googlecloudclustergke_contract.AutocompleteMetricsK8sContainerTaskIDForGKE, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	return "kubernetes.io/container/uptime", nil
+}, coretask.WithSelectionPriority(1000), inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...))
+
+// AutocompleteMetricsK8sNodeTask returns the metrics type used for autocomplete node names in GKE.
+// The metrics type "kubernetes.io/node/cpu/total_cores" is used for GKE instead of the default "kubernetes.io/anthos/up".
+var AutocompleteMetricsK8sNodeTask = coretask.NewTask(googlecloudclustergke_contract.AutocompleteMetricsK8sNodeTaskIDForGKE, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+	return "kubernetes.io/node/cpu/total_cores", nil
 }, coretask.WithSelectionPriority(1000), inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...))

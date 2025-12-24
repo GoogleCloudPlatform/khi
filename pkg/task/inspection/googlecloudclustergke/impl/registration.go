@@ -28,6 +28,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 	}
 	return coretask.RegisterTasks(registry,
 		GKEClusterNamePrefixTask,
-		AutocompleteClusterNamesMetricsTypeTask,
+		AutocompleteMetricsK8sContainerTask,
+		AutocompleteMetricsK8sNodeTask,
 	)
 }

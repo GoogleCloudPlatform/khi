@@ -14,9 +14,9 @@
 
 package googlecloudk8scommon_contract
 
-// AutocompleteClusterNameList is a list of cluster names for autocomplete.
-type AutocompleteClusterNameList struct {
-	ClusterNames []string
-	Error        string
-	Hint         string
+// AutocompleteResult is a list of cluster names/namespaces/node names/pod names for autocomplete.
+type AutocompleteResult struct {
+	Values []string
+	Error  string
+	Hint   string
 }

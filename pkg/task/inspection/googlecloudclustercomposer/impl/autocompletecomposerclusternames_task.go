@@ -34,7 +34,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 	googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinderTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult], error) {
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	environment := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
@@ -43,11 +43,11 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 	// when the user is inputing these information, abort
 	isWIP := projectID == "" || environment == ""
 	if isWIP {
-		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
 			DependencyDigest: dependencyDigest,
-			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
-				ClusterNames: []string{},
-				Error:        "Project ID or Composer environment name is empty",
+			Value: &googlecloudk8scommon_contract.AutocompleteResult{
+				Values: []string{},
+				Error:  "Project ID or Composer environment name is empty",
 			},
 		}, nil
 	}
@@ -60,28 +60,28 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 	clusterName, err := clusterFinder.GetGKEClusterName(ctx, projectID, environment)
 	if err != nil {
 		if errors.Is(err, googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound) {
-			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+			return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
 				DependencyDigest: dependencyDigest,
-				Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
-					ClusterNames: []string{},
+				Value: &googlecloudk8scommon_contract.AutocompleteResult{
+					Values: []string{},
 					Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
 Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
 				},
 			}, nil
 		}
-		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+		return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
 			DependencyDigest: dependencyDigest,
-			Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
-				ClusterNames: []string{},
-				Error:        "Failed to fetch the list GKE cluster. Please confirm if the Project ID is correct, or retry later",
+			Value: &googlecloudk8scommon_contract.AutocompleteResult{
+				Values: []string{},
+				Error:  "Failed to fetch the list GKE cluster. Please confirm if the Project ID is correct, or retry later",
 			},
 		}, nil
 	}
 
-	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteClusterNameList]{
+	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
 		DependencyDigest: dependencyDigest,
-		Value: &googlecloudk8scommon_contract.AutocompleteClusterNameList{
-			ClusterNames: []string{clusterName},
+		Value: &googlecloudk8scommon_contract.AutocompleteResult{
+			Values: []string{clusterName},
 		},
 	}, nil
 }, inspectioncore_contract.InspectionTypeLabel(googlecloudclustercomposer_contract.InspectionTypeId),
