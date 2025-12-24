@@ -28,9 +28,9 @@ import (
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
 	testClusterNamePrefix := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "", nil)
-	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref(), &googlecloudk8scommon_contract.AutocompleteClusterNameList{
-		ClusterNames: []string{"foo-cluster", "bar-cluster"},
-		Error:        "",
+	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref(), &googlecloudk8scommon_contract.AutocompleteResult{
+		Values: []string{"foo-cluster", "bar-cluster"},
+		Error:  "",
 	}, nil)
 	form_task_test.TestTextForms(t, "cluster name", InputClusterNameTask, []*form_task_test.TextFormTestCase{
 		{

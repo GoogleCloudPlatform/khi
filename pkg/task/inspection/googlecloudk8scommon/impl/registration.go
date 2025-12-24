@@ -23,8 +23,12 @@ import (
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		HeaderSuggestedFileNameTask,
-		AutocompleteClusterNamesMetricsTypeTask,
+		AutocompleteMetricsK8sContainerTask,
+		AutocompleteMetricsK8sNodeTask,
 		AutocompleteClusterNamesTask,
+		AutocompleteNamespacesTask,
+		AutocompleteNodeNamesTask,
+		AutocompletePodNamesTask,
 		DefaultK8sResourceMergeConfigTask,
 		InputClusterNameTask,
 		InputKindFilterTask,

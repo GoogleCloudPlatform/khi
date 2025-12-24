@@ -26,5 +26,8 @@ var ClusterGKETaskCommonPrefix = googlecloudcommon_contract.GoogleCloudCommonTas
 // ClusterNamePrefixTaskIDForGKE is the task ID for the GKE cluster name prefix(it's "" for GKE)
 var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke")
 
-// AutocompleteClusterNamesMetricsTypeTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.
-var AutocompleteClusterNamesMetricsTypeTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterNamesMetricsTypeTaskID.Ref(), "gke")
+// AutocompleteMetricsK8sContainerTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.
+var AutocompleteMetricsK8sContainerTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(), "gke")
+
+// AutocompleteMetricsK8sNodeTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.
+var AutocompleteMetricsK8sNodeTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref(), "gke")

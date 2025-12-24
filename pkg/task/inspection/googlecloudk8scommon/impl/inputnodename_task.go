@@ -18,41 +18,51 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
+	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
+const maxNodeNameFilterOptions = 500
+
 var nodeNameSubstringValidator = regexp.MustCompile("^[-a-z0-9]*$")
 
-// getNodeNameSubstringsFromRawInput splits input by spaces and returns result in array.
-// This removes surround spaces and removes empty string.
-func getNodeNameSubstringsFromRawInput(value string) []string {
-	result := []string{}
-	nodeNameSubstrings := strings.Split(value, " ")
-	for _, v := range nodeNameSubstrings {
-		nodeNameSubstring := strings.TrimSpace(v)
-		if nodeNameSubstring != "" {
-			result = append(result, nodeNameSubstring)
-		}
-	}
-	return result
-}
-
 // InputNodeNameFilterTask is a task to collect list of substrings of node names. This input value is used in querying k8s_node or serialport logs.
-var InputNodeNameFilterTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputNodeNameFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+3000, "Node names").
-	WithDefaultValueConstant("", true).
+var InputNodeNameFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_contract.InputNodeNameFilterTaskID, googlecloudcommon_contract.PriorityForK8sResourceFilterGroup+3000, "Node names").
+	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID.Ref()}).
+	WithDefaultValueConstant([]string{}, true).
 	WithDescription("A space-separated list of node name substrings used to collect node-related logs. If left blank, KHI gathers logs from all nodes in the cluster.").
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		nodeNameSubstrings := getNodeNameSubstringsFromRawInput(value)
-		for _, name := range nodeNameSubstrings {
-			if !nodeNameSubstringValidator.Match([]byte(name)) {
-				return fmt.Sprintf("substring `%s` is not valid as a substring of node name", name), nil
+	WithAllowAddAll(false).
+	WithAllowRemoveAll(false).
+	WithAllowCustomValue(true).
+	WithValidator(func(ctx context.Context, value []string) (string, error) {
+		for _, v := range value {
+			if !nodeNameSubstringValidator.MatchString(v) {
+				return fmt.Sprintf("invalid node name substring: %s", v), nil
 			}
 		}
 		return "", nil
-	}).WithConverter(func(ctx context.Context, value string) ([]string, error) {
-	return getNodeNameSubstringsFromRawInput(value), nil
-}).Build()
+	}).
+	WithOptionsFunc(func(ctx context.Context, prevValue []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
+		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
+		nodeNames := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID.Ref())
+		for i, v := range nodeNames.Values {
+			if i >= maxNodeNameFilterOptions {
+				break
+			}
+			result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: v})
+		}
+		return result, nil
+	}).
+	WithHintFunc(func(ctx context.Context, value []string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
+		nodeNames := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID.Ref())
+		if len(nodeNames.Values) > maxNodeNameFilterOptions {
+			return fmt.Sprintf("Some node names are not shown on the suggestion list because the number of node names is %d, which is more than %d.", len(nodeNames.Values), maxNodeNameFilterOptions), inspectionmetadata.Warning, nil
+		}
+		return "", inspectionmetadata.None, nil
+	}).
+	Build()

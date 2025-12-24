@@ -41,17 +41,17 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
 		// If the previous value is included in the list of cluster names, the name is used as the default value.
-		if len(previousValues) > 0 && slices.Index(clusters.ClusterNames, previousValues[0]) > -1 {
+		if len(previousValues) > 0 && slices.Index(clusters.Values, previousValues[0]) > -1 {
 			return previousValues[0], nil
 		}
-		if len(clusters.ClusterNames) == 0 {
+		if len(clusters.Values) == 0 {
 			return "", nil
 		}
-		return clusters.ClusterNames[0], nil
+		return clusters.Values[0], nil
 	}).
 	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
-		return common.SortForAutocomplete(value, clusters.ClusterNames), nil
+		return common.SortForAutocomplete(value, clusters.Values), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
@@ -65,7 +65,7 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 			return clusters.Hint, inspectionmetadata.Info, nil
 		}
 		convertedWithoutPrefix := strings.TrimPrefix(convertedValue.(string), prefix)
-		for _, suggestedCluster := range clusters.ClusterNames {
+		for _, suggestedCluster := range clusters.Values {
 			if suggestedCluster == convertedWithoutPrefix {
 				return "", inspectionmetadata.Info, nil
 			}
