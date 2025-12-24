@@ -39,9 +39,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const embeddedStaticFolderPath = "dist"
+const embeddedStaticFolderPath = "dist/browser"
 
-//go:embed dist
+//go:embed dist/browser
 var embeddedStaticFolder embed.FS
 
 type ServerConfig struct {

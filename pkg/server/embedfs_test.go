@@ -19,7 +19,7 @@ import (
 	"testing"
 )
 
-//go:embed dist
+//go:embed dist/browser
 var embeddedStaticFolderTest embed.FS
 
 func TestEmbedFolder_Exists(t *testing.T) {
@@ -51,7 +51,7 @@ func TestEmbedFolder_Exists(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			fs := embedFolder(embeddedStaticFolderTest, "dist")
+			fs := embedFolder(embeddedStaticFolderTest, embeddedStaticFolderPath)
 
 			got := fs.Exists(tc.prefix, tc.path)
 			if got != tc.want {

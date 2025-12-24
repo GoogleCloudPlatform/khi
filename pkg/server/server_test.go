@@ -782,11 +782,11 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error %s", err)
 			}
-			defer testutil.MustPlaceTemporalFile("dist/test.html", "")()
+			defer testutil.MustPlaceTemporalFile(fmt.Sprintf("%s/test.html", embeddedStaticFolderPath), "")()
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
 				ViewerMode:       tc.viewerMode,
-				StaticFolderPath: "dist",
+				StaticFolderPath: embeddedStaticFolderPath,
 				ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
 				ServerBasePath:   tc.serverBasePath,
 			}
