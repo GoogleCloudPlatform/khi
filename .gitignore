@@ -1,5 +1,4 @@
 # IDE settings
-.vscode/
 .devcontainer/.env
 
 # Build artifacts

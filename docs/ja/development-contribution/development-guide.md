@@ -25,40 +25,13 @@ READMEの[ソースから実行](/README.ja.md#ソースから実行) の手順�
 
 ### VSCodeの設定
 
-下記のコードを`.vscode/launch.json`ファイルとして保存してください。
+このレポジトリにはVSCodeの設定ファイルが用意されています。VSCodeでKHIサーバーを起動する方法や、フロントエンドのコードに設定されたbreakpointを機能させるためのChromeの起動設定が含まれています。
 
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Start KHI Backend",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "./cmd/kubernetes-history-inspector/",
-            "cwd": "${workspaceFolder}",
-            "args": [
-                "--host",
-                "127.0.0.1",
-                "--port",
-                "8080",
-                "--frontend-asset-folder",
-                "./pkg/server/dist",
-            ],
-            "dlvLoadConfig": {
-                "followPointers": true,
-                "maxVariableRecurse": 1,
-                "maxStringLen": 100000,
-                "maxArrayValues": 64,
-                "maxStructFields": -1
-            },
-        }
-    ],
-}
-```
-
-VSCodeでKHIサーバーを実行できます。詳しくは[こちらのドキュメント](https://code.visualstudio.com/docs/languages/go) をご参照ください。
+* `.vscode/launch.json`:
+  * `Start KHI Backend`: KHIのバックエンドサーバを起動します。ポート8080で起動します。
+  * `Launch KHI Frontend (Chrome)`: KHIのフロントエンドサーバを起動しChromeで開きます。ポート4200で起動します。 4200/api宛のリクエストは8080にプロキシされます。
+  * `Launch Storybook (Chrome)`: KHIのStorybookを起動しChromeで開きます。ポート6006で起動します。
+  * `Launch Karma (Chrome)`: KHIのフロントエンドのテスト環境のKarmaを起動しChromeで開きます。ポート9876で起動します。
 
 ### フロントエンドサーバーの実行
 

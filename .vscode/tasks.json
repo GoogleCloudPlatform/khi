@@ -1,0 +1,79 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "generate-backend",
+      "type": "shell",
+      "command": "make generate-backend",
+      "group": "build"
+    },
+    {
+      "label": "precommit",
+      "type": "shell",
+      "command": "make pre-commit",
+      "group": "build"
+    },
+    {
+      "label": "Start Angular Dev Server",
+      "type": "shell",
+      "command": "make watch-web",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": "Generating browser application bundles..."
+          },
+          "endsPattern": {
+            "regexp": "Application bundle generation complete."
+          }
+        }
+      },
+      "group": "test"
+    },
+    {
+      "label": "Start Storybook",
+      "type": "shell",
+      "command": "make watch-storybook",
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "owner": "storybook",
+          "pattern": "$tsc",
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": {
+              "regexp": ".*Starting.*"
+            },
+            "endsPattern": {
+              "regexp": ".*Storybook ready! .*"
+            }
+          }
+        }
+      ],
+      "group": "test"
+    },
+    {
+      "label": "Start Karma",
+      "type": "shell",
+      "command": "make watch-karma",
+      "isBackground": true,
+      "group": "test",
+      "problemMatcher": {
+        "owner": "karma",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": ".*server started at http://localhost:9876.*"
+          },
+          "endsPattern": {
+            "regexp": ".*Executed .* FAILURE.*|.*Executed .* SUCCESS.*"
+          }
+        }
+      }
+    }
+  ]
+}

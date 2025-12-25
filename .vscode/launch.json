@@ -1,0 +1,62 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Start KHI Backend",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "./cmd/kubernetes-history-inspector/",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8080",
+        "--frontend-asset-folder",
+        "./pkg/server/dist"
+      ],
+      "dlvLoadConfig": {
+        "followPointers": true,
+        "maxVariableRecurse": 1,
+        "maxStringLen": 100000,
+        "maxArrayValues": 64,
+        "maxStructFields": -1
+      },
+      "preLaunchTask": "generate-backend"
+    },
+    {
+      "name": "Launch KHI Frontend (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}/web",
+      "preLaunchTask": "Start Angular Dev Server",
+      "sourceMaps": true
+    },
+    {
+      "name": "Launch Storybook (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:6006",
+      "webRoot": "${workspaceFolder}/web",
+      "preLaunchTask": "Start Storybook",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack://frontend/*": "${webRoot}/*"
+      }
+    },
+    {
+      "name": "Launch Karma (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:9876",
+      "webRoot": "${workspaceFolder}/web",
+      "preLaunchTask": "Start Karma",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "http://localhost:9876/base/*": "${webRoot}/*"
+      }
+    }
+  ]
+}

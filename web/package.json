@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "scripts": {
     "storybook": "ng run frontend:storybook",
-    "build-storybook": "ng run frontend:build-storybook"
+    "build-storybook": "ng run frontend:build-storybook",
+    "test": "ng run frontend:test --browsers="
   },
   "private": true,
   "dependencies": {

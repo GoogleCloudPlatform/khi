@@ -13,6 +13,10 @@ build-web: prepare-frontend ## Build frontend for production
 watch-storybook: prepare-frontend ## Run storybook development server
 	cd web && npm run storybook
 
+.PHONY: watch-karma
+watch-karma: prepare-frontend ## Run karma test server
+	cd web && npm run test
+
 .PHONY: build-go
 build-go: generate-backend ## Build backend for production
 	CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi ./cmd/kubernetes-history-inspector/...

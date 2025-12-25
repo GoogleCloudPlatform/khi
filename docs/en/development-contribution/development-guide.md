@@ -26,40 +26,13 @@ The `make setup` make target installs git hooks to your local repository. This h
 
 ### Setup VSCode config
 
-Save the following code as `.vscode/launch.json`.
+This repository contains VSCode setting files and it includes how the Go backend server runs and open Chrome with enabling the breakpoints configured on the frontend code.
 
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Start KHI Backend",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "./cmd/kubernetes-history-inspector/",
-            "cwd": "${workspaceFolder}",
-            "args": [
-                "--host",
-                "127.0.0.1",
-                "--port",
-                "8080",
-                "--frontend-asset-folder",
-                "./pkg/server/dist",
-            ],
-            "dlvLoadConfig": {
-                "followPointers": true,
-                "maxVariableRecurse": 1,
-                "maxStringLen": 100000,
-                "maxArrayValues": 64,
-                "maxStructFields": -1
-            },
-        }
-    ],
-}
-```
-
-You can run the server with VSCode. You can refer [this document](https://code.visualstudio.com/docs/languages/go) for more details.
+* `launch.json`:
+  * `Start KHI Backend`: Starts KHI backend server on port 8080.
+  * `Launch KHI Frontend (Chrome)`: Starts KHI frontend server on port 4200 and opens Chrome. Requests to `localhost:4200/api` are proxied to `localhost:8080`.
+  * `Launch Storybook (Chrome)`: Starts KHI Storybook on port 6006 and opens Chrome.
+  * `Launch Karma (Chrome)`: Starts KHI frontend test environment Karma on port 9876 and opens Chrome.
 
 ### Run frontend server for development
 

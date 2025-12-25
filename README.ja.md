@@ -131,14 +131,16 @@ KHIは、Google Cloud サポートチームが開発し、その後オープン�
    例: `git clone https://github.com/GoogleCloudPlatform/khi.git`
 2. プロジェクトルートに移動します。  
    例: `cd khi`
-3. プロジェクトルートから `cd ./web && npm install` を実行します。
+3. プロジェクトルートから `make setup` を実行します。
+(この Make ターゲットは、npm パッケージのインストール、自動生成コードの生成、git フックの設定を行います)
 
 #### KHI のビルドと実行
 
 1. [`gcloud` で認証します。](https://cloud.google.com/docs/authentication/gcloud)  
    例: ユーザーアカウントの認証情報を使用する場合は、`gcloud auth login` を実行します。
-2. プロジェクトルートから `make build-web && KHI_FRONTEND_ASSET_FOLDER=./pkg/server/dist go run cmd/kubernetes-history-inspector/main.go` を実行します。  
-   `localhost:8080` を開き、KHI の使用を開始してください！
+2. `make build` を実行します。
+3. 生成された実行ファイル `./khi` を実行します。
+4. `http://localhost:8080` を開き、KHI の使用を開始してください！
 
 </details>
 
