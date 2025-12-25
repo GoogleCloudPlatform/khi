@@ -712,7 +712,7 @@ To modify the history, you use the `ChangeSet` object passed to `ProcessLogByGro
 
 ### Mapping log associations with resources
 
-It process logs after grouping logs by resources and allows you to maintain state across logs in the same group using the `prevGroupData` argument in `ProcessLogByGroup`.
+It processes logs after grouping logs by resources and allows you to maintain state across logs in the same group using the `prevGroupData` argument in `ProcessLogByGroup`.
 
 ```go
 // Define a custom struct to hold state between logs in the same group.
@@ -778,7 +778,7 @@ func TestMyMapper_ProcessLogByGroup(t *testing.T) {
 
 ## Task utilities to discover information from logs
 
-Log parser may want to have information like (`who obtained "x.y.z.w" at a time T`, `which pod associates with a container ID "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"`) to associate them with resources. These information can be from multiple log sources but users can turn on/off which logs to process in KHI.
+Log parser may want to have information like (`who obtained "x.y.z.w" at a time T`, `which pod associates with a container ID "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"`) to associate them with resources. This information can be from multiple log sources but users can turn on/off which logs to process in KHI.
 
 KHI provides the `Discovery-Inventory` pattern task utility to gather information from multiple sources.
 
