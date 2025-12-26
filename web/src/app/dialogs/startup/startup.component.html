@@ -14,275 +14,56 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div class="background">
-  <div class="body">
-    <div class="body-header">
-      @if (
-        (isViewerMode | async) === false && (serverStat | async);
-        as serverStat
-      ) {
-        <div
-          class="mem-usage"
-          matTooltip="Memory usage on KHI server. Be careful not to cause OOM with querying big time range"
-        >
-          <p>
-            Server RAM usage:
-            {{
-              (serverStat.totalMemoryAvailable / 1024 / 1024 / 1024).toFixed(2)
-            }}
-            GB
-          </p>
-        </div>
-      }
+<div class="container">
+  <div class="header">
+    @if (isViewerMode() === false && (serverStat | async); as serverStat) {
+      <div
+        class="mem-usage"
+        matTooltip="Memory usage on KHI server. Be careful not to cause OOM with querying big time range"
+      >
+        <p>
+          Server RAM usage:
+          {{
+            (serverStat.totalMemoryAvailable / 1024 / 1024 / 1024).toFixed(2)
+          }}
+          GB
+        </p>
+      </div>
+    }
+  </div>
+  <div class="left">
+    <khi-startup-header
+      [version]="version"
+      [isViewerMode]="isViewerMode()"
+      (open)="openKhiFile()"
+      (newInspection)="openNewInspectionDialog()"
+    ></khi-startup-header>
+  </div>
+  <div class="right">
+    <khi-task-card-list
+      [tasks]="vmTasks()"
+      [isViewerMode]="isViewerMode()"
+      (openInspectionResult)="openTaskResult($event)"
+      (cancelInspection)="cancelTask($event)"
+      (openInspectionMetadata)="showMetadata($event)"
+      (downloadInspectionResult)="downloadInspectionResult($event)"
+      (changeInspectionTitle)="updateInspectionTitle($event)"
+    ></khi-task-card-list>
+  </div>
+  <div class="footer">
+    <div class="footer-header">
+      <mat-icon>developer_guide</mat-icon>
+      <p class="group-title">Links</p>
     </div>
-    <div class="task-group flex-expand">
-      <div class="task-group-body">
-        <div class="task-group-body-inner">
-          <div class="horizontal-2col-container">
-            <div class="inspect-left">
-              <div class="title-box">
-                <div class="icon">
-                  <img src="assets/icons/khi.svg" />
-                </div>
-                <div class="title">
-                  <h1>Kubernetes History Inspector</h1>
-                </div>
-                <div class="version">
-                  <p>{{ version }}</p>
-                </div>
-              </div>
-              <div class="button-group">
-                <button
-                  [disabled]="isViewerMode | async"
-                  class="task-button main"
-                  (click)="openNewInspectionDialog()"
-                  [ngClass]="{ disabled: isViewerMode | async }"
-                  [matTooltip]="
-                    (isViewerMode | async)
-                      ? 'This page is hosted as readonly mode. This operation is prohibited.'
-                      : ''
-                  "
-                >
-                  <div class="icon-container"><mat-icon>search</mat-icon></div>
-                  <div class="task-title"><p>New inspection</p></div>
-                  <div class="task-description">
-                    <p>
-                      Gather logs related to a cluster automatically with auto
-                      generated query
-                    </p>
-                  </div>
-                </button>
-                <button class="task-button" (click)="openKhiFile()">
-                  <div class="icon-container">
-                    <mat-icon>file_open</mat-icon>
-                  </div>
-                  <div class="task-title">
-                    <p>Open .khi file</p>
-                  </div>
-                  <div class="task-description">
-                    <p>Open .khi file exported before.</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-            <div class="inspect-right">
-              <div class="inspection-list">
-                @if (
-                  {
-                    tasks: taskListViewModel | async,
-                  };
-                  as listViewChildModel
-                ) {
-                  <div class="inspection-list-inner">
-                    @if ((isViewerMode | async) === false) {
-                      @if (listViewChildModel.tasks !== null) {
-                        @if (listViewChildModel.tasks.length > 0) {
-                          @for (
-                            task of listViewChildModel.tasks;
-                            track taskCollectionTrack($index, task)
-                          ) {
-                            <div class="inspection-task">
-                              <div
-                                class="inspection-task-status-indicator"
-                              ></div>
-                              <p class="task-title">{{ task.label }}</p>
-                              <p class="task-phase">
-                                <span
-                                  class="task-phase-inner"
-                                  [ngClass]="task.phase"
-                                  >{{ task.phase }}</span
-                                >
-                              </p>
-                              <div class="progress-container">
-                                @if (task.progresses.length > 0) {
-                                  <p class="progress-header">
-                                    {{ task.progresses.length }} concurrent sub
-                                    tasks are running ({{
-                                      task.totalProgress.percentageLabel
-                                    }}):
-                                  </p>
-                                }
-                                @for (
-                                  progress of task.progresses;
-                                  track progressCollectionTrack(
-                                    $index,
-                                    progress
-                                  )
-                                ) {
-                                  @if (progress.indeterminate) {
-                                    <div class="progress-element">
-                                      <div
-                                        class="indeterminate-progress-bar"
-                                      ></div>
-                                      <div class="progress-label">
-                                        <p class="progress-label-inner">
-                                          {{ progress.label }}
-                                          {{ progress.message }}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  } @else {
-                                    <div class="progress-element">
-                                      <div class="progress-label">
-                                        <p class="progress-label-inner">
-                                          {{ progress.label }}({{
-                                            progress.percentageLabel
-                                          }}%) {{ progress.message }}
-                                        </p>
-                                      </div>
-                                      <div
-                                        class="progress-bar"
-                                        [style.width.%]="progress.percentage"
-                                      ></div>
-                                    </div>
-                                  }
-                                }
-                              </div>
-                              <div class="error-container">
-                                @for (err of task.errors; track err) {
-                                  <p class="error">
-                                    <a
-                                      [href]="err.link"
-                                      class="error-link"
-                                      target="_blank"
-                                    >
-                                      <span>{{ err.message }}</span
-                                      ><mat-icon class="error-link-icon"
-                                        >open_in_new</mat-icon
-                                      ></a
-                                    >
-                                  </p>
-                                }
-                              </div>
-                              <div class="task-commands">
-                                @if (task.phase === "DONE") {
-                                  <button
-                                    class="open-button"
-                                    mat-raised-button
-                                    color="primary"
-                                    (click)="openTaskResult(task.id)"
-                                  >
-                                    <mat-icon>frame_inspect</mat-icon>
-                                    Open
-                                  </button>
-                                }
-                                <div class="icon-buttons">
-                                  @if (
-                                    task.phase === "DONE" ||
-                                    task.phase === "ERROR"
-                                  ) {
-                                    <button
-                                      mat-icon-button
-                                      matTooltip="Show task metadata"
-                                      (click)="showMetadata(task.id)"
-                                    >
-                                      <mat-icon>database</mat-icon>
-                                    </button>
-                                  }
-                                  @if (task.phase === "RUNNING") {
-                                    <button
-                                      color="accent"
-                                      mat-icon-button
-                                      matTooltip="Cancel task"
-                                      (click)="cancelTask(task.id)"
-                                    >
-                                      <mat-icon>cancel</mat-icon>
-                                    </button>
-                                  }
-                                  @if (task.phase === "DONE") {
-                                    <button
-                                      mat-icon-button
-                                      matTooltip="Export inspection data"
-                                      [disabled]="task.downloading | async"
-                                      (click)="downloadInspectionData(task.id)"
-                                    >
-                                      @if (task.downloading | async) {
-                                        <mat-icon>downloading</mat-icon>
-                                      } @else {
-                                        <mat-icon>download</mat-icon>
-                                      }
-                                    </button>
-                                  }
-                                </div>
-                              </div>
-                              <p class="task-time">
-                                Started: {{ task.inspectionTimeLabel }}
-                              </p>
-                            </div>
-                          }
-                        } @else {
-                          <div class="task-list-empty">
-                            <p class="task-list-empty-message-main">
-                              No inspections started
-                            </p>
-                            <p class="task-list-empty-message-sub">
-                              Start a new inspection or open .khi file
-                            </p>
-                          </div>
-                        }
-                      } @else {
-                        <div class="task-list-loading">
-                          <p>Loading task list...</p>
-                        </div>
-                      }
-                    } @else {
-                      <div class="task-list-empty">
-                        <p class="task-list-empty-message-main">
-                          KHI running as viewer mode
-                        </p>
-                        <p class="task-list-empty-message-sub">
-                          Please run KHI by your own when you want to newly
-                          query logs of a clsuter
-                        </p>
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="task-group">
-      <div class="task-group-header task-group-help">
-        <mat-icon>developer_guide</mat-icon>
-        <p class="group-title">Links</p>
-      </div>
-      <div class="task-group-body">
-        <div class="task-group-body-inner">
-          <div class="horizontal-2col-container">
-            <p class="link-list-elem">
-              <mat-icon class="link-icon">help</mat-icon
-              ><a [href]="documentUrl">Open help document</a>
-            </p>
-            <p class="link-list-elem">
-              <mat-icon class="link-icon">bug_report</mat-icon
-              ><a [href]="bugReportUrl" target="_blank">Report a bug/FR</a>
-            </p>
-          </div>
-        </div>
-      </div>
+    <div class="footer-content">
+      <p class="link-list-elem">
+        <mat-icon class="link-icon">help</mat-icon
+        ><a [href]="documentUrl">Open help document</a>
+      </p>
+      <p class="link-list-elem">
+        <mat-icon class="link-icon">bug_report</mat-icon
+        ><a [href]="bugReportUrl" target="_blank">Report a bug/FR</a>
+      </p>
     </div>
   </div>
 </div>
