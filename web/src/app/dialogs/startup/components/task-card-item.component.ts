@@ -94,7 +94,7 @@ export class TaskCardItemComponent {
   isMetadataAvailbale = computed(
     () => this.task().phase === 'DONE' || this.task().phase === 'ERROR',
   );
-  isCancellable = computed(() => this.task().phase == 'RUNNING');
+  isCancellable = computed(() => this.task().phase === 'RUNNING');
 
   isEditing = signal(false);
   taskNameInput = signal('');

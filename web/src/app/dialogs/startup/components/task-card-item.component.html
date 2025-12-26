@@ -71,11 +71,16 @@
       </div>
     }
     <div class="error-container">
-      @for (err of t.errors; track err) {
+      @for (err of t.errors; track $index) {
         <p class="error">
           <mat-icon class="error-icon">error</mat-icon>
           @if (err.link !== "") {
-            <a [href]="err.link" class="error-link" target="_blank">
+            <a
+              [href]="err.link"
+              class="error-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <span>{{ err.message }}</span
               ><mat-icon class="error-link-icon">open_in_new</mat-icon></a
             >
