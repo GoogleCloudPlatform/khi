@@ -30,6 +30,7 @@ import {
   PopupFormRequest,
   InspectionMetadataOfRunResult,
   GetConfigResponse,
+  InspectionPatchRequest,
 } from '../../common/schema/api-types';
 import { HttpClient, HttpEvent } from '@angular/common/http';
 import {
@@ -136,6 +137,14 @@ export class BackendAPIImpl implements BackendAPI {
             new InspectionClient(this, response.inspectionID, this.viewState),
         ),
       );
+  }
+
+  patchInspection(
+    inspectionID: string,
+    request: InspectionPatchRequest,
+  ): Observable<void> {
+    const url = this.baseUrl + `/inspection/${inspectionID}`;
+    return this.http.patch<void>(url, request);
   }
 
   public getFeatureList(inspectionID: string) {
@@ -303,6 +312,10 @@ export class InspectionClient {
     private readonly viewState: ViewStateService,
   ) {
     this.downloadFeatureList();
+  }
+
+  public patchInspection(request: InspectionPatchRequest) {
+    return this.api.patchInspection(this.inspectionID, request);
   }
 
   public downloadFeatureList() {
