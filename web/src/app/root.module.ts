@@ -32,7 +32,6 @@ import {
 } from './services/frame-connection/window-connector.service';
 import { BroadcastChannelWindowConnectionProvider } from './services/frame-connection/window-connection-provider.service';
 import { KHITitleStrategy } from './services/title-strategy.service';
-import { MatIconRegistry } from '@angular/material/icon';
 import { HttpClientModule } from '@angular/common/http';
 import { POPUP_MANAGER } from './services/popup/popup-manager';
 import { PopupManagerImpl } from './services/popup/popup-manager-impl';
@@ -83,6 +82,7 @@ import {
   FILE_UPLOADER,
   KHIServerFileUploader,
 } from './dialogs/new-inspection/components/service/file-uploader';
+import { KHIIconRegistrationModule } from './shared/module/icon-registration.module';
 
 @NgModule({
   declarations: [RootComponent],
@@ -90,6 +90,7 @@ import {
     BrowserModule,
     BrowserAnimationsModule,
     RouterModule.forRoot(KHIRoutes),
+    KHIIconRegistrationModule,
     // Standoalone components
     ...environment.pluginModules,
   ],
@@ -183,12 +184,10 @@ export class RootModule {
   constructor() {
     const injector = inject(Injector);
     const extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
-    const iconRegistry = inject(MatIconRegistry);
     const notificationManager = inject(NotificationManager);
     let extensions = inject(KHI_FRONTEND_EXTENSION_BUNDLES, { optional: true });
     extensionStore.injector = injector;
     if (!extensions) extensions = [];
-    iconRegistry.setDefaultFontSetClass('material-symbols-outlined');
     extensions.forEach((extension) => {
       extension.initializeExtension(extensionStore);
     });

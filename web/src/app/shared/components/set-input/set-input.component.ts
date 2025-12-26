@@ -56,6 +56,7 @@ export interface SetInputItem {
 import { SetInputDefaultChipComponent } from './default-chip.component';
 import { SetInputDefaultOptionComponent } from './default-option.component';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 
 /**
  * A component that allows selecting multiple items from a set of choices.
@@ -78,6 +79,7 @@ import { COMMA, ENTER } from '@angular/cdk/keycodes';
     MatTooltipModule,
     SetInputDefaultChipComponent,
     SetInputDefaultOptionComponent,
+    KHIIconRegistrationModule,
   ],
 })
 export class SetInputComponent {
