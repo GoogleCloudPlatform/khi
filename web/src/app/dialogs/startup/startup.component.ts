@@ -16,7 +16,7 @@
 
 import { Component, inject } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { ReplaySubject, combineLatest, interval, map, startWith } from 'rxjs';
+import { combineLatest, interval, map, startWith } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
 import { openNewInspectionDialog } from '../new-inspection/new-inspection.component';
@@ -133,7 +133,6 @@ export class StartupDialogComponent {
             inspectionTimeLabel: this.durationToTimeSeconds(
               Date.now() - taskMetadata.header.inspectTimeUnixSeconds * 1000,
             ),
-            downloading: new ReplaySubject<boolean>(1).pipe(startWith(false)),
             errors: taskMetadata.error.errorMessages.map((msg) => ({
               message: msg.message,
               link: msg.link,

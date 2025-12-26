@@ -34,7 +34,6 @@ import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
-import { By } from '@angular/platform-browser';
 
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogComponent>;
@@ -91,10 +90,16 @@ describe('StartupDialogComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should show loading message when task lists are not loaded yet', () => {
-    expect(
-      component.debugElement.query(By.css('.task-list-loading > p'))
-        .nativeElement.innerText,
-    ).toBe('Loading task list...');
+  it('should save title to backend', () => {
+    component.componentInstance.updateInspectionTitle({
+      id: 'test-task',
+      changeTo: 'New Title',
+    });
+    expect(backendAPISpy.patchInspection).toHaveBeenCalledOnceWith(
+      'test-task',
+      {
+        name: 'New Title',
+      },
+    );
   });
 });
