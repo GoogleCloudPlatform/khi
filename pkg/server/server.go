@@ -173,14 +173,15 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 				ctx.String(http.StatusBadRequest, err.Error())
 				return
 			}
+			var header *inspectionmetadata.HeaderMetadata
 			header, found := typedmap.Get(md, inspectionmetadata.HeaderMetadataKey)
-			if found {
-				header.InspectionName = reqBody.Name
-				header.SuggestedFileName = fmt.Sprintf("%s.khi", reqBody.Name)
-				ctx.String(http.StatusAccepted, "ok")
+			if !found {
+				ctx.String(http.StatusBadRequest, "header not found")
 				return
 			}
-			ctx.String(http.StatusBadRequest, "header not found")
+			header.InspectionName = reqBody.Name
+			header.SuggestedFileName = fmt.Sprintf("%s.khi", reqBody.Name)
+			ctx.String(http.StatusAccepted, "ok")
 		})
 		// PUT /api/v3/inspection/<inspection-id>/features
 		router.PUT("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {
