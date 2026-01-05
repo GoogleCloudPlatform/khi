@@ -264,6 +264,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 	}
 
 	runMetadata := i.generateMetadataForRun(runCtx, &inspectionmetadata.HeaderMetadata{
+		InspectionName:         currentInspectionType.Name,
 		InspectTimeUnixSeconds: time.Now().Unix(),
 		InspectionType:         currentInspectionType.Name,
 		InspectionTypeIconPath: currentInspectionType.Icon,

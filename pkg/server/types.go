@@ -33,6 +33,10 @@ type GetInspectionsResponse struct {
 	ServerStat  *ServerStat                   `json:"serverStat"`
 }
 
+type PatchInspectionRequest struct {
+	Name string `json:"name"`
+}
+
 type PostInspectionResponse struct {
 	InspectionID string `json:"inspectionID"`
 }

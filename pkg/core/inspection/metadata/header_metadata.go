@@ -23,6 +23,7 @@ import (
 // HeaderMetadata is a metadata type shown for users in the inspection list page.
 type HeaderMetadata struct {
 	InspectionType         string `json:"inspectionType"`
+	InspectionName         string `json:"inspectionName"`
 	InspectionTypeIconPath string `json:"inspectionTypeIconPath"`
 	StartTimeUnixSeconds   int64  `json:"startTimeUnixSeconds"`
 	EndTimeUnixSeconds     int64  `json:"endTimeUnixSeconds"`

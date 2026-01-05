@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-import { ComponentFixture, fakeAsync, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StartupDialogComponent } from './startup.component';
 import { MatDialogRef } from '@angular/material/dialog';
-import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
+import {
+  BACKEND_API,
+  BackendAPI,
+} from 'src/app/services/api/backend-api-interface';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { ProgressDialogService } from 'src/app/services/progress/progress-dialog.service';
 import { BACKEND_CONNECTION } from 'src/app/services/api/backend-connection.service';
 import { BackendConnectionService } from 'src/app/services/api/backend-connection-interface';
 import { of, ReplaySubject, Subject } from 'rxjs';
-import { By } from '@angular/platform-browser';
 import {
   GetConfigResponse,
   GetInspectionResponse,
@@ -36,6 +38,7 @@ import {
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogComponent>;
   let backendConnectionSpy: jasmine.SpyObj<BackendConnectionService>;
+  let backendAPISpy: jasmine.SpyObj<BackendAPI>;
   let taskListSubject: Subject<GetInspectionResponse>;
   beforeEach(async () => {
     taskListSubject = new ReplaySubject(1);
@@ -44,6 +47,16 @@ describe('StartupDialogComponent', () => {
       ['tasks'],
     );
     backendConnectionSpy.tasks.and.returnValue(taskListSubject);
+    backendAPISpy = jasmine.createSpyObj<BackendAPI>('BackendAPIService', [
+      'getConfig',
+      'patchInspection',
+    ]);
+    backendAPISpy.getConfig.and.returnValue(
+      of<GetConfigResponse>({
+        viewerMode: false,
+      }),
+    );
+    backendAPISpy.patchInspection.and.returnValue(of());
     TestBed.configureTestingModule({
       providers: [
         ...ProgressDialogService.providers(),
@@ -53,13 +66,7 @@ describe('StartupDialogComponent', () => {
         },
         {
           provide: BACKEND_API,
-          useValue: {
-            getConfig: () => {
-              return of<GetConfigResponse>({
-                viewerMode: false,
-              });
-            },
-          },
+          useValue: backendAPISpy,
         },
         {
           provide: BACKEND_CONNECTION,
@@ -83,51 +90,16 @@ describe('StartupDialogComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should show loading message when task lists are not loaded yet', () => {
-    expect(
-      component.debugElement.query(By.css('.task-list-loading > p'))
-        .nativeElement.innerText,
-    ).toBe('Loading task list...');
-  });
-
-  it('should show empty list with hint message when given task list is empty', fakeAsync(() => {
-    taskListSubject.next({
-      inspections: {
-        a: {
-          header: {
-            inspectionType: 'foo',
-            inspectionTypeIconPath: '',
-            inspectTimeUnixSeconds: 0,
-            startTimeUnixSeconds: 0,
-            endTimeUnixSeconds: 0,
-            suggestedFilename: '',
-          },
-          progress: {
-            totalProgress: {
-              id: 'foo',
-              label: 'total',
-              percentage: 10,
-              message: 'progress-foo',
-              indeterminate: false,
-            },
-            progresses: [],
-            phase: 'DONE',
-          },
-          error: {
-            errorMessages: [],
-          },
-        },
-      },
-      serverStat: {
-        totalMemoryAvailable: 0,
-      },
+  it('should save title to backend', () => {
+    component.componentInstance.updateInspectionTitle({
+      id: 'test-task',
+      changeTo: 'New Title',
     });
-    component.detectChanges();
-    expect(backendConnectionSpy.tasks).toHaveBeenCalled();
-
-    const taskElements = component.debugElement.queryAll(
-      By.css('.inspection-task'),
+    expect(backendAPISpy.patchInspection).toHaveBeenCalledOnceWith(
+      'test-task',
+      {
+        name: 'New Title',
+      },
     );
-    expect(taskElements.length).toBe(1);
-  }));
+  });
 });

@@ -167,6 +167,7 @@ describe('BackendAPIImpl testing', () => {
     const testData: InspectionMetadataOfRunResult = {
       header: {
         inspectionType: 'test',
+        inspectionName: 'test',
         inspectionTypeIconPath: 'test',
         inspectTimeUnixSeconds: 10,
         startTimeUnixSeconds: 10,
@@ -199,6 +200,7 @@ describe('BackendAPIImpl testing', () => {
     const testMetadata: InspectionMetadataOfRunResult = {
       header: {
         inspectionType: 'test',
+        inspectionName: 'test',
         inspectionTypeIconPath: 'test',
         inspectTimeUnixSeconds: 10,
         startTimeUnixSeconds: 10,

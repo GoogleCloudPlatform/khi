@@ -1,0 +1,142 @@
+<!--
+ Copyright 2025 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="container">
+  @let t = task();
+  <div class="header">
+    @if (isEditing()) {
+      <div class="title-edit">
+        <input
+          class="title-input"
+          [value]="taskNameInput()"
+          (input)="taskNameInput.set($any($event.target).value)"
+          (blur)="commitTitleChange()"
+          (keydown.enter)="commitTitleChange()"
+          (keydown.escape)="cancelEditing()"
+          #titleInput
+        />
+      </div>
+    } @else {
+      <div class="title-container">
+        <p class="title" (click)="startEditing()">{{ t.label }}</p>
+        <mat-icon>edit</mat-icon>
+      </div>
+    }
+    <p class="phase">
+      <span class="phase-inner" [ngClass]="t.phase">{{ t.phase }}</span>
+    </p>
+    <p class="time">Started: {{ t.inspectionTimeLabel }}</p>
+  </div>
+  <div class="progress-container">
+    @if (t.progresses.length > 0) {
+      <p class="progress-container-header">
+        {{ t.progresses.length }} concurrent sub tasks are running({{
+          t.totalProgress.percentageLabel
+        }}%)
+      </p>
+    }
+    @for (progress of t.progresses; track progress.id) {
+      <div
+        class="progress-element"
+        [ngClass]="{ intermediate: progress.indeterminate }"
+      >
+        <div
+          class="progress-bar"
+          [style.--percentage]="progress.percentage"
+        ></div>
+        <div class="progress-label">
+          <p class="progress-label-inner">
+            <span class="progress-label-span">{{ progress.label }}</span>
+            <span class="progress-message-span">
+              {{
+                progress.indeterminate ? "" : `(${progress.percentageLabel}%)`
+              }}
+              {{ progress.message }}
+            </span>
+          </p>
+        </div>
+      </div>
+    }
+    <div class="error-container">
+      @for (err of t.errors; track $index) {
+        <p class="error">
+          <mat-icon class="error-icon">error</mat-icon>
+          @if (err.link !== "") {
+            <a
+              [href]="err.link"
+              class="error-link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>{{ err.message }}</span
+              ><mat-icon class="error-link-icon">open_in_new</mat-icon></a
+            >
+          } @else {
+            <span>{{ err.message }}</span>
+          }
+        </p>
+      }
+    </div>
+    <div class="task-commands">
+      @if (isResultAvailable()) {
+        <div class="primary-buttons">
+          <button
+            class="open-button"
+            mat-raised-button
+            color="primary"
+            matTooltip="Open inspected KHI file"
+            (click)="openInspectionResult.emit(t.id)"
+          >
+            <mat-icon>frame_inspect</mat-icon>Open
+          </button>
+        </div>
+      }
+      <div class="misc-buttons">
+        @if (isMetadataAvailbale()) {
+          <button
+            class="metadata-button"
+            mat-icon-button
+            matTooltip="Show the inspection metadata"
+            (click)="openInspectionMetadata.emit(t.id)"
+          >
+            <mat-icon>database</mat-icon>
+          </button>
+        }
+        @if (isCancellable()) {
+          <button
+            class="cancel-button"
+            mat-icon-button
+            color="accent"
+            matTooltip="Cancel inspection task"
+            (click)="cancelInspection.emit(t.id)"
+          >
+            <mat-icon>cancel</mat-icon>
+          </button>
+        }
+        @if (isResultAvailable()) {
+          <button
+            class="download-button"
+            mat-icon-button
+            matTooltip="Export the .khi file"
+            (click)="downloadInspectionResult.emit(t.id)"
+          >
+            <mat-icon>download</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>

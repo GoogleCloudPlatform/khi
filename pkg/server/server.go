@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
@@ -153,6 +154,34 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 				return
 			}
 			ctx.JSON(http.StatusAccepted, &PostInspectionResponse{InspectionID: inspectionId})
+		})
+		// PATCH /api/v3/inspection/<inspection-id>
+		router.PATCH("/api/v3/inspection/:inspectionID", func(ctx *gin.Context) {
+			inspectionID := ctx.Param("inspectionID")
+			task := inspectionServer.GetInspection(inspectionID)
+			if task == nil {
+				ctx.String(http.StatusNotFound, fmt.Sprintf("inspection %s was not found", inspectionID))
+				return
+			}
+			var reqBody PatchInspectionRequest
+			if err := ctx.ShouldBindJSON(&reqBody); err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+			md, err := task.GetCurrentMetadata()
+			if err != nil {
+				ctx.String(http.StatusBadRequest, err.Error())
+				return
+			}
+			var header *inspectionmetadata.HeaderMetadata
+			header, found := typedmap.Get(md, inspectionmetadata.HeaderMetadataKey)
+			if !found {
+				ctx.String(http.StatusBadRequest, "header not found")
+				return
+			}
+			header.InspectionName = reqBody.Name
+			header.SuggestedFileName = fmt.Sprintf("%s.khi", reqBody.Name)
+			ctx.String(http.StatusAccepted, "ok")
 		})
 		// PUT /api/v3/inspection/<inspection-id>/features
 		router.PUT("/api/v3/inspection/:inspectionID/features", func(ctx *gin.Context) {

@@ -108,6 +108,13 @@ export interface InspectionFeature {
 }
 
 /**
+ * Request schema of PATCH /api/v3/inspection/<inspection-id> .
+ */
+export interface InspectionPatchRequest {
+  name: string;
+}
+
+/**
  * Response schema of GET /api/v3/inspection/<inspection-id>/features .
  */
 export interface GetInspectionFeatureResponse {

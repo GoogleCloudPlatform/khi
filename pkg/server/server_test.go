@@ -391,19 +391,44 @@ func TestApiResponses(t *testing.T) {
 		},
 		{
 			// 014
+			// Rename task
+			ExpectedCode:  202,
+			RequestMethod: "PATCH",
+			RequestPath:   "/foo/api/v3/inspection/<task-1>",
+			RequestGenerator: func(t *testing.T, stat map[string]string) any {
+				return PatchInspectionRequest{
+					Name: "new-task-name",
+				}
+			},
+			BodyValidator: bodyCompareWithStringExpectedValue("ok"),
+		},
+		{
+			// 015
+			// Verify renamed task metadata
+			ExpectedCode:  200,
+			RequestMethod: "GET",
+			RequestPath:   "/foo/api/v3/inspection/<task-1>/metadata",
+			BodyValidator: func(t *testing.T, body string, stat map[string]string) {
+				if !strings.Contains(body, "new-task-name") {
+					t.Errorf("expected metadata to contain new-task-name, got %s", body)
+				}
+			},
+		},
+		{
+			// 016
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection",
 			BodyValidator: taskCompare("task-1", `{"error":{"errorMessages":[]},"progress":{"phase":"DONE","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"2 of 2 tasks complete","percentage":1}}}`, "header"),
 		},
 		{
-			// 015
+			// 017
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/<task-1>/metadata",
 		},
 		{
-			// 016
+			// 018
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/<task-1>/data",
@@ -414,7 +439,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 017
+			// 019
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/<task-1>/data?start=1",
@@ -425,7 +450,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 018
+			// 020
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/<task-1>/data?start=1&maxSize=1",
@@ -436,13 +461,13 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 019
+			// 021
 			ExpectedCode:  400,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/inspection/<task-1>/cancel",
 		},
 		{
-			// 020
+			// 022
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/inspection/types/bar",
@@ -456,7 +481,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 021
+			// 023
 			ExpectedCode:  202,
 			RequestMethod: "PUT",
 			RequestPath:   "/foo/api/v3/inspection/<task-2>/features",
@@ -470,7 +495,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue(`ok`),
 		},
 		{
-			// 022
+			// 024
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/inspection/<task-2>/run",
@@ -481,41 +506,41 @@ func TestApiResponses(t *testing.T) {
 			WaitAfter:     time.Second,
 		},
 		{
-			// 023
+			// 025
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection",
 			BodyValidator: taskCompare("task-2", `{"error":{"errorMessages":[]},"progress":{"phase":"RUNNING","progresses":[{"id":"neverend#default","indeterminate":false,"label":"neverend#default","message":"test","percentage":0.5}],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"0 of 3 tasks complete","percentage":0}}}`, "header"),
 		},
 		{
-			// 024
+			// 026
 			ExpectedCode:  400,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/<task-2>/data",
 			BodyValidator: bodyCompareWithStringExpectedValue("this task runner hasn't finished yet"),
 		},
 		{
-			// 025
+			// 027
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/<task-2>/metadata",
 		},
 		{
-			// 026
+			// 028
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/inspection/<task-2>/cancel",
 			WaitAfter:     time.Second,
 		},
 		{
-			// 027
+			// 029
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection",
 			BodyValidator: taskCompare("task-2", `{"error":{"errorMessages":[]},"progress":{"phase":"CANCELLED","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"1 of 3 tasks complete","percentage":0.33333334}}}`, "header"),
 		},
 		{
-			// 028
+			// 030
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/inspection/types/qux",
@@ -529,7 +554,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 029
+			// 031
 			ExpectedCode:  202,
 			RequestMethod: "PUT",
 			RequestPath:   "/foo/api/v3/inspection/<task-3>/features",
@@ -543,7 +568,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue(`ok`),
 		},
 		{
-			// 030
+			// 032
 			ExpectedCode:  202,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/inspection/<task-3>/run",
@@ -554,14 +579,14 @@ func TestApiResponses(t *testing.T) {
 			WaitAfter:     time.Second,
 		},
 		{
-			// 031
+			// 033
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection",
 			BodyValidator: taskCompare("task-3", `{"error":{"errorMessages":[]},"progress":{"phase":"ERROR","progresses":[],"totalProgress":{"id":"Total","indeterminate":false,"label":"Total","message":"1 of 3 tasks complete","percentage":0.33333334}}}`, "header"),
 		},
 		{
-			// 032
+			// 034
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/popup",
@@ -576,7 +601,7 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 033
+			// 035
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/popup",
@@ -590,7 +615,7 @@ func TestApiResponses(t *testing.T) {
 			),
 		},
 		{
-			// 034
+			// 036
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/popup/validate",
@@ -607,7 +632,7 @@ func TestApiResponses(t *testing.T) {
 			),
 		},
 		{
-			// 035
+			// 037
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/popup/validate",
@@ -624,7 +649,7 @@ func TestApiResponses(t *testing.T) {
 			),
 		},
 		{
-			// 036
+			// 038
 			ExpectedCode:  400,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/popup/validate",
@@ -637,7 +662,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue("given id is not matching with the current popup"),
 		},
 		{
-			// 037
+			// 039
 			ExpectedCode:  400,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/popup/answer",
@@ -650,7 +675,7 @@ func TestApiResponses(t *testing.T) {
 			BodyValidator: bodyCompareWithStringExpectedValue("given id is not matching with the current popup"),
 		},
 		{
-			// 038
+			// 040
 			ExpectedCode:  200,
 			RequestMethod: "POST",
 			RequestPath:   "/foo/api/v3/popup/answer",
@@ -666,14 +691,14 @@ func TestApiResponses(t *testing.T) {
 			},
 		},
 		{
-			// 039
+			// 041
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/popup",
 			BodyValidator: bodyCompareWithStringExpectedValue(""),
 		},
 		{
-			// 040
+			// 042
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/config",

@@ -23,6 +23,7 @@ import {
   InspectionDryRunRequest,
   InspectionDryRunResponse,
   InspectionMetadataOfRunResult,
+  InspectionPatchRequest,
   InspectionRunRequest,
   PopupAnswerResponse,
   PopupAnswerValidationResult,
@@ -72,6 +73,18 @@ export interface BackendAPI {
    * @param inspectionTypeId the type of inspection id listed in the result of `getInspectionTypes()`
    */
   createInspection(inspectionTypeId: string): Observable<InspectionClient>;
+
+  /**
+   * Patch an inspection.
+   * Expected called endpoint: PATCH /api/v3/inspection/<inspection-id>
+   *
+   * @param inspectionID inspection ID to patch
+   * @param request parameter of the task
+   */
+  patchInspection(
+    inspectionID: string,
+    request: InspectionPatchRequest,
+  ): Observable<void>;
 
   /**
    * List the features selectable of this task.

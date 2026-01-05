@@ -44,6 +44,7 @@ export type InspectionMetadataError = {
 
 export type InspectionMetadataHeader = {
   inspectionType: string;
+  inspectionName: string;
   inspectionTypeIconPath: string;
   inspectTimeUnixSeconds: number;
   startTimeUnixSeconds: number;
