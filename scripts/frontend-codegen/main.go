@@ -77,14 +77,14 @@ func main() {
 		input.LogTypeDarkColors[logType.Label] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
 	}
 
-	for _, revisonState := range enum.RevisionStates {
-		color, err := colorconv.HexToColor(revisonState.BackgroundColor)
+	for _, revisionState := range enum.RevisionStates {
+		color, err := colorconv.HexToColor(revisionState.BackgroundColor)
 		if err != nil {
 			panic(err)
 		}
 		h, s, l := colorconv.ColorToHSL(color)
 		dl := l * 0.8
-		input.RevisionStateDarkColors[revisonState.CSSSelector] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
+		input.RevisionStateDarkColors[revisionState.CSSSelector] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
 	}
 
 	scssTemplate := loadTemplate("color-scss", SCSS_TEMPLATE)

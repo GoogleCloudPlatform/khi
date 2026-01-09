@@ -23,7 +23,7 @@ const fs = require('fs');
  * @returns {Promise<void>}
  */
 function generateNumberMSDFTexture(destFolder) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const fontBuffer = fs.readFileSync('./node_modules/@fontsource/roboto/files/roboto-latin-700-normal.ttf');
     generateBMFont(fontBuffer, {
       outputType: "json",
@@ -32,7 +32,10 @@ function generateNumberMSDFTexture(destFolder) {
       texturePadding: 8,
       textureSize: [128, 128],
     }, (error, textures, font) => {
-      if (error) throw error;
+      if (error) {
+        reject(error);
+        return;
+      }
       textures.forEach((texture, index) => {
         fs.writeFileSync(destFolder + texture.filename + ".png", texture.texture);
       });
@@ -50,7 +53,7 @@ function generateNumberMSDFTexture(destFolder) {
  */
 async function generateMaterialSymbolsMSDFTexture(destFolder, usedIconCodepoints) {
   const iconBuffer = fs.readFileSync('./node_modules/material-symbols/material-symbols-outlined.ttf');
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     generateBMFont(iconBuffer, {
       outputType: "json",
       charset: usedIconCodepoints,
@@ -58,7 +61,10 @@ async function generateMaterialSymbolsMSDFTexture(destFolder, usedIconCodepoints
       texturePadding: 4,
       textureSize: [256, 256],
     }, (error, textures, font) => {
-      if (error) throw error;
+      if (error) {
+        reject(error);
+        return;
+      }
       textures.forEach((texture, index) => {
         fs.writeFileSync(destFolder + texture.filename + ".png", texture.texture);
       });
