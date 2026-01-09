@@ -10,7 +10,7 @@ FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts w
 # prepare-frontend make task generates source code or configurations needed for building frontend code.
 # This task needs to be set as a dependency of any make tasks using frontend code.
 .PHONY: prepare-frontend
-prepare-frontend: web/angular.json web/src/environments/version.*.ts $(FRONTEND_CODEGEN_TARGETS) generate-font-atlas
+prepare-frontend: web/angular.json web/src/environments/version.*.ts $(FRONTEND_CODEGEN_TARGETS)
 
 web/angular.json: scripts/generate-angular-json.sh web/angular-template.json web/src/environments/environment.*.ts
 	./scripts/generate-angular-json.sh > ./web/angular.json

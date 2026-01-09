@@ -41,6 +41,7 @@ format: format-web format-go ## Format all source code
 setup: setup-hooks
 	cd web && npm install
 	cd web/msdf && npm install && ./setup.sh
+	make generate-font-atlas
 	make build-web
 	make build-go
 
