@@ -47,11 +47,11 @@ var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](
 // K8sResourceMergeConfigTaskID is the task ID for generating merge config used for merging patch requst logs to generate the manifest at the time.
 var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.K8sManifestMergeConfigRegistry](GoogleCloudCommonK8STaskIDPrefix + "merge-config")
 
-// ClusterNamePrefixTaskID is the task ID for generating the cluster name prefix used in query.
+// ClusterNamePrefixTaskRef is the task reference ID for generating the cluster name prefix used in query.
 // For GKE, it's just a task to return "" always.
 // For Anthos on AWS, it should return "awsClusters/" because the `resource.labels.cluster_name` field would be `awsClusters/<cluster-name>`
 // For Anthos on Azure, it will be "azureClusters/"
-var ClusterNamePrefixTaskID = taskid.NewTaskReference[string](GoogleCloudCommonK8STaskIDPrefix + "cluster-name-prefix")
+var ClusterNamePrefixTaskRef = taskid.NewTaskReference[string](GoogleCloudCommonK8STaskIDPrefix + "cluster-name-prefix")
 
 // InputClusterNameTaskID is the task ID for the cluster name.
 var InputClusterNameTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name")

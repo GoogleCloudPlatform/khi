@@ -23,4 +23,4 @@ import (
 var ClusterGKEOnAWSTaskCommonPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-aws/"
 
 // ClusterNamePrefixTaskID is the task ID for the GKE on AWS cluster name prefix.
-var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-aws")
+var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gke-on-aws")

@@ -24,7 +24,7 @@ import (
 var ClusterGKETaskCommonPrefix = googlecloudcommon_contract.GoogleCloudCommonTaskIDPrefix + "cluster/gke/"
 
 // ClusterNamePrefixTaskIDForGKE is the task ID for the GKE cluster name prefix(it's "" for GKE)
-var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke")
+var ClusterNamePrefixTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gke")
 
 // AutocompleteMetricsK8sContainerTaskIDForGKE is the task ID for the metrics type used for autocomplete cluster names in GKE.
 var AutocompleteMetricsK8sContainerTaskIDForGKE = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(), "gke")

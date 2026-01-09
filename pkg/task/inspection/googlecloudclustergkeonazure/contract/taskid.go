@@ -23,4 +23,4 @@ import (
 var ClusterGKEOnAzureTaskCommonPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "cluster/gke-on-azure/"
 
 // ClusterNamePrefixTaskID is the task ID for the GKE on Azure cluster name prefix.
-var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gke-on-azure")
+var ClusterNamePrefixTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gke-on-azure")
