@@ -40,6 +40,7 @@ format: format-web format-go ## Format all source code
 .PHONY: setup
 setup: setup-hooks
 	cd web && npm install
+	cd web/msdf && npm install && ./setup.sh
 	make build-web
 	make build-go
 

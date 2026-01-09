@@ -1,0 +1,21 @@
+{
+  "name": "khi-msdf-gen",
+  "version": "1.0.0",
+  "description": "",
+  "license": "Apache-2.0",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "material-symbols": "^0.40.2",
+    "msdf-bmfont-xml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@fontsource/roboto": "^5.2.9",
+    "@material-symbols/metadata": "^0.40.2",
+    "material-design-icons": "^3.0.1"
+  }
+}

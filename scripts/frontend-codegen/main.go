@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -46,6 +47,10 @@ type templateInput struct {
 	Verbs                   map[enum.RevisionVerb]enum.RevisionVerbFrontendMetadata
 	LogTypeDarkColors       map[string]string
 	RevisionStateDarkColors map[string]string
+}
+
+type usedIconSetting struct {
+	Icons []string `json:"icons"`
 }
 
 func main() {
@@ -97,6 +102,26 @@ func main() {
 		panic(err)
 	}
 	mustWriteFile(GENERATED_TS_FILE_LOCATION, legendTemplateResult.String())
+
+	// Generate icons.json storeing all the icons used in revision state to generate the icon font atlas.
+	var icons = map[string]struct{}{}
+	for _, revisonState := range enum.RevisionStates {
+		icons[revisonState.Icon] = struct{}{}
+	}
+	iconSetting := usedIconSetting{
+		Icons: []string{},
+	}
+	for icon := range icons {
+		if icon == "" {
+			continue
+		}
+		iconSetting.Icons = append(iconSetting.Icons, icon)
+	}
+	iconsJson, err := json.Marshal(iconSetting)
+	if err != nil {
+		panic(err)
+	}
+	mustWriteFile("./web/msdf/icons.json", string(iconsJson))
 }
 
 func loadTemplate(templateName string, templateLocation string) *template.Template {

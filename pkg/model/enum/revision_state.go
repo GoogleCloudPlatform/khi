@@ -14,6 +14,14 @@
 
 package enum
 
+type RevisionStateStyle int
+
+const (
+	RevisionStateStyleNormal      RevisionStateStyle = 0
+	RevisionStateStyleDeleted     RevisionStateStyle = 1
+	RevisionStateStylePartialInfo RevisionStateStyle = 2
+)
+
 type RevisionState int
 
 const (
@@ -86,6 +94,12 @@ type RevisionStateFrontendMetadata struct {
 
 	// BackgroundColor is used for rendering the revision rectangles in timeline view.
 	BackgroundColor string
+
+	// Icon is used for rendering the icon in timeline view.
+	Icon string
+
+	// Style decides non color styling of the revision like stripes depending on its revision purpose.
+	Style RevisionStateStyle
 }
 
 var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
@@ -94,78 +108,96 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		BackgroundColor: "#997700",
 		CSSSelector:     "inferred",
 		Label:           "Resource may be existing",
+		Icon:            "unknown_document",
+		Style:           RevisionStateStylePartialInfo,
 	},
 	RevisionStateExisting: {
 		EnumKeyName:     "RevisionStateExisting",
 		BackgroundColor: "#0000FF",
 		CSSSelector:     "existing",
 		Label:           "Resource is existing",
+		Icon:            "deployed_code",
 	},
 	RevisionStateDeleted: {
 		EnumKeyName:     "RevisionStateDeleted",
 		BackgroundColor: "#CC0000",
 		CSSSelector:     "deleted",
 		Label:           "Resource is deleted",
+		Icon:            "delete_forever",
+		Style:           RevisionStateStyleDeleted,
 	},
 	RevisionStateConditionTrue: {
 		EnumKeyName:     "RevisionStateConditionTrue",
 		BackgroundColor: "#004400",
 		CSSSelector:     "condition_true",
 		Label:           "State is 'True'",
+		Icon:            "lightbulb",
 	},
 	RevisionStateConditionFalse: {
 		EnumKeyName:     "RevisionStateConditionFalse",
 		BackgroundColor: "#EE4400",
 		CSSSelector:     "condition_false",
 		Label:           "State is 'False'",
+		Icon:            "light_off",
 	},
 	RevisionStateConditionUnknown: {
 		EnumKeyName:     "RevisionStateConditionUnknown",
 		BackgroundColor: "#663366",
 		CSSSelector:     "condition_unknown",
 		Label:           "State is 'Unknown'",
+		Icon:            "siren_question",
 	},
 	RevisionStateOperationStarted: {
 		EnumKeyName:     "RevisionStateOperationStarted",
 		BackgroundColor: "#004400",
 		CSSSelector:     "operation_started",
 		Label:           "Processing operation",
+		Icon:            "change_circle",
 	},
 	RevisionStateOperationFinished: {
 		EnumKeyName:     "RevisionStateOperationFinished",
 		BackgroundColor: "#333333",
 		CSSSelector:     "operation_finished",
 		Label:           "Operation is finished",
+		Icon:            "check_circle",
+		Style:           RevisionStateStyleDeleted,
 	},
 	RevisionStateContainerWaiting: {
 		EnumKeyName:     "RevisionStateContainerWaiting",
-		BackgroundColor: "#997700",
+		BackgroundColor: "#4444ff",
 		CSSSelector:     "container_waiting",
 		Label:           "Waiting for starting container",
+		Icon:            "deployed_code_history",
 	},
 	RevisionStateContainerRunningNonReady: {
 		EnumKeyName:     "RevisionStateContainerRunningNonReady",
 		BackgroundColor: "#EE4400",
 		CSSSelector:     "container_running_non_ready",
 		Label:           "Container is not ready",
+		Icon:            "heart_broken",
 	},
 	RevisionStateContainerRunningReady: {
 		EnumKeyName:     "RevisionStateContainerRunningReady",
 		BackgroundColor: "#007700",
 		CSSSelector:     "container_running_ready",
 		Label:           "Container is ready",
+		Icon:            "heart_check",
 	},
 	RevisionStateContainerTerminatedWithSuccess: {
 		EnumKeyName:     "RevisionStateContainerTerminatedWithSuccess",
 		BackgroundColor: "#113333",
 		CSSSelector:     "container_terminated_success",
 		Label:           "Container exited with healthy exit code",
+		Style:           RevisionStateStyleDeleted,
+		Icon:            "check_circle",
 	},
 	RevisionStateContainerTerminatedWithError: {
 		EnumKeyName:     "RevisionStateContainerTerminatedWithError",
-		BackgroundColor: "#331111",
+		BackgroundColor: "#551111",
 		CSSSelector:     "container_terminated_error",
 		Label:           "Container exited with errornous exit code",
+		Style:           RevisionStateStyleDeleted,
+		Icon:            "error",
 	},
 	// Cloud Composer
 	RevisionStateComposerTiScheduled: {
@@ -245,101 +277,123 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		BackgroundColor: "#CC5500",
 		CSSSelector:     "deleting",
 		Label:           "Resource is under deleting with graceful period",
+		Icon:            "auto_delete",
 	},
 	RevisionStateEndpointReady: {
 		EnumKeyName:     "RevisionStateEndpointReady",
 		BackgroundColor: "#004400",
 		CSSSelector:     "ready",
 		Label:           "Endpoint is ready",
+		Icon:            "heart_check",
 	},
 	RevisionStateEndpointUnready: {
 		EnumKeyName:     "RevisionStateEndpointUnready",
 		BackgroundColor: "#EE4400",
 		CSSSelector:     "unready",
 		Label:           "Endpoint is not ready",
+		Icon:            "heart_broken",
 	},
 	RevisionStateEndpointTerminating: {
 		EnumKeyName:     "RevisionStateEndpointTerminating",
 		BackgroundColor: "#fed700",
 		CSSSelector:     "terminating",
 		Label:           "Endpoint is being terminated",
+		Icon:            "auto_delete",
 	},
 	RevisionStateProvisioning: {
 		EnumKeyName:     "RevisionStateProvisioning",
 		BackgroundColor: "#4444ff",
 		CSSSelector:     "provisioning",
 		Label:           "Resource is being provisioned",
+		Icon:            "deployed_code_history",
 	},
 	RevisionAutoscalerNoError: {
 		EnumKeyName:     "RevisionAutoscalerNoError",
 		BackgroundColor: "#004400",
 		CSSSelector:     "autoscaler_no_error",
 		Label:           "Autoscaler has no error",
+		Icon:            "heart_check",
 	},
 	RevisionAutoscalerHasErrors: {
 		EnumKeyName:     "RevisionAutoscalerHasErrors",
 		BackgroundColor: "#EE4400",
 		CSSSelector:     "autoscaler_has_errors",
 		Label:           "Autoscaler has errors",
+		Icon:            "heart_broken",
 	},
 	RevisionStateConditionNotGiven: {
 		EnumKeyName:     "RevisionStateConditionNotGiven",
 		BackgroundColor: "#666666",
 		CSSSelector:     "condition_not_given",
 		Label:           "Condition is not defined at this moment",
+		Icon:            "select",
 	},
 	RevisionStateConditionNoAvailableInfo: {
 		EnumKeyName:     "RevisionStateConditionNoAvailableInfo",
 		BackgroundColor: "#997700",
 		CSSSelector:     "condition_no_available_info",
 		Label:           "No enough information to show condition",
+		Icon:            "unknown_document",
 	},
 	RevisionStatePodPhasePending: {
 		EnumKeyName:     "RevisionStatePodPhasePending",
 		BackgroundColor: "#666666",
 		CSSSelector:     "pod_phase_pending",
 		Label:           "Pod is pending",
+		Icon:            "hourglass_empty",
 	},
 	RevisionStatePodPhaseScheduled: {
 		EnumKeyName:     "RevisionStatePodPhaseScheduled",
 		BackgroundColor: "#4444ff",
 		CSSSelector:     "pod_phase_scheduled",
 		Label:           "Pod is scheduled",
+		Icon:            "schedule",
 	},
 	RevisionStatePodPhaseRunning: {
 		EnumKeyName:     "RevisionStatePodPhaseRunning",
 		BackgroundColor: "#004400",
 		CSSSelector:     "pod_phase_running",
 		Label:           "Pod is running",
+		Icon:            "motion_play",
 	},
 	RevisionStatePodPhaseSucceeded: {
 		EnumKeyName:     "RevisionStatePodPhaseSucceeded",
 		BackgroundColor: "#113333",
 		CSSSelector:     "pod_phase_succeeded",
 		Label:           "Pod is succeeded",
+		Icon:            "check_circle",
+		Style:           RevisionStateStyleDeleted,
 	},
 	RevisionStatePodPhaseFailed: {
 		EnumKeyName:     "RevisionStatePodPhaseFailed",
 		BackgroundColor: "#331111",
 		CSSSelector:     "pod_phase_failed",
 		Label:           "Pod is failed",
+		Icon:            "error",
+		Style:           RevisionStateStyleDeleted,
 	},
 	RevisionStatePodPhaseUnknown: {
 		EnumKeyName:     "RevisionStatePodPhaseUnknown",
-		BackgroundColor: "#000000",
+		BackgroundColor: "#997700",
 		CSSSelector:     "pod_phase_unknown",
 		Label:           "Pod status is not available from current log range",
+		Style:           RevisionStateStylePartialInfo,
+		Icon:            "unknown_document",
 	},
 	RevisionStateContainerStatusNotAvailable: {
 		EnumKeyName:     "RevisionStateContainerStatusNotAvailable",
 		BackgroundColor: "#666666",
 		CSSSelector:     "container_status_not_available",
 		Label:           "Container status is not available",
+		Style:           RevisionStateStylePartialInfo,
+		Icon:            "unknown_document",
 	},
 	RevisionStateContainerStarted: {
 		EnumKeyName:     "RevisionStateContainerStarted",
 		BackgroundColor: "#997700",
 		CSSSelector:     "container_started",
 		Label:           "Container is started but readiness info is not available",
+		Style:           RevisionStateStylePartialInfo,
+		Icon:            "siren_question",
 	},
 }
