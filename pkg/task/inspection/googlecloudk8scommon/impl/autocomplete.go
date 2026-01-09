@@ -102,10 +102,8 @@ func filterAndTrimPrefixFromClusterNames(clusterNames []string, prefix string) [
 			if !strings.Contains(clusterName, "/") {
 				filteredClusters = append(filteredClusters, clusterName)
 			}
-		} else {
-			if strings.HasPrefix(clusterName, prefix) {
-				filteredClusters = append(filteredClusters, strings.TrimPrefix(clusterName, prefix))
-			}
+		} else if strings.HasPrefix(clusterName, prefix) {
+			filteredClusters = append(filteredClusters, strings.TrimPrefix(clusterName, prefix))
 		}
 	}
 	return filteredClusters
