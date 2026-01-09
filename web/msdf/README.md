@@ -13,7 +13,7 @@ Or you can run `make generate-font-atlas` at the project root to generate the fo
 
 This MSDF generator generates the following textures:
 
-- Number textures (Charactores 0-9) and its atlas config JSON
+- Number textures (Characters 0-9) and its atlas config JSON
   - web/src/assets/roboto-number-msdf.json
   - web/src/assets/roboto-number-msdf.png
 - Material symbols MSDF texture and its atlas config JSON
