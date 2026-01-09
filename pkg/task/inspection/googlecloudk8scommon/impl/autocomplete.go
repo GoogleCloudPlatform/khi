@@ -41,7 +41,7 @@ var AutocompleteMetricsK8sNodeTask = coretask.NewTask(googlecloudk8scommon_contr
 })
 
 var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.ClusterNamePrefixTaskID,
+	googlecloudk8scommon_contract.ClusterNamePrefixTaskRef,
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -49,7 +49,7 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult], error) {
-	clusterNamePrefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskID)
+	clusterNamePrefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskRef)
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
@@ -80,15 +80,7 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 	if err != nil {
 		errorString = err.Error()
 	}
-	if clusterNamePrefix != "" {
-		filteredClusters := make([]string, 0, len(clusterNames))
-		for _, clusterName := range clusterNames {
-			if strings.HasPrefix(clusterName, clusterNamePrefix) {
-				filteredClusters = append(filteredClusters, clusterName)
-			}
-		}
-		clusterNames = filteredClusters
-	}
+	clusterNames = filterAndTrimPrefixFromClusterNames(clusterNames, clusterNamePrefix)
 	if hintString == "" && errorString == "" && len(clusterNames) == 0 {
 		hintString = fmt.Sprintf("No cluster names found between %s and %s. It is highly likely that the time range is incorrect. Please verify the time range, or proceed by manually entering the cluster name.", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 	}
@@ -101,6 +93,21 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 		},
 	}, nil
 })
+
+// filterAndTrimPrefixFromClusterNames filters cluster names by prefix and trims the prefix from the filtered cluster names.
+func filterAndTrimPrefixFromClusterNames(clusterNames []string, prefix string) []string {
+	filteredClusters := make([]string, 0, len(clusterNames))
+	for _, clusterName := range clusterNames {
+		if prefix == "" {
+			if !strings.Contains(clusterName, "/") {
+				filteredClusters = append(filteredClusters, clusterName)
+			}
+		} else if strings.HasPrefix(clusterName, prefix) {
+			filteredClusters = append(filteredClusters, strings.TrimPrefix(clusterName, prefix))
+		}
+	}
+	return filteredClusters
+}
 
 var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),

@@ -23,4 +23,4 @@ import (
 var ClusterGDCBaremetalCommonTaskPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "gdc-baremetal"
 
 // ClusterNamePrefixTaskIDForGDCVForBaremetal is the task ID for the GDCV for Baremetal cluster name prefix.
-var ClusterNamePrefixTaskIDForGDCVForBaremetal = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gdcv-for-baremetal")
+var ClusterNamePrefixTaskIDForGDCVForBaremetal = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gdcv-for-baremetal")

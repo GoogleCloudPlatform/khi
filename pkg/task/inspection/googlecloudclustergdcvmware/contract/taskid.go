@@ -23,4 +23,4 @@ import (
 var ClusterGDCVMWareCommonTaskPrefix = googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "gdc-vmware"
 
 // ClusterNamePrefixTaskIDForGDCVForVMWare is the task ID for the GDCV for VMWare cluster name prefix.
-var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskID, "gdcv-for-vmware")
+var ClusterNamePrefixTaskIDForGDCVForVMWare = taskid.NewImplementationID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "gdcv-for-vmware")
