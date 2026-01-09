@@ -75,12 +75,12 @@ async function generateMaterialSymbolsMSDFTexture(destFolder, usedIconCodepoints
 }
 
 /**
- * Reads icons.json, fetches codepoints, and generates MSDF texture for used icons.
+ * Reads zzz_generated_used_icons.json, fetches codepoints, and generates MSDF texture for used icons.
  * @param {string} destFolder
  * @returns {Promise<void>}
  */
 async function processMaterialSymbols(destFolder) {
-  const usedIconsSetting = JSON.parse(fs.readFileSync('./icons.json')); // This json file is generated from the backend code generation and includes the list of used icon names.
+  const usedIconsSetting = JSON.parse(fs.readFileSync('./zzz_generated_used_icons.json')); // This json file is generated from the backend code generation and includes the list of used icon names.
 
   // msdf-bmfont-xml requires codepoints thus get the code point files and convert the icon names to codepoints.
   const codePointsJSONRaw = await fetch('http://fonts.google.com/metadata/icons?incomplete=1&key=material_symbols').then(res => res.text())
@@ -111,8 +111,9 @@ async function processMaterialSymbols(destFolder) {
  * Main entry point.
  */
 async function main() {
-  await generateNumberMSDFTexture("../src/assets/");
-  await processMaterialSymbols("../src/assets/");
+  const assetFolder = "../../web/src/assets/"
+  await generateNumberMSDFTexture(assetFolder);
+  await processMaterialSymbols(assetFolder);
 }
 
 main();

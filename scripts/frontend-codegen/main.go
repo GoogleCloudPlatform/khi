@@ -34,6 +34,8 @@ const SCSS_TEMPLATE = "./scripts/frontend-codegen/templates/generated.scss.gtpl"
 const GENERATED_TS_FILE_LOCATION = "./web/src/app/generated.ts"
 const GENERATED_TS_TEMPLATE = "./scripts/frontend-codegen/templates/generated.ts.gtpl"
 
+const USED_ICON_FILES_LOCATION = "./scripts/msdf-generator/zzz_generated_used_icons.json"
+
 var templateFuncMap = template.FuncMap{
 	"ToLower": strings.ToLower,
 	"ToUpper": strings.ToUpper,
@@ -121,7 +123,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	mustWriteFile("./web/msdf/icons.json", string(iconsJson))
+	mustWriteFile(USED_ICON_FILES_LOCATION, string(iconsJson))
 }
 
 func loadTemplate(templateName string, templateLocation string) *template.Template {
