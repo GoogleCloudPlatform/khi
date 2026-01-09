@@ -14,7 +14,7 @@
         "--port",
         "8080",
         "--frontend-asset-folder",
-        "./pkg/server/dist"
+        "./pkg/server/dist/browser"
       ],
       "dlvLoadConfig": {
         "followPointers": true,
