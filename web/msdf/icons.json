@@ -1,1 +1,21 @@
-{"icons":["deployed_code_history","change_circle","select","lightbulb","check_circle","heart_broken","heart_check","unknown_document","delete_forever","deployed_code","auto_delete","schedule","error","motion_play","light_off","hourglass_empty","siren_question"]}
+{
+  "icons": [
+    "deployed_code_history",
+    "change_circle",
+    "select",
+    "lightbulb",
+    "check_circle",
+    "heart_broken",
+    "heart_check",
+    "unknown_document",
+    "delete_forever",
+    "deployed_code",
+    "auto_delete",
+    "schedule",
+    "error",
+    "motion_play",
+    "light_off",
+    "hourglass_empty",
+    "siren_question"
+  ]
+}

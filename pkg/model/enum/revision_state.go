@@ -195,7 +195,7 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		EnumKeyName:     "RevisionStateContainerTerminatedWithError",
 		BackgroundColor: "#551111",
 		CSSSelector:     "container_terminated_error",
-Label:           "Container exited with erroneous exit code",
+		Label:           "Container exited with erroneous exit code",
 		Style:           RevisionStateStyleDeleted,
 		Icon:            "error",
 	},
