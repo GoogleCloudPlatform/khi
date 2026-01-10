@@ -40,6 +40,8 @@ format: format-web format-go ## Format all source code
 .PHONY: setup
 setup: setup-hooks
 	cd web && npm install
+	cd scripts/msdf-generator && npm install
+	make generate-font-atlas
 	make build-web
 	make build-go
 

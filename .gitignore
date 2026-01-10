@@ -28,6 +28,10 @@ node_modules/
 # Local environment variables
 .envrc
 
-# Generated Golang files
+# Generated files
 pkg/generated/*.go
 zzz_*.go
+zzz_*.json
+
+# Vendor folders
+scripts/msdf-generator/vendor/

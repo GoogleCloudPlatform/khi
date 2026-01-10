@@ -15,6 +15,8 @@ export interface ParentRelationshipMetadataType{
   visible: boolean
   label: string
   hint: string
+  backgroundColor: string;
+  color: string;
 }
 
 export const ParentRelationshipMetadata: ParentRelationshipMetadataType[] = [
@@ -22,7 +24,9 @@ export const ParentRelationshipMetadata: ParentRelationshipMetadataType[] = [
     {
         visible: {{$value.Visible}},
         label: "{{$value.Label}}",
-        hint: "{{$value.Hint}}"
+        hint: "{{$value.Hint}}",
+        backgroundColor: "{{$value.LabelBackgroundColor}}",
+        color: "{{$value.LabelColor}}"
     },
     {{end}}
 ];
@@ -49,13 +53,15 @@ export enum RevisionVerb{
 export interface RevisionVerbMetadataType{
     label: string;
     selector: string;
+    color: string;
 }
 
 export const RevisionVerbMetadata: RevisionVerbMetadataType[] = [
     {{range $key,$value := .Verbs}}
     {
         label: "{{$value.Label}}",
-        selector: "{{$value.CSSSelector}}"
+        selector: "{{$value.CSSSelector}}",
+        color: "{{$value.LabelBackgroundColor}}"
     },{{end}}
 ];
 
@@ -100,6 +106,14 @@ export enum RevisionState{
 export interface RevisionStateMetadataType{
     cssSelector: string;
     label: string;
+    icon: string;
+    style: RevisionStateStyle;
+}
+
+export enum RevisionStateStyle{
+    Normal = 0,
+    Deleted = 1,
+    PartialInfo = 2,
 }
 
 export const RevisionStateMetadata: RevisionStateMetadataType[] = [
@@ -107,6 +121,8 @@ export const RevisionStateMetadata: RevisionStateMetadataType[] = [
     {
         cssSelector: "{{$value.CSSSelector}}",
         label: "{{$value.Label}}",
+        icon: "{{$value.Icon}}",
+        style: {{$value.Style}},
     },
     {{end}}
 ];

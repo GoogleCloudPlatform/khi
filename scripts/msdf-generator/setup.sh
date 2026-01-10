@@ -1,4 +1,5 @@
-# Copyright 2025 Google LLC
+#!/bin/bash
+# Copyright 2026 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Markdown linting configuration
-globs:
-  - "**/*.md"
-ignores:
-  - "**/node_modules/**"
-  - "docs/en/reference/**"
-  - "docs/template/**"
-  - "scripts/msdf-generator/vendor/**"
-  - SECURITY.md
-config:
-  default: true
-  MD013: false  # Line length
-  MD028: false  # No blanks blockquote (It raises falsy error on series of callouts)
-  MD033: false  # Inline HTML 
-  MD041: false  # First line in a file should be a top-level heading
+
+mkdir -p vendor
+cd vendor
+git clone --recursive https://github.com/google/woff2.git
+cd woff2
+make clean all
+cd ../..
+
+./vendor/woff2/woff2_decompress ./node_modules/@fontsource/roboto/files/roboto-latin-700-normal.woff2
+./vendor/woff2/woff2_decompress ./node_modules/material-symbols/material-symbols-outlined.woff2

@@ -5,7 +5,7 @@ FRONTEND_CODEGEN_DIR = scripts/frontend-codegen
 ENUM_GO_ALL_FILES := $(wildcard pkg/model/enum/*.go)
 ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
 FRONTEND_CODEGEN_DEPS := $(wildcard $(FRONTEND_CODEGEN_DIR)/*.go $(FRONTEND_CODEGEN_DIR)/templates/*)
-FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts
+FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts scripts/msdf-generator/zzz_generated_used_icons.json
 
 # prepare-frontend make task generates source code or configurations needed for building frontend code.
 # This task needs to be set as a dependency of any make tasks using frontend code.
@@ -26,6 +26,12 @@ web/src/environments/version.*.ts: VERSION
 .PHONY: generate-backend
 generate-backend: ## Generate backend source code
 	go run ./scripts/backend-codegen/
+
+scripts/msdf-generator/zzz_generated_used_icons.json: generate-backend
+
+.PHONY: generate-font-atlas
+generate-font-atlas: scripts/msdf-generator/zzz_generated_used_icons.json ## Generate font atlas
+	cd scripts/msdf-generator && node index.js
 
 .PHONY: add-licenses
 add-licenses: ## Add license headers to all files
