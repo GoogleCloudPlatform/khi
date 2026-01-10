@@ -1,0 +1,38 @@
+# IDE settings
+.devcontainer/.env
+
+# Build artifacts
+pkg/server/dist/*
+bin
+/khi
+/khi-debug
+__debug_bin*
+
+# Generated KHI files
+*.khi
+
+# Test and coverage reports
+go-cover.html
+go-cover.output
+result.json
+
+# Node dependencies
+node_modules/
+
+# Terraform state
+.terraform/
+
+# OS-specific files
+.DS_Store
+
+# Local environment variables
+.envrc
+
+# Generated files
+pkg/generated/*.go
+zzz_*.go
+zzz_*.json
+web/src/assets/*.json
+
+# Vendor folders
+scripts/msdf-generator/vendor/
