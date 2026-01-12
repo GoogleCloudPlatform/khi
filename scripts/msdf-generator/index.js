@@ -93,6 +93,7 @@ async function processMaterialSymbols(destFolder) {
 
   const usedIconCodepoints = []
   const usedIconNameToCodepoint = {};
+  usedIconsSetting.icons.sort((a, b) => a.localeCompare(b));
   usedIconsSetting.icons.forEach((iconName) => {
     const codepoint = iconNameToCodepoint[iconName];
     if (!codepoint) {
