@@ -45,7 +45,7 @@ export class ResourceRevision {
   constructor(
     public readonly startAt: number,
     public readonly endAt: number,
-    private readonly stateRaw: RevisionState,
+    public readonly stateRaw: RevisionState,
     public readonly lastMutationVerb: RevisionVerb,
     public readonly resourceContent: string,
     public readonly requestor: string,
