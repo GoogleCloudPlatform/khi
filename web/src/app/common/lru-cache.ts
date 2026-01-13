@@ -76,6 +76,10 @@ export class LRUCache<K, V> {
   public put(key: K, value: V): void {
     if (this.cache.has(key)) {
       // Remove the existing entry so it can be re-inserted at the end
+      const oldValue = this.cache.get(key)!;
+      if (oldValue !== value && this.onDispose) {
+        this.onDispose(oldValue);
+      }
       this.cache.delete(key);
     } else if (this.cache.size >= this.capacity) {
       // Evict the least recently used item (the first key in the iterator)
@@ -116,7 +120,7 @@ export class LRUCache<K, V> {
    * Iterates over the cache entries.
    * @param callback - The callback function to execute for each entry.
    */
-  public foreach(callback: (value: V, key: K) => void): void {
+  public forEach(callback: (value: V, key: K) => void): void {
     this.cache.forEach(callback);
   }
 
@@ -124,6 +128,9 @@ export class LRUCache<K, V> {
    * Removes all elements from the cache.
    */
   public clear(): void {
+    if (this.onDispose) {
+      this.cache.forEach((v) => this.onDispose?.(v));
+    }
     this.cache.clear();
   }
 }
