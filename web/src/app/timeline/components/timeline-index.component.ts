@@ -35,7 +35,7 @@ interface TimelineIndexViewModel {
   legendIcon?: string;
   /** Whether the legend should be visible. */
   legendVisible: boolean;
-  /** The full resource path. It's unique for each timelines and used as the indentifier. */
+  /** The full resource path. It's unique for each timeline and used as the identifier. */
   resourcePath: string;
   /** Secondary label text, currently only used for showing the resource group/version for Kind layer rows. */
   subLabel: string;
