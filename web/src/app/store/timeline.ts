@@ -71,6 +71,14 @@ export class ResourceTimeline {
   }
 
   /**
+   * Return the name of the layer of this timeline.
+   * eg) returns "kind" for "core/v1#pods" and returns "name" for "core/v1#pods#default#nginx"
+   */
+  public get layerName(): string {
+    return timelineLayerToName(this.layer);
+  }
+
+  /**
    * Returns the name of current layer.
    * This is equivalent to timeline.getNameOfLayer(timeline.layer)
    */
