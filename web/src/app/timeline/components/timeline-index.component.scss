@@ -132,7 +132,7 @@ $subresource-style: (
     box-shadow: 0px 1px 1px 0px rgba(0, 0, 0, 0.4);
   }
   &:not(.is-next-children) {
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.7);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.35);
   }
 
   .index {
@@ -169,7 +169,7 @@ $subresource-style: (
     gap: 0px 5px;
     padding: 0px 10px;
     border-radius: 15px;
-    text-wrap: nowrap;
+    white-space: nowrap;
     user-select: none;
     box-shadow: 0px 0px 2px 0px rgba(0, 0, 0, 0.4) inset;
     mat-icon {
