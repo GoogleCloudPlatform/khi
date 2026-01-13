@@ -146,7 +146,7 @@ export class GLContextManager<RenderArgs> {
     }
   }
 
-  private async tryRender(gl: WebGL2RenderingContext, args: RenderArgs) {
+  private tryRender(gl: WebGL2RenderingContext, args: RenderArgs) {
     try {
       this.renderer.render(gl, args);
     } catch (e) {
