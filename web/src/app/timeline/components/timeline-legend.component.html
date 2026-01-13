@@ -1,0 +1,113 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="container">
+  <mat-expansion-panel [(expanded)]="expanded">
+    <mat-expansion-panel-header>Legends</mat-expansion-panel-header>
+    @let t = timeline();
+    @if (t === null) {
+      <ng-container *ngTemplateOutlet="noTimelineSelected"></ng-container>
+    } @else if (t.layer <= TimelineLayer.Namespace) {
+      <ng-container
+        *ngTemplateOutlet="noResourceOrSubresourceSelected"
+      ></ng-container>
+    } @else {
+      @let tt = timelineTypeLegend();
+      @if (tt !== null) {
+        <div
+          class="timeline-type"
+          [style.--timeline-type-color]="tt.color"
+          [style.--timeline-type-background-color]="tt.backgroundColor"
+        >
+          <mat-icon>timeline</mat-icon>
+          <p>Timeline type</p>
+          <p class="label">{{ tt.label }}</p>
+        </div>
+      }
+      <div class="toggle-button-container">
+        <mat-button-toggle-group [(value)]="legendType">
+          <mat-button-toggle value="revisions"
+            ><div class="legend-type-title">
+              <mat-icon>capture</mat-icon>Revisions
+            </div></mat-button-toggle
+          >
+          <mat-button-toggle value="events"
+            ><div class="legend-type-title">
+              <mat-icon>nearby </mat-icon>Events
+            </div></mat-button-toggle
+          >
+        </mat-button-toggle-group>
+      </div>
+      @switch (legendType()) {
+        @case ("revisions") {
+          @for (legend of revisionLegends(); track legend.label) {
+            <div class="legend-container">
+              <div
+                class="revision-rect"
+                [style.--revision-color]="legend.color"
+                [ngClass]="{
+                  'style-normal': legend.style === RevisionStateStyle.Normal,
+                  'style-partial-info':
+                    legend.style === RevisionStateStyle.PartialInfo,
+                  'style-deleted': legend.style === RevisionStateStyle.Deleted,
+                }"
+              >
+                <mat-icon class="material-icons-outlined">{{
+                  legend.icon
+                }}</mat-icon>
+              </div>
+              <p>{{ legend.label }}</p>
+            </div>
+          }
+        }
+        @case ("events") {
+          @for (legend of eventLegends(); track legend.label) {
+            <div class="legend-container">
+              <div
+                class="event-rect"
+                [style.--event-color]="legend.color"
+              ></div>
+              <p>{{ legend.label }}</p>
+            </div>
+          }
+          <p class="severity-info">
+            Upper part of each events represents its severity.
+          </p>
+        }
+      }
+    }
+  </mat-expansion-panel>
+</div>
+
+<ng-template #noTimelineSelected>
+  <div class="empty-legend-message">
+    <div class="empty-legend-message-title">
+      <mat-icon>ads_click</mat-icon>
+      <p>No timeline selected</p>
+    </div>
+    <p>Please select a timeline to show legends</p>
+  </div>
+</ng-template>
+
+<ng-template #noResourceOrSubresourceSelected>
+  <div class="empty-legend-message">
+    <div class="empty-legend-message-title">
+      <mat-icon>ads_click</mat-icon>
+      <p>No resource or subresource selected</p>
+    </div>
+    <p>Please select a resource or subresource to show legends</p>
+  </div>
+</ng-template>
