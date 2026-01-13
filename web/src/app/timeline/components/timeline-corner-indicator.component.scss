@@ -1,0 +1,110 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../common.scss" as common;
+
+$scale-color: #2e7d32;
+$move-color: #1976d2;
+$text-color-secondary: #666;
+
+:host {
+  display: block;
+}
+
+.container {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+}
+
+.scale {
+  color: $scale-color;
+}
+
+.move {
+  color: $move-color;
+}
+
+.scroll-mode-indicator {
+  font-size: 16px;
+  color: $text-color-secondary;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+
+  .label {
+    font-size: 12px;
+  }
+
+  mat-icon {
+    margin-left: 5px;
+    @include common.adjust-mat-icon-size(16px);
+  }
+}
+
+.mode {
+  font-weight: bold;
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: $text-color-secondary;
+
+  mat-icon {
+    @include common.adjust-mat-icon-size(16px);
+  }
+
+  .hint-message {
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+    .shift-key {
+      font-weight: bold;
+      color: $text-color-secondary;
+      border: 1.5px solid $text-color-secondary;
+      padding: 1px 3px;
+      font-size: 9px;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+
+    .scroll {
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+      color: white;
+      background-color: $text-color-secondary;
+      padding: 2px 3px;
+      font-size: 9px;
+      border-radius: 3px;
+      box-sizing: border-box;
+      mat-icon {
+        @include common.adjust-mat-icon-size(9px);
+      }
+    }
+  }
+}
