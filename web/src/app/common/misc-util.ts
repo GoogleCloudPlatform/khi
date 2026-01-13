@@ -41,3 +41,47 @@ export function unreachable(v: never): never {
   console.error('unreachable code reached', v);
   throw new Error(`unreachable code reached with value: ${JSON.stringify(v)}`);
 }
+
+/**
+ * Equivalent to Python's `bisect_left`.
+ * Returns the leftmost insertion point for `x` in sorted array `arr`
+ * to maintain the sorted order.
+ */
+export function bisectLeft(
+  arr: number[],
+  x: number,
+  lo = 0,
+  hi = arr.length,
+): number {
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (arr[mid] < x) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
+/**
+ * Equivalent to Python's `bisect_right`.
+ * Returns the rightmost insertion point for `x` in sorted array `arr`
+ * to maintain the sorted order.
+ */
+export function bisectRight(
+  arr: number[],
+  x: number,
+  lo = 0,
+  hi = arr.length,
+): number {
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (x < arr[mid]) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return lo;
+}
