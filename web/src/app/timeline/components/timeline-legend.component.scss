@@ -17,6 +17,10 @@
 @use "../../common.scss" as common;
 @use "@angular/material" as mat;
 
+$text-color-primary: #333;
+$font-weight-semibold: 600;
+$font-weight-light: 300;
+
 @mixin revision-style-box($revisionColor, $borderThickness) {
   box-sizing: border-box;
   mat-icon {
@@ -96,8 +100,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #333;
-  font-weight: 600;
+  color: $text-color-primary;
+  font-weight: $font-weight-semibold;
 }
 
 .legend-container {
@@ -138,8 +142,8 @@
 
 .severity-info {
   margin: 5px 0 0 0;
-  color: #333;
-  font-weight: 300;
+  color: $text-color-primary;
+  font-weight: $font-weight-light;
 }
 
 .empty-legend-message {
@@ -148,56 +152,14 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  color: #333;
+  color: $text-color-primary;
   gap: 5px;
-  font-weight: 300;
+  font-weight: $font-weight-light;
 }
 
 .empty-legend-message-title {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-weight: 600;
-}
-
-.collapse-button-anchor {
-  position: absolute;
-  top: 0;
-  right: 0px;
-  .collapse-button {
-    $size: 15px;
-    position: absolute;
-    bottom: 0px;
-    right: 0px;
-    width: $size;
-    height: $size;
-    color: white;
-    background-color: mat.m2-get-color-from-palette(
-      mat.$m2-indigo-palette,
-      600
-    );
-    padding: 5px;
-    mat-icon {
-      @include common.adjust-mat-icon-size($size);
-    }
-    &:hover {
-      background-color: mat.m2-get-color-from-palette(
-        mat.$m2-indigo-palette,
-        400
-      );
-      cursor: pointer;
-    }
-  }
-}
-
-.collapsed-message {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  color: #333;
-  gap: 5px;
-  font-weight: 300;
-  &:hover {
-    cursor: pointer;
-  }
+  font-weight: $font-weight-semibold;
 }
