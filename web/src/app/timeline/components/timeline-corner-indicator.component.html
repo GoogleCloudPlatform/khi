@@ -17,22 +17,13 @@
 <div class="container">
   <div class="scroll-mode-indicator">
     <div class="label">Scroll Mode:</div>
-    <mat-icon
-      [ngClass]="{
-        scale: isCurrentScalingMode(),
-        move: !isCurrentScalingMode(),
-      }"
-      >{{ isCurrentScalingMode() ? "zoom_out_map" : "open_with" }}</mat-icon
-    >
-    <div
-      class="mode"
-      [ngClass]="{
-        scale: isCurrentScalingMode(),
-        move: !isCurrentScalingMode(),
-      }"
-    >
-      {{ isCurrentScalingMode() ? "Scale" : "Move" }}
-    </div>
+    @if (isCurrentScalingMode()) {
+      <mat-icon class="scale">zoom_out_map</mat-icon>
+      <div class="mode scale">Scale</div>
+    } @else {
+      <mat-icon class="move">open_with</mat-icon>
+      <div class="mode move">Move</div>
+    }
   </div>
   <div
     class="hint"

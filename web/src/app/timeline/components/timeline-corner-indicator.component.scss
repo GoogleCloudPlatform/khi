@@ -16,6 +16,10 @@
 
 @use "../../common.scss" as common;
 
+$scale-color: #2e7d32;
+$move-color: #1976d2;
+$text-color-secondary: #666;
+
 :host {
   display: block;
 }
@@ -29,16 +33,16 @@
 }
 
 .scale {
-  color: #2e7d32;
+  color: $scale-color;
 }
 
 .move {
-  color: #1976d2;
+  color: $move-color;
 }
 
 .scroll-mode-indicator {
   font-size: 16px;
-  color: #666;
+  color: $text-color-secondary;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
@@ -66,7 +70,7 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  color: #666;
+  color: $text-color-secondary;
 
   mat-icon {
     @include common.adjust-mat-icon-size(16px);
@@ -80,8 +84,8 @@
 
     .shift-key {
       font-weight: bold;
-      color: #666;
-      border: 1.5px solid #666;
+      color: $text-color-secondary;
+      border: 1.5px solid $text-color-secondary;
       padding: 1px 3px;
       font-size: 9px;
       border-radius: 3px;
@@ -93,7 +97,7 @@
       align-items: center;
       font-weight: bold;
       color: white;
-      background-color: #666;
+      background-color: $text-color-secondary;
       padding: 2px 3px;
       font-size: 9px;
       border-radius: 3px;
