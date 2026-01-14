@@ -31,6 +31,7 @@ import {
 } from 'src/app/generated';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { RendererConvertUtil } from './gl/convertutil';
 
 /**
  * ViewModel for revision legend item.
@@ -106,8 +107,10 @@ export class TimelineLegendComponent {
 
     return {
       label: metadata.label,
-      color: metadata.color,
-      backgroundColor: metadata.backgroundColor,
+      color: RendererConvertUtil.hdrColorToCSSColor(metadata.color),
+      backgroundColor: RendererConvertUtil.hdrColorToCSSColor(
+        metadata.backgroundColor,
+      ),
     };
   });
 
@@ -129,7 +132,9 @@ export class TimelineLegendComponent {
         label: md.label,
         icon: md.icon,
         style: md.style,
-        color: revisionStatecolors[md.cssSelector],
+        color: RendererConvertUtil.hdrColorToCSSColor(
+          revisionStatecolors[md.cssSelector],
+        ),
       };
     });
   });
@@ -150,7 +155,7 @@ export class TimelineLegendComponent {
       const md = LogTypeMetadata[type];
       return {
         label: md.label,
-        color: logTypeColors[md.label],
+        color: RendererConvertUtil.hdrColorToCSSColor(logTypeColors[md.label]),
       };
     });
   });
