@@ -15,17 +15,16 @@
  */
 
 import {
+  HDRColor4,
   logTypeColors,
-  logTypeDarkColors,
   logTypes,
-  revisionStateDarkColors,
   revisionStatecolors,
   revisionStates,
   severities,
-  severityBorderColors,
   severityColors,
 } from 'src/app/generated';
 import { GLResource } from './types';
+import { RendererConvertUtil } from '../components/gl/convertutil';
 
 /**
  * Initialize and hold gl resources commonly used from multiple timeline rows.
@@ -230,9 +229,15 @@ export class SharedGLResources extends GLResource {
     eventColorPaletteCanvas.style.imageRendering = 'pixelated';
 
     for (let i = 0; i < logTypes.length; i++) {
-      ctx2dForEvent.fillStyle = logTypeColors[logTypes[i]];
+      ctx2dForEvent.fillStyle = RendererConvertUtil.hdrColorToCSSColor(
+        logTypeColors[logTypes[i]],
+      );
       ctx2dForEvent.fillRect(i * 2 + 0, 0, 1, 1);
-      ctx2dForEvent.fillStyle = logTypeDarkColors[logTypes[i]];
+      const darkColor = logTypeColors[logTypes[i]].map(
+        (c) => c + 0.2,
+      ) as HDRColor4;
+      ctx2dForEvent.fillStyle =
+        RendererConvertUtil.hdrColorToCSSColor(darkColor);
       ctx2dForEvent.fillRect(i * 2 + 1, 0, 1, 1);
     }
 
@@ -264,9 +269,15 @@ export class SharedGLResources extends GLResource {
     revisionColorPaletteCanvas.style.imageRendering = 'pixelated';
 
     for (let i = 0; i < revisionStates.length; i++) {
-      ctx2dForRevision.fillStyle = revisionStatecolors[revisionStates[i]];
+      ctx2dForRevision.fillStyle = RendererConvertUtil.hdrColorToCSSColor(
+        revisionStatecolors[revisionStates[i]],
+      );
       ctx2dForRevision.fillRect(i * 2 + 0, 0, 1, 1);
-      ctx2dForRevision.fillStyle = revisionStateDarkColors[revisionStates[i]];
+      const darkColor = revisionStatecolors[revisionStates[i]].map(
+        (c) => c + 0.2,
+      ) as HDRColor4;
+      ctx2dForRevision.fillStyle =
+        RendererConvertUtil.hdrColorToCSSColor(darkColor);
       ctx2dForRevision.fillRect(i * 2 + 1, 0, 1, 1);
     }
 
@@ -302,9 +313,15 @@ export class SharedGLResources extends GLResource {
       this.generateCanvasForTextureSource(severities.length, 2, false);
     logSeverityColorPaletteCanvas.style.imageRendering = 'pixelated';
     for (let i = 0; i < severities.length; i++) {
-      ctx2dForLogSeverity.fillStyle = severityColors[severities[i]];
+      ctx2dForLogSeverity.fillStyle = RendererConvertUtil.hdrColorToCSSColor(
+        severityColors[severities[i]],
+      );
       ctx2dForLogSeverity.fillRect(i, 0, 1, 1);
-      ctx2dForLogSeverity.fillStyle = severityBorderColors[severities[i]];
+      const darkColor = severityColors[severities[i]].map(
+        (c) => c + 0.2,
+      ) as HDRColor4;
+      ctx2dForLogSeverity.fillStyle =
+        RendererConvertUtil.hdrColorToCSSColor(darkColor);
       ctx2dForLogSeverity.fillRect(i, 1, 1, 1);
     }
     this.logSeverityColorPaletteTexture = this.glMust(this.gl.createTexture());

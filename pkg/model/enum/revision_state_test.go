@@ -34,8 +34,8 @@ func TestRevisionStatesIsValid(t *testing.T) {
 				if state.EnumKeyName == "" {
 					t.Errorf("EnumKeyName in `%s(%d)` is empty", state.EnumKeyName, i)
 				}
-				if state.BackgroundColor == "" {
-					t.Errorf("LabelBackgroundColor in `%s(%d)` is empty", state.EnumKeyName, i)
+				if len(state.BackgroundColor) != 4 {
+					t.Errorf("LabelBackgroundColor in `%s(%d)` is not HDRColor4", state.EnumKeyName, i)
 				}
 				if state.CSSSelector == "" {
 					t.Errorf("CSSSelector in `%s(%d)` is empty", state.EnumKeyName, i)

@@ -48,8 +48,8 @@ type ParentRelationshipFrontendMetadata struct {
 	Label string
 	// Hint explains the meaning of this timeline. This is shown as the tooltip on front end.
 	Hint                 string
-	LabelColor           string
-	LabelBackgroundColor string
+	LabelColor           HDRColor4
+	LabelBackgroundColor HDRColor4
 	SortPriority         int
 
 	// LongName is a descriptive name of the ralationship. This value is used in the document.
@@ -86,8 +86,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		Visible:              false,
 		EnumKeyName:          "RelationshipChild",
 		Label:                "resource",
-		LabelColor:           "#000000",
-		LabelBackgroundColor: "#CCCCCC",
+		LabelColor:           mustHexToHDRColor4("#000000"),
+		LabelBackgroundColor: mustHexToHDRColor4("#CCCCCC"),
 		SortPriority:         1000,
 		LongName:             "The default resource timeline",
 		Description:          "A default timeline recording the history of Kubernetes resources",
@@ -150,8 +150,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipResourceCondition",
 		Label:                "condition",
 		LongName:             "Status condition field timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#4c29e8",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#4c29e8"),
 		Hint:                 "Resource condition written on .status.conditions",
 		SortPriority:         2000,
 		Description:          "A timeline showing the state changes on `.status.conditions` of the parent resource",
@@ -178,8 +178,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipOperation",
 		Label:                "operation",
 		LongName:             "Operation timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#000000",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#000000"),
 		Hint:                 "GCP operations associated with this resource",
 		SortPriority:         3000,
 		Description:          "A timeline showing long running operation status related to the parent resource",
@@ -241,8 +241,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipEndpointSlice",
 		Label:                "endpoint", // renamed from "endpointslice" in 0.50.0
 		LongName:             "Endpoint serving state timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#008000",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#008000"),
 		Hint:                 "Pod serving status obtained from endpoint slice",
 		SortPriority:         20000, // later than container
 		Description:          "A timeline indicates the status of endpoint related to the parent resource(Pod or Service)",
@@ -269,8 +269,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipContainer",
 		Label:                "container",
 		LongName:             "Container timeline",
-		LabelColor:           "#000000",
-		LabelBackgroundColor: "#fe9bab",
+		LabelColor:           mustHexToHDRColor4("#000000"),
+		LabelBackgroundColor: mustHexToHDRColor4("#fe9bab"),
 		Hint:                 "Statuses/logs of a container",
 		SortPriority:         5000,
 		Description:          "A timline of a container included in the parent timeline of a Pod",
@@ -317,8 +317,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipNodeComponent",
 		Label:                "node-component",
 		LongName:             "Node component timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#0077CC",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#0077CC"),
 		Hint:                 "Non container resource running on a node",
 		SortPriority:         6000,
 		Description:          "A component running inside of the parent timeline of a Node",
@@ -351,8 +351,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipOwnerReference",
 		Label:                "owns",
 		LongName:             "Owning children timeline",
-		LabelColor:           "#000000",
-		LabelBackgroundColor: "#33DD88",
+		LabelColor:           mustHexToHDRColor4("#000000"),
+		LabelBackgroundColor: mustHexToHDRColor4("#33DD88"),
 		Hint:                 "A k8s resource related to this resource from .metadata.ownerReference field",
 		SortPriority:         7000,
 		GeneratableAliasTimelineInfo: []GeneratableAliasTimelineInfo{
@@ -368,8 +368,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipPodBinding",
 		Label:                "binds",
 		LongName:             "Pod binding timeline",
-		LabelColor:           "#000000",
-		LabelBackgroundColor: "#FF8855",
+		LabelColor:           mustHexToHDRColor4("#000000"),
+		LabelBackgroundColor: mustHexToHDRColor4("#FF8855"),
 		Hint:                 "Pod binding subresource associated with this node",
 		SortPriority:         8000,
 		GeneratableAliasTimelineInfo: []GeneratableAliasTimelineInfo{
@@ -385,8 +385,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipNetworkEndpointGroup",
 		Label:                "neg",
 		LongName:             "Network Endpoint Group timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#A52A2A",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#A52A2A"),
 		Hint:                 "Pod serving status obtained from the associated NEG status",
 		SortPriority:         20500, // later than endpoint slice
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -407,8 +407,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipManagedInstanceGroup",
 		Label:                "mig",
 		LongName:             "Managed instance group timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#FF5555",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#FF5555"),
 		Hint:                 "MIG logs associated to the parent node pool",
 		SortPriority:         10000,
 		GeneratableEvents: []GeneratableEventInfo{
@@ -423,8 +423,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipControlPlaneComponent",
 		Label:                "controlplane",
 		LongName:             "Control plane component timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#FF5555",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#FF5555"),
 		Hint:                 "control plane component of the cluster",
 		SortPriority:         11000,
 		GeneratableEvents: []GeneratableEventInfo{
@@ -439,8 +439,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipSerialPort",
 		Label:                "serialport",
 		LongName:             "Serialport log timeline",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#333333",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#333333"),
 		Hint:                 "Serial port logs of the node",
 		SortPriority:         1500, // in the middle of direct children and status.
 		GeneratableEvents: []GeneratableEventInfo{
@@ -455,8 +455,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipAirflowTaskInstance",
 		Label:                "task",
 		LongName:             "@task(Operator, Sensor, etc)",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#377e22",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#377e22"),
 		Hint:                 "Task is the basic unit of execution in Airflow",
 		SortPriority:         1501,
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -527,8 +527,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipCSMAccessLog",
 		Label:                "csm",
 		LongName:             "CSM access log",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#FF8500",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#FF8500"),
 		Hint:                 "CSM Access logs related to this resource",
 		SortPriority:         5001, // just under container logs
 		GeneratableEvents: []GeneratableEventInfo{
@@ -543,8 +543,8 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		EnumKeyName:          "RelationshipPodPhase",
 		Label:                "pod",
 		LongName:             "Pod phase",
-		LabelColor:           "#FFFFFF",
-		LabelBackgroundColor: "#FF8855",
+		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
+		LabelBackgroundColor: mustHexToHDRColor4("#FF8855"),
 		Hint:                 "Pod phase running on the node",
 		SortPriority:         8000, // just under container logs
 		GeneratableRevisions: []GeneratableRevisionInfo{

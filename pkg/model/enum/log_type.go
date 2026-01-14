@@ -45,83 +45,83 @@ type LogTypeFrontendMetadata struct {
 	// Label string shown on frontnend to indicate the log type.
 	Label string
 	// Background color of the label on log pane.
-	LabelBackgroundColor string
+	LabelBackgroundColor HDRColor4
 }
 
 var LogTypes = map[LogType]LogTypeFrontendMetadata{
 	LogTypeUnknown: {
 		EnumKeyName:          "LogTypeUnknown",
 		Label:                "unknown",
-		LabelBackgroundColor: "#000000",
+		LabelBackgroundColor: mustHexToHDRColor4("#000000"),
 	},
 	LogTypeEvent: {
 		EnumKeyName:          "LogTypeEvent",
 		Label:                "k8s_event",
-		LabelBackgroundColor: "#3fb549",
+		LabelBackgroundColor: mustHexToHDRColor4("#3fb549"),
 	},
 	LogTypeAudit: {
 		EnumKeyName:          "LogTypeAudit",
 		Label:                "k8s_audit",
-		LabelBackgroundColor: "#000000",
+		LabelBackgroundColor: mustHexToHDRColor4("#000000"),
 	},
 	LogTypeContainer: {
 		EnumKeyName:          "LogTypeContainer",
 		Label:                "k8s_container",
-		LabelBackgroundColor: "#fe9bab",
+		LabelBackgroundColor: mustHexToHDRColor4("#fe9bab"),
 	},
 	LogTypeNode: {
 		EnumKeyName:          "LogTypeNode",
 		Label:                "k8s_node",
-		LabelBackgroundColor: "#0077CC",
+		LabelBackgroundColor: mustHexToHDRColor4("#0077CC"),
 	},
 	LogTypeGkeAudit: {
 		EnumKeyName:          "LogTypeGkeAudit",
 		Label:                "gke_audit",
-		LabelBackgroundColor: "#AA00FF",
+		LabelBackgroundColor: mustHexToHDRColor4("#AA00FF"),
 	},
 	LogTypeComputeApi: {
 		EnumKeyName:          "LogTypeComputeApi",
 		Label:                "compute_api",
-		LabelBackgroundColor: "#FFCC33",
+		LabelBackgroundColor: mustHexToHDRColor4("#FFCC33"),
 	},
 	LogTypeMulticloudAPI: {
 		EnumKeyName:          "LogTypeMulticloudAPI",
 		Label:                "multicloud_api",
-		LabelBackgroundColor: "#AA00FF",
+		LabelBackgroundColor: mustHexToHDRColor4("#AA00FF"),
 	},
 	LogTypeOnPremAPI: {
 		EnumKeyName:          "LogTypeOnPremAPI",
 		Label:                "onprem_api",
-		LabelBackgroundColor: "#AA00FF",
+		LabelBackgroundColor: mustHexToHDRColor4("#AA00FF"),
 	},
 	LogTypeNetworkAPI: {
 		EnumKeyName:          "LogTypeNetworkAPI",
 		Label:                "network_api",
-		LabelBackgroundColor: "#33CCFF",
+		LabelBackgroundColor: mustHexToHDRColor4("#33CCFF"),
 	},
 	LogTypeAutoscaler: {
 		EnumKeyName:          "LogTypeAutoscaler",
 		Label:                "autoscaler",
-		LabelBackgroundColor: "#FF5555",
+		LabelBackgroundColor: mustHexToHDRColor4("#FF5555"),
 	},
 	LogTypeComposerEnvironment: {
 		EnumKeyName:          "LogTypeComposerEnvironment",
 		Label:                "composer_environment",
-		LabelBackgroundColor: "#88AA55",
+		LabelBackgroundColor: mustHexToHDRColor4("#88AA55"),
 	},
 	LogTypeControlPlaneComponent: {
 		EnumKeyName:          "LogTypeControlPlaneComponent",
 		Label:                "control_plane_component",
-		LabelBackgroundColor: "#FF3333",
+		LabelBackgroundColor: mustHexToHDRColor4("#FF3333"),
 	},
 	LogTypeSerialPort: {
 		EnumKeyName:          "LogTypeSerialPort",
 		Label:                "serial_port",
-		LabelBackgroundColor: "#333333",
+		LabelBackgroundColor: mustHexToHDRColor4("#333333"),
 	},
 	LogTypeCSMAccessLog: {
 		EnumKeyName:          "LogTypeCSMAccessLog",
 		Label:                "csm_access_log",
-		LabelBackgroundColor: "#FF8500",
+		LabelBackgroundColor: mustHexToHDRColor4("#FF8500"),
 	},
 }
