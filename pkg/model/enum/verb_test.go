@@ -34,8 +34,8 @@ func TestRevisionVerbIsValid(t *testing.T) {
 				if verb.Label == "" {
 					t.Errorf("Label in %s(%d) is empty", verb.EnumKeyName, i)
 				}
-				if verb.LabelBackgroundColor == "" {
-					t.Errorf("LabelBackgroundColor in %s(%d) is empty", verb.EnumKeyName, i)
+				if len(verb.LabelBackgroundColor) != 4 {
+					t.Errorf("LabelBackgroundColor in %s(%d) is not HDRColor4", verb.EnumKeyName, i)
 				}
 				if verb.CSSSelector == "" {
 					t.Errorf("CSSSelector in %s(%d) is empty", verb.EnumKeyName, i)

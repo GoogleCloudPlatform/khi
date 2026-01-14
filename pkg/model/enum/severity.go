@@ -31,47 +31,47 @@ type SeverityFrontendMetadata struct {
 	// Label string shown on frontnend to indicate the severity.
 	Label string
 	// Label color used in log pane.
-	LabelColor string
+	LabelColor HDRColor4
 	// Background color of the label on log pane and the diamond shape on timeline view.
-	BackgroundColor string
+	BackgroundColor HDRColor4
 	// Border color of the diamond shape on timeline view.
-	BorderColor string
+	BorderColor HDRColor4
 }
 
 var Severities = map[Severity]SeverityFrontendMetadata{
 	SeverityUnknown: {
 		EnumKeyName:     "SeverityUnknown",
 		Label:           "UNKNOWN",
-		LabelColor:      "#FFFFFF",
-		BackgroundColor: "#000000",
-		BorderColor:     "#AAAAAA",
+		LabelColor:      mustHexToHDRColor4("#FFFFFF"),
+		BackgroundColor: mustHexToHDRColor4("#000000"),
+		BorderColor:     mustHexToHDRColor4("#AAAAAA"),
 	},
 	SeverityInfo: {
 		EnumKeyName:     "SeverityInfo",
 		Label:           "INFO",
-		LabelColor:      "#FFFFFF",
-		BackgroundColor: "#0000FF",
-		BorderColor:     "#1E88E5",
+		LabelColor:      mustHexToHDRColor4("#FFFFFF"),
+		BackgroundColor: mustHexToHDRColor4("#0000FF"),
+		BorderColor:     mustHexToHDRColor4("#1E88E5"),
 	},
 	SeverityWarning: {
 		EnumKeyName:     "SeverityWarning",
 		Label:           "WARNING",
-		LabelColor:      "#FFFFFF",
-		BackgroundColor: "#FFAA44",
-		BorderColor:     "#FDD835",
+		LabelColor:      mustHexToHDRColor4("#FFFFFF"),
+		BackgroundColor: mustHexToHDRColor4("#FFAA44"),
+		BorderColor:     mustHexToHDRColor4("#FDD835"),
 	},
 	SeverityError: {
 		EnumKeyName:     "SeverityError",
 		Label:           "ERROR",
-		LabelColor:      "#FFFFFF",
-		BackgroundColor: "#FF3935",
-		BorderColor:     "#FF8888",
+		LabelColor:      mustHexToHDRColor4("#FFFFFF"),
+		BackgroundColor: mustHexToHDRColor4("#FF3935"),
+		BorderColor:     mustHexToHDRColor4("#FF8888"),
 	},
 	SeverityFatal: {
 		EnumKeyName:     "SeverityFatal",
 		Label:           "FATAL",
-		LabelColor:      "#FFFFFF",
-		BackgroundColor: "#AA66AA",
-		BorderColor:     "#FF99FF",
+		LabelColor:      mustHexToHDRColor4("#FFFFFF"),
+		BackgroundColor: mustHexToHDRColor4("#AA66AA"),
+		BorderColor:     mustHexToHDRColor4("#FF99FF"),
 	},
 }

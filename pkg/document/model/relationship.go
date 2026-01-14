@@ -15,8 +15,6 @@
 package model
 
 import (
-	"strings"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
@@ -102,7 +100,7 @@ func GetRelationshipDocumentModel() RelationshipDocumentModel {
 			HasVisibleChip: relationship.Visible,
 			Label:          relationship.Label,
 			LongName:       relationship.LongName,
-			ColorCode:      strings.TrimLeft(relationship.LabelBackgroundColor, "#"),
+			ColorCode:      enum.ColorToHexRGB(relationship.LabelBackgroundColor),
 
 			GeneratableEvents:    getRelationshipGeneratableEvents(relationshipKey),
 			GeneratableRevisions: getRelationshipGeneratableRevisions(relationshipKey),
@@ -124,7 +122,7 @@ func getRelationshipGeneratableEvents(reltionship enum.ParentRelationship) []Rel
 		result = append(result, RelationshipGeneratableEvent{
 			ID:                 logType.EnumKeyName,
 			SourceLogTypeLabel: logType.Label,
-			ColorCode:          strings.TrimLeft(logType.LabelBackgroundColor, "#"),
+			ColorCode:          enum.ColorToHexRGB(logType.LabelBackgroundColor),
 			Description:        event.Description,
 		})
 	}
@@ -141,8 +139,8 @@ func getRelationshipGeneratableRevisions(reltionship enum.ParentRelationship) []
 		result = append(result, RelationshipGeneratableRevisions{
 			ID:                     logType.EnumKeyName,
 			SourceLogTypeLabel:     logType.Label,
-			SourceLogTypeColorCode: strings.TrimLeft(logType.LabelBackgroundColor, "#"),
-			RevisionStateColorCode: strings.TrimLeft(revisionState.BackgroundColor, "#"),
+			SourceLogTypeColorCode: enum.ColorToHexRGB(logType.LabelBackgroundColor),
+			RevisionStateColorCode: enum.ColorToHexRGB(revisionState.BackgroundColor),
 			RevisionStateLabel:     revisionState.Label,
 			Description:            revision.Description,
 		})
@@ -160,9 +158,9 @@ func getRelationshipGeneratableAliases(reltionship enum.ParentRelationship) []Re
 		result = append(result, RelationshipGeneratableAliases{
 			ID:                                   logType.EnumKeyName,
 			AliasedTimelineRelationshipLabel:     aliasedRelationship.Label,
-			AliasedTimelineRelationshipColorCode: strings.TrimLeft(aliasedRelationship.LabelBackgroundColor, "#"),
+			AliasedTimelineRelationshipColorCode: enum.ColorToHexRGB(aliasedRelationship.LabelBackgroundColor),
 			SourceLogTypeLabel:                   logType.Label,
-			SourceLogTypeColorCode:               strings.TrimLeft(logType.LabelBackgroundColor, "#"),
+			SourceLogTypeColorCode:               enum.ColorToHexRGB(logType.LabelBackgroundColor),
 			Description:                          alias.Description,
 		})
 	}

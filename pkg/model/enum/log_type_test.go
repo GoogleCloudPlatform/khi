@@ -34,8 +34,8 @@ func TestLogTypeMetadataIsValid(t *testing.T) {
 				if logType.EnumKeyName == "" {
 					t.Errorf("EnumKeyName in `%s(%d)` is empty", logType.Label, i)
 				}
-				if logType.LabelBackgroundColor == "" {
-					t.Errorf("LabelBackgroundColor in `%s(%d)` is empty", logType.Label, i)
+				if len(logType.LabelBackgroundColor) != 4 {
+					t.Errorf("LabelBackgroundColor in `%s(%d)` is not defined as HDRColor4", logType.Label, i)
 				}
 				if logType.Label == "" {
 					t.Errorf("Label in `%s(%d)` is empty", logType.Label, i)

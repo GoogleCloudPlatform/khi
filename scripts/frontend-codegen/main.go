@@ -25,7 +25,6 @@ import (
 	"text/template"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/crazy3lf/colorconv"
 )
 
 const SCSS_FILE_LOCATION = "./web/src/app/generated.scss"
@@ -39,16 +38,20 @@ const USED_ICON_FILES_LOCATION = "./scripts/msdf-generator/zzz_generated_used_ic
 var templateFuncMap = template.FuncMap{
 	"ToLower": strings.ToLower,
 	"ToUpper": strings.ToUpper,
+	"Color4ToArray": func(color enum.HDRColor4) string {
+		return fmt.Sprintf("[%f, %f, %f, %f]", color[0], color[1], color[2], color[3])
+	},
+	"Color4ToCSS": func(color enum.HDRColor4) string {
+		return fmt.Sprintf("oklch(from color(display-p3 %f %f %f) l c h / %f)", color[0], color[1], color[2], color[3])
+	},
 }
 
 type templateInput struct {
-	ParentRelationships     map[enum.ParentRelationship]enum.ParentRelationshipFrontendMetadata
-	Severities              map[enum.Severity]enum.SeverityFrontendMetadata
-	LogTypes                map[enum.LogType]enum.LogTypeFrontendMetadata
-	RevisionStates          map[enum.RevisionState]enum.RevisionStateFrontendMetadata
-	Verbs                   map[enum.RevisionVerb]enum.RevisionVerbFrontendMetadata
-	LogTypeDarkColors       map[string]string
-	RevisionStateDarkColors map[string]string
+	ParentRelationships map[enum.ParentRelationship]enum.ParentRelationshipFrontendMetadata
+	Severities          map[enum.Severity]enum.SeverityFrontendMetadata
+	LogTypes            map[enum.LogType]enum.LogTypeFrontendMetadata
+	RevisionStates      map[enum.RevisionState]enum.RevisionStateFrontendMetadata
+	Verbs               map[enum.RevisionVerb]enum.RevisionVerbFrontendMetadata
 }
 
 type usedIconSetting struct {
@@ -57,36 +60,11 @@ type usedIconSetting struct {
 
 func main() {
 	var input templateInput = templateInput{
-		RevisionStates:          enum.RevisionStates,
-		ParentRelationships:     enum.ParentRelationships,
-		Severities:              enum.Severities,
-		LogTypes:                enum.LogTypes,
-		Verbs:                   enum.RevisionVerbs,
-		LogTypeDarkColors:       map[string]string{},
-		RevisionStateDarkColors: map[string]string{},
-	}
-
-	for _, logType := range enum.LogTypes {
-		color, err := colorconv.HexToColor(logType.LabelBackgroundColor)
-		if err != nil {
-			panic(err)
-		}
-		h, s, l := colorconv.ColorToHSL(color)
-		dl := l * 0.8
-		if l == 0.0 { // only applicable for #000
-			dl = 0.8
-		}
-		input.LogTypeDarkColors[logType.Label] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
-	}
-
-	for _, revisionState := range enum.RevisionStates {
-		color, err := colorconv.HexToColor(revisionState.BackgroundColor)
-		if err != nil {
-			panic(err)
-		}
-		h, s, l := colorconv.ColorToHSL(color)
-		dl := l * 0.8
-		input.RevisionStateDarkColors[revisionState.CSSSelector] = fmt.Sprintf("hsl(%fdeg %f%% %f%%)", h, s*100, dl*100)
+		RevisionStates:      enum.RevisionStates,
+		ParentRelationships: enum.ParentRelationships,
+		Severities:          enum.Severities,
+		LogTypes:            enum.LogTypes,
+		Verbs:               enum.RevisionVerbs,
 	}
 
 	scssTemplate := loadTemplate("color-scss", SCSS_TEMPLATE)

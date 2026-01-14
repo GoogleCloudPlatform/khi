@@ -39,14 +39,14 @@ func TestParentRelationshipMetadataIsValid(t *testing.T) {
 					t.Errorf("EnumKeyName in `%s(%d)` is empty", relationship.Label, i)
 				}
 				if relationship.Visible {
-					if relationship.LabelColor == "" {
-						t.Errorf("LabelColor in `%s(%d)` is empty", relationship.Label, i)
+					if len(relationship.LabelColor) != 4 {
+						t.Errorf("LabelColor in `%s(%d)` is not HDRColor4", relationship.Label, i)
 					}
 					if relationship.LongName == "" {
 						t.Errorf("LongName in `%s(%d)` is empty", relationship.Label, i)
 					}
-					if relationship.LabelBackgroundColor == "" {
-						t.Errorf("LabelBackgroundColor in `%s(%d)` is empty", relationship.Label, i)
+					if len(relationship.LabelBackgroundColor) != 4 {
+						t.Errorf("LabelBackgroundColor in `%s(%d)` is not HDRColor4", relationship.Label, i)
 					}
 					if relationship.Hint == "" {
 						t.Errorf("Hint in `%s(%d)` is empty", relationship.Label, i)

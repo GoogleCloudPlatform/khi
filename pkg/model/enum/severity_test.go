@@ -34,11 +34,14 @@ func TestSeverityMetadataIsValid(t *testing.T) {
 				if severity.EnumKeyName == "" {
 					t.Errorf("EnumKeyName in `%s(%d)` is empty", severity.Label, i)
 				}
-				if severity.LabelColor == "" {
-					t.Errorf("LabelColor in `%s(%d)` is empty", severity.Label, i)
+				if len(severity.LabelColor) != 4 {
+					t.Errorf("LabelColor in `%s(%d)` is not HDRColor4", severity.Label, i)
 				}
-				if severity.BackgroundColor == "" {
-					t.Errorf("LabelBackgroundColor in `%s(%d)` is empty", severity.Label, i)
+				if len(severity.BackgroundColor) != 4 {
+					t.Errorf("LabelBackgroundColor in `%s(%d)` is not HDRColor4", severity.Label, i)
+				}
+				if len(severity.BorderColor) != 4 {
+					t.Errorf("BorderColor in `%s(%d)` is not HDRColor4", severity.Label, i)
 				}
 			})
 		}

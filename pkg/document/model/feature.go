@@ -16,7 +16,6 @@ package model
 
 import (
 	"slices"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/filter"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -127,13 +126,13 @@ func GetFeatureDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*
 				indirectQueryDependencyElement = append(indirectQueryDependencyElement, FeatureIndirectDependentQueryElement{
 					ID:               queryTask.UntypedID().String(),
 					LogTypeLabel:     logType.Label,
-					LogTypeColorCode: strings.TrimLeft(logType.LabelBackgroundColor, "#"),
+					LogTypeColorCode: enum.ColorToHexRGB(logType.LabelBackgroundColor),
 				})
 			} else {
 				targetQueryDependencyElement = FeatureDependentTargetQueryElement{
 					ID:               queryTask.UntypedID().String(),
 					LogTypeLabel:     enum.LogTypes[targetLogTypeKey].Label,
-					LogTypeColorCode: strings.TrimLeft(enum.LogTypes[targetLogTypeKey].LabelBackgroundColor, "#"),
+					LogTypeColorCode: enum.ColorToHexRGB(enum.LogTypes[targetLogTypeKey].LabelBackgroundColor),
 					SampleQuery:      typedmap.GetOrDefault(queryTask.Labels(), inspectioncore_contract.TaskLabelKeyQueryTaskSampleQuery, ""),
 				}
 			}
@@ -179,7 +178,7 @@ func GetFeatureDocumentModel(taskServer *coreinspection.InspectionTaskServer) (*
 			if isRelated {
 				outputTimelines = append(outputTimelines, FeatureOutputTimelineElement{
 					RelationshipID:        relationship.EnumKeyName,
-					RelationshipColorCode: strings.TrimLeft(relationship.LabelBackgroundColor, "#"),
+					RelationshipColorCode: enum.ColorToHexRGB(relationship.LabelBackgroundColor),
 					LongName:              relationship.LongName,
 					Label:                 relationship.Label,
 					Description:           relationship.Description,

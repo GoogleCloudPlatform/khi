@@ -129,7 +129,7 @@ export class BackgroundCanvas {
     private _selectionManagerService: SelectionManagerService,
   ) {
     this.canvas = canvas;
-    const context = this.canvas.getContext('2d');
+    const context = this.canvas.getContext('2d', { colorSpace: 'display-p3' });
     if (context != null) {
       this.ctx = context;
     } else {
