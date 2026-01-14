@@ -16,7 +16,7 @@
 
 import { RendererConvertUtil } from './convertutil';
 
-fdescribe('RendererConvertUtil', () => {
+describe('RendererConvertUtil', () => {
   describe('hexSRGBToHDRColor', () => {
     it('should convert 7-digit hex color to HDRColor4', () => {
       const result = RendererConvertUtil.hexSRGBToHDRColor('#FF0000');

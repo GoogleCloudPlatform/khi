@@ -39,6 +39,9 @@ export class RendererConvertUtil {
    * @returns RGB color array ([r, g, b]).
    */
   public static hexSRGBToHDRColor(hex: string): HDRColor4 {
+    if (!hex.startsWith('#')) {
+      throw new Error(`Hex string must start with '#': ${hex}`);
+    }
     const r = parseInt(hex.substring(1, 3), 16);
     const g = parseInt(hex.substring(3, 5), 16);
     const b = parseInt(hex.substring(5, 7), 16);
