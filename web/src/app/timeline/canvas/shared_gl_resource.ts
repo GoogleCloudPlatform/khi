@@ -24,7 +24,7 @@ import {
   severityColors,
 } from 'src/app/generated';
 import { GLResource } from './types';
-import { RendererConvertUtil } from '../components/gl/convertutil';
+import { RendererConvertUtil } from '../components/canvas/convertutil';
 
 /**
  * Initialize and hold gl resources commonly used from multiple timeline rows.
