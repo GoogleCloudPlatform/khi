@@ -16,7 +16,9 @@
 
 @use "sass:color";
 @use "../../common.scss" as common;
+@use "@angular/material" as mat;
 $histogram-height: 60px;
+$date-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 400);
 
 :host {
   display: block;
@@ -77,7 +79,7 @@ $cursor-color: #00ff00;
   padding: 0px 3px;
   font-size: 10px;
   font-weight: 500;
-  color: red;
+  color: $date-color;
   display: flex;
   gap: 0px 5px;
   align-items: center;
@@ -91,6 +93,6 @@ $cursor-color: #00ff00;
     left: 50%;
     transform: translateX(-50%);
     width: 2px;
-    background-color: red;
+    background-color: $date-color;
   }
 }

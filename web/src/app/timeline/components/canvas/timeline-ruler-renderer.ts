@@ -54,17 +54,16 @@ export class TimelineRulerRenderer {
    *
    * @param viewModel The view model containing data to render (histogram buckets, ticks).
    * @param leftEdgeTimeMS The time at the left edge of the viewport in milliseconds.
-   * @param pixelsPerNs The current scale in pixels per millisecond. (Note: Argument name says Ns but it is treated as Ms).
+   * @param pixelsPerMs The current scale in pixels per millisecond.
    */
   render(
     viewModel: TimelineRulerViewModel,
     leftEdgeTimeMS: number,
-    pixelsPerNs: number,
+    pixelsPerMs: number,
   ) {
     this.ctx.clearRect(0, 0, this.width, this.height);
-    this.drawHeaderHistogram(viewModel, leftEdgeTimeMS, pixelsPerNs);
-    this.drawHeaderForeground();
-    this.drawRulerLines(viewModel, pixelsPerNs);
+    this.drawHeaderHistogram(viewModel, leftEdgeTimeMS, pixelsPerMs);
+    this.drawRulerLines(viewModel, pixelsPerMs);
   }
 
   /**
@@ -137,31 +136,6 @@ export class TimelineRulerRenderer {
       }
       currentX += windowWidth;
     }
-  }
-
-  /**
-   * Draws the gradient overlay and bottom border for the header.
-   */
-  private drawHeaderForeground() {
-    // drop white gradient over histogram to make ruler lines more visible
-    const gradient = this.ctx.createLinearGradient(
-      0,
-      0,
-      0,
-      this.style.headerHeightInPx,
-    );
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(0.5, 'rgba(255,255,255,0)');
-    gradient.addColorStop(1, 'rgba(255,255,255,0.5)');
-    this.ctx.fillStyle = gradient;
-    this.ctx.fillRect(0, 0, this.width, this.style.headerHeightInPx);
-
-    this.ctx.lineWidth = 1;
-    this.ctx.strokeStyle = '#000000';
-    this.ctx.beginPath();
-    this.ctx.moveTo(0, this.style.headerHeightInPx);
-    this.ctx.lineTo(this.width, this.style.headerHeightInPx);
-    this.ctx.stroke();
   }
 
   /**
