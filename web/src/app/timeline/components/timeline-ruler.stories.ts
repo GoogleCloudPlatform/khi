@@ -73,18 +73,42 @@ const meta: Meta<TimelineRulerComponent> = {
 export default meta;
 type Story = StoryObj<TimelineRulerComponent>;
 
-const START_TIME = 1000000;
+const START_TIME = Date.parse('2025-12-31T23:30:00Z');
 const DURATION = 60 * 60 * 1000; // 1 hour
+const VIEWPORT_WIDTH = window.innerWidth;
 
-function generateMockLogs(count: number, errorRatio: number = 0): LogEntry[] {
+function generateMockLogs(
+  count: number,
+  severityRatio: { [severity in Severity]?: number },
+): LogEntry[] {
   const logs: LogEntry[] = [];
+  const culmativeRatios: number[] = [];
+  for (const severity of [
+    Severity.SeverityUnknown,
+    Severity.SeverityInfo,
+    Severity.SeverityWarning,
+    Severity.SeverityError,
+    Severity.SeverityFatal,
+  ]) {
+    const lastRatio: number = culmativeRatios[culmativeRatios.length - 1] || 0;
+    culmativeRatios.push(lastRatio + (severityRatio[severity] || 0));
+  }
   for (let i = 0; i < count; i++) {
     const time = START_TIME + Math.random() * DURATION;
-    const isError = Math.random() < errorRatio;
+    const rand = Math.random();
+    let severity: Severity = Severity.SeverityInfo;
+    for (let j = 0; j < culmativeRatios.length; j++) {
+      if (
+        rand <
+        culmativeRatios[j] / culmativeRatios[culmativeRatios.length - 1]
+      ) {
+        severity = j as Severity;
+        break;
+      }
+    }
     logs.push({
       time,
-      severity: isError ? Severity.SeverityError : Severity.SeverityInfo,
-      // Minimal properties required by HistogramCache (assuming LogEntry interface)
+      severity,
     } as LogEntry);
   }
   return logs;
@@ -92,30 +116,59 @@ function generateMockLogs(count: number, errorRatio: number = 0): LogEntry[] {
 
 function generateViewModel(
   logs: LogEntry[],
-  filteredLogs: LogEntry[] = [],
+  filteredLogs: LogEntry[] = logs,
 ): TimelineRulerViewModel {
   const calculator = new RulerViewModelBuilder();
-  const allLogsCache = new HistogramCache(logs, 1000); // 1s bucket
-  const filteredLogsCache = new HistogramCache(
-    filteredLogs.length > 0 ? filteredLogs : logs,
+  const allLogsCache = new HistogramCache(
+    logs,
     1000,
+    START_TIME,
+    START_TIME + DURATION,
+  ); // 1s bucket
+  const filteredLogsCache = new HistogramCache(
+    filteredLogs,
+    1000,
+    START_TIME,
+    START_TIME + DURATION,
   );
 
   return calculator.generateRulerViewModel(
     START_TIME,
-    1000 / DURATION, // pixelsPerMs
-    1000, // viewportWidth
+    VIEWPORT_WIDTH / DURATION, // pixelsPerMs
+    VIEWPORT_WIDTH, // viewportWidth
     0, // timezoneShiftHours
     allLogsCache,
     filteredLogsCache,
   );
 }
 
+function filterLogs(
+  logs: LogEntry[],
+  rate: number,
+): {
+  allLogs: LogEntry[];
+  filteredLogs: LogEntry[];
+} {
+  const allLogs = logs;
+  const filteredLogs = logs.filter(() => {
+    return Math.random() < rate;
+  });
+  return { allLogs, filteredLogs };
+}
+
 export const Default: Story = {
   args: {
-    viewModel: generateViewModel(generateMockLogs(1000, 0.1)),
+    viewModel: generateViewModel(
+      generateMockLogs(100000, {
+        [Severity.SeverityUnknown]: 1,
+        [Severity.SeverityInfo]: 1,
+        [Severity.SeverityWarning]: 1,
+        [Severity.SeverityError]: 1,
+        [Severity.SeverityFatal]: 1,
+      }),
+    ),
     leftEdgeTime: START_TIME,
-    pixelsPerMs: 1000 / DURATION,
+    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
   },
 };
 
@@ -123,14 +176,40 @@ export const NoLogs: Story = {
   args: {
     viewModel: generateViewModel([]),
     leftEdgeTime: START_TIME,
-    pixelsPerMs: 1000 / DURATION,
+    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
   },
 };
 
 export const HighError: Story = {
   args: {
-    viewModel: generateViewModel(generateMockLogs(1000, 0.8)),
+    viewModel: generateViewModel(
+      generateMockLogs(100000, {
+        [Severity.SeverityUnknown]: 1,
+        [Severity.SeverityInfo]: 1,
+        [Severity.SeverityWarning]: 1,
+        [Severity.SeverityError]: 5,
+        [Severity.SeverityFatal]: 1,
+      }),
+    ),
     leftEdgeTime: START_TIME,
-    pixelsPerMs: 1000 / DURATION,
+    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+  },
+};
+
+const filtered = filterLogs(
+  generateMockLogs(100000, {
+    [Severity.SeverityUnknown]: 1,
+    [Severity.SeverityInfo]: 30,
+    [Severity.SeverityWarning]: 10,
+    [Severity.SeverityError]: 5,
+    [Severity.SeverityFatal]: 1,
+  }),
+  0.3,
+);
+export const Filtered: Story = {
+  args: {
+    viewModel: generateViewModel(filtered.allLogs, filtered.filteredLogs),
+    leftEdgeTime: START_TIME,
+    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
   },
 };

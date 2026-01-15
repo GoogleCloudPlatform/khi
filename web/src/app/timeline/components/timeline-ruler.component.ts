@@ -35,7 +35,7 @@ import { generateDefaultRulerStyle } from './style-model';
 
 interface DateLabel {
   offsetX: number;
-  labelLeft?: string;
+  labelLeft: string;
   labelRight: string;
 }
 
@@ -92,12 +92,6 @@ export class TimelineRulerComponent implements AfterViewInit {
   pixelsPerMs = input<number>(1);
 
   /**
-   * The horizontal scroll offset of the content relative to the viewport, in pixels.
-   * Used to position sticky elements like date labels if necessary.
-   */
-  contentToViewportOffsetInPx = input<number>(0);
-
-  /**
    * Computes the positions and text for date labels (e.g., "YYYY/MM/DD") based on the current
    * visible time range, ensuring that day boundaries are correctly labeled.
    */
@@ -118,19 +112,12 @@ export class TimelineRulerComponent implements AfterViewInit {
       ) {
         break;
       }
-
       labels.push({
         offsetX: (currentDayTime - leftEdgeTime) * pixelsPerMs,
         labelLeft: this.toDateLabel(currentDayTime - timezoneShiftInMs - DAY),
         labelRight: this.toDateLabel(currentDayTime - timezoneShiftInMs),
       });
       prevDayTime = currentDayTime;
-    }
-    if (labels.length === 0) {
-      labels.push({
-        offsetX: 100 + this.contentToViewportOffsetInPx(),
-        labelRight: this.toDateLabel(leftEdgeTime - timezoneShiftInMs),
-      });
     }
     return labels;
   });

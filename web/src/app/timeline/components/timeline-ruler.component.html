@@ -14,32 +14,20 @@
  limitations under the License.
 -->
 
-<div
-  class="container"
-  #container
-  [style.--content-to-viewport-offset-x.px]="contentToViewportOffsetInPx()"
->
+<div class="container" #container>
   <canvas class="background-canvas" #backgroundCanvas></canvas>
   <div #overlay class="canvas-overlay">
     @for (label of dateLabels(); track label.offsetX) {
-      @if (label.labelLeft !== undefined) {
-        <div class="date-container" [style.--offset-x.px]="label.offsetX">
-          <p class="date-label">
-            {{ label.labelLeft }}
-          </p>
-          <mat-icon>arrows_outward</mat-icon>
-          <p class="date-label">
-            {{ label.labelRight }}
-          </p>
-          <div class="date-label-divider"></div>
-        </div>
-      } @else {
-        <div class="date-container" [style.--offset-x.px]="label.offsetX">
-          <p class="date-label">
-            {{ label.labelRight }}
-          </p>
-        </div>
-      }
+      <div class="date-container" [style.--offset-x.px]="label.offsetX">
+        <p class="date-label">
+          {{ label.labelLeft }}
+        </p>
+        <mat-icon>arrows_outward</mat-icon>
+        <p class="date-label">
+          {{ label.labelRight }}
+        </p>
+        <div class="date-label-divider"></div>
+      </div>
     }
     @for (label of viewModel().timeLabels; let index = $index; track index) {
       <div class="time-container" [style.--offset-x.px]="label.offsetLeftInPx">

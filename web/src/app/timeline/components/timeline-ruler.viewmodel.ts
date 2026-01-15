@@ -167,6 +167,7 @@ export class RulerViewModelBuilder {
       startTickIndex * tickTimeMS,
       (startTickIndex + numberOfTicks) * tickTimeMS,
       tickTimeMS,
+      histogramData.totalLogCount,
     );
     const windows: HistogramBucketViewModel[] = new Array(
       histogramData.bucketCount,

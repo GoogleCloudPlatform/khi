@@ -81,58 +81,41 @@ export class TimelineRulerRenderer {
     this.ctx.lineWidth = this.style.histogramLineThickness;
     const headerHeight = this.style.headerHeightInPx;
     const histogramHeight = this.style.maxHistogramHeightInPx;
+
     for (const window of viewModel.histogramBuckets) {
-      let currentY = 0;
-      for (const severity of this.style.severitiesInDrawOrder) {
-        const ratio = window.all[severity];
-        if (ratio === 0) continue;
-        this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColorWithAlpha(
-          this.style.severityColors[severity],
-          this.style.nonHighlightedAlpha,
-        );
-        this.ctx.strokeStyle = RendererConvertUtil.hdrColorToCSSColor(
-          this.style.severityStrokeColors[severity],
-        );
-        const height = ratio * histogramHeight;
-        this.ctx.fillRect(
-          currentX + t,
-          headerHeight - currentY - height + t,
-          windowWidth - t * 2,
-          height - t * 2,
-        );
-        this.ctx.strokeRect(
-          currentX + t,
-          headerHeight - currentY - height + t,
-          windowWidth - t * 2,
-          height - t * 2,
-        );
-        currentY += height;
-      }
-      currentY = 0;
-      for (const severity of this.style.severitiesInDrawOrder) {
-        const ratio = window.highlighted[severity];
-        if (ratio === 0) continue;
-        this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColorWithAlpha(
-          this.style.severityColors[severity],
-          this.style.highlightedAlpha,
-        );
-        this.ctx.strokeStyle = RendererConvertUtil.hdrColorToCSSColor(
-          this.style.severityStrokeColors[severity],
-        );
-        const height = ratio * histogramHeight;
-        this.ctx.fillRect(
-          currentX + t,
-          headerHeight - currentY - height + t,
-          windowWidth - t * 2,
-          height - t * 2,
-        );
-        this.ctx.strokeRect(
-          currentX + t,
-          headerHeight - currentY - height + t,
-          windowWidth - t * 2,
-          height - t * 2,
-        );
-        currentY += height;
+      const barGroups = [
+        { ratios: window.all, alpha: this.style.nonHighlightedAlpha },
+        { ratios: window.highlighted, alpha: this.style.highlightedAlpha },
+      ];
+      for (const group of barGroups) {
+        let currentY = 0;
+        for (const severity of this.style.severitiesInDrawOrder) {
+          const ratio = group.ratios[severity];
+          if (ratio === 0) continue;
+          this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColorWithAlpha(
+            this.style.severityColors[severity],
+            group.alpha,
+          );
+          this.ctx.strokeStyle =
+            RendererConvertUtil.hdrColorToCSSColorWithAlpha(
+              this.style.severityStrokeColors[severity],
+              group.alpha * 0.5,
+            );
+          const height = ratio * histogramHeight;
+          this.ctx.fillRect(
+            currentX + t,
+            headerHeight - currentY - height + t,
+            windowWidth - t * 2,
+            height - t * 2,
+          );
+          this.ctx.strokeRect(
+            currentX + t,
+            headerHeight - currentY - height + t,
+            windowWidth - t * 2,
+            height - t * 2,
+          );
+          currentY += height;
+        }
       }
       currentX += windowWidth;
     }
