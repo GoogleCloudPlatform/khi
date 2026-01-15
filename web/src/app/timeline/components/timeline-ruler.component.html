@@ -1,0 +1,52 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div
+  class="container"
+  #container
+  [style.--content-to-viewport-offset-x.px]="contentToViewportOffsetInPx()"
+>
+  <canvas class="background-canvas" #backgroundCanvas></canvas>
+  <div #overlay class="canvas-overlay">
+    @for (label of dateLabels(); track label.offsetX) {
+      @if (label.labelLeft !== undefined) {
+        <div class="date-container" [style.--offset-x.px]="label.offsetX">
+          <p class="date-label">
+            {{ label.labelLeft }}
+          </p>
+          <mat-icon>arrows_outward</mat-icon>
+          <p class="date-label">
+            {{ label.labelRight }}
+          </p>
+          <div class="date-label-divider"></div>
+        </div>
+      } @else {
+        <div class="date-container" [style.--offset-x.px]="label.offsetX">
+          <p class="date-label">
+            {{ label.labelRight }}
+          </p>
+        </div>
+      }
+    }
+    @for (label of viewModel().timeLabels; let index = $index; track index) {
+      <div class="time-container" [style.--offset-x.px]="label.offsetLeftInPx">
+        <p class="time-label">
+          {{ label.label }}
+        </p>
+      </div>
+    }
+  </div>
+</div>
