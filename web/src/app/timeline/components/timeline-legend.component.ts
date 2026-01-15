@@ -31,7 +31,7 @@ import {
 } from 'src/app/generated';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
-import { RendererConvertUtil } from './gl/convertutil';
+import { RendererConvertUtil } from './canvas/convertutil';
 
 /**
  * ViewModel for revision legend item.
