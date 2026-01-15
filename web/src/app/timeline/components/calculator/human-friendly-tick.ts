@@ -165,13 +165,10 @@ export function getMinTimeSpanForHistogram(
   maxQueryTime: number,
 ): number {
   const timeSpan = maxQueryTime - minQueryTime;
-  for (let i = 0; i < RULER_STEPS_MS.length; i++) {
-    const step = RULER_STEPS_MS[i];
-    if (timeSpan / step.low <= maxHistogramSize) {
-      return step.low;
-    }
-  }
-  return timeSpan;
+  return (
+    RULER_STEPS_MS.find((step) => timeSpan / step.low <= maxHistogramSize)
+      ?.low ?? timeSpan
+  );
 }
 
 /**
@@ -199,13 +196,8 @@ export function getRulerStep(
   minGridWidthPx: number,
 ): RulerStepDefinition {
   const minTimeSpanMS = minGridWidthPx / pixelsPerMs;
-  let step = RULER_STEPS_MS[0];
-  for (const s of RULER_STEPS_MS) {
-    if (s.low >= minTimeSpanMS) {
-      step = s;
-      break;
-    }
-    step = s;
-  }
-  return step;
+  return (
+    RULER_STEPS_MS.find((step) => step.low >= minTimeSpanMS) ??
+    RULER_STEPS_MS[RULER_STEPS_MS.length - 1]
+  );
 }
