@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -425,11 +426,33 @@ metadata:
 				},
 			},
 		},
+		{
+			name:      "Pass 0: No EndpointSlice body",
+			pass:      0,
+			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
+			operation: enum.RevisionVerbUpdate,
+			initialState: &endpointResourceLogToTimelineMapperState{
+				serviceNames: map[string]struct{}{},
+				foundPods:    map[string]*podIdentity{},
+				lastStates:   map[string]enum.RevisionState{},
+			},
+			wantState: &endpointResourceLogToTimelineMapperState{
+				serviceNames: map[string]struct{}{},
+				foundPods:    map[string]*podIdentity{},
+				lastStates:   map[string]enum.RevisionState{},
+			},
+			asserters: []testchangeset.ChangeSetAsserter{
+				&testchangeset.MatchResourcePathSet{WantResourcePaths: []string{}},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			reader := mustParseYAML(t, tc.yaml)
+			var reader *structured.NodeReader
+			if tc.yaml != "" {
+				reader = mustParseYAML(t, tc.yaml)
+			}
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{},
 				&commonlogk8sauditv2_contract.K8sAuditLogFieldSet{},

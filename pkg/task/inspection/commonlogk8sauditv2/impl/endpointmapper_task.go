@@ -66,6 +66,9 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) Process(ctx context.Con
 			lastStates:   map[string]enum.RevisionState{},
 		}
 	}
+	if event.EventTargetBodyReader == nil {
+		return state, nil
+	}
 	switch passIndex {
 	case 0:
 		return e.processFirstPass(ctx, event, cs, builder, state)
