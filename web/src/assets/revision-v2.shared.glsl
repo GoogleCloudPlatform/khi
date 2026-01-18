@@ -29,7 +29,7 @@ layout(std140) uniform RevisionLayerStyles {
     float fontSizeInPx;                // Font size for the revision index.
     float fontThicknessBySelectionType[3]; // SDF font thickness/weight adjustment: [None, Selected, Highlighted]
     float fontAntialias;               // Antialiasing factor for the font.
-    float fontStepInPx;                // Hrizontal spacing per digit character.
+    float fontStepInPx;                // Horizontal spacing per digit character.
     vec3 selectionBorderColor;         // Color of the border when selected.
     float selectionBorderThickness;    // Thickness of the border when selected.
     vec3 highlightBorderColor;         // Color of the border when highlighted (hovered).
