@@ -1,0 +1,98 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "sass:color";
+@use "../../common.scss" as common;
+@use "@angular/material" as mat;
+$histogram-height: 60px;
+$date-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 400);
+
+:host {
+  display: block;
+  height: $histogram-height;
+}
+
+$cursor-color: #00ff00;
+
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  overscroll-behavior: none;
+}
+
+.background-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: $histogram-height;
+}
+
+.canvas-overlay {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: $histogram-height;
+  user-select: none;
+}
+
+.time-container {
+  position: absolute;
+  top: 20px;
+  left: var(--offset-x);
+  z-index: 5;
+  transform: translateX(-50%);
+  background-color: rgba(100, 100, 100, 0.7);
+  color: white;
+  box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.3);
+  padding: 0px 3px;
+  border-radius: 2px;
+
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.date-container {
+  position: absolute;
+  top: 4px;
+  left: var(--offset-x);
+  z-index: 10;
+  transform: translateX(calc(-50%));
+  background-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.3);
+  padding: 0px 3px;
+  font-size: 12px;
+  font-weight: 500;
+  color: $date-color;
+  display: flex;
+  gap: 0px 5px;
+  align-items: center;
+  mat-icon {
+    @include common.adjust-mat-icon-size(14px);
+  }
+  .date-label-divider {
+    position: absolute;
+    top: 10px;
+    bottom: -10vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    background-color: $date-color;
+  }
+}
