@@ -15,6 +15,7 @@
  */
 
 import { RendererConvertUtil } from './convertutil';
+import { WebGLContextLostException } from './glcontextmanager';
 import { BMFontChar, BMFontConfig, WebGLUtil } from './glutil';
 
 /**
@@ -78,12 +79,18 @@ export class TimelineRendererSharedResource {
    */
   async setup(gl: WebGL2RenderingContext) {
     this.msdfSampler = gl.createSampler();
+    if (this.msdfSampler === null) {
+      throw new WebGLContextLostException('Failed to create sampler');
+    }
     gl.samplerParameteri(this.msdfSampler, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.samplerParameteri(this.msdfSampler, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.samplerParameteri(this.msdfSampler, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.samplerParameteri(this.msdfSampler, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     this.uboViewState = gl.createBuffer();
+    if (this.uboViewState === null) {
+      throw new WebGLContextLostException('Failed to create buffer');
+    }
     this.uboViewStateSource = new ArrayBuffer(24);
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboViewState);
     gl.bufferData(gl.UNIFORM_BUFFER, this.uboViewStateSource, gl.DYNAMIC_DRAW);

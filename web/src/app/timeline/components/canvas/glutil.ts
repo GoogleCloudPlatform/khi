@@ -102,6 +102,9 @@ export class WebGLUtil {
     const fs = this.createAndCompileShader(gl, fss, gl.FRAGMENT_SHADER);
 
     const program = gl.createProgram();
+    if (program === null) {
+      throw new WebGLContextLostException('Failed to create program');
+    }
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
     gl.linkProgram(program);
@@ -131,7 +134,7 @@ export class WebGLUtil {
     if (texture === null)
       throw new WebGLContextLostException('Failed to create texture');
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, gl.RGB, gl.UNSIGNED_BYTE, image);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, image);
     gl.bindTexture(gl.TEXTURE_2D, null);
     return texture;
   }

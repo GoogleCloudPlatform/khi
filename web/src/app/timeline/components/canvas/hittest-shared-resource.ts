@@ -15,6 +15,7 @@
  */
 
 import { ResourceTimeline } from 'src/app/store/timeline';
+import { WebGLContextLostException } from './glcontextmanager';
 
 /**
  * Result of a hit test operation on the timeline.
@@ -58,7 +59,13 @@ export class TimelineHitTestSharedResource {
    */
   setup(gl: WebGL2RenderingContext) {
     this.hittestFBO = gl.createFramebuffer();
+    if (this.hittestFBO === null) {
+      throw new WebGLContextLostException('Failed to create framebuffer');
+    }
     this.hittestTexture = gl.createTexture();
+    if (this.hittestTexture === null) {
+      throw new WebGLContextLostException('Failed to create texture');
+    }
     gl.bindTexture(gl.TEXTURE_2D, this.hittestTexture);
     gl.texImage2D(
       gl.TEXTURE_2D,
