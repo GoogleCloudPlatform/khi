@@ -32,7 +32,7 @@ export interface TimelineRulerViewModel {
 
   /**
    * The time duration of a histogram bucket.
-   * This must be divisable by tickTimeMS to align the historam and scales.
+   * This must be divisible by tickTimeMS to align the historam and scales.
    */
   histogramBucketTimeMS: number;
 

@@ -175,7 +175,7 @@ export class TimelineRulerComponent implements AfterViewInit {
     canvas.style.width = `${container.clientWidth}px`;
     canvas.style.height = `${style.headerHeightInPx}px`;
 
-    // Changing actual acnvas size or notifying resizes to the renderer may clear the canvas and cause the flickering effect.
+    // Changing actual canvas size or notifying resizes to the renderer may clear the canvas and cause the flickering effect.
     // Delay its actual resizing on the next rendering time.
     this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
       canvas.width = container.clientWidth * dpr;

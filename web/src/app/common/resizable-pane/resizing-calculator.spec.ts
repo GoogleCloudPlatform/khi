@@ -153,7 +153,7 @@ describe('ResizingCalculator', () => {
     });
   });
 
-  it('expands areas when the container is bigger than current sum of area sizes and the resize amount is not divisable', (done) => {
+  it('expands areas when the container is bigger than current sum of area sizes and the resize amount is not divisible', (done) => {
     verifyResizingByContainerSize(
       [
         {
