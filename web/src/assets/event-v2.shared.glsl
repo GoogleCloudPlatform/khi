@@ -18,7 +18,7 @@ layout(std140) uniform EventLayerStyles{
   float severityColorRatio;    // The ratio of the event height dedicated to the severity color.
   float borderThickness;       // Thickness of the event border.
   float borderAntialias;       // Antialiasing factor for the border.
-    vec3 hoverBorderColor;     // Color of the border when the event is hovered.
+  vec3 hoverBorderColor;     // Color of the border when the event is hovered.
   float hoverBorderThickness;  // Thickness of the border when hovered.
   vec3 selectionBorderColor;   // Color of the border when the event is selected.
   float selectionBorderThickness; // Thickness of the border when selected.

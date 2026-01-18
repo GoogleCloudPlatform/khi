@@ -63,6 +63,9 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
       timeVBOSource[i * 2 + 1] = start[1];
     }
     this.timeVBO = gl.createBuffer();
+    if (this.timeVBO === null) {
+      throw new Error('Failed to create time VBO');
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.bufferData(gl.ARRAY_BUFFER, timeVBOSource, gl.STATIC_DRAW);
 
@@ -77,6 +80,9 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
       intStaticMetaVBOSource[i * 4 + 3] = 0;
     }
     this.intStaticMetaVBO = gl.createBuffer();
+    if (this.intStaticMetaVBO === null) {
+      throw new Error('Failed to create intStaticMeta VBO');
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intStaticMetaVBO);
     gl.bufferData(gl.ARRAY_BUFFER, intStaticMetaVBOSource, gl.STATIC_DRAW);
 
@@ -84,6 +90,9 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
       this.timeline.events.length * 4,
     );
     this.intDynamicMetaVBO = gl.createBuffer();
+    if (this.intDynamicMetaVBO === null) {
+      throw new Error('Failed to create intDynamicMeta VBO');
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -92,6 +101,9 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     );
 
     this.eventsVAO = gl.createVertexArray();
+    if (this.eventsVAO === null) {
+      throw new Error('Failed to create events VAO');
+    }
     gl.bindVertexArray(this.eventsVAO);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.vertexAttribIPointer(
@@ -389,6 +401,9 @@ export class TimelineEventsSharedResources {
     }
 
     this.eventStylesUBO = gl.createBuffer()!;
+    if (this.eventStylesUBO === null) {
+      throw new Error('Failed to create eventStyles UBO');
+    }
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.eventStylesUBO);
     gl.bufferData(gl.UNIFORM_BUFFER, uboSource, gl.STATIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
@@ -443,6 +458,9 @@ export class TimelineEventsSharedResources {
     layer: TimelineLayer,
   ): WebGLBuffer {
     const ubo = gl.createBuffer();
+    if (ubo === null) {
+      throw new Error('Failed to create layer style UBO');
+    }
     gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
     const timelineHeight = this.chartStyle.heightsByLayer[layer];
     const eventStyle = this.chartStyle.eventStylesByLayer[layer];

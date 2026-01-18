@@ -63,7 +63,7 @@ void main(){
 
   // 4. Calculate the screen size of the event
   // If the event is not selected/hovered (selectionStatus < 0.5), it is slightly smaller.
-  eventScreenSize = els.timelineHeight - 2.0 * els.verticalPadding * mix(1.0,0.7, step(0.5, float(eventModel.selectionStatus)));;
+  eventScreenSize = els.timelineHeight - 2.0 * els.verticalPadding * mix(1.0,0.7, step(0.5, float(eventModel.selectionStatus)));
   vec2 scale = vec2(eventScreenSize) / vec2(vs.canvasResolution.x,els.timelineHeight);
 
   // 5. Calculate the position of the event on the timeline

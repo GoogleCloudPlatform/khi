@@ -13,12 +13,6 @@ in float eventScreenSize;
 
 flat in EventModel eventModel;
 
-mat2 genRotationMatrix2D(float angle){
-  float c = cos(angle);
-  float s = sin(angle);
-  return mat2(c, -s, s, c);
-}
-
 // Calculates the border intensity based on UV coordinates and screen size.
 // Returns a value between 0.0 (center) and 1.0 (edge).
 float isBorder(float borderThickness,float antialias){
@@ -38,10 +32,10 @@ void main(){
   // split colors to logType / logSeverity.
   // The bottom part of diamond is logTypeColor, and the top part is logSeverityColor.
   vec3 baseColor = mix(
-          eventModel.logTypeColor.rgb,
-          eventModel.logSeverityColor.rgb,
-          step(els.severityColorRatio, uvAfterRotation.y)
-        );
+    eventModel.logTypeColor.rgb,
+    eventModel.logSeverityColor.rgb,
+    step(els.severityColorRatio, uvAfterRotation.y)
+  );
 
   // Apply borders based on selection status (Hover, Selected, or None).
   vec3 colorWithBorder = mix(
