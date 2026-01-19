@@ -1,0 +1,264 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../common.scss" as common;
+@use "@angular/material" as mat;
+
+$hover-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$selected-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
+
+@mixin revision-style-box($revisionColor, $borderThickness) {
+  box-sizing: border-box;
+  mat-icon {
+    color: rgb(from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6));
+  }
+  &.style-normal {
+    $dark-color: rgb(
+      from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
+    );
+    background-color: color-mix(in srgb, $revisionColor, transparent 50%);
+    border-left: $borderThickness solid $dark-color;
+    border-right: $borderThickness solid $dark-color;
+    &.status-start {
+      border-top: $borderThickness solid $dark-color;
+    }
+    &.status-end {
+      border-bottom: $borderThickness solid $dark-color;
+    }
+  }
+  &.style-partial-info {
+    $stripeBrighter: color-mix(in display-p3, $revisionColor 20%, white);
+    $stripeBrighterTransparent: color-mix(
+      in display-p3,
+      $stripeBrighter,
+      transparent 70%
+    );
+    background-image: repeating-linear-gradient(
+      45deg,
+      $stripeBrighterTransparent,
+      $stripeBrighterTransparent 5px,
+      color-mix(in display-p3, $revisionColor, transparent 70%) 5px,
+      color-mix(in display-p3, $revisionColor, transparent 70%) 10px
+    );
+    $dark-color: rgb(
+      from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
+    );
+    border-left: $borderThickness solid $dark-color;
+    border-right: $borderThickness solid $dark-color;
+    &.status-start {
+      border-top: $borderThickness solid $dark-color;
+    }
+    &.status-end {
+      border-bottom: $borderThickness solid $dark-color;
+    }
+  }
+  &.style-deleted {
+    $dark-color: rgb(
+      from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
+    );
+    background-color: color-mix(in srgb, $revisionColor, transparent 70%);
+    border-left: $borderThickness dashed $dark-color;
+    border-right: $borderThickness dashed $dark-color;
+    &.status-start {
+      border-top: $borderThickness dashed $dark-color;
+    }
+    &.status-end {
+      border-bottom: $borderThickness dashed $dark-color;
+    }
+  }
+}
+
+.container {
+  width: 30vw;
+  box-shadow: 0 0 4px 0 rgba(0, 0, 0, 1);
+  background-color: white;
+  border: 0.5px solid rgba(100, 100, 100, 1);
+  border-radius: 3px;
+  display: grid;
+}
+
+.table {
+  display: grid;
+  grid-template-areas: "state misc time log";
+  grid-template-columns: auto auto auto 1fr;
+  grid-auto-rows: auto;
+  padding-bottom: 22px;
+  .header {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    font-weight: 600;
+    font-size: 12px;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-right: 0.5px solid rgba(100, 100, 100, 1);
+    padding: 0px 4px;
+    mat-icon {
+      @include common.adjust-mat-icon-size(12px);
+    }
+  }
+
+  .body {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    box-sizing: border-box;
+    padding: 0px 4px;
+
+    &.hovered {
+      background-color: $hover-log-tint;
+    }
+
+    &.selected {
+      background-color: $selected-log-tint;
+      font-weight: 600;
+    }
+    &:hover {
+      cursor: pointer;
+    }
+
+    .body-state-container {
+      display: grid;
+      width: 30px;
+      grid-template-rows: 50% 0 50%;
+      grid-template-columns: 1fr;
+      justify-content: center;
+
+      .revision-state-top {
+        grid-row: 1;
+        @include revision-style-box(var(--revision-state-color), 2px);
+      }
+
+      .revision-state-bottom {
+        grid-row: 3;
+        position: relative;
+        @include revision-style-box(var(--revision-state-color), 2px);
+        &.is-last-row {
+          height: calc(100% + 10px);
+        }
+        mat-icon {
+          position: absolute;
+          @include common.adjust-mat-icon-size(12px);
+          top: 0px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 1;
+        }
+      }
+
+      .event-anchor {
+        grid-row: 2;
+        position: relative;
+        width: 100%;
+        height: 0px;
+        z-index: 10;
+        .event-rect {
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%) translateY(-50%) rotate(45deg);
+          width: 10px;
+          height: 10px;
+          $colorChangePoint: 40%;
+          background: linear-gradient(
+            135deg,
+            common.mix-hdr-color(var(--severity-color), white, 50%)
+              $colorChangePoint,
+            common.mix-hdr-color(var(--log-type-color), white, 50%)
+              $colorChangePoint
+          );
+          &:after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            bottom: 2px;
+            $colorChangePointEdge: 33%;
+            background: linear-gradient(
+              135deg,
+              var(--severity-color) $colorChangePointEdge,
+              var(--log-type-color) $colorChangePointEdge
+            );
+          }
+        }
+      }
+
+      .more-icon {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: dimgray;
+        mat-icon {
+          @include common.adjust-mat-icon-size(12px);
+        }
+        &.bottom-icon {
+          margin-top: 25px;
+        }
+      }
+    }
+    .body-misc-colors {
+      display: flex;
+      align-items: center;
+      .verb-type-container {
+        width: 10px;
+        height: 10px;
+        clip-path: polygon(0 50%, 100% 100%, 100% 0);
+        background-color: var(--verb-type-color);
+      }
+      .log-type-container {
+        width: 5px;
+        height: 100%;
+        background-color: var(--log-type-color);
+        box-sizing: border-box;
+        border-right: 0.5px solid rgba(100, 100, 100, 1);
+      }
+      .severity-container {
+        width: 14px;
+        height: 100%;
+        background-color: var(--severity-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      }
+    }
+
+    .body-time {
+      display: flex;
+      align-items: center;
+      padding: 0px 3px;
+      font-size: 12px;
+      font-weight: 200;
+      background-color: mat.m2-get-color-from-palette(
+        mat.$m2-indigo-palette,
+        50
+      );
+    }
+
+    .body-log-summaries {
+      display: flex;
+      align-items: center;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .bottom-line {
+      border-bottom: 1px solid rgba(100, 100, 100, 0.35);
+    }
+  }
+}
