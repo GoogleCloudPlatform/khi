@@ -37,3 +37,8 @@ $resizer-thickness: 5px;
     box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
   }
 }
+
+// Mix two colors in HDR color space
+@function mix-hdr-color($color1, $color2, $ratioColor2) {
+  @return color-mix(in display-p3, $color1, $color2 $ratioColor2);
+}
