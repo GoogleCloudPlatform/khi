@@ -28,7 +28,7 @@ export interface TextReferenceFromKHIFileBinary extends TextReference {
  * Convert the raw KHIFileTextReference to TextReferenceFromKHIFileBinary.
  */
 export function ToTextReferenceFromKHIFileBinary(
-  reference: KHIFileTextReference | null,
+  reference: KHIFileTextReference | null = null,
 ): TextReference {
   if (reference === null) {
     return {
