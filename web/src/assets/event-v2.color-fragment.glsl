@@ -53,5 +53,6 @@ void main(){
   );
 
   fragColor.rgb = colorWithBorder;
-  fragColor.a = mix(0.9,1.0,borderAlpha);
+  fragColor.a = mix(0.9,1.0,borderAlpha) * mix(0.2,1.0,float(eventModel.filterStatus));
+  fragColor.rgb *= fragColor.a; // Canvas expects premultiplied alpha.
 }

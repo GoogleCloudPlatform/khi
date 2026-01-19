@@ -10,7 +10,7 @@ precision highp int;
 // Input attributes from the vertex buffer.
 layout(location = 0) in uvec4 time; // x: start time(s), y: start time(ns), z: end time(s), w: end time(ns)
 layout(location = 1) in uvec4 intStaticMeta; // x: revisionIndex, y: revisionState, z: logIndex. Static metadata.
-layout(location = 2) in uvec4 intDynamicMeta; // x: selectionState. Dynamic metadata.
+layout(location = 2) in uvec4 intDynamicMeta; // x: selectionState, y: filterStatus. Dynamic metadata.
 
 // Outputs to the fragment shader.
 out vec2 uv;                // UV coordinates for the quad (0.0 to 1.0).
@@ -39,6 +39,7 @@ void main(){
   revisionModel.revisionState = intStaticMeta.y;
   revisionModel.logIndex = intStaticMeta.z;
   revisionModel.selectionStatus = intDynamicMeta.x;
+  revisionModel.filterStatus = intDynamicMeta.y;
 
   uv = pos.xy * 0.5 + 0.5;
 
@@ -51,7 +52,7 @@ void main(){
   // Calculate the X position and width regarding the left edge time and the duration.
   // 1. Calculate relative time difference from the viewport left edge.
   ivec2 leftEdgeRelativeTime = ivec2(time.xy - vs.leftEdgeTime);
-  uvec2 durationTime = time.zw - time.xy;
+  ivec2 durationTime = ivec2(time.zw - time.xy);
   
   // 2. Convert time to screen coordinates (pixels).
   float leftEdgeXScreen = (float(leftEdgeRelativeTime.x)* 1e+3 + float(leftEdgeRelativeTime.y) * 1e-6) * vs.pixelsPerMs;

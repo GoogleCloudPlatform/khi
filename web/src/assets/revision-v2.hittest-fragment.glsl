@@ -17,6 +17,9 @@ flat in float leftEdgeTimeMS;
 layout(location = 0) out uvec2 hittestID; // x: revision index, y: object type (1 for revision)
 
 void main(){
+  if(revisionModel.filterStatus == 0u){
+    discard;
+  }
   // Return the revision index and object type 1 (Revision).
   hittestID = uvec2(revisionModel.revisionIndex, 1);
 }

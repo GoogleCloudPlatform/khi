@@ -133,14 +133,19 @@ void main(){
   // 2. Compute stripe patterns
   float borderStripeAlpha = mix(1.0, borderStripePattern(rls.borderStripePitch), float(revisionModel.borderStripePatten));
   float bodyStripeAlpha = mix(1.0, stripePattern(rls.bodyStripePitch), float(revisionModel.bodyStripePattern));
-  float borderAlpha = isBorder(rls.borderThickness) * borderStripeAlpha;
+  float isSelected = step(1.5,float(revisionModel.selectionStatus));
+  float isHovered = step(0.5, float(revisionModel.selectionStatus)) * (1.0 - isSelected);
+  float borderScale = 1.0 + isSelected * 0.5 + isHovered * 0.1;
+  float borderAlpha = isBorder(rls.borderThickness * borderScale) * borderStripeAlpha;
+  float alphaScale = 1.0 + isSelected * 0.5 + isHovered * 0.1;
+  float alpha = revisionModel.alphaTransparency * alphaScale;
 
   // 3. Combine Alphas for "Dark" elements (Text, Icon, Border)
   float darkAlpha = max(fontAlpha, max(iconAlpha, borderAlpha));
   
   // 4. Calculate Selection and Highlight Borders
-  float selectionBorderAlpha = isBorder(rls.selectionBorderThickness) * step(1.5,float(revisionModel.selectionStatus)) * step(borderAlpha,0.5);
-  float highlightBorderAlpha = isBorder(rls.highlightBorderThickness) * step(0.5, float(revisionModel.selectionStatus)) * step(borderAlpha,0.5);
+  float selectionBorderAlpha = 0.;
+  float highlightBorderAlpha = 0.;
   float darkAlphaWithBorder = max(darkAlpha,max(selectionBorderAlpha,highlightBorderAlpha));
   
   // 5. Compose Final Color
@@ -165,6 +170,6 @@ void main(){
   );
   
   fragColor.rgb = baseColor;
-  fragColor.a = mix(revisionModel.alphaTransparency, 1.0, darkAlphaWithBorder);
+  fragColor.a = mix(alpha, 1.0, darkAlphaWithBorder) * mix(0.2,1.0,float(revisionModel.filterStatus));
   fragColor.rgb *= fragColor.a; // Pre-multiplied alpha
 }

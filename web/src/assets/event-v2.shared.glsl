@@ -32,4 +32,5 @@ struct EventModel{
   // states
   uint eventIndex;        // Unique index of the event.
   uint selectionStatus;   // Selection state: 0=None, 1=Hover, 2=Selected.
+  uint filterStatus;      // Filter state: 0 = filtered out, 1 = non filtered.
 };

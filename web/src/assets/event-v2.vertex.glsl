@@ -9,7 +9,7 @@ precision highp int;
 // instanced rendering is used, so these attributes are per-instance (per-event).
 layout(location = 0) in uvec2 time; // x: start time(s), y: start time(ns). High precision timestamp.
 layout(location = 1) in uvec4 intStaticMeta; // x: eventIndex, y: logType, z: logSeverity. Static metadata.
-layout(location = 2) in uvec4 intDynamicMeta; // x: selectionState. Dynamic metadata that can change frequently.
+layout(location = 2) in uvec4 intDynamicMeta; // x: selectionState. y: filterState Dynamic metadata that can change frequently.
 
 // Outputs to the fragment shader.
 out vec2 uv;                // UV coordinates for the quad (0.0 to 1.0).
@@ -60,6 +60,7 @@ void main(){
   eventModel.logTypeColor = es.logTypeColors[intStaticMeta.y];
   eventModel.logSeverityColor = es.logSeverityColors[intStaticMeta.z];
   eventModel.selectionStatus = intDynamicMeta.x;
+  eventModel.filterStatus = intDynamicMeta.y;
 
   // 4. Calculate the screen size of the event
   // If the event is not selected/hovered (selectionStatus < 0.5), it is slightly smaller.
@@ -77,13 +78,15 @@ void main(){
   vec3 moved = genTranslationScaleMatrixAffineSpace2D(translation,scale) * vec3(pos.xy,1.0);
 
   // 7. Calculate final Depth (Z-coordinate) for correct layering
-  // Importance criteria 1: Selected > Hover > None
-  // Importance criteria 2: severity (higher severity -> closer to camera)
+  // Importance criteria 1: active > filtered out
+  // Importance criteria 2: Selected > Hover > None
+  // Importance criteria 3: severity (higher severity -> closer to camera)
   // baseOffset ensures these events are rendered behind other UI elements (like revisions on Z=0).
   float baseOffset = -0.5;
-  float selectionPriority = - 0.1 * float(SELECTION_STATE_TO_DEPTH_PRIORITY[eventModel.selectionStatus]);
-  float importancePriority = - 0.1 / float(MAX_LOG_SEVERITY_COUNT) * float(intStaticMeta.z);
-  pos.z = selectionPriority + importancePriority + baseOffset;
+  float filterPriority = - 0.1 * float(eventModel.filterStatus);
+  float selectionPriority = - 0.01 * float(SELECTION_STATE_TO_DEPTH_PRIORITY[eventModel.selectionStatus]);
+  float importancePriority = - 0.001 / float(MAX_LOG_SEVERITY_COUNT) * float(intStaticMeta.z);
+  pos.z = filterPriority + selectionPriority + importancePriority + baseOffset;
 
   gl_Position = vec4(moved.xy,pos.z,1.0);
 }
