@@ -18,5 +18,8 @@ flat in EventModel eventModel;
 void main(){
   // Output the event index and the object type identifier (2 for events).
   // This allows the CPU to read the pixel under the mouse and identify the clicked event.
+  if(eventModel.filterStatus == 0u){
+    discard;
+  }
   hittestID = uvec2(eventModel.eventIndex, 2);
 }

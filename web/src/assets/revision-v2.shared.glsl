@@ -53,5 +53,6 @@ struct RevisionModel {
   uint revisionIndex;
   uint revisionState;
   uint selectionStatus;
+  uint filterStatus;
   uint logIndex;
 };

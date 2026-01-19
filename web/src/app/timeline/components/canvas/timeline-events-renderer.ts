@@ -160,15 +160,23 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL rendering context.
    * @param logElementHighlights Map of log indices to their highlight state.
+   * @param activeLogsIndices Set of log indices that are currently active(not filtered out).
    */
   updateDynamicBuffer(
     gl: WebGLRenderingContext,
     logElementHighlights: TimelineChartItemHighlight,
+    activeLogsIndices: Set<number>,
   ) {
     for (let i = 0; i < this.timeline.events.length; i++) {
       const selectionStatus =
         logElementHighlights[this.timeline.events[i].logIndex] ?? 0;
+      const filterStatus = activeLogsIndices.has(
+        this.timeline.events[i].logIndex,
+      )
+        ? 1
+        : 0;
       this.intDynamicMetaVBOSource[i * 4 + 0] = selectionStatus;
+      this.intDynamicMetaVBOSource[i * 4 + 1] = filterStatus;
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
     gl.bufferData(
