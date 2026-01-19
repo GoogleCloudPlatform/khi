@@ -134,7 +134,7 @@ $selected-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
     .body-state-container {
       display: grid;
       width: 30px;
-      grid-template-rows: 50% 0 50%;
+      grid-template-rows: 50% 0 50% 0;
       grid-template-columns: 1fr;
       justify-content: center;
 
@@ -205,8 +205,11 @@ $selected-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
         mat-icon {
           @include common.adjust-mat-icon-size(12px);
         }
+        &.top-icon {
+          grid-row: 1;
+        }
         &.bottom-icon {
-          margin-top: 25px;
+          grid-row: 4;
         }
       }
     }

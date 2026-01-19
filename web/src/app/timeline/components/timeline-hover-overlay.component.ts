@@ -124,11 +124,6 @@ export class TimelineHoverOverlayComponent {
   timezoneShiftHours = input(0);
 
   /**
-   * Highlights for specific items within the timeline chart.
-   */
-  timelineChartItemHighlights = input<TimelineChartItemHighlight>({});
-
-  /**
    * Emitted when hovering over a specific element in the overlay list.
    */
   hoverOnElement = output<TimelineChartMouseEvent>();

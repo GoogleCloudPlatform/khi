@@ -69,37 +69,35 @@
                 <div class="event-rect"></div>
               </div>
             }
-            @if (index < vm.logs.length) {
-              @let nextLog = vm.logs[index];
-              <div
-                class="revision-state-bottom"
-                [matTooltip]="nextLog.revisionStateLabel"
-                [style.--revision-state-color]="nextLog.revisionStateColor"
-                [class.style-normal]="
-                  nextLog.revisionStateStyle === RevisionStateStyle.Normal
-                "
-                [class.style-partial-info]="
-                  nextLog.revisionStateStyle === RevisionStateStyle.PartialInfo
-                "
-                [class.style-deleted]="
-                  nextLog.revisionStateStyle === RevisionStateStyle.Deleted
-                "
-                [class.status-start]="
-                  nextLog.statusContinous === StatusContinousMode.Start ||
-                  nextLog.statusContinous === StatusContinousMode.StartAndEnd
-                "
-                [class.is-last-row]="index === vm.logs.length - 1"
-              >
-                @if (
-                  nextLog.statusContinous === StatusContinousMode.Start ||
-                  nextLog.statusContinous === StatusContinousMode.StartAndEnd
-                ) {
-                  <mat-icon class="material-icons-outlined">{{
-                    nextLog.revisionStateIcon
-                  }}</mat-icon>
-                }
-              </div>
-            }
+            @let nextLog = vm.logs[index];
+            <div
+              class="revision-state-bottom"
+              [matTooltip]="nextLog.revisionStateLabel"
+              [style.--revision-state-color]="nextLog.revisionStateColor"
+              [class.style-normal]="
+                nextLog.revisionStateStyle === RevisionStateStyle.Normal
+              "
+              [class.style-partial-info]="
+                nextLog.revisionStateStyle === RevisionStateStyle.PartialInfo
+              "
+              [class.style-deleted]="
+                nextLog.revisionStateStyle === RevisionStateStyle.Deleted
+              "
+              [class.status-start]="
+                nextLog.statusContinous === StatusContinousMode.Start ||
+                nextLog.statusContinous === StatusContinousMode.StartAndEnd
+              "
+              [class.is-last-row]="index === vm.logs.length - 1"
+            >
+              @if (
+                nextLog.statusContinous === StatusContinousMode.Start ||
+                nextLog.statusContinous === StatusContinousMode.StartAndEnd
+              ) {
+                <mat-icon class="material-icons-outlined">{{
+                  nextLog.revisionStateIcon
+                }}</mat-icon>
+              }
+            </div>
             @if (index === vm.logs.length - 1) {
               <div class="more-icon bottom-icon">
                 <mat-icon>more_vert</mat-icon>
