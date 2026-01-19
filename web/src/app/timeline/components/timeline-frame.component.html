@@ -1,0 +1,172 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div
+  khiCaptureShiftKey
+  class="container"
+  [style.--header-height.px]="HEADER_HEIGHT"
+  [style.--gutter-width.px]="GUTTER_WIDTH"
+  [style.--index-pane-width.px]="indexAreaWidthPixels()"
+  [style.--content-vertical-offset.px]="contentVerticalOffset()"
+  [style.--content-horizontal-offset.px]="contentHorizontalOffset()"
+  [style.--content-render-width.px]="totalRenderContentWidth()"
+  [style.--content-render-height.px]="totalContentRenderHeight()"
+  [style.--cursor-offset-left.px]="cursorOffsetLeft()"
+  [style.--viewport-height.px]="viewportHeight()"
+  [style.--viewport-width.px]="viewportWidth()"
+  (shiftStatusChange)="shiftStatus.set($event)"
+>
+  <div class="virtual-scroll-container" #container>
+    <div class="corner">
+      <khi-timeline-corner-indicator
+        [isCurrentScalingMode]="scaleMode()"
+      ></khi-timeline-corner-indicator>
+    </div>
+    <!--Elements stick to top edge-->
+    <div class="header">
+      <khi-timeline-ruler
+        [viewModel]="rulerViewModel()"
+        [timezoneShift]="timezoneShiftHours()"
+        [pixelsPerMs]="pixelsPerMs()"
+        [leftEdgeTime]="contentLeftTime()"
+        [rulerStyle]="rulerStyle()"
+        [(scalingMode)]="scaleModeFromRuler"
+        (scrollOnRuler)="onWheelForScaling($event)"
+      ></khi-timeline-ruler>
+    </div>
+    <div class="chart-sticky-header">
+      @if (stickyChartViewModel().timelinesInDrawArea.length > 0) {
+        <div class="kind-placeholder"></div>
+        <div class="namespace-placeholder"></div>
+      }
+    </div>
+    <!--Elements stick to left edge-->
+    <div class="index">
+      <div class="index-inner">
+        <khi-timeline-index
+          class="index-content"
+          [timelines]="visibleTimelines()"
+          (hoverOnTimeline)="
+            handleTimelineEventForIndex($event, hoverOnTimeline)
+          "
+          (clickOnTimeline)="
+            handleTimelineEventForIndex($event, clickOnTimeline)
+          "
+          [highlights]="timelineHighlights()"
+        ></khi-timeline-index>
+      </div>
+    </div>
+
+    <!--chart space overlay elements-->
+    <div class="cursor-time-label-container">
+      <div class="cursor-vertical-line"></div>
+      <p class="cursor-time-label">{{ cursorTimeString() }}</p>
+    </div>
+
+    <div class="chart">
+      <div class="viewport">
+        <khi-timeline-chart
+          [chartViewModel]="chartViewModel()"
+          [rulerViewModel]="rulerViewModel()"
+          [pixelsPerMs]="pixelsPerMs()"
+          [leftEdgeTime]="contentLeftTime()"
+          [chartStyle]="chartStyle()"
+          [rulerStyle]="rulerStyle()"
+          [timelineHighlights]="timelineHighlights()"
+          [timelineChartItemHighlights]="timelineChartItemHighlights()"
+          [activeLogsIndices]="activeLogsIndices()"
+          (mouseMoveOnTimelineItem)="
+            handleTimelineChartItemEvent($event, hoverOnTimelineItem)
+          "
+          (clickOnTimelineItem)="
+            handleTimelineChartItemEvent($event, clickOnTimelineItem)
+          "
+        ></khi-timeline-chart>
+        @if (timelineHoverOverlay()) {
+          <div
+            class="hover-overlay-offset"
+            [style.--offset-x.px]="timelineHoverOverlayOffsetX()"
+            [style.--offset-y.px]="timelineHoverOverlayOffsetY()"
+          >
+            <khi-timeline-hover-overlay
+              [timelineHoverOverlay]="timelineHoverOverlay()"
+              [logs]="allLogsWithoutFilter()"
+              [timezoneShiftHours]="timezoneShiftHours()"
+              [highlights]="timelineChartItemHighlights()"
+              (hoverOnElement)="
+                handleTimelineChartItemEvent($event, hoverOnTimelineItem)
+              "
+              (clickOnElement)="
+                handleTimelineChartItemEvent($event, clickOnTimelineItem)
+              "
+            ></khi-timeline-hover-overlay>
+          </div>
+        }
+        <div
+          class="expander"
+          [style.--total-height.px]="totalContentHeight()"
+          [style.--total-width.px]="totalContentWidth()"
+        ></div>
+      </div>
+    </div>
+  </div>
+  <div class="screen-space-container">
+    <!--Screen space overlay elements-->
+    <div class="hover-overlay"></div>
+    <div class="overlay">
+      <div class="sticky-index">
+        <div class="sticky-index-inner">
+          <khi-timeline-index
+            class="index-content"
+            [timelines]="stickyTimelines()"
+            (hoverOnTimeline)="
+              handleTimelineEventForIndex($event, hoverOnTimeline)
+            "
+            (clickOnTimeline)="
+              handleTimelineEventForIndex($event, clickOnTimeline)
+            "
+            [highlights]="timelineHighlights()"
+          ></khi-timeline-index>
+        </div>
+      </div>
+      <div class="sticky-ruler">
+        <div class="timeshift-container">
+          <p>{{ timezoneShiftLabel() }}</p>
+        </div>
+      </div>
+      <div class="sticky-chart">
+        <div class="legend">
+          <khi-timeline-legend
+            [timeline]="selectedTimeline()"
+          ></khi-timeline-legend>
+        </div>
+      </div>
+    </div>
+    <div class="resizer-pane">
+      <as-split direction="horizontal" [gutterSize]="8" unit="pixel">
+        <as-split-area [size]="300" [minSize]="100">
+          <div #indexSplitArea class="split-dummy-area"></div>
+        </as-split-area>
+        <as-split-area class="split-dummy-area"></as-split-area>
+        <div *asSplitGutter>
+          <div class="gutter-hint">
+            <mat-icon>arrows_outward</mat-icon>
+          </div>
+        </div>
+      </as-split>
+    </div>
+  </div>
+</div>
