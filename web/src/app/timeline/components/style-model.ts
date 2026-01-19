@@ -14,22 +14,6 @@
  * limitations under the License.
  */
 
-/**
- * Copyright 2026 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 import * as generated from 'src/app/generated';
 import { TimelineLayer } from 'src/app/store/timeline';
 import { TickImportance } from './timeline-ruler.viewmodel';
@@ -331,12 +315,9 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
     timelineTintColorByHighlightType: {
       [TimelineHighlightType.None]:
         RendererConvertUtil.hexSRGBToHDRColor('#00000000'),
-      [TimelineHighlightType.Selected]:
-        RendererConvertUtil.hexSRGBToHDRColor('#40ba8d77'),
-      [TimelineHighlightType.Hovered]:
-        RendererConvertUtil.hexSRGBToHDRColor('#40ba8d33'),
-      [TimelineHighlightType.ChildrenOfSelected]:
-        RendererConvertUtil.hexSRGBToHDRColor('#40ba8d77'),
+      [TimelineHighlightType.Selected]: [0.8, 0.91, 0.81, 0.7],
+      [TimelineHighlightType.Hovered]: [0.8, 0.91, 0.81, 0.4],
+      [TimelineHighlightType.ChildrenOfSelected]: [0.95, 1, 0.95, 0.2],
     },
     revisionStylesByLayer: {
       [TimelineLayer.APIVersion]: dummyTimelineRevisionStyle,
@@ -431,7 +412,7 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
         bodyStripePattern: 1,
       },
     },
-    borderStripePitch: 20,
+    borderStripePitch: 5,
     bodyStripePitch: 20,
   };
 }

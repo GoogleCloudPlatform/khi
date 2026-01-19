@@ -23,7 +23,9 @@ import {
   ElementRef,
   inject,
   input,
+  model,
   NgZone,
+  output,
   viewChild,
 } from '@angular/core';
 import { TimelineRulerRenderer as TimelineRulerCanvasRenderer } from './canvas/timeline-ruler-renderer';
@@ -90,6 +92,16 @@ export class TimelineRulerComponent implements AfterViewInit {
    * The current zoom level, expressed as pixels per millisecond.
    */
   pixelsPerMs = input<number>(1);
+
+  /**
+   * Emits when the scaling mode is changed.
+   */
+  scalingMode = model<boolean>();
+
+  /**
+   * Emits when the ruler is scrolled.
+   */
+  scrollOnRuler = output<WheelEvent>();
 
   /**
    * Computes the positions and text for date labels (e.g., "YYYY/MM/DD") based on the current
@@ -160,6 +172,21 @@ export class TimelineRulerComponent implements AfterViewInit {
     this.destroyRef.onDestroy(() => {
       this.resizeObserver?.disconnect();
     });
+
+    this.ngZone.runOutsideAngular(() => {
+      const onWheel = (event: WheelEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        this.scrollOnRuler.emit(event);
+      };
+      this.container()!.nativeElement.addEventListener('wheel', onWheel, {
+        passive: false,
+      });
+      this.destroyRef.onDestroy(() => {
+        this.container()!.nativeElement.removeEventListener('wheel', onWheel);
+      });
+    });
   }
 
   /**
@@ -193,5 +220,13 @@ export class TimelineRulerComponent implements AfterViewInit {
     const month = ('' + (date.getUTCMonth() + 1)).padStart(2, '0');
     const day = ('' + date.getUTCDate()).padStart(2, '0');
     return `${year}/${month}/${day}`;
+  }
+
+  mouseEnter() {
+    this.scalingMode.set(true);
+  }
+
+  mouseLeave() {
+    this.scalingMode.set(false);
   }
 }
