@@ -17,14 +17,15 @@
 @use "sass:map";
 @use "sass:color";
 @use "../../common.scss" as common;
-
+@use "@angular/material" as mat;
 @use "../../generated" as gen;
 
 :host {
   display: block;
 }
 
-$tint-base-color: #40ba8d;
+$tint-base-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 50);
+$tint-border-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 600);
 
 $kind-base-color: rgba(63, 81, 181, 1);
 $kind-style: (
@@ -78,6 +79,7 @@ $subresource-style: (
   color: map.get($style, "font-color");
   padding-left: map.get($style, "left-padding");
   font-weight: map.get($style, "font-weight");
+  border-left: 5px dashed transparent;
   .index {
     .sub-label {
       color: map.get($style, "sub-label-color");
@@ -93,7 +95,7 @@ $subresource-style: (
       color.adjust($tint-base-color, $lightness: -30%),
       60%
     );
-    border-left: 5px solid color.adjust($tint-base-color, $lightness: 10%);
+    border-left: 5px solid $tint-border-color;
     .main-name {
       font-weight: 800;
     }
@@ -104,6 +106,7 @@ $subresource-style: (
       $tint-base-color,
       60%
     );
+    border-left: 5px solid color.adjust($tint-border-color, $lightness: 30%);
     .main-name {
       font-weight: 800;
     }
@@ -152,7 +155,6 @@ $subresource-style: (
       padding: 1px 3px;
       border-radius: 3px;
       margin-right: 5px;
-      box-shadow: inset 0px 0px 10px 0px rgba(0, 0, 0, 0.4);
       font-size: 12px;
     }
     .sub-label {

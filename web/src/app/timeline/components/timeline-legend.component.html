@@ -16,7 +16,11 @@
 
 <div class="container">
   <mat-expansion-panel [(expanded)]="expanded">
-    <mat-expansion-panel-header>Legends</mat-expansion-panel-header>
+    <mat-expansion-panel-header
+      ><div class="header-content">
+        <mat-icon>help</mat-icon>Legend
+      </div></mat-expansion-panel-header
+    >
     @let t = timeline();
     @if (t === null) {
       <ng-container *ngTemplateOutlet="noTimelineSelected"></ng-container>

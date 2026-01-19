@@ -21,6 +21,29 @@ $text-color-primary: #333;
 $font-weight-semibold: 600;
 $font-weight-light: 300;
 
+@mixin dashed-border($dash-size, $gap-size, $border-width, $color) {
+  $bg-size: $dash-size + $gap-size;
+  background-image:
+    linear-gradient(to right, $color $dash-size, transparent $dash-size),
+    linear-gradient(to bottom, $color $dash-size, transparent $dash-size),
+    linear-gradient(to right, $color $dash-size, transparent $dash-size),
+    linear-gradient(to bottom, $color $dash-size, transparent $dash-size);
+
+  background-position:
+    top left,
+    top right,
+    bottom left,
+    top left;
+
+  background-size:
+    $bg-size $border-width,
+    $border-width $bg-size,
+    $bg-size $border-width,
+    $border-width $bg-size;
+
+  background-repeat: repeat-x, repeat-y, repeat-x, repeat-y;
+}
+
 @mixin revision-style-box($revisionColor, $borderThickness) {
   box-sizing: border-box;
   mat-icon {
@@ -57,12 +80,18 @@ $font-weight-light: 300;
       from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
     );
     background-color: color-mix(in srgb, $revisionColor, transparent 70%);
-    border: $borderThickness dashed $dark-color;
+    @include dashed-border(2px, 2px, $borderThickness, $dark-color);
   }
 }
 
 :host {
   display: inline-block;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .container {
