@@ -25,15 +25,19 @@
       <div class="mode move">Move</div>
     }
   </div>
-  <div
-    class="hint"
-    [style.visibility]="isCurrentScalingMode() ? 'hidden' : 'visible'"
-  >
+  <div class="hint">
     <mat-icon>lightbulb</mat-icon>
-    <p class="hint-message">
-      Hold <span class="shift-key">SHIFT</span> &
-      <span class="scroll"><mat-icon>swap_vert</mat-icon>SCROLL</span> to scale
-      time
-    </p>
+    @if (!isCurrentScalingMode()) {
+      <p class="hint-message">
+        Hold <span class="shift-key">SHIFT</span> &
+        <span class="scroll"><mat-icon>swap_vert</mat-icon>SCROLL</span> to
+        scale time
+      </p>
+    } @else {
+      <p class="hint-message">
+        <span class="scroll"><mat-icon>swap_vert</mat-icon>SCROLL</span> to
+        scale time
+      </p>
+    }
   </div>
 </div>
