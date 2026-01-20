@@ -244,7 +244,7 @@ $z-index-resizer: 100;
 .chart {
   @include chart-item-container();
   z-index: $z-index-content;
-  .viewport {
+  .chart-inner {
     position: relative;
     z-index: 0;
     box-shadow: 1px 0px 1px 1px rgba(0, 0, 0, 0.3) inset;

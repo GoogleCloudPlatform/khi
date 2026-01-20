@@ -600,20 +600,20 @@ export class TimelineFrameComponent implements AfterViewInit {
   private currrentAction: 'moving' | 'scaling' | 'none' = 'none';
 
   /**
-   * Whether the scroll is currently being animated.
+   * The source of truth for the horizontal scroll position.
+   * "scroll" means the viewportLeftTimeMS property is updated by the scroll event.
+   * "property" means the scroll position is updated by the viewportLeftTimeMS property.
+   *
+   * This property is usually kept as "property" but changed to "scroll" only when users triggers scrolling animation.
    */
-  private isAnimatingScroll = false;
+  private horizontalScrollSourceOfTruth: 'scroll' | 'property' = 'property';
 
   constructor() {
     // Updates the scrollLeft property of the container element when the viewportLeftTimeMS changes.
     effect(() => {
-      if (this.isAnimatingScroll) {
-        return;
-      }
+      const calculator = this.horizontalScrollCalculator();
       const vpLT = this.viewportLeftTimeMS();
-      const logMinTime = this.minQueryLogTimeMS();
       const pixelsPerMs = this.pixelsPerMs();
-      const horizontalOverdrawInPx = this.horizontalOverdrawInPx();
 
       const container = this.container();
       if (!container) {
@@ -622,9 +622,13 @@ export class TimelineFrameComponent implements AfterViewInit {
         );
         return;
       }
-
-      container.nativeElement.scrollLeft =
-        (vpLT - logMinTime) * pixelsPerMs + horizontalOverdrawInPx;
+      if (this.horizontalScrollSourceOfTruth === 'scroll') {
+        return;
+      }
+      container.nativeElement.scrollLeft = calculator.timeMSToOffsetLeft(
+        vpLT,
+        pixelsPerMs,
+      );
     });
     // Updates the viewportLeftTimeMS property and pxielsPerMs when the loaded inspection data is updated.
     effect(() => {
@@ -661,7 +665,7 @@ export class TimelineFrameComponent implements AfterViewInit {
           cursorTime - this.CURSOR_SCROLL_MARGIN_IN_PX / pixelsPerMs;
         const newScrollLeft =
           (newVPLT - logMinTime) * pixelsPerMs + horizontalOverdrawInPx;
-        this.isAnimatingScroll = true;
+        this.horizontalScrollSourceOfTruth = 'scroll';
         this.container()?.nativeElement.scrollTo({
           left: newScrollLeft,
           behavior: 'smooth',
@@ -777,30 +781,13 @@ export class TimelineFrameComponent implements AfterViewInit {
         if (this.shiftStatus() || this.currrentAction !== 'none') {
           return;
         }
-        const horizontalScrollCalculator = this.horizontalScrollCalculator();
-        this.currrentAction = 'moving';
-        this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
-          this.currrentAction = 'none';
-          const pixelsPerMS = this.pixelsPerMs();
-          const maxScrollLeft = horizontalScrollCalculator.maxScrollLeft(
-            pixelsPerMS,
-            this.viewportWidth(),
-          );
-          const scrollLeft = Math.min(
-            container.nativeElement.scrollLeft,
-            maxScrollLeft,
-          );
-          this.viewportScrollTop.set(container.nativeElement.scrollTop);
-          this.viewportLeftTimeMS.set(
-            horizontalScrollCalculator.scrollTime(scrollLeft, pixelsPerMS),
-          );
-        });
+        this.onScrollForMove();
       };
       container.nativeElement.addEventListener('scroll', onContainerScroll, {
         passive: true,
       });
       const onScrollEnd = () => {
-        this.isAnimatingScroll = false;
+        this.horizontalScrollSourceOfTruth = 'property';
       };
       container.nativeElement.addEventListener('scrollend', onScrollEnd);
 
@@ -819,6 +806,34 @@ export class TimelineFrameComponent implements AfterViewInit {
     this.renderingLoopManager.start(this.ngZone, this.destroyRef);
   }
 
+  onScrollForMove() {
+    const container = this.container();
+    if (!container) {
+      throw new Error('failed to lookup container');
+    }
+    const horizontalScrollCalculator = this.horizontalScrollCalculator();
+    this.currrentAction = 'moving';
+    this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
+      this.currrentAction = 'none';
+      const pixelsPerMS = this.pixelsPerMs();
+      const maxScrollLeft = horizontalScrollCalculator.maxScrollLeft(
+        pixelsPerMS,
+        this.viewportWidth(),
+      );
+      const scrollLeft = Math.min(
+        container.nativeElement.scrollLeft,
+        maxScrollLeft,
+      );
+      this.viewportScrollTop.set(container.nativeElement.scrollTop);
+      this.viewportLeftTimeMS.set(
+        horizontalScrollCalculator.scrollToViewportLeftTime(
+          scrollLeft,
+          pixelsPerMS,
+        ),
+      );
+    });
+  }
+
   onWheelForScaling(event: WheelEvent) {
     if (this.currrentAction !== 'none') return;
     this.currrentAction = 'scaling';
@@ -830,7 +845,12 @@ export class TimelineFrameComponent implements AfterViewInit {
         return;
       }
       const containerBox = container.nativeElement.getBoundingClientRect();
-      const x = event.clientX - containerBox.left;
+      const indexAreaBox = indexArea.nativeElement.getBoundingClientRect();
+      const viewportRelativeMousePosition =
+        event.clientX -
+        containerBox.left -
+        indexAreaBox.width -
+        this.GUTTER_WIDTH;
       this.currrentAction = 'none';
       const calculator = this.horizontalScrollCalculator();
 
@@ -855,17 +875,15 @@ export class TimelineFrameComponent implements AfterViewInit {
       // Calculate new scroll position to keep the mouse pointer time consistent
       const newScrollLeft = calculator.calculateZoomScrollLeft(
         currentPixelsPerMs,
-        this.viewportLeftTimeMS(),
         newPixelsPerMs,
-        vpWidth - this.GUTTER_WIDTH,
-        x - this.GUTTER_WIDTH,
+        viewportRelativeMousePosition,
+        container.nativeElement.scrollLeft,
       );
       this.viewportScrollTop.set(container.nativeElement.scrollTop);
       this.viewportLeftTimeMS.set(
-        calculator.scrollTime(newScrollLeft, newPixelsPerMs),
+        calculator.scrollToViewportLeftTime(newScrollLeft, newPixelsPerMs),
       );
       this.pixelsPerMs.set(newPixelsPerMs);
-      container.nativeElement.scrollLeft = newScrollLeft + 0.0001;
     });
   }
 }

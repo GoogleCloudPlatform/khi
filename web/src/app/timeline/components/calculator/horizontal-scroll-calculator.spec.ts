@@ -68,63 +68,83 @@ describe('HorizontalScrollCalculator', () => {
   });
 
   describe('calculateZoomScrollLeft', () => {
-    // 0~1000ms. extraOffset 300px.
-    const calculator = new HorizontalScrollCalculator(0, 1000, 300);
+    it('calculates correct new scroll position when zooming in without extra offset', () => {
+      const calculator = new HorizontalScrollCalculator(1000, 2000, 0);
+      const currentPpm = 1;
+      const newPpm = 2;
+      const mousePos = 100;
+      const currentScrollLeft = 0;
 
-    it('calculates scrollLeft to keep mouse position static in time', () => {
-      const currentPixelsPerMs = 1;
-      const currentViewportLeftTime = 0;
-      const viewportWidth = 500;
-      const mouseX = 250; // Center
+      // Initial state:
+      // minScrollableTime = 1000
+      // viewportLeftTime = 1000
+      // mouseTime = 1000 + 100/1 = 1100
 
-      // Zoom in 2x
-      const newPixelsPerMs = 2;
+      // Expected state:
+      // minScrollableTime = 1000
+      // mouseTime = 1100
+      // newViewportLeftTime = 1100 - 100/2 = 1050
+      // newScrollLeft = (1050 - 1000) * 2 = 100
 
       const newScrollLeft = calculator.calculateZoomScrollLeft(
-        currentPixelsPerMs,
-        currentViewportLeftTime,
-        newPixelsPerMs,
-        viewportWidth,
-        mouseX,
+        currentPpm,
+        newPpm,
+        mousePos,
+        currentScrollLeft,
+      );
+      expect(newScrollLeft).toBeCloseTo(100);
+    });
+
+    it('calculates correct new scroll position when zooming in with extra offset', () => {
+      const calculator = new HorizontalScrollCalculator(1000, 2000, 300);
+      const currentPpm = 1;
+      const newPpm = 2;
+      const mousePos = 100;
+      // Let's assume scrolled a bit
+      // minScrollableTime(1) = 700
+      // scrollLeft=100 => viewportLeftTime = 700 + 100 = 800
+      const currentScrollLeft = 100;
+
+      // mouseTime = 800 + 100/1 = 900
+
+      // New state:
+      // minScrollableTime(2) = 1000 - 300/2 = 850
+      // mouseTime should be 900
+      // newViewportLeftTime = 900 - 100/2 = 850
+      // newScrollLeft = (850 - 850) * 2 = 0
+
+      const newScrollLeft = calculator.calculateZoomScrollLeft(
+        currentPpm,
+        newPpm,
+        mousePos,
+        currentScrollLeft,
+      );
+      expect(newScrollLeft).toBeCloseTo(0);
+    });
+
+    it('keeps the time at mouse position constant', () => {
+      const calculator = new HorizontalScrollCalculator(1000, 5000, 300);
+      const currentPpm = 2;
+      const newPpm = 5.5; // Arbitrary zoom
+      const mousePos = 453; // Arbitrary mouse position
+      const currentScrollLeft = 1500; // Arbitrary scroll
+
+      const prevTimeAtMouse =
+        calculator.scrollToViewportLeftTime(currentScrollLeft, currentPpm) +
+        mousePos / currentPpm;
+
+      const newScrollLeft = calculator.calculateZoomScrollLeft(
+        currentPpm,
+        newPpm,
+        mousePos,
+        currentScrollLeft,
       );
 
-      // Verify time at mouse is preserved.
-      // New time at mouse = scrollTime(newScrollLeft) + mouseX / newPPS
-      // Or simply: leftDrawAreaTime(scrollTime(...)) ... wait.
-      // Frame uses: vpLT = scrollTime(scrollLeft).
-      // So let's calculate newVpLT.
-      const newVpLT = calculator.scrollTime(newScrollLeft, newPixelsPerMs);
-      const newTimeAtMouse = newVpLT + mouseX / newPixelsPerMs;
+      const newTimeAtMouse =
+        calculator.scrollToViewportLeftTime(newScrollLeft, newPpm) +
+        mousePos / newPpm;
 
-      // Original time at mouse:
-      // vpLT + mouseX / currentPPS = 0 + 250 / 1 = 250.
-      expect(newTimeAtMouse).toBeCloseTo(250, 0);
-    });
-  });
-
-  describe('leftDrawAreaOffset', () => {
-    it('returns offset in pixels', () => {
-      const calculator = new HorizontalScrollCalculator(0, 1000, 300);
-      // tickTimeMS = 100
-      // pixelsPerMs = 1
-      // extraOffsetTimeMS = 300
-      // minScrollableTimeMS = 0 - 300 = -300
-      // viewportLeftTimeMS = 550
-      // leftDrawAreaTimeMS = 200 (calculated above)
-      // (200 - (-300)) * 1 = 500
-      expect(calculator.leftDrawAreaOffset(550, 100, 1)).toBeCloseTo(500);
-    });
-
-    it('returns offset in pixels with different pixelsPerMs', () => {
-      const calculator = new HorizontalScrollCalculator(0, 1000, 300);
-      // tickTimeMS = 100
-      // pixelsPerMs = 10
-      // extraOffsetTimeMS = 30
-      // minScrollableTimeMS = 0 - 30 = -30
-      // viewportLeftTimeMS = 155
-      // leftDrawAreaTimeMS = 100 (calculated above)
-      // (100 - (-30)) * 10 = 130 * 10 = 1300
-      expect(calculator.leftDrawAreaOffset(155, 100, 10)).toBeCloseTo(1300);
+      expect(newTimeAtMouse).toBeCloseTo(prevTimeAtMouse);
     });
   });
 });

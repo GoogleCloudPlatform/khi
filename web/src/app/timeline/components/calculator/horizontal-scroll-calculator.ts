@@ -89,10 +89,14 @@ export class HorizontalScrollCalculator {
     tickTimeMS: number,
     pixelsPerMs: number,
   ): number {
+    const vpLeftToDrawAreaLeftInPx =
+      (viewportLeftTimeMS -
+        this.leftDrawAreaTimeMS(viewportLeftTimeMS, tickTimeMS, pixelsPerMs)) *
+      pixelsPerMs;
     return (
-      (this.leftDrawAreaTimeMS(viewportLeftTimeMS, tickTimeMS, pixelsPerMs) -
-        this.minScrollableTimeMS(pixelsPerMs)) *
-      pixelsPerMs
+      (viewportLeftTimeMS - this.minScrollableTimeMS(pixelsPerMs)) *
+        pixelsPerMs -
+      vpLeftToDrawAreaLeftInPx
     );
   }
 
@@ -156,9 +160,10 @@ export class HorizontalScrollCalculator {
    */
   maxScrollLeft(pixelsPerMs: number, viewportWidth: number): number {
     return (
-      this.totalWidth(pixelsPerMs) -
-      this.totalRenderWidth(viewportWidth) +
-      this.extraOffsetWidthInPx
+      (this.maxTimeMs -
+        (viewportWidth - this.extraOffsetWidthInPx) / pixelsPerMs -
+        this.minTimeMs) *
+      pixelsPerMs
     );
   }
 
@@ -179,34 +184,32 @@ export class HorizontalScrollCalculator {
    * @param pixelsPerMs The current zoom level in pixels per millisecond.
    * @returns The time at the left edge of the visible area (ms).
    */
-  scrollTime(scrollX: number, pixelsPerMs: number): number {
+  scrollToViewportLeftTime(scrollX: number, pixelsPerMs: number): number {
     return scrollX / pixelsPerMs + this.minScrollableTimeMS(pixelsPerMs);
   }
 
+  /**
+   * Calculates the scroll position keeping mouse position time fixed after a zoom operation.
+   *
+   * @param currentPixelsPerMs The current zoom level in pixels per millisecond.
+   * @param newPixelsPerMs The new zoom level in pixels per millisecond.
+   * @param viewportRelativeMousePosition The relative position of the mouse within the viewport.
+   * @param currentScrollLeft The current scroll position.
+   * @returns The new scroll position after the zoom operation.
+   */
   calculateZoomScrollLeft(
     currentPixelsPerMs: number,
-    currentViewportLeftTime: number,
     newPixelsPerMs: number,
-    viewportWidth: number,
     viewportRelativeMousePosition: number,
+    currentScrollLeft: number,
   ): number {
-    // Calculates the next viewportLeftTime that keeps the time at the mouse position the same.
-    // [The time at the mouse position] =  (vpLT[Viewport Left edge time] + (event.clientX - vpL[Viewport Left edge position]) / PPSold[Pixels Per Second before changing the scale])
-    // [The time at the mouse position next frame] =  minLogTime + (newScrollLeft + (event.clientX - vpL)/PPSnew[Pixels Per Second after changing the scale])
-    // [The time at the mouse position] = [The time at the mouse position next frame]
-    // vpLT + (event.clientX - vpL)/PPSold = minLogTime + (newScrollLeft + (event.clientX - vpL)/PPSnew)
-    // vpLT*PPSnew + (event.clientX - vpL)*PPSnew/PPSold = minLogTime*PPSnew + newScrollLeft + (event.clientX - vpL)
-    // newScrollLeft = vpLT*PPSnew - minLogTime*PPSnew + (event.clientX - vpL)*PPSnew/PPSold - (event.clientX - vpL)
-    const newMinT = this.minScrollableTimeMS(newPixelsPerMs);
-    const newScrollLeft =
-      currentViewportLeftTime * newPixelsPerMs +
-      (viewportRelativeMousePosition * newPixelsPerMs) / currentPixelsPerMs -
-      newMinT * newPixelsPerMs -
-      viewportRelativeMousePosition;
-    const maxScrollLeft = this.maxScrollLeft(newPixelsPerMs, viewportWidth);
-    const constrainedScrollLeft = Math.floor(
-      Math.min(newScrollLeft, maxScrollLeft),
+    const cMinSc = this.minScrollableTimeMS(currentPixelsPerMs);
+    const nMinSc = this.minScrollableTimeMS(newPixelsPerMs);
+    return (
+      newPixelsPerMs * (cMinSc - nMinSc) +
+      (newPixelsPerMs / currentPixelsPerMs) *
+        (currentScrollLeft + viewportRelativeMousePosition) -
+      viewportRelativeMousePosition
     );
-    return constrainedScrollLeft;
   }
 }
