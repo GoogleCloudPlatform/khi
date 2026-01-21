@@ -42,7 +42,7 @@ import { ViewStateService } from './view-state.service';
 /**
  * Injection token for the default TimelineFilter.
  */
-export const DEFAULT_TIMELINE_FILTER = new InjectionToken(
+export const DEFAULT_TIMELINE_FILTER = new InjectionToken<TimelineFilter>(
   'DEFAULT_TIMELINE_FILTER',
 );
 

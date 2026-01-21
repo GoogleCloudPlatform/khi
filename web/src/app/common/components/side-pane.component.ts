@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, Input, OnChanges } from '@angular/core';
-import { ResizingCalculator } from '../resizable-pane/resizing-calculator';
-import { Observable } from 'rxjs';
+import { Component, Input } from '@angular/core';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -27,40 +25,10 @@ import { MatIconModule } from '@angular/material/icon';
   styleUrls: ['./side-pane.component.scss'],
   imports: [CommonModule, MatToolbarModule, MatIconModule],
 })
-export class SidePaneComponent implements OnChanges {
-  static readonly DEFAULT_PANE_WIDTH = 300;
-
-  static readonly MINIMUM_PANE_WIDTH = 100;
-
+export class SidePaneComponent {
   @Input()
   paneTitle = '';
 
   @Input()
   icon = '';
-
-  @Input()
-  resizeCalculator!: ResizingCalculator;
-
-  @Input()
-  areaNameInResizer: string = '';
-
-  areaSize!: Observable<number>;
-
-  ngOnChanges(): void {
-    this.areaSize = this.resizeCalculator.areaSize(this.areaNameInResizer);
-  }
-
-  resizeStart() {
-    const resizeMove = (e: MouseEvent) => {
-      const size = this.resizeCalculator.getAreaSize(this.areaNameInResizer);
-      this.resizeCalculator.resizeArea(
-        this.areaNameInResizer,
-        size - e.movementX,
-      );
-    };
-    window.addEventListener('mouseup', () => {
-      window.removeEventListener('mousemove', resizeMove);
-    });
-    window.addEventListener('mousemove', resizeMove);
-  }
 }

@@ -31,23 +31,30 @@ $BUTTON_BACKGROUND_INACTIVE: mat.m2-get-color-from-palette(
 $BUTTON_COLOR_ACTIVE: white;
 $BUTTON_COLOR_INACTIVE: black;
 
-.wrapper {
+.container {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "header header" "main sidebar";
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
   height: 100%;
   overflow: hidden;
-}
-
-.main-view-wrapper {
-  display: flex;
+  khi-header {
+    grid-area: header;
+  }
+  as-split {
+    grid-area: main;
+  }
+  .sidebar {
+    grid-area: sidebar;
+  }
 }
 
 .timeline {
-  flex: 1;
+  // display: grid;
+  position: relative;
 }
 
 .sidebar {
-  grid-area: sidebar;
   display: flex;
   row-gap: 1px;
   flex-direction: column;
