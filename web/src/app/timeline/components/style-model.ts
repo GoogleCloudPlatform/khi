@@ -315,12 +315,9 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
     timelineTintColorByHighlightType: {
       [TimelineHighlightType.None]:
         RendererConvertUtil.hexSRGBToHDRColor('#00000000'),
-      [TimelineHighlightType.Selected]:
-        RendererConvertUtil.hexSRGBToHDRColor('#40ba8d77'),
-      [TimelineHighlightType.Hovered]:
-        RendererConvertUtil.hexSRGBToHDRColor('#40ba8d33'),
-      [TimelineHighlightType.ChildrenOfSelected]:
-        RendererConvertUtil.hexSRGBToHDRColor('#40ba8d77'),
+      [TimelineHighlightType.Selected]: [0.8, 0.91, 0.81, 0.7],
+      [TimelineHighlightType.Hovered]: [0.8, 0.91, 0.81, 0.4],
+      [TimelineHighlightType.ChildrenOfSelected]: [0.95, 1, 0.95, 0.2],
     },
     revisionStylesByLayer: {
       [TimelineLayer.APIVersion]: dummyTimelineRevisionStyle,
