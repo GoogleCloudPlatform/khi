@@ -46,41 +46,37 @@ $font-weight-light: 300;
 
 @mixin revision-style-box($revisionColor, $borderThickness) {
   box-sizing: border-box;
+  $revisionBackgroundColor: color-mix(
+    in display-p3,
+    $revisionColor 40%,
+    transparent
+  );
+  $revisionDarkerColor: $revisionColor;
   mat-icon {
-    color: rgb(from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6));
+    color: $revisionDarkerColor;
   }
   &.style-normal {
-    $dark-color: rgb(
-      from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
-    );
-    background-color: color-mix(in srgb, $revisionColor, transparent 50%);
-    border: $borderThickness solid $dark-color;
+    background-color: $revisionBackgroundColor;
+    border: $borderThickness solid $revisionDarkerColor;
   }
   &.style-partial-info {
-    $stripeBrighter: color-mix(in display-p3, $revisionColor 20%, white);
-    $stripeBrighterTransparent: color-mix(
+    $stripeBrighter: color-mix(
       in display-p3,
-      $stripeBrighter,
-      transparent 70%
+      $revisionBackgroundColor 50%,
+      transparent
     );
     background-image: repeating-linear-gradient(
       45deg,
-      $stripeBrighterTransparent,
-      $stripeBrighterTransparent 5px,
-      color-mix(in display-p3, $revisionColor, transparent 70%) 5px,
-      color-mix(in display-p3, $revisionColor, transparent 70%) 10px
+      $stripeBrighter,
+      $stripeBrighter 5px,
+      $revisionBackgroundColor 5px,
+      $revisionBackgroundColor 10px
     );
-    $dark-color: rgb(
-      from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
-    );
-    border: $borderThickness solid $dark-color;
+    border: $borderThickness solid $revisionDarkerColor;
   }
   &.style-deleted {
-    $dark-color: rgb(
-      from $revisionColor calc(r * 0.6) calc(g * 0.6) calc(b * 0.6)
-    );
-    background-color: color-mix(in srgb, $revisionColor, transparent 70%);
-    @include dashed-border(2px, 2px, $borderThickness, $dark-color);
+    background-color: $revisionBackgroundColor;
+    @include dashed-border(2px, 2px, $borderThickness, $revisionDarkerColor);
   }
 }
 

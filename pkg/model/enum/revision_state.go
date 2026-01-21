@@ -105,7 +105,7 @@ type RevisionStateFrontendMetadata struct {
 var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 	RevisionStateInferred: {
 		EnumKeyName:     "RevisionStateInferred",
-		BackgroundColor: mustHexToHDRColor4("#997700"),
+		BackgroundColor: mustHexToHDRColor4("#999922"),
 		CSSSelector:     "inferred",
 		Label:           "Resource may be existing",
 		Icon:            "unknown_document",
@@ -168,6 +168,7 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		CSSSelector:     "container_waiting",
 		Label:           "Waiting for starting container",
 		Icon:            "deployed_code_history",
+		Style:           RevisionStateStyleDeleted,
 	},
 	RevisionStateContainerRunningNonReady: {
 		EnumKeyName:     "RevisionStateContainerRunningNonReady",
@@ -295,14 +296,14 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 	},
 	RevisionStateEndpointTerminating: {
 		EnumKeyName:     "RevisionStateEndpointTerminating",
-		BackgroundColor: mustHexToHDRColor4("#fed700"),
+		BackgroundColor: mustHexToHDRColor4("#cea700"),
 		CSSSelector:     "terminating",
 		Label:           "Endpoint is being terminated",
 		Icon:            "auto_delete",
 	},
 	RevisionStateProvisioning: {
 		EnumKeyName:     "RevisionStateProvisioning",
-		BackgroundColor: mustHexToHDRColor4("#4444ff"),
+		BackgroundColor: mustHexToHDRColor4("#6666ff"),
 		CSSSelector:     "provisioning",
 		Label:           "Resource is being provisioned",
 		Icon:            "deployed_code_history",
@@ -327,6 +328,7 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		CSSSelector:     "condition_not_given",
 		Label:           "Condition is not defined at this moment",
 		Icon:            "select",
+		Style:           RevisionStateStyleDeleted,
 	},
 	RevisionStateConditionNoAvailableInfo: {
 		EnumKeyName:     "RevisionStateConditionNoAvailableInfo",
