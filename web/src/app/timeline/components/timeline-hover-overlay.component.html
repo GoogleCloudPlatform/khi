@@ -1,0 +1,141 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+@let vm = viewModel();
+@if (vm.logs.length > 0) {
+  <div class="container">
+    <div class="table">
+      @for (log of vm.logs; let index = $index; track log.uniqueID) {
+        <div
+          class="body"
+          [ngClass]="{ revision: log.isRevision }"
+          [class.selected]="
+            log.highlightType === TimelineChartItemHighlightType.Selected
+          "
+          [class.hovered]="
+            log.highlightType === TimelineChartItemHighlightType.Hovered
+          "
+          (mouseenter)="handleMouse($event, vm.timeline!, log, hoverOnElement)"
+          (click)="handleMouse($event, vm.timeline!, log, clickOnElement)"
+        >
+          <div
+            class="body-state-container"
+            [style.--revision-state-color]="log.revisionStateColor"
+          >
+            @if (index === 0) {
+              <div class="more-icon top-icon">
+                <mat-icon>more_vert</mat-icon>
+              </div>
+            }
+            @if (index > 0) {
+              @let prevLog = vm.logs[index - 1];
+              <div
+                class="revision-state-top"
+                [matTooltip]="prevLog.revisionStateLabel"
+                [style.--revision-state-color]="prevLog.revisionStateColor"
+                [class.style-normal]="
+                  prevLog.revisionStateStyle === RevisionStateStyle.Normal
+                "
+                [class.style-partial-info]="
+                  prevLog.revisionStateStyle === RevisionStateStyle.PartialInfo
+                "
+                [class.style-deleted]="
+                  prevLog.revisionStateStyle === RevisionStateStyle.Deleted
+                "
+                [class.status-end]="
+                  prevLog.statusContinous === StatusContinousMode.End ||
+                  prevLog.statusContinous === StatusContinousMode.StartAndEnd
+                "
+              ></div>
+            }
+            @if (!log.isRevision) {
+              <div
+                class="event-anchor"
+                [style.--log-type-color]="log.logTypeColor"
+                [style.--severity-color]="log.severityColor"
+              >
+                <div class="event-rect"></div>
+              </div>
+            }
+            @let nextLog = vm.logs[index];
+            <div
+              class="revision-state-bottom"
+              [matTooltip]="nextLog.revisionStateLabel"
+              [style.--revision-state-color]="nextLog.revisionStateColor"
+              [class.style-normal]="
+                nextLog.revisionStateStyle === RevisionStateStyle.Normal
+              "
+              [class.style-partial-info]="
+                nextLog.revisionStateStyle === RevisionStateStyle.PartialInfo
+              "
+              [class.style-deleted]="
+                nextLog.revisionStateStyle === RevisionStateStyle.Deleted
+              "
+              [class.status-start]="
+                nextLog.statusContinous === StatusContinousMode.Start ||
+                nextLog.statusContinous === StatusContinousMode.StartAndEnd
+              "
+              [class.is-last-row]="index === vm.logs.length - 1"
+            >
+              @if (
+                nextLog.statusContinous === StatusContinousMode.Start ||
+                nextLog.statusContinous === StatusContinousMode.StartAndEnd
+              ) {
+                <mat-icon class="material-icons-outlined">{{
+                  nextLog.revisionStateIcon
+                }}</mat-icon>
+              }
+            </div>
+            @if (index === vm.logs.length - 1) {
+              <div class="more-icon bottom-icon">
+                <mat-icon>more_vert</mat-icon>
+              </div>
+            }
+          </div>
+          <div class="body-misc-colors bottom-line">
+            <div
+              class="verb-type-container"
+              [style.--verb-type-color]="log.verbTypeColor"
+            ></div>
+            <div
+              class="log-type-container"
+              [style.--log-type-color]="log.logTypeColor"
+              [matTooltip]="log.logTypeLabel"
+            ></div>
+            @if (log.showSeverity) {
+              <div
+                class="severity-container"
+                [style.--severity-color]="log.severityColor"
+              >
+                {{ log.severityLabel }}
+              </div>
+            } @else {
+              <div
+                class="severity-container"
+                [style.--severity-color]="'transparent'"
+              ></div>
+            }
+          </div>
+          <div class="body-time bottom-line">
+            <p>{{ log.timeLabel }}</p>
+          </div>
+          <div class="body-log-summaries bottom-line">
+            <p>{{ log.summary }}</p>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+}
