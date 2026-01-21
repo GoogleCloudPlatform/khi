@@ -14,47 +14,42 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<div class="wrapper">
+<div class="container">
   <khi-header></khi-header>
-  <div class="main-view-wrapper">
-    <div class="timeline">
-      <khi-timeline [resizer]="resizer"></khi-timeline>
-    </div>
+  <as-split direction="horizontal" [gutterSize]="8" unit="percent">
+    <as-split-area class="timeline">
+      <khi-timeline-smart></khi-timeline-smart>
+    </as-split-area>
     @if (showLogPane | async) {
-      <khi-side-pane
-        paneTitle="Logs"
-        [resizeCalculator]="resizer"
-        areaNameInResizer="log-view"
-        icon="segment"
-      >
-        <khi-log-view></khi-log-view>
-      </khi-side-pane>
+      <as-split-area [size]="20">
+        <khi-side-pane paneTitle="Logs" icon="segment">
+          <khi-log-view></khi-log-view>
+        </khi-side-pane>
+      </as-split-area>
     }
     @if (showHistoryPane | async) {
-      <khi-side-pane
-        paneTitle="History"
-        icon="history"
-        areaNameInResizer="history-view"
-        [resizeCalculator]="resizer"
-      >
-        <khi-diff-view></khi-diff-view>
-      </khi-side-pane>
+      <as-split-area [size]="20">
+        <khi-side-pane paneTitle="History" icon="history">
+          <khi-diff-view></khi-diff-view>
+        </khi-side-pane>
+      </as-split-area>
     }
-    <div class="sidebar">
-      <button
-        class="pane-toggle"
-        [ngClass]="{ active: showLogPane | async }"
-        (click)="togglePane('log')"
-      >
-        <mat-icon class="icon">segment</mat-icon>
-      </button>
-      <button
-        class="pane-toggle"
-        [ngClass]="{ active: showHistoryPane | async }"
-        (click)="togglePane('history')"
-      >
-        <mat-icon class="icon">history</mat-icon>
-      </button>
-    </div>
+  </as-split>
+
+  <div class="sidebar">
+    <button
+      class="pane-toggle"
+      [ngClass]="{ active: showLogPane | async }"
+      (click)="togglePane('log')"
+    >
+      <mat-icon class="icon">segment</mat-icon>
+    </button>
+    <button
+      class="pane-toggle"
+      [ngClass]="{ active: showHistoryPane | async }"
+      (click)="togglePane('history')"
+    >
+      <mat-icon class="icon">history</mat-icon>
+    </button>
   </div>
 </div>

@@ -15,12 +15,11 @@
 -->
 
 <div class="pane">
-  <div class="resizer" (mousedown)="resizeStart()"></div>
   <mat-toolbar class="header" color="primary">
     <mat-icon>{{ icon }}</mat-icon>
     {{ paneTitle }}
   </mat-toolbar>
-  <div class="body" [style.width.px]="(areaSize | async) || 0">
+  <div class="body">
     <ng-content></ng-content>
   </div>
 </div>

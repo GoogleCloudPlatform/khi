@@ -15,39 +15,33 @@
  */
 
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
-import {
-  animationFrames,
-  BehaviorSubject,
-  map,
-  Subject,
-  takeUntil,
-} from 'rxjs';
-import { StartupDialogComponent } from 'src/app/dialogs/startup/startup.component';
+import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   POPUP_MANAGER,
   PopupManager,
 } from 'src/app/services/popup/popup-manager';
-import {
-  RequestUserActionPopupComponent,
-  RequestUserActionPopupRequest,
-} from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
 import { NotificationManager } from 'src/app/services/notification/notification';
-import { ResizingCalculator } from 'src/app/common/resizable-pane/resizing-calculator';
 import { DiffPageDataSourceServer } from 'src/app/services/frame-connection/frames/diff-page-datasource-server.service';
 import { GraphPageDataSourceServer } from 'src/app/services/frame-connection/frames/graph-page-datasource-server.service';
-import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
 import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { CommonModule } from '@angular/common';
-import { TimelineComponent } from 'src/app/timeline/timeline.component';
 import { SidePaneComponent } from 'src/app/common/components/side-pane.component';
 import { LogViewComponent } from 'src/app/log/log-view.component';
 import { DiffViewComponent } from 'src/app/diff/diff-view.component';
 import { MatIconModule } from '@angular/material/icon';
 import { HeaderComponent } from 'src/app/header/header.component';
+import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
+import { AngularSplitModule } from 'angular-split';
+import { StartupDialogComponent } from 'src/app/dialogs/startup/startup.component';
+import {
+  RequestUserActionPopupComponent,
+  RequestUserActionPopupRequest,
+} from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
+import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
 
 @Component({
   templateUrl: './main.component.html',
@@ -55,16 +49,18 @@ import { HeaderComponent } from 'src/app/header/header.component';
   imports: [
     CommonModule,
     HeaderComponent,
-    TimelineComponent,
     SidePaneComponent,
     LogViewComponent,
     DiffViewComponent,
     MatIconModule,
+    TimelineSmartComponent,
+    AngularSplitModule,
+    AngularSplitModule,
   ],
 })
 export class AppComponent implements OnInit, OnDestroy {
   private extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
-  private dialog = inject(MatDialog);
+  public dialog = inject(MatDialog);
 
   readonly destroyed = new Subject<void>();
   readonly showLogPane = new BehaviorSubject<boolean>(true);
@@ -78,57 +74,13 @@ export class AppComponent implements OnInit, OnDestroy {
   );
   readonly notificationManager: NotificationManager =
     inject(NotificationManager);
-  readonly resizer = new ResizingCalculator([
-    {
-      id: 'explorer-view',
-      initialSize: 300,
-      minSizeInPx: 300,
-      resizeRatio: 0,
-    },
-    {
-      id: 'explorer-view-expander',
-      initialSize: 5,
-      minSizeInPx: 5,
-      resizeRatio: 0,
-    },
-    {
-      id: 'timeline-view',
-      initialSize: 300,
-      minSizeInPx: 300,
-      resizeRatio: 1,
-    },
-    {
-      id: 'log-view-expander',
-      initialSize: 5,
-      resizeRatio: 0,
-      minSizeInPx: 5,
-    },
-    {
-      id: 'log-view',
-      initialSize: 300,
-      minSizeInPx: 200,
-      resizeRatio: 0,
-    },
-    {
-      id: 'history-view-expander',
-      initialSize: 5,
-      minSizeInPx: 5,
-      resizeRatio: 0,
-    },
-    {
-      id: 'history-view',
-      initialSize: 300,
-      minSizeInPx: 200,
-      resizeRatio: 0,
-    },
-  ]);
 
   ngOnInit() {
     if (!this.extensionStore.tryOpenDataFromURL()) {
       this.dialog.open(StartupDialogComponent, {
         maxWidth: '100vw',
         panelClass: 'startup-modalbox',
-        disableClose: true,
+        disableClose: false,
       });
     }
     // Start monitoring popup request from server
@@ -156,14 +108,6 @@ export class AppComponent implements OnInit, OnDestroy {
           title: 'KHI requests additional parameter',
           body: `Please supply ${formRequest.title} to proceed tasks`,
         });
-      });
-    animationFrames()
-      .pipe(
-        takeUntil(this.destroyed),
-        map(() => document.body.getBoundingClientRect().width),
-      )
-      .subscribe((width) => {
-        this.resizer.setContainerSizeInPx(width);
       });
     this.diffPageSourceSender.activate();
     this.graphPageSourceSender.activate();

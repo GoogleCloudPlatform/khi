@@ -24,19 +24,9 @@ $FONT_SIZE: 14px;
 .pane {
   display: grid;
   height: 100%;
-  grid-template-areas: "resizer header" "resizer body";
-  grid-template-columns: 5px auto;
+  grid-template-areas: "header" "body";
+  grid-template-columns: 1fr;
   grid-template-rows: $header-size 1fr;
-}
-
-.resizer {
-  grid-area: resizer;
-  background-color: $resizer-color;
-
-  &:hover {
-    cursor: col-resize;
-    background-color: color.adjust($resizer-color, $lightness: -10%);
-  }
 }
 
 .header {
