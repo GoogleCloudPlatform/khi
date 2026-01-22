@@ -5,7 +5,7 @@ FRONTEND_CODEGEN_DIR = scripts/frontend-codegen
 ENUM_GO_ALL_FILES := $(wildcard pkg/model/enum/*.go)
 ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
 FRONTEND_CODEGEN_DEPS := $(wildcard $(FRONTEND_CODEGEN_DIR)/*.go $(FRONTEND_CODEGEN_DIR)/templates/*)
-FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts scripts/msdf-generator/zzz_generated_used_icons.json
+FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts
 
 # prepare-frontend make task generates source code or configurations needed for building frontend code.
 # This task needs to be set as a dependency of any make tasks using frontend code.
