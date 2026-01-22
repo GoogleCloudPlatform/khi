@@ -9,7 +9,7 @@ ZZZ_GO_FILES := $(shell find . -name "zzz_*.go")
 NON_ZZZ_NON_TEST_GO_FILES := $(shell find . -type f -name "*.go" ! -name "*_test.go" ! -name "zzz*")
 
 FRONTEND_CODEGEN_DEPS := $(wildcard $(FRONTEND_CODEGEN_DIR)/*.go $(FRONTEND_CODEGEN_DIR)/templates/*)
-FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts scripts/msdf-generator/zzz_generated_used_icons.json
+FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts
 
 BACKEND_CODEGEN_DIR = scripts/backend-codegen
 
@@ -19,7 +19,7 @@ MSDF_GENERATOR_TARGETS= web/src/assets/icon-codepoints.json web/src/assets/mater
 # prepare-frontend make task generates source code or configurations needed for building frontend code.
 # This task needs to be set as a dependency of any make tasks using frontend code.
 .PHONY: prepare-frontend
-prepare-frontend: web/angular.json web/src/environments/version.*.ts $(FRONTEND_CODEGEN_TARGETS) $(MSDF_GENERATOR_TARGETS)
+prepare-frontend: web/angular.json web/src/environments/version.*.ts $(FRONTEND_CODEGEN_TARGETS)
 
 web/angular.json: scripts/generate-angular-json.sh web/angular-template.json web/src/environments/environment.*.ts
 	./scripts/generate-angular-json.sh > ./web/angular.json
@@ -32,14 +32,20 @@ $(FRONTEND_CODEGEN_TARGETS): $(ENUM_GO_FILES) $(FRONTEND_CODEGEN_DEPS)
 web/src/environments/version.*.ts: VERSION
 	./scripts/generate-version.sh
 
-$(ZZZ_GO_FILES): $(NON_ZZZ_NON_TEST_GO_FILES) ## Generate backend source code
+scripts/msdf-generator/zzz_generated_used_icons.json: $(NON_ZZZ_NON_TEST_GO_FILES) ## Generate backend source code
 	go run ./scripts/backend-codegen/
+
+.PHONY: generate-backend
+generate-backend: scripts/msdf-generator/zzz_generated_used_icons.json
 
 $(MSDF_GENERATOR_TARGETS): scripts/msdf-generator/zzz_generated_used_icons.json $(MSDF_GENERATOR_TTFS_TARGETS) ## Generate font atlas
 	cd scripts/msdf-generator && node index.js
 
 $(MSDF_GENERATOR_TTFS_TARGETS): 
 	cd scripts/msdf-generator && npm i
+
+.PHONY: generate-fonts
+generate-fonts: $(MSDF_GENERATOR_TARGETS)
 
 .PHONY: add-licenses
 add-licenses: ## Add license headers to all files

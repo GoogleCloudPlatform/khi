@@ -1,8 +1,6 @@
 # build.mk
 # This file contains make tasks for building.
 
-ZZZ_GO_FILES := $(shell find . -name "zzz_*.go")
-
 .PHONY: watch-web
 watch-web: prepare-frontend ## Run frontend development server
 	cd web && npx ng serve -c dev
@@ -20,11 +18,11 @@ watch-karma: prepare-frontend ## Run karma test server
 	cd web && npm run test
 
 .PHONY: build-go
-build-go: $(ZZZ_GO_FILES) ## Build backend for production
+build-go: scripts/msdf-generator/zzz_generated_used_icons.json ## Build backend for production
 	CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi ./cmd/kubernetes-history-inspector/...
 
 .PHONY: build-go-debug
-build-go-debug: $(ZZZ_GO_FILES) ## Build backend for debugging
+build-go-debug: scripts/msdf-generator/zzz_generated_used_icons.json ## Build backend for debugging
 	CGO_ENABLED=0 go build -gcflags="all=-N -l" -ldflags="-X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi-debug ./cmd/kubernetes-history-inspector/...
 
 .PHONY: build
@@ -35,7 +33,7 @@ define build_binary
 endef
 
 .PHONY: build-go-binaries
-build-go-binaries: build-web  $(ZZZ_GO_FILES) ## Build go binaries for multiple platforms
+build-go-binaries: build-web scripts/msdf-generator/zzz_generated_used_icons.json ## Build go binaries for multiple platforms
 	mkdir -p bin
 	$(call build_binary,windows,amd64,.exe)
 	$(call build_binary,linux,amd64,)

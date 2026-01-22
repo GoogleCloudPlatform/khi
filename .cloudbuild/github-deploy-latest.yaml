@@ -30,10 +30,27 @@ steps:
         echo ${TAG_NAME} > VERSION
         apt-get update && apt-get install jq -y
         make prepare-frontend
-        make generate-backend
-    id: pre_build_web
+    id: prepare_frontend
     waitFor:
       - dependency_web
+    entrypoint: /bin/bash
+  - name: 'node:22'
+    args:
+      - '-c'
+      - |
+        make generate-fonts
+    id: build_fonts
+    waitFor:
+      - prepare_frontend
+    entrypoint: /bin/bash
+  - name: 'golang:1.25'
+    args:
+      - '-c'
+      - |
+        make generate-backend
+    id: generate_backend
+    waitFor:
+      - build_fonts
     entrypoint: /bin/bash
   - name: 'node:22'
     args:
@@ -42,8 +59,9 @@ steps:
         make build-web
     id: build_web
     waitFor:
-      - pre_build_web
+      - generate_backend
     entrypoint: /bin/bash
+
   - name: gcr.io/cloud-builders/docker
     args:
       - '-c'
