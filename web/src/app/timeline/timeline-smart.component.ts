@@ -229,10 +229,6 @@ export class TimelineSmartComponent {
       if (!timeline) {
         return null;
       }
-      const log = this.selectedLog();
-      if (!log) {
-        return null;
-      }
       const lastClickedTimeMs = this.lastClickedTimeMs();
 
       const maxT = this.HOVER_VIEW_SELECTABLE_RANGE_IN_PX / this.pixelsPerMs();

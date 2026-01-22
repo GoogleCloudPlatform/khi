@@ -17,6 +17,7 @@
 <div
   khiCaptureShiftKey
   class="container"
+  [class.is-grabbing-and-moving]="isGrabbingAndMoving()"
   [style.--header-height.px]="HEADER_HEIGHT"
   [style.--gutter-width.px]="GUTTER_WIDTH"
   [style.--index-pane-width.px]="indexAreaWidthPixels()"
@@ -28,6 +29,9 @@
   [style.--viewport-height.px]="viewportHeight()"
   [style.--viewport-width.px]="viewportWidth()"
   (shiftStatusChange)="shiftStatus.set($event)"
+  (mousedown)="handleMouseDown($event)"
+  (mouseup)="handleMouseUp()"
+  (mouseleave)="handleMouseLeave()"
 >
   <div class="virtual-scroll-container" #container>
     <div class="corner">

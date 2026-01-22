@@ -102,6 +102,13 @@ $z-index-resizer: 1000;
   grid-template-areas: "fill";
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
+  &.is-grabbing-and-moving {
+    user-select: none;
+    cursor: grab;
+    .virtual-scroll-container .chart {
+      pointer-events: none;
+    }
+  }
 }
 
 .virtual-scroll-container {

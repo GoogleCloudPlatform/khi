@@ -594,6 +594,25 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
+   * Whether the user is currently grabbing the chart or not.
+   */
+  private readonly isGrabbing = signal(false);
+
+  /**
+   * Whether the user is currently grabbing and moving the chart or not.
+   * This is needed in addition to isGrabbing not to prevent click event by applying pointer-events: none to the chart area just by mouse down event.
+   */
+  protected readonly isGrabbingAndMoving = signal(false);
+
+  /**
+   * The position of the last mouse down event.
+   */
+  private readonly lastMouseDownPosition: { x: number; y: number } = {
+    x: 0,
+    y: 0,
+  };
+
+  /**
    * The current action that is being performed.
    * This is defined not to move and scale at the same frame.
    */
@@ -720,6 +739,30 @@ export class TimelineFrameComponent implements AfterViewInit {
     outputRef.emit(e);
   }
 
+  handleMouseDown(e: MouseEvent) {
+    const indexArea = this.indexSplitArea()?.nativeElement;
+    if (!indexArea) {
+      return;
+    }
+    const indexAreaRect = indexArea.getBoundingClientRect();
+    const isChartArea = e.clientX > indexAreaRect.right + this.GUTTER_WIDTH;
+    if (isChartArea) {
+      this.isGrabbing.set(true);
+      this.lastMouseDownPosition.x = e.clientX;
+      this.lastMouseDownPosition.y = e.clientY;
+    }
+  }
+
+  handleMouseUp() {
+    this.isGrabbing.set(false);
+    this.isGrabbingAndMoving.set(false);
+  }
+
+  handleMouseLeave() {
+    this.isGrabbing.set(false);
+    this.isGrabbingAndMoving.set(false);
+  }
+
   ngAfterViewInit(): void {
     // Run outside of Angular zone to avoid unnecessary change detection by size changing or scrolls..
     // Frequent scroll events or resize events can trigger Angular's change detection if processed within the zone, leading to performance issues.
@@ -786,10 +829,29 @@ export class TimelineFrameComponent implements AfterViewInit {
       container.nativeElement.addEventListener('scroll', onContainerScroll, {
         passive: true,
       });
+
       const onScrollEnd = () => {
         this.horizontalScrollSourceOfTruth = 'property';
       };
       container.nativeElement.addEventListener('scrollend', onScrollEnd);
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!this.isGrabbing()) {
+          return;
+        }
+        const dx = e.clientX - this.lastMouseDownPosition.x;
+        const dy = e.clientY - this.lastMouseDownPosition.y;
+        this.lastMouseDownPosition.x = e.clientX;
+        this.lastMouseDownPosition.y = e.clientY;
+        this.isGrabbingAndMoving.set(true);
+        this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
+          container.nativeElement.scrollBy({
+            left: -dx,
+            top: -dy,
+          });
+        });
+      };
+      window.addEventListener('mousemove', onMouseMove, { passive: true });
 
       this.destroyRef.onDestroy(() => {
         resizeObserver.disconnect();
@@ -800,6 +862,7 @@ export class TimelineFrameComponent implements AfterViewInit {
           onContainerScroll,
         );
         container.nativeElement.removeEventListener('scrollend', onScrollEnd);
+        window.removeEventListener('mousemove', onMouseMove);
       });
     });
 
