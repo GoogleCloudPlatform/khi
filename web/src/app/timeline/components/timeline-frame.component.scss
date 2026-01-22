@@ -17,15 +17,16 @@
 @use "@angular/material" as mat;
 @use "../../common.scss" as common;
 
-$z-index-spacer: 20;
-$z-index-index: 15;
-$z-index-overlay: 16;
-$z-index-header: 10;
-$z-index-cursor: 11; // cursor is under index but above header
-$z-index-hover-overlay: 8;
-$z-index-sticky-chart: 7;
-$z-index-content: 6;
-$z-index-resizer: 100;
+$z-index-spacer: 999;
+$z-index-index: 800;
+$z-index-overlay: 900;
+$z-index-header: 700;
+$z-index-cursor-header: 701;
+$z-index-cursor-body: 502;
+$z-index-hover-overlay: 502;
+$z-index-sticky-chart: 501;
+$z-index-chart: 6;
+$z-index-resizer: 1000;
 
 // stick-to-header mixin is for the container element sticky to the header area.
 // margin-left is applied to align with the right grid area (header or chart) without considering the size of the gutter.
@@ -68,11 +69,12 @@ $z-index-resizer: 100;
 
 // chart-item place an element stick to the chart coordinate space.
 // left and top are in pixels from the left and top of the chart area and must be calculated.
-// This must be placed direct child of the container element having chart-item-container mixin.
+// This must be placed direct child of the container element.
 @mixin chart-item($left, $top) {
   position: absolute;
-  left: $left;
-  top: $top;
+  transform: translateX($left) translateY($top);
+  margin-left: var(--gutter-width);
+  grid-area: chart;
 }
 
 // screen-space-overlay mixin is for the container element absolute to the entire container.
@@ -197,24 +199,45 @@ $z-index-resizer: 100;
   }
 }
 
+@keyframes neon-pulse {
+  0% {
+    background-color: color(display-p3 1 1 0);
+    box-shadow:
+      0 0 1px color(display-p3 1 1 1 / 1),
+      0 0 2px color(display-p3 1 1 0 / 0.8),
+      0 0 3px color(display-p3 1 1 0 / 0.4);
+  }
+  50% {
+    background-color: color(display-p3 1 1 1);
+    box-shadow:
+      0 0 1px color(display-p3 1 1 1 / 1),
+      0 0 2px color(display-p3 0 1 1 / 0.8),
+      0 0 3px color(display-p3 0 1 1 / 0.4);
+  }
+}
+
+.vertical-line {
+  width: 1px;
+  transform: translateX(-50%);
+  opacity: 0.8;
+  background-color: color(display-p3 1 1 0);
+  box-shadow:
+    0 0 1px color(display-p3 1 1 1 / 1),
+    0 0 2px color(display-p3 1 1 0 / 0.8),
+    0 0 3px color(display-p3 1 1 0 / 0.4);
+  animation: neon-pulse 10s ease-in-out infinite;
+}
+
 .cursor-time-label-container {
   @include stick-to-header(0px);
   width: 0;
-  z-index: $z-index-cursor;
+  z-index: $z-index-cursor-header;
   transform: translateX(var(--cursor-offset-left));
 
-  .cursor-vertical-line {
-    pointer-events: all;
+  .cursor-vertical-line-header {
     position: absolute;
     top: 10px;
-    width: 1px;
-    transform: translateX(-50%);
-    height: calc(var(--viewport-height) + var(--header-height) - 10px);
-    opacity: 0.8;
-    background-color: color(display-p3 1 1 0);
-    box-shadow:
-      1px 0px 0.5px 0 color(display-p3 0 0 0/0.3),
-      -1px 0px 0.5px 0 color(display-p3 0 0 0/0.3);
+    bottom: 0px;
   }
 
   .cursor-time-label {
@@ -231,6 +254,17 @@ $z-index-resizer: 100;
   }
 }
 
+.cursor-vertical-line-body-container {
+  @include chart-item(var(--cursor-offset-left), 0);
+  z-index: $z-index-cursor-body;
+  height: 100%;
+}
+
+.cursor-vertical-line-body {
+  width: 1px;
+  height: 100%;
+}
+
 .index {
   @include stick-to-left(0);
   z-index: $z-index-index;
@@ -243,7 +277,7 @@ $z-index-resizer: 100;
 
 .chart {
   @include chart-item-container();
-  z-index: $z-index-content;
+  z-index: $z-index-chart;
   .chart-inner {
     position: relative;
     z-index: 0;
@@ -316,6 +350,11 @@ $z-index-resizer: 100;
 }
 
 .hover-overlay-offset {
-  z-index: $z-index-hover-overlay;
   @include chart-item(var(--offset-x), var(--offset-y));
+  z-index: $z-index-hover-overlay;
+  pointer-events: none;
+  khi-timeline-hover-overlay {
+    pointer-events: all;
+    transform: translateX(-50%);
+  }
 }

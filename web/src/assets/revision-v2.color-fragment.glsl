@@ -42,13 +42,6 @@ float sdfToAlpha(float sdf, float threshold,float antialias){
   return smoothstep(threshold-antialias, threshold+antialias, sdf);
 }
 
-float sdfToOutlineAlpha(float sdf, float threshold, float outlineWidth, float antialias){
-  float outerThreshold = threshold - outlineWidth;
-  float outerAlpha = smoothstep(outerThreshold - antialias, outerThreshold + antialias, sdf);
-  float innerAlpha = smoothstep(threshold - antialias, threshold + antialias, sdf);
-  return clamp(outerAlpha - innerAlpha, 0.0, 1.0);
-}
-  
 // Checks if the current pixel is within the border region.
 float isBorder(float borderThickness){
   vec2 distFromEdge = min(uv, 1.0 - uv);
@@ -145,21 +138,14 @@ void main(){
   float borderScale = 1.0 + isSelected * 0.5 + isHovered * 0.1;
   float borderAlpha = isBorder(rls.borderThickness * borderScale) * borderStripeAlpha;
   float alphaScale = 1.0 + isSelected * 0.3 + isHovered * 0.1;
-  float alpha = revisionModel.alphaTransparency * alphaScale * mix(0.5, 1.0, bodyStripeAlpha);
+  float baseAlpha = revisionModel.alphaTransparency * alphaScale * mix(0.5, 1.0, bodyStripeAlpha);
 
   // 3. Combine Alphas for "Dark" elements (Text, Icon, Border)
   float darkAlpha = max(fontAlpha, max(iconAlpha, borderAlpha));
   
   // 4. Compose Final Color
-  // Mix hierarchy:
-  // Base Color -> Dark Elements (Text/Icon/Border) -> Highlight Border -> Selection Border
-  vec3 baseColor = mix(
-        revisionModel.baseColor.rgb,
-        revisionModel.baseColor.rgb, // Darker color for Text/Icon/Border
-        darkAlpha
-  );
-  
-  fragColor.rgb = mix(baseColor, baseColor * 0.6, max(fontAlpha, iconAlpha));
-  fragColor.a = mix(alpha, 1.0, darkAlpha) * mix(0.2, 1.0, float(revisionModel.filterStatus));
+  vec3 baseColor = revisionModel.baseColor.rgb;
+  fragColor.rgb = mix(baseColor, baseColor * 0.6, max(fontAlpha, iconAlpha)); // Darken text and icon
+  fragColor.a = mix(baseAlpha, 1.0, darkAlpha) * mix(0.2, 1.0, float(revisionModel.filterStatus));
   fragColor.rgb *= fragColor.a; // Pre-multiplied alpha
 }
