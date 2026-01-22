@@ -5,8 +5,8 @@ FRONTEND_CODEGEN_DIR = scripts/frontend-codegen
 ENUM_GO_ALL_FILES := $(shell find pkg/model/enum -name "*.go")
 ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
 
-PKG_GO_ALL_FILES := $(shell find pkg -name "*.go")
-PKG_GO_FILES := $(filter-out %_test.go,$(PKG_GO_ALL_FILES))
+ZZZ_GO_FILES := $(shell find . -name "zzz_*.go")
+NON_ZZZ_NON_TEST_GO_FILES := $(shell find . -type f -name "*.go" ! -name "*_test.go" ! -name "zzz*")
 
 FRONTEND_CODEGEN_DEPS := $(wildcard $(FRONTEND_CODEGEN_DIR)/*.go $(FRONTEND_CODEGEN_DIR)/templates/*)
 FRONTEND_CODEGEN_TARGETS = web/src/app/generated.scss web/src/app/generated.ts scripts/msdf-generator/zzz_generated_used_icons.json
@@ -32,7 +32,7 @@ $(FRONTEND_CODEGEN_TARGETS): $(ENUM_GO_FILES) $(FRONTEND_CODEGEN_DEPS)
 web/src/environments/version.*.ts: VERSION
 	./scripts/generate-version.sh
 
-generate-backend: $(PKG_GO_FILES) ## Generate backend source code
+$(ZZZ_GO_FILES): $(NON_ZZZ_NON_TEST_GO_FILES) ## Generate backend source code
 	go run ./scripts/backend-codegen/
 
 $(MSDF_GENERATOR_TARGETS): scripts/msdf-generator/zzz_generated_used_icons.json $(MSDF_GENERATOR_TTFS_TARGETS) ## Generate font atlas
