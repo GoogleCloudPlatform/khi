@@ -48,3 +48,10 @@ src/environments/version.*.ts
 *storybook.log
 storybook-static
 documentation.json
+
+# Generated font atlas and related metadata jsons
+src/assets/icon-codepoints.json
+src/assets/material-icons-msdf.json
+src/assets/material-icons-msdf.png
+src/assets/roboto-number-msdf.json
+src/assets/roboto-number-msdf.png
