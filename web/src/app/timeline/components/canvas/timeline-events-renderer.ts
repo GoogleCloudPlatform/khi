@@ -479,16 +479,16 @@ export class TimelineEventsSharedResources {
       timelineHeight,
       eventStyle.verticalPaddingInPx,
       eventStyle.severityColorRatio,
-      eventStyle.borderThickness,
+      eventStyle.borderThickness, // 16
       eventStyle.borderAntialias,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      hoverBorderColorInVec3[0],
+      hoverBorderColorInVec3[0], // 32
       hoverBorderColorInVec3[1],
       hoverBorderColorInVec3[2],
       eventStyle.hoverBorderThickness,
-      selectionBorderColorInVec3[0],
+      selectionBorderColorInVec3[0], // 48
       selectionBorderColorInVec3[1],
       selectionBorderColorInVec3[2],
       eventStyle.selectionBorderThickness,
