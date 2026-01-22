@@ -80,7 +80,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.dialog.open(StartupDialogComponent, {
         maxWidth: '100vw',
         panelClass: 'startup-modalbox',
-        disableClose: false,
+        disableClose: true,
       });
     }
     // Start monitoring popup request from server

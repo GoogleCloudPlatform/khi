@@ -72,9 +72,33 @@
 
     <!--chart space overlay elements-->
     <div class="cursor-time-label-container">
-      <div class="cursor-vertical-line"></div>
+      <div class="cursor-vertical-line-header vertical-line"></div>
       <p class="cursor-time-label">{{ cursorTimeString() }}</p>
     </div>
+    <div class="cursor-vertical-line-body-container">
+      <div class="cursor-vertical-line-body vertical-line"></div>
+    </div>
+
+    @if (timelineHoverOverlay()) {
+      <div
+        class="hover-overlay-offset"
+        [style.--offset-x.px]="timelineHoverOverlayOffsetX()"
+        [style.--offset-y.px]="timelineHoverOverlayOffsetY()"
+      >
+        <khi-timeline-hover-overlay
+          [timelineHoverOverlay]="timelineHoverOverlay()"
+          [logs]="allLogsWithoutFilter()"
+          [timezoneShiftHours]="timezoneShiftHours()"
+          [highlights]="timelineChartItemHighlights()"
+          (hoverOnElement)="
+            handleTimelineChartItemEvent($event, hoverOnTimelineItem)
+          "
+          (clickOnElement)="
+            handleTimelineChartItemEvent($event, clickOnTimelineItem)
+          "
+        ></khi-timeline-hover-overlay>
+      </div>
+    }
 
     <div class="chart">
       <div class="chart-inner">
@@ -95,26 +119,6 @@
             handleTimelineChartItemEvent($event, clickOnTimelineItem)
           "
         ></khi-timeline-chart>
-        @if (timelineHoverOverlay()) {
-          <div
-            class="hover-overlay-offset"
-            [style.--offset-x.px]="timelineHoverOverlayOffsetX()"
-            [style.--offset-y.px]="timelineHoverOverlayOffsetY()"
-          >
-            <khi-timeline-hover-overlay
-              [timelineHoverOverlay]="timelineHoverOverlay()"
-              [logs]="allLogsWithoutFilter()"
-              [timezoneShiftHours]="timezoneShiftHours()"
-              [highlights]="timelineChartItemHighlights()"
-              (hoverOnElement)="
-                handleTimelineChartItemEvent($event, hoverOnTimelineItem)
-              "
-              (clickOnElement)="
-                handleTimelineChartItemEvent($event, clickOnTimelineItem)
-              "
-            ></khi-timeline-hover-overlay>
-          </div>
-        }
         <div
           class="expander"
           [style.--total-height.px]="totalContentHeight()"
@@ -151,6 +155,7 @@
         <div class="legend">
           <khi-timeline-legend
             [timeline]="selectedTimeline()"
+            [expanded]="true"
           ></khi-timeline-legend>
         </div>
       </div>

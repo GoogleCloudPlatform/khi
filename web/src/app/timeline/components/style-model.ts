@@ -336,12 +336,12 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
         iconSizeInPx: 14,
         iconPaddingInPx: [6, 6],
         iconThicknessBySelectionType: {
-          [TimelineChartItemHighlightType.None]: 0.65,
-          [TimelineChartItemHighlightType.Selected]: 0.5,
-          [TimelineChartItemHighlightType.Hovered]: 0.5,
+          [TimelineChartItemHighlightType.None]: 0.5,
+          [TimelineChartItemHighlightType.Selected]: 0.4,
+          [TimelineChartItemHighlightType.Hovered]: 0.4,
         },
         fontAntialias: 0.2,
-        iconAntialias: 0.5,
+        iconAntialias: 0.2,
         fontStepInPx: 8,
         selectionBorderThickness: 6,
         hoverBorderThickness: 6 * 0.8,
@@ -359,12 +359,12 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
         iconSizeInPx: 12,
         iconPaddingInPx: [6, 4],
         iconThicknessBySelectionType: {
-          [TimelineChartItemHighlightType.None]: 0.65,
-          [TimelineChartItemHighlightType.Selected]: 0.5,
-          [TimelineChartItemHighlightType.Hovered]: 0.5,
+          [TimelineChartItemHighlightType.None]: 0.5,
+          [TimelineChartItemHighlightType.Selected]: 0.4,
+          [TimelineChartItemHighlightType.Hovered]: 0.4,
         },
         fontAntialias: 0.2,
-        iconAntialias: 0.5,
+        iconAntialias: 0.2,
         fontStepInPx: 6,
         selectionBorderThickness: 5,
         hoverBorderThickness: 5 * 0.8,
@@ -397,17 +397,17 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
     highlightBorderColor: RendererConvertUtil.hexSRGBToHDRColor('#FFFF22FF'),
     revisionStateStyle: {
       [generated.RevisionStateStyle.Normal]: {
-        alphaTransparency: 0.5,
+        alphaTransparency: 0.4,
         borderStripePatten: 0,
         bodyStripePattern: 0,
       },
       [generated.RevisionStateStyle.Deleted]: {
-        alphaTransparency: 0.3,
+        alphaTransparency: 0.4,
         borderStripePatten: 1,
         bodyStripePattern: 0,
       },
       [generated.RevisionStateStyle.PartialInfo]: {
-        alphaTransparency: 0.3,
+        alphaTransparency: 0.4,
         borderStripePatten: 0,
         bodyStripePattern: 1,
       },
@@ -446,10 +446,7 @@ export function generateDefaultRulerStyle(): TimelineRulerStyle {
         generated.severityColors[
           generated.severities[generated.Severity.SeverityInfo]
         ],
-      [generated.Severity.SeverityUnknown]:
-        generated.severityColors[
-          generated.severities[generated.Severity.SeverityUnknown]
-        ],
+      [generated.Severity.SeverityUnknown]: [0.5, 0.5, 0.5, 1], // the severity color(black) is too vivid for histogram. Use gray instead.
     },
     severityStrokeColors: {
       [generated.Severity.SeverityFatal]:
@@ -468,10 +465,7 @@ export function generateDefaultRulerStyle(): TimelineRulerStyle {
         generated.severityBorderColors[
           generated.severities[generated.Severity.SeverityInfo]
         ],
-      [generated.Severity.SeverityUnknown]:
-        generated.severityBorderColors[
-          generated.severities[generated.Severity.SeverityUnknown]
-        ],
+      [generated.Severity.SeverityUnknown]: [0.8, 0.8, 0.8, 1], // the severity color(black) is too vivid for histogram. Use gray instead.
     },
     nonHighlightedAlpha: 0.2,
     highlightedAlpha: 1,

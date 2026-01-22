@@ -24,6 +24,7 @@ $menu-width: 135px;
 :host {
   background-color: $background;
   display: flex;
+  align-items: center;
   user-select: none;
 }
 

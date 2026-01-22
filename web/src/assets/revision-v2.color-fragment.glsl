@@ -41,7 +41,7 @@ float iconSDF(vec2 uv, vec4 offsetSizes){
 float sdfToAlpha(float sdf, float threshold,float antialias){
   return smoothstep(threshold-antialias, threshold+antialias, sdf);
 }
-  
+
 // Checks if the current pixel is within the border region.
 float isBorder(float borderThickness){
   vec2 distFromEdge = min(uv, 1.0 - uv);
@@ -53,7 +53,7 @@ float isBorder(float borderThickness){
 // Generates a boolean value for a diagonal stripe pattern.
 float stripePattern(float pitch){
   vec2 revisionRelativeUV = uv * revisionScreenSize;
-  float diagonalVal = leftEdgeTimeMS + revisionRelativeUV.x + revisionRelativeUV.y;
+  float diagonalVal = revisionRelativeUV.x + revisionRelativeUV.y;
   float stripeVal = mod(diagonalVal, pitch);
   return step(stripeVal, pitch / 2.0);
 }
@@ -128,7 +128,7 @@ void main(){
   vec2 fontAlphaAndRemainingX = revisionIndexFontAlphaAndRemainingXRatio();
   float fontAlpha = fontAlphaAndRemainingX.x;
   // Only render icon if there is enough space (based on remaining X from text).
-  float iconAlpha = revisionIconAlpha() * step(0.8 ,fontAlphaAndRemainingX.y);
+  float iconAlpha = revisionIconAlpha() * step(0.5,fontAlphaAndRemainingX.y);
   
   // 2. Compute stripe patterns
   float borderStripeAlpha = mix(1.0, borderStripePattern(rls.borderStripePitch), float(revisionModel.borderStripePatten));
@@ -137,39 +137,15 @@ void main(){
   float isHovered = step(0.5, float(revisionModel.selectionStatus)) * (1.0 - isSelected);
   float borderScale = 1.0 + isSelected * 0.5 + isHovered * 0.1;
   float borderAlpha = isBorder(rls.borderThickness * borderScale) * borderStripeAlpha;
-  float alphaScale = 1.0 + isSelected * 0.5 + isHovered * 0.1;
-  float alpha = revisionModel.alphaTransparency * alphaScale;
+  float alphaScale = 1.0 + isSelected * 0.3 + isHovered * 0.1;
+  float baseAlpha = revisionModel.alphaTransparency * alphaScale * mix(0.5, 1.0, bodyStripeAlpha);
 
   // 3. Combine Alphas for "Dark" elements (Text, Icon, Border)
   float darkAlpha = max(fontAlpha, max(iconAlpha, borderAlpha));
   
-  // 4. Calculate Selection and Highlight Borders
-  float selectionBorderAlpha = 0.;
-  float highlightBorderAlpha = 0.;
-  float darkAlphaWithBorder = max(darkAlpha,max(selectionBorderAlpha,highlightBorderAlpha));
-  
-  // 5. Compose Final Color
-  // Mix hierarchy:
-  // Base Color (with body stripe) -> Dark Elements (Text/Icon/Border) -> Highlight Border -> Selection Border
-  vec3 baseColor = mix(
-    mix(
-      mix(
-        mix(
-          mix(revisionModel.baseColor.rgb, vec3(1),0.2), // Lighten base color slightly
-          revisionModel.baseColor.rgb,
-          bodyStripeAlpha
-        ),
-        revisionModel.baseColor.rgb*0.6, // Darker color for Text/Icon/Border
-        darkAlpha
-      ),
-      rls.highlightBorderColor,
-      highlightBorderAlpha
-    ),
-    rls.selectionBorderColor,
-    selectionBorderAlpha
-  );
-  
-  fragColor.rgb = baseColor;
-  fragColor.a = mix(alpha, 1.0, darkAlphaWithBorder) * mix(0.2,1.0,float(revisionModel.filterStatus));
+  // 4. Compose Final Color
+  vec3 baseColor = revisionModel.baseColor.rgb;
+  fragColor.rgb = mix(baseColor, baseColor * 0.6, max(fontAlpha, iconAlpha)); // Darken text and icon
+  fragColor.a = mix(baseAlpha, 1.0, darkAlpha) * mix(0.2, 1.0, float(revisionModel.filterStatus));
   fragColor.rgb *= fragColor.a; // Pre-multiplied alpha
 }
