@@ -26,7 +26,7 @@ module.exports = function (config) {
       require('karma-chrome-launcher'),
       require('karma-jasmine-html-reporter'),
       require('karma-coverage'),
-      
+
     ],
     files: [
       { pattern: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap', type: "css", included: true, served: false, watched: false },
@@ -67,7 +67,12 @@ module.exports = function (config) {
     customLaunchers: {
       ChromeHeadlessNoSandbox: {
         base: 'ChromeHeadless',
-        flags: ['--no-sandbox']
+        flags: [
+          '--no-sandbox',
+          '--enable-unsafe-swiftshader',
+          '--enable-webgl',
+          '--disable-gpu'
+        ]
       }
     },
   });
