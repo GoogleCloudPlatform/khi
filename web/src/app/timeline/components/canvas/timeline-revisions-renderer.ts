@@ -529,65 +529,66 @@ export class TimelineRevisionsSharedResources {
       revisionStyle.verticalPaddingInPx,
       revisionStyle.borderThickness,
       STD140_PADDING_FLOAT,
-      revisionStyle.fontPaddingInPx[0],
+      revisionStyle.fontPaddingInPx[0], // 16
       revisionStyle.fontPaddingInPx[1],
       revisionStyle.fontSizeInPx,
       STD140_PADDING_FLOAT,
-      revisionStyle.fontThicknessBySelectionType[
+      revisionStyle.fontThicknessBySelectionType[ // 32
         TimelineChartItemHighlightType.None
       ],
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      revisionStyle.fontThicknessBySelectionType[
+      revisionStyle.fontThicknessBySelectionType[ // 48
         TimelineChartItemHighlightType.Hovered
       ],
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      revisionStyle.fontThicknessBySelectionType[
+      revisionStyle.fontThicknessBySelectionType[ // 64
         TimelineChartItemHighlightType.Selected
       ],
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      revisionStyle.fontAntialias,
+      revisionStyle.fontAntialias, // 80
       revisionStyle.fontStepInPx,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      selectionBorderColor[0],
+      selectionBorderColor[0], // 96
       selectionBorderColor[1],
       selectionBorderColor[2],
       revisionStyle.selectionBorderThickness,
-      highlightBorderColor[0],
+      highlightBorderColor[0], // 112
       highlightBorderColor[1],
       highlightBorderColor[2],
       revisionStyle.hoverBorderThickness,
-      revisionStyle.iconSizeInPx,
+      revisionStyle.iconSizeInPx, // 128
       STD140_PADDING_FLOAT,
-      revisionStyle.iconPaddingInPx[0],
+      revisionStyle.iconPaddingInPx[0], // 136
       revisionStyle.iconPaddingInPx[1],
-      revisionStyle.iconThicknessBySelectionType[
+      revisionStyle.iconThicknessBySelectionType[ // 144
         TimelineChartItemHighlightType.None
       ],
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      revisionStyle.iconThicknessBySelectionType[
+      revisionStyle.iconThicknessBySelectionType[ // 160
         TimelineChartItemHighlightType.Hovered
       ],
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      revisionStyle.iconThicknessBySelectionType[
+      revisionStyle.iconThicknessBySelectionType[ // 176
         TimelineChartItemHighlightType.Selected
       ],
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
       STD140_PADDING_FLOAT,
-      revisionStyle.iconAntialias,
+      revisionStyle.iconAntialias, // 192
       this.chartStyle.borderStripePitch,
       this.chartStyle.bodyStripePitch,
+      STD140_PADDING_FLOAT,
     ]);
     gl.bufferData(gl.UNIFORM_BUFFER, bufferSource, gl.STATIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);

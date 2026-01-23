@@ -91,7 +91,7 @@ export class TimelineRendererSharedResource {
     if (this.uboViewState === null) {
       throw new WebGLContextLostException('Failed to create buffer');
     }
-    this.uboViewStateSource = new ArrayBuffer(24);
+    this.uboViewStateSource = new ArrayBuffer(32); // 24 + 8 padding
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboViewState);
     gl.bufferData(gl.UNIFORM_BUFFER, this.uboViewStateSource, gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
@@ -223,6 +223,8 @@ export class TimelineRendererSharedResource {
       RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(state.leftEdgeTime);
     dv.setUint32(16, seconds, true);
     dv.setUint32(20, nanoSeconds, true);
+    dv.setUint32(24, 0, true); // these are paddings for std140
+    dv.setUint32(28, 0, true);
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboViewState);
     gl.bufferData(gl.UNIFORM_BUFFER, this.uboViewStateSource, gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
