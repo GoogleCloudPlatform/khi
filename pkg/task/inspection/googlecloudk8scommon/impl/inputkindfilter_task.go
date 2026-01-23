@@ -38,8 +38,8 @@ var InputKindFilterTask = formtask.NewSetFormTaskBuilder(googlecloudk8scommon_co
 	WithAllowCustomValue(true).
 	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 		result := []inspectionmetadata.SetParameterFormFieldOptionItem{}
-		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@any", Description: "[Alias]An alias matches any of the kinds"})
-		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@default", Description: "[Alias]An alias matches a set of kinds that frequently queried."})
+		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@any", Description: "[Alias] An alias matches any of the kinds"})
+		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: "@default", Description: "[Alias] An alias matches a set of kinds that frequently queried."})
 		return result, nil
 	}).
 	WithValidator(func(ctx context.Context, value []string) (string, error) {
