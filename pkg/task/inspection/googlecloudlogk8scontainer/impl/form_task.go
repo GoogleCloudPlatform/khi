@@ -53,6 +53,9 @@ Specify the space splitted namespace lists to query container logs only in the s
 		result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{
 			ID:          "@managed",
 			Description: "[Alias] An alias matches the managed namespaces(e.g kube-system,gke-system,...etc).",
+		}, inspectionmetadata.SetParameterFormFieldOptionItem{
+			ID:          "@any",
+			Description: "[Alias] An alias matches any pod namespaces.",
 		})
 		for i, namespace := range namespaces.Values {
 			if i >= maxNamespaceFilterOptions {
