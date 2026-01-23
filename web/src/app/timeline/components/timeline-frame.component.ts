@@ -723,6 +723,21 @@ export class TimelineFrameComponent implements AfterViewInit {
         });
       }
     });
+    effect(() => {
+      const verticalCalculator = this.verticalScrollCalculator();
+      const container = this.container();
+      if (!container) {
+        return;
+      }
+      const maxScrollTop =
+        verticalCalculator.totalHeight - this.viewportHeight();
+      if (container.nativeElement.scrollTop > maxScrollTop) {
+        container.nativeElement.scrollTo({
+          top: maxScrollTop,
+          behavior: 'smooth',
+        });
+      }
+    });
   }
 
   handleTimelineEventForIndex(

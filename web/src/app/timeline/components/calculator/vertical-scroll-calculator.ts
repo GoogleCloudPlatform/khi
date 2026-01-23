@@ -140,6 +140,7 @@ export class VerticalScrollCalculator {
       this.style.heightsByLayer[TimelineLayer.Kind] +
       this.style.heightsByLayer[TimelineLayer.Namespace];
     let i = bisectRight(this.accumulatedHeights, scrollY + stickyHeaderSize); // Starting from the timeline that is at least visible behind the sticky header
+    i = Math.min(i, this.timelines.length - 1);
     let namespaceTimeline: ResourceTimeline | null = null;
     for (; i >= 0; i--) {
       if (this.timelines[i].layer === TimelineLayer.Namespace) {
