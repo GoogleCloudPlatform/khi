@@ -77,8 +77,12 @@ $selected-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
   }
 }
 
+:host {
+  display: block;
+}
+
 .container {
-  width: 30vw;
+  max-width: 30vw;
   box-shadow: 0 0 4px 0 rgba(0, 0, 0, 1);
   background-color: white;
   border: 0.5px solid rgba(100, 100, 100, 1);
