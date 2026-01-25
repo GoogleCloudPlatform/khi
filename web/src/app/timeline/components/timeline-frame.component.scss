@@ -361,7 +361,6 @@ $z-index-resizer: 1000;
   z-index: $z-index-hover-overlay;
   pointer-events: none;
   khi-timeline-hover-overlay {
-    pointer-events: all;
-    transform: translateX(-50%);
+    transform: translateX(-50%) translateY(20px);
   }
 }
