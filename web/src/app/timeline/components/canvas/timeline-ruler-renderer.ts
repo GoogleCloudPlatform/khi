@@ -25,6 +25,7 @@ import { RendererConvertUtil } from './convertutil';
 export class TimelineRulerRenderer {
   private width = 0;
   private height = 0;
+  private dpr = 1;
   private style: TimelineRulerStyle;
 
   /**
@@ -45,8 +46,7 @@ export class TimelineRulerRenderer {
   resize(width: number, height: number, dpr: number) {
     this.width = width;
     this.height = height;
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.ctx.scale(dpr, dpr);
+    this.dpr = dpr;
   }
 
   /**
@@ -61,7 +61,9 @@ export class TimelineRulerRenderer {
     leftEdgeTimeMS: number,
     pixelsPerMs: number,
   ) {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.scale(this.dpr, this.dpr);
     this.drawHeaderHistogram(viewModel, leftEdgeTimeMS, pixelsPerMs);
     this.drawRulerLines(viewModel, pixelsPerMs);
   }

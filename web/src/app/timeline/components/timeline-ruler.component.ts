@@ -20,12 +20,14 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
   input,
   model,
   NgZone,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 import { TimelineRulerRenderer as TimelineRulerCanvasRenderer } from './canvas/timeline-ruler-renderer';
@@ -139,6 +141,19 @@ export class TimelineRulerComponent implements AfterViewInit {
   private resizeObserver: ResizeObserver | null = null;
 
   /**
+   * Flag to indicate that the timeline needs to be redrawn.
+   */
+  private invalidate = signal(true);
+
+  constructor() {
+    effect(() => {
+      this.viewModel();
+      this.leftEdgeTime();
+      this.pixelsPerMs();
+      this.invalidate.set(true);
+    });
+  }
+  /**
    * Initializes the canvas renderer, registers the render loop handler,
    * and sets up the resize observer to handle window or container resizing.
    */
@@ -156,11 +171,14 @@ export class TimelineRulerComponent implements AfterViewInit {
     this.rulerCanvasRenderer = new TimelineRulerCanvasRenderer(backgroundCtx);
 
     this.renderingLoopManager.registerRenderHandler(this.destroyRef, () => {
-      this.rulerCanvasRenderer.render(
-        this.viewModel(),
-        this.leftEdgeTime(),
-        this.pixelsPerMs(),
-      );
+      if (this.invalidate()) {
+        this.rulerCanvasRenderer.render(
+          this.viewModel(),
+          this.leftEdgeTime(),
+          this.pixelsPerMs(),
+        );
+        this.invalidate.set(false);
+      }
     });
 
     this.resizeObserver = new ResizeObserver(() => {
@@ -208,6 +226,7 @@ export class TimelineRulerComponent implements AfterViewInit {
       canvas.width = container.clientWidth * dpr;
       canvas.height = style.headerHeightInPx * dpr;
       this.rulerCanvasRenderer.resize(canvas.width, canvas.height, dpr);
+      this.invalidate.set(true);
     });
   }
 

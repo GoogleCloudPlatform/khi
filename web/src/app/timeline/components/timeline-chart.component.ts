@@ -25,6 +25,7 @@ import {
   NgZone,
   output,
   OutputEmitterRef,
+  signal,
   viewChild,
 } from '@angular/core';
 import { GLContextManager } from './canvas/glcontextmanager';
@@ -145,6 +146,11 @@ export class TimelineChartComponent implements AfterViewInit {
    */
   readonly clickOnTimelineItem = output<TimelineChartMouseEvent>();
 
+  /**
+   * Flag to indicate that the timeline needs to be redrawn.
+   */
+  private readonly invalidate = signal(true);
+
   private resizeObserver: ResizeObserver | null = null;
 
   private contextManager!: GLContextManager<TimelineRendererRenderArgs>;
@@ -185,11 +191,15 @@ export class TimelineChartComponent implements AfterViewInit {
 
     this.updateRendererParams();
     this.renderingLoopManager.registerRenderHandler(this.destroyRef, () => {
+      if (!this.invalidate()) {
+        return;
+      }
       this.contextManager.render({
         leftEdgeTime: this.leftEdgeTime(),
         pixelsPerMs: this.pixelsPerMs(),
       });
       this.backgroundRenderer.render(this.leftEdgeTime(), this.pixelsPerMs());
+      this.invalidate.set(false);
     });
   }
 
@@ -216,6 +226,7 @@ export class TimelineChartComponent implements AfterViewInit {
         timeMS,
       });
     });
+    this.invalidate.set(true); // hittest needs redraw
   }
 
   private handleResize() {
@@ -239,6 +250,7 @@ export class TimelineChartComponent implements AfterViewInit {
       glCanvas.height = rect.height * dpr;
       this.backgroundRenderer.resize(rect.width, rect.height, dpr);
       this.timelineRenderer.resize(rect.width, rect.height, dpr);
+      this.invalidate.set(true);
     });
   }
 
@@ -250,6 +262,7 @@ export class TimelineChartComponent implements AfterViewInit {
     const timelineHighlights = this.timelineHighlights();
     const logElementHighlights = this.timelineChartItemHighlights();
     const activeLogsIndices = this.activeLogsIndices();
+    this.invalidate.set(true);
     if (
       rulerViewModel === undefined ||
       rulerStyle === undefined ||
