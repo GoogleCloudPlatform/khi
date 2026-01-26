@@ -209,7 +209,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   @HostListener('window:keydown', ['$event'])
-  private interceptBrowserSearch(event: KeyboardEvent) {
+  protected interceptBrowserSearch(event: KeyboardEvent) {
     if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       this.logFilterInput()?.focus();
