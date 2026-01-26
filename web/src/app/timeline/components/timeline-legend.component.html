@@ -36,9 +36,15 @@
           [style.--timeline-type-color]="tt.color"
           [style.--timeline-type-background-color]="tt.backgroundColor"
         >
-          <mat-icon>timeline</mat-icon>
-          <p>Timeline type</p>
-          <p class="label">{{ tt.label }}</p>
+          <div class="label-container">
+            <mat-icon>timeline</mat-icon>
+            <p>Timeline type</p>
+            <p class="label">{{ tt.label }}</p>
+          </div>
+          <div class="hint-container">
+            <mat-icon>info</mat-icon>
+            <p class="hint">{{ tt.hint }}</p>
+          </div>
         </div>
       }
       <div class="toggle-button-container">

@@ -27,7 +27,7 @@
         @if (t.relationshipMetadata.visible) {
           <p
             [ngClass]="['relationship-label', t.relationshipMetadata.label]"
-            [matTooltip]="t.relationshipMetadata.label"
+            [matTooltip]="t.relationshipMetadata.hint"
           >
             {{ t.relationshipMetadata.label }}
           </p>
