@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import {
+  Component,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  inject,
+  viewChild,
+} from '@angular/core';
 import { FormControl } from '@angular/forms';
 import {
   BehaviorSubject,
@@ -73,6 +80,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     DEFAULT_TIMELINE_FILTER,
   );
   private readonly inspectionDataStore = inject(InspectionDataStoreService);
+
+  private readonly logFilterInput =
+    viewChild<RegexInputComponent>('logFilterInput');
 
   private destoroyed = new Subject<void>();
 
@@ -196,5 +206,13 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   onDrawDiagram() {
     window.open(window.location.pathname + '/graph', '_blank');
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  interceptBrowserSearch(event: KeyboardEvent) {
+    if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      this.logFilterInput()?.focus();
+    }
   }
 }

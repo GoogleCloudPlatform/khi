@@ -21,6 +21,7 @@ limitations under the License.
       <mat-error>{{ regexFormErrorMessage() }}</mat-error>
     }
     <input
+      #regexInputElement
       matInput
       [formControl]="regexInput"
       placeholder="Type regex here to filter"

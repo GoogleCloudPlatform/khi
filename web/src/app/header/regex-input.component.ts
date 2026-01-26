@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  Output,
+  viewChild,
+} from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RegexValidator } from './regex-validator';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -28,6 +35,9 @@ import { MatInputModule } from '@angular/material/input';
   imports: [MatFormFieldModule, MatInputModule, ReactiveFormsModule],
 })
 export class RegexInputComponent {
+  private readonly regexInputElement =
+    viewChild<ElementRef<HTMLInputElement>>('regexInputElement');
+
   @Input()
   label = '';
 
@@ -43,5 +53,9 @@ export class RegexInputComponent {
   onFilterChange() {
     if (!this.regexInput.valid) return;
     this.regexFilterChange.emit(this.regexInput.value);
+  }
+
+  focus() {
+    this.regexInputElement()?.nativeElement.focus();
   }
 }
