@@ -91,6 +91,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		SortPriority:         1000,
 		LongName:             "The default resource timeline",
 		Description:          "A default timeline recording the history of Kubernetes resources",
+		Hint:                 "General resource lifecycle and logs",
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
 				State:         RevisionStateInferred,
@@ -152,7 +153,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Status condition field timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#4c29e8"),
-		Hint:                 "Resource condition written on .status.conditions",
+		Hint:                 "Resource conditions from .status.conditions",
 		SortPriority:         2000,
 		Description:          "A timeline showing the state changes on `.status.conditions` of the parent resource",
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -243,7 +244,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Endpoint serving state timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#008000"),
-		Hint:                 "Pod serving status obtained from endpoint slice",
+		Hint:                 "Pod serving status from EndpointSlice",
 		SortPriority:         20000, // later than container
 		Description:          "A timeline indicates the status of endpoint related to the parent resource(Pod or Service)",
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -271,7 +272,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Container timeline",
 		LabelColor:           mustHexToHDRColor4("#000000"),
 		LabelBackgroundColor: mustHexToHDRColor4("#fe9bab"),
-		Hint:                 "Statuses/logs of a container",
+		Hint:                 "Container status and logs",
 		SortPriority:         5000,
 		Description:          "A timline of a container included in the parent timeline of a Pod",
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -319,7 +320,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Node component timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#0077CC"),
-		Hint:                 "Non container resource running on a node",
+		Hint:                 "Non-containerized component on the node",
 		SortPriority:         6000,
 		Description:          "A component running inside of the parent timeline of a Node",
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -353,7 +354,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Owning children timeline",
 		LabelColor:           mustHexToHDRColor4("#000000"),
 		LabelBackgroundColor: mustHexToHDRColor4("#33DD88"),
-		Hint:                 "A k8s resource related to this resource from .metadata.ownerReference field",
+		Hint:                 "Child resource from .metadata.ownerReferences",
 		SortPriority:         7000,
 		GeneratableAliasTimelineInfo: []GeneratableAliasTimelineInfo{
 			{
@@ -387,7 +388,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Network Endpoint Group timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#A52A2A"),
-		Hint:                 "Pod serving status obtained from the associated NEG status",
+		Hint:                 "Associated NEG serving status",
 		SortPriority:         20500, // later than endpoint slice
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
@@ -409,7 +410,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Managed instance group timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#FF5555"),
-		Hint:                 "MIG logs associated to the parent node pool",
+		Hint:                 "MIG logs for the parent node pool",
 		SortPriority:         10000,
 		GeneratableEvents: []GeneratableEventInfo{
 			{
@@ -425,7 +426,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Control plane component timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#FF5555"),
-		Hint:                 "control plane component of the cluster",
+		Hint:                 "Control plane component of the cluster",
 		SortPriority:         11000,
 		GeneratableEvents: []GeneratableEventInfo{
 			{
@@ -457,7 +458,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "@task(Operator, Sensor, etc)",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#377e22"),
-		Hint:                 "Task is the basic unit of execution in Airflow",
+		Hint:                 "Airflow Task Instance execution state",
 		SortPriority:         1501,
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
@@ -545,7 +546,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Pod phase",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#FF8855"),
-		Hint:                 "Pod phase running on the node",
+		Hint:                 "Pod status on the node from .status.phase",
 		SortPriority:         8000, // just under container logs
 		GeneratableRevisions: []GeneratableRevisionInfo{
 			{
