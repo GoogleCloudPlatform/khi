@@ -320,7 +320,7 @@ var ParentRelationships = map[ParentRelationship]ParentRelationshipFrontendMetad
 		LongName:             "Node component timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#0077CC"),
-Hint:                 "Non-containerized component on the node",
+		Hint:                 "Non-containerized component on the node",
 		SortPriority:         6000,
 		Description:          "A component running inside of the parent timeline of a Node",
 		GeneratableRevisions: []GeneratableRevisionInfo{
@@ -426,7 +426,7 @@ Hint:                 "Non-containerized component on the node",
 		LongName:             "Control plane component timeline",
 		LabelColor:           mustHexToHDRColor4("#FFFFFF"),
 		LabelBackgroundColor: mustHexToHDRColor4("#FF5555"),
-Hint:                 "Control plane component of the cluster",
+		Hint:                 "Control plane component of the cluster",
 		SortPriority:         11000,
 		GeneratableEvents: []GeneratableEventInfo{
 			{
