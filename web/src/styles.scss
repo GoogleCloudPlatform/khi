@@ -15,6 +15,11 @@
  */
 @use "@angular/material" as mat;
 
+@use "@fontsource/roboto/300.css" as roboto_300;
+@use "@fontsource/roboto/400.css" as roboto_400;
+@use "@fontsource/roboto/500.css" as roboto_500;
+@use "material-symbols";
+
 @use "@angular/cdk/overlay-prebuilt.css";
 @use "ngx-diff/styles/default-theme";
 
