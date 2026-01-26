@@ -110,14 +110,34 @@ $font-weight-light: 300;
 
 .timeline-type {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 5px;
   padding: 5px 0 5px 0;
-  .label {
-    color: var(--timeline-type-color);
-    background-color: var(--timeline-type-background-color);
-    padding: 0 5px;
-    border-radius: 5px;
+  border-bottom: 1px solid lightgray;
+  margin-bottom: 5px;
+  .label-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    mat-icon {
+      @include common.adjust-mat-icon-size(18px);
+    }
+    .label {
+      color: var(--timeline-type-color);
+      background-color: var(--timeline-type-background-color);
+      padding: 0 5px;
+      border-radius: 5px;
+    }
+  }
+  .hint-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: dimgray;
+    mat-icon {
+      @include common.adjust-mat-icon-size(14px);
+    }
   }
 }
 

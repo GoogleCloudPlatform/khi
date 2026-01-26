@@ -58,6 +58,7 @@ interface TimelineTypeLegendViewModel {
   label: string;
   backgroundColor: string;
   color: string;
+  hint: string;
 }
 
 /**
@@ -111,6 +112,7 @@ export class TimelineLegendComponent {
       backgroundColor: RendererConvertUtil.hdrColorToCSSColor(
         metadata.backgroundColor,
       ),
+      hint: metadata.hint,
     };
   });
 
