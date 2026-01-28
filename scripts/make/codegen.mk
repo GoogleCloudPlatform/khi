@@ -27,6 +27,8 @@ $(FRONTEND_GENERATED_ASSETS_DUMMY): scripts/msdf-generator/index.js scripts/msdf
 	cd scripts/msdf-generator && node index.js
 	touch $(FRONTEND_GENERATED_ASSETS_DUMMY)
 
+generate-frontend-assets: $(FRONTEND_GENERATED_ASSETS_DUMMY) ## Generate font atlas
+
 $(MSDF_SETUP_DUMMY):
 	cd scripts/msdf-generator && npm i
 	touch $(MSDF_SETUP_DUMMY)

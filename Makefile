@@ -9,8 +9,8 @@ GENERATE_BACKEND_DUMMY = scripts/make/generate-backend.done
 FRONTEND_GENERATED_ASSETS_DUMMY = scripts/make/generate-font-atlas.done
 MSDF_SETUP_DUMMY = scripts/make/msdf-setup.done
 
-BACKEND_TEST_SRCS = $(shell find . -name "*_test.go" -not -path "web/" -not -path "zzz_*.go")
-BACKEND_SRCS = $(shell find . -name "*.go" -not -path "web/" -not -path "zzz_*.go" -not -path "*_test.go")
+BACKEND_TEST_SRCS = $(shell find . -name "*_test.go" -not -path "web/*" -not -path "zzz_*.go")
+BACKEND_SRCS = $(shell find . -name "*.go" -not -path "web/*" -not -path "zzz_*.go" -not -path "*_test.go")
 ENUM_GO_ALL_FILES := $(wildcard pkg/model/enum/*.go)
 ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
 
