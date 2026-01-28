@@ -35,8 +35,6 @@ const (
 	relationshipUnusedEnd                                     // Add items above. This field is used for counting items in this enum to test.
 )
 
-//
-
 // EnumParentRelationshipLength is the count of ParentRelationship enum elements.
 const EnumParentRelationshipLength = int(relationshipUnusedEnd) + 1
 
