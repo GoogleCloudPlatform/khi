@@ -73,7 +73,7 @@ export class TimelineBackgroundRenderer {
       return;
     }
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.clearRect(0, 0, this.width * this.dpr, this.height * this.dpr);
     this.ctx.scale(this.dpr, this.dpr);
 
     this.drawTimelineBackgrounds(this.chartViewModel, this.chartStyle);
