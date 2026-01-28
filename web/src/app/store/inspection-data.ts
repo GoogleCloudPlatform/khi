@@ -16,7 +16,7 @@
 
 import { ReferenceResolverStore } from '../common/loader/reference-resolver';
 import { InspectionMetadataHeader } from '../common/schema/metadata-types';
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import { LogEntry } from './log';
 import { ResourceTimeline, TimelineLayer } from './timeline';
 

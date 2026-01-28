@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import * as generated from 'src/app/generated';
+import * as generated from 'src/app/zzz-generated';
 import { TimelineLayer } from 'src/app/store/timeline';
 import { TickImportance } from './timeline-ruler.viewmodel';
 import {

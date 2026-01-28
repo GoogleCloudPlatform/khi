@@ -18,7 +18,7 @@
 @use "sass:color";
 @use "../../common.scss" as common;
 @use "@angular/material" as mat;
-@use "../../generated" as gen;
+@use "../../zzz-generated" as gen;
 
 :host {
   display: block;

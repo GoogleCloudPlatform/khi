@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Severity } from 'src/app/generated';
+import { Severity } from 'src/app/zzz-generated';
 import { HistogramCache } from './misc/histogram-cache';
 import {
   getRulerStep,

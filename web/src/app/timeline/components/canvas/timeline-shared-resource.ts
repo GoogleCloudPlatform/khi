@@ -98,15 +98,15 @@ export class TimelineRendererSharedResource {
 
     this.numberMSDFTexture = await WebGLUtil.loadTexture(
       gl,
-      'assets/roboto-number-msdf.png',
+      'assets/zzz-roboto-number-msdf.png',
     );
     this.iconsMSDFTexture = await WebGLUtil.loadTexture(
       gl,
-      'assets/material-icons-msdf.png',
+      'assets/zzz-material-icons-msdf.png',
     );
 
     const bmfontConfigNumbers = await WebGLUtil.loadBMFontConfig(
-      'assets/roboto-number-msdf.json',
+      'assets/zzz-roboto-number-msdf.json',
     );
     const numberChars = new Array<BMFontChar>(10);
     for (let i = 0; i < 10; i++) {
@@ -165,11 +165,11 @@ export class TimelineRendererSharedResource {
       gl.STATIC_DRAW,
     );
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-    this.iconCodepointMap = await fetch('assets/icon-codepoints.json').then(
+    this.iconCodepointMap = await fetch('assets/zzz-icon-codepoints.json').then(
       (res) => res.json(),
     );
     this.bmfontConfigIcons = await WebGLUtil.loadBMFontConfig(
-      'assets/material-icons-msdf.json',
+      'assets/zzz-material-icons-msdf.json',
     );
   }
 

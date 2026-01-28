@@ -42,9 +42,10 @@ testem.log
 Thumbs.db
 
 # Ignore generated files
-src/app/generated.*
+src/app/zzz-generated.*
 angular.json
 src/environments/version.*.ts
 *storybook.log
 storybook-static
 documentation.json
+src/assets/zzz-*

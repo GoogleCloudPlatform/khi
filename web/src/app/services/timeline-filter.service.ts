@@ -24,7 +24,7 @@ import {
   shareReplay,
   Subject,
 } from 'rxjs';
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import {
   FilterChain,
   PropertyMatchRegexFilterChainElement,

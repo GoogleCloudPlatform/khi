@@ -29,7 +29,7 @@ import {
 } from 'rxjs';
 import { InspectionData, TimeRange } from '../store/inspection-data';
 import { FilterWorkerService } from './filter-worker.service';
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import { ResourceTimeline } from '../store/timeline';
 
 /**

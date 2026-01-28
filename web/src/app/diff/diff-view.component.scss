@@ -18,7 +18,7 @@
 
 @use "@angular/material" as mat;
 
-@use "../generated" as gen;
+@use "../zzz-generated" as gen;
 
 $TOOLBAR_BACKGROUND: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
 

@@ -16,7 +16,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LogViewLogLineComponent } from './log-view-log-line.component';
-import { LogType, Severity } from '../generated';
+import { LogType, Severity } from '../zzz-generated';
 import { LogEntry } from '../store/log';
 import { ReferenceType } from '../common/loader/interface';
 

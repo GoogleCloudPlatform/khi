@@ -23,7 +23,7 @@ import {
 import { Component, DestroyRef, inject, NgZone, OnInit } from '@angular/core';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerComponent } from './timeline-ruler.component';
-import { Severity } from 'src/app/generated';
+import { Severity } from 'src/app/zzz-generated';
 import {
   RulerViewModelBuilder,
   TimelineRulerViewModel,

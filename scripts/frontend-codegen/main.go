@@ -27,10 +27,10 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
-const SCSS_FILE_LOCATION = "./web/src/app/generated.scss"
+const SCSS_FILE_LOCATION = "./web/src/app/zzz-generated.scss"
 const SCSS_TEMPLATE = "./scripts/frontend-codegen/templates/generated.scss.gtpl"
 
-const GENERATED_TS_FILE_LOCATION = "./web/src/app/generated.ts"
+const GENERATED_TS_FILE_LOCATION = "./web/src/app/zzz-generated.ts"
 const GENERATED_TS_TEMPLATE = "./scripts/frontend-codegen/templates/generated.ts.gtpl"
 
 const USED_ICON_FILES_LOCATION = "./scripts/msdf-generator/zzz_generated_used_icons.json"

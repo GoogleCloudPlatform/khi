@@ -17,7 +17,7 @@
 import { debounceTime, NEVER, ReplaySubject, take } from 'rxjs';
 import { InspectionDataStore } from './inspection-data-store.service';
 import { TimelineFilter } from './timeline-filter.service';
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import { ResourceTimeline } from '../store/timeline';
 import { ViewStateService } from './view-state.service';
 

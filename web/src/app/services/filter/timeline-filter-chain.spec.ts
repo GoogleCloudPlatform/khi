@@ -25,7 +25,7 @@ import {
   ParentRelationship,
   RevisionState,
   RevisionVerb,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { ResourceRevision } from 'src/app/store/revision';
 
 function generateTestTimeline(resourcePath: string): ResourceTimeline {

@@ -18,7 +18,7 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { AnnotationDecider } from '../annotator';
-import { LogTypeMetadata } from 'src/app/generated';
+import { LogTypeMetadata } from 'src/app/zzz-generated';
 import { LogEntry } from 'src/app/store/log';
 
 @Component({

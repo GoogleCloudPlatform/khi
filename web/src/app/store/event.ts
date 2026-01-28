@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { LogType, Severity } from '../generated';
+import { LogType, Severity } from '../zzz-generated';
 
 export class ResourceEvent {
   constructor(

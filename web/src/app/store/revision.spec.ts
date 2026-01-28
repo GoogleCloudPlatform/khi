@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { RevisionState, RevisionVerb } from '../generated';
+import { RevisionState, RevisionVerb } from '../zzz-generated';
 import { ResourceRevision } from './revision';
 
 describe('ResourceRevision', () => {
