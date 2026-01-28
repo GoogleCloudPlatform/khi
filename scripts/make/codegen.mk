@@ -3,6 +3,8 @@
 
 $(GENERATE_FRONTEND_DUMMY): web/angular.json web/src/environments/version.*.ts web/src/app/zzz-generated.scss web/src/app/zzz-generated.ts $(FRONTEND_GENERATED_ASSETS_DUMMY)
 	touch $(GENERATE_FRONTEND_DUMMY)
+.PHONY: generate-frontend
+generate-frontend: $(GENERATE_FRONTEND_DUMMY) ## Generate frontend source code
 
 web/angular.json: scripts/generate-angular-json.sh web/angular-template.json web/src/environments/environment.*.ts
 	./scripts/generate-angular-json.sh > ./web/angular.json
@@ -18,6 +20,8 @@ web/src/environments/version.*.ts: VERSION
 $(GENERATE_BACKEND_DUMMY): ## Generate backend source code
 	go run ./scripts/backend-codegen/
 	touch $(GENERATE_BACKEND_DUMMY)
+.PHONY: generate-backend
+ generate-backend: $(GENERATE_BACKEND_DUMMY) ## Generate backend source code
 
 $(FRONTEND_GENERATED_ASSETS_DUMMY): scripts/msdf-generator/index.js scripts/msdf-generator/zzz_generated_used_icons.json $(MSDF_SETUP_DUMMY)## Generate font atlas
 	cd scripts/msdf-generator && node index.js

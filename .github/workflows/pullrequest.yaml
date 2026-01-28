@@ -81,7 +81,7 @@ jobs:
       with:
         node-version-file: './.node-version'
 
-    - name: Set up Go # Go dependency is needed for `make prepare-frontend`
+    - name: Set up Go # Go dependency is needed for `make generate-frontend`
       uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
@@ -94,7 +94,7 @@ jobs:
       run: npm ci
 
     - name: Generate frontend codes
-      run: make prepare-frontend
+      run: make generate-frontend
 
     - name: Install Chrome for Angular Test
       uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # 1.7.3
@@ -125,7 +125,7 @@ jobs:
       with:
         node-version-file: './.node-version'
 
-    - name: Set up Go # Go dependency is needed for `make prepare-frontend`
+    - name: Set up Go # Go dependency is needed for `make generate-frontend`
       uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
@@ -135,7 +135,7 @@ jobs:
       run: npm ci
 
     - name: Generate frontend codes
-      run: make prepare-frontend
+      run: make generate-frontend
 
     - name: Build web
       working-directory: ./web

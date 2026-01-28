@@ -29,7 +29,7 @@ steps:
       - |
         echo "dev-${SHORT_SHA}" > VERSION
         apt-get update && apt-get install jq -y
-        make prepare-frontend
+        make generate-frontend
         make generate-backend
     id: pre_build_web
     waitFor:
