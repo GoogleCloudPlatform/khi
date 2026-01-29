@@ -24,7 +24,7 @@ import {
   KHIFileResourceRevision,
   KHIFileTimeline,
 } from '../common/schema/khi-file-types';
-import { ParentRelationship, RevisionVerb } from '../generated';
+import { ParentRelationship, RevisionVerb } from '../zzz-generated';
 import { lastValueFrom } from 'rxjs';
 import { BACKEND_API, BackendAPI } from './api/backend-api-interface';
 import {

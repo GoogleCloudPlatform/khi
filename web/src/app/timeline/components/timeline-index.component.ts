@@ -20,7 +20,7 @@ import { CommonModule } from '@angular/common';
 import {
   ParentRelationshipMetadata,
   ParentRelationshipMetadataType,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';

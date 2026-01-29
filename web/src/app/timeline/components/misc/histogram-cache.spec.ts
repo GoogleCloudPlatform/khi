@@ -15,7 +15,7 @@
  */
 
 import { LogEntry } from 'src/app/store/log';
-import { LogType, Severity } from 'src/app/generated';
+import { LogType, Severity } from 'src/app/zzz-generated';
 import { ReferenceType } from 'src/app/common/loader/interface';
 import { HistogramCache } from './histogram-cache';
 

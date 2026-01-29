@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Severity } from 'src/app/generated';
+import { Severity } from 'src/app/zzz-generated';
 import { LogEntry } from 'src/app/store/log';
 
 /**

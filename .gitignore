@@ -35,3 +35,4 @@ zzz_*.json
 
 # Vendor folders
 scripts/msdf-generator/vendor/
+scripts/make/*.done

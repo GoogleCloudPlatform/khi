@@ -13,7 +13,7 @@
 # limitations under the License.
 
 steps:
-  - name: 'node:22'
+  - name: 'node:22-trixie'
     args:
       - '-c'
       - |
@@ -23,19 +23,19 @@ steps:
     waitFor:
       - '-'
     entrypoint: /bin/bash
-  - name: 'golang:1.25'
+  - name: 'golang:1.25-trixie'
     args:
       - '-c'
       - |
         echo "dev-${SHORT_SHA}" > VERSION
         apt-get update && apt-get install jq -y
-        make prepare-frontend
+        make generate-frontend
         make generate-backend
     id: pre_build_web
     waitFor:
       - dependency_web
     entrypoint: /bin/bash
-  - name: 'node:22'
+  - name: 'node:22-trixie'
     args:
       - '-c'
       - |

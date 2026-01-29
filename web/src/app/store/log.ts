@@ -20,7 +20,7 @@ import {
   LogTypeMetadata,
   Severity,
   SeverityMetadata,
-} from '../generated';
+} from '../zzz-generated';
 import { ResourceTimeline } from './timeline';
 import { TextReference } from '../common/loader/interface';
 import { ToTextReferenceFromKHIFileBinary } from '../common/loader/reference-type';

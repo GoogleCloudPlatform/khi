@@ -16,7 +16,7 @@
 
 import { RulerViewModelBuilder } from './timeline-ruler.viewmodel';
 import { HistogramCache, HistogramInfo } from './misc/histogram-cache';
-import { Severity } from 'src/app/generated';
+import { Severity } from 'src/app/zzz-generated';
 
 describe('RulerViewModelBuilder', () => {
   let builder: RulerViewModelBuilder;

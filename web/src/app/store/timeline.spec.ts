@@ -20,7 +20,7 @@ import {
   RevisionState,
   RevisionVerb,
   Severity,
-} from '../generated';
+} from '../zzz-generated';
 import { ResourceEvent } from './event';
 import { ResourceRevision } from './revision';
 import { ResourceTimeline, TimelineLayer } from './timeline';

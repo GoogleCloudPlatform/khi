@@ -17,7 +17,7 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { TimelineIndexComponent } from './timeline-index.component';
 import { componentWrapperDecorator } from '@storybook/angular';
-import { ParentRelationship, revisionStates } from 'src/app/generated';
+import { ParentRelationship, revisionStates } from 'src/app/zzz-generated';
 import { ResourceTimeline } from 'src/app/store/timeline';
 import { TimelineHighlightType } from './interaction-model';
 

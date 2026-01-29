@@ -28,7 +28,7 @@ import {
   revisionStatecolors,
   RevisionStateMetadata,
   RevisionStateStyle,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { RendererConvertUtil } from './canvas/convertutil';

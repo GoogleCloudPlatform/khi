@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import { ResourceTimeline } from './timeline';
 import { TimelineFilterFacade } from './timeline-filter';
 

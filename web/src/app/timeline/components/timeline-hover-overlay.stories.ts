@@ -26,7 +26,7 @@ import {
   RevisionState,
   RevisionVerb,
   Severity,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { ReferenceType } from 'src/app/common/loader/interface';
 import { ResourceRevision } from 'src/app/store/revision';
 import { ResourceEvent } from 'src/app/store/event';

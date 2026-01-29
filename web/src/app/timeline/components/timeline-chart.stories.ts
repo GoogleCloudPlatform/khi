@@ -24,7 +24,7 @@ import {
   ParentRelationship,
   RevisionState,
   RevisionVerb,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { TimelineChartComponent } from './timeline-chart.component';
 import { Component, DestroyRef, inject, NgZone, OnInit } from '@angular/core';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';

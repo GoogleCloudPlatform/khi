@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import { randomString } from '../utils/random';
 import { ResourceEvent } from './event';
 import { ResourceRevision } from './revision';

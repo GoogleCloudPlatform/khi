@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ParentRelationship } from '../generated';
+import { ParentRelationship } from '../zzz-generated';
 import { ResourceTimeline } from '../store/timeline';
 import { SelectOnlyDeeperOrEqual } from './timeline-collection-util';
 

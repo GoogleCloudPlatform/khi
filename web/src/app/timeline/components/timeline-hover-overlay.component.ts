@@ -35,7 +35,7 @@ import {
   Severity,
   severityColors,
   SeverityMetadata,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { ResourceEvent } from 'src/app/store/event';
 import { LogEntry } from 'src/app/store/log';

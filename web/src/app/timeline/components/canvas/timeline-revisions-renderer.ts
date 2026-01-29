@@ -21,7 +21,7 @@ import {
   RevisionStateMetadata,
   revisionStates,
   revisionStateToIndex,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { IDisposableRenderer, TimelineRect } from './timeline-renderer';
 import {

@@ -21,7 +21,7 @@ import {
   RevisionStateMetadata,
   RevisionVerb,
   RevisionVerbMetadata,
-} from '../generated';
+} from '../zzz-generated';
 
 export class ResourceRevision {
   private parsedManifestCache: K8sResource | null = null;

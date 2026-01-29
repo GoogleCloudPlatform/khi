@@ -4,6 +4,23 @@ VERSION=$(shell cat ./VERSION)
 GIT_SHORT_HASH=$(shell git rev-parse --short HEAD)
 GIT_TAG_NAME="release-"$(VERSION)
 
+DUMMY_DIR := scripts/make
+GENERATE_FRONTEND_DUMMY := $(DUMMY_DIR)/generate-frontend.done
+GENERATE_BACKEND_DUMMY := $(DUMMY_DIR)/generate-backend.done
+FRONTEND_GENERATED_ASSETS_DUMMY := $(DUMMY_DIR)/generate-font-atlas.done
+MSDF_SETUP_DUMMY := $(DUMMY_DIR)/msdf-setup.done
+
+BACKEND_TEST_SRCS = $(shell find . -name "*_test.go" -not -path "web/*" -not -path "zzz_*.go")
+BACKEND_SRCS = $(shell find . -name "*.go" -not -path "web/*" -not -path "zzz_*.go" -not -path "*_test.go")
+ENUM_GO_ALL_FILES := $(wildcard pkg/model/enum/*.go)
+ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
+
+FRONTEND_CODEGEN_DIR := scripts/frontend-codegen
+FRONTEND_CODEGEN_DEPS := $(wildcard $(FRONTEND_CODEGEN_DIR)/*.go $(FRONTEND_CODEGEN_DIR)/templates/*)
+FRONTEND_SOURCE_FILES = $(shell find web -not -path "*/node_modules/*" -not -path "*/.angular/*" -not -path "web/src/assets/*" -not -path "web/src/environments/version.*.ts" -not -path "*/zzz-generated.*" -not -path "web/angular.json")
+FRONTEND_GENERATED_SRCS = web/src/app/zzz-generated.scss web/src/app/zzz-generated.ts web/angular.json
+FRONTEND_ARTIFACT_FILES_DUMMY = pkg/server/dist/browser/build-web.done
+
 include scripts/make/*.mk
 
 # ====================================================================================
@@ -40,10 +57,7 @@ format: format-web format-go ## Format all source code
 .PHONY: setup
 setup: setup-hooks
 	cd web && npm install
-	cd scripts/msdf-generator && npm install
-	make generate-font-atlas
-	make build-web
-	make build-go
+	make build
 
 .PHONY: setup-hooks
 setup-hooks: ## Set up git hooks

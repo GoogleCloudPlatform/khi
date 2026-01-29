@@ -32,7 +32,7 @@ import {
   map,
   takeUntil,
 } from 'rxjs';
-import * as generated from '../generated';
+import * as generated from '../zzz-generated';
 import { InspectionDataStoreService } from '../services/inspection-data-store.service';
 import { ViewStateService } from '../services/view-state.service';
 import { nonEmptyOrDefaultString } from '../utils/state-util';

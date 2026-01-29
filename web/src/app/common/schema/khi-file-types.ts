@@ -25,7 +25,7 @@ import {
   RevisionState,
   RevisionVerb,
   Severity,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { InspectionMetadataHeader } from './metadata-types';
 
 export interface KHIFile {

@@ -28,7 +28,7 @@ function generateNumberMSDFTexture(destFolder) {
     generateBMFont(fontBuffer, {
       outputType: "json",
       charset: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
-      filename: "./roboto-number-msdf",
+      filename: "./zzz-roboto-number-msdf",
       texturePadding: 8,
       textureSize: [128, 128],
     }, (error, textures, font) => {
@@ -57,7 +57,7 @@ async function generateMaterialSymbolsMSDFTexture(destFolder, usedIconCodepoints
     generateBMFont(iconBuffer, {
       outputType: "json",
       charset: usedIconCodepoints,
-      filename: "./material-icons-msdf",
+      filename: "./zzz-material-icons-msdf",
       texturePadding: 4,
       textureSize: [256, 256],
     }, (error, textures, font) => {
@@ -103,7 +103,7 @@ async function processMaterialSymbols(destFolder) {
       usedIconNameToCodepoint[iconName] = codepoint;
     }
   });
-  fs.writeFileSync(destFolder + "icon-codepoints.json", JSON.stringify(usedIconNameToCodepoint));
+  fs.writeFileSync(destFolder + "zzz-icon-codepoints.json", JSON.stringify(usedIconNameToCodepoint));
 
   await generateMaterialSymbolsMSDFTexture(destFolder, usedIconCodepoints);
 }

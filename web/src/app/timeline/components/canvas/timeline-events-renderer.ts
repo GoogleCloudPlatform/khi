@@ -19,7 +19,7 @@ import {
   logTypes,
   severities,
   severityColors,
-} from 'src/app/generated';
+} from 'src/app/zzz-generated';
 import { WebGLUtil } from './glutil';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
