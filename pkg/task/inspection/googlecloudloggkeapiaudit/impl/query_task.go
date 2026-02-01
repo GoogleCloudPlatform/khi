@@ -29,7 +29,6 @@ import (
 )
 
 func GenerateGKEAuditQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
-	// gke_cluster resource type:
 	return fmt.Sprintf(`log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
 resource.type=("gke_cluster" OR "gke_nodepool")
 resource.labels.project_id="%s"

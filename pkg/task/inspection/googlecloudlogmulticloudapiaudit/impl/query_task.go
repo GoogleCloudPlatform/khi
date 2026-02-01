@@ -62,9 +62,9 @@ func (g *multicloudAPIListLogEntriesTaskSetting) Description() *googlecloudcommo
 		DefaultLogType: enum.LogTypeMulticloudAPI,
 		QueryName:      "Multicloud API Logs",
 		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-			ProjectID:   "example-project-id",
-			Location:    "example-location",
-			ClusterName: "example-cluster-name",
+			ProjectID:         "example-project-id",
+			Location:          "example-location",
+			ClusterName:       "example-cluster-name",
 			ClusterTypePrefix: "awsClusters/",
 		}),
 	}
