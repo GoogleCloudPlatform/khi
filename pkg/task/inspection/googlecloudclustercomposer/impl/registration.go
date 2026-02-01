@@ -33,7 +33,8 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		AutocompleteComposerClusterNamesTask,
 		ComposerClusterNamePrefixTask,
 
-		AutocompleteComposerEnvironmentNamesTask,
+		AutocompleteComposerEnvironmentIdentityTask,
+		AutocompleteLocationForComposerEnvironmentTask,
 		InputComposerEnvironmentNameTask,
 
 		ComposerSchedulerLogQueryTask,

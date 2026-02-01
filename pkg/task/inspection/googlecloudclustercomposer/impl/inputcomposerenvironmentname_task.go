@@ -27,8 +27,15 @@ import (
 
 // InputComposerEnvironmentNameTask is the task that inputs composer environment name.
 var InputComposerEnvironmentNameTask = formtask.NewTextFormTaskBuilder(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4400, "Composer Environment Name").WithDependencies(
-	[]taskid.UntypedTaskReference{googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentNamesTaskID.Ref()},
+	[]taskid.UntypedTaskReference{googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref()},
 ).WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-	environments := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentNamesTaskID.Ref())
-	return common.SortForAutocomplete(value, environments), nil
+	environments := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref())
+	if environments.Error != "" {
+		return []string{}, nil
+	}
+	environmentNames := make([]string, len(environments.Values))
+	for i, env := range environments.Values {
+		environmentNames[i] = env.EnvironmentName
+	}
+	return common.SortForAutocomplete(value, environmentNames), nil
 }).Build()

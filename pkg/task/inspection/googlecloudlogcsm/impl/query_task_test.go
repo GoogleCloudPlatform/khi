@@ -18,18 +18,24 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 func TestCsmAccessLogsFilter(t *testing.T) {
-	inputProjectID := "test-project"
 	testCases := []struct {
 		desc                string
+		cluster             googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		responseFlagsFilter *gcpqueryutil.SetFilterParseResult
 		namespaceFilter     *gcpqueryutil.SetFilterParseResult
 		want                string
 	}{
 		{
 			desc: "basic filter",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			responseFlagsFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"UH", "UT"},
 			},
@@ -39,10 +45,17 @@ func TestCsmAccessLogsFilter(t *testing.T) {
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH" OR "UT")
 resource.labels.namespace_name:("default")
-resource.labels.cluster_name="test-project"`,
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
 		},
 		{
 			desc: "response flags subtractive filter",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			responseFlagsFilter: &gcpqueryutil.SetFilterParseResult{
 				Subtractives: []string{"-"},
 				SubtractMode: true,
@@ -53,10 +66,17 @@ resource.labels.cluster_name="test-project"`,
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 -labels.response_flag:("-")
 resource.labels.namespace_name:("default")
-resource.labels.cluster_name="test-project"`,
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
 		},
 		{
 			desc: "namespace cluster-scoped filter",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			responseFlagsFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"UH"},
 			},
@@ -66,10 +86,17 @@ resource.labels.cluster_name="test-project"`,
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
 resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM access log.
-resource.labels.cluster_name="test-project"`,
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
 		},
 		{
 			desc: "namespace cluster-scoped and specific namespaces filter",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			responseFlagsFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"UH"},
 			},
@@ -79,10 +106,17 @@ resource.labels.cluster_name="test-project"`,
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
 resource.labels.namespace_name:("kube-system")
-resource.labels.cluster_name="test-project"`,
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
 		},
 		{
 			desc: "namespace namespaced-scoped filter",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			responseFlagsFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"UH"},
 			},
@@ -92,10 +126,17 @@ resource.labels.cluster_name="test-project"`,
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
 -- No namespace filter
-resource.labels.cluster_name="test-project"`,
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
 		},
 		{
 			desc: "namespace cluster-scoped and namespaced-scoped filter",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			responseFlagsFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"UH"},
 			},
@@ -105,12 +146,14 @@ resource.labels.cluster_name="test-project"`,
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
 -- No namespace filter
-resource.labels.cluster_name="test-project"`,
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got := csmAccessLogsFilter(inputProjectID, tc.responseFlagsFilter, tc.namespaceFilter)
+			got := csmAccessLogsFilter(tc.cluster, tc.responseFlagsFilter, tc.namespaceFilter)
 			if got != tc.want {
 				t.Errorf("csmAccessLogsFilter() got = %v, want %v", got, tc.want)
 			}

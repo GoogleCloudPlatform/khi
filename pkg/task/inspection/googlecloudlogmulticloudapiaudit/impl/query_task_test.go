@@ -17,29 +17,40 @@ package googlecloudlogmulticloudapiaudit_impl
 import (
 	"testing"
 
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerateMultiCloudAPIQuery(t *testing.T) {
 	testCases := []struct {
-		Input    string
-		Expected string
+		name    string
+		cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		want    string
 	}{
 		{
-			Input: "awsClusters/cluster-foo",
-			Expected: `resource.type="audited_resource"
+			name: "standard input",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:         "test-project",
+				ClusterName:       "test-cluster",
+				ClusterTypePrefix: "awsClusters/",
+				Location:          "asia-northeast1",
+			},
+			want: `
+log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
+resource.type="audited_resource"
 resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
-protoPayload.resourceName:"awsClusters/cluster-foo"
+protoPayload.resourceName:"projects/test-project/locations/asia-northeast1/"
+protoPayload.resourceName:"awsClusters/test-cluster"
 `,
 		},
 	}
 
 	for _, testCase := range testCases {
-		t.Run(testCase.Input, func(t *testing.T) {
-			actual := generateQuery(testCase.Input)
-			if diff := cmp.Diff(testCase.Expected, actual); diff != "" {
+		t.Run(testCase.name, func(t *testing.T) {
+			actual := generateQuery(testCase.cluster)
+			if diff := cmp.Diff(testCase.want, actual); diff != "" {
 				t.Errorf("The generated result is not matching with the expected\n%s", diff)
 			}
 		})
@@ -48,17 +59,22 @@ protoPayload.resourceName:"awsClusters/cluster-foo"
 
 func TestGenerateMultiCloudAPIQueryIsValid(t *testing.T) {
 	testCases := []struct {
-		Name        string
-		ClusterName string
+		name    string
+		cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 	}{
 		{
-			Name:        "Valid Query",
-			ClusterName: "awsClusters/cluster-foo",
+			name: "Valid Query",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:         "test-project",
+				ClusterName:       "test-cluster",
+				ClusterTypePrefix: "awsClusters/",
+				Location:          "asia-northeast1",
+			},
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			query := generateQuery(tc.ClusterName)
+		t.Run(tc.name, func(t *testing.T) {
+			query := generateQuery(tc.cluster)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

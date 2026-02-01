@@ -22,6 +22,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteLocationTask is a task that provides a list of available locations for autocomplete.
@@ -30,7 +31,7 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 		googlecloudcommon_contract.LocationFetcherTaskID.Ref(),
 	},
-	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[[]string]) (inspectiontaskbase.CacheableTaskResult[[]string], error) {
+	func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
 		projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 		dependencyDigest := fmt.Sprintf("location-%s", projectID)
 
@@ -38,9 +39,13 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 			return prevValue, nil
 		}
 
-		defaultResult := inspectiontaskbase.CacheableTaskResult[[]string]{
+		defaultResult := inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
 			DependencyDigest: dependencyDigest,
-			Value:            []string{},
+			Value: &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Error:  "",
+				Hint:   "",
+			},
 		}
 
 		if projectID == "" {
@@ -53,6 +58,6 @@ var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommo
 			return defaultResult, nil
 		}
 		result := defaultResult
-		result.Value = regions
+		result.Value.Values = regions
 		return result, nil
 	})

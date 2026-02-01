@@ -53,7 +53,8 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 		finderError    bool
 		projectIDs     []string
 		environments   []string
-		want           []*googlecloudk8scommon_contract.AutocompleteResult
+		locations      []string
+		want           []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]
 	}{
 		{
 			desc:           "project id is empty",
@@ -61,8 +62,9 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			finderError:    false,
 			projectIDs:     []string{""},
 			environments:   []string{"env1"},
-			want: []*googlecloudk8scommon_contract.AutocompleteResult{{
-				Values: []string{},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{{
+				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error:  "Project ID or Composer environment name is empty",
 			}},
 		},
@@ -72,10 +74,13 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			finderError:    false,
 			projectIDs:     []string{"foo-project"},
 			environments:   []string{""},
-			want: []*googlecloudk8scommon_contract.AutocompleteResult{{
-				Values: []string{},
-				Error:  "Project ID or Composer environment name is empty",
-			}},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+				{
+					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
+					Error:  "Project ID or Composer environment name is empty",
+				},
+			},
 		},
 		{
 			desc:           "using cache",
@@ -83,12 +88,21 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			finderError:    false,
 			projectIDs:     []string{"foo-project", "foo-project"},
 			environments:   []string{"env1", "env1"},
-			want: []*googlecloudk8scommon_contract.AutocompleteResult{
+			locations:      []string{"us-central1", "us-central1"},
+			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 				{
-					Values: []string{"cluster1"},
+					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{{
+						ClusterName: "cluster1",
+						ProjectID:   "foo-project",
+						Location:    "us-central1",
+					}},
 				},
 				{
-					Values: []string{"cluster1"},
+					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{{
+						ClusterName: "cluster1",
+						ProjectID:   "foo-project",
+						Location:    "us-central1",
+					}},
 				},
 			},
 		},
@@ -98,8 +112,9 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			finderError:    true,
 			projectIDs:     []string{"foo-project"},
 			environments:   []string{"env1"},
-			want: []*googlecloudk8scommon_contract.AutocompleteResult{{
-				Values: []string{},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{{
+				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error:  "Failed to fetch the list GKE cluster. Please confirm if the Project ID is correct, or retry later",
 			}},
 		},
@@ -109,8 +124,9 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			finderError:    false,
 			projectIDs:     []string{"foo-project"},
 			environments:   []string{"non-existent-env"},
-			want: []*googlecloudk8scommon_contract.AutocompleteResult{{
-				Values: []string{},
+			locations:      []string{"us-central1"},
+			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{{
+				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
 Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
 			}},
@@ -132,7 +148,8 @@ Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE ques
 			for i := 0; i < len(tc.projectIDs); i++ {
 				projectIDInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
 				environmentNameInput := tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(), tc.environments[i])
-				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, mockComposerClusterFinderInput)
+				locationInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLocationsTaskID.Ref(), tc.locations[i])
+				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, locationInput, mockComposerClusterFinderInput)
 				if err != nil {
 					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)
 				}

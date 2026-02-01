@@ -30,13 +30,15 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func csmAccessLogsFilter(projectID string, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) string {
+func csmAccessLogsFilter(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) string {
 	responseFlagsFilterStr := responseFlagsFilter(responseFlagsSetFilter)
 	namespaceFilterStr := namespaceFilter(namespaceSetFilter)
 	return fmt.Sprintf(`LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 %s
 %s
-resource.labels.cluster_name="%s"`, responseFlagsFilterStr, namespaceFilterStr, projectID)
+resource.labels.project_id="%s"
+resource.labels.location="%s"
+resource.labels.cluster_name="%s"`, responseFlagsFilterStr, namespaceFilterStr, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix())
 }
 
 func responseFlagsFilter(responseFlagsFilter *gcpqueryutil.SetFilterParseResult) string {
@@ -84,15 +86,14 @@ type CSMAccessLogListLogEntryTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *CSMAccessLogListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *CSMAccessLogListLogEntryTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
 		googlecloudlogcsm_contract.InputCSMResponseFlagsTaskID.Ref(),
 	}
@@ -103,16 +104,20 @@ func (c *CSMAccessLogListLogEntryTaskSetting) Description() *googlecloudcommon_c
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeCSMAccessLog,
 		QueryName:      "CSM access logs",
-		ExampleQuery:   csmAccessLogsFilter("test-project", &gcpqueryutil.SetFilterParseResult{Subtractives: []string{"-"}, SubtractMode: true}, &gcpqueryutil.SetFilterParseResult{SubtractMode: true}),
+		ExampleQuery: csmAccessLogsFilter(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:   "test-project",
+			Location:    "test-location",
+			ClusterName: "test-cluster",
+		}, &gcpqueryutil.SetFilterParseResult{Subtractives: []string{"-"}, SubtractMode: true}, &gcpqueryutil.SetFilterParseResult{SubtractMode: true}),
 	}
 }
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *CSMAccessLogListLogEntryTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 	responseFlagsFilter := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputCSMResponseFlagsTaskID.Ref())
-	return []string{csmAccessLogsFilter(clusterName, responseFlagsFilter, namespaceFilter)}, nil
+	return []string{csmAccessLogsFilter(cluster, responseFlagsFilter, namespaceFilter)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

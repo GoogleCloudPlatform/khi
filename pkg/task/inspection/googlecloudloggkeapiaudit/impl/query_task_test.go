@@ -17,47 +17,57 @@ package googlecloudloggkeapiaudit_impl
 import (
 	"testing"
 
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerateGKEAuditQuery(t *testing.T) {
 	testCases := []struct {
-		projectName string
-		clusterName string
-		expected    string
+		clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		expected        string
 	}{
 		{
-			projectName: "my-project",
-			clusterName: "my-cluster",
-			expected: `resource.type=("gke_cluster" OR "gke_nodepool")
-logName="projects/my-project/logs/cloudaudit.googleapis.com%2Factivity"
-resource.labels.cluster_name="my-cluster"`,
+			clusterIdentity: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+				Location:    "asia-northeast1",
+			},
+			expected: `log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
+resource.type=("gke_cluster" OR "gke_nodepool")
+resource.labels.project_id="test-project"
+resource.labels.location="asia-northeast1"
+resource.labels.cluster_name="test-cluster"
+protoPayload.serviceName="container.googleapis.com"
+`,
 		},
 	}
 
 	for _, tc := range testCases {
-		result := GenerateGKEAuditQuery(tc.projectName, tc.clusterName)
-		if result != tc.expected {
-			t.Errorf("Expected query:\n%s\nGot:\n%s", tc.expected, result)
+		result := GenerateGKEAuditQuery(tc.clusterIdentity)
+		if diff := cmp.Diff(result, tc.expected); diff != "" {
+			t.Errorf("GenerateGKEAuditQuery() mismatch (-want +got):\n%s", diff)
 		}
 	}
 }
 
 func TestGeneratedGKEAuditQueryIsValid(t *testing.T) {
 	testCases := []struct {
-		Name        string
-		ProjectId   string
-		ClusterName string
+		name            string
+		clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 	}{
 		{
-			Name:        "Valid Query",
-			ProjectId:   "gcp-project-id",
-			ClusterName: "gcp-cluster-name",
+			name: "Valid Query",
+			clusterIdentity: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+				Location:    "asia-northeast1",
+			},
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateGKEAuditQuery(tc.ProjectId, tc.ClusterName)
+		t.Run(tc.name, func(t *testing.T) {
+			query := GenerateGKEAuditQuery(tc.clusterIdentity)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

@@ -26,12 +26,33 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// QueryDistinctLabelValuesFromMetrics queries Cloud Monitoring for TimeSeries matching the filter and interval,
+// QueryDistinctStringLabelValuesFromMetrics queries Cloud Monitoring for TimeSeries matching the filter and interval,
 // and returns unique values for the specified label key.
 //
 // groupByKey: The full label key to group by (e.g. "resource.label.cluster_name").
 // resultLabelKey: The simple label key to extract from the result (e.g. "cluster_name").
-func QueryDistinctLabelValuesFromMetrics(ctx context.Context, client *monitoring.MetricClient, projectID string, filter string, startTime, endTime time.Time, groupByKey, resultLabelKey string) ([]string, error) {
+func QueryDistinctStringLabelValuesFromMetrics(ctx context.Context, client *monitoring.MetricClient, projectID string, filter string, startTime, endTime time.Time, groupByKey, resultLabelKey string) ([]string, error) {
+	labels, err := QueryResourceLabelsFromMetrics(ctx, client, projectID, filter, startTime, endTime, []string{groupByKey})
+	if err != nil {
+		return nil, err
+	}
+	uniqueValues := make(map[string]struct{})
+	for _, label := range labels {
+		uniqueValues[label[resultLabelKey]] = struct{}{}
+	}
+	result := make([]string, 0, len(uniqueValues))
+	for v := range uniqueValues {
+		result = append(result, v)
+	}
+	return result, nil
+}
+
+// QueryResourceLabelsFromMetrics queries Cloud Monitoring for TimeSeries matching the filter and interval,
+// and returns the list of resource labels map.
+//
+// groupByKey: The full label key to group by (e.g. "resource.label.cluster_name").
+// resultLabelKey: The simple label key to extract from the result (e.g. "cluster_name").
+func QueryResourceLabelsFromMetrics(ctx context.Context, client *monitoring.MetricClient, projectID string, filter string, startTime, endTime time.Time, groupByKey []string) ([]map[string]string, error) {
 	d := endTime.Sub(startTime)
 	if d < 60*time.Second {
 		d = 60 * time.Second
@@ -46,14 +67,13 @@ func QueryDistinctLabelValuesFromMetrics(ctx context.Context, client *monitoring
 		View: monitoringpb.ListTimeSeriesRequest_HEADERS,
 		Aggregation: &monitoringpb.Aggregation{
 			AlignmentPeriod:    &durationpb.Duration{Seconds: int64(d.Seconds())},
-			PerSeriesAligner:   monitoringpb.Aggregation_ALIGN_SUM,
-			CrossSeriesReducer: monitoringpb.Aggregation_REDUCE_NONE,
-			GroupByFields:      []string{groupByKey},
+			PerSeriesAligner:   monitoringpb.Aggregation_ALIGN_NONE,
+			CrossSeriesReducer: monitoringpb.Aggregation_REDUCE_SUM,
+			GroupByFields:      groupByKey,
 		},
 	}
-
 	it := client.ListTimeSeries(ctx, req)
-	uniqueValues := make(map[string]struct{})
+	resultValues := make([]map[string]string, 0)
 	for {
 		resp, err := it.Next()
 		if err == iterator.Done {
@@ -62,20 +82,7 @@ func QueryDistinctLabelValuesFromMetrics(ctx context.Context, client *monitoring
 		if err != nil {
 			return nil, fmt.Errorf("failed to list time series: %w", err)
 		}
-
-		// Attempt to find the label in Resource or Metric labels
-		val, ok := resp.GetResource().GetLabels()[resultLabelKey]
-		if !ok {
-			val, ok = resp.GetMetric().GetLabels()[resultLabelKey]
-		}
-		if ok {
-			uniqueValues[val] = struct{}{}
-		}
+		resultValues = append(resultValues, resp.GetResource().GetLabels())
 	}
-
-	result := make([]string, 0, len(uniqueValues))
-	for v := range uniqueValues {
-		result = append(result, v)
-	}
-	return result, nil
+	return resultValues, nil
 }

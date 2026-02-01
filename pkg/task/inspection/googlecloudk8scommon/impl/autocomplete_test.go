@@ -54,8 +54,18 @@ func TestFilterAndTrimPrefixFromClusterNames(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := filterAndTrimPrefixFromClusterNames(tt.clusterNames, tt.prefix)
-			if diff := cmp.Diff(tt.expected, got); diff != "" {
+			metricsLabels := []map[string]string{}
+			for _, clusterName := range tt.clusterNames {
+				metricsLabels = append(metricsLabels, map[string]string{
+					"cluster_name": clusterName,
+				})
+			}
+			got := filterAndTrimPrefixFromClusterNames(metricsLabels, tt.prefix)
+			gotClusterNames := []string{}
+			for _, clusterName := range got {
+				gotClusterNames = append(gotClusterNames, clusterName["cluster_name"])
+			}
+			if diff := cmp.Diff(tt.expected, gotClusterNames); diff != "" {
 				t.Errorf("filterAndTrimPrefixFromClusterNames() mismatch (-want +got):\n%s", diff)
 			}
 		})

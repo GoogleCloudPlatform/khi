@@ -31,11 +31,13 @@ import (
 )
 
 // GenerateK8sContainerQuery generates a Cloud Logging query for Kubernetes container logs.
-func GenerateK8sContainerQuery(clusterName string, namespacesFilter *gcpqueryutil.SetFilterParseResult, podNamesFilter *gcpqueryutil.SetFilterParseResult) string {
+func GenerateK8sContainerQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, namespacesFilter *gcpqueryutil.SetFilterParseResult, podNamesFilter *gcpqueryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_container"
+resource.labels.project_id="%s"
+resource.labels.location="%s"
 resource.labels.cluster_name="%s"
 %s
-%s`, clusterName, generateNamespacesFilter(namespacesFilter), generatePodNamesFilter(podNamesFilter))
+%s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateNamespacesFilter(namespacesFilter), generatePodNamesFilter(podNamesFilter))
 }
 
 func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResult) string {
@@ -95,17 +97,16 @@ type containerListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *containerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *containerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref(),
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	}
 }
 
@@ -114,7 +115,11 @@ func (c *containerListLogEntriesTaskSetting) Description() *googlecloudcommon_co
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeContainer,
 		QueryName:      "K8s container logs",
-		ExampleQuery: GenerateK8sContainerQuery("gcp-cluster-name",
+		ExampleQuery: GenerateK8sContainerQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:   "test-project",
+			Location:    "test-location",
+			ClusterName: "test-cluster",
+		},
 			&gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"default"},
 			},
@@ -128,11 +133,11 @@ func (c *containerListLogEntriesTaskSetting) Description() *googlecloudcommon_co
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *containerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	namespacesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryNamespacesTaskID.Ref())
 	podNamesFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.InputContainerQueryPodNamesTaskID.Ref())
 
-	return []string{GenerateK8sContainerQuery(clusterName, namespacesFilter, podNamesFilter)}, nil
+	return []string{GenerateK8sContainerQuery(cluster, namespacesFilter, podNamesFilter)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

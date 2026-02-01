@@ -23,11 +23,14 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 func TestLocationInput(t *testing.T) {
-	mockAutocompleteLocationsTask := coretask.NewTask(googlecloudcommon_contract.AutocompleteLocationTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) ([]string, error) {
-		return []string{"asia-northeast1", "us-central1"}, nil
+	mockAutocompleteLocationsTask := coretask.NewTask(googlecloudcommon_contract.AutocompleteLocationTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*inspectioncore_contract.AutocompleteResult[string], error) {
+		return &inspectioncore_contract.AutocompleteResult[string]{
+			Values: []string{"asia-northeast1", "us-central1"},
+		}, nil
 	})
 	form_task_test.TestTextForms(t, "gcp-location", InputLocationsTask, []*form_task_test.TextFormTestCase{
 		{

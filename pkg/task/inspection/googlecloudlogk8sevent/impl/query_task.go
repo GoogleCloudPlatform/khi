@@ -32,10 +32,12 @@ import (
 )
 
 // GenerateK8sEventQuery generates a query for Kubernetes Event logs.
-func GenerateK8sEventQuery(clusterName string, projectId string, namespaceFilter *gcpqueryutil.SetFilterParseResult) string {
-	return fmt.Sprintf(`logName="projects/%s/logs/events"
+func GenerateK8sEventQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, namespaceFilter *gcpqueryutil.SetFilterParseResult) string {
+	return fmt.Sprintf(`log_id("events")
+resource.labels.project_id="%s"
+resource.labels.location="%s"
 resource.labels.cluster_name="%s"
-%s`, projectId, clusterName, generateK8sEventNamespaceFilter(namespaceFilter))
+%s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateK8sEventNamespaceFilter(namespaceFilter))
 }
 
 func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
@@ -78,16 +80,15 @@ type K8sEventListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *K8sEventListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *K8sEventListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	}
 }
 
@@ -97,8 +98,11 @@ func (k *K8sEventListLogEntriesTaskSetting) Description() *googlecloudcommon_con
 		DefaultLogType: enum.LogTypeEvent,
 		QueryName:      "Kubernetes Event Logs",
 		ExampleQuery: GenerateK8sEventQuery(
-			"gcp-cluster-name",
-			"gcp-project-id",
+			googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
 			&gcpqueryutil.SetFilterParseResult{
 				Additives: []string{"#cluster-scoped", "#namespaced"},
 			},
@@ -108,11 +112,9 @@ func (k *K8sEventListLogEntriesTaskSetting) Description() *googlecloudcommon_con
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *K8sEventListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
-
-	return []string{GenerateK8sEventQuery(clusterName, projectID, namespaceFilter)}, nil
+	return []string{GenerateK8sEventQuery(cluster, namespaceFilter)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

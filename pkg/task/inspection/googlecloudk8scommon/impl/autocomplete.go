@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AutocompleteMetricsK8sContainerTask is the task to provide the default metrics type to collect the cluster names.
@@ -40,7 +41,7 @@ var AutocompleteMetricsK8sNodeTask = coretask.NewTask(googlecloudk8scommon_contr
 	return "kubernetes.io/anthos/up", nil
 })
 
-var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteClusterIdentityTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.ClusterNamePrefixTaskRef,
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
@@ -48,7 +49,7 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]], error) {
 	clusterNamePrefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskRef)
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
@@ -58,8 +59,18 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterNamePrefix, projectID, startTime.Unix(), endTime.Unix())
-	if projectID != "" && currentDigest == prevValue.DependencyDigest {
+	if currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
+	}
+	if projectID == "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+			Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
+				Error:  "",
+				Hint:   "Cluster names are suggested after the project ID is provided.",
+			},
+			DependencyDigest: currentDigest,
+		}, nil
 	}
 
 	errorString := ""
@@ -76,18 +87,29 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container"`, metricsType)
-	clusterNames, err := googlecloud.QueryDistinctLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.cluster_name", "cluster_name")
+	metricsLabels, err := googlecloud.QueryResourceLabelsFromMetrics(ctx, client, projectID, filter, startTime, endTime, []string{"resource.label.cluster_name", "resource.label.location"})
 	if err != nil {
 		errorString = err.Error()
 	}
-	clusterNames = filterAndTrimPrefixFromClusterNames(clusterNames, clusterNamePrefix)
-	if hintString == "" && errorString == "" && len(clusterNames) == 0 {
+	metricsLabels = filterAndTrimPrefixFromClusterNames(metricsLabels, clusterNamePrefix)
+	if hintString == "" && errorString == "" && len(metricsLabels) == 0 {
 		hintString = fmt.Sprintf("No cluster names found between %s and %s. It is highly likely that the time range is incorrect. Please verify the time range, or proceed by manually entering the cluster name.", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 	}
-	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
+
+	identities := make([]googlecloudk8scommon_contract.GoogleCloudClusterIdentity, len(metricsLabels))
+	for i, labels := range metricsLabels {
+		identities[i] = googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:         projectID,
+			ClusterTypePrefix: clusterNamePrefix,
+			ClusterName:       labels["cluster_name"],
+			Location:          labels["location"],
+		}
+	}
+
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 		DependencyDigest: currentDigest,
-		Value: &googlecloudk8scommon_contract.AutocompleteResult{
-			Values: clusterNames,
+		Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+			Values: identities,
 			Error:  errorString,
 			Hint:   hintString,
 		},
@@ -95,19 +117,84 @@ var AutocompleteClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk
 })
 
 // filterAndTrimPrefixFromClusterNames filters cluster names by prefix and trims the prefix from the filtered cluster names.
-func filterAndTrimPrefixFromClusterNames(clusterNames []string, prefix string) []string {
-	filteredClusters := make([]string, 0, len(clusterNames))
-	for _, clusterName := range clusterNames {
+func filterAndTrimPrefixFromClusterNames(metricsLabels []map[string]string, prefix string) []map[string]string {
+	filteredClusters := make([]map[string]string, 0, len(metricsLabels))
+	for _, labels := range metricsLabels {
+		clusterName := labels["cluster_name"]
 		if prefix == "" {
 			if !strings.Contains(clusterName, "/") {
-				filteredClusters = append(filteredClusters, clusterName)
+				filteredClusters = append(filteredClusters, labels)
 			}
 		} else if strings.HasPrefix(clusterName, prefix) {
-			filteredClusters = append(filteredClusters, strings.TrimPrefix(clusterName, prefix))
+			labels["cluster_name"] = strings.TrimPrefix(clusterName, prefix)
+			filteredClusters = append(filteredClusters, labels)
 		}
 	}
 	return filteredClusters
 }
+
+var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteLocationForClusterTaskID, []taskid.UntypedTaskReference{
+	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
+	googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(),
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
+	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
+	clusterIdentities := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
+
+	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterName, projectID, startTime.Unix(), endTime.Unix())
+	if currentDigest == prevValue.DependencyDigest {
+		return prevValue, nil
+	}
+	if projectID == "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+			Value: &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Error:  "",
+				Hint:   "Locations will be suggested after the project ID is provided.",
+			},
+			DependencyDigest: currentDigest,
+		}, nil
+	}
+	if clusterIdentities.Error != "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+			Value: &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Error:  clusterIdentities.Error,
+				Hint:   clusterIdentities.Hint,
+			},
+			DependencyDigest: currentDigest,
+		}, nil
+	}
+	if clusterName == "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+			Value: &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Error:  "",
+				Hint:   "Locations will be suggested after the cluster name is provided.",
+			},
+			DependencyDigest: currentDigest,
+		}, nil
+	}
+	result := &inspectioncore_contract.AutocompleteResult[string]{
+		Values: []string{},
+		Error:  "",
+		Hint:   "",
+	}
+	for _, identity := range clusterIdentities.Values {
+		if identity.ClusterName == clusterName {
+			result.Values = append(result.Values, identity.Location)
+		}
+	}
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+		Value:            result,
+		DependencyDigest: currentDigest,
+	}, nil
+}, coretask.WithSelectionPriority(500))
 
 var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
@@ -117,7 +204,7 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
@@ -127,8 +214,18 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
 	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterName, projectID, startTime.Unix(), endTime.Unix())
-	if projectID != "" && currentDigest == prevValue.DependencyDigest {
+	if currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
+	}
+	if projectID == "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+			Value: &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Error:  "",
+				Hint:   "Namespace names are suggested after the project ID is provided.",
+			},
+			DependencyDigest: currentDigest,
+		}, nil
 	}
 
 	errorString := ""
@@ -145,16 +242,16 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.label.cluster_name="%s"`, metricsType, clusterName)
-	namespaces, err := googlecloud.QueryDistinctLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.namespace_name", "namespace_name")
+	namespaces, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.namespace_name", "namespace_name")
 	if err != nil {
 		errorString = err.Error()
 	}
 	if hintString == "" && errorString == "" && len(namespaces) == 0 {
 		hintString = fmt.Sprintf("No namespace names found between %s and %s. It is highly likely that the time range is incorrect. Please verify the time range, or proceed by manually entering the namespace name.", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 	}
-	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
 		DependencyDigest: currentDigest,
-		Value: &googlecloudk8scommon_contract.AutocompleteResult{
+		Value: &inspectioncore_contract.AutocompleteResult[string]{
 			Values: namespaces,
 			Error:  errorString,
 			Hint:   hintString,
@@ -170,7 +267,7 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
@@ -198,16 +295,16 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.label.cluster_name="%s"`, metricsType, clusterName)
-	podNames, err := googlecloud.QueryDistinctLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.pod_name", "pod_name")
+	podNames, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.pod_name", "pod_name")
 	if err != nil {
 		errorString = err.Error()
 	}
 	if hintString == "" && errorString == "" && len(podNames) == 0 {
 		hintString = fmt.Sprintf("No pod names found between %s and %s. It is highly likely that the time range is incorrect. Please verify the time range, or proceed by manually entering the pod name.", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 	}
-	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
 		DependencyDigest: currentDigest,
-		Value: &googlecloudk8scommon_contract.AutocompleteResult{
+		Value: &inspectioncore_contract.AutocompleteResult[string]{
 			Values: podNames,
 			Error:  errorString,
 			Hint:   hintString,
@@ -223,7 +320,7 @@ var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sc
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref(),
-}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]) (inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult], error) {
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
@@ -251,16 +348,16 @@ var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sc
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_node" AND resource.label.cluster_name="%s"`, metricsType, clusterName)
-	nodes, err := googlecloud.QueryDistinctLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.node_name", "node_name")
+	nodes, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.node_name", "node_name")
 	if err != nil {
 		errorString = err.Error()
 	}
 	if hintString == "" && errorString == "" && len(nodes) == 0 {
 		hintString = fmt.Sprintf("No node names found between %s and %s. It is highly likely that the time range is incorrect. Please verify the time range, or proceed by manually entering the node name.", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 	}
-	return inspectiontaskbase.CacheableTaskResult[*googlecloudk8scommon_contract.AutocompleteResult]{
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
 		DependencyDigest: currentDigest,
-		Value: &googlecloudk8scommon_contract.AutocompleteResult{
+		Value: &inspectioncore_contract.AutocompleteResult[string]{
 			Values: nodes,
 			Error:  errorString,
 			Hint:   hintString,

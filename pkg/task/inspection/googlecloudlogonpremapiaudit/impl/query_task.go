@@ -28,12 +28,15 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func generateQuery(clusterNameWithPrefix string) string {
-	return fmt.Sprintf(`resource.type="audited_resource"
+func generateQuery(clusterIdentiy googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
+	return fmt.Sprintf(`
+log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
+resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
+protoPayload.resourceName:"projects/%s/locations/%s/"
 protoPayload.resourceName:"%s"
-`, clusterNameWithPrefix)
+`, clusterIdentiy.ProjectID, clusterIdentiy.Location, clusterIdentiy.NameWithClusterTypePrefix())
 }
 
 type onpremAPIListLogEntriesTaskSetting struct {
@@ -41,15 +44,14 @@ type onpremAPIListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (o *onpremAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (o *onpremAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 	}
 }
 
@@ -58,14 +60,18 @@ func (o *onpremAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_co
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeOnPremAPI,
 		QueryName:      "OnPrem API Logs",
-		ExampleQuery:   generateQuery("baremetalClusters/my-cluster"),
+		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:   "example-project-id",
+			Location:    "example-location",
+			ClusterName: "example-cluster-name",
+		}),
 	}
 }
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (o *onpremAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	return []string{generateQuery(clusterName)}, nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{generateQuery(clusterIdentity)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
