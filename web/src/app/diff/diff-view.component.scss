@@ -28,6 +28,7 @@ $principal-user: #e53935;
   display: grid;
   grid-template-rows: auto auto 5px auto 1fr;
   height: 100%;
+  font-size: 10px;
 }
 
 mat-toolbar {
@@ -47,20 +48,9 @@ mat-toolbar {
   }
 }
 
-.revision-resizer {
-  height: 5px;
-  background-color: lightgray;
-  box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
-  z-index: 2000;
-
-  &:hover {
-    background-color: gray;
-    cursor: row-resize;
-  }
-}
-
 .revision-list-wrap {
-  height: max(100px, var(--revision-pane-height));
+  height: 100%;
+  width: 100%;
   overflow-y: scroll;
   overflow-x: hidden;
   border-spacing: 0px;
@@ -68,6 +58,7 @@ mat-toolbar {
 }
 
 .revision-list {
+  height: 100%;
   // Force showing scrollbar
   &::-webkit-scrollbar {
     -webkit-appearance: none;
@@ -83,8 +74,6 @@ mat-toolbar {
     background-color: #3f51b5;
     box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
   }
-
-  height: 100%;
 
   .revision-row {
     border-bottom: 1px solid black;
@@ -164,7 +153,7 @@ mat-toolbar {
   display: grid;
   grid-template-areas: "toolbar" "warning" "diffbody";
   grid-template-rows: auto auto 1fr;
-  overflow: auto;
+  height: 100%;
 
   .diff-inner {
     grid: "diffbody";
@@ -250,4 +239,9 @@ mat-toolbar {
 
 .diff-timeline-annotators {
   border-bottom: 1px solid black;
+}
+
+ngx-unified-diff {
+  --ngx-diff-font-family: "Google Sans Code";
+  --ngx-diff-font-size: 10px;
 }

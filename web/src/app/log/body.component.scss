@@ -23,7 +23,7 @@ $TOOLBAR_BACKGROUND: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
   height: 100%;
   display: grid;
   grid-template-areas: "header" "toolbar" "logbody";
-  grid-template-rows: auto 27px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
 
   khi-log-header {
     grid: "header";
@@ -48,21 +48,18 @@ $TOOLBAR_BACKGROUND: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
 .log-body-container-scrollable {
   overflow: auto;
 
-  // Force showing scrollbar
-  &::-webkit-scrollbar {
-    -webkit-appearance: none;
-    width: 7px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 4px;
-    background-color: #3f51b5;
-    box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
-  }
-
   code.hljs {
     padding: 0;
     white-space: pre;
+  }
+
+  code {
+    font-family: "Google Sans Code", monospace;
+    font-size: 10px;
+  }
+
+  .log-body-container {
+    margin: 0 10px;
   }
 }
 

@@ -17,7 +17,7 @@
 @use "@angular/material" as mat;
 
 $ICON_SIZE: 18px;
-$FONT_SIZE: 12px;
+$FONT_SIZE: 10px;
 $LABEL_WIDTH: 100px;
 $LABEL_BACKGROUND: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
 $BACKGROUND: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
@@ -31,7 +31,7 @@ $COPY_BUTTON_SIZE: 15px;
   column-gap: 3px;
   background-color: $BACKGROUND;
   color: $LABEL_COLOR;
-  line-height: 1.7;
+  align-items: center;
 
   .icon {
     width: $FONT_SIZE;
@@ -43,12 +43,13 @@ $COPY_BUTTON_SIZE: 15px;
     user-select: none;
     font-weight: 600;
     font-size: $FONT_SIZE;
-    margin: 0.5px 0 0.5px 0;
     width: $LABEL_WIDTH;
     background-color: $LABEL_BACKGROUND;
-
-    .icon {
-      margin: 3px 3px -3px 1px;
+    display: flex;
+    align-items: center;
+    .label-text {
+      flex: 1;
+      text-align: center;
     }
   }
 
@@ -76,7 +77,6 @@ $COPY_BUTTON_SIZE: 15px;
     font-size: $FONT_SIZE;
     flex: 1;
     margin: 0;
-    line-height: 1.7;
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;

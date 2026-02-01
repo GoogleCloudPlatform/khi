@@ -31,6 +31,8 @@ $VALUE_COLOR: black;
   color: $LABEL_COLOR;
   white-space: nowrap;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
 
   mat-icon {
     margin-right: 3px;

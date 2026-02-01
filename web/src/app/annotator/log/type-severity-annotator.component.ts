@@ -20,12 +20,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { AnnotationDecider } from '../annotator';
 import { LogTypeMetadata } from 'src/app/zzz-generated';
 import { LogEntry } from 'src/app/store/log';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
   standalone: true,
   templateUrl: './type-severity-annotator.component.html',
   styleUrls: ['./type-severity-annotator.component.scss'],
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, MatTooltipModule],
 })
 export class TypeSeverityAnnotatorComponent {
   @Input()

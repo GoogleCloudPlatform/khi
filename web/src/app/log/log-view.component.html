@@ -39,25 +39,31 @@
       {{ shownLogsCount | async }}/{{ allLogsCount | async }} logs
     </p>
   </div>
-  <table class="log-list-container" tabindex="0" (keydown)="onKeyDown($event)">
-    <cdk-virtual-scroll-viewport
-      itemSize="19"
-      class="virtual-viewport"
-      (scrolledIndexChange)="_onScroll()"
-    >
-      <ng-container *cdkVirtualFor="let log of shownLogs | async">
-        <khi-log-view-log-line
-          [log]="log"
-          (lineClick)="_selectLog($event)"
-          (lineHover)="_onLogHover($event)"
-        ></khi-log-view-log-line>
-      </ng-container>
-    </cdk-virtual-scroll-viewport>
-  </table>
-  <div class="resizer" (mousedown)="_resizeStart()"></div>
-  <khi-log-body
-    [logIndex]="(selectedLog | async)?.logIndex ?? 0"
-    [style.--log-body-view-height.px]="logBodyViewHeight | async"
-  >
-  </khi-log-body>
+  <as-split direction="vertical">
+    <as-split-area size="50">
+      <table
+        class="log-list-container"
+        tabindex="0"
+        (keydown)="onKeyDown($event)"
+      >
+        <cdk-virtual-scroll-viewport
+          itemSize="19"
+          class="virtual-viewport"
+          (scrolledIndexChange)="_onScroll()"
+        >
+          <ng-container *cdkVirtualFor="let log of shownLogs | async">
+            <khi-log-view-log-line
+              [log]="log"
+              (lineClick)="_selectLog($event)"
+              (lineHover)="_onLogHover($event)"
+            ></khi-log-view-log-line>
+          </ng-container>
+        </cdk-virtual-scroll-viewport>
+      </table>
+    </as-split-area>
+    <as-split-area size="50">
+      <khi-log-body [logIndex]="(selectedLog | async)?.logIndex ?? 0">
+      </khi-log-body>
+    </as-split-area>
+  </as-split>
 </div>

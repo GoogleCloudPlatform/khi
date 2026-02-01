@@ -42,13 +42,6 @@ export function getDefaultLogAnnotatorResolver(): LogAnnotatorResolver {
       ),
     ),
     new Annotator(
-      CommonFieldAnnotatorComponent,
-      CommonFieldAnnotatorComponent.inputMapperForSummary(
-        'summarize',
-        'Summary',
-      ),
-    ),
-    new Annotator(
       ResourceReferenceListAnnotatorComponent,
       ResourceReferenceListAnnotatorComponent.inputMapper,
     ),

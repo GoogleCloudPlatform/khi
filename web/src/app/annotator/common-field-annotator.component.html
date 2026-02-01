@@ -15,10 +15,10 @@ limitations under the License.
 -->
 
 <div class="container">
-  <p class="label">
-    <mat-icon class="icon">{{ icon }}</mat-icon
-    >{{ label }}
-  </p>
+  <div class="label">
+    <mat-icon class="icon">{{ icon }}</mat-icon>
+    <p class="label-text">{{ label }}</p>
+  </div>
   @if (value | async; as valueResolved) {
     <p class="value" (click)="onValueClick(valueResolved)">
       <span class="copy-icon-container"
