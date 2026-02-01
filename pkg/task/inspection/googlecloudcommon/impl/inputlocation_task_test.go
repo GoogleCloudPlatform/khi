@@ -51,6 +51,7 @@ func TestLocationInput(t *testing.T) {
 				},
 				Readonly:         false,
 				ValidationTiming: inspectionmetadata.Change,
+				Default:          "asia-northeast1",
 			},
 		},
 		{
@@ -71,6 +72,7 @@ func TestLocationInput(t *testing.T) {
 				},
 				Readonly:         false,
 				ValidationTiming: inspectionmetadata.Change,
+				Default:          "asia-northeast1",
 			},
 		},
 	})
