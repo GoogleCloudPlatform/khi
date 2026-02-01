@@ -22,7 +22,6 @@ import (
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
 	"google.golang.org/api/iterator"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -53,10 +52,6 @@ func QueryDistinctStringLabelValuesFromMetrics(ctx context.Context, client *moni
 // groupByKey: The full label key to group by (e.g. "resource.label.cluster_name").
 // resultLabelKey: The simple label key to extract from the result (e.g. "cluster_name").
 func QueryResourceLabelsFromMetrics(ctx context.Context, client *monitoring.MetricClient, projectID string, filter string, startTime, endTime time.Time, groupByKey []string) ([]map[string]string, error) {
-	d := endTime.Sub(startTime)
-	if d < 60*time.Second {
-		d = 60 * time.Second
-	}
 	req := &monitoringpb.ListTimeSeriesRequest{
 		Name:   "projects/" + projectID,
 		Filter: filter,
@@ -66,8 +61,6 @@ func QueryResourceLabelsFromMetrics(ctx context.Context, client *monitoring.Metr
 		},
 		View: monitoringpb.ListTimeSeriesRequest_HEADERS,
 		Aggregation: &monitoringpb.Aggregation{
-			AlignmentPeriod:    &durationpb.Duration{Seconds: int64(d.Seconds())},
-			PerSeriesAligner:   monitoringpb.Aggregation_ALIGN_NONE,
 			CrossSeriesReducer: monitoringpb.Aggregation_REDUCE_SUM,
 			GroupByFields:      groupByKey,
 		},
