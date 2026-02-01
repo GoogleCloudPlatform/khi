@@ -30,12 +30,12 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func GenerateK8sControlPlaneQuery(clusterName string, projectId string, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) string {
+func GenerateK8sControlPlaneQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, controlplaneComponentFilter *gcpqueryutil.SetFilterParseResult) string {
 	return fmt.Sprintf(`resource.type="k8s_control_plane_component"
-resource.labels.cluster_name="%s"
 resource.labels.project_id="%s"
--sourceLocation.file="httplog.go"
-%s`, clusterName, projectId, generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
+resource.labels.location="%s"
+resource.labels.cluster_name="%s"
+%s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
 }
 
 func generateK8sControlPlaneComponentFilter(filter *gcpqueryutil.SetFilterParseResult) string {
@@ -61,16 +61,15 @@ type controlPlaneListLogEntriesTaskSetting struct {
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref(),
 	}
 }
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
@@ -78,7 +77,11 @@ func (c *controlPlaneListLogEntriesTaskSetting) Description() *googlecloudcommon
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeControlPlaneComponent,
 		QueryName:      "K8s control plane logs",
-		ExampleQuery: GenerateK8sControlPlaneQuery("gcp-cluster-name", "gcp-project-id", &gcpqueryutil.SetFilterParseResult{
+		ExampleQuery: GenerateK8sControlPlaneQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:   "test-project",
+			ClusterName: "test-cluster",
+			Location:    "asia-northeast1",
+		}, &gcpqueryutil.SetFilterParseResult{
 			SubtractMode: true,
 		}),
 	}
@@ -86,11 +89,10 @@ func (c *controlPlaneListLogEntriesTaskSetting) Description() *googlecloudcommon
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	projectId := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	controlplaneComponentNameFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref())
 
-	return []string{GenerateK8sControlPlaneQuery(clusterName, projectId, controlplaneComponentNameFilter)}, nil
+	return []string{GenerateK8sControlPlaneQuery(cluster, controlplaneComponentNameFilter)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

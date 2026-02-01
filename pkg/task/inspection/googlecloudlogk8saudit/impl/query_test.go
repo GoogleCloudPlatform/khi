@@ -19,24 +19,31 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
 func TestGenerateK8sAuditQuery(t *testing.T) {
 	testCases := []struct {
 		ExpectedQuery        string
-		InputClusterName     string
+		Cluster              googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		InputKindFilter      *gcpqueryutil.SetFilterParseResult
 		InputNamespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
 			ExpectedQuery: `resource.type="k8s_cluster"
+resource.labels.project_id="foo-project"
+resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 protoPayload.methodName=~"\.(pods|deployments|jobs)\."
 protoPayload.resourceName:"namespaces/"
 `,
-			InputClusterName: "foo-cluster",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			InputKindFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"pods",
@@ -53,7 +60,7 @@ protoPayload.resourceName:"namespaces/"
 	}
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("testcase-%d-%s", i, testCase.ExpectedQuery), func(t *testing.T) {
-			result := GenerateK8sAuditQuery(testCase.InputClusterName, testCase.InputKindFilter, testCase.InputNamespaceFilter)
+			result := GenerateK8sAuditQuery(testCase.Cluster, testCase.InputKindFilter, testCase.InputNamespaceFilter)
 			if result != testCase.ExpectedQuery {
 				t.Errorf("the result query is not valid:\nInput:\n%v\nActual:\n%s\nExpected:\n%s", testCase, result, testCase.ExpectedQuery)
 			}
@@ -64,50 +71,74 @@ protoPayload.resourceName:"namespaces/"
 func TestGenerateK8sAuditQueryIsValid(t *testing.T) {
 	testCases := []struct {
 		Name            string
-		ClusterName     string
+		Cluster         googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		KindFilter      *gcpqueryutil.SetFilterParseResult
 		NamespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
-			Name:            "ClusterScoped",
-			ClusterName:     "foo-cluster",
+			Name: "ClusterScoped",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
 			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
 		},
 		{
-			Name:            "Namespaced",
-			ClusterName:     "foo-cluster",
+			Name: "Namespaced",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
 			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
 		},
 		{
-			Name:            "Namespaced with specific namespace",
-			ClusterName:     "foo-cluster",
+			Name: "Namespaced with specific namespace",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
 			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},
 		},
 		{
-			Name:            "Namespaced with multiple namespaces",
-			ClusterName:     "foo-cluster",
+			Name: "Namespaced with multiple namespaces",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
 			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
 		},
 		{
-			Name:            "ClusterScoped with specific namespace",
-			ClusterName:     "foo-cluster",
+			Name: "ClusterScoped with specific namespace",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
 			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
 		},
 		{
-			Name:            "ClusterScoped with multiple namespaces",
-			ClusterName:     "foo-cluster",
+			Name: "ClusterScoped with multiple namespaces",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			KindFilter:      &gcpqueryutil.SetFilterParseResult{Additives: []string{"pods"}},
 			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateK8sAuditQuery(tc.ClusterName, tc.KindFilter, tc.NamespaceFilter)
+			query := GenerateK8sAuditQuery(tc.Cluster, tc.KindFilter, tc.NamespaceFilter)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

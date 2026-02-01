@@ -31,12 +31,14 @@ import (
 )
 
 // GenerateK8sNodeLogQuery generates a query for GKE node logs.
-func GenerateK8sNodeLogQuery(projectId string, clusterId string, nodeNameSubstrings []string) string {
+func GenerateK8sNodeLogQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, nodeNameSubstrings []string) string {
 	return fmt.Sprintf(`resource.type="k8s_node"
--logName="projects/%s/logs/events"
+resource.labels.project_id="%s"
+resource.labels.location="%s"
 resource.labels.cluster_name="%s"
+-log_id("events") -- ignore node related events because it's captured in k8s event log parsers
 %s
-`, projectId, clusterId, generateNodeNameSubstringLogFilter(nodeNameSubstrings))
+`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateNodeNameSubstringLogFilter(nodeNameSubstrings))
 }
 
 func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {
@@ -51,15 +53,14 @@ type k8snodeListLogEntriesTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *k8snodeListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *k8snodeListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
 	}
 }
@@ -69,16 +70,19 @@ func (k *k8snodeListLogEntriesTaskSetting) Description() *googlecloudcommon_cont
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeNode,
 		QueryName:      "Kubernetes node logs",
-		ExampleQuery:   GenerateK8sNodeLogQuery("gcp-project-id", "gcp-cluster-name", []string{"gke-test-cluster-node-1", "gke-test-cluster-node-2"}),
+		ExampleQuery: GenerateK8sNodeLogQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:   "gcp-project-id",
+			Location:    "gcp-location",
+			ClusterName: "gcp-cluster-name",
+		}, []string{"gke-test-cluster-node-1", "gke-test-cluster-node-2"}),
 	}
 }
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *k8snodeListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
-	return []string{GenerateK8sNodeLogQuery(projectID, clusterName, nodeNameSubstrings)}, nil
+	return []string{GenerateK8sNodeLogQuery(cluster, nodeNameSubstrings)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

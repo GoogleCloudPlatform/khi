@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudk8scommon_contract
+package inspectioncore_contract
 
 // AutocompleteResult is a list of cluster names/namespaces/node names/pod names for autocomplete.
-type AutocompleteResult struct {
-	Values []string
+type AutocompleteResult[T any] struct {
+	Values []T
 	Error  string
 	Hint   string
 }

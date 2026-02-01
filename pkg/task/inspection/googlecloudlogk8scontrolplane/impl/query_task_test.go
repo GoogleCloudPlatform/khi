@@ -19,71 +19,86 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
 func TestGenerateK8sControlPlaneQuery(t *testing.T) {
 	testCases := []struct {
 		ExpectedQuery                        string
-		InputClusterName                     string
-		InputProjectName                     string
+		Cluster                              googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		InputControlplaneComponentNameFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
-			InputClusterName:                     "foo-cluster",
-			InputProjectName:                     "foo-project",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: true},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
-resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
--sourceLocation.file="httplog.go"
+resource.labels.location="foo-location"
+resource.labels.cluster_name="foo-cluster"
 -- No component name filter`,
 		},
 		{
-			InputClusterName:                     "foo-cluster",
-			InputProjectName:                     "foo-project",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: true, Subtractives: []string{"apiserver", "autoscaler"}},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
-resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
--sourceLocation.file="httplog.go"
+resource.labels.location="foo-location"
+resource.labels.cluster_name="foo-cluster"
 -resource.labels.component_name:("apiserver" OR "autoscaler")`,
 		},
 		{
-			InputClusterName:                     "foo-cluster",
-			InputProjectName:                     "foo-project",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: false, Additives: []string{"apiserver"}},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
-resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
--sourceLocation.file="httplog.go"
+resource.labels.location="foo-location"
+resource.labels.cluster_name="foo-cluster"
 resource.labels.component_name:("apiserver")`,
 		},
 		{
-			InputClusterName:                     "foo-cluster",
-			InputProjectName:                     "foo-project",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{SubtractMode: false, Additives: []string{}},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
-resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
--sourceLocation.file="httplog.go"
+resource.labels.location="foo-location"
+resource.labels.cluster_name="foo-cluster"
 -- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.`,
 		},
 		{
-			InputClusterName:                     "foo-cluster",
-			InputProjectName:                     "foo-project",
+			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				ProjectID:   "foo-project",
+				Location:    "foo-location",
+			},
 			InputControlplaneComponentNameFilter: &gcpqueryutil.SetFilterParseResult{ValidationError: "test error"},
 			ExpectedQuery: `resource.type="k8s_control_plane_component"
-resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
--sourceLocation.file="httplog.go"
+resource.labels.location="foo-location"
+resource.labels.cluster_name="foo-cluster"
 -- Failed to generate component name filter due to the validation error "test error"`,
 		},
 	}
 
 	for i, testCase := range testCases {
 		t.Run(fmt.Sprintf("testcase-%d-%s", i, testCase.ExpectedQuery), func(t *testing.T) {
-			result := GenerateK8sControlPlaneQuery(testCase.InputClusterName, testCase.InputProjectName, testCase.InputControlplaneComponentNameFilter)
+			result := GenerateK8sControlPlaneQuery(testCase.Cluster, testCase.InputControlplaneComponentNameFilter)
 			if result != testCase.ExpectedQuery {
 				t.Errorf("the result query is not valid:\nInput:\n%v\nActual:\n%s\nExpected:\n%s", testCase, result, testCase.ExpectedQuery)
 			}

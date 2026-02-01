@@ -28,10 +28,15 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func GenerateGKEAuditQuery(projectName string, clusterName string) string {
-	return fmt.Sprintf(`resource.type=("gke_cluster" OR "gke_nodepool")
-logName="projects/%s/logs/cloudaudit.googleapis.com%%2Factivity"
-resource.labels.cluster_name="%s"`, projectName, clusterName)
+func GenerateGKEAuditQuery(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
+	// gke_cluster resource type:
+	return fmt.Sprintf(`log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
+resource.type=("gke_cluster" OR "gke_nodepool")
+resource.labels.project_id="%s"
+resource.labels.location="%s"
+resource.labels.cluster_name="%s"
+protoPayload.serviceName="container.googleapis.com"
+`, cluster.ProjectID, cluster.Location, cluster.ClusterName)
 }
 
 type gkeAPIListLogEntriesTaskSetting struct {
@@ -47,7 +52,7 @@ func (g *gkeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Conte
 func (g *gkeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 	}
 }
 
@@ -56,16 +61,14 @@ func (g *gkeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contr
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeGkeAudit,
 		QueryName:      "GKE Audit logs",
-		ExampleQuery:   GenerateGKEAuditQuery("gcp-project-id", "gcp-cluster-name"),
+		ExampleQuery:   GenerateGKEAuditQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "gcp-project-id", Location: "gcp-location", ClusterName: "gcp-cluster-name"}),
 	}
 }
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
-
-	return []string{GenerateGKEAuditQuery(projectID, clusterName)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{GenerateGKEAuditQuery(cluster)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

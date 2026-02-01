@@ -17,39 +17,48 @@ package googlecloudlogk8snode_impl
 import (
 	"testing"
 
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestGenerateK8sNodeQueryIsValid(t *testing.T) {
 	testCases := []struct {
-		Name               string
-		ClusterName        string
-		ProjectName        string
-		NodeNameSubstrings []string
+		name               string
+		cluster            googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		nodeNameSubstrings []string
 	}{
 		{
-			Name:               "Valid query with empty node name substring",
-			ClusterName:        "test-cluster",
-			ProjectName:        "test-project",
-			NodeNameSubstrings: []string{},
+			name: "Valid query with empty node name substring",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
+			nodeNameSubstrings: []string{},
 		},
 		{
-			Name:               "Valid query with single node name substring",
-			ClusterName:        "test-cluster",
-			ProjectName:        "test-project",
-			NodeNameSubstrings: []string{"node-1"},
+			name: "Valid query with single node name substring",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
+			nodeNameSubstrings: []string{"node-1"},
 		},
 		{
-			Name:               "Valid query with multiple node name substrings",
-			ClusterName:        "test-cluster",
-			ProjectName:        "test-project",
-			NodeNameSubstrings: []string{"node-1", "node-2", "node-3"},
+			name: "Valid query with multiple node name substrings",
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ProjectID:   "test-project",
+				Location:    "test-location",
+				ClusterName: "test-cluster",
+			},
+			nodeNameSubstrings: []string{"node-1", "node-2", "node-3"},
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateK8sNodeLogQuery(tc.ProjectName, tc.ClusterName, tc.NodeNameSubstrings)
+		t.Run(tc.name, func(t *testing.T) {
+			query := GenerateK8sNodeLogQuery(tc.cluster, tc.nodeNameSubstrings)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

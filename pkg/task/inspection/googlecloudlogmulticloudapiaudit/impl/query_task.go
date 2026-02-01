@@ -29,12 +29,15 @@ import (
 )
 
 // generateQuery generates a query for multicloud API logs.
-func generateQuery(clusterNameWithPrefix string) string {
-	return fmt.Sprintf(`resource.type="audited_resource"
+func generateQuery(clusterIdentity googlecloudk8scommon_contract.GoogleCloudClusterIdentity) string {
+	return fmt.Sprintf(`
+log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
+resource.type="audited_resource"
 resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
+protoPayload.resourceName:"projects/%s/locations/%s/"
 protoPayload.resourceName:"%s"
-`, clusterNameWithPrefix)
+`, clusterIdentity.ProjectID, clusterIdentity.Location, clusterIdentity.NameWithClusterTypePrefix())
 }
 
 type multicloudAPIListLogEntriesTaskSetting struct {
@@ -42,15 +45,14 @@ type multicloudAPIListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 	}
 }
 
@@ -59,15 +61,20 @@ func (g *multicloudAPIListLogEntriesTaskSetting) Description() *googlecloudcommo
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		DefaultLogType: enum.LogTypeMulticloudAPI,
 		QueryName:      "Multicloud API Logs",
-		ExampleQuery:   generateQuery("awsClusters/gcp-cluster-name"),
+		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ProjectID:   "example-project-id",
+			Location:    "example-location",
+			ClusterName: "example-cluster-name",
+			ClusterTypePrefix: "awsClusters/",
+		}),
 	}
 }
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 
-	return []string{generateQuery(clusterName)}, nil
+	return []string{generateQuery(clusterIdentity)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

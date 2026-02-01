@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
@@ -36,27 +35,29 @@ var clusterNameValidator = regexp.MustCompile(`^\s*[0-9a-z\-]+\s*$`)
 // This task return the cluster name with the prefixes defined from the cluster type. For example, a cluster named foo-cluster is `foo-cluster` in GKE but `awsCluster/foo-cluster` in GKE on AWS.
 // This input also supports autocomplete cluster names from some task having ID for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.
 var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputClusterNameTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4000, "Cluster name").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref(), googlecloudk8scommon_contract.ClusterNamePrefixTaskRef}).
+	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.ClusterNamePrefixTaskRef}).
 	WithDescription("The cluster name to gather logs.").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
-		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
+		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
 		// If the previous value is included in the list of cluster names, the name is used as the default value.
-		if len(previousValues) > 0 && slices.Index(clusters.Values, previousValues[0]) > -1 {
+		if len(previousValues) > 0 && hasClusterNameInAutocomplete(clusters.Values, previousValues[0]) {
 			return previousValues[0], nil
 		}
 		if len(clusters.Values) == 0 {
 			return "", nil
 		}
-		return clusters.Values[0], nil
+		return clusters.Values[0].ClusterName, nil
 	}).
 	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
-		return common.SortForAutocomplete(value, clusters.Values), nil
+		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
+		clusterNames := make([]string, len(clusters.Values))
+		for i, cluster := range clusters.Values {
+			clusterNames[i] = cluster.ClusterName
+		}
+		return common.SortForAutocomplete(value, clusterNames), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
-		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref())
-		prefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskRef)
-
+		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
 		// on failure of getting the list of clusters
 		if clusters.Error != "" {
 			return fmt.Sprintf("Failed to obtain the cluster list due to the error '%s'.\n The suggestion list won't popup", clusters.Error), inspectionmetadata.Warning, nil
@@ -64,13 +65,16 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 		if clusters.Hint != "" {
 			return clusters.Hint, inspectionmetadata.Info, nil
 		}
-		convertedWithoutPrefix := strings.TrimPrefix(convertedValue.(string), prefix)
 		for _, suggestedCluster := range clusters.Values {
-			if suggestedCluster == convertedWithoutPrefix {
+			if suggestedCluster.NameWithClusterTypePrefix() == convertedValue.(string) {
 				return "", inspectionmetadata.Info, nil
 			}
 		}
-		return fmt.Sprintf("Cluster `%s` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.", value), inspectionmetadata.Warning, nil
+		availableClusterNameStr := ""
+		for _, cluster := range clusters.Values {
+			availableClusterNameStr += fmt.Sprintf("* %s\n", cluster.ClusterName)
+		}
+		return fmt.Sprintf("Cluster '%s' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.\nAvailable cluster names:\n%s", value, availableClusterNameStr), inspectionmetadata.Warning, nil
 	}).
 	WithValidator(func(ctx context.Context, value string) (string, error) {
 		if !clusterNameValidator.Match([]byte(value)) {
@@ -83,3 +87,12 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 		return prefix + strings.TrimSpace(value), nil
 	}).
 	Build()
+
+func hasClusterNameInAutocomplete(autocmpleteList []googlecloudk8scommon_contract.GoogleCloudClusterIdentity, clusterName string) bool {
+	for _, cluster := range autocmpleteList {
+		if cluster.ClusterName == clusterName {
+			return true
+		}
+	}
+	return false
+}

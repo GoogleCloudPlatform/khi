@@ -20,89 +20,88 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	gcp_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/gcp"
 )
 
 func TestGenerateK8sEventQuery(t *testing.T) {
 	testCases := []struct {
-		ExpectedQuery        string
-		InputClusterName     string
-		InputProjectName     string
-		InputNamespaceFilter *gcpqueryutil.SetFilterParseResult
-		InputStartTime       time.Time
-		InputEndTime         time.Time
+		wantQuery       string
+		cluster         googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		namespaceFilter *gcpqueryutil.SetFilterParseResult
+		startTime       time.Time
+		endTime         time.Time
 	}{
 		{
-			InputClusterName: "foo-cluster",
-			InputProjectName: "foo-project",
-			InputNamespaceFilter: &gcpqueryutil.SetFilterParseResult{
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "foo-cluster",
+				Location:    "foo-location",
+				ProjectID:   "foo-project",
+			},
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{
 					"#namespaced",
 				},
 			},
-			ExpectedQuery: `logName="projects/foo-project/logs/events"
+			wantQuery: `log_id("events")
+resource.labels.project_id="foo-project"
+resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
 jsonPayload.involvedObject.namespace:"" -- ignore events in k8s object with namespace`,
 		},
 	}
 
 	for i, testCase := range testCases {
-		t.Run(fmt.Sprintf("testcase-%d-%s", i, testCase.ExpectedQuery), func(t *testing.T) {
-			result := GenerateK8sEventQuery(testCase.InputClusterName, testCase.InputProjectName, testCase.InputNamespaceFilter)
-			if result != testCase.ExpectedQuery {
-				t.Errorf("the result query is not valid:\nInput:\n%v\nActual:\n%s\nExpected:\n%s", testCase, result, testCase.ExpectedQuery)
+		t.Run(fmt.Sprintf("testcase-%d-%s", i, testCase.wantQuery), func(t *testing.T) {
+			result := GenerateK8sEventQuery(testCase.cluster, testCase.namespaceFilter)
+			if result != testCase.wantQuery {
+				t.Errorf("the result query is not valid:\nInput:\n%v\nActual:\n%s\nExpected:\n%s", testCase, result, testCase.wantQuery)
 			}
 		})
 	}
 }
 
 func TestGenerateK8sEventQueryIsValid(t *testing.T) {
+	testCluster := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{}
 	testCases := []struct {
-		Name            string
-		ClusterName     string
-		ProjectName     string
-		NamespaceFilter *gcpqueryutil.SetFilterParseResult
+		name            string
+		cluster         googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		namespaceFilter *gcpqueryutil.SetFilterParseResult
 	}{
 		{
-			Name:            "ClusterScoped",
-			ClusterName:     "foo-cluster",
-			ProjectName:     "foo-project",
-			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
+			name:            "ClusterScoped",
+			cluster:         testCluster,
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped"}},
 		},
 		{
-			Name:            "Namespaced",
-			ClusterName:     "foo-cluster",
-			ProjectName:     "foo-project",
-			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
+			name:            "Namespaced",
+			cluster:         testCluster,
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#namespaced"}},
 		},
 		{
-			Name:            "Namespaced with specific namespace",
-			ClusterName:     "foo-cluster",
-			ProjectName:     "foo-project",
-			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},
+			name:            "Namespaced with specific namespace",
+			cluster:         testCluster,
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}},
 		},
 		{
-			Name:            "Namespaced with multiple namespaces",
-			ClusterName:     "foo-cluster",
-			ProjectName:     "foo-project",
-			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
+			name:            "Namespaced with multiple namespaces",
+			cluster:         testCluster,
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"default", "kube-system"}},
 		},
 		{
-			Name:            "ClusterScoped with specific namespace",
-			ClusterName:     "foo-cluster",
-			ProjectName:     "foo-project",
-			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
+			name:            "ClusterScoped with specific namespace",
+			cluster:         testCluster,
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default"}},
 		},
 		{
-			Name:            "ClusterScoped with multiple namespaces",
-			ClusterName:     "foo-cluster",
-			ProjectName:     "foo-project",
-			NamespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
+			name:            "ClusterScoped with multiple namespaces",
+			cluster:         testCluster,
+			namespaceFilter: &gcpqueryutil.SetFilterParseResult{Additives: []string{"#cluster-scoped", "default", "kube-system"}},
 		},
 	}
 	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			query := GenerateK8sEventQuery(tc.ClusterName, tc.ProjectName, tc.NamespaceFilter)
+		t.Run(tc.name, func(t *testing.T) {
+			query := GenerateK8sEventQuery(tc.cluster, tc.namespaceFilter)
 			err := gcp_test.IsValidLogQuery(t, query)
 			if err != nil {
 				t.Errorf("%s", err.Error())

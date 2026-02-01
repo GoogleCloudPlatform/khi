@@ -23,14 +23,22 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
 	testClusterNamePrefix := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "", nil)
-	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.Ref(), &googlecloudk8scommon_contract.AutocompleteResult{
-		Values: []string{"foo-cluster", "bar-cluster"},
-		Error:  "",
+	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+		Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			{
+				ClusterName: "foo-cluster",
+			},
+			{
+				ClusterName: "bar-cluster",
+			},
+		},
+		Error: "",
 	}, nil)
 	form_task_test.TestTextForms(t, "cluster name", InputClusterNameTask, []*form_task_test.TextFormTestCase{
 		{
@@ -99,8 +107,12 @@ func TestClusterNameInput(t *testing.T) {
 					Type:        "Text",
 					Label:       "Cluster name",
 					Description: wantDescription,
-					Hint:        "Cluster `nonexisting-cluster` was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.",
-					HintType:    inspectionmetadata.Warning,
+					Hint: `Cluster 'nonexisting-cluster' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
+Available cluster names:
+* foo-cluster
+* bar-cluster
+`,
+					HintType: inspectionmetadata.Warning,
 				},
 				Suggestions:      []string{"foo-cluster", "bar-cluster"},
 				Default:          "foo-cluster",

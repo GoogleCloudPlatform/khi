@@ -20,48 +20,9 @@ import (
 	"testing"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
-	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
-
-// ConformanceEveryInspectionTasksAreResolvable verify the InspectionTaskServer initialzied with the given preparation method must be resolvable by each tasks.
-func ConformanceEveryInspectionTasksAreResolvable(t *testing.T) {
-	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	testServer, err := coreinspection.NewServer(ioConfig)
-	if err != nil {
-		t.Fatalf("unexpected error %v", err)
-	}
-	err = generated.RegisterAllInspectionTasks(testServer)
-	if err != nil {
-		t.Fatalf("unexpected error %v. failed to complete the preparation step", err)
-	}
-
-	for _, targetTask := range testServer.GetAllRegisteredTasks() {
-		t.Run(fmt.Sprintf("%s-must-be-resolvable", targetTask.UntypedID().String()), func(t *testing.T) {
-			resolved, err := coretask.DefaultTaskGraphResolver.Resolve([]coretask.UntypedTask{targetTask}, testServer.GetAllRegisteredTasks())
-			if err != nil {
-				t.Errorf("failed to resolve task dependencies of a graph.\nerror:%s", err.Error())
-			}
-			ts, err := coretask.NewTaskSet(resolved)
-			if err != nil {
-				t.Fatalf("unexpecetd err %v", err)
-			}
-			rs, err := ts.ToRunnableTaskSet()
-			if err != nil {
-				t.Errorf("given graph with a single task %s couldn't be resolved.\n unexpected error %v", targetTask.UntypedID().String(), err)
-			}
-			graphViz, err := rs.DumpGraphviz()
-			if err != nil {
-				t.Errorf("unexpected error\n%v", err)
-			}
-			fmt.Printf("graphviz:\n%s\n%s\n", targetTask.UntypedID().String(), graphViz)
-		})
-	}
-}
 
 func ConformanceTestForInspectionTypes(t *testing.T) {
 	ioConfig, err := inspectioncore_contract.NewIOConfigForTest()

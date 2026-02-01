@@ -25,7 +25,7 @@ import (
 )
 
 // InputLocationsTask defines a form task for inputting the resource location.
-var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputLocationsTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4500, "Location").
+var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contract.InputLocationsTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+3000, "Location").
 	WithDependencies([]taskid.UntypedTaskReference{googlecloudcommon_contract.AutocompleteLocationTaskID.Ref()}).
 	WithDescription(
 		"The location(region) to specify the resource exist(s|ed)",
@@ -41,6 +41,6 @@ var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contr
 			return previousValues, nil
 		}
 		regions := coretask.GetTaskResult(ctx, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
-		return common.SortForAutocomplete(value, regions), nil
+		return common.SortForAutocomplete(value, regions.Values), nil
 	}).
 	Build()

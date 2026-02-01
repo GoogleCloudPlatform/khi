@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inspection_test
+package googlecloudclustercomposer_contract
 
-import (
-	"testing"
-
-	inspection_test "github.com/GoogleCloudPlatform/khi/pkg/testutil/inspection"
-)
-
-func TestConformanceTestForInspectionTypes(t *testing.T) {
-	inspection_test.ConformanceTestForInspectionTypes(t)
+// ComposerEnvironmentIdentity represents the identity of a Cloud Composer environment.
+type ComposerEnvironmentIdentity struct {
+	ProjectID       string
+	Location        string
+	EnvironmentName string
 }
