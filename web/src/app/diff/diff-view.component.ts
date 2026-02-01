@@ -172,8 +172,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
 
   public $logs = this._inspectionDataStore.allLogs;
 
-  revisionPaneHeight: BehaviorSubject<number> = new BehaviorSubject(100);
-
   diffViewSelectionMoveCommand = new Subject<DiffViewSelectionMoveCommand>();
 
   disableScrollForNext = false;
