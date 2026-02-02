@@ -36,6 +36,7 @@ $kind-style: (
   "legend-background": color.adjust($kind-base-color, $lightness: 20%),
   "font-weight": 400,
   "left-padding": 5px,
+  "legend-shrink-width": 200px,
 );
 
 $namespace-base-color: rgba(100, 100, 100, 1);
@@ -47,6 +48,7 @@ $namespace-style: (
   "legend-background": color.adjust($namespace-base-color, $lightness: 20%),
   "font-weight": 400,
   "left-padding": 5px,
+  "legend-shrink-width": 200px,
 );
 
 $name-style: (
@@ -57,6 +59,7 @@ $name-style: (
   "legend-background": transparent,
   "font-weight": 400,
   "left-padding": 10px,
+  "legend-shrink-width": 0px,
 );
 
 $subresource-style: (
@@ -67,6 +70,7 @@ $subresource-style: (
   "legend-background": transparent,
   "font-weight": 400,
   "left-padding": 10px,
+  "legend-shrink-width": 0px,
 );
 
 .container {
@@ -89,6 +93,7 @@ $subresource-style: (
     background-color: map.get($style, "legend-background");
     color: map.get($style, "background-color");
   }
+
   &.selected {
     background-color: color.mix(
       map.get($style, "background-color"),
@@ -140,7 +145,7 @@ $subresource-style: (
 
   .index {
     margin: 0px;
-    flex: 1 1 auto;
+    flex: 1 0 auto;
     text-wrap: nowrap;
     overflow: hidden;
     display: flex;
@@ -156,6 +161,7 @@ $subresource-style: (
       border-radius: 3px;
       margin-right: 5px;
       font-size: 12px;
+      user-select: none;
     }
     .sub-label {
       font-size: 12px;
@@ -165,7 +171,7 @@ $subresource-style: (
   }
   .legend {
     margin: 0 0 0 20px;
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     display: flex;
     align-items: center;
     gap: 0px 5px;

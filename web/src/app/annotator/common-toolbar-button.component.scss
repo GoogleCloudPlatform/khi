@@ -16,18 +16,17 @@
 
 @use "@angular/material" as mat;
 
-$BUTTON_SIZE: 25px;
+$BUTTON_SIZE: 20px;
 $ICON_SIZE_DIFF: 8px;
 $BUTTON_COLOR: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
 $BUTTON_HOVER_COLOR: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
 $ICON_COLOR: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
 
 .button {
-  height: 25px;
+  height: $BUTTON_SIZE;
   appearance: none;
   border: none;
   width: $BUTTON_SIZE;
-  height: $BUTTON_SIZE;
   display: flex;
   justify-content: center;
   align-items: center;
