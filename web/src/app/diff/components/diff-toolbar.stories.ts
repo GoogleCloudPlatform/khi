@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
-import { AnnotatorResolver } from '../annotator';
-import { ResourceRevisionChangePair } from 'src/app/store/timeline';
-export class ChangePairAnnotatorResolver extends AnnotatorResolver<ResourceRevisionChangePair> {}
+import { Meta, StoryObj } from '@storybook/angular';
+import { DiffToolbarComponent } from './diff-toolbar.component';
 
-export const CHANGE_PAIR_ANNOTATOR_RESOLVER =
-  new InjectionToken<ChangePairAnnotatorResolver>(
-    'CHANGE_PAIR_ANNOTATOR_RESOLVER',
-  );
+const meta: Meta<DiffToolbarComponent> = {
+  title: 'Diff/DiffToolbar',
+  component: DiffToolbarComponent,
+  tags: ['autodocs'],
+  args: {},
+};
+
+export default meta;
+type Story = StoryObj<DiffToolbarComponent>;
+
+export const Default: Story = {
+  args: {},
+};

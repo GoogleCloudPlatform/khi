@@ -15,8 +15,8 @@
  */
 
 import { Annotator } from '../annotator';
-import { ChangePairAnnotatorResolver } from '../change-pair-tool/resolver';
 import { CommonWarningMessageComponent } from '../common-warning-message.component';
+import { ChangePairAnnotatorResolver } from './resolver';
 
 export function getDefaultChangePairAnnotatorResolver(): ChangePairAnnotatorResolver {
   return new ChangePairAnnotatorResolver([

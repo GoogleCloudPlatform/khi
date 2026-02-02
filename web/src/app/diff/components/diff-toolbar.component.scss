@@ -1,0 +1,70 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "@angular/material" as mat;
+@use "../../common.scss" as common;
+
+:host {
+  display: block;
+}
+
+.container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left,
+.right {
+  display: flex;
+  align-items: center;
+}
+
+.left {
+  flex: 1 1 auto;
+}
+
+.toolbar-toggle {
+  @include mat.slide-toggle-overrides(
+    (
+      label-text-size: 10px,
+      track-height: 10px,
+    )
+  );
+
+  .managed-fields {
+    font-weight: 600px;
+    color: green;
+  }
+}
+
+.toolbar-button {
+  $button-size: 20px;
+  @include mat.icon-button-overrides(
+    (
+      state-layer-size: $button-size,
+      touch-target-size: $button-size,
+      icon-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500),
+    )
+  );
+  mat-icon {
+    @include common.adjust-mat-icon-size(14px);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
