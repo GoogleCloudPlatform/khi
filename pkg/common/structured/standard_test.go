@@ -101,7 +101,7 @@ qux: quux
 			Value:     "quuux",
 			ExpectedYAML: `foo: bar
 qux:
-    quux: quuux
+  quux: quuux
 `,
 		},
 		{
@@ -114,8 +114,8 @@ qux:
 			Value:     "quuuux",
 			ExpectedYAML: `foo: bar
 qux:
-    quux: quux
-    quuux: quuuux
+  quux: quux
+  quuux: quuuux
 `,
 		},
 	}

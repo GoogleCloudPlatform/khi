@@ -142,7 +142,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointReady,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "conditions:\n    ready: true\ntargetRef:\n    kind: Pod\n    name: my-pod\n    namespace: default\n    uid: pod-uid-1\n",
+						Body:       "conditions:\n  ready: true\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n",
 					},
 				},
 				&testchangeset.HasRevision{
@@ -152,7 +152,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointReady,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "conditions:\n    ready: true\ntargetRef:\n    kind: Pod\n    name: my-pod\n    namespace: default\n    uid: pod-uid-1\n",
+						Body:       "conditions:\n  ready: true\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n",
 					},
 				},
 			},
@@ -196,7 +196,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointTerminating,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "conditions:\n    terminating: true\ntargetRef:\n    kind: Pod\n    name: my-pod\n    namespace: default\n    uid: pod-uid-1\n",
+						Body:       "conditions:\n  terminating: true\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n",
 					},
 				},
 			},
@@ -240,7 +240,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointUnready,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "conditions:\n    ready: false\ntargetRef:\n    kind: Pod\n    name: my-pod\n    namespace: default\n    uid: pod-uid-1\n",
+						Body:       "conditions:\n  ready: false\ntargetRef:\n  kind: Pod\n  name: my-pod\n  namespace: default\n  uid: pod-uid-1\n",
 					},
 				},
 			},
@@ -248,7 +248,8 @@ endpoints:
 		{
 			name: "Pass 1: Service State (Ready)",
 			pass: 1,
-			yaml: `endpoints:
+			yaml: `
+endpoints:
 - conditions:
     ready: true
 `,
@@ -272,7 +273,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointReady,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "endpoints:\n- conditions:\n    ready: true\n",
+						Body:       "\nendpoints:\n- conditions:\n    ready: true\n",
 					},
 				},
 			},
@@ -280,7 +281,8 @@ endpoints:
 		{
 			name: "Pass 1: Service State (Terminating)",
 			pass: 1,
-			yaml: `endpoints:
+			yaml: `
+endpoints:
 - conditions:
     terminating: true
 `,
@@ -304,7 +306,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointTerminating,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "endpoints:\n- conditions:\n    terminating: true\n",
+						Body:       "\nendpoints:\n- conditions:\n    terminating: true\n",
 					},
 				},
 			},
@@ -312,7 +314,8 @@ endpoints:
 		{
 			name: "Pass 1: Service State (Unready)",
 			pass: 1,
-			yaml: `endpoints:
+			yaml: `
+endpoints:
 - conditions:
     ready: false
 `,
@@ -336,7 +339,7 @@ endpoints:
 						State:      enum.RevisionStateEndpointUnready,
 						ChangeTime: timestamp,
 						Requestor:  "user-1",
-						Body:       "endpoints:\n- conditions:\n    ready: false\n",
+						Body:       "\nendpoints:\n- conditions:\n    ready: false\n",
 					},
 				},
 			},

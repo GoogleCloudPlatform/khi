@@ -81,8 +81,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						State:     enum.RevisionStateOperationStarted,
 						Requestor: "foobar@qux.test",
 						Body: `cluster:
-    initialNodeCount: 1
-    name: test-cluster
+  initialNodeCount: 1
+  name: test-cluster
 `,
 						ChangeTime: testTime,
 					},
@@ -160,8 +160,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 						State:     enum.RevisionStateOperationStarted,
 						Requestor: "foobar@qux.test",
 						Body: `nodePool:
-    initialNodeCount: 1
-    name: test-nodepool
+  initialNodeCount: 1
+  name: test-nodepool
 `,
 						ChangeTime: testTime,
 					},
