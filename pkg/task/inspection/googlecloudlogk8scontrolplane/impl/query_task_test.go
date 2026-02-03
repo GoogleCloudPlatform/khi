@@ -40,6 +40,7 @@ func TestGenerateK8sControlPlaneQuery(t *testing.T) {
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
 -- No component name filter`,
 		},
 		{
@@ -53,6 +54,7 @@ resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
 -resource.labels.component_name:("apiserver" OR "autoscaler")`,
 		},
 		{
@@ -66,6 +68,7 @@ resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
 resource.labels.component_name:("apiserver")`,
 		},
 		{
@@ -79,6 +82,7 @@ resource.labels.component_name:("apiserver")`,
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
 -- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.`,
 		},
 		{
@@ -92,6 +96,7 @@ resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
 -- Failed to generate component name filter due to the validation error "test error"`,
 		},
 	}
