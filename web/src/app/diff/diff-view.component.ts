@@ -54,10 +54,11 @@ import { ParsePrincipalPipe } from './diff-view-pipes';
 import { TimestampFormatPipe } from '../common/timestamp-format.pipe';
 import { UnifiedDiffComponent } from 'ngx-diff';
 import { HighlightModule } from 'ngx-highlightjs';
+import { AngularSplitModule } from 'angular-split';
 
 class DiffViewScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
-    super(20, 100, 1000);
+    super(12, 100, 1000);
   }
 }
 
@@ -85,6 +86,7 @@ type DiffViewViewModel = {
     TimestampFormatPipe,
     UnifiedDiffComponent,
     HighlightModule,
+    AngularSplitModule,
   ],
   providers: [
     { provide: VIRTUAL_SCROLL_STRATEGY, useClass: DiffViewScrollStrategy },
@@ -170,8 +172,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
 
   public $logs = this._inspectionDataStore.allLogs;
 
-  revisionPaneHeight: BehaviorSubject<number> = new BehaviorSubject(100);
-
   diffViewSelectionMoveCommand = new Subject<DiffViewSelectionMoveCommand>();
 
   disableScrollForNext = false;
@@ -204,19 +204,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
         }
       });
   }
-
-  _resizeStart() {
-    window.addEventListener('mouseup', () => {
-      window.removeEventListener('mousemove', this._resizeMove);
-    });
-    window.addEventListener('mousemove', this._resizeMove);
-  }
-
-  _resizeMove = (e: MouseEvent) => {
-    const current = this.revisionPaneHeight.value;
-    this.revisionPaneHeight.next(Math.max(100, current + e.movementY));
-    this.viewPort.checkViewportSize();
-  };
 
   _selectRevision(r: ResourceRevision) {
     this.disableScrollForNext = true;

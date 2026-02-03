@@ -69,19 +69,6 @@
 
 .virtual-viewport {
   height: 100%;
-  overflow-x: hidden;
-
-  // Force showing scrollbar
-  &::-webkit-scrollbar {
-    -webkit-appearance: none;
-    width: 7px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 4px;
-    background-color: #3f51b5;
-    box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
-  }
 }
 
 .log-list-container {
@@ -100,16 +87,6 @@
   margin: 0;
   border-bottom: 2px solid rgba(0, 0, 0, 0.3);
   overflow-y: scroll;
-}
-
-.resizer {
-  height: 5px;
-  background-color: gray;
-
-  &:hover {
-    cursor: row-resize;
-    background-color: color.adjust(lightgray, $lightness: -10%);
-  }
 }
 
 khi-log-body {

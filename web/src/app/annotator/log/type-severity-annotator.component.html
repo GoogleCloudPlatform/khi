@@ -15,12 +15,18 @@
 -->
 
 <div class="container">
-  <p class="log-type">
-    <span class="label"> <mat-icon>article_shortcut</mat-icon> Type</span>
-    <span class="value" [ngClass]="logType">{{ logType }}</span>
+  <p
+    class="log-type"
+    [ngClass]="logType"
+    matTooltip="Type of the log. Usually it represents its source."
+  >
+    Type: <span class="value">{{ logType }}</span>
   </p>
-  <p class="log-severity">
-    <span class="label"> <mat-icon>warning</mat-icon> Severity</span>
-    <span class="value" [ngClass]="severity | lowercase">{{ severity }}</span>
-  </p>
+  @if (severity === "UNKNOWN") {
+    <p class="log-severity-empty"></p>
+  } @else {
+    <p class="log-severity" [ngClass]="severity | lowercase">
+      Severity: <span class="value">{{ severity }}</span>
+    </p>
+  }
 </div>

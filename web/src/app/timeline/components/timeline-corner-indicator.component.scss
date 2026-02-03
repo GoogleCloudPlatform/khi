@@ -30,6 +30,7 @@ $text-color-secondary: #666;
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+  user-select: none;
 }
 
 .scale {
