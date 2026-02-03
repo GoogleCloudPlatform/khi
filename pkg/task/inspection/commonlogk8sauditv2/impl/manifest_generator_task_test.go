@@ -67,14 +67,14 @@ metadata:
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
+  labels:
+    foo: bar
 `,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        qux: quux
+  labels:
+    qux: quux
 `,
 			},
 		},
@@ -104,15 +104,15 @@ metadata:
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
+  labels:
+    foo: bar
 `,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
-        qux: quux
+  labels:
+    foo: bar
+    qux: quux
 `,
 			},
 		},
@@ -141,14 +141,14 @@ kind: DeleteOptions
 			wantBodies: []string{`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
+  labels:
+    foo: bar
 `,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
+  labels:
+    foo: bar
 `},
 		},
 		{
@@ -178,15 +178,15 @@ kind: Status`,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
+  labels:
+    foo: bar
 `,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    labels:
-        foo: bar
-        qux: quux
+  labels:
+    foo: bar
+    qux: quux
 `,
 			},
 		},
@@ -226,16 +226,16 @@ items:
 				`apiVersion: v1
 kind: Pod
 metadata:
-    name: test-pod
-    labels:
-        foo: bar
+  name: test-pod
+  labels:
+    foo: bar
 `,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    name: test-pod
-    labels:
-        foo: qux
+  name: test-pod
+  labels:
+    foo: qux
 `},
 		},
 		{
@@ -261,9 +261,9 @@ items:
 			},
 			wantBodies: []string{ // XXXList doesn't include apiVersion or kind in its items, in the case, KHI can't create populate the apiVersion and kind fields.
 				`metadata:
-    name: test-pod
-    labels:
-        foo: qux
+  name: test-pod
+  labels:
+    foo: qux
 `,
 			},
 		},
@@ -294,16 +294,16 @@ kind: DeleteOptions`,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    name: test-pod
-    labels:
-        foo: bar
+  name: test-pod
+  labels:
+    foo: bar
 `,
 				`apiVersion: v1
 kind: Pod
 metadata:
-    name: test-pod
-    labels:
-        foo: bar
+  name: test-pod
+  labels:
+    foo: bar
 `},
 		},
 		{

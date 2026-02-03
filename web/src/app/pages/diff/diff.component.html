@@ -30,34 +30,29 @@ limitations under the License.
   @if (changePair | async; as pair) {
     <div class="diff">
       <ng-container>
-        <div class="toolbar">
-          @for (
-            annotator of changePairToolAnnotators | async;
-            track annotator
-          ) {
-            <ng-container
-              *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
-            ></ng-container>
-          }
-        </div>
+        <khi-diff-toolbar
+          [showOpenInNewTabButton]="false"
+          [(showManagedFields)]="showManagedFields"
+          (copyContent)="copy(currentContent())"
+        ></khi-diff-toolbar>
         @for (annotator of changePairAnnotators | async; track annotator) {
           <ng-container
             *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
           ></ng-container>
         }
         <div class="diff-inner">
-          @if (pair.previous && pair.previous.resourceContent) {
+          @if (pair.previous && previousContent()) {
             <ngx-side-by-side-diff
               class="ngx-diff-light-theme"
-              [before]="pair.previous.resourceContent"
-              [after]="pair.current.resourceContent"
+              [before]="previousContent()"
+              [after]="currentContent()"
             >
             </ngx-side-by-side-diff>
           } @else {
             <ngx-side-by-side-diff
               class="ngx-diff-light-theme"
               before=""
-              [after]="pair.current.resourceContent"
+              [after]="currentContent()"
             ></ngx-side-by-side-diff>
           }
         </div>

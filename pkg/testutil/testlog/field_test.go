@@ -60,7 +60,7 @@ qux: quux
 				StringField("foo.bar", "quux2"),
 			},
 			outputYaml: `foo:
-    bar: quux2
+  bar: quux2
 `,
 			expectError: false,
 		},
@@ -72,7 +72,7 @@ qux: quux
 			},
 			outputYaml: `qux: foo
 foo:
-    bar: quux2
+  bar: quux2
 `,
 			expectError: false,
 		},

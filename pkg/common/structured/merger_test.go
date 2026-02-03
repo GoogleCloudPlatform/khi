@@ -67,10 +67,10 @@ quux: 3
 - - 4
 `,
 			Expected: `foo:
-    - - 1
-      - 2
-      - 3
-    - - 4
+  - - 1
+    - 2
+    - 3
+  - - 4
 `,
 		},
 		{
@@ -98,9 +98,9 @@ quux: 3
     quux2: 42
 `,
 			Expected: `foo:
-    bar: baz2
-    qux:
-        quux2: 42
+  bar: baz2
+  qux:
+    quux2: 42
 `,
 		},
 		{
@@ -116,7 +116,7 @@ quux: 3
     $patch: delete
 `,
 			Expected: `foo:
-    bar: baz2
+  bar: baz2
 `,
 		},
 		{
@@ -129,7 +129,7 @@ quux: 3
   $patch: merge
 `,
 			Expected: `foo:
-    bar: baz2
+  bar: baz2
 `,
 		},
 		{
@@ -144,7 +144,7 @@ quux: 3
   - b
 `,
 			Expected: `foo:
-    - c
+  - c
 `,
 		},
 		{
@@ -159,7 +159,7 @@ quux: 3
   - 3
 `,
 			Expected: `foo:
-    - 2
+  - 2
 `,
 		},
 		{
@@ -174,8 +174,8 @@ quux: 3
   - grape
 `,
 			Expected: `foo:
-    apple: 1
-    grape: 3
+  apple: 1
+  grape: 3
 `,
 		},
 		{
@@ -190,8 +190,8 @@ quux: 3
   - 3
 `,
 			Expected: `foo:
-    "1": apple
-    "3": grape
+  "1": apple
+  "3": grape
 `,
 		},
 		{
@@ -207,9 +207,9 @@ quux: 3
   - a
 `,
 			Expected: `foo:
-    - c
-    - b
-    - a
+  - c
+  - b
+  - a
 `,
 		},
 		{
@@ -227,12 +227,12 @@ quux: 3
   value: 4
 `,
 			Expected: `foo:
-    - key: apple
-      value: 1
-    - key: grape
-      value: 3
-    - key: banana
-      value: 4
+  - key: apple
+    value: 1
+  - key: grape
+    value: 3
+  - key: banana
+    value: 4
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -258,12 +258,12 @@ quux: 3
   value: pinapple
 `,
 			Expected: `foo:
-    - key: 2
-      value: banana
-    - key: 3
-      value: grape
-    - key: 1
-      value: pinapple
+  - key: 2
+    value: banana
+  - key: 3
+    value: grape
+  - key: 1
+    value: pinapple
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -290,12 +290,12 @@ quux: 3
   - key: apple
 `,
 			Expected: `foo:
-    - key: grape
-      value: 3
-    - key: banana
-      value: 2
-    - key: apple
-      value: 1
+  - key: grape
+    value: 3
+  - key: banana
+    value: 2
+  - key: apple
+    value: 1
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -322,12 +322,12 @@ quux: 3
   - key: 1
 `,
 			Expected: `foo:
-    - key: 2
-      value: banana
-    - key: 3
-      value: grape
-    - key: 1
-      value: apple
+  - key: 2
+    value: banana
+  - key: 3
+    value: grape
+  - key: 1
+    value: apple
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -352,11 +352,11 @@ quux: 3
   - key: apple
 `,
 			Expected: `foo:
-    - key: grape
-    - key: banana
-      value: 2
-    - key: apple
-      value: 1
+  - key: grape
+  - key: banana
+    value: 2
+  - key: apple
+    value: 1
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -381,11 +381,11 @@ quux: 3
   - key: 3
 `,
 			Expected: `foo:
-    - key: 1
-    - key: 2
-      value: apple
-    - key: 3
-      value: banana
+  - key: 1
+  - key: 2
+    value: apple
+  - key: 3
+    value: banana
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -415,12 +415,12 @@ foo:
     value: 4
 `,
 			Expected: `foo:
-    - key: grape
-      value: 3
-    - key: banana
-      value: 4
-    - key: apple
-      value: 1
+  - key: grape
+    value: 3
+  - key: banana
+    value: 4
+  - key: apple
+    value: 1
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -446,10 +446,10 @@ foo:
   value: 4
 `,
 			Expected: `foo:
-    - key: grape
-      value: 3
-    - key: banana
-      value: 4
+  - key: grape
+    value: 3
+  - key: banana
+    value: 4
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -469,10 +469,10 @@ foo:
 			Patch: `bar: qux
 `,
 			Expected: `foo:
-    - key: apple
-      value: 1
-    - key: banana
-      value: 2
+  - key: apple
+    value: 1
+  - key: banana
+    value: 2
 bar: qux
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
@@ -570,8 +570,8 @@ bar: qux
   - key: banana
 `,
 			Expected: `foo:
-    - key: apple
-    - key: banana
+  - key: apple
+  - key: banana
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -590,8 +590,8 @@ bar: qux
   - key: 2
 `,
 			Expected: `foo:
-    - key: 1
-    - key: 2
+  - key: 1
+  - key: 2
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
@@ -610,8 +610,8 @@ bar: qux
   - banana
 `,
 			Expected: `foo:
-    - apple
-    - banana
+  - apple
+  - banana
 `,
 			ArrayMergeStrategy: &MergeConfigResolver{
 				MergeStrategies: map[string]MergeArrayStrategy{
