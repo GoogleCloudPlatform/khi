@@ -67,6 +67,7 @@ const meta: Meta<TimelineRulerComponent> = {
   ],
   argTypes: {
     viewModel: { control: 'object' },
+    timezoneShift: { control: 'number' },
   },
 };
 
@@ -74,7 +75,7 @@ export default meta;
 type Story = StoryObj<TimelineRulerComponent>;
 
 const START_TIME = Date.parse('2025-12-31T23:30:00Z');
-const DURATION = 60 * 60 * 1000; // 1 hour
+const DURATION = 60 * 60 * 24 * 1000; // 24 hour
 const VIEWPORT_WIDTH = window.innerWidth;
 
 function generateMockLogs(
@@ -211,5 +212,22 @@ export const Filtered: Story = {
     viewModel: generateViewModel(filtered.allLogs, filtered.filteredLogs),
     leftEdgeTime: START_TIME,
     pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+  },
+};
+
+export const WithTimezoneshift: Story = {
+  args: {
+    viewModel: generateViewModel(
+      generateMockLogs(100000, {
+        [Severity.SeverityUnknown]: 1,
+        [Severity.SeverityInfo]: 1,
+        [Severity.SeverityWarning]: 1,
+        [Severity.SeverityError]: 1,
+        [Severity.SeverityFatal]: 1,
+      }),
+    ),
+    leftEdgeTime: START_TIME,
+    pixelsPerMs: VIEWPORT_WIDTH / DURATION,
+    timezoneShift: 5.5,
   },
 };
