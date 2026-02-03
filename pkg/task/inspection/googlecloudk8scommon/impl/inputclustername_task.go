@@ -50,11 +50,7 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 	}).
 	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
-		clusterNames := make([]string, len(clusters.Values))
-		for i, cluster := range clusters.Values {
-			clusterNames[i] = cluster.ClusterName
-		}
-		return common.SortForAutocomplete(value, clusterNames), nil
+		return common.SortForAutocomplete(value, dedupeClusterName(clusters.Values)), nil
 	}).
 	WithHintFunc(func(ctx context.Context, value string, convertedValue any) (string, inspectionmetadata.ParameterHintType, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
@@ -71,8 +67,8 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 			}
 		}
 		availableClusterNameStr := ""
-		for _, cluster := range clusters.Values {
-			availableClusterNameStr += fmt.Sprintf("* %s\n", cluster.ClusterName)
+		for _, cluster := range dedupeClusterName(clusters.Values) {
+			availableClusterNameStr += fmt.Sprintf("* %s\n", cluster)
 		}
 		return fmt.Sprintf("Cluster '%s' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.\nAvailable cluster names:\n%s", value, availableClusterNameStr), inspectionmetadata.Warning, nil
 	}).
@@ -95,4 +91,16 @@ func hasClusterNameInAutocomplete(autocmpleteList []googlecloudk8scommon_contrac
 		}
 	}
 	return false
+}
+
+func dedupeClusterName(clusters []googlecloudk8scommon_contract.GoogleCloudClusterIdentity) []string {
+	clusterNameMap := make(map[string]bool)
+	for _, cluster := range clusters {
+		clusterNameMap[cluster.ClusterName] = true
+	}
+	result := []string{}
+	for clusterName := range clusterNameMap {
+		result = append(result, clusterName)
+	}
+	return result
 }

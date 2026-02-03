@@ -42,9 +42,6 @@ var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contr
 		return locations.Values[0], nil
 	}).
 	WithSuggestionsFunc(func(ctx context.Context, value string, previousValues []string) ([]string, error) {
-		if len(previousValues) > 0 { // no need to call twice; should be the same
-			return previousValues, nil
-		}
 		regions := coretask.GetTaskResult(ctx, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
 		return common.SortForAutocomplete(value, regions.Values), nil
 	}).

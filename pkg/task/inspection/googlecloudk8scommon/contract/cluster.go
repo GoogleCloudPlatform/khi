@@ -31,3 +31,8 @@ type GoogleCloudClusterIdentity struct {
 func (g *GoogleCloudClusterIdentity) NameWithClusterTypePrefix() string {
 	return fmt.Sprintf("%s%s", g.ClusterTypePrefix, g.ClusterName)
 }
+
+// UniqueDigest returns an unique string for the cluster identity. This can be used as the cache key depending on a cluster.
+func (g *GoogleCloudClusterIdentity) UniqueDigest() string {
+	return fmt.Sprintf("%s|%s|%s|%s", g.ProjectID, g.ClusterTypePrefix, g.ClusterName, g.Location)
+}

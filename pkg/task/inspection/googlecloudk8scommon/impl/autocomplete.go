@@ -133,8 +133,9 @@ func filterAndTrimPrefixFromClusterNames(metricsLabels []map[string]string, pref
 	return filteredClusters
 }
 
+// AutocompleteLocationForClusterTask returns the location for the given cluster name.
 var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteLocationForClusterTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), // This task must not depend on ClusterIdentity because this autocomplete will generate the source of it.
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -185,6 +186,8 @@ var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(google
 		Error:  "",
 		Hint:   "",
 	}
+
+	// Limit the location to the items which has the same cluster name.
 	for _, identity := range clusterIdentities.Values {
 		if identity.ClusterName == clusterName {
 			result.Values = append(result.Values, identity.Location)
@@ -197,27 +200,25 @@ var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(google
 }, coretask.WithSelectionPriority(500))
 
 var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	metricsType := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref())
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
-	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterName, projectID, startTime.Unix(), endTime.Unix())
+	currentDigest := fmt.Sprintf("%s-%d-%d", cluster.UniqueDigest(), startTime.Unix(), endTime.Unix())
 	if currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
-	if projectID == "" {
+	if cluster.ProjectID == "" {
 		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
 			Value: &inspectioncore_contract.AutocompleteResult[string]{
 				Values: []string{},
@@ -234,15 +235,15 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 		hintString = "The end time is more than 24 months ago. Suggested namespace names may not be complete."
 	}
 
-	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
+	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(cluster.ProjectID))
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
 	defer client.Close()
 
-	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
-	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.label.cluster_name="%s"`, metricsType, clusterName)
-	namespaces, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.namespace_name", "namespace_name")
+	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
+	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
+	namespaces, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, cluster.ProjectID, filter, startTime, endTime, "resource.labels.namespace_name", "namespace_name")
 	if err != nil {
 		errorString = err.Error()
 	}
@@ -260,24 +261,22 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 })
 
 var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompletePodNamesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	metricsType := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref())
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
-	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterName, projectID, startTime.Unix(), endTime.Unix())
-	if projectID != "" && currentDigest == prevValue.DependencyDigest {
+	currentDigest := fmt.Sprintf("%s-%d-%d", cluster.UniqueDigest(), startTime.Unix(), endTime.Unix())
+	if cluster.ProjectID != "" && currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
 
@@ -287,15 +286,15 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 		hintString = "The end time is more than 24 months ago. Suggested pod names may not be complete."
 	}
 
-	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
+	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(cluster.ProjectID))
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
 	defer client.Close()
 
-	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
-	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.label.cluster_name="%s"`, metricsType, clusterName)
-	podNames, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.pod_name", "pod_name")
+	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
+	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
+	podNames, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, cluster.ProjectID, filter, startTime, endTime, "resource.labels.pod_name", "pod_name")
 	if err != nil {
 		errorString = err.Error()
 	}
@@ -313,24 +312,22 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 })
 
 var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
-	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
 	metricsType := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref())
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
-	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterName, projectID, startTime.Unix(), endTime.Unix())
-	if projectID != "" && currentDigest == prevValue.DependencyDigest {
+	currentDigest := fmt.Sprintf("%s-%d-%d", cluster.UniqueDigest(), startTime.Unix(), endTime.Unix())
+	if cluster.ProjectID != "" && currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
 
@@ -340,15 +337,15 @@ var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sc
 		hintString = "The end time is more than 24 months ago. Suggested namespace names may not be complete."
 	}
 
-	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
+	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(cluster.ProjectID))
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
 	defer client.Close()
 
-	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
-	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_node" AND resource.label.cluster_name="%s"`, metricsType, clusterName)
-	nodes, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, projectID, filter, startTime, endTime, "resource.label.node_name", "node_name")
+	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
+	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_node" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
+	nodes, err := googlecloud.QueryDistinctStringLabelValuesFromMetrics(ctx, client, cluster.ProjectID, filter, startTime, endTime, "resource.labels.node_name", "node_name")
 	if err != nil {
 		errorString = err.Error()
 	}
