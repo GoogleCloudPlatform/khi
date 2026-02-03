@@ -15,6 +15,8 @@
 package structured
 
 import (
+	"bytes"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,7 +32,13 @@ func (y *YAMLNodeSerializer) Serialize(node Node) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return yaml.Marshal(serializable)
+	var b bytes.Buffer
+	enc := yaml.NewEncoder(&b)
+	enc.SetIndent(2)
+	if err := enc.Encode(serializable); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 var _ NodeSerializer = (*YAMLNodeSerializer)(nil)

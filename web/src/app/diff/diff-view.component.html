@@ -115,56 +115,34 @@ limitations under the License.
         } @else {
           @if (diffViewModelValue.currentRevision !== null) {
             <div class="diff">
-              <div class="toolbar">
-                @for (
-                  annotator of changePairToolAnnotators | async;
-                  track annotator
-                ) {
-                  <ng-container
-                    *ngComponentOutlet="
-                      annotator.component;
-                      inputs: annotator.inputs
-                    "
-                  ></ng-container>
-                }
-              </div>
-              @for (
-                annotator of changePairAnnotators | async;
-                track annotator
-              ) {
-                <ng-container
-                  *ngComponentOutlet="
-                    annotator.component;
-                    inputs: annotator.inputs
-                  "
-                ></ng-container>
-              }
+              <khi-diff-toolbar
+                [(showManagedFields)]="showManagedFields"
+                (openInNewTab)="openDiffInAnotherWindow()"
+                (copyContent)="copy(diffViewModelValue.currentRevisionContent)"
+              >
+              </khi-diff-toolbar>
               <div class="diff-inner">
                 @if (diffViewModelValue.previousRevision !== null) {
                   @if (
-                    diffViewModelValue.currentRevision.resourceContent !==
-                    diffViewModelValue.previousRevision.resourceContent
+                    diffViewModelValue.currentRevisionContent !==
+                    diffViewModelValue.previousRevisionContent
                   ) {
                     <ngx-unified-diff
                       class="ngx-diff-light-theme"
-                      [before]="
-                        diffViewModelValue.previousRevision.resourceContent
-                      "
-                      [after]="
-                        diffViewModelValue.currentRevision.resourceContent
-                      "
+                      [before]="diffViewModelValue.previousRevisionContent"
+                      [after]="diffViewModelValue.currentRevisionContent"
                     >
                     </ngx-unified-diff>
                   } @else {
                     <pre
                       class="log-body-container"
-                    ><code [highlight]="diffViewModelValue.currentRevision.resourceContent" language="yaml" lineNumbers></code></pre>
+                    ><code [highlight]="diffViewModelValue.currentRevisionContent" language="yaml" lineNumbers></code></pre>
                   }
                 } @else {
                   <ngx-unified-diff
                     class="ngx-diff-light-theme"
                     before=""
-                    [after]="diffViewModelValue.currentRevision.resourceContent"
+                    [after]="diffViewModelValue.currentRevisionContent"
                   ></ngx-unified-diff>
                 }
               </div>

@@ -21,6 +21,7 @@ import {
   OnInit,
   ViewChild,
   inject,
+  model,
 } from '@angular/core';
 import {
   BehaviorSubject,
@@ -41,7 +42,6 @@ import {
   VIRTUAL_SCROLL_STRATEGY,
 } from '@angular/cdk/scrolling';
 import { TIMELINE_ANNOTATOR_RESOLVER } from '../annotator/timeline/resolver';
-import { CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER } from '../annotator/change-pair-tool/resolver';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
 import {
   ResourceRevisionChangePair,
@@ -55,6 +55,11 @@ import { TimestampFormatPipe } from '../common/timestamp-format.pipe';
 import { UnifiedDiffComponent } from 'ngx-diff';
 import { HighlightModule } from 'ngx-highlightjs';
 import { AngularSplitModule } from 'angular-split';
+import { toObservable } from '@angular/core/rxjs-interop';
+import * as yaml from 'js-yaml';
+import { DiffToolbarComponent } from './components/diff-toolbar.component';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Clipboard } from '@angular/cdk/clipboard';
 
 class DiffViewScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
@@ -72,6 +77,8 @@ type DiffViewViewModel = {
   highlightedLogIndex: Set<number>;
   currentRevision: ResourceRevision | null;
   previousRevision: ResourceRevision | null;
+  currentRevisionContent: string;
+  previousRevisionContent: string;
 };
 
 @Component({
@@ -87,6 +94,7 @@ type DiffViewViewModel = {
     UnifiedDiffComponent,
     HighlightModule,
     AngularSplitModule,
+    DiffToolbarComponent,
   ],
   providers: [
     { provide: VIRTUAL_SCROLL_STRATEGY, useClass: DiffViewScrollStrategy },
@@ -95,15 +103,13 @@ type DiffViewViewModel = {
 export class DiffViewComponent implements OnInit, OnDestroy {
   private readonly _inspectionDataStore = inject(InspectionDataStoreService);
   private readonly _selectionManager = inject(SelectionManagerService);
+  private readonly _clipboard = inject(Clipboard);
+  private readonly _snackBar = inject(MatSnackBar);
 
   private readonly envInjector = inject(EnvironmentInjector);
 
   private readonly timelineAnnotatorResolver = inject(
     TIMELINE_ANNOTATOR_RESOLVER,
-  );
-
-  private readonly changePairToolAnnotatorResolver = inject(
-    CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER,
   );
 
   private readonly changePairAnnotatorResolver = inject(
@@ -137,12 +143,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     map(([prev, current]) => new ResourceRevisionChangePair(prev, current!)),
   );
 
-  changePairToolAnnotators =
-    this.changePairToolAnnotatorResolver.getResolvedAnnotators(
-      this.changePair,
-      this.envInjector,
-    );
-
   changePairAnnotators = this.changePairAnnotatorResolver.getResolvedAnnotators(
     this.changePair,
     this.envInjector,
@@ -152,20 +152,31 @@ export class DiffViewComponent implements OnInit, OnDestroy {
 
   public $highlightLogIndex = this._selectionManager.highlightLogIndices;
 
+  protected readonly showManagedFields = model(false);
+
   public diffViewViewModel = this._selectionManager.selectedRevision.pipe(
     combineLatestWith(
       this._selectionManager.previousOfSelectedRevision,
       this._selectionManager.selectedTimeline,
       this._selectionManager.selectedLog,
       this._selectionManager.highlightedLogs,
+      toObservable(this.showManagedFields),
     ),
-    map(([c, r, timeline, selectedLog, highlightedLogs]) => {
+    map(([c, r, timeline, selectedLog, highlightedLogs, showManagedFields]) => {
+      const currentContent = c?.resourceContent ?? '';
+      const previousContent = r?.resourceContent ?? '';
       return {
         currentRevision: c,
         previousRevision: r,
         selectedTimeline: timeline,
         selectedLogIndex: selectedLog?.logIndex ?? -1,
         highlightedLogIndex: new Set(highlightedLogs.map((l) => l.logIndex)),
+        currentRevisionContent: showManagedFields
+          ? currentContent
+          : this.removeManagedField(currentContent),
+        previousRevisionContent: showManagedFields
+          ? previousContent
+          : this.removeManagedField(previousContent),
       } as DiffViewViewModel;
     }),
   );
@@ -214,24 +225,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     this._selectionManager.onHighlightLog(r.logIndex);
   }
 
-  clickFloatButton() {
-    const currentTimeline = this.timeline.value;
-    if (!currentTimeline) {
-      return;
-    }
-    const kind = currentTimeline.getNameOfLayer(TimelineLayer.Kind);
-    const namespace = currentTimeline.getNameOfLayer(TimelineLayer.Namespace);
-    const name = currentTimeline.getNameOfLayer(TimelineLayer.Name);
-    const subresource =
-      currentTimeline.getNameOfLayer(TimelineLayer.Subresource) ?? '-';
-
-    window.open(
-      window.location.pathname +
-        `/diff/${kind}/${namespace}/${name}/${subresource}?logIndex=${this.currentRevision.value?.logIndex}`,
-      '_blank',
-    );
-  }
-
   private _initBindingLogSelectEvent() {
     this.$selectedLogIndex
       .pipe(takeUntil(this.destoroyed), withLatestFrom(this.timeline))
@@ -268,6 +261,50 @@ export class DiffViewComponent implements OnInit, OnDestroy {
         direction: 'prev',
       });
       keyEvent.preventDefault();
+    }
+  }
+
+  openDiffInAnotherWindow() {
+    const currentTimeline = this.timeline.value;
+    if (!currentTimeline) {
+      return;
+    }
+    const kind = currentTimeline.getNameOfLayer(TimelineLayer.Kind);
+    const namespace = currentTimeline.getNameOfLayer(TimelineLayer.Namespace);
+    const name = currentTimeline.getNameOfLayer(TimelineLayer.Name);
+    let subresource =
+      currentTimeline.getNameOfLayer(TimelineLayer.Subresource) ?? '-';
+    if (subresource == '') subresource = '-';
+    window.open(
+      window.location.pathname +
+        `/diff/${kind}/${namespace}/${name}/${subresource}?logIndex=${this.currentRevision.value?.logIndex}`,
+      '_blank',
+    );
+  }
+
+  copy(content: string) {
+    let snackbarMessage = 'Copy failed';
+    if (this._clipboard.copy(content)) {
+      snackbarMessage = 'Copied!';
+    }
+    this._snackBar.open(snackbarMessage, undefined, { duration: 1000 });
+  }
+
+  private removeManagedField(content: string): string {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const yamlData = yaml.load(content) as any;
+      if (
+        yamlData &&
+        yamlData['metadata'] &&
+        yamlData['metadata']['managedFields']
+      ) {
+        delete yamlData.metadata.managedFields;
+      }
+      return yamlData ? yaml.dump(yamlData, { lineWidth: -1 }) : content;
+    } catch (e) {
+      console.warn(`failed to process frontend yaml: ${e}`);
+      return content;
     }
   }
 }

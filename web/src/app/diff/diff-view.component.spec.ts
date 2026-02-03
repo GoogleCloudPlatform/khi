@@ -24,8 +24,6 @@ import {
 import { InMemoryWindowConnectionProvider } from '../services/frame-connection/window-connection-provider.service';
 import { TIMELINE_ANNOTATOR_RESOLVER } from '../annotator/timeline/resolver';
 import { getDefaultTimelineAnnotatorResolver } from '../annotator/timeline/default';
-import { CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER } from '../annotator/change-pair-tool/resolver';
-import { getDefaultChangePairToolAnnotatorResolver } from '../annotator/change-pair-tool/default';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
 import { getDefaultChangePairAnnotatorResolver } from '../annotator/change-pair/default';
 
@@ -44,10 +42,6 @@ describe('DiffViewComponent', () => {
         {
           provide: TIMELINE_ANNOTATOR_RESOLVER,
           useValue: getDefaultTimelineAnnotatorResolver(),
-        },
-        {
-          provide: CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER,
-          useValue: getDefaultChangePairToolAnnotatorResolver(),
         },
         {
           provide: CHANGE_PAIR_ANNOTATOR_RESOLVER,
