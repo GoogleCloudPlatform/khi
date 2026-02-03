@@ -127,6 +127,50 @@ function generateMockTimelineChartViewModel(): DemoViewModelBuilder {
       RevisionVerb.RevisionVerbCreate,
     ),
   );
+  builder.createTimeline(
+    'core/v1#pod#default#moire',
+    ParentRelationship.RelationshipChild,
+    builder.createRevision(
+      new Date(0).getTime(),
+      START_TIME + DURATION,
+      RevisionState.RevisionStateDeleted,
+      RevisionVerb.RevisionVerbCreate,
+      START_TIME,
+    ),
+  );
+  builder.createTimeline(
+    'core/v1#pod#default#moire2',
+    ParentRelationship.RelationshipChild,
+    builder.createRevision(
+      START_TIME,
+      START_TIME + DURATION,
+      RevisionState.RevisionStateDeleted,
+      RevisionVerb.RevisionVerbCreate,
+      START_TIME,
+    ),
+  );
+  builder.createTimeline(
+    'core/v1#pod#default#moire3',
+    ParentRelationship.RelationshipChild,
+    builder.createRevision(
+      new Date(0).getTime(),
+      START_TIME + DURATION,
+      RevisionState.RevisionStateInferred,
+      RevisionVerb.RevisionVerbCreate,
+      START_TIME,
+    ),
+  );
+  builder.createTimeline(
+    'core/v1#pod#default#moire4',
+    ParentRelationship.RelationshipChild,
+    builder.createRevision(
+      START_TIME,
+      START_TIME + DURATION,
+      RevisionState.RevisionStateInferred,
+      RevisionVerb.RevisionVerbCreate,
+      START_TIME,
+    ),
+  );
   return builder;
 }
 
