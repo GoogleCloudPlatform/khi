@@ -110,15 +110,20 @@ export class DiffComponent {
   }
 
   private removeManagedField(content: string): string {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const yamlData = yaml.load(content) as any;
-    if (
-      yamlData &&
-      yamlData['metadata'] &&
-      yamlData['metadata']['managedFields']
-    ) {
-      delete yamlData.metadata.managedFields;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const yamlData = yaml.load(content) as any;
+      if (
+        yamlData &&
+        yamlData['metadata'] &&
+        yamlData['metadata']['managedFields']
+      ) {
+        delete yamlData.metadata.managedFields;
+      }
+      return yamlData ? yaml.dump(yamlData, { lineWidth: -1 }) : content;
+    } catch (e) {
+      console.warn(`failed to process frontend yaml: ${e}`);
+      return content;
     }
-    return yamlData ? yaml.dump(yamlData, { lineWidth: -1 }) : content;
   }
 }
