@@ -67,14 +67,6 @@ import { LOG_TOOL_ANNOTATOR_RESOLVER } from './annotator/log-tool/resolver';
 import { getDefaultLogToolAnnotatorResolver } from './annotator/log-tool/default';
 import { TIMELINE_ANNOTATOR_RESOLVER } from './annotator/timeline/resolver';
 import { getDefaultTimelineAnnotatorResolver } from './annotator/timeline/default';
-import {
-  CHANGE_PAIR_TOOL_ANNOTATOR_FOR_FLOATING_PAGE_RESOLVER,
-  CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER,
-} from './annotator/change-pair-tool/resolver';
-import {
-  getDefaultChangePairToolAnnotatorResolver,
-  getDefaultChangePairToolAnnotatorResolverForFloatingPage,
-} from './annotator/change-pair-tool/default';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from './annotator/change-pair/resolver';
 import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/default';
 import { GraphPageDataSource } from './services/frame-connection/frames/graph-page-datasource.service';
@@ -126,14 +118,6 @@ import { KHIIconRegistrationModule } from './shared/module/icon-registration.mod
     {
       provide: TIMELINE_ANNOTATOR_RESOLVER,
       useValue: getDefaultTimelineAnnotatorResolver(),
-    },
-    {
-      provide: CHANGE_PAIR_TOOL_ANNOTATOR_RESOLVER,
-      useValue: getDefaultChangePairToolAnnotatorResolver(),
-    },
-    {
-      provide: CHANGE_PAIR_TOOL_ANNOTATOR_FOR_FLOATING_PAGE_RESOLVER,
-      useValue: getDefaultChangePairToolAnnotatorResolverForFloatingPage(),
     },
     {
       provide: CHANGE_PAIR_ANNOTATOR_RESOLVER,
