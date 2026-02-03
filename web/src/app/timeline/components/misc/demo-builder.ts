@@ -73,7 +73,11 @@ export class DemoViewModelBuilder {
     endTime: number,
     revisionState: RevisionState,
     verb: RevisionVerb,
+    logTime: number = NaN,
   ) {
+    if (Number.isNaN(logTime)) {
+      logTime = startTime;
+    }
     const logIndex = this.logIndex++;
     this.logs.push(
       new LogEntry(
@@ -81,7 +85,7 @@ export class DemoViewModelBuilder {
         '',
         LogType.LogTypeAudit,
         Severity.SeverityInfo,
-        startTime,
+        logTime,
         '',
         ToTextReferenceFromKHIFileBinary(),
         [],
