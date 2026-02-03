@@ -35,6 +35,7 @@ func GenerateK8sControlPlaneQuery(cluster googlecloudk8scommon_contract.GoogleCl
 resource.labels.project_id="%s"
 resource.labels.location="%s"
 resource.labels.cluster_name="%s"
+-sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
 %s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
 }
 

@@ -37,7 +37,9 @@ func QueryDistinctStringLabelValuesFromMetrics(ctx context.Context, client *moni
 	}
 	uniqueValues := make(map[string]struct{})
 	for _, label := range labels {
-		uniqueValues[label[resultLabelKey]] = struct{}{}
+		if val, ok := label[resultLabelKey]; ok {
+			uniqueValues[val] = struct{}{}
+		}
 	}
 	result := make([]string, 0, len(uniqueValues))
 	for v := range uniqueValues {
