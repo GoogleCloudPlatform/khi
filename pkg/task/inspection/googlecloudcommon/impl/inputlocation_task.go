@@ -45,4 +45,10 @@ var InputLocationsTask = formtask.NewTextFormTaskBuilder(googlecloudcommon_contr
 		regions := coretask.GetTaskResult(ctx, googlecloudcommon_contract.AutocompleteLocationTaskID.Ref())
 		return common.SortForAutocomplete(value, regions.Values), nil
 	}).
+	WithValidator(func(ctx context.Context, value string) (string, error) {
+		if value == "" {
+			return "location is required", nil
+		}
+		return "", nil
+	}).
 	Build()
