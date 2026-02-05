@@ -116,8 +116,8 @@ export class TimelineRulerComponent implements AfterViewInit {
     const labels: DateLabel[] = [];
     const DAY = 60 * 60 * 24 * 1000;
     const timezoneShiftInMs = this.timezoneShift() * 60 * 60 * 1000;
-    const currentTimeWithTimezoneShift = leftEdgeTime - timezoneShiftInMs;
-    let prevDayTime = Math.floor(currentTimeWithTimezoneShift / DAY) * DAY;
+    let prevDayTime =
+      Math.floor(leftEdgeTime / DAY) * DAY - DAY - timezoneShiftInMs;
     while (true) {
       const currentDayTime = prevDayTime + DAY;
       if (

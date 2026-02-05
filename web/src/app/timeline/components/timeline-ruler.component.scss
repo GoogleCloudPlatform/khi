@@ -70,14 +70,14 @@ $cursor-color: #00ff00;
 
 .date-container {
   position: absolute;
-  top: 4px;
+  top: 2px;
   left: var(--offset-x);
   z-index: 10;
   transform: translateX(calc(-50%));
   background-color: rgba(255, 255, 255, 0.7);
   box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.3);
   padding: 0px 3px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: $date-color;
   display: flex;
@@ -88,8 +88,8 @@ $cursor-color: #00ff00;
   }
   .date-label-divider {
     position: absolute;
-    top: 10px;
-    bottom: -10vh;
+    top: 0px;
+    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
     width: 2px;
