@@ -393,12 +393,15 @@ func TestContainerLogToTimelineMapperTask_Process(t *testing.T) {
 	ctx := context.Background()
 	podNamespace := "default"
 	podName := "nginx"
+	testTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		name         string
 		pass         int
 		yaml         string
 		nilBody      bool
+		eventType    commonlogk8sauditv2_contract.ChangeEventType
+		verb         enum.RevisionVerb
 		initialState *containerLogToTimelineMapperTaskState
 		wantState    *containerLogToTimelineMapperTaskState
 		asserters    []testchangeset.ChangeSetAsserter
@@ -422,11 +425,11 @@ status:
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
 					},
-					"init-container(init)": {
+					"init-container": {
 						containerName: "init-container",
 						containerType: ContainerTypeInitContainer,
 					},
-					"debug-container(ephemeral)": {
+					"debug-container": {
 						containerName: "debug-container",
 						containerType: ContainerTypeEphemeral,
 					},
@@ -444,6 +447,58 @@ status:
 				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			asserters: []testchangeset.ChangeSetAsserter{},
+		},
+		{
+			name: "Pass 1: Target Deletion",
+			pass: 1,
+			yaml: `
+status:
+  containerStatuses:
+  - name: main-container`,
+			eventType: commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion,
+			verb:      enum.RevisionVerbDelete,
+			initialState: &containerLogToTimelineMapperTaskState{
+				containerIdentities: map[string]*containerStatusIdentity{
+					"main-container": {
+						containerName: "main-container",
+						containerType: ContainerTypeContainer,
+					},
+				},
+				containerStateWalkers: map[string]*containerStateWalker{},
+			},
+			wantState: &containerLogToTimelineMapperTaskState{
+				containerIdentities: map[string]*containerStatusIdentity{
+					"main-container": {
+						containerName: "main-container",
+						containerType: ContainerTypeContainer,
+					},
+				},
+				containerStateWalkers: map[string]*containerStateWalker{
+					"main-container": {
+						containerIdentity: &containerStatusIdentity{
+							containerName: "main-container",
+							containerType: ContainerTypeContainer,
+						},
+						podNamespace:   podNamespace,
+						podName:        podName,
+						lastState:      "",
+						lastStartTime:  "",
+						lastFinishTime: "",
+					},
+				},
+			},
+			asserters: []testchangeset.ChangeSetAsserter{
+				&testchangeset.HasRevision{
+					ResourcePath: resourcepath.Container(podNamespace, podName, "main-container").Path,
+					WantRevision: history.StagingResourceRevision{
+						Verb:       enum.RevisionVerbDelete,
+						State:      enum.RevisionStateDeleted,
+						Requestor:  "user-1",
+						ChangeTime: testTime,
+						Body:       "",
+					},
+				},
+			},
 		},
 		{
 			name: "Pass 1: Process Containers",
@@ -494,7 +549,7 @@ status:
 						Verb:       enum.RevisionVerbUpdate,
 						State:      enum.RevisionStateContainerStarted,
 						Requestor:  "user-1",
-						ChangeTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						ChangeTime: testTime,
 						Body:       "name: main-container\nstate:\n  running:\n    startedAt: \"2024-01-01T00:00:00Z\"\nready: true\n",
 					},
 				},
@@ -544,7 +599,7 @@ status:
 						Verb:       enum.RevisionVerbUpdate,
 						State:      enum.RevisionStateContainerStatusNotAvailable,
 						Requestor:  "user-1",
-						ChangeTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						ChangeTime: testTime,
 						Body:       "# No state for this container is recorded yet",
 					},
 				},
@@ -587,14 +642,24 @@ status:
 				&commonlogk8sauditv2_contract.K8sAuditLogFieldSet{},
 			)
 			commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-			commonFieldSet.Timestamp = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+			commonFieldSet.Timestamp = testTime
 			k8sFieldSet := log.MustGetFieldSet(l, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
-			k8sFieldSet.K8sOperation = &model.KubernetesObjectOperation{Verb: enum.RevisionVerbUpdate}
+
+			verb := tc.verb
+			if verb == 0 {
+				verb = enum.RevisionVerbUpdate
+			}
+			k8sFieldSet.K8sOperation = &model.KubernetesObjectOperation{Verb: verb}
 			k8sFieldSet.Principal = "user-1"
+
+			eventType := tc.eventType
+			if eventType == 0 {
+				eventType = commonlogk8sauditv2_contract.ChangeEventTypeTargetModification
+			}
 
 			event := commonlogk8sauditv2_contract.ResourceChangeEvent{
 				Log:                   l,
-				EventType:             commonlogk8sauditv2_contract.ChangeEventTypeTargetModification,
+				EventType:             eventType,
 				EventTargetBodyReader: reader,
 				EventTargetResource: &commonlogk8sauditv2_contract.ResourceIdentity{
 					APIVersion: "core/v1",
