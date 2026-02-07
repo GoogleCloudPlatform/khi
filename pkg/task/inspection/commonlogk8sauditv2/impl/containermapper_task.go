@@ -146,6 +146,7 @@ func (c *containerLogToTimelineMapperTaskSetting) processSecondPass(ctx context.
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sAuditLogFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 
+	// Generate revisions for each containers from the current log.
 	for _, identity := range state.containerIdentities {
 		if _, found := state.containerStateWalkers[identity.containerName]; !found {
 			state.containerStateWalkers[identity.containerName] = &containerStateWalker{
@@ -156,9 +157,9 @@ func (c *containerLogToTimelineMapperTaskSetting) processSecondPass(ctx context.
 		}
 		walker := state.containerStateWalkers[identity.containerName]
 		walker.CheckAndRecord(currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sAuditLogFieldSet)
-	}
-	if event.EventType == commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion {
-		for _, identity := range state.containerIdentities {
+
+		// Remove container timelines if its parent resource is deleted.
+		if event.EventType == commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion {
 			rp := resourcepath.Container(event.EventTargetResource.Namespace, event.EventTargetResource.Name, identity.containerName)
 			cs.AddRevision(
 				rp,
