@@ -172,6 +172,11 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     effect(() => {
       const index = this.selectedLogIndex();
       const timeline = this.selectedTimeline();
+      const viewPort = this.viewPort();
+      if (this.disableScrollForNext) {
+        this.disableScrollForNext = false;
+        return;
+      }
       if (timeline === null) {
         return;
       }
@@ -181,7 +186,7 @@ export class DiffViewComponent implements OnInit, OnDestroy {
         revisionIndex++
       ) {
         if (timeline.revisions[revisionIndex].logIndex === index) {
-          this.viewPort()?.scrollToIndex(revisionIndex, 'smooth');
+          viewPort?.scrollToIndex(revisionIndex, 'smooth');
         }
       }
     });
