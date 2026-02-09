@@ -19,20 +19,13 @@ import {
   EnvironmentInjector,
   OnDestroy,
   OnInit,
-  ViewChild,
+  computed,
+  effect,
   inject,
   model,
+  viewChild,
 } from '@angular/core';
-import {
-  BehaviorSubject,
-  Subject,
-  combineLatest,
-  combineLatestWith,
-  filter,
-  map,
-  takeUntil,
-  withLatestFrom,
-} from 'rxjs';
+import { Subject, takeUntil } from 'rxjs';
 import { InspectionDataStoreService } from '../services/inspection-data-store.service';
 import { SelectionManagerService } from '../services/selection-manager.service';
 import {
@@ -43,11 +36,7 @@ import {
 } from '@angular/cdk/scrolling';
 import { TIMELINE_ANNOTATOR_RESOLVER } from '../annotator/timeline/resolver';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
-import {
-  ResourceRevisionChangePair,
-  ResourceTimeline,
-  TimelineLayer,
-} from '../store/timeline';
+import { ResourceRevisionChangePair, TimelineLayer } from '../store/timeline';
 import { ResourceRevision } from '../store/revision';
 import { CommonModule } from '@angular/common';
 import { ParsePrincipalPipe } from './diff-view-pipes';
@@ -55,31 +44,22 @@ import { TimestampFormatPipe } from '../common/timestamp-format.pipe';
 import { UnifiedDiffComponent } from 'ngx-diff';
 import { HighlightModule } from 'ngx-highlightjs';
 import { AngularSplitModule } from 'angular-split';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import * as yaml from 'js-yaml';
 import { DiffToolbarComponent } from './components/diff-toolbar.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { LogEntry } from '../store/log';
 
 class DiffViewScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
-    super(12, 100, 1000);
+    super(13, 100, 1000);
   }
 }
 
 interface DiffViewSelectionMoveCommand {
   direction: 'next' | 'prev';
 }
-
-type DiffViewViewModel = {
-  selectedTimeline: ResourceTimeline | null;
-  selectedLogIndex: number;
-  highlightedLogIndex: Set<number>;
-  currentRevision: ResourceRevision | null;
-  previousRevision: ResourceRevision | null;
-  currentRevisionContent: string;
-  previousRevisionContent: string;
-};
 
 @Component({
   selector: 'khi-diff-view',
@@ -116,91 +96,108 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     CHANGE_PAIR_ANNOTATOR_RESOLVER,
   );
 
+  private readonly viewPort = viewChild(CdkVirtualScrollViewport);
+
   private destoroyed = new Subject<void>();
 
   ngOnDestroy(): void {
     this.destoroyed.next();
   }
 
-  @ViewChild(CdkVirtualScrollViewport) viewPort!: CdkVirtualScrollViewport;
-
-  public timeline = new BehaviorSubject<ResourceTimeline | null>(null);
-
-  timelineAnnotators = this.timelineAnnotatorResolver.getResolvedAnnotators(
-    this.timeline,
-    this.envInjector,
-  );
-
-  public currentRevision = new BehaviorSubject<ResourceRevision | null>(null);
-
-  public $previousRevision = this._selectionManager.previousOfSelectedRevision;
-
-  changePair = combineLatest([
-    this.$previousRevision,
-    this.currentRevision,
-  ]).pipe(
-    filter(([, current]) => !!current),
-    map(([prev, current]) => new ResourceRevisionChangePair(prev, current!)),
-  );
+  changePair = computed(() => {
+    const prev = this.previousRevision();
+    const current = this.currentRevision();
+    return new ResourceRevisionChangePair(prev, current!);
+  });
 
   changePairAnnotators = this.changePairAnnotatorResolver.getResolvedAnnotators(
-    this.changePair,
+    toObservable(this.changePair),
     this.envInjector,
   );
 
-  public $selectedLogIndex = this._selectionManager.selectedLogIndex;
+  protected readonly selectedLogIndex = toSignal(
+    this._selectionManager.selectedLogIndex,
+  );
 
-  public $highlightLogIndex = this._selectionManager.highlightLogIndices;
+  protected readonly highlightedLogIndices = toSignal(
+    this._selectionManager.highlightLogIndices,
+    { initialValue: new Set<number>() },
+  );
+
+  protected readonly selectedTimeline = toSignal(
+    this._selectionManager.selectedTimeline,
+    { initialValue: null },
+  );
+
+  protected readonly currentRevision = toSignal(
+    this._selectionManager.selectedRevision,
+    { initialValue: null },
+  );
+
+  protected readonly currentRevisionContent = computed(() => {
+    const content = this.currentRevision()?.resourceContent ?? '';
+    return this.showManagedFields()
+      ? content
+      : this.removeManagedField(content);
+  });
+
+  protected readonly previousRevision = toSignal(
+    this._selectionManager.previousOfSelectedRevision,
+    { initialValue: null },
+  );
+
+  protected readonly previousRevisionContent = computed(() => {
+    const content = this.previousRevision()?.resourceContent ?? '';
+    return this.showManagedFields()
+      ? content
+      : this.removeManagedField(content);
+  });
 
   protected readonly showManagedFields = model(false);
 
-  public diffViewViewModel = this._selectionManager.selectedRevision.pipe(
-    combineLatestWith(
-      this._selectionManager.previousOfSelectedRevision,
-      this._selectionManager.selectedTimeline,
-      this._selectionManager.selectedLog,
-      this._selectionManager.highlightedLogs,
-      toObservable(this.showManagedFields),
-    ),
-    map(([c, r, timeline, selectedLog, highlightedLogs, showManagedFields]) => {
-      const currentContent = c?.resourceContent ?? '';
-      const previousContent = r?.resourceContent ?? '';
-      return {
-        currentRevision: c,
-        previousRevision: r,
-        selectedTimeline: timeline,
-        selectedLogIndex: selectedLog?.logIndex ?? -1,
-        highlightedLogIndex: new Set(highlightedLogs.map((l) => l.logIndex)),
-        currentRevisionContent: showManagedFields
-          ? currentContent
-          : this.removeManagedField(currentContent),
-        previousRevisionContent: showManagedFields
-          ? previousContent
-          : this.removeManagedField(previousContent),
-      } as DiffViewViewModel;
-    }),
+  timelineAnnotators = this.timelineAnnotatorResolver.getResolvedAnnotators(
+    toObservable(this.selectedTimeline),
+    this.envInjector,
   );
 
-  public $logs = this._inspectionDataStore.allLogs;
+  public allLogs = toSignal(this._inspectionDataStore.allLogs, {
+    initialValue: [] as LogEntry[],
+  });
 
   diffViewSelectionMoveCommand = new Subject<DiffViewSelectionMoveCommand>();
 
   disableScrollForNext = false;
 
+  constructor() {
+    effect(() => {
+      const index = this.selectedLogIndex();
+      const timeline = this.selectedTimeline();
+      const viewPort = this.viewPort();
+      if (this.disableScrollForNext) {
+        this.disableScrollForNext = false;
+        return;
+      }
+      if (timeline === null) {
+        return;
+      }
+      for (
+        let revisionIndex = 0;
+        revisionIndex < timeline.revisions.length;
+        revisionIndex++
+      ) {
+        if (timeline.revisions[revisionIndex].logIndex === index) {
+          viewPort?.scrollToIndex(revisionIndex, 'smooth');
+        }
+      }
+    });
+  }
+
   ngOnInit(): void {
-    this._initBindingLogSelectEvent();
-    this._selectionManager.selectedTimeline
-      .pipe(takeUntil(this.destoroyed))
-      .subscribe(this.timeline);
-    this._selectionManager.selectedRevision
-      .pipe(takeUntil(this.destoroyed))
-      .subscribe(this.currentRevision);
     this.diffViewSelectionMoveCommand
-      .pipe(
-        takeUntil(this.destoroyed),
-        withLatestFrom(this.currentRevision, this.timeline),
-      )
-      .subscribe(([command, revision, timeline]) => {
+      .pipe(takeUntil(this.destoroyed))
+      .subscribe((command) => {
+        const revision = this.currentRevision();
+        const timeline = this.selectedTimeline();
         if (revision === null || timeline === null) return;
         const direction = command.direction === 'prev' ? -1 : 1;
         const revIndex = timeline.revisions.indexOf(revision);
@@ -218,35 +215,14 @@ export class DiffViewComponent implements OnInit, OnDestroy {
 
   _selectRevision(r: ResourceRevision) {
     this.disableScrollForNext = true;
-    this._selectionManager.changeSelectionByRevision(this.timeline.value!, r);
+    this._selectionManager.changeSelectionByRevision(
+      this.selectedTimeline()!,
+      r,
+    );
   }
 
   _highlightRevision(r: ResourceRevision) {
     this._selectionManager.onHighlightLog(r.logIndex);
-  }
-
-  private _initBindingLogSelectEvent() {
-    this.$selectedLogIndex
-      .pipe(takeUntil(this.destoroyed), withLatestFrom(this.timeline))
-      .subscribe(([index, timeline]) => {
-        // Ignore selection event fired from a selection event on diff view
-        if (this.disableScrollForNext) {
-          this.disableScrollForNext = false;
-          return;
-        }
-        if (timeline === null) {
-          return;
-        }
-        for (
-          let revisionIndex = 0;
-          revisionIndex < timeline.revisions.length;
-          revisionIndex++
-        ) {
-          if (timeline.revisions[revisionIndex].logIndex === index) {
-            this.viewPort?.scrollToIndex(revisionIndex, 'smooth');
-          }
-        }
-      });
   }
 
   public keyDown(keyEvent: KeyboardEvent) {
@@ -265,7 +241,7 @@ export class DiffViewComponent implements OnInit, OnDestroy {
   }
 
   openDiffInAnotherWindow() {
-    const currentTimeline = this.timeline.value;
+    const currentTimeline = this.selectedTimeline();
     if (!currentTimeline) {
       return;
     }
@@ -277,7 +253,7 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     if (subresource == '') subresource = '-';
     window.open(
       window.location.pathname +
-        `/diff/${kind}/${namespace}/${name}/${subresource}?logIndex=${this.currentRevision.value?.logIndex}`,
+        `/diff/${kind}/${namespace}/${name}/${subresource}?logIndex=${this.currentRevision()?.logIndex}`,
       '_blank',
     );
   }

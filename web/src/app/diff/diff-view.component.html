@@ -15,141 +15,129 @@ limitations under the License.
 -->
 
 <div class="container">
-  @if (diffViewViewModel | async; as diffViewModelValue) {
-    <div class="diff-timeline-annotators">
-      @for (annotator of timelineAnnotators | async; track annotator) {
-        <ng-container
-          *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
-        ></ng-container>
-      }
-    </div>
-    <as-split direction="vertical">
-      <as-split-area size="50">
-        <table
-          class="revision-list-wrap"
-          tabindex="0"
-          (keydown)="keyDown($event)"
-        >
-          @if (diffViewModelValue.selectedTimeline === null) {
-            <div class="all-columns"></div>
-          } @else {
-            <cdk-virtual-scroll-viewport class="revision-list">
-              <ng-container
-                *cdkVirtualFor="
-                  let revision of diffViewModelValue.selectedTimeline!
-                    .revisions;
-                  let i = index
-                "
-                class="revision-element"
-              >
-                @if (revision.logIndex !== -1) {
-                  @if ($logs | async; as logs) {
-                    @if (logs[revision.logIndex]; as log) {
-                      <tr
-                        class="revision-row"
-                        [class.selected]="
-                          diffViewModelValue.selectedLogIndex ===
-                          revision.logIndex
-                        "
-                        [class.highlight]="
-                          diffViewModelValue.highlightedLogIndex.has(
-                            revision.logIndex
-                          )
-                        "
-                      >
-                        <td
-                          class="index"
-                          (click)="_selectRevision(revision)"
-                          (mouseover)="_highlightRevision(revision)"
-                        >
-                          {{ i }}
-                        </td>
-                        <td
-                          class="ts"
-                          (click)="_selectRevision(revision)"
-                          (mouseover)="_highlightRevision(revision)"
-                        >
-                          {{ revision.startAt | tsf | async }}
-                        </td>
-                        <td
-                          class="operation"
-                          (click)="_selectRevision(revision)"
-                          (mouseover)="_highlightRevision(revision)"
-                        >
-                          <span
-                            class="operation-span"
-                            [ngClass]="revision.verbCSSClass"
-                          >
-                            {{ revision.verbLabel }}
-                          </span>
-                        </td>
-                        @if (revision.requestor | parsePrincipal; as author) {
-                          <td
-                            class="author"
-                            (click)="_selectRevision(revision)"
-                            (mouseover)="_highlightRevision(revision)"
-                          >
-                            <span>by</span>
-                            <span
-                              class="author-type"
-                              [ngClass]="author.type | lowercase"
-                              >{{ author.type }}</span
-                            >
-                            <span class="author-name">{{ author.short }}</span>
-                          </td>
-                        }
-                      </tr>
-                    }
-                  }
-                }
-              </ng-container>
-            </cdk-virtual-scroll-viewport>
-          }
-        </table>
-      </as-split-area>
-      <as-split-area size="50">
-        @if ((timeline | async) === null) {
-          <div>
-            <p class="empty-message">No resource selected</p>
-          </div>
+  @let timeline = selectedTimeline();
+  <div class="diff-timeline-annotators">
+    @for (annotator of timelineAnnotators | async; track annotator) {
+      <ng-container
+        *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
+      ></ng-container>
+    }
+  </div>
+  <as-split direction="vertical">
+    <as-split-area size="50">
+      <table
+        class="revision-list-wrap"
+        tabindex="0"
+        (keydown)="keyDown($event)"
+      >
+        @if (timeline === null) {
+          <div class="all-columns"></div>
         } @else {
-          @if (diffViewModelValue.currentRevision !== null) {
-            <div class="diff">
-              <khi-diff-toolbar
-                [(showManagedFields)]="showManagedFields"
-                (openInNewTab)="openDiffInAnotherWindow()"
-                (copyContent)="copy(diffViewModelValue.currentRevisionContent)"
-              >
-              </khi-diff-toolbar>
-              <div class="diff-inner">
-                @if (diffViewModelValue.previousRevision !== null) {
-                  @if (
-                    diffViewModelValue.currentRevisionContent !==
-                    diffViewModelValue.previousRevisionContent
-                  ) {
-                    <ngx-unified-diff
-                      class="ngx-diff-light-theme"
-                      [before]="diffViewModelValue.previousRevisionContent"
-                      [after]="diffViewModelValue.currentRevisionContent"
+          @let li = selectedLogIndex();
+          @let hlis = highlightedLogIndices();
+          @let logs = allLogs();
+          <cdk-virtual-scroll-viewport class="revision-list">
+            <ng-container
+              *cdkVirtualFor="let revision of timeline.revisions; let i = index"
+              class="revision-element"
+            >
+              @if (revision.logIndex !== -1) {
+                @if (logs[revision.logIndex]; as log) {
+                  <tr
+                    class="revision-row"
+                    [class.selected]="li === revision.logIndex"
+                    [class.highlight]="hlis.has(revision.logIndex)"
+                  >
+                    <td
+                      class="index"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
                     >
-                    </ngx-unified-diff>
-                  } @else {
-                    <pre
-                      class="log-body-container"
-                    ><code [highlight]="diffViewModelValue.currentRevisionContent" language="yaml" lineNumbers></code></pre>
-                  }
-                } @else {
+                      {{ i }}
+                    </td>
+                    <td
+                      class="ts"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
+                    >
+                      {{ revision.startAt | tsf | async }}
+                    </td>
+                    <td
+                      class="operation"
+                      (click)="_selectRevision(revision)"
+                      (mouseover)="_highlightRevision(revision)"
+                    >
+                      <span
+                        class="operation-span"
+                        [ngClass]="revision.verbCSSClass"
+                      >
+                        {{ revision.verbLabel }}
+                      </span>
+                    </td>
+                    @if (revision.requestor | parsePrincipal; as author) {
+                      <td
+                        class="author"
+                        (click)="_selectRevision(revision)"
+                        (mouseover)="_highlightRevision(revision)"
+                      >
+                        <span>by</span>
+                        <span
+                          class="author-type"
+                          [ngClass]="author.type | lowercase"
+                          >{{ author.type }}</span
+                        >
+                        <span class="author-name">{{ author.short }}</span>
+                      </td>
+                    }
+                  </tr>
+                }
+              }
+            </ng-container>
+          </cdk-virtual-scroll-viewport>
+        }
+      </table>
+    </as-split-area>
+    <as-split-area size="50">
+      @if (timeline === null) {
+        <div>
+          <p class="empty-message">No resource selected</p>
+        </div>
+      } @else {
+        @let cr = currentRevision();
+        @if (cr !== null) {
+          <div class="diff">
+            <khi-diff-toolbar
+              [(showManagedFields)]="showManagedFields"
+              (openInNewTab)="openDiffInAnotherWindow()"
+              (copyContent)="copy(currentRevisionContent())"
+            >
+            </khi-diff-toolbar>
+            <div class="diff-inner">
+              @let pr = previousRevision();
+              @if (pr !== null) {
+                @if (currentRevisionContent() !== previousRevisionContent()) {
                   <ngx-unified-diff
                     class="ngx-diff-light-theme"
-                    before=""
-                    [after]="diffViewModelValue.currentRevisionContent"
-                  ></ngx-unified-diff>
+                    [before]="previousRevisionContent()"
+                    [after]="currentRevisionContent()"
+                  >
+                  </ngx-unified-diff>
+                } @else {
+                  <pre
+                    class="log-body-container"
+                  ><code [highlight]="currentRevisionContent()" language="yaml" lineNumbers></code></pre>
                 }
-              </div>
+              } @else {
+                <ngx-unified-diff
+                  class="ngx-diff-light-theme"
+                  before=""
+                  [after]="currentRevisionContent()"
+                ></ngx-unified-diff>
+              }
             </div>
-          }
+          </div>
         }
-      </as-split-area>
-    </as-split>
-  }
+      }
+    </as-split-area>
+  </as-split>
 </div>
