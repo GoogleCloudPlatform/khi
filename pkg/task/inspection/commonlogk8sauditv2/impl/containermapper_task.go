@@ -47,20 +47,6 @@ type containerStatusIdentity struct {
 	containerType containerType
 }
 
-// String returns the string representation of the container identity.
-func (c *containerStatusIdentity) String() string {
-	switch c.containerType {
-	case ContainerTypeContainer:
-		return c.containerName
-	case ContainerTypeInitContainer:
-		return fmt.Sprintf("%s(init)", c.containerName)
-	case ContainerTypeEphemeral:
-		return fmt.Sprintf("%s(ephemeral)", c.containerName)
-	default:
-		panic(fmt.Sprintf("unknown container type:%s", c.containerType))
-	}
-}
-
 // ContainerLogToTimelineMapperTask is the task to generate container history.
 var ContainerLogToTimelineMapperTask = commonlogk8sauditv2_contract.NewManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](&containerLogToTimelineMapperTaskSetting{})
 
@@ -128,7 +114,7 @@ func (c *containerLogToTimelineMapperTaskSetting) processFirstPass(ctx context.C
 						containerName: name,
 						containerType: containerType,
 					}
-					state.containerIdentities[identity.String()] = identity
+					state.containerIdentities[identity.containerName] = identity
 				}
 			}
 		}
@@ -148,11 +134,7 @@ func (c *containerLogToTimelineMapperTaskSetting) processSecondPass(ctx context.
 			for _, status := range statuses.Children() {
 				name, err := status.ReadString("name")
 				if err == nil {
-					identity := containerStatusIdentity{
-						containerName: name,
-						containerType: containerType,
-					}
-					currentStateReaders[identity.String()] = &status
+					currentStateReaders[name] = &status
 				}
 			}
 		}
@@ -164,16 +146,32 @@ func (c *containerLogToTimelineMapperTaskSetting) processSecondPass(ctx context.
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sAuditLogFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
 
+	// Generate revisions for each containers from the current log.
 	for _, identity := range state.containerIdentities {
-		if _, found := state.containerStateWalkers[identity.String()]; !found {
-			state.containerStateWalkers[identity.String()] = &containerStateWalker{
+		if _, found := state.containerStateWalkers[identity.containerName]; !found {
+			state.containerStateWalkers[identity.containerName] = &containerStateWalker{
 				containerIdentity: identity,
 				podNamespace:      event.EventTargetResource.Namespace,
 				podName:           event.EventTargetResource.Name,
 			}
 		}
-		walker := state.containerStateWalkers[identity.String()]
-		walker.CheckAndRecord(currentStateReaders[identity.String()], cs, commonLogFieldSet, k8sAuditLogFieldSet)
+		walker := state.containerStateWalkers[identity.containerName]
+		walker.CheckAndRecord(currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sAuditLogFieldSet)
+
+		// Remove container timelines if its parent resource is deleted.
+		if event.EventType == commonlogk8sauditv2_contract.ChangeEventTypeTargetDeletion {
+			rp := resourcepath.Container(event.EventTargetResource.Namespace, event.EventTargetResource.Name, identity.containerName)
+			cs.AddRevision(
+				rp,
+				&history.StagingResourceRevision{
+					Requestor:  k8sAuditLogFieldSet.Principal,
+					Verb:       k8sAuditLogFieldSet.K8sOperation.Verb,
+					Body:       "",
+					ChangeTime: commonLogFieldSet.Timestamp,
+					State:      enum.RevisionStateDeleted,
+				},
+			)
+		}
 	}
 	return state, nil
 }
@@ -216,7 +214,7 @@ type containerStateWalker struct {
 
 // CheckAndRecord compares the current container state with the previous state and records a revision if there is a significant change.
 func (w *containerStateWalker) CheckAndRecord(stateReader *structured.NodeReader, cs *history.ChangeSet, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8sauditv2_contract.K8sAuditLogFieldSet) {
-	rp := resourcepath.Container(w.podNamespace, w.podName, w.containerIdentity.String())
+	rp := resourcepath.Container(w.podNamespace, w.podName, w.containerIdentity.containerName)
 	if stateReader == nil {
 		if w.lastState != "no state" {
 			cs.AddRevision(rp, &history.StagingResourceRevision{
