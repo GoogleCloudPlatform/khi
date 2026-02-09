@@ -46,7 +46,7 @@ import { AngularSplitModule } from 'angular-split';
 
 class LogViewScrollingStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
-    super(12, 500, 1000);
+    super(14.5, 500, 1000);
   }
 }
 

@@ -333,10 +333,12 @@ export class SelectionManagerService {
           if (!log) return;
           // Find if the new log selection isn't inside of the timeline selection
           if (
-            !timelines.find(
+            timelines.find(
               (timeline) =>
-                timeline.events.find((e) => e.logIndex === log.logIndex) ||
-                timeline.revisions.find((r) => r.logIndex === log.logIndex),
+                (timeline.events.find((e) => e.logIndex === log.logIndex) ||
+                  timeline.revisions.find(
+                    (r) => r.logIndex === log.logIndex,
+                  )) !== undefined,
             )
           ) {
             for (const timeline of log.relatedTimelines) {
