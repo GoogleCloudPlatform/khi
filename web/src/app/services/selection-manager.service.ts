@@ -332,37 +332,36 @@ export class SelectionManagerService {
         .subscribe(([log, timelines]) => {
           if (!log) return;
           // Find if the new log selection isn't inside of the timeline selection
-          if (
-            !timelines.find(
-              (timeline) =>
-                timeline.events.find((e) => e.logIndex === log.logIndex) ||
-                timeline.revisions.find((r) => r.logIndex === log.logIndex),
-            )
-          ) {
-            for (const timeline of log.relatedTimelines) {
-              // Pick a related timeline of this log
-              const relatedRevision = timeline.revisions.find(
-                (r) => r.logIndex === log.logIndex,
-              );
-              if (relatedRevision) {
-                this.changeSelectionByRevisionInternal(
-                  timeline,
-                  relatedRevision,
-                  true,
-                );
-              }
-              const relatedEvent = timeline.events.find(
-                (r) => r.logIndex === log.logIndex,
-              );
-              if (relatedEvent) {
-                this.changeSelectionByEventInternal(
-                  timeline,
-                  relatedEvent,
-                  true,
-                );
-              }
-              return;
-            }
+          const targetTimeline = timelines.find(
+            (timeline) =>
+              (timeline.events.find((e) => e.logIndex === log.logIndex) ||
+                timeline.revisions.find((r) => r.logIndex === log.logIndex)) !==
+              undefined,
+          );
+          if (!targetTimeline) {
+            return;
+          }
+          const relatedRevision = targetTimeline.revisions.find(
+            (r) => r.logIndex === log.logIndex,
+          );
+          if (relatedRevision) {
+            this.changeSelectionByRevisionInternal(
+              targetTimeline,
+              relatedRevision,
+              true,
+            );
+            return;
+          }
+          const relatedEvent = targetTimeline.events.find(
+            (r) => r.logIndex === log.logIndex,
+          );
+          if (relatedEvent) {
+            this.changeSelectionByEventInternal(
+              targetTimeline,
+              relatedEvent,
+              true,
+            );
+            return;
           }
         });
     }
