@@ -20,7 +20,6 @@ import {
   OnDestroy,
   OnInit,
   inject,
-  viewChild,
 } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import {
@@ -49,6 +48,7 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { RegexInputComponent } from './regex-input.component';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 /**
  * ToolbarPopupStatus represents which popup of the toolbar is open.
@@ -75,14 +75,12 @@ type ToolbarPopupStatus =
 })
 export class ToolbarComponent implements OnInit, OnDestroy {
   readonly viewStateService = inject(ViewStateService);
+  private readonly snackbar = inject(MatSnackBar);
   private readonly selectionManager = inject(SelectionManagerService);
   private readonly timelineFilter = inject<TimelineFilter>(
     DEFAULT_TIMELINE_FILTER,
   );
   private readonly inspectionDataStore = inject(InspectionDataStoreService);
-
-  private readonly logFilterInput =
-    viewChild<RegexInputComponent>('logFilterInput');
 
   private destoroyed = new Subject<void>();
 
@@ -211,8 +209,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   @HostListener('window:keydown', ['$event'])
   protected interceptBrowserSearch(event: KeyboardEvent) {
     if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
-      event.preventDefault();
-      this.logFilterInput()?.focus();
+      this.snackbar.open(
+        'In-browser search may not work on KHI because elements outside the visible area are not rendered. Please use the search text field on the toolbar instead.',
+        'OK',
+      );
     }
   }
 }
