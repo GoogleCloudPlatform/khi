@@ -73,7 +73,7 @@ var IntGeneratorTask = task.NewTask(IntGeneratorTaskID,[]taskid.UntypedTaskRefer
     return 1, nil
 })
 
-var DoubleIntTask = task.NewTask(DoubleIntTaskID,[]taskid.UntypedTaskReference{IntGeneratorTaskID.Ref()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error){
+var DoubleIntTask = task.NewTask(DoubleIntTaskID,[]taskid.UntypedTaskReference{IntGeneratorTaskID.Ref()}, func(ctx context.Context) (int, error){
     intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
     return intGeneratorResult * 2, nil
 })
