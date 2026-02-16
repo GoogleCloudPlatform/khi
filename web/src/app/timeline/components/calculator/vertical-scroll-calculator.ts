@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { bisectRight } from 'src/app/common/misc-util';
+import { bisectLeft, bisectRight } from 'src/app/common/misc-util';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { TimelineChartStyle } from '../style-model';
 
@@ -139,8 +139,8 @@ export class VerticalScrollCalculator {
     const stickyHeaderSize =
       this.style.heightsByLayer[TimelineLayer.Kind] +
       this.style.heightsByLayer[TimelineLayer.Namespace];
-    let i = bisectRight(this.accumulatedHeights, scrollY + stickyHeaderSize); // Starting from the timeline that is at least visible behind the sticky header
-    i = Math.min(i, this.timelines.length - 1);
+    let i = bisectLeft(this.accumulatedHeights, scrollY + stickyHeaderSize); // Starting from the timeline that is at least visible behind the sticky header
+    i = Math.min(Math.max(0, i - 1), this.timelines.length - 1);
     let namespaceTimeline: ResourceTimeline | null = null;
     for (; i >= 0; i--) {
       if (this.timelines[i].layer === TimelineLayer.Namespace) {
