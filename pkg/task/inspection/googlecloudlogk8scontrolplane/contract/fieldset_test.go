@@ -306,6 +306,14 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 			},
 		},
 		{
+			desc:  "with kind and cluster-scoped key and longer name",
+			input: `"attacherDetacher.DetachVolume started" logger="persistentvolume-attach-detach-controller" node="node-foo" volumeName="kubernetes.io/csi/pd.csi.storage.gke.io^projects/UNSPECIFIED/zones/us-central1-a/disks/pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d"`,
+			want: []resourcepath.ResourcePath{
+				resourcepath.NameLayerGeneralItem("core/v1", "node", "cluster-scope", "node-foo"),
+				resourcepath.NameLayerGeneralItem("core/v1", "persistentvolume", "cluster-scope", "pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d"),
+			},
+		},
+		{
 			desc:  "without resource",
 			input: `"Finished syncing"`,
 			want:  nil,
@@ -326,6 +334,12 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 						KindName:     "pod",
 						KLogField:    "pod",
 						IsNamespaced: true,
+					},
+					{
+						APIVersion:   "core/v1",
+						KindName:     "persistentvolume",
+						KLogField:    "volumeName",
+						IsNamespaced: false,
 					},
 				},
 			}

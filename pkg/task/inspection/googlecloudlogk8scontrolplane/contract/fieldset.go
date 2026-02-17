@@ -280,7 +280,15 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 			}
 			result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, splittedField[0], splittedField[1]))
 		} else {
-			result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, "cluster-scope", field))
+			resourceName := field
+
+			// Some resource may have longer name with slash e.g. PV volumeName="kubernetes.io/csi/pd.csi.storage.gke.io^projects/UNSPECIFIED/zones/us-central1-a/disks/pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d"
+			lastSlashIndex := strings.LastIndex(field, "/")
+			if lastSlashIndex != -1 {
+				resourceName = field[lastSlashIndex+1:]
+			}
+
+			result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, "cluster-scope", resourceName))
 		}
 	}
 	return result
