@@ -17,6 +17,7 @@
 import {
   AfterViewInit,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -165,7 +166,14 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Flag to indicate that the timeline is ready to render.
    */
-  protected readonly readyToRender = signal(false);
+  private readonly readyToRender = signal(false);
+
+  /**
+   * Flag to indicate that the loading screen should be shown.
+   */
+  protected readonly showLoadingScreen = computed(() => {
+    return !this.readyToRender() || this.forceNotReadyToRender();
+  });
 
   private backgroundRenderer!: TimelineBackgroundRenderer;
 

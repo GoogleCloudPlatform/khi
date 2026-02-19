@@ -22,7 +22,7 @@
 >
   <canvas class="background2DCanvas" #background2DCanvas></canvas>
   <canvas class="glCanvas" #glCanvas></canvas>
-  @if (!readyToRender() || forceNotReadyToRender()) {
+  @if (showLoadingScreen()) {
     <div class="overlay">
       <mat-progress-spinner mode="indeterminate"></mat-progress-spinner>
       <p class="overlay-label">Initializing timeline renderer...</p>
