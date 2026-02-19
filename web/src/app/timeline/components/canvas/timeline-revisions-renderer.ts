@@ -15,7 +15,7 @@
  */
 
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
-import { WebGLUtil } from './glutil';
+import { SharedTmpBuffer, WebGLUtil } from './glutil';
 import {
   revisionStatecolors,
   RevisionStateMetadata,
@@ -55,8 +55,10 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL2 rendering context.
    */
-  setup(gl: WebGL2RenderingContext): void {
-    const timeVBOSource = new Uint32Array(this.timeline.revisions.length * 4);
+  setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer): void {
+    const timeVBOSource = tmpBuffer.uint32Array(
+      this.timeline.revisions.length * 4,
+    );
     for (let i = 0; i < this.timeline.revisions.length; i++) {
       const revision = this.timeline.revisions[i];
       const start = RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(
@@ -74,7 +76,7 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.bufferData(gl.ARRAY_BUFFER, timeVBOSource, gl.STATIC_DRAW);
 
-    const intStaticMetaVBOSource = new Uint32Array(
+    const intStaticMetaVBOSource = tmpBuffer.uint32Array(
       this.timeline.revisions.length * 4,
     );
     for (let i = 0; i < this.timeline.revisions.length; i++) {
@@ -424,7 +426,7 @@ export class TimelineRevisionsSharedResources {
    *
    * @param gl The WebGL2 rendering context.
    */
-  beforeRender(gl: WebGL2RenderingContext) {
+  beforeRender(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
     if (this.styleUpdated) {
       this.revisionLayerStylesUBOs = {
         [TimelineLayer.APIVersion]: this.createStyleUBOForLayer(
@@ -456,7 +458,7 @@ export class TimelineRevisionsSharedResources {
           'Too many revision states: Consider increassing the constant variables defined in the shader.',
         );
       }
-      const uboSource = new Float32Array(
+      const uboSource = tmpBuffer.float32Array(
         TimelineRevisionsSharedResources.MAX_REVISION_STATE_TYPE * 12,
       );
       let baseOffset = 0;

@@ -16,7 +16,7 @@
 
 import { RendererConvertUtil } from './convertutil';
 import { WebGLContextLostException } from './glcontextmanager';
-import { BMFontChar, BMFontConfig, WebGLUtil } from './glutil';
+import { BMFontChar, BMFontConfig, SharedTmpBuffer, WebGLUtil } from './glutil';
 
 /**
  * Represents the state required by shared timeline rendering resources.
@@ -77,7 +77,7 @@ export class TimelineRendererSharedResource {
    *
    * @param gl The WebGL2 rendering context.
    */
-  async setup(gl: WebGL2RenderingContext) {
+  async setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
     this.msdfSampler = gl.createSampler();
     if (this.msdfSampler === null) {
       throw new WebGLContextLostException('Failed to create sampler');
@@ -114,10 +114,7 @@ export class TimelineRendererSharedResource {
       numberChars[+char.char] = char;
     }
 
-    const uboNumberMSDFParamBufferSource = new ArrayBuffer(
-      4 * 8 * this.MAX_NUMBER_FONTS,
-    );
-    const dv = new DataView(uboNumberMSDFParamBufferSource);
+    const dv = tmpBuffer.dataView(4 * 8 * this.MAX_NUMBER_FONTS);
     for (let i = 0; i < this.MAX_NUMBER_FONTS; i++) {
       const char = numberChars[i];
       dv.setFloat32(
@@ -159,11 +156,7 @@ export class TimelineRendererSharedResource {
     }
     this.uboNumberMSDFParamBuffer = gl.createBuffer();
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboNumberMSDFParamBuffer);
-    gl.bufferData(
-      gl.UNIFORM_BUFFER,
-      uboNumberMSDFParamBufferSource,
-      gl.STATIC_DRAW,
-    );
+    gl.bufferData(gl.UNIFORM_BUFFER, dv.buffer, gl.STATIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
     this.iconCodepointMap = await fetch('assets/zzz-icon-codepoints.json').then(
       (res) => res.json(),

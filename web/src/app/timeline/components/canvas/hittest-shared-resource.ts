@@ -53,6 +53,8 @@ export class TimelineHitTestSharedResource {
   private height = 1;
   private sizeUpdated = false;
 
+  private clearBuffer = new Uint32Array([0, 0, 0, 0]);
+
   /**
    * Initializes the framebuffer and texture resources for hit testing.
    * @param gl The WebGL2 rendering context.
@@ -138,7 +140,7 @@ export class TimelineHitTestSharedResource {
       this.sizeUpdated = false;
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.hittestFBO);
-    gl.clearBufferuiv(gl.COLOR, 0, new Uint32Array([0, 0, 0, 0]));
+    gl.clearBufferuiv(gl.COLOR, 0, this.clearBuffer);
     gl.clear(gl.DEPTH_BUFFER_BIT);
   }
 

@@ -20,7 +20,7 @@ import {
   severities,
   severityColors,
 } from 'src/app/zzz-generated';
-import { WebGLUtil } from './glutil';
+import { SharedTmpBuffer, WebGLUtil } from './glutil';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { IDisposableRenderer, TimelineRect } from './timeline-renderer';
@@ -52,8 +52,10 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL2 rendering context.
    */
-  setup(gl: WebGL2RenderingContext) {
-    const timeVBOSource = new Uint32Array(this.timeline.events.length * 2);
+  setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
+    const timeVBOSource = tmpBuffer.uint32Array(
+      this.timeline.events.length * 2,
+    );
     for (let i = 0; i < this.timeline.events.length; i++) {
       const event = this.timeline.events[i];
       const start = RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(
@@ -69,7 +71,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.bufferData(gl.ARRAY_BUFFER, timeVBOSource, gl.STATIC_DRAW);
 
-    const intStaticMetaVBOSource = new Uint32Array(
+    const intStaticMetaVBOSource = tmpBuffer.uint32Array(
       this.timeline.events.length * 4,
     );
     for (let i = 0; i < this.timeline.events.length; i++) {
@@ -320,7 +322,7 @@ export class TimelineEventsSharedResources {
    *
    * @param gl The WebGL2 rendering context.
    */
-  async setup(gl: WebGL2RenderingContext) {
+  async setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
     this.eventsColorProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
       'assets/event-v2.vertex.glsl',
@@ -388,7 +390,7 @@ export class TimelineEventsSharedResources {
       );
     }
 
-    const uboSource = new Float32Array(
+    const uboSource = tmpBuffer.float32Array(
       TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT * 4 +
         TimelineEventsSharedResources.MAX_SEVERITY_COUNT * 4,
     );

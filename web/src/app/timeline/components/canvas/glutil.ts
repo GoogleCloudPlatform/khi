@@ -204,3 +204,70 @@ export class WebGLUtil {
     return result.text();
   }
 }
+
+/**
+ * A buffer that can be used by multiple WebGL calls without reallocating memory.
+ * It grows as needed, but never shrinks.
+ */
+export class SharedTmpBuffer {
+  private bufferSource: ArrayBuffer;
+
+  /**
+   * Creates a new SharedTmpBuffer.
+   *
+   * @param defaultSize The initial size of the buffer in bytes. Default is 1MB.
+   */
+  constructor(defaultSize: number = 1024 * 1024) {
+    // 1MB by default
+    this.bufferSource = new ArrayBuffer(defaultSize);
+  }
+
+  /**
+   * Returns a Float32Array view of the buffer with the specified number of elements.
+   * Grows the buffer if necessary.
+   *
+   * @param size The number of elements in the array.
+   * @returns A Float32Array view of the buffer.
+   */
+  float32Array(size: number): Float32Array {
+    this.ensureSize(size * Float32Array.BYTES_PER_ELEMENT);
+    return new Float32Array(this.bufferSource, 0, size);
+  }
+
+  /**
+   * Returns a Uint32Array view of the buffer with the specified number of elements.
+   * Grows the buffer if necessary.
+   *
+   * @param size The number of elements in the array.
+   * @returns A Uint32Array view of the buffer.
+   */
+  uint32Array(size: number): Uint32Array {
+    this.ensureSize(size * Uint32Array.BYTES_PER_ELEMENT);
+    return new Uint32Array(this.bufferSource, 0, size);
+  }
+
+  /**
+   * Returns a DataView of the buffer with the specified size in bytes.
+   * Grows the buffer if necessary.
+   *
+   * @param sizeInBytes The size of the view in bytes.
+   * @returns A DataView of the buffer.
+   */
+  dataView(sizeInBytes: number): DataView {
+    this.ensureSize(sizeInBytes);
+    return new DataView(this.bufferSource, 0, sizeInBytes);
+  }
+
+  private ensureSize(sizeInBytes: number): void {
+    if (this.bufferSource.byteLength < sizeInBytes) {
+      try {
+        this.bufferSource = new ArrayBuffer(sizeInBytes);
+      } catch (e) {
+        console.error(e);
+        alert(
+          `Failed to allocate buffer of size ${sizeInBytes} bytes. Please reload the page. If the error persists, please report this issue to the developer.`,
+        );
+      }
+    }
+  }
+}

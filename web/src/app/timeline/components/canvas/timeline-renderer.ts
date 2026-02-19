@@ -33,6 +33,7 @@ import {
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
 import { TimelineChartItemHighlight } from '../interaction-model';
 import { TimelineChartStyle } from '../style-model';
+import { SharedTmpBuffer } from './glutil';
 
 /**
  * Interface for renderers that can be disposed.
@@ -75,6 +76,8 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
 
   chartViewModel: TimelineChartViewModel | null = null;
   chartStyle: TimelineChartStyle | null = null;
+
+  private tmpBuffer = new SharedTmpBuffer();
 
   /**
    * Resources shared across all timeline renderers (view state, common textures).
@@ -140,9 +143,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param gl The WebGL2 rendering context.
    */
   async setup(gl: WebGL2RenderingContext): Promise<void> {
-    await this.timelineSharedResource.setup(gl);
+    await this.timelineSharedResource.setup(gl, this.tmpBuffer);
     await this.revisionSharedResource.setup(gl);
-    await this.eventSharedResource.setup(gl);
+    await this.eventSharedResource.setup(gl, this.tmpBuffer);
     this.hittestSharedResource.setup(gl);
     this.revisionRenderers = new LRUCache(
       this.MAX_RENDERER_ROW_COUNT,
@@ -173,7 +176,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       pixelsPerMs: args.pixelsPerMs,
       leftEdgeTime: args.leftEdgeTime,
     });
-    this.revisionSharedResource.beforeRender(gl);
+    this.revisionSharedResource.beforeRender(gl, this.tmpBuffer);
     this.eventSharedResource.beforeRender(gl);
     if (this.highlightUpdated) {
       this.iterateRevisionRenderers(gl, (r) =>
@@ -378,7 +381,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.revisionSharedResource,
       this.timelineSharedResource,
     );
-    renderer.setup(gl);
+    renderer.setup(gl, this.tmpBuffer);
     this.revisionRenderers.put(t.resourcePath, renderer);
     return renderer;
   }
@@ -403,7 +406,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.eventSharedResource,
       this.timelineSharedResource,
     );
-    renderer.setup(gl);
+    renderer.setup(gl, this.tmpBuffer);
     this.eventRenderers.put(t.resourcePath, renderer);
     return renderer;
   }
