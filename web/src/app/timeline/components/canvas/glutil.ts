@@ -261,7 +261,8 @@ export class SharedTmpBuffer {
   private ensureSize(sizeInBytes: number): void {
     if (this.bufferSource.byteLength < sizeInBytes) {
       try {
-        this.bufferSource = new ArrayBuffer(sizeInBytes);
+        const newSize = Math.max(sizeInBytes, this.bufferSource.byteLength * 2);
+        this.bufferSource = new ArrayBuffer(newSize);
       } catch (e) {
         console.error(e);
         alert(

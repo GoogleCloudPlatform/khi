@@ -156,7 +156,7 @@ export class TimelineRendererSharedResource {
     }
     this.uboNumberMSDFParamBuffer = gl.createBuffer();
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboNumberMSDFParamBuffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, dv.buffer, gl.STATIC_DRAW);
+    gl.bufferData(gl.UNIFORM_BUFFER, dv, gl.STATIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
     this.iconCodepointMap = await fetch('assets/zzz-icon-codepoints.json').then(
       (res) => res.json(),
