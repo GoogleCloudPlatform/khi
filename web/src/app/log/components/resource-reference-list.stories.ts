@@ -29,8 +29,8 @@ export default {
         selectedTimeline: of({
           resourcePath: 'v1#ConfigMap#default#my-config',
         }),
-        onSelectTimeline: () => {},
-        onHighlightTimeline: () => {},
+        onSelectTimeline: () => { },
+        onHighlightTimeline: () => { },
       },
     },
   ],
