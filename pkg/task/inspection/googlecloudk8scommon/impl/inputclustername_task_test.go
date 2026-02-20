@@ -109,8 +109,8 @@ func TestClusterNameInput(t *testing.T) {
 					Description: wantDescription,
 					Hint: `Cluster 'nonexisting-cluster' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
 Available cluster names:
-* foo-cluster
 * bar-cluster
+* foo-cluster
 `,
 					HintType: inspectionmetadata.Warning,
 				},
