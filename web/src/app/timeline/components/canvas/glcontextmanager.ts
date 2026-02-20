@@ -70,6 +70,7 @@ export class GLContextManager<RenderArgs> {
   constructor(
     private canvas: HTMLCanvasElement,
     private renderer: GLRenderer<RenderArgs>,
+    private readonly onReadyToRenderChange: (readyToRender: boolean) => void,
   ) {
     let restoringContext: WebGL2RenderingContext | null = null;
     this.canvas.addEventListener(
@@ -79,6 +80,7 @@ export class GLContextManager<RenderArgs> {
         restoringContext = this.gl;
         console.warn('WebGL2 context lost! Attempting to restore...');
         this.gl = null;
+        this.onReadyToRenderChange(false);
       },
       { signal: this.abortController.signal },
     );
@@ -135,6 +137,7 @@ export class GLContextManager<RenderArgs> {
   private async trySetup(gl: WebGL2RenderingContext) {
     try {
       await this.renderer.setup(gl);
+      this.onReadyToRenderChange(true);
     } catch (e) {
       if (e instanceof WebGLContextLostException) {
         console.warn(

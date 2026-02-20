@@ -211,3 +211,9 @@ type Story = StoryObj<TimelineChartComponent>;
 export const Default: Story = {
   args: {},
 };
+
+export const NotReady: Story = {
+  args: {
+    forceNotReadyToRender: true,
+  },
+};

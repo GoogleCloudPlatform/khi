@@ -32,7 +32,7 @@ describe('GLContextManager', () => {
       'render',
       'resize',
     ]);
-    manager = new GLContextManager(canvas, renderer);
+    manager = new GLContextManager(canvas, renderer, () => {});
   });
 
   afterEach(() => {

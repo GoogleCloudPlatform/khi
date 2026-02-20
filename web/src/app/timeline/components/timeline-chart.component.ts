@@ -17,6 +17,7 @@
 import {
   AfterViewInit,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -48,6 +49,7 @@ import {
   TimelineChartStyle,
   generateDefaultChartStyle,
 } from './style-model';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 /**
  * Represents a mouse event that occurred on the timeline chart, including hit test results.
@@ -72,7 +74,7 @@ export interface TimelineChartMouseEvent extends HitTestResult {
   selector: 'khi-timeline-chart',
   templateUrl: './timeline-chart.component.html',
   styleUrls: ['./timeline-chart.component.scss'],
-  imports: [],
+  imports: [MatProgressSpinner],
 })
 export class TimelineChartComponent implements AfterViewInit {
   private readonly container =
@@ -155,6 +157,24 @@ export class TimelineChartComponent implements AfterViewInit {
 
   private contextManager!: GLContextManager<TimelineRendererRenderArgs>;
 
+  /**
+   * Flag to force the timeline to be not ready to render.
+   * This is used for testing on Storybook.
+   */
+  readonly forceNotReadyToRender = input(false);
+
+  /**
+   * Flag to indicate that the timeline is ready to render.
+   */
+  private readonly readyToRender = signal(false);
+
+  /**
+   * Flag to indicate that the loading screen should be shown.
+   */
+  protected readonly showLoadingScreen = computed(() => {
+    return !this.readyToRender() || this.forceNotReadyToRender();
+  });
+
   private backgroundRenderer!: TimelineBackgroundRenderer;
 
   constructor() {
@@ -173,6 +193,9 @@ export class TimelineChartComponent implements AfterViewInit {
     this.contextManager = new GLContextManager<TimelineRendererRenderArgs>(
       this.glCanvas()!.nativeElement,
       this.timelineRenderer,
+      (readyToRender: boolean) => {
+        this.readyToRender.set(readyToRender);
+      },
     );
     await this.contextManager.setup();
     this.destroyRef.onDestroy(() => {
