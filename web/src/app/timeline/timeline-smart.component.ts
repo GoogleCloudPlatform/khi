@@ -106,6 +106,18 @@ export class TimelineSmartComponent {
   });
 
   /**
+   * The unique ID of the inspection data.
+   * This is used to detect when the inspection data has changed to refresh timeline renderer cache.
+   */
+  protected readonly inspectionDataUniqueID = computed(() => {
+    const store = this.inspectionData();
+    if (!store) {
+      return '';
+    }
+    return store.uniqueID;
+  });
+
+  /**
    * The current time at the left edge of the viewport.
    */
   protected readonly viewportLeftTimeMs = toSignal(
