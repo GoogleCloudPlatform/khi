@@ -17,6 +17,7 @@
 <!--This is smart componnt injecting data from services into the dumb component-->
 <!--No other components or elements should be here except a single timeline-frame component-->
 <khi-timeline-frame
+  [inspectionDataUniqueID]="inspectionDataUniqueID()"
   [timelines]="filteredTimelines()"
   [timezoneShiftHours]="timezoneShiftHours()"
   [pixelsPerMs]="pixelsPerMs()"

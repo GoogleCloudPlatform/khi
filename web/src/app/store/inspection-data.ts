@@ -37,6 +37,11 @@ export class TimeRange {
  */
 export class InspectionData {
   /**
+   * A unique ID for this inspection data generated when the data is loaded.
+   */
+  public readonly uniqueID = Math.random().toString(36).substring(2, 15);
+
+  /**
    * Set of namespace names included in this inspection data.
    */
   public readonly namespaces: Set<string>;
