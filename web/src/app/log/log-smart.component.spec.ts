@@ -22,10 +22,10 @@ import {
   WindowConnectorService,
 } from '../services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from '../services/frame-connection/window-connection-provider.service';
+
 describe('LogSmartComponent', () => {
   let component: LogSmartComponent;
   let fixture: ComponentFixture<LogSmartComponent>;
-
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       providers: [
