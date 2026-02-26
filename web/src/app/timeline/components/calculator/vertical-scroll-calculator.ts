@@ -17,7 +17,7 @@
 import {
   bisectLeft,
   bisectRight,
-  numberIdentityExtractor,
+  defaultNumberComparator,
 } from 'src/app/common/misc-util';
 import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { TimelineChartStyle } from '../style-model';
@@ -87,7 +87,7 @@ export class VerticalScrollCalculator {
     const timelineIndexAtleastVisible = bisectRight(
       this.accumulatedHeights,
       scrollY,
-      numberIdentityExtractor,
+      defaultNumberComparator,
     );
     // bisectRight returns the first index where scrollY < value,
     // so the index before that is the start position of the timeline containing scrollY (or above it).
@@ -114,12 +114,12 @@ export class VerticalScrollCalculator {
     const timelineIndexAtleastVisible = bisectRight(
       this.accumulatedHeights,
       scrollY,
-      numberIdentityExtractor,
+      defaultNumberComparator,
     );
     const timelineIndexAtmostVisible = bisectRight(
       this.accumulatedHeights,
       scrollY + visibleHeight,
-      numberIdentityExtractor,
+      defaultNumberComparator,
     );
 
     // Slice with a slightly wider range
@@ -149,7 +149,7 @@ export class VerticalScrollCalculator {
     let i = bisectLeft(
       this.accumulatedHeights,
       scrollY + stickyHeaderSize,
-      numberIdentityExtractor,
+      defaultNumberComparator,
     ); // Starting from the timeline that is at least visible behind the sticky header
     i = Math.min(Math.max(0, i - 1), this.timelines.length - 1);
     let namespaceTimeline: ResourceTimeline | null = null;

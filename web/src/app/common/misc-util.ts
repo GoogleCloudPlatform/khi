@@ -42,23 +42,28 @@ export function unreachable(v: never): never {
   throw new Error(`unreachable code reached with value: ${JSON.stringify(v)}`);
 }
 
-export const numberIdentityExtractor = (i: number): number => i;
+export const defaultNumberComparator = (
+  item: number,
+  target: number,
+): number => {
+  return item - target;
+};
 
 /**
  * Equivalent to Python's `bisect_left`.
  * Returns the leftmost insertion point for `x` in sorted array `arr`
  * to maintain the sorted order.
  */
-export function bisectLeft<T>(
+export function bisectLeft<T, U>(
   arr: T[],
-  x: number,
-  extractor: (item: T) => number,
+  target: U,
+  comparator: (item: T, target: U) => number,
   lo = 0,
   hi = arr.length,
 ): number {
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (extractor(arr[mid]) < x) {
+    if (comparator(arr[mid], target) < 0) {
       lo = mid + 1;
     } else {
       hi = mid;
@@ -72,19 +77,19 @@ export function bisectLeft<T>(
  * Returns the rightmost insertion point for `x` in sorted array `arr`
  * to maintain the sorted order.
  */
-export function bisectRight<T>(
+export function bisectRight<T, U>(
   arr: T[],
-  x: number,
-  extractor: (item: T) => number,
+  target: U,
+  comparator: (item: T, target: U) => number,
   lo = 0,
   hi = arr.length,
 ): number {
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (x < extractor(arr[mid])) {
-      hi = mid;
-    } else {
+    if (comparator(arr[mid], target) <= 0) {
       lo = mid + 1;
+    } else {
+      hi = mid;
     }
   }
   return lo;
