@@ -162,6 +162,12 @@ export class TimelineFrameComponent implements AfterViewInit {
    * The list of timelines to display.
    */
   readonly timelines = input<ResourceTimeline[]>([]);
+
+  /**
+   * The unique ID of the inspection data.
+   * This is used to detect when the inspection data has changed to refresh timeline renderer cache.
+   */
+  readonly inspectionDataUniqueID = input<string>('');
   /**
    * The minimum time in milliseconds for the query range.
    * This is used as the start time for the timeline view.
@@ -399,6 +405,7 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly chartViewModel = computed<TimelineChartViewModel>(() => {
     return {
+      inspectionDataUniqueID: this.inspectionDataUniqueID(),
       timelinesInDrawArea: this.visibleTimelines(),
       logBeginTime: this.minQueryLogTimeMS(),
       logEndTime: this.maxQueryLogTimeMS(),
@@ -411,6 +418,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly stickyChartViewModel = computed<TimelineChartViewModel>(
     () => {
       return {
+        inspectionDataUniqueID: this.inspectionDataUniqueID(),
         timelinesInDrawArea: this.stickyTimelines(),
         logBeginTime: this.minQueryLogTimeMS(),
         logEndTime: this.maxQueryLogTimeMS(),

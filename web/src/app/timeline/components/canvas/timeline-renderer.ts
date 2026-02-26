@@ -114,6 +114,11 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
   private eventRenderers!: LRUCache<string, TimelineEventsRenderer>;
 
   /**
+   * The unique ID of the current inspection data on cache.
+   */
+  private cachedInspectionDataUniqueID: string | null = null;
+
+  /**
    * Queue of renderers that need to be disposed (GPU resources freed) when evicted from cache.
    */
   private disposeQueue: IDisposableRenderer[] = [];
@@ -166,6 +171,15 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   render(gl: WebGL2RenderingContext, args: TimelineRendererRenderArgs): void {
     if (!this.chartViewModel || !this.chartStyle) return;
+    if (
+      this.chartViewModel.inspectionDataUniqueID !==
+      this.cachedInspectionDataUniqueID
+    ) {
+      this.revisionRenderers.clear();
+      this.eventRenderers.clear();
+      this.cachedInspectionDataUniqueID =
+        this.chartViewModel.inspectionDataUniqueID;
+    }
     gl.viewport(0, 0, this.width, this.height);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
