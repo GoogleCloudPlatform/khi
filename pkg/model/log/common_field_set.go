@@ -17,7 +17,6 @@ package log
 import (
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
@@ -51,19 +50,3 @@ func (d *MainMessageFieldSet) Kind() string {
 }
 
 var _ FieldSet = (*MainMessageFieldSet)(nil)
-
-// KLogField parses the main message as the klog format and returns the field value.
-func (m *MainMessageFieldSet) KLogField(fieldName string) (string, error) {
-	return logutil.ExtractKLogField(m.MainMessage, fieldName)
-}
-
-// HasKLogField parses the main message as the klog format and returns if the field exists.
-func (m *MainMessageFieldSet) HasKLogField(fieldName string) bool {
-	value, err := m.KLogField(fieldName)
-	return err == nil && value != ""
-}
-
-// KLogSeverity reads the severity field from KLog formatted message.
-func (m *MainMessageFieldSet) KLogSeverity() enum.Severity {
-	return logutil.ExractKLogSeverity(m.MainMessage)
-}

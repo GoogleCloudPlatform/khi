@@ -17,6 +17,7 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
@@ -40,7 +41,9 @@ var SchedulerLogFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(goog
 	googlecloudlogk8scontrolplane_contract.SchedulerLogFilterTaskID.Ref(),
 	[]log.FieldSetReader{
 		&googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSetReader{},
-		&googlecloudlogk8scontrolplane_contract.K8sSchedulerComponentFieldSetReader{},
+		&googlecloudlogk8scontrolplane_contract.K8sSchedulerComponentFieldSetReader{
+			KLogParser: logutil.NewKLogTextParser(false),
+		},
 	},
 )
 
