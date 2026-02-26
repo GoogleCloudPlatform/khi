@@ -21,6 +21,23 @@ import (
 
 const OriginalMessageFieldKey = "@original"
 
+// commonSeverityStringNotation maps string notation of severity found in logs to the severity types used in KHI.
+var commonSeverityStringNotation = map[string]enum.Severity{
+	"INFO":    enum.SeverityInfo,
+	"info":    enum.SeverityInfo,
+	"WARN":    enum.SeverityWarning,
+	"warn":    enum.SeverityWarning,
+	"WARNING": enum.SeverityWarning,
+	"warning": enum.SeverityWarning,
+	"ERROR":   enum.SeverityError,
+	"error":   enum.SeverityError,
+	"ERR":     enum.SeverityError,
+	"err":     enum.SeverityError,
+	"FATAL":   enum.SeverityFatal,
+	"fatal":   enum.SeverityFatal,
+	"panic":   enum.SeverityFatal,
+}
+
 // MainMessageStructuredFieldKey is the key used to store the main log message in a structured log result.
 const MainMessageStructuredFieldKey = "@msg"
 

@@ -36,6 +36,7 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogk8snod
 var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
 	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{
 		StructuredLogParser: logutil.NewMultiTextLogParser(
+			logutil.NewJsonlTextParser(),
 			logutil.NewKLogTextParser(true),
 			logutil.NewLogfmtTextParser(),
 			&logutil.FallbackRawTextLogParser{},

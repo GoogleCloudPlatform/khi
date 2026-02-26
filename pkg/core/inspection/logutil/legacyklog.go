@@ -183,7 +183,7 @@ func ExractKLogSeverity(klogBody string) enum.Severity {
 	fields := parseKLogMessageFragment(klogBody)
 	for _, fieldName := range severityLogfmtFieldNames {
 		if severityInStr, hasLevel := fields[fieldName]; hasLevel {
-			if khiSeverity, isKnownSeverity := logfmtSeverityStringNotation[severityInStr]; isKnownSeverity {
+			if khiSeverity, isKnownSeverity := commonSeverityStringNotation[severityInStr]; isKnownSeverity {
 				return khiSeverity
 			}
 		}
