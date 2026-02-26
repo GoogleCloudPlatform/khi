@@ -49,6 +49,12 @@ describe('misc-util', () => {
         1,
       );
     });
+    it('should work with an array of objects', () => {
+      const arr = [{ val: 10 }, { val: 20 }, { val: 30 }];
+      const extractor = (item: { val: number }) => item.val;
+      expect(bisectLeft(arr, 15, extractor)).toBe(1);
+      expect(bisectLeft(arr, 20, extractor)).toBe(1);
+    });
   });
 
   describe('bisectRight', () => {
@@ -82,6 +88,12 @@ describe('misc-util', () => {
       expect(bisectRight([1, 3, 5, 7], 2, numberIdentityExtractor, 0, 2)).toBe(
         1,
       );
+    });
+    it('should work with an array of objects', () => {
+      const arr = [{ val: 10 }, { val: 20 }, { val: 20 }, { val: 30 }];
+      const extractor = (item: { val: number }) => item.val;
+      expect(bisectRight(arr, 15, extractor)).toBe(1);
+      expect(bisectRight(arr, 20, extractor)).toBe(3);
     });
   });
 });
