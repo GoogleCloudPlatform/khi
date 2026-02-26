@@ -26,6 +26,7 @@ var jsonlMessageFieldNames = []string{"message", "msg"}
 // JsonlTextParser parses given JSONL formatted string.
 type JsonlTextParser struct{}
 
+// NewJsonlTextParser creates a new JsonlTextParser.
 func NewJsonlTextParser() *JsonlTextParser {
 	return &JsonlTextParser{}
 }
