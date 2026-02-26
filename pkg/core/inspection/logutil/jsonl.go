@@ -32,14 +32,15 @@ func NewJsonlTextParser() *JsonlTextParser {
 }
 
 // TryParse implements StructuredLogParser.
-func (j *JsonlTextParser) TryParse(message string) *ParseStructuredLogResult {
+func (j *JsonlTextParser) TryParse(originalMessage string) *ParseStructuredLogResult {
+	message := strings.TrimSpace(originalMessage)
 	if message == "" || message[0] != '{' {
 		return nil
 	}
 
 	result := &ParseStructuredLogResult{
 		Fields: map[string]any{
-			OriginalMessageFieldKey: message,
+			OriginalMessageFieldKey: originalMessage,
 		},
 	}
 

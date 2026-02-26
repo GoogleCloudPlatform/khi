@@ -83,6 +83,21 @@ func TestJsonlTextParser_TryParse(t *testing.T) {
 			},
 		},
 		{
+			desc:  "jsonl message with leading whitespace",
+			input: `  {"msg":"Main message","fieldWithQuotes":"foo","fieldWithEscape":"bar \"qux\"","fieldWithoutQuotes":3.1415,"severity":"info"}`,
+			want: &ParseStructuredLogResult{
+				Fields: map[string]any{
+					MainMessageStructuredFieldKey: "Main message",
+					SeverityStructuredFieldKey:    enum.SeverityInfo,
+					"msg":                         "Main message",
+					"severity":                    "info",
+					"fieldWithQuotes":             "foo",
+					"fieldWithEscape":             `bar "qux"`,
+					"fieldWithoutQuotes":          "3.1415",
+				},
+			},
+		},
+		{
 			desc:  "jsonl message with level",
 			input: `{"message":"Main \"message\"","fieldWithQuotes":"foo","level":"WARN"}`,
 			want: &ParseStructuredLogResult{
