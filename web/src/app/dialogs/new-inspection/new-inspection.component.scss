@@ -52,6 +52,10 @@ mat-step {
     padding: 0px 24px 0px 24px;
     flex: 1;
   }
+
+  .mat-horizontal-stepper-header-container {
+    flex: 0;
+  }
 }
 
 .allow-vertical-scroll {

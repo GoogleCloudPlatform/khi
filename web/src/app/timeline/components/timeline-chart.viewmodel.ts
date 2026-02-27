@@ -17,6 +17,7 @@
 import { ResourceTimeline } from 'src/app/store/timeline';
 
 export interface TimelineChartViewModel {
+  inspectionDataUniqueID: string;
   timelinesInDrawArea: ResourceTimeline[];
   logBeginTime: number;
   logEndTime: number;

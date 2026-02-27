@@ -129,7 +129,9 @@ func (k *K8sSchedulerComponentFieldSet) ResourcePath() resourcepath.ResourcePath
 
 var _ log.FieldSet = (*K8sSchedulerComponentFieldSet)(nil)
 
-type K8sSchedulerComponentFieldSetReader struct{}
+type K8sSchedulerComponentFieldSetReader struct {
+	KLogParser *logutil.KLogTextParser
+}
 
 // FieldSetKind implements log.FieldSetReader.
 func (k *K8sSchedulerComponentFieldSetReader) FieldSetKind() string {
@@ -140,14 +142,18 @@ func (k *K8sSchedulerComponentFieldSetReader) FieldSetKind() string {
 func (k *K8sSchedulerComponentFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result K8sSchedulerComponentFieldSet
 	message := reader.ReadStringOrDefault("jsonPayload.message", "")
-	podFQDN, err := logutil.ExtractKLogField(message, "pod")
-	if err == nil {
-		podNameFragments := strings.Split(podFQDN, "/")
-		if len(podNameFragments) == 2 {
-			result.PodNamespace = podNameFragments[0]
-			result.PodName = podNameFragments[1]
+
+	structured := k.KLogParser.TryParse(message)
+	if structured != nil {
+		if podFQDN, err := structured.StringField("pod"); err == nil && podFQDN != "" {
+			podNameFragments := strings.Split(podFQDN, "/")
+			if len(podNameFragments) == 2 {
+				result.PodNamespace = podNameFragments[0]
+				result.PodName = podNameFragments[1]
+			}
 		}
 	}
+
 	return &result, nil
 }
 

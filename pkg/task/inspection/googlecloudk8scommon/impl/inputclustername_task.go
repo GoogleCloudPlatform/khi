@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
@@ -102,5 +103,6 @@ func dedupeClusterName(clusters []googlecloudk8scommon_contract.GoogleCloudClust
 	for clusterName := range clusterNameMap {
 		result = append(result, clusterName)
 	}
+	sort.Strings(result)
 	return result
 }
