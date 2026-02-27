@@ -14,30 +14,33 @@
  limitations under the License.
 -->
 
+@let logEntry = log();
 <tr
   class="log-element"
-  [id]="'log-view-log-index-' + log.logIndex"
+  [id]="'log-view-log-index-' + logEntry.logIndex"
   (mouseover)="onHover()"
-  [ngClass]="'log-view-log-index-' + log.logIndex"
+  [ngClass]="'log-view-log-index-' + logEntry.logIndex"
   (click)="onClick()"
-  [matTooltip]="log.summary"
+  [matTooltip]="logEntry.summary"
   matTooltipPosition="left"
+  [class.selected]="selected()"
+  [class.highlight]="highlighted()"
 >
   <td
     class="type-indicator"
-    [ngClass]="log.logTypeLabel"
-    [matTooltip]="'log type:' + log.logTypeLabel"
+    [ngClass]="logEntry.logTypeLabel"
+    [matTooltip]="'log type:' + logEntry.logTypeLabel"
   ></td>
   <td class="severity-indicator-wrap">
     <div
       class="severity-indicator"
-      [ngClass]="log.logSeverityLabel | lowercase"
-      [matTooltip]="'severity:' + log.logSeverityLabel"
+      [ngClass]="logEntry.logSeverityLabel | lowercase"
+      [matTooltip]="'severity:' + logEntry.logSeverityLabel"
     >
-      {{ (log.logSeverityLabel | uppercase)[0] }}
+      {{ (logEntry.logSeverityLabel | uppercase)[0] }}
       <!--`I` for INFO, `W` for WARNING..etc-->
     </div>
   </td>
-  <td class="ts">{{ log.time | tsf | async }}</td>
-  <td class="message">{{ log.summary }}</td>
+  <td class="ts">{{ logEntry.time | tsf | async }}</td>
+  <td class="message">{{ logEntry.summary }}</td>
 </tr>

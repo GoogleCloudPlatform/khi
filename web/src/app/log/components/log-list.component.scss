@@ -15,11 +15,19 @@
  */
 @use "sass:color";
 
-@use "../common" as common;
+@use "../../common" as common;
 
 @use "@angular/material" as mat;
 
-@use "../color-palette.scss" as cp;
+@use "../../color-palette.scss" as cp;
+
+.log-list-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
 .log-toolbar {
   display: flex;
@@ -59,14 +67,6 @@
   }
 }
 
-.container {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .virtual-viewport {
   height: 100%;
 }
@@ -79,17 +79,5 @@
   position: relative;
   border-collapse: collapse;
   table-layout: fixed;
-  width: 100%;
-}
-
-.log-body-container {
-  padding: 0;
-  margin: 0;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.3);
-  overflow-y: scroll;
-}
-
-khi-log-body {
-  height: var(--log-body-view-height);
   width: 100%;
 }

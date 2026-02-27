@@ -13,26 +13,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
+@let vm = viewModel();
 <div class="container">
-  @if (viewModel(); as vm) {
-    @if (vm.typeSeverity; as inputs) {
-      <khi-type-severity
-        [logType]="inputs.logType"
-        [severity]="inputs.severity"
-      ></khi-type-severity>
-    }
-    @if (vm.timestamp; as inputs) {
-      <khi-common-field-annotator
-        [icon]="inputs.icon"
-        [label]="inputs.label"
-        [value]="inputs.value"
-      ></khi-common-field-annotator>
-    }
-    @if (vm.resourceRefs; as inputs) {
-      <khi-resource-reference-list
-        [refs]="inputs.refs"
-      ></khi-resource-reference-list>
-    }
+  @if (vm.typeSeverity; as inputs) {
+    <khi-type-severity
+      [logType]="inputs.logType"
+      [severity]="inputs.severity"
+    ></khi-type-severity>
+  }
+  @if (vm.timestamp; as inputs) {
+    <khi-common-field-annotator
+      [icon]="inputs.icon"
+      [label]="inputs.label"
+      [value]="inputs.value"
+    ></khi-common-field-annotator>
+  }
+  @if (vm.resourceRefs; as inputs) {
+    <khi-resource-reference-list
+      [refs]="inputs.refs"
+    ></khi-resource-reference-list>
   }
 </div>

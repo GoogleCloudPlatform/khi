@@ -15,20 +15,20 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { LogHeaderComponent } from './header.component';
+import { LogContentHeaderComponent } from './log-content-header.component';
 import { LogEntry } from 'src/app/store/log';
 import { LogType, Severity } from 'src/app/zzz-generated';
 import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
 
-const meta: Meta<LogHeaderComponent> = {
-  title: 'Log/LogHeader',
-  component: LogHeaderComponent,
+const meta: Meta<LogContentHeaderComponent> = {
+  title: 'Log/LogContentHeader',
+  component: LogContentHeaderComponent,
   tags: ['autodocs'],
   args: {},
 };
 
 export default meta;
-type Story = StoryObj<LogHeaderComponent>;
+type Story = StoryObj<LogContentHeaderComponent>;
 
 export const Default: Story = {
   args: {

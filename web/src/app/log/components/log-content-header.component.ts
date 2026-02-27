@@ -49,7 +49,7 @@ export interface CommonFieldViewModel {
  * Aggregates all the extracted view models required to render the log header,
  * including severity, type, timestamp, and related resource references.
  */
-export interface LogHeaderViewModel {
+export interface LogContentHeaderViewModel {
   typeSeverity: { logType: string; severity: string } | null;
   timestamp: CommonFieldViewModel | null;
   resourceRefs: { refs: ResourceRefAnnotationViewModel[] } | null;
@@ -58,13 +58,13 @@ export interface LogHeaderViewModel {
 /**
  * The `LogHeaderComponent` provides a comprehensive view of a `LogEntry`'s metadata.
  * It renders the log's type, severity, timestamp, and a list of related resources.
- * By computing a unified `LogHeaderViewModel`, it coordinates data extraction across
+ * By computing a unified `LogContentHeaderViewModel`, it coordinates data extraction across
  * multiple sub-components (like `TypeSeverityAnnotatorComponent` and `ResourceReferenceListComponent`).
  */
 @Component({
-  selector: 'khi-log-header',
-  templateUrl: './header.component.html',
-  styleUrls: ['./header.component.scss'],
+  selector: 'khi-log-content-header',
+  templateUrl: './log-content-header.component.html',
+  styleUrls: ['./log-content-header.component.scss'],
   imports: [
     CommonModule,
     TypeSeverityComponent,
@@ -72,7 +72,7 @@ export interface LogHeaderViewModel {
     ResourceReferenceListComponent,
   ],
 })
-export class LogHeaderComponent {
+export class LogContentHeaderComponent {
   /**
    * The active `LogEntry` to display in the header.
    */
@@ -89,11 +89,11 @@ export class LogHeaderComponent {
   });
 
   /**
-   * Computes the unified `LogHeaderViewModel` based on the current `log` input.
+   * Computes the unified `LogContentHeaderViewModel` based on the current `log` input.
    * Extracts log type, severity, formatting timestamp, and merges it with
    * the resolved `resourceRefs`.
    */
-  readonly viewModel = computed<LogHeaderViewModel>(() => {
+  readonly viewModel = computed<LogContentHeaderViewModel>(() => {
     const l = this.log();
     if (!l || l.logIndex < 0) {
       return {

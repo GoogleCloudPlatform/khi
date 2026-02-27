@@ -16,15 +16,15 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { LogViewComponent } from './log-view.component';
+import { LogSmartComponent } from './log-smart.component';
 import {
   WINDOW_CONNECTION_PROVIDER,
   WindowConnectorService,
 } from '../services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from '../services/frame-connection/window-connection-provider.service';
-describe('LogViewComponent', () => {
-  let component: LogViewComponent;
-  let fixture: ComponentFixture<LogViewComponent>;
+describe('LogSmartComponent', () => {
+  let component: LogSmartComponent;
+  let fixture: ComponentFixture<LogSmartComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -37,7 +37,7 @@ describe('LogViewComponent', () => {
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(LogViewComponent);
+    fixture = TestBed.createComponent(LogSmartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

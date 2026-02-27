@@ -30,7 +30,7 @@ import {
 } from 'src/app/extensions/extension-common/extension-store';
 import { CommonModule } from '@angular/common';
 import { SidePaneComponent } from 'src/app/common/components/side-pane.component';
-import { LogViewComponent } from 'src/app/log/log-view.component';
+import { LogSmartComponent } from 'src/app/log/log-smart.component';
 import { DiffViewComponent } from 'src/app/diff/diff-view.component';
 import { MatIconModule } from '@angular/material/icon';
 import { HeaderComponent } from 'src/app/header/header.component';
@@ -50,7 +50,7 @@ import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
     CommonModule,
     HeaderComponent,
     SidePaneComponent,
-    LogViewComponent,
+    LogSmartComponent,
     DiffViewComponent,
     MatIconModule,
     TimelineSmartComponent,

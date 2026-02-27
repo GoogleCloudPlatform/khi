@@ -16,7 +16,7 @@
 
 import { Component, computed, inject, input, resource } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LogHeaderComponent } from './header.component';
+import { LogContentHeaderComponent } from './log-content-header.component';
 import { HighlightModule } from 'ngx-highlightjs';
 import { ResolveTextPipe } from '../../common/resolve-text.pipe';
 import { MatIconModule } from '@angular/material/icon';
@@ -37,12 +37,12 @@ import { toSignal } from '@angular/core/rxjs-interop';
  * for the specific log entry.
  */
 @Component({
-  selector: 'khi-log-body',
-  templateUrl: './body.component.html',
-  styleUrls: ['./body.component.scss'],
+  selector: 'khi-log-content',
+  templateUrl: './log-content.component.html',
+  styleUrls: ['./log-content.component.scss'],
   imports: [
     CommonModule,
-    LogHeaderComponent,
+    LogContentHeaderComponent,
     HighlightModule,
     ResolveTextPipe,
     MatIconModule,
@@ -53,7 +53,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
     ClipboardModule,
   ],
 })
-export class LogBodyComponent {
+export class LogContentComponent {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dataStore = inject(InspectionDataStoreService, {
