@@ -17,9 +17,7 @@
 @let logEntry = log();
 <tr
   class="log-element"
-  [id]="'log-view-log-index-' + logEntry.logIndex"
   (mouseover)="onHover()"
-  [ngClass]="'log-view-log-index-' + logEntry.logIndex"
   (click)="onClick()"
   [matTooltip]="logEntry.summary"
   matTooltipPosition="left"
