@@ -14,22 +14,28 @@
  * limitations under the License.
  */
 
-import { Component, computed, inject, input, resource } from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LogContentHeaderComponent } from './log-content-header.component';
 import { HighlightModule } from 'ngx-highlightjs';
-import { ResolveTextPipe } from '../../common/resolve-text.pipe';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { LogEntry } from 'src/app/store/log';
+import { ResourceTimeline } from 'src/app/store/timeline';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { MatButtonModule } from '@angular/material/button';
-import { InspectionDataStoreService } from 'src/app/services/inspection-data-store.service';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
-import { filter, firstValueFrom, of } from 'rxjs';
-import jsyaml from 'js-yaml';
-import { toSignal } from '@angular/core/rxjs-interop';
+
+/**
+ * View model aggregating the full detailed data required to render the log content and header.
+ */
+export interface LogContentViewModel {
+  logEntry: LogEntry | null;
+  logBody: string;
+  parsedLogBody: unknown;
+  referencedResourcePaths: string[];
+}
 
 /**
  * Component responsible for displaying the detailed body of a log entry.
@@ -44,7 +50,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
     CommonModule,
     LogContentHeaderComponent,
     HighlightModule,
-    ResolveTextPipe,
     MatIconModule,
     MatTooltip,
     KHIIconRegistrationModule,
@@ -56,49 +61,41 @@ import { toSignal } from '@angular/core/rxjs-interop';
 export class LogContentComponent {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly dataStore = inject(InspectionDataStoreService, {
-    optional: true,
-  });
 
   /**
-   * The log entry model to display.
+   * The aggregated view model containing the log entry, body, and resolved references.
    */
-  public log = input<LogEntry | null>(null);
+  public readonly vm = input<LogContentViewModel | null>(null);
 
   /**
-   * Signal containing the current text reference resolver from the data store.
+   * The timezone shift to apply to the timestamp.
    */
-  private readonly referenceResolver = toSignal(
-    this.dataStore?.referenceResolver.pipe(filter((tb) => !!tb)) ?? of(null),
-  );
+  public timezoneShift = input<number>(0);
 
   /**
-   * Asynchronously loads the full log body text using the reference resolver.
+   * Output emitted when a resource timeline is clicked from the reference list.
    */
-  private readonly logBody = resource({
-    params: () => ({ resolver: this.referenceResolver(), log: this.log() }),
-    loader: ({ params }) => {
-      if (!params.log || !params.resolver) {
-        return Promise.resolve('');
-      }
-      return firstValueFrom(params.resolver.getText(params.log.body));
-    },
-  });
+  public resourceSelected = output<string>();
 
-  private readonly parsedLogBody = computed(() => {
-    if (!this.logBody.hasValue()) {
-      return null;
-    }
-    try {
-      return jsyaml.load(this.logBody.value()) as { [key: string]: string };
-    } catch {
-      return null;
-    }
-  });
+  /**
+   * Output emitted when a resource timeline is hovered from the reference list.
+   */
+  public resourceHighlighted = output<string>();
+
+  /**
+   * Input tracking the currently selected timeline to visually indicate selection state
+   * in the resource reference list.
+   */
+  public selectedTimeline = input<ResourceTimeline | null>(null);
 
   private readonly timestampString = computed(() => {
-    const parsed = this.parsedLogBody();
-    return parsed ? (parsed['timestamp'] ?? null) : null;
+    const parsed = this.vm()?.parsedLogBody as
+      | { [key: string]: string }
+      | undefined;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed['timestamp'] ?? null;
+    }
+    return null;
   });
 
   /**
@@ -113,10 +110,11 @@ export class LogContentComponent {
    * Copies the loaded log body text to the clipboard and displays a notification.
    */
   copyLog() {
-    if (!this.logBody.hasValue()) {
+    const logBody = this.vm()?.logBody;
+    if (!logBody) {
       return;
     }
-    this.showCopySnackbarMessage(this.clipboard.copy(this.logBody.value()));
+    this.showCopySnackbarMessage(this.clipboard.copy(logBody));
   }
 
   /**
@@ -124,7 +122,7 @@ export class LogContentComponent {
    * Extracts the insertId and timestamp from the log body to build the query.
    */
   copyLogQuery() {
-    const log = this.log();
+    const log = this.vm()?.logEntry;
     const timestampString = this.timestampString();
     if (!log || !timestampString) {
       return;

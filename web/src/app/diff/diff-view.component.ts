@@ -34,7 +34,6 @@ import {
   ScrollingModule,
   VIRTUAL_SCROLL_STRATEGY,
 } from '@angular/cdk/scrolling';
-import { TIMELINE_ANNOTATOR_RESOLVER } from '../annotator/timeline/resolver';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
 import { ResourceRevisionChangePair, TimelineLayer } from '../store/timeline';
 import { ResourceRevision } from '../store/revision';
@@ -50,6 +49,7 @@ import { DiffToolbarComponent } from './components/diff-toolbar.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { LogEntry } from '../store/log';
+import { CommonFieldAnnotatorComponent } from '../annotator/common-field-annotator.component';
 
 class DiffViewScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
@@ -75,6 +75,7 @@ interface DiffViewSelectionMoveCommand {
     HighlightModule,
     AngularSplitModule,
     DiffToolbarComponent,
+    CommonFieldAnnotatorComponent,
   ],
   providers: [
     { provide: VIRTUAL_SCROLL_STRATEGY, useClass: DiffViewScrollStrategy },
@@ -87,10 +88,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
   private readonly _snackBar = inject(MatSnackBar);
 
   private readonly envInjector = inject(EnvironmentInjector);
-
-  private readonly timelineAnnotatorResolver = inject(
-    TIMELINE_ANNOTATOR_RESOLVER,
-  );
 
   private readonly changePairAnnotatorResolver = inject(
     CHANGE_PAIR_ANNOTATOR_RESOLVER,
@@ -129,6 +126,22 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     { initialValue: null },
   );
 
+  protected readonly selectedTimelineKind = computed(() => {
+    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Kind);
+  });
+
+  protected readonly selectedTimelineNamespace = computed(() => {
+    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Namespace);
+  });
+
+  protected readonly selectedTimelineName = computed(() => {
+    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Name);
+  });
+
+  protected readonly selectedTimelineSubresource = computed(() => {
+    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Subresource);
+  });
+
   protected readonly currentRevision = toSignal(
     this._selectionManager.selectedRevision,
     { initialValue: null },
@@ -154,11 +167,6 @@ export class DiffViewComponent implements OnInit, OnDestroy {
   });
 
   protected readonly showManagedFields = model(false);
-
-  timelineAnnotators = this.timelineAnnotatorResolver.getResolvedAnnotators(
-    toObservable(this.selectedTimeline),
-    this.envInjector,
-  );
 
   public allLogs = toSignal(this._inspectionDataStore.allLogs, {
     initialValue: [] as LogEntry[],

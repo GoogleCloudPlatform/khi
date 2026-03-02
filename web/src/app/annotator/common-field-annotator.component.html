@@ -19,11 +19,10 @@ limitations under the License.
     <mat-icon class="icon">{{ icon() }}</mat-icon>
     <p class="label-text">{{ label() }}</p>
   </div>
-  @if (value() | async; as valueResolved) {
-    <p class="value" (click)="onValueClick(valueResolved)">
-      <span class="copy-icon-container"
-        ><mat-icon class="icon">content_paste</mat-icon></span
-      ><span [matTooltip]="valueResolved">{{ valueResolved }}</span>
-    </p>
-  }
+  @let valueResolved = value();
+  <p class="value" (click)="onValueClick(valueResolved)">
+    <span class="copy-icon-container"
+      ><mat-icon class="icon">content_paste</mat-icon></span
+    ><span [matTooltip]="valueResolved">{{ valueResolved }}</span>
+  </p>
 </div>

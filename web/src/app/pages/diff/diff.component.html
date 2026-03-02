@@ -16,13 +16,40 @@ limitations under the License.
 
 <khi-title pageName="Diff view"></khi-title>
 <div>
-  @for (annotator of timelineAnnotators | async; track annotator) {
-    <ng-container
-      *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
-    ></ng-container>
+  @let k = kind();
+  @if (k) {
+    <khi-common-field-annotator
+      icon="workspaces"
+      label="Kind"
+      [value]="k"
+    ></khi-common-field-annotator>
+  }
+  @let ns = namespace();
+  @if (ns) {
+    <khi-common-field-annotator
+      icon="folder"
+      label="Namespace"
+      [value]="ns"
+    ></khi-common-field-annotator>
+  }
+  @let n = name();
+  @if (n) {
+    <khi-common-field-annotator
+      icon="description"
+      label="Name"
+      [value]="n"
+    ></khi-common-field-annotator>
+  }
+  @let sr = subresource();
+  @if (sr) {
+    <khi-common-field-annotator
+      icon="page_info"
+      label="Subresource"
+      [value]="sr"
+    ></khi-common-field-annotator>
   }
 </div>
-@if ((timeline | async) === null) {
+@if (timeline() === null) {
   <div>
     <p class="empty-message">No resource selected</p>
   </div>

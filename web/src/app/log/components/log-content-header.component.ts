@@ -14,45 +14,29 @@
  * limitations under the License.
  */
 
-import { Component, computed, input, inject, resource } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LogEntry } from 'src/app/store/log';
-import { TypeSeverityComponent } from './type-severity.component';
 import { CommonFieldAnnotatorComponent } from 'src/app/annotator/common-field-annotator.component';
 import {
   ResourceReferenceListComponent,
   ResourceRefAnnotationViewModel,
 } from './resource-reference-list.component';
-import { ViewStateService } from 'src/app/services/view-state.service';
-import { InspectionDataStoreService } from 'src/app/services/inspection-data-store.service';
+import { ResourceTimeline } from 'src/app/store/timeline';
 import { LogTypeMetadata } from 'src/app/zzz-generated';
-import { LongTimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
-import { Observable, firstValueFrom, map } from 'rxjs';
-import {
-  KHIFileTextReference,
-  LogAnnotationTypeResourceRef,
-} from 'src/app/common/schema/khi-file-types';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
-import { toSignal } from '@angular/core/rxjs-interop';
 
-/**
- * Represents a view model for a generic common field displayed in the log header,
- * such as a timestamp.
- */
-export interface CommonFieldViewModel {
-  icon: string;
-  label: string;
-  value: Observable<string>;
-}
+import { LongTimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
+import { TypeSeverityComponent } from './type-severity.component';
 
 /**
  * Aggregates all the extracted view models required to render the log header,
  * including severity, type, timestamp, and related resource references.
  */
 export interface LogContentHeaderViewModel {
-  typeSeverity: { logType: string; severity: string } | null;
-  timestamp: CommonFieldViewModel | null;
-  resourceRefs: { refs: ResourceRefAnnotationViewModel[] } | null;
+  logType: string;
+  severity: string;
+  timestamp: string;
+  resourceRefs: ResourceRefAnnotationViewModel[];
 }
 
 /**
@@ -78,15 +62,31 @@ export class LogContentHeaderComponent {
    */
   log = input<LogEntry | null>(null);
 
-  private readonly viewState = inject(ViewStateService);
-  private readonly dataStore = inject(InspectionDataStoreService);
-  private readonly referenceResolver = toSignal(
-    this.dataStore.referenceResolver,
-    { initialValue: null },
-  );
-  private readonly inspectionData = toSignal(this.dataStore.inspectionData, {
-    initialValue: null,
-  });
+  /**
+   * The timezone shift to apply to the timestamp.
+   */
+  timezoneShift = input<number>(0);
+
+  /**
+   * Output emitted when a resource timeline is clicked from the reference list.
+   */
+  resourceSelected = output<string>();
+
+  /**
+   * Output emitted when a resource timeline is hovered from the reference list.
+   */
+  resourceHighlighted = output<string>();
+
+  /**
+   * Input tracking the currently selected timeline to visually indicate selection state
+   * in the resource reference list.
+   */
+  selectedTimeline = input<ResourceTimeline | null>(null);
+
+  /**
+   * The resolved paths for resource references associated with this log.
+   */
+  referencedResourcePaths = input<string[]>([]);
 
   /**
    * Computes the unified `LogContentHeaderViewModel` based on the current `log` input.
@@ -97,81 +97,34 @@ export class LogContentHeaderComponent {
     const l = this.log();
     if (!l || l.logIndex < 0) {
       return {
-        typeSeverity: null,
-        timestamp: null,
-        resourceRefs: null,
+        logType: '',
+        severity: '',
+        timestamp: '',
+        resourceRefs: [],
       };
     }
 
-    const typeSeverity = {
-      logType: LogTypeMetadata[l.logType].label,
-      severity: l.logSeverityLabel ?? 'N/A',
-    };
-
-    const timestamp = {
-      icon: 'schedule',
-      label: 'Timestamp',
-      value: this.viewState.timezoneShift.pipe(
-        map((t) => LongTimestampFormatPipe.toLongDisplayTimestamp(l.time, t)),
-      ),
-    };
-
-    let resourceRefs = null;
-    const paths = this.referencedResourcePaths.value();
+    let resourceRefs = [] as ResourceRefAnnotationViewModel[];
+    const paths = this.referencedResourcePaths();
     if (paths && paths.length > 0) {
-      resourceRefs = {
-        refs: paths.map((path) => {
-          const splittedPath = path.split('#');
-          const resourceRefLabel = `${splittedPath[splittedPath.length - 1]} of ${splittedPath[splittedPath.length - 2]}`;
-          return {
-            label: resourceRefLabel,
-            path,
-          };
-        }),
-      };
+      resourceRefs = paths.map((path) => {
+        const splittedPath = path.split('#');
+        const resourceRefLabel = `${splittedPath[splittedPath.length - 1]} of ${splittedPath[splittedPath.length - 2]}`;
+        return {
+          label: resourceRefLabel,
+          path,
+        };
+      });
     }
 
     return {
-      typeSeverity,
-      timestamp,
+      logType: LogTypeMetadata[l.logType]?.label ?? 'Unknown',
+      severity: l.logSeverityLabel ?? 'N/A',
+      timestamp: LongTimestampFormatPipe.toLongDisplayTimestamp(
+        l.time,
+        this.timezoneShift(),
+      ),
       resourceRefs,
     };
-  });
-
-  /**
-   * An asynchronous `resource` that resolves all `LogAnnotationTypeResourceRef` paths
-   * associated with the current `log`. It uses `ReferenceResolver` to load buffer content
-   * and queries `InspectionDataStoreService` to find all aliased timelines for the resource.
-   */
-  protected readonly referencedResourcePaths = resource({
-    params: () => ({
-      log: this.log(),
-      resolver: this.referenceResolver(),
-      inspectionData: this.inspectionData(),
-    }),
-    loader: async ({ params }) => {
-      const { log, resolver, inspectionData } = params;
-      if (!log || !resolver || !inspectionData) return [];
-
-      const textRefs = log.annotations
-        .filter((a) => a.type === LogAnnotationTypeResourceRef)
-        .map((a) => a['path'] as KHIFileTextReference);
-
-      if (textRefs.length === 0) return [];
-
-      const refs = await Promise.all(
-        textRefs.map((ref) =>
-          firstValueFrom(
-            resolver.getText(ToTextReferenceFromKHIFileBinary(ref)),
-          ),
-        ),
-      );
-
-      const paths = refs.flatMap((ref) => [
-        ref,
-        ...inspectionData.getAliasedTimelines(ref).map((t) => t.resourcePath),
-      ]);
-      return [...new Set(paths)];
-    },
   });
 }

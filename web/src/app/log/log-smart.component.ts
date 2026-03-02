@@ -20,9 +20,25 @@ import { SelectionManagerService } from '../services/selection-manager.service';
 import { LogEntry } from '../store/log';
 import { CommonModule } from '@angular/common';
 import { AngularSplitModule } from 'angular-split';
-import { LogContentComponent } from './components/log-content.component';
+import {
+  LogContentComponent,
+  LogContentViewModel,
+} from './components/log-content.component';
 import { LogListComponent } from './components/log-list.component';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { ViewStateService } from '../services/view-state.service';
+import { firstValueFrom, filter, of } from 'rxjs';
+import jsyaml from 'js-yaml';
+import {
+  LogAnnotationTypeResourceRef,
+  KHIFileTextReference,
+  KHILogAnnotation,
+} from '../common/schema/khi-file-types';
+import { ToTextReferenceFromKHIFileBinary } from '../common/loader/reference-type';
+import { resource } from '@angular/core';
+import { ResourceTimeline } from '../store/timeline';
+
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 /**
  * `LogSmartComponent` is the main container for the log viewing interface.
@@ -39,11 +55,20 @@ import { toSignal } from '@angular/core/rxjs-interop';
     LogListComponent,
     LogContentComponent,
     AngularSplitModule,
+    MatProgressBarModule,
   ],
 })
 export class LogSmartComponent {
   private readonly selectionManager = inject(SelectionManagerService);
   private readonly inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly viewState = inject(ViewStateService);
+
+  /**
+   * The timezone shift to apply to the timestamp.
+   */
+  public readonly timezoneShift = toSignal(this.viewState.timezoneShift, {
+    initialValue: 0,
+  });
 
   /**
    * The currently selected log entry.
@@ -94,9 +119,25 @@ export class LogSmartComponent {
   );
 
   /**
+   * Output of the currently selected timeline from the selection manager.
+   */
+  public readonly selectedTimeline = toSignal(
+    this.selectionManager.selectedTimeline,
+    { initialValue: null },
+  );
+
+  /**
    * A signal representing whether the log list should be filtered by the currently selected timeline(s).
    */
   protected readonly filterByTimeline = signal(true);
+
+  /**
+   * Signal tracking the currently selected timeline path to visually indicate selection state.
+   */
+  public readonly currentSelectedTimelinePath = computed(() => {
+    const selected = this.selectedTimeline();
+    return selected ? selected.resourcePath : '';
+  });
 
   /**
    * A signal representing whether children of the selected timeline(s) should be included
@@ -111,6 +152,78 @@ export class LogSmartComponent {
    * The total number of logs available, prior to any filtering.
    */
   public readonly allLogsCount = computed(() => this.allLogs().length);
+
+  /**
+   * Signal containing the current text reference resolver from the data store.
+   */
+  private readonly referenceResolver = toSignal(
+    this.inspectionDataStore.referenceResolver.pipe(filter((tb) => !!tb)) ??
+      of(null),
+  );
+
+  private readonly inspectionData = toSignal(
+    this.inspectionDataStore.inspectionData,
+    {
+      initialValue: null,
+    },
+  );
+
+  /**
+   * Aggregates the selected log entry, its body, and its resource paths into a view model.
+   */
+  public readonly logContentViewModel = resource({
+    params: () => ({
+      log: this.selectedLog(),
+      resolver: this.referenceResolver(),
+      inspectionData: this.inspectionData(),
+    }),
+    loader: async ({ params }) => {
+      const { log, resolver, inspectionData } = params;
+      if (!log || !resolver || !inspectionData) {
+        return null;
+      }
+
+      const logBodyText = await firstValueFrom(resolver.getText(log.body));
+      let parsedLogBody: unknown = null;
+      try {
+        parsedLogBody = jsyaml.load(logBodyText);
+      } catch {
+        // Leave as null
+      }
+
+      const textRefs = log.annotations
+        .filter(
+          (a: KHILogAnnotation) => a.type === LogAnnotationTypeResourceRef,
+        )
+        .map((a: KHILogAnnotation) => a['path'] as KHIFileTextReference);
+
+      let paths: string[] = [];
+      if (textRefs.length > 0) {
+        const refs = await Promise.all(
+          textRefs.map((ref: KHIFileTextReference) =>
+            firstValueFrom(
+              resolver.getText(ToTextReferenceFromKHIFileBinary(ref)),
+            ),
+          ),
+        );
+
+        const allPaths = refs.flatMap((ref: string) => [
+          ref,
+          ...(
+            inspectionData.getAliasedTimelines(ref) as ResourceTimeline[]
+          ).map((t: ResourceTimeline) => t.resourcePath),
+        ]);
+        paths = [...new Set(allPaths)] as string[];
+      }
+
+      return {
+        logEntry: log,
+        logBody: logBodyText as string,
+        parsedLogBody,
+        referencedResourcePaths: paths,
+      } as LogContentViewModel;
+    },
+  });
 
   /**
    * Internal click handler invoked when a log is selected from the list.
@@ -134,5 +247,19 @@ export class LogSmartComponent {
    */
   protected onIncludeTimelineChildrenChange(value: boolean) {
     this.selectionManager.timelineSelectionShouldIncludeChildren.next(value);
+  }
+
+  /**
+   * Selects the resource at the resource path.
+   */
+  protected onResourceSelected(resourcePath: string) {
+    this.selectionManager.onSelectTimeline(resourcePath);
+  }
+
+  /**
+   * Highlights the resource at the resource path.
+   */
+  protected onResourceHighlighted(resourcePath: string) {
+    this.selectionManager.onHighlightTimeline(resourcePath);
   }
 }

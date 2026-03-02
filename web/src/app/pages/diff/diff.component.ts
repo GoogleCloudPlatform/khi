@@ -23,17 +23,17 @@ import {
   model,
 } from '@angular/core';
 import { SideBySideDiffComponent } from 'ngx-diff';
-import { Observable, map } from 'rxjs';
+import { map } from 'rxjs';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from 'src/app/annotator/change-pair/resolver';
-import { TIMELINE_ANNOTATOR_RESOLVER } from 'src/app/annotator/timeline/resolver';
 import { TitleBarComponent } from 'src/app/header/titlebar.component';
 import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/diff-page-datasource.service';
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { TimelineLayer } from 'src/app/store/timeline';
 import { DiffToolbarComponent } from 'src/app/diff/components/diff-toolbar.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import * as yaml from 'js-yaml';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { CommonFieldAnnotatorComponent } from 'src/app/annotator/common-field-annotator.component';
 
 @Component({
   selector: 'khi-diff-page',
@@ -44,6 +44,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
     TitleBarComponent,
     SideBySideDiffComponent,
     DiffToolbarComponent,
+    CommonFieldAnnotatorComponent,
   ],
 })
 export class DiffComponent {
@@ -54,17 +55,30 @@ export class DiffComponent {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
 
-  private readonly timelineAnnotatorResolver = inject(
-    TIMELINE_ANNOTATOR_RESOLVER,
-  );
-
   private readonly changePairAnnotatorResolver = inject(
     CHANGE_PAIR_ANNOTATOR_RESOLVER,
   );
 
-  timeline: Observable<ResourceTimeline> = this.diffPageSource.data$.pipe(
-    map((data) => data.timeline),
+  timeline = toSignal(
+    this.diffPageSource.data$.pipe(map((data) => data.timeline)),
+    { initialValue: null },
   );
+
+  protected readonly kind = computed(() => {
+    return this.timeline()?.getNameOfLayer(TimelineLayer.Kind);
+  });
+
+  protected readonly namespace = computed(() => {
+    return this.timeline()?.getNameOfLayer(TimelineLayer.Namespace);
+  });
+
+  protected readonly name = computed(() => {
+    return this.timeline()?.getNameOfLayer(TimelineLayer.Name);
+  });
+
+  protected readonly subresource = computed(() => {
+    return this.timeline()?.getNameOfLayer(TimelineLayer.Subresource);
+  });
 
   changePair = this.diffPageSource.data$.pipe(
     map((data) => data.timeline.getRevisionPairByLogId(data.logIndex)),
@@ -92,10 +106,6 @@ export class DiffComponent {
     return this.removeManagedField(originalContent);
   });
 
-  timelineAnnotators = this.timelineAnnotatorResolver.getResolvedAnnotators(
-    this.timeline,
-    this.envInjector,
-  );
   changePairAnnotators = this.changePairAnnotatorResolver.getResolvedAnnotators(
     this.changePair,
     this.envInjector,

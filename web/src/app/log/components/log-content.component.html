@@ -15,9 +15,17 @@ limitations under the License.
 -->
 
 <div class="log-body-view-root">
-  @let l = log();
-  @if (l) {
-    <khi-log-content-header [log]="l"></khi-log-content-header>
+  @let viewModel = vm();
+  @let l = viewModel?.logEntry;
+  @if (viewModel && l) {
+    <khi-log-content-header
+      [log]="l"
+      [timezoneShift]="timezoneShift()"
+      [referencedResourcePaths]="viewModel.referencedResourcePaths"
+      [selectedTimeline]="selectedTimeline()"
+      (resourceSelected)="resourceSelected.emit($event)"
+      (resourceHighlighted)="resourceHighlighted.emit($event)"
+    ></khi-log-content-header>
     <div class="toolbar">
       <button
         class="toolbar-button"
@@ -38,10 +46,10 @@ limitations under the License.
         </button>
       }
     </div>
-    <div class="log-body-container-scrollable">
-      <pre
-        class="log-body-container"
-      ><code [highlight]="(l.body | resolveText | async) ??''" language="yaml" lineNumbers></code></pre>
+    <div class="log-body-container">
+      <div class="log-body">
+        <pre><code [highlight]="viewModel.logBody" language="yaml" lineNumbers></code></pre>
+      </div>
     </div>
   } @else {
     <div class="empty-message">

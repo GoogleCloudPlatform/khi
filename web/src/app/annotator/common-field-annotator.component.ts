@@ -20,7 +20,7 @@ import { Component, input, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { NEVER, Observable, of } from 'rxjs';
+import { of } from 'rxjs';
 import { AnnotationDecider, DECISION_HIDDEN } from './annotator';
 import { ResourceRevision } from '../store/revision';
 import { ResourceTimeline } from '../store/timeline';
@@ -39,7 +39,7 @@ export class CommonFieldAnnotatorComponent {
 
   label = input('');
 
-  value = input<Observable<string>>(NEVER);
+  value = input<string>('');
 
   onValueClick(value: string) {
     let snackbarMessage: string;

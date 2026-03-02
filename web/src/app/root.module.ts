@@ -61,8 +61,6 @@ import {
   MatTooltipDefaultOptions,
 } from '@angular/material/tooltip';
 import { ViewStateService } from './services/view-state.service';
-import { TIMELINE_ANNOTATOR_RESOLVER } from './annotator/timeline/resolver';
-import { getDefaultTimelineAnnotatorResolver } from './annotator/timeline/default';
 import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from './annotator/change-pair/resolver';
 import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/default';
 import { GraphPageDataSource } from './services/frame-connection/frames/graph-page-datasource.service';
@@ -103,10 +101,6 @@ import { KHIIconRegistrationModule } from './shared/module/icon-registration.mod
     InspectionDataStoreService,
     SelectionManagerService,
     WindowConnectorService,
-    {
-      provide: TIMELINE_ANNOTATOR_RESOLVER,
-      useValue: getDefaultTimelineAnnotatorResolver(),
-    },
     {
       provide: CHANGE_PAIR_ANNOTATOR_RESOLVER,
       useValue: getDefaultChangePairAnnotatorResolver(),
