@@ -181,6 +181,7 @@ func (d *DefaultInitExtension) ConfigureKHIWebServerFactory(serverFactory *serve
 
 // BeforeTerminate implements coreinit.InitExtension.
 func (d *DefaultInitExtension) BeforeTerminate() error {
+	d.taskServer.Dispose()
 	return nil
 }
 

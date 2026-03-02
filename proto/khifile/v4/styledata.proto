@@ -1,0 +1,139 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package khifile.v4;
+
+// HDRColor4 represents a color with high dynamic range (HDR) capabilities.
+// Each component is represented as a float value ranging from 0.0 to 1.0.
+message HDRColor4 {
+  // The red component of the color.
+  float r = 1;
+  // The green component of the color.
+  float g = 2;
+  // The blue component of the color.
+  float b = 3;
+  // The alpha (opacity) component of the color. 0.0 is fully transparent, 1.0 is fully opaque.
+  float a = 4;
+}
+
+// Severity represents the severity level of a log entry (e.g., INFO, ERROR) 
+// and its associated styling information.
+message Severity {
+  // id is the unique identifier of the severity. Do not set this value directly, it will be assigned automatically on its registration.
+  uint32 id = 1;
+  // label is a human readable string of the severity. (e.g: INFO, WARNING)
+  string label = 2;
+  // short_label is a short human readable string of the severity. (e.g: I, W)
+  string short_label = 3;
+  // background_color of the label on log pane and used for the upper part of log dots on timeline.
+  HDRColor4 background_color = 4;
+  // foreground_color of the label on log pane.
+  HDRColor4 foreground_color = 5;
+  // order is the order of the severity. Lower values are displayed on the top.
+  int32 order = 6;
+}
+
+// Verb represents an action taken in an audit log or an event (e.g., CREATE, UPDATE)
+// and its associated styling information.
+message Verb {
+  // id is the unique identifier of the verb. Do not set this value directly, it will be assigned automatically on its registration.
+  uint32 id = 1;
+  // label is a human readable string of the verb.
+  string label = 2;
+  // background_color used in history view.
+  HDRColor4 background_color = 3;
+  // foreground_color used in history view.
+  HDRColor4 foreground_color = 4;
+  // visible controls whether this verb should be displayed in the history view.
+  bool visible = 5;
+}
+
+// LogType represents the category or source of a log entry (e.g., Container, Event)
+// and its associated styling information.
+message LogType {
+  // id is the unique identifier of the log type. Do not set this value directly, it will be assigned automatically on its registration.
+  uint32 id = 1;
+  // label is a human readable string of the log type.
+  string label = 2;
+  // description provides more context about the log type.
+  string description = 3;
+  // background_color used for rendering the log type badge or the lower part of log dots on timeline.
+  HDRColor4 background_color = 4;
+  // foreground_color used for rendering the text on the log type background.
+  HDRColor4 foreground_color = 5;
+}
+
+// RevisionStateStyle defines internal visual presentation modes 
+// for representing the state of an object in a timeline.
+enum RevisionStateStyle {
+  // NORMAL represents a standard, existing object state.
+  NORMAL = 0;
+  // DELETED represents a state where the object has been deleted.
+  DELETED = 1;
+  // PARTIAL_INFO represents a state where only incomplete information about the object is available.
+  PARTIAL_INFO = 2;
+}
+
+// RevisionState represents a specific status of a resource at a given point in time
+// (e.g., Running, Pending, Terminated) and its visual properties.
+message RevisionState {
+  // id is the unique identifier of the revision state. Do not set this value directly, it will be assigned automatically on its registration.
+  uint32 id = 1;
+  // label is a human readable string for the state.
+  string label = 2;
+  // icon is the name of the icon (e.g., Material Symbol name) used to represent the state.
+  string icon = 3;
+  // description provides more context about the state.
+  string description = 4;
+  // background_color used for badges or indicators of this state.
+  HDRColor4 background_color = 5;
+  // style defines the specific rendering mode for this state in the UI.
+  RevisionStateStyle style = 6;
+}
+
+// TimelineType defines the presentation style for a specific type of timeline line
+// (e.g., a specific object's events, or a summarized view).
+message TimelineType {
+  // id is the unique identifier of the timeline type. Do not set this value directly, it will be assigned automatically on its registration.
+  uint32 id = 1;
+  // label is the human readable name for the timeline type.
+  string label = 2;
+  // description provides additional context for the timeline type. This is shown on the legends.
+  string description = 3;
+  // background_color used for styling the timeline rows.
+  HDRColor4 background_color = 4;
+  // foreground_color used for text or specific marks on the timeline.
+  HDRColor4 foreground_color = 5;
+  // visible controls whether this timeline type should be displayed by default.
+  bool visible = 6;
+  // sort_priority determines the default vertical ordering of timelines (lower values sort higher).
+  int32 sort_priority = 7;
+}
+
+// StyleData is the root structure containing all styling and visual configurations contained in the KHI file.
+// These configurations are used by the frontend to render logs, timelines without including these specific color values or text values into the source.
+message StyleData {
+  // severities contains definitions for different log severity levels.
+  repeated Severity severities = 1;
+  // verbs contains definitions for different actions (verbs).
+  repeated Verb verbs = 2;
+  // log_types contains definitions for the various sources/categories of logs.
+  repeated LogType log_types = 3;
+  // revision_states contains definitions for resource statuses.
+  repeated RevisionState revision_states = 4;
+  // timeline_types contains definitions for types of timelines.
+  repeated TimelineType timeline_types = 5;
+}

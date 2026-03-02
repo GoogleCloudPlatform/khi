@@ -17,10 +17,16 @@ package googlecloudlogk8scontainer_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 )
 
 // Register registers all googlecloudlogk8scontainer inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudlogk8scontainer_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		InputContainerQueryNamespaceFilterTask,
 		InputContainerQueryPodNamesFilterMask,

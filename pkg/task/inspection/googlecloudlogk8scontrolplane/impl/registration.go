@@ -17,6 +17,7 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
 // Register registers all googlecloudlogk8scontrolplane inspection tasks to the registry.
@@ -32,6 +33,16 @@ flowchart TD
     LogIngesterTask --> OtherLogToTimelineMapperTask
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudlogk8scontrolplane_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
+	for _, timelineType := range googlecloudlogk8scontrolplane_contract.TimelineTypes {
+		if err := registry.AddTimelineType(timelineType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		InputControlPlaneComponentNameFilterTask,
 		ListLogEntriesTask,

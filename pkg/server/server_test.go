@@ -239,6 +239,7 @@ func taskCompare(taskPlaceholder string, expected string, ignoredMetadata ...str
 func TestApiResponses(t *testing.T) {
 	logger.InitGlobalKHILogger()
 	inspectionServer, err := createTestInspectionServer()
+	defer inspectionServer.Dispose()
 	if err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
@@ -807,6 +808,7 @@ func TestKHIServer_EndpointExistsWithConfigs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error %s", err)
 			}
+			defer inspectionServer.Dispose()
 			defer testutil.MustPlaceTemporalFile(fmt.Sprintf("%s/test.html", embeddedStaticFolderPath), "")()
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
@@ -861,6 +863,7 @@ func TestKHIServerRedirects(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error %s", err)
 			}
+			defer inspectionServer.Dispose()
 			recorer := httptest.NewRecorder()
 			config := ServerConfig{
 				ViewerMode:       tc.viewerMode,
@@ -943,6 +946,7 @@ func TestKHIDirectFileUpload(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error %s", err)
 			}
+			defer inspectionServer.Dispose()
 			engine := gin.New()
 			engine = CreateKHIServer(engine, inspectionServer, &serverConfig)
 			parameters.Server.MaxUploadFileSizeInBytes = testutil.P(tc.maxUploadFileSize)

@@ -17,10 +17,16 @@ package googlecloudloggkeapiaudit_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 )
 
 // Register registers all googlecloudloggkeapiaudit inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudloggkeapiaudit_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		ListLogEntriesTask,
 		FieldSetReaderTask,

@@ -20,6 +20,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	khifilev4 "github.com/GoogleCloudPlatform/khi/pkg/generated/proto/khifile/v4"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
 	"golang.org/x/exp/slices"
@@ -70,6 +71,12 @@ type InspectionTaskServer struct {
 
 	runContextOptions      []RunContextOption
 	inspectionIntercepters []InspectionInterceptor
+
+	severities     []*khifilev4.Severity
+	verbs          []*khifilev4.Verb
+	logTypes       []*khifilev4.LogType
+	revisionStates []*khifilev4.RevisionState
+	timelineTypes  []*khifilev4.TimelineType
 }
 
 func NewServer(ioConfig *inspectioncore_contract.IOConfig) (*InspectionTaskServer, error) {
@@ -83,6 +90,11 @@ func NewServer(ioConfig *inspectioncore_contract.IOConfig) (*InspectionTaskServe
 		inspections:           map[string]*InspectionTaskRunner{},
 		inspectionIDGenerator: idgenerator.NewPrefixIDGenerator("inspection-"),
 		ioConfig:              ioConfig,
+		severities:            make([]*khifilev4.Severity, 0),
+		verbs:                 make([]*khifilev4.Verb, 0),
+		logTypes:              make([]*khifilev4.LogType, 0),
+		revisionStates:        make([]*khifilev4.RevisionState, 0),
+		timelineTypes:         make([]*khifilev4.TimelineType, 0),
 	}
 
 	// Register mandatory tasks for inspection task
@@ -110,6 +122,92 @@ func (s *InspectionTaskServer) AddInspectionType(newInspectionType InspectionTyp
 		return b.Priority - a.Priority
 	})
 	return nil
+}
+
+// AddSeverity registers a Severity. The ID will be automatically assigned.
+func (s *InspectionTaskServer) AddSeverity(severity *khifilev4.Severity) error {
+	for _, existing := range s.severities {
+		if existing == severity {
+			return nil // Already registered
+		}
+	}
+	if severity.Id != 0 {
+		return fmt.Errorf("id must not be set when registering StyleData")
+	}
+	severity.Id = uint32(len(s.severities) + 1)
+	s.severities = append(s.severities, severity)
+	return nil
+}
+
+// AddVerb registers a Verb. The ID will be automatically assigned.
+func (s *InspectionTaskServer) AddVerb(verb *khifilev4.Verb) error {
+	for _, existing := range s.verbs {
+		if existing == verb {
+			return nil // Already registered
+		}
+	}
+	if verb.Id != 0 {
+		return fmt.Errorf("id must not be set when registering StyleData")
+	}
+	verb.Id = uint32(len(s.verbs) + 1)
+	s.verbs = append(s.verbs, verb)
+	return nil
+}
+
+// AddLogType registers a LogType. The ID will be automatically assigned.
+func (s *InspectionTaskServer) AddLogType(logType *khifilev4.LogType) error {
+	for _, existing := range s.logTypes {
+		if existing == logType {
+			return nil // Already registered
+		}
+	}
+	if logType.Id != 0 {
+		return fmt.Errorf("id must not be set when registering StyleData")
+	}
+	logType.Id = uint32(len(s.logTypes) + 1)
+	s.logTypes = append(s.logTypes, logType)
+	return nil
+}
+
+// AddRevisionState registers a RevisionState. The ID will be automatically assigned.
+func (s *InspectionTaskServer) AddRevisionState(revisionState *khifilev4.RevisionState) error {
+	for _, existing := range s.revisionStates {
+		if existing == revisionState {
+			return nil // Already registered
+		}
+	}
+	if revisionState.Id != 0 {
+		return fmt.Errorf("id must not be set when registering StyleData")
+	}
+	revisionState.Id = uint32(len(s.revisionStates) + 1)
+	s.revisionStates = append(s.revisionStates, revisionState)
+	return nil
+}
+
+// AddTimelineType registers a TimelineType. The ID will be automatically assigned.
+func (s *InspectionTaskServer) AddTimelineType(timelineType *khifilev4.TimelineType) error {
+	for _, existing := range s.timelineTypes {
+		if existing == timelineType {
+			return nil // Already registered
+		}
+	}
+	if timelineType.Id != 0 {
+		return fmt.Errorf("id must not be set when registering StyleData")
+	}
+	timelineType.Id = uint32(len(s.timelineTypes) + 1)
+	s.timelineTypes = append(s.timelineTypes, timelineType)
+	return nil
+}
+
+// GetStyleData returns the complete StyleData.
+func (s *InspectionTaskServer) GetStyleData() *khifilev4.StyleData {
+	return &khifilev4.StyleData{
+		Severities:     append([]*khifilev4.Severity{}, s.severities...),
+		Verbs:          append([]*khifilev4.Verb{}, s.verbs...),
+		LogTypes:       append([]*khifilev4.LogType{}, s.logTypes...),
+		RevisionStates: append([]*khifilev4.RevisionState{}, s.revisionStates...),
+		TimelineTypes:  append([]*khifilev4.TimelineType{}, s.timelineTypes...),
+	}
 }
 
 // AddTask register a task usable for the inspection task graph execution.
@@ -169,6 +267,26 @@ func (s *InspectionTaskServer) GetAllRegisteredTasks() []coretask.UntypedTask {
 // AddRunContextOption adds a RunContextOption that will be applied to all new inspection runners.
 func (s *InspectionTaskServer) AddRunContextOption(option RunContextOption) {
 	s.runContextOptions = append(s.runContextOptions, option)
+}
+
+// Dispose resets the IDs of all registered items for another server to register them again.
+// This is needed for testing purpose.
+func (s *InspectionTaskServer) Dispose() {
+	for _, severity := range s.severities {
+		severity.Id = 0
+	}
+	for _, verb := range s.verbs {
+		verb.Id = 0
+	}
+	for _, logType := range s.logTypes {
+		logType.Id = 0
+	}
+	for _, revisionState := range s.revisionStates {
+		revisionState.Id = 0
+	}
+	for _, timelineType := range s.timelineTypes {
+		timelineType.Id = 0
+	}
 }
 
 var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)

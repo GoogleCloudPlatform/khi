@@ -17,6 +17,7 @@ package googlecloudlogcomputeapiaudit_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 )
 
 // Register registers all googlecloudlogcomputeapiaudit inspection tasks to the registry.
@@ -36,6 +37,11 @@ flowchart TD
     LogIngesterTask --> LogToTimelineMapperTask
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudlogcomputeapiaudit_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		ListLogEntriesTask,
 		FieldSetReaderTask,
