@@ -30,23 +30,40 @@ const meta: Meta<LogContentComponent> = {
 export default meta;
 type Story = StoryObj<LogContentComponent>;
 
+const TEST_LOG = new LogEntry(
+  0,
+  'foobar',
+  LogType.LogTypeAudit,
+  Severity.SeverityWarning,
+  1234567890,
+  'summary',
+  ToTextReferenceFromKHIFileBinary(null),
+  [],
+);
+
 export const Default: Story = {
   args: {
-    log: new LogEntry(
-      0,
-      'foobar',
-      LogType.LogTypeAudit,
-      Severity.SeverityWarning,
-      1234567890,
-      'summary',
-      ToTextReferenceFromKHIFileBinary(null),
-      [],
-    ),
+    vm: {
+      logEntry: TEST_LOG,
+      logBody: `apiVersioin: v1
+kind: Pod
+metadata:
+  name: test-pod`,
+      parsedLogBody: {
+        apiVersioin: 'v1',
+        kind: 'Pod',
+        metadata: {
+          name: 'test-pod',
+        },
+      },
+      referencedResourcePaths: [],
+    },
+    timezoneShift: 0,
   },
 };
-
 export const NoSelectedLog: Story = {
   args: {
-    log: null,
+    vm: null,
+    timezoneShift: 0,
   },
 };

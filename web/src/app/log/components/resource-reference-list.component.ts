@@ -15,10 +15,9 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, input, inject, computed } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { SelectionManagerService } from 'src/app/services/selection-manager.service';
+import { ResourceTimeline } from 'src/app/store/timeline';
 
 /**
  * Represents a view model for a single resource reference link.
@@ -41,36 +40,44 @@ export interface ResourceRefAnnotationViewModel {
   imports: [CommonModule, MatIconModule],
 })
 export class ResourceReferenceListComponent {
-  private readonly selectionManager = inject(SelectionManagerService);
-
   /**
    * A list of resolved resource references to display.
    */
   refs = input<ResourceRefAnnotationViewModel[]>([]);
 
   /**
-   * Signal tracking the currently selected timeline path to visually indicate selection state.
+   * Input tracking the currently selected timeline to visually indicate selection state.
+   */
+  selectedTimeline = input<ResourceTimeline | null>(null);
+
+  /**
+   * Computed signal tracking the currently selected timeline path to visually indicate selection state.
    */
   currentSelectedTimelinePath = computed(() => {
     return this.selectedTimeline()?.resourcePath ?? '';
   });
 
-  private readonly selectedTimeline = toSignal(
-    this.selectionManager.selectedTimeline,
-    { initialValue: null },
-  );
+  /**
+   * Output emitted when a resource is clicked.
+   */
+  resourceSelected = output<string>();
+
+  /**
+   * Output emitted when a resource is hovered.
+   */
+  resourceHighlighted = output<string>();
 
   /**
    * Select the resource at the resource path.
    */
   public selectResource(resourcePath: string) {
-    this.selectionManager.onSelectTimeline(resourcePath);
+    this.resourceSelected.emit(resourcePath);
   }
 
   /**
    * Highlight the resource at the resource path.
    */
   public highlightResource(resourcePath: string) {
-    this.selectionManager.onHighlightTimeline(resourcePath);
+    this.resourceHighlighted.emit(resourcePath);
   }
 }

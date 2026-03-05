@@ -15,22 +15,21 @@ limitations under the License.
 -->
 @let vm = viewModel();
 <div class="container">
-  @if (vm.typeSeverity; as inputs) {
-    <khi-type-severity
-      [logType]="inputs.logType"
-      [severity]="inputs.severity"
-    ></khi-type-severity>
-  }
-  @if (vm.timestamp; as inputs) {
-    <khi-common-field-annotator
-      [icon]="inputs.icon"
-      [label]="inputs.label"
-      [value]="inputs.value"
-    ></khi-common-field-annotator>
-  }
-  @if (vm.resourceRefs; as inputs) {
-    <khi-resource-reference-list
-      [refs]="inputs.refs"
-    ></khi-resource-reference-list>
-  }
+  <khi-type-severity
+    [logType]="vm.logType"
+    [severity]="vm.severity"
+  ></khi-type-severity>
+
+  <khi-common-field-annotator
+    icon="schedule"
+    label="Timestamp"
+    [value]="vm.timestamp"
+  ></khi-common-field-annotator>
+
+  <khi-resource-reference-list
+    [refs]="vm.resourceRefs"
+    [selectedTimeline]="selectedTimeline()"
+    (resourceSelected)="resourceSelected.emit($event)"
+    (resourceHighlighted)="resourceHighlighted.emit($event)"
+  ></khi-resource-reference-list>
 </div>

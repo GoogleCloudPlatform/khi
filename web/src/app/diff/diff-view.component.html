@@ -17,127 +17,157 @@ limitations under the License.
 <div class="container">
   @let timeline = selectedTimeline();
   <div class="diff-timeline-annotators">
-    @for (annotator of timelineAnnotators | async; track annotator) {
-      <ng-container
-        *ngComponentOutlet="annotator.component; inputs: annotator.inputs"
-      ></ng-container>
+    @let kind = selectedTimelineKind();
+    @if (kind) {
+      <khi-common-field-annotator
+        icon="workspaces"
+        label="Kind"
+        [value]="kind"
+      ></khi-common-field-annotator>
     }
-  </div>
-  <as-split direction="vertical">
-    <as-split-area size="50">
-      <table
-        class="revision-list-wrap"
-        tabindex="0"
-        (keydown)="keyDown($event)"
-      >
-        @if (timeline === null) {
-          <div class="all-columns"></div>
-        } @else {
-          @let li = selectedLogIndex();
-          @let hlis = highlightedLogIndices();
-          @let logs = allLogs();
-          <cdk-virtual-scroll-viewport class="revision-list">
-            <ng-container
-              *cdkVirtualFor="let revision of timeline.revisions; let i = index"
-              class="revision-element"
-            >
-              @if (revision.logIndex !== -1) {
-                @if (logs[revision.logIndex]; as log) {
-                  <tr
-                    class="revision-row"
-                    [class.selected]="li === revision.logIndex"
-                    [class.highlight]="hlis.has(revision.logIndex)"
-                  >
-                    <td
-                      class="index"
-                      (click)="_selectRevision(revision)"
-                      (mouseover)="_highlightRevision(revision)"
+    @let namespace = selectedTimelineNamespace();
+    @if (namespace) {
+      <khi-common-field-annotator
+        icon="folder"
+        label="Namespace"
+        [value]="namespace"
+      ></khi-common-field-annotator>
+    }
+    @let name = selectedTimelineName();
+    @if (name) {
+      <khi-common-field-annotator
+        icon="description"
+        label="Name"
+        [value]="name"
+      ></khi-common-field-annotator>
+    }
+    @let subresource = selectedTimelineSubresource();
+    @if (subresource) {
+      <khi-common-field-annotator
+        icon="page_info"
+        label="Subresource"
+        [value]="subresource"
+      ></khi-common-field-annotator>
+    }
+    <as-split direction="vertical">
+      <as-split-area size="50">
+        <table
+          class="revision-list-wrap"
+          tabindex="0"
+          (keydown)="keyDown($event)"
+        >
+          @if (timeline === null) {
+            <div class="all-columns"></div>
+          } @else {
+            @let li = selectedLogIndex();
+            @let hlis = highlightedLogIndices();
+            @let logs = allLogs();
+            <cdk-virtual-scroll-viewport class="revision-list">
+              <ng-container
+                *cdkVirtualFor="
+                  let revision of timeline.revisions;
+                  let i = index
+                "
+                class="revision-element"
+              >
+                @if (revision.logIndex !== -1) {
+                  @if (logs[revision.logIndex]; as log) {
+                    <tr
+                      class="revision-row"
+                      [class.selected]="li === revision.logIndex"
+                      [class.highlight]="hlis.has(revision.logIndex)"
                     >
-                      {{ i }}
-                    </td>
-                    <td
-                      class="ts"
-                      (click)="_selectRevision(revision)"
-                      (mouseover)="_highlightRevision(revision)"
-                    >
-                      {{ revision.startAt | tsf | async }}
-                    </td>
-                    <td
-                      class="operation"
-                      (click)="_selectRevision(revision)"
-                      (mouseover)="_highlightRevision(revision)"
-                    >
-                      <span
-                        class="operation-span"
-                        [ngClass]="revision.verbCSSClass"
-                      >
-                        {{ revision.verbLabel }}
-                      </span>
-                    </td>
-                    @if (revision.requestor | parsePrincipal; as author) {
                       <td
-                        class="author"
+                        class="index"
                         (click)="_selectRevision(revision)"
                         (mouseover)="_highlightRevision(revision)"
                       >
-                        <span>by</span>
-                        <span
-                          class="author-type"
-                          [ngClass]="author.type | lowercase"
-                          >{{ author.type }}</span
-                        >
-                        <span class="author-name">{{ author.short }}</span>
+                        {{ i }}
                       </td>
-                    }
-                  </tr>
+                      <td
+                        class="ts"
+                        (click)="_selectRevision(revision)"
+                        (mouseover)="_highlightRevision(revision)"
+                      >
+                        {{ revision.startAt | tsf | async }}
+                      </td>
+                      <td
+                        class="operation"
+                        (click)="_selectRevision(revision)"
+                        (mouseover)="_highlightRevision(revision)"
+                      >
+                        <span
+                          class="operation-span"
+                          [ngClass]="revision.verbCSSClass"
+                        >
+                          {{ revision.verbLabel }}
+                        </span>
+                      </td>
+                      @if (revision.requestor | parsePrincipal; as author) {
+                        <td
+                          class="author"
+                          (click)="_selectRevision(revision)"
+                          (mouseover)="_highlightRevision(revision)"
+                        >
+                          <span>by</span>
+                          <span
+                            class="author-type"
+                            [ngClass]="author.type | lowercase"
+                            >{{ author.type }}</span
+                          >
+                          <span class="author-name">{{ author.short }}</span>
+                        </td>
+                      }
+                    </tr>
+                  }
                 }
-              }
-            </ng-container>
-          </cdk-virtual-scroll-viewport>
-        }
-      </table>
-    </as-split-area>
-    <as-split-area size="50">
-      @if (timeline === null) {
-        <div>
-          <p class="empty-message">No resource selected</p>
-        </div>
-      } @else {
-        @let cr = currentRevision();
-        @if (cr !== null) {
-          <div class="diff">
-            <khi-diff-toolbar
-              [(showManagedFields)]="showManagedFields"
-              (openInNewTab)="openDiffInAnotherWindow()"
-              (copyContent)="copy(currentRevisionContent())"
-            >
-            </khi-diff-toolbar>
-            <div class="diff-inner">
-              @let pr = previousRevision();
-              @if (pr !== null) {
-                @if (currentRevisionContent() !== previousRevisionContent()) {
+              </ng-container>
+            </cdk-virtual-scroll-viewport>
+          }
+        </table>
+      </as-split-area>
+      <as-split-area size="50">
+        @if (timeline === null) {
+          <div>
+            <p class="empty-message">No resource selected</p>
+          </div>
+        } @else {
+          @let cr = currentRevision();
+          @if (cr !== null) {
+            <div class="diff">
+              <khi-diff-toolbar
+                [(showManagedFields)]="showManagedFields"
+                (openInNewTab)="openDiffInAnotherWindow()"
+                (copyContent)="copy(currentRevisionContent())"
+              >
+              </khi-diff-toolbar>
+              <div class="diff-inner">
+                @let pr = previousRevision();
+                @if (pr !== null) {
+                  @if (currentRevisionContent() !== previousRevisionContent()) {
+                    <ngx-unified-diff
+                      class="ngx-diff-light-theme"
+                      [before]="previousRevisionContent()"
+                      [after]="currentRevisionContent()"
+                    >
+                    </ngx-unified-diff>
+                  } @else {
+                    <pre
+                      class="log-body-container"
+                    ><code [highlight]="currentRevisionContent()" language="yaml" lineNumbers></code></pre>
+                  }
+                } @else {
                   <ngx-unified-diff
                     class="ngx-diff-light-theme"
-                    [before]="previousRevisionContent()"
+                    before=""
                     [after]="currentRevisionContent()"
-                  >
-                  </ngx-unified-diff>
-                } @else {
-                  <pre
-                    class="log-body-container"
-                  ><code [highlight]="currentRevisionContent()" language="yaml" lineNumbers></code></pre>
+                  ></ngx-unified-diff>
                 }
-              } @else {
-                <ngx-unified-diff
-                  class="ngx-diff-light-theme"
-                  before=""
-                  [after]="currentRevisionContent()"
-                ></ngx-unified-diff>
-              }
+              </div>
             </div>
-          </div>
+          }
         }
-      }
-    </as-split-area>
-  </as-split>
+      </as-split-area>
+    </as-split>
+  </div>
 </div>

@@ -14,7 +14,7 @@
  limitations under the License.
 -->
 
-<div class="container" #container>
+<div class="container">
   <as-split direction="vertical">
     <as-split-area size="50">
       <khi-log-list
@@ -33,7 +33,18 @@
       ></khi-log-list>
     </as-split-area>
     <as-split-area size="50">
-      <khi-log-content [log]="selectedLog()"> </khi-log-content>
+      @if (logContentViewModel.isLoading()) {
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      } @else {
+        <khi-log-content
+          [vm]="logContentViewModel.value() ?? null"
+          [timezoneShift]="timezoneShift()"
+          [selectedTimeline]="selectedTimeline()"
+          (resourceSelected)="onResourceSelected($event)"
+          (resourceHighlighted)="onResourceHighlighted($event)"
+        >
+        </khi-log-content>
+      }
     </as-split-area>
   </as-split>
 </div>
