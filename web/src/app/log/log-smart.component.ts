@@ -158,7 +158,11 @@ export class LogSmartComponent {
    */
   private readonly referenceResolver = toSignal(
     this.inspectionDataStore.referenceResolver.pipe(filter((tb) => !!tb)) ??
+<<<<<<< HEAD
     of(null),
+=======
+      of(null),
+>>>>>>> 996165d (Remove service dependency from dumb components (#532))
   );
 
   private readonly inspectionData = toSignal(
