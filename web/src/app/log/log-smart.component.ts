@@ -158,7 +158,7 @@ export class LogSmartComponent {
    */
   private readonly referenceResolver = toSignal(
     this.inspectionDataStore.referenceResolver.pipe(filter((tb) => !!tb)) ??
-      of(null),
+    of(null),
   );
 
   private readonly inspectionData = toSignal(
