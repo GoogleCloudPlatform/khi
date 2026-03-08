@@ -160,3 +160,7 @@ func (a *AirflowScheduler) ToYaml() string {
 func (a *AirflowScheduler) ResourcePath() resourcepath.ResourcePath {
 	return resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", a.Host(), a.componentName)
 }
+
+func (s *DagFileProcessorStats) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "cluster-scope", s.DagFilePath())
+}
