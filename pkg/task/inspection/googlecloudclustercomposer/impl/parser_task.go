@@ -19,32 +19,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	airflowdagprocessor "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl/airflow-dag-processor-manager"
-	airflowscheduler "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl/airflow-scheduler"
-	airflowworker "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/impl/airflow-worker"
-)
-
-// AirflowSchedulerLogParseTask parses Airflow scheduler logs.
-var AirflowSchedulerLogParseTask = legacyparser.NewParserTaskFromParser(
-	googlecloudclustercomposer_contract.AirflowSchedulerLogParserTaskID,
-	airflowscheduler.NewAirflowSchedulerParser(googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
-	100000,
-	true,
-	[]string{googlecloudclustercomposer_contract.InspectionTypeId},
-)
-
-// AirflowWorkerLogParseTask parses Airflow worker logs.
-var AirflowWorkerLogParseTask = legacyparser.NewParserTaskFromParser(
-	googlecloudclustercomposer_contract.AirflowWorkerLogParserTaskID,
-	airflowworker.NewAirflowWorkerParser(googlecloudclustercomposer_contract.ComposerWorkerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
-	101000,
-	true,
-	[]string{googlecloudclustercomposer_contract.InspectionTypeId},
 )
 
 // AirflowDagProcessorLogParseTask parses Airflow DAG processor manager logs.
 var AirflowDagProcessorLogParseTask = legacyparser.NewParserTaskFromParser(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogParserTaskID,
-	airflowdagprocessor.NewAirflowDagProcessorParser("/home/airflow/gcs/dags/", googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID.Ref(), enum.LogTypeComposerEnvironment),
+	airflowdagprocessor.NewAirflowDagProcessorParser("/home/airflow/gcs/dags/", googlecloudclustercomposer_contract.ComposerDagProcessorManagerFieldSetReadTaskID.Ref(), enum.LogTypeComposerEnvironment),
 	102000,
 	true,
 	[]string{googlecloudclustercomposer_contract.InspectionTypeId},

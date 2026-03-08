@@ -21,12 +21,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/legacyparser"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/grouper"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 )
 
 type AirflowDagProcessorParser struct {
@@ -83,7 +82,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *h
 		// this is not a dag file processor stats log, skip
 		return nil
 	}
-	cs.AddRevision(resourcepath.DagFileProcessorStats(dagFileProcessorStats), &history.StagingResourceRevision{
+	cs.AddRevision(dagFileProcessorStats.ResourcePath(), &history.StagingResourceRevision{
 		Verb:       enum.RevisionVerbComposerTaskInstanceStats,
 		State:      enum.RevisionStateConditionTrue,
 		Requestor:  "dag-processor-manager",
@@ -112,7 +111,7 @@ func (a *AirflowDagProcessorParser) Parse(ctx context.Context, l *log.Log, cs *h
 
 // parse DAG Processor Manager's parse result log.
 // Sample: /home/airflow/gcs/dags/main.py 40441 4.06s 64 0 6.93s 2024-05-02T05:14:54
-func (a *AirflowDagProcessorParser) fromLogEntity(log string) *model.DagFileProcessorStats {
+func (a *AirflowDagProcessorParser) fromLogEntity(log string) *googlecloudclustercomposer_contract.DagFileProcessorStats {
 
 	// TODO add support for `last_num_of_db_queries` (available from 2.10)
 	// The current implementation is based on a fixed number of 6 columns, but this will change to 7 fom 2.10.
@@ -153,7 +152,7 @@ func (a *AirflowDagProcessorParser) fromLogEntity(log string) *model.DagFileProc
 		return nil
 	}
 
-	return func(frags []string) *model.DagFileProcessorStats {
+	return func(frags []string) *googlecloudclustercomposer_contract.DagFileProcessorStats {
 		filePath := frags[0]
 		var runtime, numberOfDags, numberOfErrors string
 
@@ -206,7 +205,7 @@ func (a *AirflowDagProcessorParser) fromLogEntity(log string) *model.DagFileProc
 			runtime, numberOfDags, numberOfErrors = frags[2], frags[3], frags[4]
 		}
 
-		return model.NewDagFileProcessorStats(
+		return googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 			filePath,
 			runtime,
 			numberOfDags,

@@ -42,8 +42,17 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ComposerMonitoringLogQueryTask,
 		ComposerWorkerLogQueryTask,
 
-		AirflowSchedulerLogParseTask,
-		AirflowWorkerLogParseTask,
+		AirflowSchedulerLogGrouperTask,
+		AirflowSchedulerLogIngesterTask,
+		AirflowSchedulerLogToTimelineMapperTask,
+		AirflowWorkerLogGrouperTask,
+		AirflowWorkerLogIngesterTask,
+		AirflowWorkerLogToTimelineMapperTask,
 		AirflowDagProcessorLogParseTask,
+
+		ComposerSchedulerFieldSetReadTask,
+		ComposerDagProcessorManagerFieldSetReadTask,
+		ComposerMonitoringFieldSetReadTask,
+		ComposerWorkerFieldSetReadTask,
 	)
 }

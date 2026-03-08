@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package googlecloudclustercomposer_contract
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -95,6 +97,16 @@ func (a *AirflowTaskInstance) ToYaml() string {
 	return string(b)
 }
 
+func (a *AirflowTaskInstance) ResourcePath() resourcepath.ResourcePath {
+	var detail = a.TaskId()
+	if a.MapIndex() != "-1" {
+		detail += "+" + a.MapIndex()
+	}
+	rp := resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "TaskInstance", a.DagId(), a.RunId(), detail)
+	rp.ParentRelationship = enum.RelationshipAirflowTaskInstance
+	return rp
+}
+
 type AirflowWorker struct {
 	host string
 }
@@ -115,6 +127,36 @@ func (a *AirflowWorker) ToYaml() string {
 		return ""
 	}
 	return string(b)
+}
+
+func (a *AirflowWorker) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.NameLayerGeneralItem("Apache Airflow", "AirflowWorker", "cluster-scope", a.Host())
+}
+
+type AirflowScheduler struct {
+	host string
+}
+
+func NewAirflowScheduler(host string) *AirflowScheduler {
+	return &AirflowScheduler{
+		host: host,
+	}
+}
+
+func (a *AirflowScheduler) Host() string {
+	return a.host
+}
+
+func (a *AirflowScheduler) ToYaml() string {
+	b, err := yaml.Marshal(a)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func (a *AirflowScheduler) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.NameLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", a.Host())
 }
 
 type DagFileProcessorStats struct {
@@ -155,4 +197,8 @@ func (s *DagFileProcessorStats) NumberOfDags() string {
 
 func (s *DagFileProcessorStats) NumberOfErrors() string {
 	return s.numberOfErrors
+}
+
+func (s *DagFileProcessorStats) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "cluster-scope", s.DagFilePath())
 }

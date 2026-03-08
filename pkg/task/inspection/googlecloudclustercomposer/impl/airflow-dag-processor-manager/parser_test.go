@@ -17,7 +17,7 @@ package apacheairflow
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,12 +26,12 @@ func TestDagProcessor(t *testing.T) {
 	testCases := []struct {
 		name     string
 		text     string
-		expected *model.DagFileProcessorStats
+		expected *googlecloudclustercomposer_contract.DagFileProcessorStats
 	}{
 		{
 			"Real Data(with 7)",
 			"/home/airflow/gcs/dags/airflow_monitoring.py  19517  0.08s             1           0  0.51s           2024-05-08T02:44:13",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"0.08s",
 				"1",
@@ -41,7 +41,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"minimum",
 			"/home/airflow/gcs/dags/airflow_monitoring.py 1 0",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"",
 				"1",
@@ -51,7 +51,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"4 with PID",
 			"/home/airflow/gcs/dags/airflow_monitoring.py  18419                   1           0",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"",
 				"1",
@@ -61,7 +61,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"4 with RUNTIME",
 			"/home/airflow/gcs/dags/airflow_monitoring.py 2.58s 1 0",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"2.58s",
 				"1",
@@ -71,7 +71,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"5 with PID and RUNTIME",
 			"/home/airflow/gcs/dags/airflow_monitoring.py 19517 0.08s 1 0",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"0.08s",
 				"1",
@@ -81,7 +81,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"5 with LAST_*",
 			"/home/airflow/gcs/dags/airflow_monitoring.py 1 0  0.51s 2024-05-08T02:44:13",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"",
 				"1",
@@ -91,7 +91,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"6 with RUNTIME",
 			"/home/airflow/gcs/dags/airflow_monitoring.py 0.08s 1 0  0.51s 2024-05-08T02:44:13",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"0.08s",
 				"1",
@@ -101,7 +101,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"6 with PID and RUNTIME and LAST_*",
 			"/home/airflow/gcs/dags/airflow_monitoring.py 19517  0.08s 1 0  0.51s",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"0.08s",
 				"1",
@@ -111,7 +111,7 @@ func TestDagProcessor(t *testing.T) {
 		{
 			"6 with PID and LAST_*",
 			"/home/airflow/gcs/dags/airflow_monitoring.py  19517 1 0  0.51s 2024-05-08T02:44:13",
-			model.NewDagFileProcessorStats(
+			googlecloudclustercomposer_contract.NewDagFileProcessorStats(
 				"/home/airflow/gcs/dags/airflow_monitoring.py",
 				"",
 				"1",
