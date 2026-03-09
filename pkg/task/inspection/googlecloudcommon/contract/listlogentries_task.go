@@ -27,8 +27,10 @@ import (
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud/logconvert"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -78,6 +80,57 @@ type ListLogEntriesTaskSetting interface {
 
 	// Description returns the description for the Cloud Logging filter task.
 	Description() *ListLogEntriesTaskDescription
+}
+
+func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogFetchProgress, progressDest *inspectionmetadata.TaskProgressMetadata, listCallIndex int, allListCalls int) {
+	wg.Add(1)
+	startingTime := time.Now()
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case progress, ok := <-source:
+				if !ok {
+					return
+				}
+				current := time.Now()
+				elapsed := current.Sub(startingTime).Seconds()
+				var lps float64
+				if elapsed > 0 {
+					lps = float64(progress.LogCount) / elapsed
+				}
+				completeRatio := (float32(listCallIndex) + progress.Progress) / float32(allListCalls)
+				progressDest.Update(completeRatio, fmt.Sprintf("%d logs fetched(%.2f lps)[%d/%d]", progress.LogCount, lps, listCallIndex, allListCalls))
+			}
+		}
+	}()
+}
+
+func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log, logType enum.LogType) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case l, ok := <-source:
+				if !ok {
+					return
+				}
+				node, err := logconvert.LogEntryToNode(l)
+				if err != nil {
+					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
+					continue
+				}
+				khiLog := log.NewLog(structured.NewNodeReader(node))
+				khiLog.LogType = logType
+				*dest = append(*dest, khiLog)
+			}
+		}
+	}()
 }
 
 // NewListLogEntriesTask creates a new task that lists log entries from Cloud Logging based on the provided settings.

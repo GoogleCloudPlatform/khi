@@ -134,12 +134,14 @@ func (a *AirflowWorker) ResourcePath() resourcepath.ResourcePath {
 }
 
 type AirflowScheduler struct {
-	host string
+	host          string
+	componentName string
 }
 
-func NewAirflowScheduler(host string) *AirflowScheduler {
+func NewAirflowScheduler(host string, componentName string) *AirflowScheduler {
 	return &AirflowScheduler{
-		host: host,
+		host:          host,
+		componentName: componentName,
 	}
 }
 
@@ -156,49 +158,5 @@ func (a *AirflowScheduler) ToYaml() string {
 }
 
 func (a *AirflowScheduler) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.NameLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", a.Host())
-}
-
-type DagFileProcessorStats struct {
-	dagFilePath    string `yaml:"dagFilePath"`
-	runtime        string `yaml:"runtime"`
-	numberOfDags   string `yaml:"numberOfDags"`
-	numberOfErrors string `yaml:"numberOfErrors"`
-}
-
-func NewDagFileProcessorStats(dagFilePath string, runtime string, numberOfDags string, numberOfErrors string) *DagFileProcessorStats {
-	return &DagFileProcessorStats{
-		dagFilePath:    dagFilePath,
-		runtime:        runtime,
-		numberOfDags:   numberOfDags,
-		numberOfErrors: numberOfErrors,
-	}
-}
-
-func (s *DagFileProcessorStats) ToYaml() string {
-	b, err := yaml.Marshal(s)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
-
-func (s *DagFileProcessorStats) DagFilePath() string {
-	return s.dagFilePath
-}
-
-func (s *DagFileProcessorStats) Runtime() string {
-	return s.runtime
-}
-
-func (s *DagFileProcessorStats) NumberOfDags() string {
-	return s.numberOfDags
-}
-
-func (s *DagFileProcessorStats) NumberOfErrors() string {
-	return s.numberOfErrors
-}
-
-func (s *DagFileProcessorStats) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "cluster-scope", s.DagFilePath())
+	return resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", a.Host(), a.componentName)
 }

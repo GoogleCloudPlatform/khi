@@ -73,7 +73,7 @@ func (c *airflowSchedulerLogToTimelineMapperSetting) LogIngesterTask() taskid.Ta
 func (c *airflowSchedulerLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	schedulerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{})
 	if err == nil && schedulerField.SchedulerID != "" {
-		scheduler := googlecloudclustercomposer_contract.NewAirflowScheduler(schedulerField.SchedulerID)
+		scheduler := googlecloudclustercomposer_contract.NewAirflowScheduler(schedulerField.SchedulerID, "airflow-scheduler")
 		cs.AddEvent(scheduler.ResourcePath())
 	}
 
