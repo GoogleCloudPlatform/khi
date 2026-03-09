@@ -9,11 +9,9 @@ require (
 
 require (
 	cloud.google.com/go/container v1.45.0
-	cloud.google.com/go/gkehub v0.16.0
-	cloud.google.com/go/gkemulticloud v1.6.0
 	cloud.google.com/go/logging v1.13.1
+	cloud.google.com/go/monitoring v1.24.3
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.30.0
-	github.com/crazy3lf/colorconv v1.2.0
 	github.com/googleapis/gax-go/v2 v2.15.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/sdk v1.38.0
@@ -34,7 +32,6 @@ require (
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.3 // indirect
 	cloud.google.com/go/longrunning v0.7.0 // indirect
-	cloud.google.com/go/monitoring v1.24.3 // indirect
 	cloud.google.com/go/trace v1.11.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.0.2 // indirect

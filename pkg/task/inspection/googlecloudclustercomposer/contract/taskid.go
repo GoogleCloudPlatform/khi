@@ -15,6 +15,7 @@
 package googlecloudclustercomposer_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -52,14 +53,32 @@ var ComposerMonitoringLogQueryTaskID taskid.TaskImplementationID[[]*log.Log] = t
 // ComposerWorkerLogQueryTaskID is the task id for the task that queries worker logs from Cloud Logging.
 var ComposerWorkerLogQueryTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "query-worker")
 
-// AirflowSchedulerLogParserTaskID is the task id for the task that parses Airflow scheduler logs.
-var AirflowSchedulerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "composer/scheduler")
+// AirflowSchedulerLogGrouperTaskID is the task id for the task that groups Airflow scheduler logs.
+var AirflowSchedulerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-scheduler")
 
-// AirflowDagProcessorManagerLogParserTaskID is the task id for the task that parses Airflow DAG processor manager logs.
-var AirflowDagProcessorManagerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "composer/worker")
+// AirflowSchedulerLogIngesterTaskID is the task id for the task that ingests Airflow scheduler logs.
+var AirflowSchedulerLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-scheduler")
 
-// AirflowWorkerLogParserTaskID is the task id for the task that parses Airflow worker logs.
-var AirflowWorkerLogParserTaskID taskid.TaskImplementationID[struct{}] = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "composer/dagprocessor")
+// AirflowSchedulerLogToTimelineMapperTaskID is the task id for the task that maps Airflow scheduler logs to timeline events.
+var AirflowSchedulerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "mapper-scheduler")
+
+// AirflowDagProcessorManagerLogGrouperTaskID is the task id for the task that groups Airflow DAG processor manager logs.
+var AirflowDagProcessorManagerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-dag-processor-manager")
+
+// AirflowDagProcessorManagerLogIngesterTaskID is the task id for the task that ingests Airflow DAG processor manager logs.
+var AirflowDagProcessorManagerLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-dag-processor-manager")
+
+// AirflowDagProcessorManagerLogToTimelineMapperTaskID is the task id for the task that maps Airflow DAG processor manager logs to timeline events.
+var AirflowDagProcessorManagerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "mapper-dag-processor-manager")
+
+// AirflowWorkerLogGrouperTaskID is the task id for the task that groups Airflow worker logs.
+var AirflowWorkerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GoogleCloudComposerTaskIDPrefix + "grouper-worker")
+
+// AirflowWorkerLogIngesterTaskID is the task id for the task that ingests Airflow worker logs.
+var AirflowWorkerLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "ingester-worker")
+
+// AirflowWorkerLogToTimelineMapperTaskID is the task id for the task that maps Airflow worker logs to timeline events.
+var AirflowWorkerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudComposerTaskIDPrefix + "mapper-worker")
 
 // ComposerEnvironmentListFetcherTaskID is the task id for injecting ComposerEnvironmentListFetcher instance.
 var ComposerEnvironmentListFetcherTaskID = taskid.NewDefaultImplementationID[ComposerEnvironmentListFetcher](GoogleCloudComposerTaskIDPrefix + "composer-environment-list-fetcher")
@@ -69,3 +88,15 @@ var ComposerEnvironmentClusterFinderTaskID = taskid.NewDefaultImplementationID[C
 
 // AutocompleteLocationForComposerEnvironmentTaskID is the task id for the task that autocompletes GKE cluster location from Composer environments.
 var AutocompleteLocationForComposerEnvironmentTaskID = taskid.NewImplementationID(googlecloudcommon_contract.AutocompleteLocationTaskID.Ref(), "composer")
+
+// ComposerSchedulerFieldSetReadTaskID is the task id for the task that reads fieldset from scheduler logs.
+var ComposerSchedulerFieldSetReadTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "fieldsetread-scheduler")
+
+// ComposerDagProcessorManagerFieldSetReadTaskID is the task id for the task that reads fieldset from DAG processor manager logs.
+var ComposerDagProcessorManagerFieldSetReadTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "fieldsetread-dag-processor-manager")
+
+// ComposerMonitoringFieldSetReadTaskID is the task id for the task that reads fieldset from monitoring logs.
+var ComposerMonitoringFieldSetReadTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "fieldsetread-monitoring")
+
+// ComposerWorkerFieldSetReadTaskID is the task id for the task that reads fieldset from worker logs.
+var ComposerWorkerFieldSetReadTaskID taskid.TaskImplementationID[[]*log.Log] = taskid.NewDefaultImplementationID[[]*log.Log](GoogleCloudComposerTaskIDPrefix + "fieldsetread-worker")

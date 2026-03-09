@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package model
+package googlecloudclustercomposer_contract
 
 import (
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -95,6 +97,16 @@ func (a *AirflowTaskInstance) ToYaml() string {
 	return string(b)
 }
 
+func (a *AirflowTaskInstance) ResourcePath() resourcepath.ResourcePath {
+	var detail = a.TaskId()
+	if a.MapIndex() != "-1" {
+		detail += "+" + a.MapIndex()
+	}
+	rp := resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "TaskInstance", a.DagId(), a.RunId(), detail)
+	rp.ParentRelationship = enum.RelationshipAirflowTaskInstance
+	return rp
+}
+
 type AirflowWorker struct {
 	host string
 }
@@ -117,42 +129,34 @@ func (a *AirflowWorker) ToYaml() string {
 	return string(b)
 }
 
-type DagFileProcessorStats struct {
-	dagFilePath    string `yaml:"dagFilePath"`
-	runtime        string `yaml:"runtime"`
-	numberOfDags   string `yaml:"numberOfDags"`
-	numberOfErrors string `yaml:"numberOfErrors"`
+func (a *AirflowWorker) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.NameLayerGeneralItem("Apache Airflow", "AirflowWorker", "cluster-scope", a.Host())
 }
 
-func NewDagFileProcessorStats(dagFilePath string, runtime string, numberOfDags string, numberOfErrors string) *DagFileProcessorStats {
-	return &DagFileProcessorStats{
-		dagFilePath:    dagFilePath,
-		runtime:        runtime,
-		numberOfDags:   numberOfDags,
-		numberOfErrors: numberOfErrors,
+type AirflowScheduler struct {
+	host          string
+	componentName string
+}
+
+func NewAirflowScheduler(host string, componentName string) *AirflowScheduler {
+	return &AirflowScheduler{
+		host:          host,
+		componentName: componentName,
 	}
 }
 
-func (s *DagFileProcessorStats) ToYaml() string {
-	b, err := yaml.Marshal(s)
+func (a *AirflowScheduler) Host() string {
+	return a.host
+}
+
+func (a *AirflowScheduler) ToYaml() string {
+	b, err := yaml.Marshal(a)
 	if err != nil {
 		return ""
 	}
 	return string(b)
 }
 
-func (s *DagFileProcessorStats) DagFilePath() string {
-	return s.dagFilePath
-}
-
-func (s *DagFileProcessorStats) Runtime() string {
-	return s.runtime
-}
-
-func (s *DagFileProcessorStats) NumberOfDags() string {
-	return s.numberOfDags
-}
-
-func (s *DagFileProcessorStats) NumberOfErrors() string {
-	return s.numberOfErrors
+func (a *AirflowScheduler) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", a.Host(), a.componentName)
 }
