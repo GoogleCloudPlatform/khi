@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -50,7 +51,7 @@ var AirflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelin
 		enum.LogTypeComposerEnvironment,
 		100000,
 		true,
-		googlecloudclustercomposer_contract.InspectionTypeId,
+		googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...,
 	),
 )
 

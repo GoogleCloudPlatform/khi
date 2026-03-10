@@ -42,3 +42,8 @@ var GKEMultiCloudClusterInspectionTypes = []string{
 var GDCClusterInspectionTypes = []string{
 	googlecloudclustergdcbaremetal_contract.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId,
 }
+
+// CloudComposerInspectionTypes is the list of inspection types of Cloud Composer.
+var CloudComposerInspectionTypes = []string{
+	googlecloudclustercomposer_contract.InspectionTypeId,
+}

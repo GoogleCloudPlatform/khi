@@ -48,6 +48,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		AirflowWorkerLogGrouperTask,
 		AirflowWorkerLogIngesterTask,
 		AirflowWorkerLogToTimelineMapperTask,
+		AirflowDagProcessorManagerLogSorterTask,
 		AirflowDagProcessorManagerLogGrouperTask,
 		AirflowDagProcessorManagerLogIngesterTask,
 		AirflowDagProcessorManagerLogToTimelineMapperTask,

@@ -27,12 +27,18 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+)
+
+var AirflowDagProcessorManagerLogSorterTask = inspectiontaskbase.NewLogSorterByTimeTask(
+	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID,
+	googlecloudclustercomposer_contract.ComposerDagProcessorManagerFieldSetReadTaskID.Ref(),
 )
 
 var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID,
-	googlecloudclustercomposer_contract.ComposerDagProcessorManagerFieldSetReadTaskID.Ref(),
+	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		fs, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{})
 		if err != nil {
@@ -59,7 +65,7 @@ var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLo
 		enum.LogTypeComposerEnvironment,
 		100000,
 		true,
-		googlecloudclustercomposer_contract.InspectionTypeId,
+		googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...,
 	),
 )
 
