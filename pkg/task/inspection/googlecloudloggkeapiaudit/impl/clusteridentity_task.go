@@ -15,19 +15,12 @@
 package googlecloudloggkeapiaudit_impl
 
 import (
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 )
 
-// Register registers all googlecloudloggkeapiaudit inspection tasks to the registry.
-func Register(registry coreinspection.InspectionTaskRegistry) error {
-	return coretask.RegisterTasks(registry,
-		ClusterIdentityAliasTask,
-
-		ListLogEntriesTask,
-		FieldSetReaderTask,
-		LogGrouperTask,
-		LogIngesterTask,
-		LogToTimelineMapperTask,
-	)
-}
+var ClusterIdentityAliasTask = coretask.NewAliasTask(
+	googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID,
+	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+)

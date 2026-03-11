@@ -35,14 +35,14 @@ type composerListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }
@@ -58,9 +58,9 @@ func (c *composerListLogEntriesTaskSetting) Description() *googlecloudcommon_con
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
-	return []string{generateQueryForComponent(projectID, environmentName, c.componentName)}, nil
+	return []string{generateQueryForComponent(clusterIdentity.ProjectID, environmentName, c.componentName)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.

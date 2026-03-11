@@ -76,7 +76,7 @@ type serialPortLoggingFilterTaskSetting struct {
 // Dependencies implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
 		commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref(),
 	}
@@ -103,8 +103,8 @@ func (s *serialPortLoggingFilterTaskSetting) LogFilters(ctx context.Context, tas
 
 // DefaultResourceNames implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.

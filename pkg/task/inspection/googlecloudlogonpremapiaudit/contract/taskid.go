@@ -18,10 +18,14 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // OnPremCloudAPITaskIDPrefix is the prefix for all task ids related to google cloud on-prem API audit.
 var OnPremCloudAPITaskIDPrefix = "cloud.google.com/onprem-api/"
+
+// ClusterIdentityTaskID is the task id for aliasing the cluster identity.
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](OnPremCloudAPITaskIDPrefix + "cluster-identity")
 
 // ListLogEntriesTaskID is the task id for the task that queries onprem API logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremCloudAPITaskIDPrefix + "query")

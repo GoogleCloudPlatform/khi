@@ -41,6 +41,8 @@ import (
 // Register registers all googlecloudlogcsm inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
+		ClusterIdentityAliasTask,
+
 		InputCSMResponseFlagsTask,
 		ListLogEntriesTask,
 		FieldSetReaderTask,

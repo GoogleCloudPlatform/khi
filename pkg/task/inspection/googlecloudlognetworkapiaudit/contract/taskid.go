@@ -19,10 +19,14 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // NetworkAPILogTaskIDPrefix is the prefix for all task IDs in this package.
 var NetworkAPILogTaskIDPrefix = "cloud.google.com/log/network-api/"
+
+// ClusterIdentityTaskID is the task id for aliasing the cluster identity.
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](NetworkAPILogTaskIDPrefix + "cluster-identity")
 
 // ListLogEntriesTaskID is the task id for the task that queries network API audit logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](NetworkAPILogTaskIDPrefix + "query")

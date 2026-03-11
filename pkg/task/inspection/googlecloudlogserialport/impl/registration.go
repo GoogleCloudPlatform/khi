@@ -38,6 +38,8 @@ flowchart TD
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
+		ClusterIdentityAliasTask,
+
 		LogQueryTask,
 		FieldSetReadTask,
 		LogIngesterTask,

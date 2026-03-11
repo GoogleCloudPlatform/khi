@@ -26,6 +26,9 @@ import (
 // GoogleCloudComposerTaskIDPrefix is the prefix for all task ids related to google cloud composer.
 var GoogleCloudComposerTaskIDPrefix = "cloud.google.com/composer/"
 
+// ClusterIdentityTaskID is the task id for aliasing the cluster identity.
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](GoogleCloudComposerTaskIDPrefix + "cluster-identity")
+
 // AutocompleteComposerClusterNamesTaskID is the task id for the task that autocompletes GKE cluster names created by Cloud Composer.
 var AutocompleteComposerClusterNamesTaskID = taskid.NewImplementationID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), "composer")
 

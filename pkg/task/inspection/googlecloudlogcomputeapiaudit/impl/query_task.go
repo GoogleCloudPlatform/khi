@@ -64,8 +64,8 @@ type computeAPIListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 
 }
 
@@ -73,7 +73,7 @@ func (c *computeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.C
 func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref(),
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 

@@ -60,14 +60,14 @@ type networkAPIListLogEntiesTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (n *networkAPIListLogEntiesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlognetworkapiaudit_contract.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (n *networkAPIListLogEntiesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
+		googlecloudlognetworkapiaudit_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
 	}
 }

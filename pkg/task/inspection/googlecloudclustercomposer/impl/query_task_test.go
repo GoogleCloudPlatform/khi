@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -31,7 +31,7 @@ func TestLogFiltersGeneratesComposerQuery(t *testing.T) {
 	projectId := "test-project"
 	environmentName := "test-environment"
 	taskDependentValues := typedmap.NewTypedMap()
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudcommon_contract.InputProjectIdTaskID.ReferenceIDString()), projectId)
+	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: projectId})
 	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), environmentName)
 	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 
@@ -63,7 +63,7 @@ func TestDependenciesAndDefaultResourceNames(t *testing.T) {
 	ctx := context.Background()
 	projectId := "test-project"
 	taskDependentValues := typedmap.NewTypedMap()
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudcommon_contract.InputProjectIdTaskID.ReferenceIDString()), projectId)
+	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: projectId})
 	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 
 	setting := &composerListLogEntriesTaskSetting{}

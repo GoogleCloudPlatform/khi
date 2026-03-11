@@ -80,14 +80,14 @@ type K8sEventListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *K8sEventListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8sevent_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *K8sEventListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+		googlecloudlogk8sevent_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
 	}
 }
@@ -112,7 +112,7 @@ func (k *K8sEventListLogEntriesTaskSetting) Description() *googlecloudcommon_con
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (k *K8sEventListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8sevent_contract.ClusterIdentityTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 	return []string{GenerateK8sEventQuery(cluster, namespaceFilter)}, nil
 }

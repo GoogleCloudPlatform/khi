@@ -43,15 +43,14 @@ type gkeAPIListLogEntriesTaskSetting struct {
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
-	return []string{fmt.Sprintf("projects/%s", projectID)}, nil
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref())
+	return []string{fmt.Sprintf("projects/%s", clusterIdentity.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
-		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+		googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
@@ -66,7 +65,7 @@ func (g *gkeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contr
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudloggkeapiaudit_contract.ClusterIdentityTaskID.Ref())
 	return []string{GenerateGKEAuditQuery(cluster)}, nil
 }
 

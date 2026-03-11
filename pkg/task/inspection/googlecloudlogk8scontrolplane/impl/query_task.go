@@ -62,14 +62,14 @@ type controlPlaneListLogEntriesTaskSetting struct {
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+		googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref(),
 	}
 }
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
@@ -90,7 +90,7 @@ func (c *controlPlaneListLogEntriesTaskSetting) Description() *googlecloudcommon
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *controlPlaneListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.ClusterIdentityTaskID.Ref())
 	controlplaneComponentNameFilter := coretask.GetTaskResult(ctx, googlecloudlogk8scontrolplane_contract.InputControlPlaneComponentNameFilterTaskID.Ref())
 
 	return []string{GenerateK8sControlPlaneQuery(cluster, controlplaneComponentNameFilter)}, nil

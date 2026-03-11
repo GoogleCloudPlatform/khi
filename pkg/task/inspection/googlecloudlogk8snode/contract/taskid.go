@@ -21,12 +21,16 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 const (
 	// TaskIDPrefix is the prefix for all task IDs in this package.
 	TaskIDPrefix = "cloud.google.com/log/k8s-node/"
 )
+
+// ClusterIdentityTaskID is the task id for aliasing the cluster identity.
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](TaskIDPrefix + "cluster-identity")
 
 // ListLogEntriesTaskID is the task id for the task that queries k8s node logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")

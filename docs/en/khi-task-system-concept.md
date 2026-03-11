@@ -926,3 +926,40 @@ var CachedHeavyTask = inspectiontaskbase.NewCachedTask(
     },
 )
 ```
+
+### NewAliasTask
+
+Sometimes you need multiple tasks to depend on a common task, but you want to override the dependency for only one of them. In KHI's DAG task system, if you completely override the common task's implementation using its `TaskImplementationID`, it affects all tasks that depend on it.
+
+To solve this, KHI provides `NewAliasTask` in the `pkg/core/task` package. An Alias Task acts as a proxy, depending on a single task reference and directly returning its result. By making a specific task depend on the Alias Task instead of the common task, you can selectively override the Alias Task's implementation without affecting other dependents of the original common task.
+
+```go
+var OriginalTaskID = taskid.NewDefaultImplementationID[string]("example.khi.google.com/original-task")
+
+// Create an alias task ID
+var AliasTaskID = taskid.NewDefaultImplementationID[string]("example.khi.google.com/alias-task")
+
+// The proxy task maps the execution of the Original task but keeps its own dependency identity
+var AliasTask = coretask.NewAliasTask(
+    AliasTaskID,           // The ID for the new Alias Task
+    OriginalTaskID.Ref(),  // The TaskReference to proxy
+)
+
+// A task that depends on the original task will not be affected by Alias overrides
+var TaskA = coretask.NewTask(
+    TaskAID,
+    []taskid.UntypedTaskReference{OriginalTaskID.Ref()},
+    func(ctx context.Context) (string, error) {
+        return coretask.GetTaskResult(ctx, OriginalTaskID.Ref()), nil
+    },
+)
+
+// A task that depends on the Alias Task CAN be overridden independently
+var TaskB = coretask.NewTask(
+    TaskBID,
+    []taskid.UntypedTaskReference{AliasTaskID.Ref()},
+    func(ctx context.Context) (string, error) {
+        return coretask.GetTaskResult(ctx, AliasTaskID.Ref()), nil
+    },
+)
+```

@@ -20,10 +20,14 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // K8sControlPlaneLogTaskIDPrefix is the prefix for all task IDs in this package.
 const K8sControlPlaneLogTaskIDPrefix = "cloud.google.com/log/k8s-control-plane/"
+
+// ClusterIdentityTaskID is the task id for aliasing the cluster identity.
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](K8sControlPlaneLogTaskIDPrefix + "cluster-identity")
 
 // InputControlPlaneComponentNameFilterTaskID is the task ID for the form task that inputs the control plane component name filter.
 var InputControlPlaneComponentNameFilterTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](K8sControlPlaneLogTaskIDPrefix + "input/component-names")
