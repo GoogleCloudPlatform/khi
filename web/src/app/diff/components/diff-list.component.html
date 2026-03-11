@@ -21,76 +21,78 @@ limitations under the License.
   } @else {
     @let li = selectedLogIndex();
     @let hlis = highlightedLogIndices();
-    <cdk-virtual-scroll-viewport class="revision-list">
-      <ng-container
-        *cdkVirtualFor="let row of rowModels"
-        class="revision-element"
-      >
-        @if (row.log) {
-          <div
-            class="revision-row"
-            [class.selected]="li === row.revision.logIndex"
-            [class.highlight]="hlis.has(row.revision.logIndex)"
-          >
+    <cdk-virtual-scroll-viewport>
+      <div class="revision-list">
+        <ng-container
+          *cdkVirtualFor="let row of rowModels"
+          class="revision-element"
+        >
+          @if (row.log) {
             <div
-              class="index"
-              (click)="_selectRevision(row.revision)"
-              (mouseover)="_highlightRevision(row.revision)"
+              class="revision-row"
+              [class.selected]="li === row.revision.logIndex"
+              [class.highlight]="hlis.has(row.revision.logIndex)"
             >
-              {{ row.index }}
-            </div>
-            <div
-              class="change-indicator"
-              [class.changed]="row.isContentChanged"
-              [class.unchanged]="!row.isContentChanged"
-            >
-              @if (row.isContentChanged) {
-                <mat-icon
-                  matTooltip="Content has change from the previous revision"
-                  >difference</mat-icon
-                >
-              } @else {
-                <mat-icon
-                  matTooltip="Content has NO change from the previous revision"
-                  >horizontal_rule</mat-icon
-                >
-              }
-            </div>
-            <div
-              class="ts"
-              (click)="_selectRevision(row.revision)"
-              (mouseover)="_highlightRevision(row.revision)"
-            >
-              {{ row.timeLabel }}
-            </div>
-            <div
-              class="operation"
-              (click)="_selectRevision(row.revision)"
-              (mouseover)="_highlightRevision(row.revision)"
-              [ngClass]="row.revision.verbCSSClass"
-            >
-              <span class="operation-span">
-                {{ row.revision.verbLabel }}
-              </span>
-            </div>
-            @if (row.author) {
               <div
-                class="author"
+                class="index"
                 (click)="_selectRevision(row.revision)"
                 (mouseover)="_highlightRevision(row.revision)"
               >
-                <span>by</span>
-                <span
-                  class="author-type"
-                  [ngClass]="row.author.type | lowercase"
-                  >{{ row.author.type }}</span
-                >
-                <span class="author-name">{{ row.author.short }}</span>
+                {{ row.index }}
               </div>
-            }
-          </div>
-        }
-      </ng-container>
+              <div
+                class="change-indicator"
+                [class.changed]="row.isContentChanged"
+                [class.unchanged]="!row.isContentChanged"
+              >
+                @if (row.isContentChanged) {
+                  <mat-icon
+                    matTooltip="Content has change from the previous revision"
+                    >difference</mat-icon
+                  >
+                } @else {
+                  <mat-icon
+                    matTooltip="Content has NO change from the previous revision"
+                    >horizontal_rule</mat-icon
+                  >
+                }
+              </div>
+              <div
+                class="ts"
+                (click)="_selectRevision(row.revision)"
+                (mouseover)="_highlightRevision(row.revision)"
+              >
+                {{ row.timeLabel }}
+              </div>
+              <div
+                class="operation"
+                (click)="_selectRevision(row.revision)"
+                (mouseover)="_highlightRevision(row.revision)"
+                [ngClass]="row.revision.verbCSSClass"
+              >
+                <span class="operation-span">
+                  {{ row.revision.verbLabel }}
+                </span>
+              </div>
+              @if (row.author) {
+                <div
+                  class="author"
+                  (click)="_selectRevision(row.revision)"
+                  (mouseover)="_highlightRevision(row.revision)"
+                >
+                  <span>by</span>
+                  <span
+                    class="author-type"
+                    [ngClass]="row.author.type | lowercase"
+                    >{{ row.author.type }}</span
+                  >
+                  <span class="author-name">{{ row.author.short }}</span>
+                </div>
+              }
+            </div>
+          }
+        </ng-container>
+      </div>
     </cdk-virtual-scroll-viewport>
   }
 </div>

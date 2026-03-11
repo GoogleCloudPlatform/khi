@@ -219,14 +219,11 @@ export class DiffListComponent {
       if (timeline === null) {
         return;
       }
-      for (
-        let revisionIndex = 0;
-        revisionIndex < timeline.revisions.length;
-        revisionIndex++
-      ) {
-        if (timeline.revisions[revisionIndex].logIndex === index) {
-          viewPort?.scrollToIndex(revisionIndex, 'smooth');
-        }
+      const revisionIndex = timeline.revisions.findIndex(
+        (rev) => rev.logIndex === index,
+      );
+      if (revisionIndex !== -1) {
+        viewPort?.scrollToIndex(revisionIndex, 'smooth');
       }
     });
   }

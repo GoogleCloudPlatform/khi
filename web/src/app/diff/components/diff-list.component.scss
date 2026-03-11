@@ -40,16 +40,18 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
 .revision-list-wrap {
   width: 100%;
   height: 100%;
+  display: flex;
+
+  cdk-virtual-scroll-viewport {
+    flex: 1;
+  }
 
   .revision-list {
     height: 100%;
     margin: 0;
-
-    ::ng-deep .cdk-virtual-scroll-content-wrapper {
-      display: grid;
-      grid-template-columns: auto auto auto auto 1fr;
-      grid-template-areas: "index change-indicator ts operation author";
-    }
+    display: grid;
+    grid-template-columns: auto auto auto auto 1fr;
+    grid-template-areas: "index change-indicator ts operation author";
   }
 }
 
@@ -149,14 +151,13 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
     margin: 0 2px;
     color: white;
     @include gen.verb-type-colors-for-all;
+    text-align: center;
 
     .operation-span {
-      float: right;
       padding: 0px 4px;
       font-size: 10px;
       font-weight: bold;
       line-height: normal;
-      margin: auto;
     }
   }
 }
