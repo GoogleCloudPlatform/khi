@@ -61,8 +61,8 @@ var ClusterNamePrefixTaskRef = taskid.NewTaskReference[string](GoogleCloudCommon
 // InputClusterNameTaskID is the task ID for the cluster name.
 var InputClusterNameTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name")
 
-// ClusterIndentityTaskID is the task ID for getting the cluster identity. Fields are usually from form inputs.
-var ClusterIndentityTaskID = taskid.NewDefaultImplementationID[GoogleCloudClusterIdentity](GoogleCloudCommonK8STaskIDPrefix + "cluster-identity")
+// ClusterIdentityTaskID is the task ID for getting the cluster identity. Fields are usually from form inputs.
+var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[GoogleCloudClusterIdentity](GoogleCloudCommonK8STaskIDPrefix + "cluster-identity")
 
 // InputKindFilterTaskID is the task ID for the kind filter.
 var InputKindFilterTaskID = taskid.NewDefaultImplementationID[*queryutil.SetFilterParseResult](GoogleCloudCommonK8STaskIDPrefix + "input-kinds")

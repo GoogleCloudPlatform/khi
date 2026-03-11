@@ -25,7 +25,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.ClusterIndentityTaskID, []taskid.UntypedTaskReference{
+var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scommon_contract.ClusterIdentityTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),

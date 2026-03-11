@@ -22,5 +22,5 @@ import (
 
 var ClusterIdentityAliasTask = coretask.NewAliasTask(
 	googlecloudlogk8scontainer_contract.ClusterIdentityTaskID,
-	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 )

@@ -45,14 +45,14 @@ type autoscalerListLogEntriesTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
@@ -71,7 +71,7 @@ func (a *autoscalerListLogEntriesTaskSetting) Description() *googlecloudcommon_c
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (a *autoscalerListLogEntriesTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	return []string{generateAutoscalerQuery(cluster, true)}, nil
 }
 

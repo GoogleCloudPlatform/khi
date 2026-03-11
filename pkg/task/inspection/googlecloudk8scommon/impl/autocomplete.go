@@ -200,14 +200,14 @@ var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(google
 }, coretask.WithSelectionPriority(500))
 
 var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
 	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
 	googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 	metricsType := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref())
@@ -261,7 +261,7 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 })
 
 var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompletePodNamesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
@@ -270,7 +270,7 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	metricsType := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID.Ref())
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
@@ -312,7 +312,7 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 })
 
 var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID, []taskid.UntypedTaskReference{
-	googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref(),
+	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
@@ -321,7 +321,7 @@ var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sc
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
 	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
 	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
-	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIndentityTaskID.Ref())
+	cluster := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
 	metricsType := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteMetricsK8sNodeTaskID.Ref())
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
