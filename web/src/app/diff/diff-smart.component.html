@@ -1,0 +1,49 @@
+<!--
+Copyright 2024 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<div class="container">
+  @let timeline = selectedTimeline();
+  <khi-diff-list-header [timeline]="timeline"></khi-diff-list-header>
+  <as-split direction="vertical">
+    <as-split-area size="50">
+      <khi-diff-list
+        [timeline]="timeline"
+        [timezoneShift]="timezoneShift()"
+        [selectedLogIndex]="selectedLogIndex()"
+        [highlightedLogIndices]="highlightedLogIndices()"
+        [logs]="allLogs()"
+        (selectRevision)="_selectRevision($event)"
+        (highlightRevision)="_highlightRevision($event)"
+        (moveSelection)="onMoveSelection($event)"
+      ></khi-diff-list>
+    </as-split-area>
+    <as-split-area size="50">
+      @if (timeline === null) {
+        <div>
+          <p class="empty-message">No resource selected</p>
+        </div>
+      } @else {
+        <khi-diff-content
+          [currentRevision]="currentRevision()"
+          [currentRevisionContent]="currentRevisionContent()"
+          [previousRevisionContent]="previousRevisionContent()"
+          [(showManagedFields)]="showManagedFields"
+          (openInNewTab)="openDiffInAnotherWindow()"
+        ></khi-diff-content>
+      }
+    </as-split-area>
+  </as-split>
+</div>

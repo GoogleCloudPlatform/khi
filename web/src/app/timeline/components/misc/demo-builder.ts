@@ -171,6 +171,7 @@ export class DemoViewModelBuilder {
       timelinesInDrawArea: this.timelines,
       logBeginTime: this.startTime,
       logEndTime: this.endTime,
+      inspectionDataUniqueID: 'demo',
     };
   }
 

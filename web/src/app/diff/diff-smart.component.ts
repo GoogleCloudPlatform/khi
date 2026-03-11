@@ -16,137 +16,108 @@
 
 import {
   Component,
-  EnvironmentInjector,
   OnDestroy,
   OnInit,
   computed,
-  effect,
   inject,
   model,
-  viewChild,
 } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import { InspectionDataStoreService } from '../services/inspection-data-store.service';
 import { SelectionManagerService } from '../services/selection-manager.service';
-import {
-  CdkVirtualScrollViewport,
-  FixedSizeVirtualScrollStrategy,
-  ScrollingModule,
-  VIRTUAL_SCROLL_STRATEGY,
-} from '@angular/cdk/scrolling';
-import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
-import { ResourceRevisionChangePair, TimelineLayer } from '../store/timeline';
-import { ResourceRevision } from '../store/revision';
+import { ViewStateService } from '../services/view-state.service';
+import { DiffListHeaderComponent } from './components/diff-list-header.component';
+import { DiffListComponent } from './components/diff-list.component';
+import { DiffContentComponent } from './components/diff-content.component';
 import { CommonModule } from '@angular/common';
-import { ParsePrincipalPipe } from './diff-view-pipes';
-import { TimestampFormatPipe } from '../common/timestamp-format.pipe';
-import { UnifiedDiffComponent } from 'ngx-diff';
-import { HighlightModule } from 'ngx-highlightjs';
 import { AngularSplitModule } from 'angular-split';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import * as yaml from 'js-yaml';
-import { DiffToolbarComponent } from './components/diff-toolbar.component';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { Clipboard } from '@angular/cdk/clipboard';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { LogEntry } from '../store/log';
-import { CommonFieldAnnotatorComponent } from '../annotator/common-field-annotator.component';
+import * as yaml from 'js-yaml';
+import { ResourceRevision } from '../store/revision';
+import { ResourceRevisionChangePair, TimelineLayer } from '../store/timeline';
 
-class DiffViewScrollStrategy extends FixedSizeVirtualScrollStrategy {
-  constructor() {
-    super(13, 100, 1000);
-  }
-}
-
-interface DiffViewSelectionMoveCommand {
+interface DiffSmartSelectionMoveCommand {
   direction: 'next' | 'prev';
 }
 
+/**
+ * Component for displaying the difference between two selected resource revisions.
+ * Acts as a smart container delegating presentation to header, list, and content components.
+ */
 @Component({
-  selector: 'khi-diff-view',
-  templateUrl: './diff-view.component.html',
-  styleUrls: ['./diff-view.component.scss'],
+  selector: 'khi-diff-smart',
+  templateUrl: './diff-smart.component.html',
+  styleUrls: ['./diff-smart.component.scss'],
   imports: [
     CommonModule,
-    ScrollingModule,
-    CdkVirtualScrollViewport,
-    ParsePrincipalPipe,
-    TimestampFormatPipe,
-    UnifiedDiffComponent,
-    HighlightModule,
     AngularSplitModule,
-    DiffToolbarComponent,
-    CommonFieldAnnotatorComponent,
-  ],
-  providers: [
-    { provide: VIRTUAL_SCROLL_STRATEGY, useClass: DiffViewScrollStrategy },
+    DiffListHeaderComponent,
+    DiffListComponent,
+    DiffContentComponent,
   ],
 })
-export class DiffViewComponent implements OnInit, OnDestroy {
+export class DiffSmartComponent implements OnInit, OnDestroy {
   private readonly _inspectionDataStore = inject(InspectionDataStoreService);
   private readonly _selectionManager = inject(SelectionManagerService);
-  private readonly _clipboard = inject(Clipboard);
-  private readonly _snackBar = inject(MatSnackBar);
-
-  private readonly envInjector = inject(EnvironmentInjector);
-
-  private readonly changePairAnnotatorResolver = inject(
-    CHANGE_PAIR_ANNOTATOR_RESOLVER,
-  );
-
-  private readonly viewPort = viewChild(CdkVirtualScrollViewport);
-
+  private readonly _viewState = inject(ViewStateService);
   private destoroyed = new Subject<void>();
 
   ngOnDestroy(): void {
     this.destoroyed.next();
   }
 
+  /**
+   * Computed pair of the previous and current revision selected for diffing.
+   */
   changePair = computed(() => {
     const prev = this.previousRevision();
     const current = this.currentRevision();
     return new ResourceRevisionChangePair(prev, current!);
   });
 
-  changePairAnnotators = this.changePairAnnotatorResolver.getResolvedAnnotators(
-    toObservable(this.changePair),
-    this.envInjector,
-  );
+  /**
+   * Signal containing the timezone shift in hours from the view state.
+   */
+  public readonly timezoneShift = toSignal(this._viewState.timezoneShift, {
+    initialValue: 0,
+  });
 
+  /**
+   * Signal containing the locally selected log index managed by SelectionManagerService.
+   */
   protected readonly selectedLogIndex = toSignal(
     this._selectionManager.selectedLogIndex,
+    { initialValue: -1 },
   );
 
+  /**
+   * Signal containing the set of highlighted log indices.
+   */
   protected readonly highlightedLogIndices = toSignal(
     this._selectionManager.highlightLogIndices,
     { initialValue: new Set<number>() },
   );
 
+  /**
+   * Signal containing the currently selected resource timeline.
+   */
   protected readonly selectedTimeline = toSignal(
     this._selectionManager.selectedTimeline,
     { initialValue: null },
   );
 
-  protected readonly selectedTimelineKind = computed(() => {
-    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Kind);
-  });
-
-  protected readonly selectedTimelineNamespace = computed(() => {
-    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Namespace);
-  });
-
-  protected readonly selectedTimelineName = computed(() => {
-    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Name);
-  });
-
-  protected readonly selectedTimelineSubresource = computed(() => {
-    return this.selectedTimeline()?.getNameOfLayer(TimelineLayer.Subresource);
-  });
-
+  /**
+   * Signal containing the currently selected resource revision.
+   */
   protected readonly currentRevision = toSignal(
     this._selectionManager.selectedRevision,
     { initialValue: null },
   );
 
+  /**
+   * Computed string of the current revision's content, formatted according to managed fields visibility.
+   */
   protected readonly currentRevisionContent = computed(() => {
     const content = this.currentRevision()?.resourceContent ?? '';
     return this.showManagedFields()
@@ -154,11 +125,17 @@ export class DiffViewComponent implements OnInit, OnDestroy {
       : this.removeManagedField(content);
   });
 
+  /**
+   * Signal containing the revision immediately preceding the currently selected one.
+   */
   protected readonly previousRevision = toSignal(
     this._selectionManager.previousOfSelectedRevision,
     { initialValue: null },
   );
 
+  /**
+   * Computed string of the previous revision's content, formatted according to managed fields visibility.
+   */
   protected readonly previousRevisionContent = computed(() => {
     const content = this.previousRevision()?.resourceContent ?? '';
     return this.showManagedFields()
@@ -166,42 +143,27 @@ export class DiffViewComponent implements OnInit, OnDestroy {
       : this.removeManagedField(content);
   });
 
+  /**
+   * Model to toggle the visibility of Kubernetes managed fields in the diff view.
+   */
   protected readonly showManagedFields = model(false);
 
+  /**
+   * Signal containing all log entries available in the inspection data store.
+   */
   public allLogs = toSignal(this._inspectionDataStore.allLogs, {
     initialValue: [] as LogEntry[],
   });
 
-  diffViewSelectionMoveCommand = new Subject<DiffViewSelectionMoveCommand>();
+  /**
+   * Subject to propagate keyboard selection commands (up/down).
+   */
+  diffSmartSelectionMoveCommand = new Subject<DiffSmartSelectionMoveCommand>();
 
-  disableScrollForNext = false;
-
-  constructor() {
-    effect(() => {
-      const index = this.selectedLogIndex();
-      const timeline = this.selectedTimeline();
-      const viewPort = this.viewPort();
-      if (this.disableScrollForNext) {
-        this.disableScrollForNext = false;
-        return;
-      }
-      if (timeline === null) {
-        return;
-      }
-      for (
-        let revisionIndex = 0;
-        revisionIndex < timeline.revisions.length;
-        revisionIndex++
-      ) {
-        if (timeline.revisions[revisionIndex].logIndex === index) {
-          viewPort?.scrollToIndex(revisionIndex, 'smooth');
-        }
-      }
-    });
-  }
+  constructor() {}
 
   ngOnInit(): void {
-    this.diffViewSelectionMoveCommand
+    this.diffSmartSelectionMoveCommand
       .pipe(takeUntil(this.destoroyed))
       .subscribe((command) => {
         const revision = this.currentRevision();
@@ -221,33 +183,36 @@ export class DiffViewComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Handles explicitly selecting a revision from the list.
+   * @param r The resource revision clicked by the user.
+   */
   _selectRevision(r: ResourceRevision) {
-    this.disableScrollForNext = true;
     this._selectionManager.changeSelectionByRevision(
       this.selectedTimeline()!,
       r,
     );
   }
 
+  /**
+   * Triggers highlighting for a specific log index corresponding to the hovered revision.
+   * @param r The resource revision hovered by the user.
+   */
   _highlightRevision(r: ResourceRevision) {
     this._selectionManager.onHighlightLog(r.logIndex);
   }
 
-  public keyDown(keyEvent: KeyboardEvent) {
-    if (keyEvent.key === 'ArrowDown') {
-      this.diffViewSelectionMoveCommand.next({
-        direction: 'next',
-      });
-      keyEvent.preventDefault();
-    }
-    if (keyEvent.key === 'ArrowUp') {
-      this.diffViewSelectionMoveCommand.next({
-        direction: 'prev',
-      });
-      keyEvent.preventDefault();
-    }
+  /**
+   * Emits a sequence command (arrow up/down) to adjust the selected revision.
+   * @param direction 'next' for down-arrow, 'prev' for up-arrow
+   */
+  onMoveSelection(direction: 'next' | 'prev') {
+    this.diffSmartSelectionMoveCommand.next({ direction });
   }
 
+  /**
+   * Opens the current diff view in a separate window tab.
+   */
   openDiffInAnotherWindow() {
     const currentTimeline = this.selectedTimeline();
     if (!currentTimeline) {
@@ -266,14 +231,11 @@ export class DiffViewComponent implements OnInit, OnDestroy {
     );
   }
 
-  copy(content: string) {
-    let snackbarMessage = 'Copy failed';
-    if (this._clipboard.copy(content)) {
-      snackbarMessage = 'Copied!';
-    }
-    this._snackBar.open(snackbarMessage, undefined, { duration: 1000 });
-  }
-
+  /**
+   * Utility to safely remove Kubernetes managed fields from a YAML text resource representation.
+   * @param content The original YAML string.
+   * @returns Cleaned text string without managedFields, or the original on error.
+   */
   private removeManagedField(content: string): string {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

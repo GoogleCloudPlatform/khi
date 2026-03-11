@@ -5,6 +5,10 @@
 test-web: $(GENERATE_FRONTEND_DUMMY) $(FRONTEND_SOURCE_FILES)## Run frontend tests
 	cd web && npx ng test --watch=false
 
+.PHONY: test-web-headless
+test-web-headless: $(GENERATE_FRONTEND_DUMMY) ## Run frontend tests and generate coverage report
+	cd web && npx ng test --browsers ChromeHeadlessNoSandbox --watch false
+
 .PHONY: test-go
 test-go: $(GENERATE_BACKEND_DUMMY) $(BACKEND_TEST_SRCS) $(FRONTEND_ARTIFACT_FILES_DUMMY) ## Run backend tests
 	go test ./...

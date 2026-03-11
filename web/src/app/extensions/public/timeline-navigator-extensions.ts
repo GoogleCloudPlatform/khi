@@ -20,7 +20,7 @@ import {
   TimelineNavigatorExtension,
   TimelineNavigatorExtensionUtil,
 } from '../extension-common/extension-types/timeline-navigator';
-import { CommonFieldAnnotatorComponent } from 'src/app/annotator/common-field-annotator.component';
+import { CopiableKeyValueComponent } from 'src/app/shared/components/copiable-key-value/copiable-key-value.component';
 import { of } from 'rxjs';
 import {
   SUBRESOURCE_BINDING,
@@ -55,7 +55,7 @@ export class NodeNameBindingWithPod implements TimelineNavigatorExtension {
         ['target', 'name'],
       );
     return {
-      component: CommonFieldAnnotatorComponent,
+      component: CopiableKeyValueComponent,
       inputs: {
         label: 'Node',
         value: of(nodeNames.join(',')),

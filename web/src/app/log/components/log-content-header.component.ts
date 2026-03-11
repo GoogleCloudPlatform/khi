@@ -17,7 +17,7 @@
 import { Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LogEntry } from 'src/app/store/log';
-import { CommonFieldAnnotatorComponent } from 'src/app/annotator/common-field-annotator.component';
+import { CopiableKeyValueComponent } from 'src/app/shared/components/copiable-key-value/copiable-key-value.component';
 import {
   ResourceReferenceListComponent,
   ResourceRefAnnotationViewModel,
@@ -52,7 +52,7 @@ export interface LogContentHeaderViewModel {
   imports: [
     CommonModule,
     TypeSeverityComponent,
-    CommonFieldAnnotatorComponent,
+    CopiableKeyValueComponent,
     ResourceReferenceListComponent,
   ],
 })

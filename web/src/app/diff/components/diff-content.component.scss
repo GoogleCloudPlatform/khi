@@ -14,12 +14,31 @@
  * limitations under the License.
  */
 
-import { InjectionToken } from '@angular/core';
-import { AnnotatorResolver } from '../annotator';
-import { ResourceRevisionChangePair } from 'src/app/store/timeline';
-export class ChangePairAnnotatorResolver extends AnnotatorResolver<ResourceRevisionChangePair> {}
+.empty-message {
+  margin: 16px;
+  color: var(--md-sys-color-on-surface-variant);
+}
 
-export const CHANGE_PAIR_ANNOTATOR_RESOLVER =
-  new InjectionToken<ChangePairAnnotatorResolver>(
-    'CHANGE_PAIR_ANNOTATOR_RESOLVER',
-  );
+.diff {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.diff-inner {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.log-body-container {
+  overflow: auto;
+  border-radius: 4px;
+  font-size: 12px;
+  margin: 4px 8px;
+  background-color: #fcfcfc;
+  display: flex;
+
+  pre {
+    margin: 0;
+  }
+}

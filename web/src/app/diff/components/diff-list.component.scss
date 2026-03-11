@@ -1,0 +1,162 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "../../zzz-generated" as gen;
+@use "../../common" as common;
+@use "@angular/material" as mat;
+
+$row-background-color: white;
+$row-border-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
+$row-hover-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+$row-selected-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
+
+$ts-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
+$ts-background-color: mat.m2-get-color-from-palette(
+  mat.$m2-indigo-palette,
+  100
+);
+
+$changed-icon-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 600);
+$unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.revision-list-wrap {
+  width: 100%;
+  height: 100%;
+
+  .revision-list {
+    height: 100%;
+    margin: 0;
+
+    ::ng-deep .cdk-virtual-scroll-content-wrapper {
+      display: grid;
+      grid-template-columns: auto auto auto auto 1fr;
+      grid-template-areas: "index change-indicator ts operation author";
+    }
+  }
+}
+
+.revision-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  cursor: pointer;
+  border-bottom: 0.5px solid $row-border-color;
+  position: relative;
+  background-color: $row-background-color;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+
+  &.highlight::after {
+    background-color: rgba(black, 0.1);
+  }
+
+  &.selected::after {
+    background-color: rgba(black, 0.3);
+  }
+
+  .index {
+    grid-area: index;
+    font-size: 10px;
+    padding: 0px 2px;
+    background-color: black;
+    color: white;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  .ts {
+    grid-area: ts;
+    text-wrap: nowrap;
+    font-size: 10px;
+    color: $ts-color;
+    background-color: $ts-background-color;
+    font-weight: 600;
+    padding: 0px 2px;
+  }
+
+  .change-indicator {
+    grid-area: change-indicator;
+    font-size: 10px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    &.changed {
+      background-color: $changed-icon-color;
+      mat-icon {
+        color: white;
+        font-weight: 600;
+      }
+    }
+
+    &.unchanged {
+      background-color: $unchanged-icon-color;
+      mat-icon {
+        color: white;
+      }
+    }
+    mat-icon {
+      @include common.adjust-mat-icon-size(11px);
+    }
+  }
+
+  .author {
+    grid-area: author;
+    font-size: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+
+    .author-type {
+      color: white;
+      background-color: black;
+      border-radius: 2px;
+      padding: 0 2px;
+      margin: 0 4px;
+      &.user {
+        background-color: #e53935;
+      }
+    }
+  }
+
+  .operation {
+    grid-area: operation;
+    margin: 0 2px;
+    color: white;
+    @include gen.verb-type-colors-for-all;
+
+    .operation-span {
+      float: right;
+      padding: 0px 4px;
+      font-size: 10px;
+      font-weight: bold;
+      line-height: normal;
+      margin: auto;
+    }
+  }
+}

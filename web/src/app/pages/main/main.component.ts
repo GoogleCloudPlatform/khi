@@ -31,7 +31,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { SidePaneComponent } from 'src/app/common/components/side-pane.component';
 import { LogSmartComponent } from 'src/app/log/log-smart.component';
-import { DiffViewComponent } from 'src/app/diff/diff-view.component';
+import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { MatIconModule } from '@angular/material/icon';
 import { HeaderComponent } from 'src/app/header/header.component';
 import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
@@ -51,7 +51,7 @@ import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
     HeaderComponent,
     SidePaneComponent,
     LogSmartComponent,
-    DiffViewComponent,
+    DiffSmartComponent,
     MatIconModule,
     TimelineSmartComponent,
     AngularSplitModule,

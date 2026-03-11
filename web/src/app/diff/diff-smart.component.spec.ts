@@ -16,18 +16,16 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { DiffViewComponent } from './diff-view.component';
+import { DiffSmartComponent } from './diff-smart.component';
 import {
   WINDOW_CONNECTION_PROVIDER,
   WindowConnectorService,
 } from '../services/frame-connection/window-connector.service';
 import { InMemoryWindowConnectionProvider } from '../services/frame-connection/window-connection-provider.service';
-import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from '../annotator/change-pair/resolver';
-import { getDefaultChangePairAnnotatorResolver } from '../annotator/change-pair/default';
 
-describe('DiffViewComponent', () => {
-  let component: DiffViewComponent;
-  let fixture: ComponentFixture<DiffViewComponent>;
+describe('DiffSmartComponent', () => {
+  let component: DiffSmartComponent;
+  let fixture: ComponentFixture<DiffSmartComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -37,14 +35,10 @@ describe('DiffViewComponent', () => {
           provide: WINDOW_CONNECTION_PROVIDER,
           useValue: new InMemoryWindowConnectionProvider(),
         },
-        {
-          provide: CHANGE_PAIR_ANNOTATOR_RESOLVER,
-          useValue: getDefaultChangePairAnnotatorResolver(),
-        },
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(DiffViewComponent);
+    fixture = TestBed.createComponent(DiffSmartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

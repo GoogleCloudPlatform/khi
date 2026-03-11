@@ -15,16 +15,9 @@
  */
 
 import { CommonModule } from '@angular/common';
-import {
-  Component,
-  computed,
-  EnvironmentInjector,
-  inject,
-  model,
-} from '@angular/core';
+import { Component, computed, inject, model } from '@angular/core';
 import { SideBySideDiffComponent } from 'ngx-diff';
 import { map } from 'rxjs';
-import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from 'src/app/annotator/change-pair/resolver';
 import { TitleBarComponent } from 'src/app/header/titlebar.component';
 import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/diff-page-datasource.service';
 import { TimelineLayer } from 'src/app/store/timeline';
@@ -33,7 +26,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import * as yaml from 'js-yaml';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { CommonFieldAnnotatorComponent } from 'src/app/annotator/common-field-annotator.component';
+import { CopiableKeyValueComponent } from 'src/app/shared/components/copiable-key-value/copiable-key-value.component';
 
 @Component({
   selector: 'khi-diff-page',
@@ -44,20 +37,14 @@ import { CommonFieldAnnotatorComponent } from 'src/app/annotator/common-field-an
     TitleBarComponent,
     SideBySideDiffComponent,
     DiffToolbarComponent,
-    CommonFieldAnnotatorComponent,
+    CopiableKeyValueComponent,
   ],
 })
 export class DiffComponent {
   private readonly diffPageSource = inject(DiffPageDataSource);
 
-  private readonly envInjector = inject(EnvironmentInjector);
-
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
-
-  private readonly changePairAnnotatorResolver = inject(
-    CHANGE_PAIR_ANNOTATOR_RESOLVER,
-  );
 
   timeline = toSignal(
     this.diffPageSource.data$.pipe(map((data) => data.timeline)),
@@ -105,11 +92,6 @@ export class DiffComponent {
     }
     return this.removeManagedField(originalContent);
   });
-
-  changePairAnnotators = this.changePairAnnotatorResolver.getResolvedAnnotators(
-    this.changePair,
-    this.envInjector,
-  );
 
   protected copy(content: string) {
     let snackbarMessage = 'Copy failed';

@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<khi-title pageName="Diff view"></khi-title>
-<div>
+<div class="diff-timeline-annotators">
   @let k = kind();
   @if (k) {
     <khi-copiable-key-value
@@ -40,45 +39,12 @@ limitations under the License.
       [value]="n"
     ></khi-copiable-key-value>
   }
-  @let sr = subresource();
-  @if (sr) {
+  @let sub = subresource();
+  @if (sub) {
     <khi-copiable-key-value
       icon="page_info"
       label="Subresource"
-      [value]="sr"
+      [value]="sub"
     ></khi-copiable-key-value>
   }
 </div>
-@if (timeline() === null) {
-  <div>
-    <p class="empty-message">No resource selected</p>
-  </div>
-} @else {
-  @if (changePair | async; as pair) {
-    <div class="diff">
-      <ng-container>
-        <khi-diff-toolbar
-          [showOpenInNewTabButton]="false"
-          [(showManagedFields)]="showManagedFields"
-          (copyContent)="copy(currentContent())"
-        ></khi-diff-toolbar>
-        <div class="diff-inner">
-          @if (pair.previous && previousContent()) {
-            <ngx-side-by-side-diff
-              class="ngx-diff-light-theme"
-              [before]="previousContent()"
-              [after]="currentContent()"
-            >
-            </ngx-side-by-side-diff>
-          } @else {
-            <ngx-side-by-side-diff
-              class="ngx-diff-light-theme"
-              before=""
-              [after]="currentContent()"
-            ></ngx-side-by-side-diff>
-          }
-        </div>
-      </ng-container>
-    </div>
-  }
-}

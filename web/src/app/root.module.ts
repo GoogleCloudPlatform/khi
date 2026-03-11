@@ -61,14 +61,6 @@ import {
   MatTooltipDefaultOptions,
 } from '@angular/material/tooltip';
 import { ViewStateService } from './services/view-state.service';
-import { LOG_ANNOTATOR_RESOLVER } from './annotator/log/resolver';
-import { getDefaultLogAnnotatorResolver } from './annotator/log/default';
-import { LOG_TOOL_ANNOTATOR_RESOLVER } from './annotator/log-tool/resolver';
-import { getDefaultLogToolAnnotatorResolver } from './annotator/log-tool/default';
-import { TIMELINE_ANNOTATOR_RESOLVER } from './annotator/timeline/resolver';
-import { getDefaultTimelineAnnotatorResolver } from './annotator/timeline/default';
-import { CHANGE_PAIR_ANNOTATOR_RESOLVER } from './annotator/change-pair/resolver';
-import { getDefaultChangePairAnnotatorResolver } from './annotator/change-pair/default';
 import { GraphPageDataSource } from './services/frame-connection/frames/graph-page-datasource.service';
 import {
   FILE_UPLOADER,
@@ -107,22 +99,6 @@ import { KHIIconRegistrationModule } from './shared/module/icon-registration.mod
     InspectionDataStoreService,
     SelectionManagerService,
     WindowConnectorService,
-    {
-      provide: LOG_ANNOTATOR_RESOLVER,
-      useValue: getDefaultLogAnnotatorResolver(),
-    },
-    {
-      provide: LOG_TOOL_ANNOTATOR_RESOLVER,
-      useValue: getDefaultLogToolAnnotatorResolver(),
-    },
-    {
-      provide: TIMELINE_ANNOTATOR_RESOLVER,
-      useValue: getDefaultTimelineAnnotatorResolver(),
-    },
-    {
-      provide: CHANGE_PAIR_ANNOTATOR_RESOLVER,
-      useValue: getDefaultChangePairAnnotatorResolver(),
-    },
     {
       provide: WINDOW_CONNECTION_PROVIDER,
       useValue: new BroadcastChannelWindowConnectionProvider(),

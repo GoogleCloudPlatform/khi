@@ -17,6 +17,10 @@ build-web: $(FRONTEND_ARTIFACT_FILES_DUMMY) ## Build frontend for production
 watch-storybook: $(GENERATE_FRONTEND_DUMMY) ## Run storybook development server
 	cd web && npm run storybook
 
+.PHONY: build-storybook
+build-storybook: $(GENERATE_FRONTEND_DUMMY) ## Build storybook
+	cd web && npm run build-storybook
+
 .PHONY: watch-karma
 watch-karma: $(GENERATE_FRONTEND_DUMMY) ## Run karma test server
 	cd web && npm run test

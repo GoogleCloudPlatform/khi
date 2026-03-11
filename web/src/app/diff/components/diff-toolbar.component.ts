@@ -21,6 +21,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { MatTooltip } from '@angular/material/tooltip';
 
+/**
+ * Component for the toolbar displayed above the diff content.
+ * Provides controls for toggling managed fields and opening in a new tab.
+ */
 @Component({
   selector: 'khi-diff-toolbar',
   templateUrl: './diff-toolbar.component.html',
@@ -35,23 +39,23 @@ import { MatTooltip } from '@angular/material/tooltip';
 })
 export class DiffToolbarComponent {
   /**
-   * showManagedFields is the model for the slide toggle to show managed fields.
+   * Two-way bound model for showing/hiding managed fields.
    */
   showManagedFields = model(false);
 
   /**
-   * showOpenInNewTabButton is the input for the open in new tab button.
-   * The diff window apart from the main diff window should not have the open in new tab button.
+   * Input to control the visibility of the "Open in new tab" button.
+   * Typically hidden when already in a separate diff window.
    */
   showOpenInNewTabButton = input(true);
 
   /**
-   * copyContent is the output for the copy content button.
+   * Emitted when the copy content button is clicked.
    */
   copyContent = output<void>();
 
   /**
-   * openInNewTab is the output for the open in new tab button.
+   * Emitted when the open in new tab button is clicked.
    */
   openInNewTab = output<void>();
 }
