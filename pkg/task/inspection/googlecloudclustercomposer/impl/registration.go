@@ -39,25 +39,33 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		AutocompleteLocationForComposerEnvironmentTask,
 		InputComposerEnvironmentNameTask,
 
-		ComposerSchedulerLogQueryTask,
-		ComposerDagProcessorManagerLogQueryTask,
-		ComposerMonitoringLogQueryTask,
-		ComposerWorkerLogQueryTask,
+		AutocompleteComposerComponentsTask,
+		InputComposerComponentsTask,
 
+		ComposerLogsQueryTask,
+
+		AirflowSchedulerLogFilterTask,
 		AirflowSchedulerLogGrouperTask,
 		AirflowSchedulerLogIngesterTask,
 		AirflowSchedulerLogToTimelineMapperTask,
+
+		AirflowWorkerLogFilterTask,
 		AirflowWorkerLogGrouperTask,
 		AirflowWorkerLogIngesterTask,
 		AirflowWorkerLogToTimelineMapperTask,
+
+		AirflowOtherLogFilterTask,
+		AirflowOtherLogGrouperTask,
+		AirflowOtherLogIngesterTask,
+		AirflowOtherLogToTimelineMapperTask,
+
+		AirflowDagProcessorManagerLogFilterTask,
 		AirflowDagProcessorManagerLogSorterTask,
 		AirflowDagProcessorManagerLogGrouperTask,
 		AirflowDagProcessorManagerLogIngesterTask,
 		AirflowDagProcessorManagerLogToTimelineMapperTask,
 
-		ComposerSchedulerFieldSetReadTask,
-		ComposerDagProcessorManagerFieldSetReadTask,
-		ComposerMonitoringFieldSetReadTask,
-		ComposerWorkerFieldSetReadTask,
+		ComposerLogsFieldSetReadTask,
+		ComposerLogsTailTask,
 	)
 }

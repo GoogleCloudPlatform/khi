@@ -41,7 +41,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 				log.NewLogWithFieldSetsForTest(
 					&log.CommonFieldSet{Timestamp: timestamp},
 					&log.MainMessageFieldSet{MainMessage: "Executing task"},
-					&googlecloudclustercomposer_contract.ComposerWorkerFieldSet{
+					&googlecloudclustercomposer_contract.ComposerFieldSet{
 						WorkerID: "airflow-worker-abc",
 					},
 					&googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{
@@ -79,7 +79,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 				log.NewLogWithFieldSetsForTest(
 					&log.CommonFieldSet{Timestamp: timestamp},
 					&log.MainMessageFieldSet{MainMessage: "Worker Heartbeat"},
-					&googlecloudclustercomposer_contract.ComposerWorkerFieldSet{
+					&googlecloudclustercomposer_contract.ComposerFieldSet{
 						WorkerID: "airflow-worker-abc",
 					},
 				),
