@@ -135,6 +135,7 @@ const meta: Meta<DiffListComponent> = {
     logs: mockLogs,
     selectedLogIndex: 1,
     highlightedLogIndices: new Set([0]),
+    timezoneShift: 0,
   },
 };
 
@@ -153,6 +154,7 @@ export const Default: Story = {
           [logs]="logs"
           [selectedLogIndex]="selectedLogIndex"
           [highlightedLogIndices]="highlightedLogIndices"
+          [timezoneShift]="timezoneShift"
           (selectRevision)="selectRevision($event)"
           (highlightRevision)="highlightRevision($event)"
           (moveSelection)="moveSelection($event)"></khi-diff-list>

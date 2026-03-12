@@ -32,7 +32,7 @@ const mockCurrentRevision = new ResourceRevision(
   1,
 );
 
-const currentContent = `apiVersion: v1
+const currentContentWithManagedFields = `apiVersion: v1
 kind: Pod
 metadata:
   name: my-pod
@@ -40,6 +40,30 @@ metadata:
   managedFields:
     - manager: kubectl
       operation: Update
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80`;
+
+const previousContentWithManagedFields = `apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: default
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80`;
+
+const currentContent = `apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: default
 spec:
   containers:
   - name: nginx
@@ -108,6 +132,8 @@ export const WithManagedFields: Story = {
   ...Default,
   args: {
     showManagedFields: true,
+    currentRevisionContent: currentContentWithManagedFields,
+    previousRevisionContent: previousContentWithManagedFields,
   },
 };
 

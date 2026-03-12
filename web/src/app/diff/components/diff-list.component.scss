@@ -152,6 +152,7 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
     color: white;
     @include gen.verb-type-colors-for-all;
     text-align: center;
+    font-size: 0;
 
     .operation-span {
       padding: 0px 4px;
