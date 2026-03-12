@@ -21,15 +21,14 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var AirflowSchedulerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudclustercomposer_contract.AirflowSchedulerLogGrouperTaskID,
-	googlecloudclustercomposer_contract.ComposerSchedulerFieldSetReadTaskID.Ref(),
+	googlecloudclustercomposer_contract.AirflowSchedulerLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		return ""
 	},
@@ -37,7 +36,7 @@ var AirflowSchedulerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 
 var AirflowSchedulerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudclustercomposer_contract.AirflowSchedulerLogIngesterTaskID,
-	googlecloudclustercomposer_contract.ComposerSchedulerFieldSetReadTaskID.Ref(),
+	googlecloudclustercomposer_contract.AirflowSchedulerLogFilterTaskID.Ref(),
 )
 
 var AirflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
@@ -45,14 +44,6 @@ var AirflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelin
 	&airflowSchedulerLogToTimelineMapperSetting{
 		targetLogType: enum.LogTypeComposerEnvironment,
 	},
-	inspectioncore_contract.FeatureTaskLabel(
-		"Airflow Scheduler",
-		"Airflow Scheduler logs contain information related to the scheduling of TaskInstances, making it an ideal source for understanding the lifecycle of TaskInstances.",
-		enum.LogTypeComposerEnvironment,
-		100000,
-		true,
-		googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...,
-	),
 )
 
 type airflowSchedulerLogToTimelineMapperSetting struct {
@@ -72,10 +63,11 @@ func (c *airflowSchedulerLogToTimelineMapperSetting) LogIngesterTask() taskid.Ta
 }
 
 func (c *airflowSchedulerLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	schedulerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{})
-	if err == nil && schedulerField.SchedulerID != "" {
-		scheduler := googlecloudclustercomposer_contract.NewAirflowScheduler(schedulerField.SchedulerID, "airflow-scheduler")
-		cs.AddEvent(scheduler.ResourcePath())
+	schedulerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+	if err == nil {
+		if schedulerField.SchedulerID != "" {
+			cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", schedulerField.SchedulerID, "airflow-scheduler"))
+		}
 	}
 
 	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
