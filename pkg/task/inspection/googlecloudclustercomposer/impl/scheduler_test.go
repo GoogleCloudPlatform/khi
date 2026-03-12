@@ -42,7 +42,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 				log.NewLogWithFieldSetsForTest(
 					&log.CommonFieldSet{Timestamp: timestamp},
 					&log.MainMessageFieldSet{MainMessage: "Processing /app/models.py"},
-					&googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{
+					&googlecloudclustercomposer_contract.ComposerFieldSet{
 						SchedulerID: "airflow-scheduler-7b5f",
 					},
 					&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
@@ -83,7 +83,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 				log.NewLogWithFieldSetsForTest(
 					&log.CommonFieldSet{Timestamp: timestamp},
 					&log.MainMessageFieldSet{MainMessage: "Detected zombie task"},
-					&googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{
+					&googlecloudclustercomposer_contract.ComposerFieldSet{
 						SchedulerID: "airflow-scheduler-7b5f",
 					},
 					&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
@@ -114,7 +114,7 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 				log.NewLogWithFieldSetsForTest(
 					&log.CommonFieldSet{Timestamp: timestamp},
 					&log.MainMessageFieldSet{MainMessage: "Heartbeat"},
-					&googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{
+					&googlecloudclustercomposer_contract.ComposerFieldSet{
 						SchedulerID: "airflow-scheduler-7b5f",
 					},
 				),

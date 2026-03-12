@@ -130,63 +130,79 @@ func (c *ComposerTaskInstanceFieldSetReader) Read(reader *structured.NodeReader)
 
 var _ log.FieldSetReader = &ComposerTaskInstanceFieldSetReader{}
 
-type ComposerSchedulerFieldSet struct {
-	SchedulerID string
+type ComposerFieldSet struct {
+	Component             string // e.g. "worker", "scheduler", "dag-processor-manager"
+	WorkerID              string
+	SchedulerID           string
+	DagProcessorManagerID string
+	TriggererID           string
+	WebserverID           string
+	Subservice            string
 }
 
-func (c *ComposerSchedulerFieldSet) Kind() string {
-	return "ComposerScheduler"
+func (c *ComposerFieldSet) Kind() string {
+	return "Composer"
 }
 
-var _ log.FieldSet = &ComposerSchedulerFieldSet{}
+var _ log.FieldSet = &ComposerFieldSet{}
 
-type ComposerSchedulerFieldSetReader struct{}
+type ComposerFieldSetReader struct{}
 
-func (c *ComposerSchedulerFieldSetReader) FieldSetKind() string {
-	return (&ComposerSchedulerFieldSet{}).Kind()
+func (c *ComposerFieldSetReader) FieldSetKind() string {
+	return (&ComposerFieldSet{}).Kind()
 }
 
-func (c *ComposerSchedulerFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	schedulerId, err := reader.ReadString("labels.scheduler_id")
-	if err != nil || schedulerId == "" {
-		return nil, fmt.Errorf("scheduler_id not found")
+func (c *ComposerFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	workerId, _ := reader.ReadString("labels.worker_id")
+	schedulerId, _ := reader.ReadString("labels.scheduler_id")
+	dagProcessorManagerId, _ := reader.ReadString("labels.dag_processor_manager_id")
+	triggererId, _ := reader.ReadString("labels.triggerer_id")
+	webserverId, _ := reader.ReadString("labels.webserver_id")
+	subservice, _ := reader.ReadString("labels.sub_service")
+	podId, _ := reader.ReadString("labels.pod_id")
+	logName, _ := reader.ReadString("logName")
+
+	componentNameIndex := strings.LastIndex(logName, "/")
+	if componentNameIndex == -1 {
+		return nil, fmt.Errorf("not a recognized composer component log")
+	}
+	component := logName[componentNameIndex+1:]
+
+	if component == "" {
+		return nil, fmt.Errorf("not a recognized composer component log")
 	}
 
-	return &ComposerSchedulerFieldSet{
-		SchedulerID: schedulerId,
+	if podId != "" {
+		switch {
+		case strings.HasPrefix(podId, "airflow-worker-"):
+			workerId = podId
+		case strings.HasPrefix(podId, "airflow-scheduler-"):
+			schedulerId = podId
+		case strings.HasPrefix(podId, "airflow-dag-processor-manager-"):
+			dagProcessorManagerId = podId
+		case strings.HasPrefix(podId, "airflow-triggerer-"):
+			triggererId = podId
+		case strings.HasPrefix(podId, "airflow-webserver-"):
+			webserverId = podId
+		}
+	}
+
+	if subservice == "" {
+		subservice = component
+	}
+
+	return &ComposerFieldSet{
+		Component:             component,
+		WorkerID:              workerId,
+		SchedulerID:           schedulerId,
+		DagProcessorManagerID: dagProcessorManagerId,
+		TriggererID:           triggererId,
+		WebserverID:           webserverId,
+		Subservice:            subservice,
 	}, nil
 }
 
-var _ log.FieldSetReader = &ComposerSchedulerFieldSetReader{}
-
-type ComposerWorkerFieldSet struct {
-	WorkerID string
-}
-
-func (c *ComposerWorkerFieldSet) Kind() string {
-	return "ComposerWorker"
-}
-
-var _ log.FieldSet = &ComposerWorkerFieldSet{}
-
-type ComposerWorkerFieldSetReader struct{}
-
-func (c *ComposerWorkerFieldSetReader) FieldSetKind() string {
-	return (&ComposerWorkerFieldSet{}).Kind()
-}
-
-func (c *ComposerWorkerFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	workerId, err := reader.ReadString("labels.worker_id")
-	if err != nil || workerId == "" {
-		return nil, fmt.Errorf("worker_id not found")
-	}
-
-	return &ComposerWorkerFieldSet{
-		WorkerID: workerId,
-	}, nil
-}
-
-var _ log.FieldSetReader = &ComposerWorkerFieldSetReader{}
+var _ log.FieldSetReader = &ComposerFieldSetReader{}
 
 type ComposerWorkerTaskInstanceFieldSet struct {
 	TaskInstance *AirflowTaskInstance

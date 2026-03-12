@@ -31,19 +31,20 @@ func TestLogFiltersGeneratesComposerQuery(t *testing.T) {
 	projectId := "test-project"
 	environmentName := "test-environment"
 	taskDependentValues := typedmap.NewTypedMap()
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: projectId})
+	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: projectId, Location: "test-location"})
 	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), environmentName)
+	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[[]string](googlecloudclustercomposer_contract.InputComposerComponentsTaskID.ReferenceIDString()), []string{"scheduler"})
 	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 
-	expected := `log_id("airflow-scheduler")
+	expected := `(log_id("scheduler"))
 resource.type="cloud_composer_environment"
 resource.labels.project_id="test-project"
+resource.labels.location="test-location"
 resource.labels.environment_name="test-environment"`
 
 	setting := &composerListLogEntriesTaskSetting{
-		taskId:        googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID,
-		queryName:     "Composer Environment/Airflow Scheduler",
-		componentName: "airflow-scheduler",
+		taskId:    googlecloudclustercomposer_contract.ComposerLogsQueryTaskID,
+		queryName: "Composer Logs",
 	}
 
 	taskMode := inspectioncore_contract.TaskModeDryRun // any int is fine
@@ -69,7 +70,7 @@ func TestDependenciesAndDefaultResourceNames(t *testing.T) {
 	setting := &composerListLogEntriesTaskSetting{}
 
 	deps := setting.Dependencies()
-	if len(deps) != 2 {
+	if len(deps) != 3 {
 		t.Errorf("Unexpected dependencies count %d", len(deps))
 	}
 

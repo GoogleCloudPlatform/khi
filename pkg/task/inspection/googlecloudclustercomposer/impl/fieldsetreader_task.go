@@ -21,43 +21,14 @@ import (
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 )
 
-// ComposerSchedulerFieldSetReadTask reads the main message from the scheduler log.
-var ComposerSchedulerFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudclustercomposer_contract.ComposerSchedulerFieldSetReadTaskID,
-	googlecloudclustercomposer_contract.ComposerSchedulerLogQueryTaskID.Ref(),
+// ComposerLogsFieldSetReadTask reads the main message and Composer component fieldsets.
+var ComposerLogsFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
+	googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID,
+	googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(),
 	[]log.FieldSetReader{
 		&gcpqueryutil.GCPMainMessageFieldSetReader{},
-		&googlecloudclustercomposer_contract.ComposerSchedulerFieldSetReader{},
+		&googlecloudclustercomposer_contract.ComposerFieldSetReader{},
 		&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSetReader{},
-	},
-)
-
-// ComposerDagProcessorManagerFieldSetReadTask reads the main message from the DAG processor manager log.
-var ComposerDagProcessorManagerFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudclustercomposer_contract.ComposerDagProcessorManagerFieldSetReadTaskID,
-	googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID.Ref(),
-	[]log.FieldSetReader{
-		&gcpqueryutil.GCPMainMessageFieldSetReader{},
-		&googlecloudclustercomposer_contract.ComposerSchedulerFieldSetReader{},
-	},
-)
-
-// ComposerMonitoringFieldSetReadTask reads the main message from the monitoring log.
-var ComposerMonitoringFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudclustercomposer_contract.ComposerMonitoringFieldSetReadTaskID,
-	googlecloudclustercomposer_contract.ComposerMonitoringLogQueryTaskID.Ref(),
-	[]log.FieldSetReader{
-		&gcpqueryutil.GCPMainMessageFieldSetReader{},
-	},
-)
-
-// ComposerWorkerFieldSetReadTask reads the main message from the worker log.
-var ComposerWorkerFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
-	googlecloudclustercomposer_contract.ComposerWorkerFieldSetReadTaskID,
-	googlecloudclustercomposer_contract.ComposerWorkerLogQueryTaskID.Ref(),
-	[]log.FieldSetReader{
-		&gcpqueryutil.GCPMainMessageFieldSetReader{},
-		&googlecloudclustercomposer_contract.ComposerWorkerFieldSetReader{},
 		&googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSetReader{},
 	},
 )

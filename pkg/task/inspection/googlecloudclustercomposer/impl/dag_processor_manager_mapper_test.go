@@ -82,7 +82,7 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 				{}, // "-----------" (Separator)
 				{ // Data line processing
 					&testchangeset.HasRevision{
-						ResourcePath: resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "cluster-scope", "/home/airflow/gcs/dags/airflow_monitoring.py").Path,
+						ResourcePath: resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "unknown-parser", "/home/airflow/gcs/dags/airflow_monitoring.py").Path,
 						WantRevision: history.StagingResourceRevision{
 							Verb:       enum.RevisionVerbComposerTaskInstanceStats,
 							State:      enum.RevisionStateConditionTrue,

@@ -36,12 +36,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
 import { generateDefaultRulerStyle } from './style-model';
-
-interface DateLabel {
-  offsetX: number;
-  labelLeft: string;
-  labelRight: string;
-}
+import { calculateDateLabels } from './calculator/date-label-calculator';
 
 /**
  * Component that renders the timeline ruler, displaying time ticks and date labels.
@@ -111,29 +106,14 @@ export class TimelineRulerComponent implements AfterViewInit {
    */
   dateLabels = computed(() => {
     const viewModel = this.viewModel();
-    const leftEdgeTime = this.leftEdgeTime();
-    const pixelsPerMs = this.pixelsPerMs();
-    const labels: DateLabel[] = [];
-    const DAY = 60 * 60 * 24 * 1000;
-    const timezoneShiftInMs = this.timezoneShift() * 60 * 60 * 1000;
-    let prevDayTime =
-      Math.floor(leftEdgeTime / DAY) * DAY - DAY - timezoneShiftInMs;
-    while (true) {
-      const currentDayTime = prevDayTime + DAY;
-      if (
-        currentDayTime >
-        leftEdgeTime + viewModel.tickTimeMS * viewModel.histogramBuckets.length
-      ) {
-        break;
-      }
-      labels.push({
-        offsetX: (currentDayTime - leftEdgeTime) * pixelsPerMs,
-        labelLeft: this.toDateLabel(currentDayTime - timezoneShiftInMs - DAY),
-        labelRight: this.toDateLabel(currentDayTime - timezoneShiftInMs),
-      });
-      prevDayTime = currentDayTime;
-    }
-    return labels;
+    const visibleDuration =
+      viewModel.tickTimeMS * viewModel.histogramBuckets.length;
+    return calculateDateLabels(
+      this.leftEdgeTime(),
+      visibleDuration,
+      this.pixelsPerMs(),
+      this.timezoneShift(),
+    );
   });
 
   private rulerCanvasRenderer!: TimelineRulerCanvasRenderer;
@@ -228,17 +208,6 @@ export class TimelineRulerComponent implements AfterViewInit {
       this.rulerCanvasRenderer.resize(canvas.width, canvas.height, dpr);
       this.invalidate.set(true);
     });
-  }
-
-  /**
-   * Formats a timestamp into a date string (YYYY/MM/DD) according to the configured timezone shift.
-   */
-  private toDateLabel(time: number): string {
-    const date = new Date(time + this.timezoneShift() * 60 * 60 * 1000);
-    const year = date.getUTCFullYear();
-    const month = ('' + (date.getUTCMonth() + 1)).padStart(2, '0');
-    const day = ('' + date.getUTCDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
   }
 
   mouseEnter() {

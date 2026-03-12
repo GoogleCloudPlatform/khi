@@ -77,7 +77,14 @@ func QueryResourceLabelsFromMetrics(ctx context.Context, client *monitoring.Metr
 		if err != nil {
 			return nil, fmt.Errorf("failed to list time series: %w", err)
 		}
-		resultValues = append(resultValues, resp.GetResource().GetLabels())
+		labels := map[string]string{}
+		for k, v := range resp.GetResource().GetLabels() {
+			labels[k] = v
+		}
+		for k, v := range resp.GetMetric().GetLabels() {
+			labels[k] = v
+		}
+		resultValues = append(resultValues, labels)
 	}
 	return resultValues, nil
 }

@@ -17,6 +17,7 @@ package googlecloudclustercomposer_impl
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
@@ -180,3 +181,80 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewCache
 }, inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...),
 	coretask.WithSelectionPriority(1000),
 )
+
+var AutocompleteComposerComponentsTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerComponentsTaskID, []taskid.UntypedTaskReference{
+	googlecloudclustercomposer_contract.ClusterIdentityTaskID.GetUntypedReference(),
+	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
+	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
+	googlecloudcommon_contract.APIClientFactoryTaskID.Ref(),
+	googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref(),
+}, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]], error) {
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
+	projectID := clusterIdentity.ProjectID
+	location := clusterIdentity.Location
+
+	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
+	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
+	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
+	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
+
+	currentDigest := fmt.Sprintf("%s-%s-%s-%s-%d-%d", projectID, location, environmentName, "logging.googleapis.com/log_entry_count", startTime.Unix(), endTime.Unix())
+	if currentDigest == prevValue.DependencyDigest {
+		return prevValue, nil
+	}
+
+	if projectID == "" || environmentName == "" || location == "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+			Value: &inspectioncore_contract.AutocompleteResult[string]{
+				Values: []string{},
+				Hint:   "Components are suggested after the project ID, location, and environment name are provided.",
+			},
+			DependencyDigest: currentDigest,
+		}, nil
+	}
+
+	client, err := cf.MonitoringMetricClient(ctx, googlecloud.Project(projectID))
+	if err != nil {
+		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
+	}
+	defer client.Close()
+
+	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
+
+	filter := fmt.Sprintf(`resource.type = "cloud_composer_environment" AND metric.type = "logging.googleapis.com/log_entry_count" AND resource.labels.environment_name = "%s" AND resource.labels.location = "%s"`, environmentName, location)
+
+	errorString := ""
+	hintString := ""
+	metricsLabels, err := googlecloud.QueryResourceLabelsFromMetrics(ctx, client, projectID, filter, startTime, endTime, []string{"metric.label.log"})
+	if err != nil {
+		errorString = err.Error()
+	}
+
+	componentsMap := make(map[string]struct{})
+	for _, labels := range metricsLabels {
+		if logName, ok := labels["log"]; ok && logName != "" {
+			componentsMap[logName] = struct{}{}
+		}
+	}
+
+	components := make([]string, 0, len(componentsMap))
+	for comp := range componentsMap {
+		components = append(components, comp)
+	}
+	sort.Strings(components)
+
+	if hintString == "" && errorString == "" && len(components) == 0 {
+		hintString = "No components found for the specified environment and time range."
+	}
+
+	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[string]]{
+		DependencyDigest: currentDigest,
+		Value: &inspectioncore_contract.AutocompleteResult[string]{
+			Values: components,
+			Error:  errorString,
+			Hint:   hintString,
+		},
+	}, nil
+})

@@ -23,13 +23,11 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var AirflowWorkerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudclustercomposer_contract.AirflowWorkerLogGrouperTaskID,
-	googlecloudclustercomposer_contract.ComposerWorkerFieldSetReadTaskID.Ref(),
+	googlecloudclustercomposer_contract.AirflowWorkerLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		return ""
 	},
@@ -37,7 +35,7 @@ var AirflowWorkerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 
 var AirflowWorkerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudclustercomposer_contract.AirflowWorkerLogIngesterTaskID,
-	googlecloudclustercomposer_contract.ComposerWorkerFieldSetReadTaskID.Ref(),
+	googlecloudclustercomposer_contract.AirflowWorkerLogFilterTaskID.Ref(),
 )
 
 var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
@@ -45,14 +43,6 @@ var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMa
 	&airflowWorkerLogToTimelineMapperSetting{
 		targetLogType: enum.LogTypeComposerEnvironment,
 	},
-	inspectioncore_contract.FeatureTaskLabel(
-		"Airflow Worker",
-		"Airflow Worker logs contain information related to the execution of TaskInstances. By including these logs, you can gain insights into where and how each TaskInstance was executed.",
-		enum.LogTypeComposerEnvironment,
-		101000,
-		true,
-		googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...,
-	),
 )
 
 type airflowWorkerLogToTimelineMapperSetting struct {
@@ -72,10 +62,12 @@ func (c *airflowWorkerLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskR
 }
 
 func (c *airflowWorkerLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	workerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerWorkerFieldSet{})
-	if err == nil && workerField.WorkerID != "" {
-		worker := googlecloudclustercomposer_contract.NewAirflowWorker(workerField.WorkerID)
-		cs.AddEvent(worker.ResourcePath())
+	workerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+	if err == nil {
+		if workerField.WorkerID != "" {
+			worker := googlecloudclustercomposer_contract.NewAirflowWorker(workerField.WorkerID)
+			cs.AddEvent(worker.ResourcePath())
+		}
 	}
 
 	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
