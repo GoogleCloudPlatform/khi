@@ -160,3 +160,31 @@ func (a *AirflowScheduler) ToYaml() string {
 func (a *AirflowScheduler) ResourcePath() resourcepath.ResourcePath {
 	return resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", a.Host(), a.componentName)
 }
+
+type AirflowDagProcessorManager struct {
+	host          string
+	componentName string
+}
+
+func NewAirflowDagProcessorManager(host string, componentName string) *AirflowDagProcessorManager {
+	return &AirflowDagProcessorManager{
+		host:          host,
+		componentName: componentName,
+	}
+}
+
+func (a *AirflowDagProcessorManager) Host() string {
+	return a.host
+}
+
+func (a *AirflowDagProcessorManager) ToYaml() string {
+	b, err := yaml.Marshal(a)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func (a *AirflowDagProcessorManager) ResourcePath() resourcepath.ResourcePath {
+	return resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowDagProcessorManager", "cluster-scope", a.Host(), a.componentName)
+}

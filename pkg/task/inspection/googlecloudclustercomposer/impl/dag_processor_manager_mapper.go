@@ -40,11 +40,14 @@ var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperT
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID,
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		fs, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{})
+		fs, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.DagProcessorManagerFieldSet{})
 		if err != nil {
 			return ""
 		}
-		return fs.SchedulerID
+		if fs.SchedulerID != "" {
+			return fs.SchedulerID
+		}
+		return fs.DagProcessorManagerID
 	},
 )
 
@@ -107,10 +110,17 @@ func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) ProcessLogByGroup
 	if err != nil {
 		return prevGroupData, nil
 	}
-	schedulerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerSchedulerFieldSet{})
-	if err == nil && schedulerField.SchedulerID != "" {
-		scheduler := googlecloudclustercomposer_contract.NewAirflowScheduler(schedulerField.SchedulerID, "airflow-dag-processor-manager")
+	dpmField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.DagProcessorManagerFieldSet{})
+	parserID := "unknown-parser"
+	if err == nil && dpmField.SchedulerID != "" {
+		scheduler := googlecloudclustercomposer_contract.NewAirflowScheduler(dpmField.SchedulerID, "airflow-dag-processor-manager")
 		cs.AddEvent(scheduler.ResourcePath())
+		parserID = dpmField.SchedulerID
+	}
+	if err == nil && dpmField.DagProcessorManagerID != "" {
+		dpm := googlecloudclustercomposer_contract.NewAirflowDagProcessorManager(dpmField.DagProcessorManagerID, "airflow-dag-processor-manager")
+		cs.AddEvent(dpm.ResourcePath())
+		parserID = dpmField.DagProcessorManagerID
 	}
 
 	rawLog := mainMessage.MainMessage
@@ -143,7 +153,7 @@ func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) ProcessLogByGroup
 		condition = enum.RevisionStateConditionFalse
 	}
 
-	cs.AddRevision(resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", "cluster-scope", res.Values[dagProcessorManagerColumnFilePath]), &history.StagingResourceRevision{
+	cs.AddRevision(resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", parserID, res.Values[dagProcessorManagerColumnFilePath]), &history.StagingResourceRevision{
 		Verb:       enum.RevisionVerbComposerTaskInstanceStats,
 		State:      condition,
 		Requestor:  "dag-processor-manager",

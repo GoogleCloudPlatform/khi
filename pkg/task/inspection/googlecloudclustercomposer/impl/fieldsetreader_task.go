@@ -38,7 +38,7 @@ var ComposerDagProcessorManagerFieldSetReadTask = inspectiontaskbase.NewFieldSet
 	googlecloudclustercomposer_contract.ComposerDagProcessorManagerLogQueryTaskID.Ref(),
 	[]log.FieldSetReader{
 		&gcpqueryutil.GCPMainMessageFieldSetReader{},
-		&googlecloudclustercomposer_contract.ComposerSchedulerFieldSetReader{},
+		&googlecloudclustercomposer_contract.DagProcessorManagerFieldSetReader{},
 	},
 )
 

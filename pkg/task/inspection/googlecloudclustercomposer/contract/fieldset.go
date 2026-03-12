@@ -267,3 +267,32 @@ func (c *ComposerWorkerTaskInstanceFieldSetReader) Read(reader *structured.NodeR
 }
 
 var _ log.FieldSetReader = &ComposerWorkerTaskInstanceFieldSetReader{}
+
+type DagProcessorManagerFieldSet struct {
+	SchedulerID           string
+	DagProcessorManagerID string
+}
+
+func (c *DagProcessorManagerFieldSet) Kind() string {
+	return "DagProcessorManager"
+}
+
+var _ log.FieldSet = &DagProcessorManagerFieldSet{}
+
+type DagProcessorManagerFieldSetReader struct{}
+
+func (c *DagProcessorManagerFieldSetReader) FieldSetKind() string {
+	return (&DagProcessorManagerFieldSet{}).Kind()
+}
+
+func (c *DagProcessorManagerFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	schedulerId, _ := reader.ReadString("labels.scheduler_id")
+	dagProcessorManagerId, _ := reader.ReadString("labels.dag_processor_manager_id")
+
+	return &DagProcessorManagerFieldSet{
+		SchedulerID:           schedulerId,
+		DagProcessorManagerID: dagProcessorManagerId,
+	}, nil
+}
+
+var _ log.FieldSetReader = &DagProcessorManagerFieldSetReader{}
