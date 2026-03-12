@@ -130,8 +130,6 @@ func (c *ComposerTaskInstanceFieldSetReader) Read(reader *structured.NodeReader)
 
 var _ log.FieldSetReader = &ComposerTaskInstanceFieldSetReader{}
 
-var _ log.FieldSetReader = &ComposerTaskInstanceFieldSetReader{}
-
 type ComposerFieldSet struct {
 	Component             string // e.g. "worker", "scheduler", "dag-processor-manager"
 	WorkerID              string
