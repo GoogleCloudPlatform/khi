@@ -17,6 +17,7 @@ package googlecloudlogserialport_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
 )
 
 // Register registers all googlecloudlogserialport inspection tasks to the registry.
@@ -37,6 +38,16 @@ flowchart TD
     LogIngesterTask --> LogToTimelineMapperTask
 */
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudlogserialport_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
+	for _, timelineType := range googlecloudlogserialport_contract.TimelineTypes {
+		if err := registry.AddTimelineType(timelineType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		ClusterIdentityAliasTask,
 

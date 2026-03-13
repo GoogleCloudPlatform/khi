@@ -99,10 +99,21 @@ package googlecloudlogk8snode_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
 // Register registers all googlecloudlogk8snode inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudlogk8snode_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
+	for _, timelineType := range googlecloudlogk8snode_contract.TimelineTypes {
+		if err := registry.AddTimelineType(timelineType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		ClusterIdentityAliasTask,
 

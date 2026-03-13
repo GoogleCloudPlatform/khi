@@ -22,9 +22,24 @@ import (
 
 // Register registers all googlecloudclustercomposer inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudclustercomposer_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
 	err := registry.AddInspectionType(googlecloudclustercomposer_contract.ComposerInspectionType)
 	if err != nil {
 		return err
+	}
+	for _, revisionState := range googlecloudclustercomposer_contract.RevisionStates {
+		if err := registry.AddRevisionState(revisionState); err != nil {
+			return err
+		}
+	}
+	for _, timelineType := range googlecloudclustercomposer_contract.TimelineTypes {
+		if err := registry.AddTimelineType(timelineType); err != nil {
+			return err
+		}
 	}
 	return coretask.RegisterTasks(registry,
 		ClusterIdentityAliasTask,

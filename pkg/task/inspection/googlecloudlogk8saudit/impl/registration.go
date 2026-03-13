@@ -19,7 +19,7 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 )
 
-// Register registers all tasks related to GKE Kubernetes audit log.
+// Register registers all inspection tasks in googlecloudlogk8saudit to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
 	return coretask.RegisterTasks(registry,
 		GCPK8sAuditLogListLogEntriesTask,

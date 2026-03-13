@@ -17,10 +17,16 @@ package googlecloudk8scommon_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // Register registers all googlecloudk8scommon inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, timelineType := range googlecloudk8scommon_contract.TimelineTypes {
+		if err := registry.AddTimelineType(timelineType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		HeaderSuggestedFileNameTask,
 		AutocompleteMetricsK8sContainerTask,

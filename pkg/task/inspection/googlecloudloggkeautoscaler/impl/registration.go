@@ -17,10 +17,26 @@ package googlecloudloggkeautoscaler_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	googlecloudloggkeautoscaler_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeautoscaler/contract"
 )
 
 // Register registers all googlecloudloggkeautoscaler inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
+	for _, logType := range googlecloudloggkeautoscaler_contract.LogTypes {
+		if err := registry.AddLogType(logType); err != nil {
+			return err
+		}
+	}
+	for _, revisionState := range googlecloudloggkeautoscaler_contract.RevisionStates {
+		if err := registry.AddRevisionState(revisionState); err != nil {
+			return err
+		}
+	}
+	for _, timelineType := range googlecloudloggkeautoscaler_contract.TimelineTypes {
+		if err := registry.AddTimelineType(timelineType); err != nil {
+			return err
+		}
+	}
 	return coretask.RegisterTasks(registry,
 		ListLogEntriesTask,
 		FieldSetReaderTask,
