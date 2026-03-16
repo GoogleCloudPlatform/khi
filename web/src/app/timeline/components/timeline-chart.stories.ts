@@ -174,6 +174,40 @@ function generateMockTimelineChartViewModel(): DemoViewModelBuilder {
   return builder;
 }
 
+function generateMockComposerTimelineChartViewModel(): DemoViewModelBuilder {
+  const builder = new DemoViewModelBuilder(START_TIME, START_TIME + DURATION);
+
+  const composerStates: [state: RevisionState, name: string][] = [
+    [RevisionState.RevisionStateComposerTiScheduled, 'Scheduled'],
+    [RevisionState.RevisionStateComposerTiQueued, 'Queued'],
+    [RevisionState.RevisionStateComposerTiRunning, 'Running'],
+    [RevisionState.RevisionStateComposerTiDeferred, 'Deferred'],
+    [RevisionState.RevisionStateComposerTiSuccess, 'Success'],
+    [RevisionState.RevisionStateComposerTiFailed, 'Failed'],
+    [RevisionState.RevisionStateComposerTiUpForRetry, 'UpForRetry'],
+    [RevisionState.RevisionStateComposerTiRestarting, 'Restarting'],
+    [RevisionState.RevisionStateComposerTiRemoved, 'Removed'],
+    [RevisionState.RevisionStateComposerTiUpstreamFailed, 'UpstreamFailed'],
+    [RevisionState.RevisionStateComposerTiZombie, 'Zombie'],
+    [RevisionState.RevisionStateComposerTiUpForReschedule, 'UpForReschedule'],
+  ];
+
+  composerStates.forEach(([state, name], i) => {
+    builder.createTimeline(
+      `airflow#composer/task#composer#composer#${name}`,
+      ParentRelationship.RelationshipChild,
+      builder.createRevision(
+        START_TIME + (DURATION / 24) * i,
+        START_TIME + (DURATION / 24) * i + DURATION / 2,
+        state,
+        RevisionVerb.RevisionVerbCreate,
+      ),
+    );
+  });
+
+  return builder;
+}
+
 const builder = generateMockTimelineChartViewModel();
 
 const meta: Meta<TimelineChartComponent> = {
@@ -202,6 +236,7 @@ const meta: Meta<TimelineChartComponent> = {
     pixelsPerMs: window.innerWidth / DURATION,
     timelineHighlights: {},
     timelineChartItemHighlights: {},
+    forceNotReadyToRender: false,
   },
 };
 
@@ -215,5 +250,14 @@ export const Default: Story = {
 export const NotReady: Story = {
   args: {
     forceNotReadyToRender: true,
+  },
+};
+
+const composerBuilder = generateMockComposerTimelineChartViewModel();
+export const Composer: Story = {
+  args: {
+    chartViewModel: composerBuilder.getChartViewModel(),
+    rulerViewModel: composerBuilder.getRulerViewModel(window.innerWidth),
+    activeLogsIndices: composerBuilder.getAllActiveLogIndices(),
   },
 };
