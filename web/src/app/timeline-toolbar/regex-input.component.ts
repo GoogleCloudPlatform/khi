@@ -29,7 +29,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 
 @Component({
-  selector: 'khi-header-regex-input',
+  selector: 'khi-timeline-regex-input',
   templateUrl: './regex-input.component.html',
   styleUrls: ['./regex-input.component.scss'],
   imports: [MatFormFieldModule, MatInputModule, ReactiveFormsModule],

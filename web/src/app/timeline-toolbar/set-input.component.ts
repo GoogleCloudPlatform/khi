@@ -43,7 +43,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 @Component({
-  selector: 'khi-header-set-input',
+  selector: 'khi-timeline-set-input',
   templateUrl: './set-input.component.html',
   styleUrls: ['./set-input.component.scss'],
   imports: [

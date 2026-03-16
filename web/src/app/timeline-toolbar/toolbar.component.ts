@@ -60,7 +60,7 @@ type ToolbarPopupStatus =
   | 'SUBRESOURCE_FILTER_OPEN';
 
 @Component({
-  selector: 'khi-header-toolbar',
+  selector: 'khi-timeline-toolbar',
   templateUrl: './toolbar.component.html',
   styleUrls: ['./toolbar.component.scss'],
   imports: [
