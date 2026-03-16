@@ -31,13 +31,13 @@ describe('SetInputComponent', () => {
 
   @Component({
     template: `
-      <khi-header-set-input
+      <khi-timeline-set-input
         label="test"
         [selectedItems]="selected"
         [choices]="choices"
         (selectedItemsChange)="onUpdate($event)"
       >
-      </khi-header-set-input>
+      </khi-timeline-set-input>
     `,
     imports: [SetInputComponent],
   })

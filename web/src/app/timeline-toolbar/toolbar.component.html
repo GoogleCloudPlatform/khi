@@ -46,14 +46,14 @@ limitations under the License.
             [cdkConnectedOverlayHasBackdrop]="true"
             (backdropClick)="setPopupState('NONE_OPEN')"
           >
-            <khi-header-set-input
+            <khi-timeline-set-input
               label="Kinds"
               [choices]="(kinds$ | async)!"
               [selectedItems]="(includedKinds$ | async)!"
               (selectedItemsChange)="onKindFilterCommit($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             >
-            </khi-header-set-input>
+            </khi-timeline-set-input>
           </ng-template>
           <!--Namespace filter-->
           <button
@@ -82,13 +82,13 @@ limitations under the License.
             [cdkConnectedOverlayHasBackdrop]="true"
             (backdropClick)="setPopupState('NONE_OPEN')"
           >
-            <khi-header-set-input
+            <khi-timeline-set-input
               label="Namespaces"
               [choices]="(namespaces$ | async)!"
               [selectedItems]="(includedNamespaces$ | async)!"
               (selectedItemsChange)="onNamespaceFilterCommit($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
-            ></khi-header-set-input>
+            ></khi-timeline-set-input>
           </ng-template>
           <!--Subresource relationship filter-->
           <button
@@ -119,7 +119,7 @@ limitations under the License.
             [cdkConnectedOverlayHasBackdrop]="true"
             (backdropClick)="setPopupState('NONE_OPEN')"
           >
-            <khi-header-set-input
+            <khi-timeline-set-input
               label="Subresources"
               [choices]="(subresourceRelationships | async)!"
               [selectedItems]="(includedSubresourceRelationships | async)!"
@@ -127,14 +127,14 @@ limitations under the License.
                 onSubresourceRelationshipFilterCommit($event)
               "
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
-            ></khi-header-set-input>
+            ></khi-timeline-set-input>
           </ng-template>
           <!--Regex resource name filter-->
-          <khi-header-regex-input
+          <khi-timeline-regex-input
             class="resource-name-filter"
             label="Resource name(regex)"
             (regexFilterChange)="onNameFilterChange($event)"
-          ></khi-header-regex-input>
+          ></khi-timeline-regex-input>
         </div>
       </div>
       <div class="center-control"></div>
@@ -163,12 +163,12 @@ limitations under the License.
             <mat-icon color="primary">search_off</mat-icon>
           </mat-button-toggle>
         </mat-button-toggle-group>
-        <khi-header-regex-input
+        <khi-timeline-regex-input
           #logFilterInput
           class="log-filter"
           label="Log body(regex)"
           (regexFilterChange)="onLogFilterChange($event)"
-        ></khi-header-regex-input>
+        ></khi-timeline-regex-input>
         <div class="timezone-control">
           <p>UTC+</p>
           <input
