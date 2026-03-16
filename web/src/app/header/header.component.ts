@@ -17,7 +17,7 @@
 import { Component } from '@angular/core';
 import { TitleBarComponent } from './titlebar.component';
 import { MainMenuComponent } from './main-menu.component';
-import { ToolbarComponent } from './toolbar.component';
+import { ToolbarComponent } from '../timeline-toolbar/toolbar.component';
 
 @Component({
   selector: 'khi-header',
