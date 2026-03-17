@@ -140,6 +140,10 @@ jobs:
     - name: Build web
       working-directory: ./web
       run: npx ng build --configuration ${{ matrix.configuration }}
+
+    - name: Build Storybook
+      working-directory: ./web
+      run: npm run build-storybook 
   build-binaries:
     runs-on: ubuntu-latest
     permissions:
