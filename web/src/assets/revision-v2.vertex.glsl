@@ -3,7 +3,7 @@ precision highp float;
 precision highp int;
 
 #define MAX_REVISION_INDEX_DIGITS 5
-#define MIN_LEFT_REVISION_LOCATION -300.0
+#define MIN_LEFT_REVISION_LOCATION 300.0
 
 #include "v2.shared.glsl"
 #include "revision-v2.shared.glsl"

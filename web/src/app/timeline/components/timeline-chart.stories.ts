@@ -263,7 +263,7 @@ export const Composer: Story = {
 };
 
 function generateMockDenseRevisionsViewModel(): DemoViewModelBuilder {
-  const testDuration = 200 * 10; // 20 seconds (10 revisions * 200ms)
+  const testDuration = 200 * 10; // 2 seconds (10 revisions * 200ms)
   const builder = new DemoViewModelBuilder(
     START_TIME,
     START_TIME + testDuration,
@@ -298,6 +298,6 @@ export const DenseRevisions: Story = {
     chartViewModel: denseBuilder.getChartViewModel(),
     rulerViewModel: denseBuilder.getRulerViewModel(window.innerWidth),
     activeLogsIndices: denseBuilder.getAllActiveLogIndices(),
-    pixelsPerMs: window.innerWidth / (20 * 100),
+    pixelsPerMs: window.innerWidth / (200 * 10),
   },
 };
