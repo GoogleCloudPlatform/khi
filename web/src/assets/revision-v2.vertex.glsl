@@ -3,7 +3,7 @@ precision highp float;
 precision highp int;
 
 #define MAX_REVISION_INDEX_DIGITS 5
-#define MIN_LEFT_REVISION_LOCATION -300.0
+#define MIN_LEFT_REVISION_LOCATION 300.0
 
 #include "v2.shared.glsl"
 #include "revision-v2.shared.glsl"
@@ -54,7 +54,7 @@ void main(){
   // 1. Calculate relative time difference from the viewport left edge.
   // Caps the time.xy with the time calculated from the screen space value not to subtract very small value and cause float precision issue on uv.
   // We can ignore the edge case that minTime could be negative because vs.leftEdgeTime should be enough larger than 0.(It's unix time)
-  uvec2 minTime = vs.leftEdgeTime - uvec2(MIN_LEFT_REVISION_LOCATION / float(vs.pixelsPerMs) / 1000.0, 1e10-1.0); // y component should always larger than time.y
+  uvec2 minTime = uvec2(vs.leftEdgeTime.x -  uint(max(1.0,MIN_LEFT_REVISION_LOCATION / float(vs.pixelsPerMs) / 1000.0)), 0);
   uvec2 cappedTime = max(time.xy, minTime);
   ivec2 leftEdgeRelativeTime = ivec2(cappedTime.xy - vs.leftEdgeTime);
   ivec2 durationTime = ivec2(time.zw - cappedTime.xy);

@@ -261,3 +261,43 @@ export const Composer: Story = {
     activeLogsIndices: composerBuilder.getAllActiveLogIndices(),
   },
 };
+
+function generateMockDenseRevisionsViewModel(): DemoViewModelBuilder {
+  const testDuration = 200 * 10; // 2 seconds (10 revisions * 200ms)
+  const builder = new DemoViewModelBuilder(
+    START_TIME,
+    START_TIME + testDuration,
+  );
+
+  const revisions = [];
+  for (let i = 0; i < 10; i++) {
+    revisions.push(
+      builder.createRevision(
+        START_TIME + i * 200,
+        START_TIME + (i + 1) * 200,
+        i % 2 === 0
+          ? RevisionState.RevisionStateExisting
+          : RevisionState.RevisionStateInferred,
+        RevisionVerb.RevisionVerbUpdate,
+      ),
+    );
+  }
+
+  builder.createTimeline(
+    'core/v1#pod#default#dense-revisions',
+    ParentRelationship.RelationshipChild,
+    ...revisions,
+  );
+
+  return builder;
+}
+
+const denseBuilder = generateMockDenseRevisionsViewModel();
+export const DenseRevisions: Story = {
+  args: {
+    chartViewModel: denseBuilder.getChartViewModel(),
+    rulerViewModel: denseBuilder.getRulerViewModel(window.innerWidth),
+    activeLogsIndices: denseBuilder.getAllActiveLogIndices(),
+    pixelsPerMs: window.innerWidth / (200 * 10),
+  },
+};
