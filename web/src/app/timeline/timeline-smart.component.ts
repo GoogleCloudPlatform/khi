@@ -252,13 +252,17 @@ export class TimelineSmartComponent {
         maxC,
       );
 
-      const events = timeline.queryEventsInRange(
-        lastClickedTimeMs - optimalT,
-        lastClickedTimeMs + optimalT,
-      );
-      const revisions = timeline.queryRevisionsInRange(
-        lastClickedTimeMs - optimalT,
-        lastClickedTimeMs + optimalT,
+      const beginTime = lastClickedTimeMs - optimalT;
+      const endTime = lastClickedTimeMs + optimalT;
+      const events = timeline.queryEventsInRange(beginTime, endTime);
+      const revisions = timeline.queryRevisionsInRange(beginTime, endTime);
+      let findRevisionStartTime = beginTime;
+      if (revisions.length > 0) {
+        findRevisionStartTime = revisions[0].startAt;
+      }
+      const initialRevision = timeline.getLatestRevisionOfTime(
+        findRevisionStartTime,
+        true,
       );
 
       return {
@@ -268,6 +272,7 @@ export class TimelineSmartComponent {
           timeline: timeline,
           revisions: revisions,
           events: events,
+          initialRevision: initialRevision,
         },
       } as TimelineHoverOverlayRequest;
     });

@@ -34,11 +34,6 @@
             class="body-state-container"
             [style.--revision-state-color]="log.revisionStateColor"
           >
-            @if (index === 0) {
-              <div class="more-icon top-icon">
-                <mat-icon>more_vert</mat-icon>
-              </div>
-            }
             @if (index > 0) {
               @let prevLog = vm.logs[index - 1];
               <div
@@ -59,6 +54,34 @@
                   prevLog.statusContinous === StatusContinousMode.StartAndEnd
                 "
               ></div>
+            } @else if (index === 0) {
+              @let initialRevisionState = vm.initialRevisionState;
+              @if (initialRevisionState) {
+                <div
+                  class="revision-state-top"
+                  [style.--revision-state-color]="
+                    initialRevisionState.revisionStateColor
+                  "
+                  [class.style-normal]="
+                    initialRevisionState.revisionStateStyle ===
+                    RevisionStateStyle.Normal
+                  "
+                  [class.style-partial-info]="
+                    initialRevisionState.revisionStateStyle ===
+                    RevisionStateStyle.PartialInfo
+                  "
+                  [class.style-deleted]="
+                    initialRevisionState.revisionStateStyle ===
+                    RevisionStateStyle.Deleted
+                  "
+                  [class.status-end]="
+                    initialRevisionState.statusContinous ===
+                      StatusContinousMode.End ||
+                    initialRevisionState.statusContinous ===
+                      StatusContinousMode.StartAndEnd
+                  "
+                ></div>
+              }
             }
             @if (!log.isRevision) {
               <div
@@ -98,11 +121,6 @@
                 }}</mat-icon>
               }
             </div>
-            @if (index === vm.logs.length - 1) {
-              <div class="more-icon bottom-icon">
-                <mat-icon>more_vert</mat-icon>
-              </div>
-            }
           </div>
           <div class="body-misc-colors bottom-line">
             <div

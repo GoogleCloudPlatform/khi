@@ -54,6 +54,7 @@ export interface TimelineHoverOverlay {
   timeline: ResourceTimeline;
   revisions: ResourceRevision[];
   events: ResourceEvent[];
+  initialRevision: ResourceRevision | null;
 }
 
 enum StatusContinousMode {
@@ -88,9 +89,16 @@ interface TimelineHoverOverlayLogItem {
   highlightType: TimelineChartItemHighlightType;
 }
 
+interface InitialRevisionStateItem {
+  revisionStateStyle: RevisionStateStyle;
+  revisionStateColor: string;
+  statusContinous: StatusContinousMode;
+}
+
 interface TimelineHoverOverlayViewModel {
   timeline: ResourceTimeline | null;
   logs: TimelineHoverOverlayLogItem[];
+  initialRevisionState: InitialRevisionStateItem | null;
 }
 
 /**
@@ -179,6 +187,7 @@ export class TimelineHoverOverlayComponent {
       return {
         logs: [],
         timeline: null,
+        initialRevisionState: null,
       };
     }
     const logs = this.logs();
@@ -188,6 +197,7 @@ export class TimelineHoverOverlayComponent {
     const viewModel: TimelineHoverOverlayViewModel = {
       logs: [],
       timeline: timelineHoverOverlay.timeline,
+      initialRevisionState: null,
     };
 
     // 1. Convert Revisions to LogItems
@@ -273,7 +283,7 @@ export class TimelineHoverOverlayComponent {
     }
 
     // 3. Sort by User Log Index (chronological order)
-    viewModel.logs.sort((a, b) => a.logIndex - b.logIndex);
+    viewModel.logs.sort((a, b) => a.timeMs - b.timeMs);
 
     // 4. Calculate Continuity and Inherit States
     // Iterate through the sorted logs to:
@@ -283,6 +293,27 @@ export class TimelineHoverOverlayComponent {
     let lastRevisionStateLabel = "status doesn't exist";
     let lastRevisionStateIcon = '';
     let lastRevisionStateStyle = RevisionStateStyle.Normal;
+
+    if (timelineHoverOverlay.initialRevision) {
+      const rev = timelineHoverOverlay.initialRevision;
+      lastRevisionStateColor = RendererConvertUtil.hdrColorToCSSColor(
+        revisionStatecolors[revisionStates[rev.stateRaw]],
+      );
+      const revMeta = RevisionStateMetadata[rev.stateRaw];
+      lastRevisionStateLabel = revMeta.label;
+      lastRevisionStateIcon = revMeta.icon;
+      lastRevisionStateStyle = revMeta.style;
+      let continousMode = StatusContinousMode.Middle;
+      if (viewModel.logs.length > 0 && viewModel.logs[0].isRevision) {
+        continousMode = StatusContinousMode.End;
+      }
+      viewModel.initialRevisionState = {
+        revisionStateStyle: lastRevisionStateStyle,
+        revisionStateColor: lastRevisionStateColor,
+        statusContinous: continousMode,
+      };
+    }
+
     for (let i = 0; i < viewModel.logs.length; i++) {
       const log = viewModel.logs[i];
       if (log.isRevision) {

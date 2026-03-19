@@ -173,10 +173,13 @@ export class ResourceTimeline {
    * @param time
    * @returns
    */
-  public getLatestRevisionOfTime(time: number): ResourceRevision | null {
+  public getLatestRevisionOfTime(
+    time: number,
+    exclusive = false,
+  ): ResourceRevision | null {
     let result: ResourceRevision | null = null;
     for (const revision of this.revisions) {
-      if (revision.startAt <= time) {
+      if (exclusive ? revision.startAt < time : revision.startAt <= time) {
         result = revision;
       }
       if (revision.endAt > time) {

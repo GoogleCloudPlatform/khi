@@ -130,6 +130,72 @@ function createHoverOverlayDemoData(): {
     timeline: timeline,
     revisions: timeline.revisions,
     events: timeline.events,
+    initialRevision: timeline.revisions[0],
+  };
+  return result;
+}
+
+function createHoverOverlayDemoDataWithEventFirst(): {
+  overlay: TimelineHoverOverlay;
+  logs: LogEntry[];
+} {
+  const result = {} as { overlay: TimelineHoverOverlay; logs: LogEntry[] };
+  const baseTime = new Date(2025, 0, 1, 12, 0, 0, 0).getTime();
+  result.logs = [
+    createLogEntry(
+      0,
+      'Event before any revision in the viewport',
+      baseTime + 100,
+      LogType.LogTypeAutoscaler,
+      Severity.SeverityWarning,
+    ),
+    createLogEntry(
+      1,
+      'Another event',
+      baseTime + 150,
+      LogType.LogTypeAudit,
+      Severity.SeverityInfo,
+    ),
+    createLogEntry(
+      2,
+      'baz',
+      baseTime + 200,
+      LogType.LogTypeAudit,
+      Severity.SeverityError,
+    ),
+  ];
+  const timeline = new ResourceTimeline(
+    '',
+    '',
+    [
+      createRevision(
+        createLogEntry(
+          -1,
+          'Background Revision',
+          baseTime - 1000,
+          LogType.LogTypeAudit,
+          Severity.SeverityInfo,
+        ),
+        baseTime - 1000,
+        RevisionState.RevisionStateExisting,
+      ),
+      createRevision(
+        result.logs[2],
+        baseTime + 200,
+        RevisionState.RevisionStateContainerStatusNotAvailable,
+      ),
+    ],
+    [
+      createEvent(result.logs[0], baseTime + 100),
+      createEvent(result.logs[1], baseTime + 150),
+    ],
+    ParentRelationship.RelationshipChild,
+  );
+  result.overlay = {
+    timeline: timeline,
+    revisions: [timeline.revisions[1]], // The background revision is naturally out of range during rendering
+    events: timeline.events,
+    initialRevision: timeline.revisions[0], // But it is received dynamically at the beginning
   };
   return result;
 }
@@ -141,6 +207,21 @@ export const Default: Story = {
   args: {
     timelineHoverOverlay: createHoverOverlayDemoData().overlay,
     logs: createHoverOverlayDemoData().logs,
+  },
+  argTypes: {
+    hoverOnElement: {
+      action: 'hoverOnElement',
+    },
+    clickOnElement: {
+      action: 'clickOnElement',
+    },
+  },
+};
+
+export const FirstItemIsEvent: Story = {
+  args: {
+    timelineHoverOverlay: createHoverOverlayDemoDataWithEventFirst().overlay,
+    logs: createHoverOverlayDemoDataWithEventFirst().logs,
   },
   argTypes: {
     hoverOnElement: {

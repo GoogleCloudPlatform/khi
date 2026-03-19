@@ -95,7 +95,7 @@ $selected-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
   grid-template-areas: "state misc time log";
   grid-template-columns: auto auto auto minmax(0, 1fr);
   grid-auto-rows: auto;
-  padding-bottom: 22px;
+  padding-bottom: 10px;
   .header {
     grid-column: 1 / -1;
     display: grid;
@@ -196,22 +196,6 @@ $selected-log-tint: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
               var(--log-type-color) $colorChangePointEdge
             );
           }
-        }
-      }
-
-      .more-icon {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        color: dimgray;
-        mat-icon {
-          @include common.adjust-mat-icon-size(12px);
-        }
-        &.top-icon {
-          grid-row: 1;
-        }
-        &.bottom-icon {
-          grid-row: 4;
         }
       }
     }
