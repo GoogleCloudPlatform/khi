@@ -56,6 +56,8 @@ const (
 
 	RevisionVerbTerminating RevisionVerb = 31 // Added since 0.41 for endpoint slice
 
+	RevisionVerbComposerTaskInstanceSkipped RevisionVerb = 32 // Added since 0.53
+
 	revisionVerbUnusedEnd // Adds items above. This value is used for counting items in this enum to test.
 )
 
@@ -261,5 +263,11 @@ var RevisionVerbs = map[RevisionVerb]RevisionVerbFrontendMetadata{
 		Label:                "Unimplemented",
 		LabelBackgroundColor: mustHexToHDRColor4("#DDDDDD"),
 		CSSSelector:          "composer-taskinstance-unimplemented",
+	},
+	RevisionVerbComposerTaskInstanceSkipped: {
+		EnumKeyName:          "RevisionVerbComposerTaskInstanceSkipped",
+		Label:                "Skipped",
+		LabelBackgroundColor: mustHexToHDRColor4("#e60076"),
+		CSSSelector:          "composer-taskinstance-skipped",
 	},
 }
