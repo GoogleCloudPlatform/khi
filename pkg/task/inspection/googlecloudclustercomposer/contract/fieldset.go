@@ -357,9 +357,7 @@ func (c *ComposerWorkerTaskInstanceFieldSetReader) tryReadFromLabels(reader *str
 	state := TASKINSTANCE_NONE
 	if matches != nil {
 		stateStr := strings.ToLower(matches[airflowWorkerFinalStateExtractTemplate.SubexpIndex("state")])
-		var err error
-		finalState, err := stringToTiState(stateStr)
-		if err == nil {
+		if finalState, err := stringToTiState(stateStr); err == nil {
 			state = finalState
 		}
 	}
