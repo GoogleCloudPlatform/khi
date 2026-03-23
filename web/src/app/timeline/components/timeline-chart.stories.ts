@@ -190,6 +190,7 @@ function generateMockComposerTimelineChartViewModel(): DemoViewModelBuilder {
     [RevisionState.RevisionStateComposerTiUpstreamFailed, 'UpstreamFailed'],
     [RevisionState.RevisionStateComposerTiZombie, 'Zombie'],
     [RevisionState.RevisionStateComposerTiUpForReschedule, 'UpForReschedule'],
+    [RevisionState.RevisionStateComposerTiSkipped, 'Skipped'],
   ];
 
   composerStates.forEach(([state, name], i) => {

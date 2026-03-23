@@ -84,15 +84,19 @@ func (c *airflowWorkerLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 
 	r := ti.ResourcePath()
-	verb, state := tiStatusToVerb(ti)
-	cs.AddRevision(r, &history.StagingResourceRevision{
-		Verb:       verb,
-		State:      state,
-		Requestor:  "airflow-worker",
-		ChangeTime: commonField.Timestamp,
-		Partial:    false,
-		Body:       ti.ToYaml(),
-	})
+	if ti.Status() == googlecloudclustercomposer_contract.TASKINSTANCE_NONE {
+		cs.AddEvent(r)
+	} else {
+		verb, state := tiStatusToVerb(ti)
+		cs.AddRevision(r, &history.StagingResourceRevision{
+			Verb:       verb,
+			State:      state,
+			Requestor:  "airflow-worker",
+			ChangeTime: commonField.Timestamp,
+			Partial:    false,
+			Body:       ti.ToYaml(),
+		})
+	}
 
 	return struct{}{}, nil
 }

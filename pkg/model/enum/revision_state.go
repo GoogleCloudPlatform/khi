@@ -79,6 +79,8 @@ const (
 	RevisionStateContainerStatusNotAvailable RevisionState = 40 // Added since 0.50
 	RevisionStateContainerStarted            RevisionState = 41 // Added since 0.50
 
+	RevisionStateComposerTiSkipped RevisionState = 42 // Added since 0.53
+
 	revisionStateUnusedEnd // Adds items above. This value is used for counting items in this enum to test.
 )
 
@@ -409,5 +411,12 @@ var RevisionStates = map[RevisionState]RevisionStateFrontendMetadata{
 		Label:           "Container is started but readiness info is not available",
 		Style:           RevisionStateStylePartialInfo,
 		Icon:            "siren_question",
+	},
+	RevisionStateComposerTiSkipped: {
+		EnumKeyName:     "RevisionStateComposerTiSkipped",
+		BackgroundColor: mustHexToHDRColor4("#e60076"),
+		CSSSelector:     "composer_ti_skipped",
+		Label:           "Task instance is skipped",
+		Icon:            "step_over",
 	},
 }

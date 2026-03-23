@@ -44,6 +44,8 @@ func tiStatusToVerb(ti *googlecloudclustercomposer_contract.AirflowTaskInstance)
 		return enum.RevisionVerbComposerTaskInstanceUpstreamFailed, enum.RevisionStateComposerTiUpstreamFailed
 	case googlecloudclustercomposer_contract.TASKINSTANCE_ZOMBIE:
 		return enum.RevisionVerbComposerTaskInstanceZombie, enum.RevisionStateComposerTiZombie
+	case googlecloudclustercomposer_contract.TASKINSTANCE_SKIPPED:
+		return enum.RevisionVerbComposerTaskInstanceSkipped, enum.RevisionStateComposerTiSkipped
 	default:
 		return enum.RevisionVerbComposerTaskInstanceUnimplemented, enum.RevisionStateConditionUnknown
 	}
