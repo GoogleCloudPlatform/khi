@@ -19,6 +19,7 @@ import {
   TimelineHoverOverlay,
   TimelineHoverOverlayComponent,
 } from './timeline-hover-overlay.component';
+import { TimelineChartItemHighlightType } from './interaction-model';
 import { LogEntry } from 'src/app/store/log';
 import {
   LogType,
@@ -222,6 +223,44 @@ export const FirstItemIsEvent: Story = {
   args: {
     timelineHoverOverlay: createHoverOverlayDemoDataWithEventFirst().overlay,
     logs: createHoverOverlayDemoDataWithEventFirst().logs,
+  },
+  argTypes: {
+    hoverOnElement: {
+      action: 'hoverOnElement',
+    },
+    clickOnElement: {
+      action: 'clickOnElement',
+    },
+  },
+};
+
+export const HoveredOnEventAndSelectedOnRevision: Story = {
+  args: {
+    timelineHoverOverlay: createHoverOverlayDemoData().overlay,
+    logs: createHoverOverlayDemoData().logs,
+    highlights: {
+      0: TimelineChartItemHighlightType.Selected, // Revision (foo)
+      1: TimelineChartItemHighlightType.Hovered, // Event (bar)
+    },
+  },
+  argTypes: {
+    hoverOnElement: {
+      action: 'hoverOnElement',
+    },
+    clickOnElement: {
+      action: 'clickOnElement',
+    },
+  },
+};
+
+export const HoveredOnRevisionAndSelectedOnEvent: Story = {
+  args: {
+    timelineHoverOverlay: createHoverOverlayDemoData().overlay,
+    logs: createHoverOverlayDemoData().logs,
+    highlights: {
+      0: TimelineChartItemHighlightType.Hovered, // Revision (foo)
+      1: TimelineChartItemHighlightType.Selected, // Event (bar)
+    },
   },
   argTypes: {
     hoverOnElement: {

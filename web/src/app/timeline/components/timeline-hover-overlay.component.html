@@ -53,6 +53,16 @@
                   prevLog.statusContinous === StatusContinousMode.End ||
                   prevLog.statusContinous === StatusContinousMode.StartAndEnd
                 "
+                [class.selected]="
+                  prevLog.lastRevisionHightlightType !== null &&
+                  prevLog.lastRevisionHightlightType ===
+                    TimelineChartItemHighlightType.Selected
+                "
+                [class.hovered]="
+                  prevLog.lastRevisionHightlightType !== null &&
+                  prevLog.lastRevisionHightlightType ===
+                    TimelineChartItemHighlightType.Hovered
+                "
               ></div>
             } @else if (index === 0) {
               @let initialRevisionState = vm.initialRevisionState;
@@ -89,7 +99,16 @@
                 [style.--log-type-color]="log.logTypeColor"
                 [style.--severity-color]="log.severityColor"
               >
-                <div class="event-rect"></div>
+                <div
+                  class="event-rect"
+                  [class.selected]="
+                    log.highlightType ===
+                    TimelineChartItemHighlightType.Selected
+                  "
+                  [class.hovered]="
+                    log.highlightType === TimelineChartItemHighlightType.Hovered
+                  "
+                ></div>
               </div>
             }
             @let nextLog = vm.logs[index];
@@ -111,6 +130,16 @@
                 nextLog.statusContinous === StatusContinousMode.StartAndEnd
               "
               [class.is-last-row]="index === vm.logs.length - 1"
+              [class.selected]="
+                nextLog.lastRevisionHightlightType !== null &&
+                nextLog.lastRevisionHightlightType ===
+                  TimelineChartItemHighlightType.Selected
+              "
+              [class.hovered]="
+                nextLog.lastRevisionHightlightType !== null &&
+                nextLog.lastRevisionHightlightType ===
+                  TimelineChartItemHighlightType.Hovered
+              "
             >
               @if (
                 nextLog.statusContinous === StatusContinousMode.Start ||

@@ -75,6 +75,7 @@ interface TimelineHoverOverlayLogItem {
   revisionStateLabel: string;
   revisionStateIcon: string;
   revisionStateStyle: RevisionStateStyle;
+  lastRevisionLog: LogEntry | null;
   logTypeColor: string;
   logTypeLabel: string;
   verbTypeColor: string;
@@ -87,6 +88,7 @@ interface TimelineHoverOverlayLogItem {
   summary: string;
   statusContinous: StatusContinousMode;
   highlightType: TimelineChartItemHighlightType;
+  lastRevisionHightlightType: TimelineChartItemHighlightType;
 }
 
 interface InitialRevisionStateItem {
@@ -243,6 +245,8 @@ export class TimelineHoverOverlayComponent {
         severityLabel: severityLabel,
         statusContinous: StatusContinousMode.StartAndEnd,
         highlightType: highlightType,
+        lastRevisionLog: log,
+        lastRevisionHightlightType: highlightType,
       });
     }
 
@@ -279,6 +283,8 @@ export class TimelineHoverOverlayComponent {
         showSeverity: log.severity !== Severity.SeverityUnknown,
         statusContinous: StatusContinousMode.Middle,
         highlightType: highlightType,
+        lastRevisionLog: null,
+        lastRevisionHightlightType: TimelineChartItemHighlightType.None,
       });
     }
 
@@ -293,6 +299,8 @@ export class TimelineHoverOverlayComponent {
     let lastRevisionStateLabel = "status doesn't exist";
     let lastRevisionStateIcon = '';
     let lastRevisionStateStyle = RevisionStateStyle.Normal;
+    let lastRevisionLog = null;
+    let lastRevisionHightlightType = TimelineChartItemHighlightType.None;
 
     if (timelineHoverOverlay.initialRevision) {
       const rev = timelineHoverOverlay.initialRevision;
@@ -321,6 +329,8 @@ export class TimelineHoverOverlayComponent {
         lastRevisionStateLabel = log.revisionStateLabel;
         lastRevisionStateIcon = log.revisionStateIcon;
         lastRevisionStateStyle = log.revisionStateStyle;
+        lastRevisionLog = log.log;
+        lastRevisionHightlightType = log.highlightType;
         if (i < viewModel.logs.length - 1) {
           const nextLog = viewModel.logs[i + 1];
           if (!nextLog.isRevision) {
@@ -332,6 +342,8 @@ export class TimelineHoverOverlayComponent {
         log.revisionStateLabel = lastRevisionStateLabel;
         log.revisionStateIcon = lastRevisionStateIcon;
         log.revisionStateStyle = lastRevisionStateStyle;
+        log.lastRevisionLog = lastRevisionLog;
+        log.lastRevisionHightlightType = lastRevisionHightlightType;
         if (
           i === viewModel.logs.length - 1 ||
           viewModel.logs[i + 1].isRevision
