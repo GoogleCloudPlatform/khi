@@ -15,6 +15,7 @@
  */
 
 @use "../../zzz-generated" as gen;
+@use "../../common.scss" as common;
 
 :host {
   display: block;
@@ -54,7 +55,7 @@ tr {
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: pre;
-    font-family: monospace;
+    font-family: common.$font-code;
   }
 
   .type-indicator {

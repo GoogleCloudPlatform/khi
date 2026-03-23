@@ -50,31 +50,21 @@
       }
     }
   }
-
-  .log-body-container-wrap {
-    grid: "logbody";
-  }
 }
 
-.log-body-container-scrollable {
+.log-body-container {
+  grid: "logbody";
+  margin: 0 10px;
   overflow: auto;
 
-  code.hljs {
-    padding: 0;
-    white-space: pre;
-  }
-
   code {
-    font-family: "Google Sans Code", monospace;
-    font-size: 10px;
-  }
-
-  .log-body-container {
-    margin: 0 10px;
+    white-space: pre;
+    font-family: common.$font-code;
   }
 }
 
 .empty-message {
+  grid: "logbody";
   font-weight: 600;
   color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
   text-align: center;
