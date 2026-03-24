@@ -16,6 +16,8 @@
 
 $resizer-thickness: 5px;
 
+$font-code: "Google Sans Code", monospace;
+
 @mixin adjust-mat-icon-size($size) {
   width: $size;
   height: $size;

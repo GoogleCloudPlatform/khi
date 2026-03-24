@@ -97,6 +97,12 @@ interface InitialRevisionStateItem {
   statusContinous: StatusContinousMode;
 }
 
+interface InitialRevisionStateItem {
+  revisionStateStyle: RevisionStateStyle;
+  revisionStateColor: string;
+  statusContinous: StatusContinousMode;
+}
+
 interface TimelineHoverOverlayViewModel {
   timeline: ResourceTimeline | null;
   logs: TimelineHoverOverlayLogItem[];

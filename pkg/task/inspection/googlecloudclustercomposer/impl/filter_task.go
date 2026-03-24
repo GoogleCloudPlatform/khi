@@ -38,8 +38,8 @@ func componentFilterTask(taskID taskid.TaskImplementationID[[]*log.Log], source 
 	)
 }
 
-var AirflowWorkerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowWorkerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "worker")
-var AirflowSchedulerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowSchedulerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "scheduler")
+var AirflowWorkerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowWorkerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "airflow-worker")
+var AirflowSchedulerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowSchedulerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "airflow-scheduler")
 var AirflowDagProcessorManagerLogFilterTask = componentFilterTask(googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID, googlecloudclustercomposer_contract.ComposerLogsFieldSetReadTaskID.Ref(), "dag-processor-manager")
 
 var AirflowOtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
@@ -51,6 +51,6 @@ var AirflowOtherLogFilterTask = inspectiontaskbase.NewLogFilterTask(
 			return false
 		}
 		// If it's none of the specific components we support parsing, it goes to "Other"
-		return fs.Component != "worker" && fs.Component != "scheduler" && fs.Component != "dag-processor-manager"
+		return fs.Component != "airflow-worker" && fs.Component != "airflow-scheduler" && fs.Component != "dag-processor-manager"
 	},
 )
