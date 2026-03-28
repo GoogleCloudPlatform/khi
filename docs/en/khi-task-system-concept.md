@@ -418,29 +418,37 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 When discussing tasks earlier, we did not go into depth about Labels, but each task in KHI has a map of labels.
 KHI utilize this feature to select specific set of tasks from the set of all tasks registered on KHI.
 
-#### InspectionType Label
+#### Restricting Inspection Types (LabelSelector / InspectionType Label)
 
-The InspectionType label applied to tasks has a value of []string type. These are arrays of InspectionType IDs, and they determine whether a task is included as a candidate for dependency relationships based on the following criteria when a user selects an Inspection Type in the UI:
+To specify which Inspection Types a task is compatible with, KHI provides two mechanisms: **LabelSelector (Recommended)** and **InspectionType Label (Legacy)**.
 
-- The task does not have an InspectionType label (interpreted as a task that can be used with any InspectionType)
-- The task includes the ID of the user-selected InspectionType as one of its InspectionType labels
+KHI first evaluates compatibility using the LabelSelector. If no selector is configured, it falls back to the legacy InspectionType ID list. If neither is specified, it is interpreted as a global task usable with any InspectionType.
 
-For example, you can define tasks with these labels as follows:
+##### 1. Using LabelSelector (Recommended)
+
+A `LabelSelector` allows you to specify conditions using a map of labels (`map[string]string`). A task is enabled only if the current InspectionType **contains all** the labels defined in the selector (i.e., the InspectionType's labels are a superset of the selector's labels). The InspectionType may have additional labels not specified in the selector.
+
+This is useful for enabling tasks across a whole platform (e.g., `platform: gke`).
 
 ```go
-var IntGeneratorTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/int-generator")
+var MyTask = task.NewTask(MyTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
+    return nil, nil
+}, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+    "platform": "gke",
+})) // Enabled only on Inspection Types with the label platform: gke
+```
 
+##### 2. Using InspectionType Label (Legacy)
+
+The InspectionType label applied to tasks has a value of `[]string` type. These are hardcoded arrays of InspectionType IDs, and they determine compatibility based on the following criteria:
+
+- The task does not have any InspectionType labels (interpreted as a global task usable with any InspectionType).
+- The task includes the ID of the user-selected InspectionType within its list.
+
+```go
 var IntGeneratorTask = task.NewTask(IntGeneratorTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (int, error) {
- return 1, nil
-}, inspectioncore_contract.InspectionTypeLabel("gcp-gke","gcp-gdcv-for-baremetal")) // This task is only available when user selected GKE or GDCV for Baremetal on the inspection type selection
-
-var DoubleIntTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/double-int")
-
-var DoubleIntTask = task.NewTask(DoubleIntTaskID, []taskid.UntypedTaskReference{IntGeneratorTaskID.Ref()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error) {
- intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
- return intGeneratorResult * 2, nil
-}) // This task is available for any inspection type
-
+    return 1, nil
+}, inspectioncore_contract.InspectionTypeLabel("gcp-gke", "gcp-gdcv-for-baremetal")) // Matches exact IDs only
 ```
 
 #### FeatureTask Label
