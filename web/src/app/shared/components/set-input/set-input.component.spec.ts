@@ -187,8 +187,9 @@ describe('SetInputComponent', () => {
     // Typing '-fo' -> Should match foo
     component.inputCtrl.setValue('-fo');
     fixture.detectChanges();
-    expect(component.textFieldCandidates().length).toBe(1);
-    expect(component.textFieldCandidates()[0].id).toBe('foo');
+    expect(component.textFieldCandidates()).toEqual([
+      jasmine.objectContaining({ id: 'foo', optionValue: '-foo' }),
+    ]);
   });
 
   it('should preserve "-" prefix when selecting suggestion with allowSubtractiveValue', () => {
