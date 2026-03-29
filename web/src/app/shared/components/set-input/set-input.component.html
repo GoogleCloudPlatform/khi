@@ -44,7 +44,7 @@ limitations under the License.
       (optionSelected)="selected($event)"
     >
       @for (item of textFieldCandidates(); track item.id) {
-        <mat-option [value]="item.id">
+        <mat-option [value]="item.optionValue">
           <ng-container
             *ngTemplateOutlet="
               optionTemplate() || defaultOption;

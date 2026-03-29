@@ -18,6 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SetInputComponent, SetInputItem } from './set-input.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatChipInputEvent } from '@angular/material/chips';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 
 describe('SetInputComponent', () => {
   let component: SetInputComponent;
@@ -172,5 +173,35 @@ describe('SetInputComponent', () => {
     component.selectOnly({ id: 'C', value: 'C' });
 
     expect(emitted).toEqual(['C']);
+  });
+
+  it('should filter textFieldCandidates ignoring "-" prefix when allowSubtractiveValue is true', () => {
+    const choices: SetInputItem[] = [
+      { id: 'foo', value: 'foo' },
+      { id: 'bar', value: 'bar' },
+    ];
+    fixture.componentRef.setInput('choices', choices);
+    fixture.componentRef.setInput('allowSubtractiveValue', true);
+    fixture.detectChanges();
+
+    // Typing '-fo' -> Should match foo
+    component.inputCtrl.setValue('-fo');
+    fixture.detectChanges();
+    expect(component.textFieldCandidates().length).toBe(1);
+    expect(component.textFieldCandidates()[0].id).toBe('foo');
+  });
+
+  it('should preserve "-" prefix when selecting suggestion with allowSubtractiveValue', () => {
+    let emitted: string[] = [];
+    component.selectedItemsChange.subscribe((val) => (emitted = val));
+
+    // Simulate event with prefixed value (as would be produced by the template)
+    const event = {
+      option: { value: '-foo' },
+    } as unknown as MatAutocompleteSelectedEvent;
+
+    component.selected(event);
+
+    expect(emitted).toEqual(['-foo']);
   });
 });

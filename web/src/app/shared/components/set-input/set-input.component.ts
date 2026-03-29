@@ -134,19 +134,25 @@ export class SetInputComponent {
    */
   textFieldCandidates = computed(() => {
     const value = this.inputValue();
-    const name = value;
+    const isSubtractive = this.allowSubtractiveValue() && value.startsWith('-');
     const selectedIdSet = new Set(this.selectedItems());
     const available = this.choices().filter((c) => !selectedIdSet.has(c.id));
 
-    if (!name) return available;
-    let lowerName = name.toLowerCase();
-    if (this.allowSubtractiveValue() && lowerName.startsWith('-')) {
-      lowerName = lowerName.substring(1);
+    let candidates = available;
+    if (value) {
+      let lowerName = value.toLowerCase();
+      if (isSubtractive) {
+        lowerName = lowerName.substring(1);
+      }
+      candidates = available.filter((item) =>
+        item.id.toLowerCase().includes(lowerName),
+      );
     }
-    // Simple filtering by id
-    return available.filter((item) =>
-      item.id.toLowerCase().includes(lowerName),
-    );
+
+    return candidates.map((item) => ({
+      ...item,
+      optionValue: isSubtractive ? '-' + item.id : item.id,
+    }));
   });
 
   /** Removes a selected item. */
@@ -200,11 +206,7 @@ export class SetInputComponent {
   /** Handle selection from autocomplete. */
   selected(event: MatAutocompleteSelectedEvent): void {
     const id = event.option.value as string;
-    let newItem = id;
-    if (this.allowSubtractiveValue() && this.inputValue().startsWith('-')) {
-      newItem = '-' + id;
-    }
-    const newItems = this.getUniqueString([...this.selectedItems(), newItem]);
+    const newItems = this.getUniqueString([...this.selectedItems(), id]);
     this.selectedItemsChange.emit(newItems);
     this.inputElement.nativeElement.value = '';
     this.inputCtrl.setValue('');
