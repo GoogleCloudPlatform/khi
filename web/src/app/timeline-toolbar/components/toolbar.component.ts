@@ -86,36 +86,6 @@ export class ToolbarComponent {
     this.timezoneShift.set(value);
   }
 
-  onKindFilterCommit(kinds: Set<string>) {
-    this.includedKinds.set(kinds);
-  }
-
-  onNamespaceFilterCommit(namespaces: Set<string>) {
-    this.includedNamespaces.set(namespaces);
-  }
-
-  onSubresourceRelationshipFilterCommit(
-    subresourceRelationshipLabels: Set<string>,
-  ) {
-    this.includedSubresourceRelationships.set(subresourceRelationshipLabels);
-  }
-
-  onToggleHideSubresourcesWithoutMatchingLogs() {
-    this.hideSubresourcesWithoutMatchingLogs.set(
-      !this.hideSubresourcesWithoutMatchingLogs(),
-    );
-  }
-
-  onToggleHideResourcesWithoutMatchingLogs() {
-    this.hideResourcesWithoutMatchingLogs.set(
-      !this.hideResourcesWithoutMatchingLogs(),
-    );
-  }
-
-  onDrawDiagram() {
-    this.drawDiagram.emit();
-  }
-
   @HostListener('window:keydown', ['$event'])
   protected interceptBrowserSearch(event: KeyboardEvent) {
     if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
