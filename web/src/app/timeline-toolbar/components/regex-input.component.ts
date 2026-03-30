@@ -47,9 +47,7 @@ export class RegexInputComponent {
    */
   readonly value = model('');
 
-  protected readonly regexInput: FormControl = new FormControl('', [
-    RegexValidator(),
-  ]);
+  readonly regexInput: FormControl = new FormControl('', [RegexValidator()]);
 
   constructor() {
     // Sync model value to Form Control
@@ -62,7 +60,7 @@ export class RegexInputComponent {
   }
 
   protected regexFormErrorMessage(): string {
-    return this.regexInput.errors!['regex'] as string;
+    return (this.regexInput.errors?.['regex'] as string) || '';
   }
 
   protected onFilterChange() {
