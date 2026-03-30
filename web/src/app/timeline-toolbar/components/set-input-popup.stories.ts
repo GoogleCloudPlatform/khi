@@ -18,7 +18,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { SetInputPopupComponent } from './set-input-popup.component';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { SetInputComponent } from '../shared/components/set-input/set-input.component';
+import { SetInputComponent } from '../../shared/components/set-input/set-input.component';
 
 const meta: Meta<SetInputPopupComponent> = {
   title: 'Timeline/Components/SetInputPopup',

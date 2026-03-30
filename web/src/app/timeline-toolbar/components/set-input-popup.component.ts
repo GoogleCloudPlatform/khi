@@ -18,7 +18,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { SetInputComponent } from '../shared/components/set-input/set-input.component';
+import { SetInputComponent } from '../../shared/components/set-input/set-input.component';
 
 /**
  * A wrapper component for SetInputComponent to be used in a popup.
