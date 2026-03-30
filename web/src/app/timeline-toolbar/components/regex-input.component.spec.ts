@@ -20,7 +20,6 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatFormFieldHarness } from '@angular/material/form-field/testing';
 import { RegexInputComponent } from './regex-input.component';
-import { MatInputHarness } from '@angular/material/input/testing';
 
 describe('RegexFilterFormComponent', () => {
   let component: RegexInputComponent;
@@ -42,10 +41,11 @@ describe('RegexFilterFormComponent', () => {
     expect(component).toBeTruthy();
 
     const formField = await loader.getHarness(MatFormFieldHarness);
-    const matInput = await loader.getHarness(MatInputHarness);
-    await matInput.setValue('a(');
-    await matInput.blur();
+
+    component.regexInput.setValue('a(');
+    component.regexInput.markAsTouched();
     fixture.detectChanges();
+
     expect(await formField.hasErrors()).toBe(true);
   });
 
@@ -53,10 +53,11 @@ describe('RegexFilterFormComponent', () => {
     expect(component).toBeTruthy();
 
     const formField = await loader.getHarness(MatFormFieldHarness);
-    const matInput = await loader.getHarness(MatInputHarness);
-    await matInput.setValue('a()');
-    await matInput.blur();
+
+    component.regexInput.setValue('a()');
+    component.regexInput.markAsTouched();
     fixture.detectChanges();
+
     expect(await formField.hasErrors()).toBe(false);
   });
 });
