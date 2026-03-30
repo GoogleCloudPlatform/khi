@@ -29,12 +29,11 @@ limitations under the License.
             matTooltip="Kinds"
           >
             <mat-icon class="filter-button-icon">workspaces</mat-icon>
-            @if (showButtonLabel | async) {
+            @if (showButtonLabel()) {
               <span
                 >Kinds<span class="count-indicator"
-                  >{{ (includedKinds$ | async)!.size
-                  }}<span class="divisor">/</span
-                  >{{ (kinds$ | async)!.size }}</span
+                  >{{ includedKinds().size }}<span class="divisor">/</span
+                  >{{ kinds().size }}</span
                 ></span
               >
             }
@@ -48,8 +47,8 @@ limitations under the License.
           >
             <khi-timeline-set-input-popup
               label="Kinds"
-              [choices]="(kinds$ | async)!"
-              [selectedItems]="(includedKinds$ | async)!"
+              [choices]="kinds()"
+              [selectedItems]="includedKinds()"
               (selectedItemsChange)="onKindFilterCommit($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             >
@@ -65,12 +64,11 @@ limitations under the License.
             matTooltip="Namespaces"
           >
             <mat-icon class="filter-button-icon">folder</mat-icon>
-            @if (showButtonLabel | async) {
+            @if (showButtonLabel()) {
               <span>
                 Namespaces<span class="count-indicator"
-                  >{{ (includedNamespaces$ | async)!.size
-                  }}<span class="divisor">/</span
-                  >{{ (namespaces$ | async)!.size }}</span
+                  >{{ includedNamespaces().size }}<span class="divisor">/</span
+                  >{{ namespaces().size }}</span
                 ></span
               >
             }
@@ -84,8 +82,8 @@ limitations under the License.
           >
             <khi-timeline-set-input-popup
               label="Namespaces"
-              [choices]="(namespaces$ | async)!"
-              [selectedItems]="(includedNamespaces$ | async)!"
+              [choices]="namespaces()"
+              [selectedItems]="includedNamespaces()"
               (selectedItemsChange)="onNamespaceFilterCommit($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             ></khi-timeline-set-input-popup>
@@ -100,12 +98,12 @@ limitations under the License.
             matTooltip="Subresources"
           >
             <mat-icon class="filter-button-icon">page_info</mat-icon>
-            @if (showButtonLabel | async) {
+            @if (showButtonLabel()) {
               <span>
                 Subresources<span class="count-indicator"
-                  >{{ (includedSubresourceRelationships | async)!.size
+                  >{{ includedSubresourceRelationships().size
                   }}<span class="divisor">/</span
-                  >{{ (subresourceRelationships | async)!.size }}</span
+                  >{{ subresourceRelationships().size }}</span
                 ></span
               >
             }
@@ -121,19 +119,18 @@ limitations under the License.
           >
             <khi-timeline-set-input-popup
               label="Subresources"
-              [choices]="(subresourceRelationships | async)!"
-              [selectedItems]="(includedSubresourceRelationships | async)!"
+              [choices]="subresourceRelationships()"
+              [selectedItems]="includedSubresourceRelationships()"
               (selectedItemsChange)="
                 onSubresourceRelationshipFilterCommit($event)
               "
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             ></khi-timeline-set-input-popup>
           </ng-template>
-          <!--Regex resource name filter-->
           <khi-timeline-regex-input
             class="resource-name-filter"
             label="Resource name(regex)"
-            (regexFilterChange)="onNameFilterChange($event)"
+            [(value)]="nameFilter"
           ></khi-timeline-regex-input>
         </div>
       </div>
@@ -142,9 +139,7 @@ limitations under the License.
         <mat-button-toggle-group multiple>
           <mat-button-toggle
             value="filter_subresource"
-            [checked]="
-              viewStateService.hideSubresourcesWithoutMatchingLogs | async
-            "
+            [checked]="hideSubresourcesWithoutMatchingLogs()"
             matTooltip="hide subresource timelines without any logs matched by the log filter"
             (change)="onToggleHideSubresourcesWithoutMatchingLogs()"
           >
@@ -154,9 +149,7 @@ limitations under the License.
           <mat-button-toggle
             value="filter_resource"
             matTooltip="hide resource timelines without any logs matched by the log filter on it or its children"
-            [checked]="
-              viewStateService.hideResourcesWithoutMatchingLogs | async
-            "
+            [checked]="hideResourcesWithoutMatchingLogs()"
             (change)="onToggleHideResourcesWithoutMatchingLogs()"
           >
             <mat-icon color="primary">description</mat-icon>
@@ -167,7 +160,7 @@ limitations under the License.
           #logFilterInput
           class="log-filter"
           label="Log body(regex)"
-          (regexFilterChange)="onLogFilterChange($event)"
+          [(value)]="logFilter"
         ></khi-timeline-regex-input>
         <div class="timezone-control">
           <p>UTC+</p>
@@ -175,7 +168,7 @@ limitations under the License.
             type="number"
             value="0"
             name="timezone-shift"
-            [value]="timezoneShift$ | async"
+            [value]="timezoneShift()"
             (change)="onTimezoneshiftCommit($event)"
           />
           <p>hours</p>
@@ -183,7 +176,7 @@ limitations under the License.
         <button
           mat-raised-button
           color="primary"
-          [disabled]="logOrTimelineNotSelected | async"
+          [disabled]="logOrTimelineNotSelected()"
           (click)="onDrawDiagram()"
           matTooltip="Draw diagram at the point of the timeline"
         >
