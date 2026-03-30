@@ -46,14 +46,14 @@ limitations under the License.
             [cdkConnectedOverlayHasBackdrop]="true"
             (backdropClick)="setPopupState('NONE_OPEN')"
           >
-            <khi-timeline-set-input
+            <khi-timeline-set-input-popup
               label="Kinds"
               [choices]="(kinds$ | async)!"
               [selectedItems]="(includedKinds$ | async)!"
               (selectedItemsChange)="onKindFilterCommit($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             >
-            </khi-timeline-set-input>
+            </khi-timeline-set-input-popup>
           </ng-template>
           <!--Namespace filter-->
           <button
@@ -82,13 +82,13 @@ limitations under the License.
             [cdkConnectedOverlayHasBackdrop]="true"
             (backdropClick)="setPopupState('NONE_OPEN')"
           >
-            <khi-timeline-set-input
+            <khi-timeline-set-input-popup
               label="Namespaces"
               [choices]="(namespaces$ | async)!"
               [selectedItems]="(includedNamespaces$ | async)!"
               (selectedItemsChange)="onNamespaceFilterCommit($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
-            ></khi-timeline-set-input>
+            ></khi-timeline-set-input-popup>
           </ng-template>
           <!--Subresource relationship filter-->
           <button
@@ -119,7 +119,7 @@ limitations under the License.
             [cdkConnectedOverlayHasBackdrop]="true"
             (backdropClick)="setPopupState('NONE_OPEN')"
           >
-            <khi-timeline-set-input
+            <khi-timeline-set-input-popup
               label="Subresources"
               [choices]="(subresourceRelationships | async)!"
               [selectedItems]="(includedSubresourceRelationships | async)!"
@@ -127,7 +127,7 @@ limitations under the License.
                 onSubresourceRelationshipFilterCommit($event)
               "
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
-            ></khi-timeline-set-input>
+            ></khi-timeline-set-input-popup>
           </ng-template>
           <!--Regex resource name filter-->
           <khi-timeline-regex-input
