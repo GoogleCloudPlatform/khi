@@ -16,7 +16,7 @@ limitations under the License.
 
 <div class="container">
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>{{ label }}</mat-label>
+    <mat-label>{{ label() }}</mat-label>
     @if (!regexInput.valid) {
       <mat-error>{{ regexFormErrorMessage() }}</mat-error>
     }
