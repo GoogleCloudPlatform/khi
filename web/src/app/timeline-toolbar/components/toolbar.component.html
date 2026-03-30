@@ -49,7 +49,7 @@ limitations under the License.
               label="Kinds"
               [choices]="kinds()"
               [selectedItems]="includedKinds()"
-              (selectedItemsChange)="onKindFilterCommit($event)"
+              (selectedItemsChange)="includedKinds.set($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             >
             </khi-timeline-set-input>
@@ -84,7 +84,7 @@ limitations under the License.
               label="Namespaces"
               [choices]="namespaces()"
               [selectedItems]="includedNamespaces()"
-              (selectedItemsChange)="onNamespaceFilterCommit($event)"
+              (selectedItemsChange)="includedNamespaces.set($event)"
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             ></khi-timeline-set-input>
           </ng-template>
@@ -122,7 +122,7 @@ limitations under the License.
               [choices]="subresourceRelationships()"
               [selectedItems]="includedSubresourceRelationships()"
               (selectedItemsChange)="
-                onSubresourceRelationshipFilterCommit($event)
+                includedSubresourceRelationships.set($event)
               "
               (closeButtonClicked)="setPopupState('NONE_OPEN')"
             ></khi-timeline-set-input>
@@ -141,7 +141,11 @@ limitations under the License.
             value="filter_subresource"
             [checked]="hideSubresourcesWithoutMatchingLogs()"
             matTooltip="hide subresource timelines without any logs matched by the log filter"
-            (change)="onToggleHideSubresourcesWithoutMatchingLogs()"
+            (change)="
+              hideSubresourcesWithoutMatchingLogs.set(
+                !hideSubresourcesWithoutMatchingLogs()
+              )
+            "
           >
             <mat-icon color="primary">page_info</mat-icon>
             <mat-icon color="primary">search_off</mat-icon></mat-button-toggle
@@ -150,7 +154,11 @@ limitations under the License.
             value="filter_resource"
             matTooltip="hide resource timelines without any logs matched by the log filter on it or its children"
             [checked]="hideResourcesWithoutMatchingLogs()"
-            (change)="onToggleHideResourcesWithoutMatchingLogs()"
+            (change)="
+              hideResourcesWithoutMatchingLogs.set(
+                !hideResourcesWithoutMatchingLogs()
+              )
+            "
           >
             <mat-icon color="primary">description</mat-icon>
             <mat-icon color="primary">search_off</mat-icon>
@@ -177,7 +185,7 @@ limitations under the License.
           mat-raised-button
           color="primary"
           [disabled]="logOrTimelineNotSelected()"
-          (click)="onDrawDiagram()"
+          (click)="drawDiagram.emit()"
           matTooltip="Draw diagram at the point of the timeline"
         >
           <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>

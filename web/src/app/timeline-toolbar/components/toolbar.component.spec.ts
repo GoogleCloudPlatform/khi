@@ -16,41 +16,21 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-
 import { ToolbarComponent } from './toolbar.component';
-import {
-  WINDOW_CONNECTION_PROVIDER,
-  WindowConnectorService,
-} from '../../services/frame-connection/window-connector.service';
-import { InMemoryWindowConnectionProvider } from '../../services/frame-connection/window-connection-provider.service';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from '../../services/timeline-filter.service';
-import { InspectionDataStoreService } from '../../services/inspection-data-store.service';
-import { ViewStateService } from '../../services/view-state.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { By } from '@angular/platform-browser';
 
 describe('ToolbarComponent', () => {
   let component: ToolbarComponent;
   let fixture: ComponentFixture<ToolbarComponent>;
+  let snackBarSpy: jasmine.SpyObj<MatSnackBar>;
 
   beforeEach(async () => {
+    snackBarSpy = jasmine.createSpyObj('MatSnackBar', ['open']);
+
     await TestBed.configureTestingModule({
-      imports: [NoopAnimationsModule],
-      providers: [
-        WindowConnectorService,
-        {
-          provide: WINDOW_CONNECTION_PROVIDER,
-          useValue: new InMemoryWindowConnectionProvider(),
-        },
-        {
-          provide: DEFAULT_TIMELINE_FILTER,
-          useValue: new TimelineFilter(
-            new InspectionDataStoreService(),
-            new ViewStateService(),
-          ),
-        },
-      ],
+      imports: [NoopAnimationsModule, ToolbarComponent],
+      providers: [{ provide: MatSnackBar, useValue: snackBarSpy }],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ToolbarComponent);
@@ -60,5 +40,55 @@ describe('ToolbarComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should have default input values', () => {
+    expect(component.showButtonLabel()).toBeFalse();
+    expect(component.logOrTimelineNotSelected()).toBeTrue();
+    expect(component.timezoneShift()).toBe(0);
+  });
+
+  it('should display the count of included kinds when showButtonLabel is true', () => {
+    // Set inputs
+    fixture.componentRef.setInput('showButtonLabel', true);
+    fixture.componentRef.setInput('kinds', new Set(['pod', 'service', 'node']));
+    component.includedKinds.set(new Set(['pod', 'service']));
+
+    fixture.detectChanges();
+
+    const element = fixture.debugElement.nativeElement;
+    // The template renders something like "Kinds2/3" (without spacing in the indicator span)
+    expect(element.textContent).toContain('Kinds');
+    expect(element.textContent).toContain('2/3');
+  });
+
+  it('should emit drawDiagram when draw button is clicked', () => {
+    let emitted = false;
+    component.drawDiagram.subscribe(() => (emitted = true));
+
+    // Set logOrTimelineNotSelected to false to enable the button
+    fixture.componentRef.setInput('logOrTimelineNotSelected', false);
+    fixture.detectChanges();
+
+    const button = fixture.debugElement.query(
+      By.css('button[mat-raised-button]'),
+    );
+    expect(button.nativeElement.disabled).toBeFalse();
+
+    button.nativeElement.click();
+
+    expect(emitted).toBeTrue();
+  });
+
+  it('should toggle hideSubresourcesWithoutMatchingLogs model when toggle in template is clicked', () => {
+    const toggles = fixture.debugElement.queryAll(By.css('mat-button-toggle'));
+    expect(toggles.length).toBe(2);
+
+    const subresourceToggle = toggles[0];
+    subresourceToggle.nativeElement.querySelector('button').click();
+    fixture.detectChanges();
+
+    // The state should be toggled
+    expect(component.hideSubresourcesWithoutMatchingLogs()).toBeTrue();
   });
 });
