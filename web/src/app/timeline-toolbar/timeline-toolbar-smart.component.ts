@@ -39,42 +39,7 @@ import {
 
 @Component({
   selector: 'khi-timeline-toolbar-smart',
-  template: `
-    <khi-timeline-toolbar
-      [showButtonLabel]="showButtonLabel() || false"
-      [kinds]="kinds() || emptySet"
-      [includedKinds]="includedKinds() || emptySet"
-      [namespaces]="namespaces() || emptySet"
-      [includedNamespaces]="includedNamespaces() || emptySet"
-      [subresourceRelationships]="subresourceRelationships() || emptySet"
-      [includedSubresourceRelationships]="
-        includedSubresourceRelationships() || emptySet
-      "
-      [timezoneShift]="timezoneShift() || 0"
-      [logOrTimelineNotSelected]="logOrTimelineNotSelected() || false"
-      [hideSubresourcesWithoutMatchingLogs]="
-        hideSubresourcesWithoutMatchingLogs() || false
-      "
-      [hideResourcesWithoutMatchingLogs]="
-        hideResourcesWithoutMatchingLogs() || false
-      "
-      (timezoneShiftChange)="onTimezoneshiftCommit($event)"
-      (includedKindsChange)="onKindFilterCommit($event)"
-      (includedNamespacesChange)="onNamespaceFilterCommit($event)"
-      (includedSubresourceRelationshipsChange)="
-        onSubresourceRelationshipFilterCommit($event)
-      "
-      (nameFilterChange)="onNameFilterChange($event)"
-      (logFilterChange)="onLogFilterChange($event)"
-      (hideSubresourcesWithoutMatchingLogsChange)="
-        onToggleHideSubresourcesWithoutMatchingLogs($event)
-      "
-      (hideResourcesWithoutMatchingLogsChange)="
-        onToggleHideResourcesWithoutMatchingLogs($event)
-      "
-      (drawDiagram)="onDrawDiagram()"
-    ></khi-timeline-toolbar>
-  `,
+  templateUrl: './timeline-toolbar-smart.component.html',
   imports: [ToolbarComponent],
 })
 export class TimelineToolbarSmartComponent implements OnDestroy {
@@ -86,22 +51,50 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly inspectionDataStore = inject(InspectionDataStoreService);
   private readonly breakpointObserver = inject(BreakpointObserver);
 
-  readonly emptySet = new Set<string>();
+  /**
+   * An empty set used as a fallback for template bindings.
+   */
+  protected readonly emptySet = new Set<string>();
 
-  readonly showButtonLabel = toSignal(
+  /**
+   * Signal indicating whether to show button labels based on screen width.
+   */
+  protected readonly showButtonLabel = toSignal(
     this.breakpointObserver
       .observe(['(min-width: 1200px)'])
       .pipe(map((result) => result.matches)),
   );
 
-  readonly kinds = toSignal(this.inspectionDataStore.availableKinds);
-  readonly includedKinds = toSignal(this.timelineFilter.kindTimelineFilter);
-  readonly namespaces = toSignal(this.inspectionDataStore.availableNamespaces);
-  readonly includedNamespaces = toSignal(
+  /**
+   * Signal containing all available resource kinds.
+   */
+  protected readonly kinds = toSignal(this.inspectionDataStore.availableKinds);
+
+  /**
+   * Signal containing the set of included resource kinds for filtering.
+   */
+  protected readonly includedKinds = toSignal(
+    this.timelineFilter.kindTimelineFilter,
+  );
+
+  /**
+   * Signal containing all available namespaces.
+   */
+  protected readonly namespaces = toSignal(
+    this.inspectionDataStore.availableNamespaces,
+  );
+
+  /**
+   * Signal containing the set of included namespaces for filtering.
+   */
+  protected readonly includedNamespaces = toSignal(
     this.timelineFilter.namespaceTimelineFilter,
   );
 
-  readonly subresourceRelationships = toSignal(
+  /**
+   * Signal containing all available subresource parent relationships as labels.
+   */
+  protected readonly subresourceRelationships = toSignal(
     this.inspectionDataStore.availableSubresourceParentRelationships.pipe(
       map((rels) => {
         const relationshipLabels = new Set<string>();
@@ -115,7 +108,10 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     ),
   );
 
-  readonly includedSubresourceRelationships = toSignal(
+  /**
+   * Signal containing the set of included subresource parent relationships as labels for filtering.
+   */
+  protected readonly includedSubresourceRelationships = toSignal(
     this.timelineFilter.subresourceParentRelationshipFilter.pipe(
       map((rels) => {
         const relationshipLabels = new Set<string>();
@@ -129,19 +125,34 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     ),
   );
 
-  readonly timezoneShift = toSignal(this.viewStateService.timezoneShift);
+  /**
+   * Signal containing the current timezone shift in hours.
+   */
+  protected readonly timezoneShift = toSignal(
+    this.viewStateService.timezoneShift,
+  );
 
-  readonly logOrTimelineNotSelected = toSignal(
+  /**
+   * Signal indicating if no log or timeline is selected.
+   */
+  protected readonly logOrTimelineNotSelected = toSignal(
     combineLatest([
       this.selectionManager.selectedLog,
       this.selectionManager.selectedTimeline,
     ]).pipe(map(([l, t]) => l == null || t == null)),
   );
 
-  readonly hideSubresourcesWithoutMatchingLogs = toSignal(
+  /**
+   * Signal indicating whether to hide subresources without matching logs.
+   */
+  protected readonly hideSubresourcesWithoutMatchingLogs = toSignal(
     this.viewStateService.hideSubresourcesWithoutMatchingLogs,
   );
-  readonly hideResourcesWithoutMatchingLogs = toSignal(
+
+  /**
+   * Signal indicating whether to hide resources without matching logs.
+   */
+  protected readonly hideResourcesWithoutMatchingLogs = toSignal(
     this.viewStateService.hideResourcesWithoutMatchingLogs,
   );
 
@@ -166,19 +177,31 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     this.destroyed.complete();
   }
 
-  onTimezoneshiftCommit(value: number) {
+  /**
+   * Handles the commit of a new timezone shift value.
+   */
+  protected onTimezoneshiftCommit(value: number) {
     this.viewStateService.setTimezoneShift(value);
   }
 
-  onKindFilterCommit(kinds: Set<string>) {
+  /**
+   * Handles the commit of a new set of included resource kinds.
+   */
+  protected onKindFilterCommit(kinds: Set<string>) {
     this.timelineFilter.setKindFilter(kinds);
   }
 
-  onNamespaceFilterCommit(namespaces: Set<string>) {
+  /**
+   * Handles the commit of a new set of included namespaces.
+   */
+  protected onNamespaceFilterCommit(namespaces: Set<string>) {
     this.timelineFilter.setNamespaceFilter(namespaces);
   }
 
-  onSubresourceRelationshipFilterCommit(
+  /**
+   * Handles the commit of a new set of included subresource parent relationships.
+   */
+  protected onSubresourceRelationshipFilterCommit(
     subresourceRelationshipLabels: Set<string>,
   ) {
     const relationships = [];
@@ -192,23 +215,38 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     );
   }
 
-  onNameFilterChange(filter: string) {
+  /**
+   * Handles the change of the resource name filter.
+   */
+  protected onNameFilterChange(filter: string) {
     this.timelineFilter.setResourceNameRegexFilter(filter);
   }
 
-  onLogFilterChange(filter: string) {
+  /**
+   * Handles the change of the log filter.
+   */
+  protected onLogFilterChange(filter: string) {
     this.logFilter$.next(filter);
   }
 
-  onToggleHideSubresourcesWithoutMatchingLogs(value: boolean) {
+  /**
+   * Toggles the visibility of subresources without matching logs.
+   */
+  protected onToggleHideSubresourcesWithoutMatchingLogs(value: boolean) {
     this.viewStateService.setHideSubresourcesWithoutMatchingLogs(value);
   }
 
-  onToggleHideResourcesWithoutMatchingLogs(value: boolean) {
+  /**
+   * Toggles the visibility of resources without matching logs.
+   */
+  protected onToggleHideResourcesWithoutMatchingLogs(value: boolean) {
     this.viewStateService.setHideResourcesWithoutMatchingLogs(value);
   }
 
-  onDrawDiagram() {
+  /**
+   * Opens the graph page in a new tab.
+   */
+  protected onDrawDiagram() {
     window.open(window.location.pathname + '/graph', '_blank');
   }
 }
