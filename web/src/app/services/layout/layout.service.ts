@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ViewContainerRef } from '@angular/core';
+import { Injectable, OnDestroy, ViewContainerRef } from '@angular/core';
 import { GoldenLayout, ComponentContainer, LayoutConfig } from 'golden-layout';
 import { TimelineSmartComponent } from '../../timeline/timeline-smart.component';
 import { LogSmartComponent } from '../../log/log-smart.component';
@@ -23,7 +23,8 @@ import { DiffSmartComponent } from '../../diff/diff-smart.component';
 /**
  * LayoutService manages the GoldenLayout instance and component registration.
  */
-export class LayoutService {
+@Injectable()
+export class LayoutService implements OnDestroy {
   /** The GoldenLayout instance. */
   private goldenLayout!: GoldenLayout;
 
@@ -126,5 +127,10 @@ export class LayoutService {
    */
   public loadDefaultLayout() {
     this.goldenLayout.loadLayout(this.defaultLayout);
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+    this.goldenLayout?.destroy();
   }
 }

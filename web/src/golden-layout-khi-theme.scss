@@ -18,7 +18,7 @@
 @use "@angular/material" as mat;
 
 $primaryColor: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
-$primaryColorLight: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
+$primaryColorLight: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
 
 // Color variables (appears count calculates by raw css)
 $baseBkgdColor: var(--color-layout-base-bkgd, #fff); // Appears 7 times
@@ -130,11 +130,12 @@ $focusedTabBkgdColor: var(
   // Single Tab container. A single Tab is set for each pane, a group of Tabs are contained in ".lm_header"
   .lm_tab {
     font-size: 12px;
-    color: $singleTabContainerForeColor;
+    color: $primaryColor;
     font-weight: 500;
     margin-right: 2px;
     padding-bottom: 2px;
     padding-top: 2px;
+    box-shadow: 0px 2px 4px solid black;
 
     // .lm_title         // Present in LIGHT Theme
     // {

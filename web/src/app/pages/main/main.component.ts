@@ -45,7 +45,6 @@ import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { MatIconModule } from '@angular/material/icon';
 import { HeaderComponent } from 'src/app/header/header.component';
 import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
-import { AngularSplitModule } from 'angular-split';
 import { StartupDialogComponent } from 'src/app/dialogs/startup/startup.component';
 import {
   RequestUserActionPopupComponent,
@@ -70,8 +69,6 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
     MatIconModule,
     KHIIconRegistrationModule,
     TimelineSmartComponent,
-    AngularSplitModule,
-    AngularSplitModule,
   ],
   providers: [LayoutService],
 })
