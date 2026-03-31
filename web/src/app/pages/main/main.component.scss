@@ -19,72 +19,24 @@
 
 @use "@angular/material" as mat;
 
-$SIDEBAR_BACKGROUND: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
-$BUTTON_BACKGROUND_ACTIVE: mat.m2-get-color-from-palette(
-  mat.$m2-indigo-palette,
-  600
-);
-$BUTTON_BACKGROUND_INACTIVE: mat.m2-get-color-from-palette(
-  mat.$m2-indigo-palette,
-  200
-);
-$BUTTON_COLOR_ACTIVE: white;
-$BUTTON_COLOR_INACTIVE: black;
-
 .container {
   display: grid;
-  grid-template-areas: "header header" "main sidebar";
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto 1fr;
+  grid-template:
+    "header" auto
+    "main" minmax(0, 1fr) /
+    minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
   khi-header {
     grid-area: header;
   }
-  as-split {
+  .layout-container {
     grid-area: main;
-  }
-  .sidebar {
-    grid-area: sidebar;
+    height: 100%;
+    width: 100%;
   }
 }
 
 .timeline {
   position: relative;
-}
-
-.sidebar {
-  display: flex;
-  row-gap: 1px;
-  flex-direction: column;
-  justify-content: flex-end;
-  background-color: $SIDEBAR_BACKGROUND;
-  box-shadow: (-1px) 0 5px 0 rgba(0, 0, 0, 0.35);
-}
-
-.pane-toggle {
-  appearance: none;
-  border: none;
-  padding: none;
-  background-color: $BUTTON_BACKGROUND_INACTIVE;
-  color: $BUTTON_COLOR_INACTIVE;
-
-  &:hover {
-    background-color: color.adjust(
-      $BUTTON_BACKGROUND_INACTIVE,
-      $lightness: -10%
-    );
-  }
-
-  &.active {
-    background-color: $BUTTON_BACKGROUND_ACTIVE;
-    color: $BUTTON_COLOR_ACTIVE;
-
-    &:hover {
-      background-color: color.adjust(
-        $BUTTON_BACKGROUND_ACTIVE,
-        $lightness: 10%
-      );
-    }
-  }
 }
