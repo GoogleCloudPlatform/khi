@@ -41,7 +41,7 @@ import {
   DEFAULT_TIMELINE_FILTER,
   TimelineFilter,
 } from '../services/timeline-filter.service';
-import { SetInputComponent } from './set-input.component';
+import { SetInputPopupComponent } from './set-input-popup.component';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { OverlayModule } from '@angular/cdk/overlay';
@@ -65,7 +65,7 @@ type ToolbarPopupStatus =
   styleUrls: ['./toolbar.component.scss'],
   imports: [
     CommonModule,
-    SetInputComponent,
+    SetInputPopupComponent,
     MatIconModule,
     OverlayModule,
     RegexInputComponent,
