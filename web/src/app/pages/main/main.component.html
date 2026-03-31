@@ -16,40 +16,5 @@ limitations under the License.
 
 <div class="container">
   <khi-header></khi-header>
-  <as-split direction="horizontal" [gutterSize]="8" unit="percent">
-    <as-split-area class="timeline">
-      <khi-timeline-smart></khi-timeline-smart>
-    </as-split-area>
-    @if (showLogPane | async) {
-      <as-split-area [size]="20">
-        <khi-side-pane paneTitle="Logs" icon="segment">
-          <khi-log-smart></khi-log-smart>
-        </khi-side-pane>
-      </as-split-area>
-    }
-    @if (showHistoryPane | async) {
-      <as-split-area [size]="20">
-        <khi-side-pane paneTitle="History" icon="history">
-          <khi-diff-smart></khi-diff-smart>
-        </khi-side-pane>
-      </as-split-area>
-    }
-  </as-split>
-
-  <div class="sidebar">
-    <button
-      class="pane-toggle"
-      [ngClass]="{ active: showLogPane | async }"
-      (click)="togglePane('log')"
-    >
-      <mat-icon class="icon">segment</mat-icon>
-    </button>
-    <button
-      class="pane-toggle"
-      [ngClass]="{ active: showHistoryPane | async }"
-      (click)="togglePane('history')"
-    >
-      <mat-icon class="icon">history</mat-icon>
-    </button>
-  </div>
+  <div class="layout-container" #layoutContainer></div>
 </div>
