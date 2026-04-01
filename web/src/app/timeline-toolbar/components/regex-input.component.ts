@@ -17,15 +17,14 @@
 import {
   Component,
   ElementRef,
-  EventEmitter,
-  Input,
-  Output,
+  input,
+  model,
+  effect,
   viewChild,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RegexValidator } from './regex-validator';
 import { MatFormFieldModule } from '@angular/material/form-field';
-
 import { MatInputModule } from '@angular/material/input';
 
 @Component({
@@ -38,24 +37,41 @@ export class RegexInputComponent {
   private readonly regexInputElement =
     viewChild<ElementRef<HTMLInputElement>>('regexInputElement');
 
-  @Input()
-  label = '';
+  /**
+   * The label to display for the input field.
+   */
+  readonly label = input('');
 
-  @Output()
-  regexFilterChange: EventEmitter<string> = new EventEmitter();
+  /**
+   * The current regex filter value.
+   */
+  readonly value = model('');
 
-  regexInput: FormControl = new FormControl('', [RegexValidator()]);
+  readonly regexInput: FormControl = new FormControl('', [RegexValidator()]);
 
-  regexFormErrorMessage(): string {
-    return this.regexInput.errors!['regex'] as string;
+  constructor() {
+    // Sync model value to Form Control
+    effect(() => {
+      const val = this.value();
+      if (this.regexInput.value !== val) {
+        this.regexInput.setValue(val || '', { emitEvent: false });
+      }
+    });
   }
 
-  onFilterChange() {
+  protected regexFormErrorMessage(): string {
+    return (this.regexInput.errors?.['regex'] as string) || '';
+  }
+
+  protected onFilterChange() {
     if (!this.regexInput.valid) return;
-    this.regexFilterChange.emit(this.regexInput.value);
+    this.value.set(this.regexInput.value || '');
   }
 
-  focus() {
+  /**
+   * Focuses the regex input element.
+   */
+  public focus() {
     this.regexInputElement()?.nativeElement.focus();
   }
 }

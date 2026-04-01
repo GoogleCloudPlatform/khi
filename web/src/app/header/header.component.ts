@@ -17,12 +17,16 @@
 import { Component } from '@angular/core';
 import { TitleBarComponent } from './titlebar.component';
 import { MainMenuComponent } from './main-menu.component';
-import { ToolbarComponent } from '../timeline-toolbar/toolbar.component';
+import { TimelineToolbarSmartComponent } from '../timeline-toolbar/timeline-toolbar-smart.component';
 
 @Component({
   selector: 'khi-header',
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.scss'],
-  imports: [TitleBarComponent, MainMenuComponent, ToolbarComponent],
+  imports: [
+    TitleBarComponent,
+    MainMenuComponent,
+    TimelineToolbarSmartComponent,
+  ],
 })
 export class HeaderComponent {}
