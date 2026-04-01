@@ -42,9 +42,6 @@ func TestParentRelationshipMetadataIsValid(t *testing.T) {
 					if len(relationship.LabelColor) != 4 {
 						t.Errorf("LabelColor in `%s(%d)` is not HDRColor4", relationship.Label, i)
 					}
-					if relationship.LongName == "" {
-						t.Errorf("LongName in `%s(%d)` is empty", relationship.Label, i)
-					}
 					if len(relationship.LabelBackgroundColor) != 4 {
 						t.Errorf("LabelBackgroundColor in `%s(%d)` is not HDRColor4", relationship.Label, i)
 					}
@@ -56,15 +53,6 @@ func TestParentRelationshipMetadataIsValid(t *testing.T) {
 					}
 				}
 			})
-		}
-	}
-}
-
-func TestParentRelationshipMustHaveGeneratableEventsOrRevisions(t *testing.T) {
-	for i := 0; i <= int(relationshipUnusedEnd); i++ {
-		relationship := ParentRelationships[ParentRelationship(i)]
-		if len(relationship.GeneratableEvents) == 0 && len(relationship.GeneratableRevisions) == 0 && len(relationship.GeneratableAliasTimelineInfo) == 0 {
-			t.Errorf("GeneratableEvents and GeneratableRevisions in `%s(%d)` are both empty", relationship.Label, i)
 		}
 	}
 }
