@@ -15,7 +15,7 @@ When developing or modifying Angular code in the KHI project, you **must** adher
 - Run `make lint-web` to check style.
 - Run `make test-web-headless` to check unit tests.
 - Run `make build-storybook` to check compilation for storybook.
-- **MUST** invoke a subagent for code review before asking the user for verification. See Section 3 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
+- **MUST** invoke a subagent for code review before asking the user for verification. See Section 4 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
 
 1. **Comments**:
    - Use TSDoc-style comments for all public types, functions, and methods.
