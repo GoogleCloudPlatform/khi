@@ -15,7 +15,12 @@
  */
 
 import { Injectable, OnDestroy, ViewContainerRef } from '@angular/core';
-import { GoldenLayout, ComponentContainer, LayoutConfig } from 'golden-layout';
+import {
+  GoldenLayout,
+  ComponentContainer,
+  LayoutConfig,
+  Tab,
+} from 'golden-layout';
 import { TimelineSmartComponent } from '../../timeline/timeline-smart.component';
 import { LogSmartComponent } from '../../log/log-smart.component';
 import { DiffSmartComponent } from '../../diff/diff-smart.component';
@@ -50,7 +55,6 @@ export class LayoutService implements OnDestroy {
           componentType: 'timeline',
           title: 'Timeline',
           size: '70%',
-          isClosable: false,
         },
         {
           type: 'component',
@@ -97,6 +101,7 @@ export class LayoutService implements OnDestroy {
           TimelineSmartComponent,
         );
         container.element.appendChild(componentRef.location.nativeElement);
+        this.addIconToTab(container, 'view_timeline');
         container.on('destroy', () => componentRef.destroy());
       },
     );
@@ -107,6 +112,7 @@ export class LayoutService implements OnDestroy {
         const componentRef =
           this.viewContainerRef.createComponent(LogSmartComponent);
         container.element.appendChild(componentRef.location.nativeElement);
+        this.addIconToTab(container, 'cards_stack');
         container.on('destroy', () => componentRef.destroy());
       },
     );
@@ -117,9 +123,26 @@ export class LayoutService implements OnDestroy {
         const componentRef =
           this.viewContainerRef.createComponent(DiffSmartComponent);
         container.element.appendChild(componentRef.location.nativeElement);
+        this.addIconToTab(container, 'deployed_code_history');
         container.on('destroy', () => componentRef.destroy());
       },
     );
+  }
+
+  /**
+   * Add icon to tab.
+   */
+  private addIconToTab(container: ComponentContainer, iconName: string) {
+    container.on('tab', (tab: Tab) => {
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'material-symbols-outlined khi-tab-icon';
+      iconSpan.innerText = iconName;
+
+      const titleEl = tab.titleElement as HTMLElement;
+      if (titleEl) {
+        titleEl.insertBefore(iconSpan, titleEl.firstChild);
+      }
+    });
   }
 
   /**
