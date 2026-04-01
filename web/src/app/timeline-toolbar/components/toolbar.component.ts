@@ -31,14 +31,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RegexInputComponent } from './regex-input.component';
 import { SetInputPopupComponent } from './set-input-popup.component';
 
-/**
- * ToolbarPopupStatus represents which popup of the toolbar is open.
- */
-type ToolbarPopupStatus =
-  | 'NONE_OPEN'
-  | 'KIND_FILTER_OPEN'
-  | 'NAMESPACE_FILTER_OPEN'
-  | 'SUBRESOURCE_FILTER_OPEN';
+export enum ToolbarPopupStatus {
+  None = 'NONE_OPEN',
+  KindFilter = 'KIND_FILTER_OPEN',
+  NamespaceFilter = 'NAMESPACE_FILTER_OPEN',
+  SubresourceFilter = 'SUBRESOURCE_FILTER_OPEN',
+}
 
 @Component({
   selector: 'khi-timeline-toolbar',
@@ -75,10 +73,13 @@ export class ToolbarComponent {
   // Outputs (Outputs)
   readonly drawDiagram = output<void>();
 
-  popupStatus: ToolbarPopupStatus = 'NONE_OPEN';
+  protected readonly ToolbarPopupStatus = ToolbarPopupStatus;
 
-  setPopupState(state: ToolbarPopupStatus) {
-    this.popupStatus = state === this.popupStatus ? 'NONE_OPEN' : state;
+  protected popupStatus: ToolbarPopupStatus = ToolbarPopupStatus.None;
+
+  protected setPopupState(state: ToolbarPopupStatus) {
+    this.popupStatus =
+      state === this.popupStatus ? ToolbarPopupStatus.None : state;
   }
 
   onTimezoneshiftCommit(event: Event) {
