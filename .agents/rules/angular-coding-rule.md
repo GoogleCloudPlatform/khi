@@ -1,0 +1,55 @@
+---
+trigger: glob
+globs: **/*.ts, **/*.html, **/*.scss
+---
+
+# KHI Angular Standards
+
+When developing or modifying Angular code in the KHI project, you **must** adhere to the following rules and best practices.
+
+## General Coding Rules for Typescript
+
+1. **Verifications**
+
+- Run `make build-web` to check compilation.
+- Run `make lint-web` to check style.
+- Run `make test-web-headless` to check unit tests.
+- Run `make build-storybook` to check compilation for storybook.
+
+1. **Comments**:
+   - Use TSDoc-style comments for all public types, functions, and methods.
+2. **Naming Conventions**:
+   - Component selectors should have a `khi-` prefix.
+3. Test files must be named with `A.spec.ts` if `A.ts` exists. Do not define spec files by scenarios.
+4. Do not use `any`.
+
+## Modern Angular Conventions
+
+These rules apply when creating new components or refactoring existing ones:
+
+1. **Standalone Components**:
+   - Explicitly list dependencies in the `imports` array.
+2. **Signals Paradigm**:
+   - Use `input()` or `input.required()` for component inputs instead of `@Input`.
+   - Use `output()` instead of `@Output`.
+   - Use `model()` for two-way bindings.
+   - Use `signal()` and `computed()` for component-level state management.
+3. **Control Flow**:
+   - Use built-in control flow (`@if`, `@for`, `@switch`) in templates instead of structural directives (`*ngIf`, `*ngFor`).
+4. **Access Modifiers**:
+   - Members accessed only from the template must be `protected`.
+   - Members used only within the TypeScript class must be `private`.
+   - Use `readonly` for properties that are not reassigned.
+5. **RxJS to Signal Conversion**:
+   - If a service returns an Observable, convert it to a Signal in the component using `toSignal`.
+6. **Icons**:
+   - When importing `MatIconModule`, you must also import `KHIIconRegistrationModule`.
+7. Styles and template must be defined an independent file. Do not directly supply them in `@Component`
+
+## General Coding Rules for SCSS
+
+1. Do not use color literal in SCSS files like `background-color: #FF00FF;`.
+   Define a semantiocally meaningful color variables at the top of the SCSS file to use the color like `background-color: $dialog-background-color;`.
+2. Use color palette from Material with mat.m2-get-color-from-palette rather than specifying color codes.
+3. Prefer `display: grid` rather than `display: flex`. Use `grid-template` field rather than specifying `grid-tempalte-areas`, `grid-template-columns` or `grid-template-rows` separately.
+4. KHI's color scheme is light theme.
