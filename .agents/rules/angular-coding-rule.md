@@ -17,12 +17,12 @@ When developing or modifying Angular code in the KHI project, you **must** adher
 - Run `make build-storybook` to check compilation for storybook.
 - **MUST** invoke a subagent for code review before asking the user for verification. See Section 4 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
 
-1. **Comments**:
+2. **Comments**:
    - Use TSDoc-style comments for all public types, functions, and methods.
-2. **Naming Conventions**:
-   - Component selectors should have a `khi-` prefix.
-3. Test files must be named with `A.spec.ts` if `A.ts` exists. Do not define spec files by scenarios.
-4. Do not use `any`.
+3. **Naming Conventions**:
+   - Component selectors should have a khi- prefix.
+4. Test files must be named with A.spec.ts if A.ts exists. Do not define spec files by scenarios.
+5. Do not use any.
 
 ## Modern Angular Conventions
 
