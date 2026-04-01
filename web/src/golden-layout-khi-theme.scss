@@ -22,55 +22,22 @@ $primaryColorLight: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
 
 // Color variables (appears count calculates by raw css)
 $baseBkgdColor: var(--color-layout-base-bkgd, #fff); // Appears 7 times
-$singlePaneContentBkgdColor: var(
-  --color-layout-single-pane-content-bkgd,
-  #fff
-); // Appears 3 times
-$popinIconBorderForeColor: var(
-  --color-layout-popin-icon-border-fore,
-  #ccc
-); // Appears 2 times
-$activeTabForeColor: var(
-  --color-layout-active-tab-fore,
-  #ccc
-); // Appears 2 times
+$singlePaneContentBkgdColor: var(--color-layout-single-pane-content-bkgd, #fff);
+$activeTabForeColor: var(--color-layout-active-tab-fore, #ccc);
 
 $dropTargetIndicatorOutlineForeColor: var(
   --color-layout-drop-target-indicator-outline-fore,
   #cccccc
-); // Appears 1 time
-$splitterDraggingBkgdColor: var(
-  --color-layout-splitter-dragging-bkgd,
-  #444444
-); // Appears 1 time
-$singleTabContainerForeColor: var(
-  --color-layout-single-tab-container-fore,
-  #999999
-); // Appears 1 time
-$singleTablContainerBkgdColor: var(
-  --color-layout-single-tab-container-bkgd,
-  #111111
-); // Appears 1 time
-$selectedHeaderBkgdColor: var(
-  --color-layout-selected-header-bkgd,
-  #452500
-); // Appears 1 time
+);
+
+$selectedHeaderBkgdColor: var(--color-layout-selected-header-bkgd, #452500);
 $transitionIndicatorBorderForeColor: var(
   --color-layout-transition-indicator-border-fore,
   #555555
-); // Appears 1 time
-$dropDownArrowForeColor: var(
-  --color-layout-drop-down-arrow-fore,
-  #ffffff
-); // Appears 2 time
-
-$focusedTabBkgdColor: var(
-  --color-layout-focused-tab-bkgd,
-  #354be3
-); // Appears 1 time
+);
+$dropDownArrowForeColor: var(--color-layout-drop-down-arrow-fore, #ffffff);
 
 // ".lm_dragging" is applied to BODY tag during Drag and is also directly applied to the root of the object being dragged
-
 // Entire GoldenLayout Container, if a background is set, it is visible as color of "pane header" and "splitters" (if these latest has opacity very low)
 .lm_goldenlayout {
   background: $baseBkgdColor;
@@ -136,11 +103,6 @@ $focusedTabBkgdColor: var(
     padding-bottom: 2px;
     padding-top: 2px;
     box-shadow: 0px 2px 4px solid black;
-
-    // .lm_title         // Present in LIGHT Theme
-    // {
-    //     padding-top:1px;
-    // }
 
     // Close Tab Icon
     .lm_close_tab {
@@ -222,11 +184,6 @@ $focusedTabBkgdColor: var(
     }
   }
 
-  // Icon to PopOut Pane, so move it to a different Browser Window
-  .lm_popout {
-    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAPklEQVR4nI2Q0QoAIAwCNfr/X7aXCpGN8snBdgejJOzckpkxs9jR6K6T5JpU0nWl5pSXTk7qwh8SnNT+CAAWCgkKFpuSWsUAAAAASUVORK5CYII=);
-  }
-
   // Icon to Maximize Pane, so it will fill the entire GoldenLayout Container
   .lm_maximise {
     &::after {
@@ -265,31 +222,4 @@ $focusedTabBkgdColor: var(
 .lm_transition_indicator {
   background-color: $baseBkgdColor;
   border: 1px dashed $transitionIndicatorBorderForeColor;
-}
-
-// If a specific Pane is Popped Out, so move it to a different Browser Window, Icon to restore original position is:
-.lm_popin {
-  cursor: pointer;
-
-  // Background of Icon
-  .lm_bg {
-    background: $dropDownArrowForeColor;
-    opacity: 0.3;
-  }
-
-  // Icon to Restore original position in Golden Layout Container
-  .lm_icon {
-    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAJCAYAAADpeqZqAAAAWklEQVR4nJWOyw3AIAxDHcQC7L8jbwT3AlJBfNp3SiI7dtRaLSlKKeoA1oEsKSQZCEluexw8Tm3ohk+E7bnOUHUGcNh+HwbBygw4AZ7FN/Lt84p0l+yTflV8AKQyLdcCRJi/AAAAAElFTkSuQmCC);
-    background-position: center center;
-    background-repeat: no-repeat;
-    border-left: 1px solid $popinIconBorderForeColor;
-    border-top: 1px solid $popinIconBorderForeColor;
-    opacity: 0.7;
-  }
-
-  &:hover {
-    .lm_icon {
-      opacity: 1;
-    }
-  }
 }
