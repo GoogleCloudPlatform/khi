@@ -50,12 +50,12 @@ These rules apply when creating new components or refactoring existing ones:
 ## General Coding Rules for SCSS
 
 1. Do not use color literal in SCSS files like `background-color: #FF00FF;`.
-   Define a semantiocally meaningful color variables at the top of the SCSS file to use the color like `background-color: $dialog-background-color;`.
+   Define semantically meaningful color variables at the top of the SCSS file to use the color like background-color: $dialog-background-color;.
 2. Use color palette from Material with mat.m2-get-color-from-palette rather than specifying color codes.
-3. Prefer `display: grid` rather than `display: flex`. Use `grid-template` field rather than specifying `grid-tempalte-areas`, `grid-template-columns` or `grid-template-rows` separately.
+3. Prefer display: grid rather than display: flex. Use grid-template field rather than specifying grid-template-areas, grid-template-columns or grid-template-rows separately.
 4. KHI's color scheme is light theme.
 
-## 3. Subagent Review Guidelines
+## 4. Subagent Review Guidelines
 
 > [!IMPORTANT]
 > **DO NOT FORGET** to invoke the subagent for code review after making changes. You must complete the subagent review before asking the user to verify your implementation.
