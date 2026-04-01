@@ -15,6 +15,7 @@ When developing or modifying Angular code in the KHI project, you **must** adher
 - Run `make lint-web` to check style.
 - Run `make test-web-headless` to check unit tests.
 - Run `make build-storybook` to check compilation for storybook.
+- **MUST** invoke a subagent for code review before asking the user for verification. See Section 3 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
 
 1. **Comments**:
    - Use TSDoc-style comments for all public types, functions, and methods.
@@ -53,3 +54,53 @@ These rules apply when creating new components or refactoring existing ones:
 2. Use color palette from Material with mat.m2-get-color-from-palette rather than specifying color codes.
 3. Prefer `display: grid` rather than `display: flex`. Use `grid-template` field rather than specifying `grid-tempalte-areas`, `grid-template-columns` or `grid-template-rows` separately.
 4. KHI's color scheme is light theme.
+
+## 3. Subagent Review Guidelines
+
+> [!IMPORTANT]
+> **DO NOT FORGET** to invoke the subagent for code review after making changes. You must complete the subagent review before asking the user to verify your implementation.
+
+Follow these rules to perform code reviews using a temporary subagent before asking the user to verify your changes.
+
+- **Define**: Use `define_subagent` to create a temporary subagent specialized for Angular and Typescript.
+- **Invoke**: Pass the modified file paths (TS, HTML, SCSS) to the subagent during `invoke_subagent`.
+- **Capabilities**: The subagent can read files and perform web searches (e.g., to reference external style guides or documentation).
+
+### Review Checklist Focus
+
+The subagent must verify:
+
+- **Simplicity & Duplication**: Can any parts be written more simply and concisely? Are there any duplicated implementations?
+- **Signals & Modern APIs**: Are Signals (`input`, `output`, `computed`, etc.) and built-in control flow (`@if`, `@for`) used correctly instead of legacy decorators and directives?
+- **Access Modifiers**: Are members accessed only from templates marked as `protected`? Are others properly scoped (`private` or `public` readonly)?
+- **Style & SCSS**: Are color literals avoided in SCSS? Are semantic variables or Material palettes used?
+- **Standalone Components**: Are all component dependencies listed in the `imports` array? Is `KHIIconRegistrationModule` included if `MatIconModule` is present?
+- **Testing**: Do test cases sufficiently cover realistic component interactions and state changes?
+
+### Example Format
+
+**`define_subagent`**
+
+```json
+{
+  "name": "temp_angular_reviewer",
+  "description": "Reviews Angular code against project standards.",
+  "prompt_sections": [
+    {
+      "title": "Checklist",
+      "content": "- Code simplicity and no duplication\n- Use of Signals and modern control flow\n- Proper access modifiers (protected for template accessed)\n- No color literals in SCSS\n- Independent style and template files\n- Proper icon module registration"
+    }
+  ],
+  "tool_names": ["view_file", "search_web"]
+}
+```
+
+**`invoke_subagent`**
+
+```json
+{
+  "TypeName": "temp_angular_reviewer",
+  "Role": "Angular Code Reviewer",
+  "Prompt": "Review the changes in: [file paths]"
+}
+```

@@ -11,12 +11,13 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
    - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Test Verification**: Run `go test` with appropriate filter to run tests only for changed parts first. But make sure you run `make test` before asking user to verify.
-3. **Formatting and Linting**:
+2. **Review Verification**: Before asking the user to verify your changes, you MUST invoke a subagent to review your code. See Section 3 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
+3. **Test Verification**: Run `go test` with appropriate filter to run tests only for changed parts first. But make sure you run `make test` before asking user to verify.
+4. **Formatting and Linting**:
    - Run `make lint-go` if applicable, and ensure no new linting errors are introduced.
-4. **Comments**:
+5. **Comments**:
    - Use `godoc`-style comments for all public types, functions, and methods.
-5. **Implementing Interface**
+6. **Implementing Interface**
    - Add `var _ Interface = &Implementation{};` after the type definition to show that it's implementing the interface explicitly.
 
 ## 2. Testing Practices
@@ -61,3 +62,51 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 >  }
 > }
 > ```
+
+## 3. Subagent Review Guidelines
+
+> [!IMPORTANT]
+> **DO NOT FORGET** to invoke the subagent for code review after making changes. You must complete the subagent review before asking the user to verify your implementation.
+
+Follow these rules to perform code reviews using a temporary subagent.
+
+- **Define**: Use `define_subagent` to create a temporary subagent.
+- **Invoke**: Pass the modified file paths to the subagent during `invoke_subagent`.
+- **Capabilities**: The subagent can read files and perform web searches (e.g., to reference external style guides like [Go Style Decisions](https://google.github.io/styleguide/go/decisions)).
+
+### Review Checklist Focus
+
+The subagent must verify:
+
+- Compliance with Go coding standards.
+- Opportunities to simplify or shorten code using newer Go features.
+- Any duplicated implementations.
+- Sufficiency of test cases covering realistic and practical scenarios.
+
+### Example Format
+
+**`define_subagent`**
+
+```json
+{
+  "name": "temp_go_reviewer",
+  "description": "Reviews Go code against project standards.",
+  "prompt_sections": [
+    {
+      "title": "Checklist",
+      "content": "- Compliance with Go coding standards\n- Use of newer Go features\n- Duplicated implementations\n- Sufficient realistic test coverage"
+    }
+  ],
+  "tool_names": ["view_file", "search_web"]
+}
+```
+
+**`invoke_subagent`**
+
+```json
+{
+  "TypeName": "temp_go_reviewer",
+  "Role": "Go Code Reviewer",
+  "Prompt": "Review the changes in: [file path]"
+}
+```
