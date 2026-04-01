@@ -45,7 +45,7 @@ These rules apply when creating new components or refactoring existing ones:
    - If a service returns an Observable, convert it to a Signal in the component using `toSignal`.
 6. **Icons**:
    - When importing `MatIconModule`, you must also import `KHIIconRegistrationModule`.
-7. Styles and template must be defined an independent file. Do not directly supply them in `@Component`
+7. Styles and template must be defined in an independent file. Do not directly supply them in @Component
 
 ## General Coding Rules for SCSS
 
