@@ -420,29 +420,37 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 先ほどタスクについて議論した際、ラベルについては深く触れませんでしたが、KHI の各タスクはラベルのマップを持っています。
 KHI はこの機能を利用して、KHI に登録されているすべてのタスクのセットから特定のタスクセットを選択します。
 
-#### InspectionType ラベル
+#### インスペクションタイプの制限 (LabelSelector / InspectionTypeラベル)
 
-タスクに適用される InspectionType ラベルは []string 型の値を持ちます。これらは InspectionType ID の配列であり、ユーザーが UI で Inspection Type を選択した際に、以下の基準に基づいてタスクが依存関係の候補として含まれるかどうかを決定します:
+タスクを実行可能なインスペクションタイプに制限するには、新しく導入された **LabelSelector（推奨）** を使用する方法と、従来の **InspectionType ラベル（レガシー）** を使用する方法の2つがあります。
 
-- タスクが InspectionType ラベルを持っていない (任意の InspectionType で使用できるタスクとして解釈される)
-- タスクが InspectionType ラベルの 1 つとしてユーザーが選択した InspectionType の ID を含んでいる
+KHIはまず LabelSelector による判定を試み、それが設定されていない場合に従来の InspectionType 配列による判定（IDの完全一致リスト）へフォールバックします。どちらも設定されていない場合は、すべてのインスペクションタイプで有効なグローバルタスクとして解釈されます。
 
-例えば、これらのラベルを持つタスクを以下のように定義できます:
+##### 1. LabelSelector による判定 (推奨)
+
+`LabelSelector` はマップ（`map[string]string`）形式で条件を指定し、指定したすべてのラベルを現在のインスペクションタイプが **含んでいる（包含している）** 場合にタスクを有効化します。インスペクションタイプ側がセレクターにない追加のラベルを持っていても一致と判定されます（インスペクションタイプのラベルがセレクターのスーパーセットである必要があります）。
+
+これにより、特定のプラットフォーム全体（例: `platform: gke`）などで柔軟にタスクを有効化できます。
 
 ```go
-var IntGeneratorTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/int-generator")
+var MyTask = task.NewTask(MyTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (any, error) {
+    return nil, nil
+}, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+    "platform": "gke",
+})) // platform: gke ラベルを持つインスペクションタイプでのみ動作
+```
 
+##### 2. InspectionType ラベルによる判定 (レガシー)
+
+タスクに適用される InspectionType ラベルは `[]string` 型の値を持ちます。これらは InspectionType ID の配列であり、以下の基準に基づいてタスクが有効かどうかを決定します。
+
+- タスクがラベルを持っていない（任意の InspectionType で使用できるグローバルタスクとして解釈される）
+- タスクが InspectionType ID のリストの中に、ユーザーが選択した InspectionType の ID を含んでいる
+
+```go
 var IntGeneratorTask = task.NewTask(IntGeneratorTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (int, error) {
- return 1, nil
-}, inspectioncore_contract.InspectionTypeLabel("gcp-gke","gcp-gdcv-for-baremetal")) // This task is only available when user selected GKE or GDCV for Baremetal on the inspection type selection
-
-var DoubleIntTaskID = taskid.NewDefaultImplementationID[int]("example.khi.google.com/double-int")
-
-var DoubleIntTask = task.NewTask(DoubleIntTaskID, []taskid.UntypedTaskReference{IntGeneratorTaskID.Ref()}, func(ctx context.Context, reference taskid.TaskReference[int]) (int, error) {
- intGeneratorResult := task.GetTaskResult(ctx, IntGeneratorTaskID.Ref())
- return intGeneratorResult * 2, nil
-}) // This task is available for any inspection type
-
+    return 1, nil
+}, inspectioncore_contract.InspectionTypeLabel("gcp-gke", "gcp-gdcv-for-baremetal")) // 指定されたIDと完全一致する場合のみ
 ```
 
 #### FeatureTask ラベル
