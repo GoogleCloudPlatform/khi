@@ -29,6 +29,7 @@ When developing or modifying Angular code in the KHI project, you **must** adher
 These rules apply when creating new components or refactoring existing ones:
 
 1. **Standalone Components**:
+   - Components are standalone by default. **DO NOT** add `standalone: true` to the `@Component` decorator.
    - Explicitly list dependencies in the `imports` array.
 2. **Signals Paradigm**:
    - Use `input()` or `input.required()` for component inputs instead of `@Input`.
@@ -47,60 +48,160 @@ These rules apply when creating new components or refactoring existing ones:
    - When importing `MatIconModule`, you must also import `KHIIconRegistrationModule`.
 7. Styles and template must be defined in an independent file. Do not directly supply them in @Component
 
+## Smart-Dumb Component Architecture
+
+To maintain a clean separation of concerns and improve testability, we adopt the Smart-Dumb component strategy.
+
+### Directory Structure
+
+Each feature or complex component should use the following directory structure:
+
+```text
+foo/
+  components/           # Place non-smart (Dumb) components here
+  types/                # Place component-specific types/ViewModels here (not shared outside foo/)
+  foo-smart.component.ts
+  foo-smart.component.scss
+  foo-smart.component.html
+```
+
+### Dependency Rules
+
+1. **Smart Components**:
+   - Responsible for state management and data fetching.
+   - Allowed to depend on Angular Services.
+2. **Dumb Components**:
+   - Responsible only for rendering UI and propagating events.
+   - **MUST NOT** depend on Angular Services. They should only communicate via Inputs (`input()`, `model()`) and Outputs (`output()`).
+   - **MUST** have a corresponding Storybook story (`*.stories.ts`) to verify its visual states independently.
+   - **DO NOT** use suffixes like `-dumb` or `-ui` in the component name. Name them based on their semantic meaning (e.g., `user-profile`, `data-table`).
+
 ## General Coding Rules for SCSS
 
 1. Do not use color literal in SCSS files like `background-color: #FF00FF;`.
+
    Define semantically meaningful color variables at the top of the SCSS file to use the color like background-color: $dialog-background-color;.
+
 2. Use color palette from Material with mat.m2-get-color-from-palette rather than specifying color codes.
-3. Prefer display: grid rather than display: flex. Use grid-template field rather than specifying grid-template-areas, grid-template-columns or grid-template-rows separately.
-4. KHI's color scheme is light theme.
+3. Prefer display: grid rather than display: flex. Use grid-template field rather than specifying grid-template-areas, grid-template-columns or grid-template-rows separately. **When using `grid-template`, you MUST define area names for all grid tracks.**
+4. **DO NOT** use `repeat()` in grid layouts unless the number of elements is dynamic or unknown.
+5. KHI's color scheme is light theme.
+6. **Order SCSS properties by functional groups** (outside-in approach) to improve readability:
+   - **Positioning**: Properties that determine the location of the element.
+     - `position`, `z-index`, `top`, `right`, `bottom`, `left`
+   - **Display & Layout**: Properties that determine how the element and its children are laid out.
+     - `display`, `grid`, `grid-template`, `flex`, `gap`, `justify-content`, `align-items`
+   - **Box Model (Sizing & Spacing)**: Properties related to dimensions and margins.
+     - `margin`, `border`, `padding`, `width`, `height`, `min-width`, `max-width`
+   - **Typography**: Properties related to text.
+     - `font-family`, `font-size`, `font-weight`, `line-height`, `text-align`, `color`
+   - **Visuals (Backgrounds & Decoration)**: Properties related to the visual appearance.
+     - `background`, `background-color`, `box-shadow`, `opacity`
+   - **Transitions & UI**: Properties related to interaction and animation.
+     - `transition`, `cursor`, `user-select`, `pointer-events`
 
 ## 4. Subagent Review Guidelines
 
 > [!IMPORTANT]
+
 > **DO NOT FORGET** to invoke the subagent for code review after making changes. You must complete the subagent review before asking the user to verify your implementation.
 
 Follow these rules to perform code reviews using a temporary subagent before asking the user to verify your changes.
 
-- **Define**: Use `define_subagent` to create a temporary subagent specialized for Angular and Typescript.
-- **Invoke**: Pass the modified file paths (TS, HTML, SCSS) to the subagent during `invoke_subagent`.
-- **Capabilities**: The subagent can read files and perform web searches (e.g., to reference external style guides or documentation).
+Follow these rules to perform code reviews using three parallel temporary subagents with distinct perspectives to catch more issues.
 
-### Review Checklist Focus
+- **Define**: Use `define_subagent` to create three temporary subagents with distinct roles specialized for Angular/Typescript.
+- **Invoke**: Invoke all three subagents in parallel using `invoke_subagent`. Do not wait for one to finish before invoking the next.
+- **Capabilities**: The subagents can read files, perform web searches, and read URL contents.
 
-The subagent must verify:
+### Reviewer Roles
 
-- **Simplicity & Duplication**: Can any parts be written more simply and concisely? Are there any duplicated implementations?
-- **Signals & Modern APIs**: Are Signals (`input`, `output`, `computed`, etc.) and built-in control flow (`@if`, `@for`) used correctly instead of legacy decorators and directives?
-- **Access Modifiers**: Are members accessed only from templates marked as `protected`? Are others properly scoped (`private` or `public` readonly)?
-- **Style & SCSS**: Are color literals avoided in SCSS? Are semantic variables or Material palettes used?
-- **Standalone Components**: Are all component dependencies listed in the `imports` array? Is `KHIIconRegistrationModule` included if `MatIconModule` is present?
-- **Testing**: Do test cases sufficiently cover realistic component interactions and state changes?
+1. **QA Engineer** (`angular_standards_reviewer`): A QA engineer obsessed with coding standards, style guides, and consistency. Focuses on Smart-Dumb architecture, Signals usage, SCSS ordering, Responsive Grid semantics, and Dumb component naming.
+2. **Senior Architect** (`angular_logic_reviewer`): A senior architect with deep knowledge of system design. Focuses on ViewModel definitions, state mutations, interaction side-effects, and visual excellence (Wow factor).
+3. **Senior Test Engineer** (`angular_test_reviewer`): A senior test engineer obsessed with thorough testing. Focuses on Storybook coverage, element accessibility, and automated component test edge-cases.
 
 ### Example Format
 
-**`define_subagent`**
+**`define_subagent` (QA Engineer)**
 
 ```json
 {
-  "name": "temp_angular_reviewer",
-  "description": "Reviews Angular code against project standards.",
+  "name": "angular_standards_reviewer",
+  "description": "QA Engineer obsessed with style guidelines and architecture.",
   "prompt_sections": [
     {
+      "title": "Persona",
+      "content": "You are a strict QA engineer who cannot tolerate any violation of coding standards, SCSS ordering, or naming conventions."
+    },
+    {
       "title": "Checklist",
-      "content": "- Code simplicity and no duplication\n- Use of Signals and modern control flow\n- Proper access modifiers (protected for template accessed)\n- No color literals in SCSS\n- Independent style and template files\n- Proper icon module registration"
+      "content": "- Smart-Dumb architecture compliance\n- Signals usage over legacy decorators\n- SCSS property ordering and grid tracking\n- Semantic naming"
     }
   ],
-  "tool_names": ["view_file", "search_web"]
+  "tool_names": ["view_file", "search_web", "read_url_content","list_dir","grep_search"]
 }
 ```
 
-**`invoke_subagent`**
+**`define_subagent` (Senior Architect)**
 
 ```json
 {
-  "TypeName": "temp_angular_reviewer",
-  "Role": "Angular Code Reviewer",
-  "Prompt": "Review the changes in: [file paths]"
+  "name": "angular_logic_reviewer",
+  "description": "Senior Architect focusing on logic correctness and interaction states.",
+  "prompt_sections": [
+    {
+      "title": "Persona",
+      "content": "You are a senior architect who values clean component design, efficient state management, and visual excellence."
+    },
+    {
+      "title": "Checklist",
+      "content": "- ViewModel definitions and state scoping\n- Proper use of protected for template access\n- Visual excellence and interaction smoothness"
+    }
+  ],
+  "tool_names": ["view_file", "search_web", "read_url_content","list_dir","grep_search"]
 }
+```
+
+**`define_subagent` (Senior Test Engineer)**
+
+```json
+{
+  "name": "angular_test_reviewer",
+  "description": "Senior Test Engineer obsessed with test coverage and Storybook.",
+  "prompt_sections": [
+    {
+      "title": "Persona",
+      "content": "You are a senior test engineer who believes that every UI component needs a Storybook story and thorough interaction tests."
+    },
+    {
+      "title": "Checklist",
+      "content": "- Storybook stories for all dumb components\n- Element accessibility and semantic semantics\n- Tests covering realistic interactions"
+    }
+  ],
+  "tool_names": ["view_file", "search_web", "read_url_content","list_dir","grep_search"]
+}
+```
+
+**`invoke_subagent` (Parallel Invocations)**
+
+Call these tools in a single turn without waiting between them.
+
+```json
+[
+  {
+    "TypeName": "angular_standards_reviewer",
+    "Role": "Angular Standards Reviewer",
+    "Prompt": "Review the changes in: [file paths]"
+  },
+  {
+    "TypeName": "angular_logic_reviewer",
+    "Role": "Angular Logic Reviewer",
+    "Prompt": "Review the changes in: [file paths]"
+  },
+  {
+    "TypeName": "angular_test_reviewer",
+    "Role": "Angular Test Reviewer",
+    "Prompt": "Review the changes in: [file paths]"
+  }
+]
 ```
