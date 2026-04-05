@@ -240,11 +240,18 @@ export type InspectionMetadataOfRunResult = {
  * Response schema of /api/v3/inspection .
  */
 export type GetInspectionResponse = {
+  /**
+   * Map of inspections keyed by inspection ID.
+   */
   inspections: {
     [inspectionId: string]: InspectionMetadataInInspectionList;
   };
+  /**
+   * Statistics about the server resource usage.
+   */
   serverStat: {
-    totalMemoryAvailable: number;
+    currentMemoryUsage: number;
+    totalMemory: number;
   };
 };
 

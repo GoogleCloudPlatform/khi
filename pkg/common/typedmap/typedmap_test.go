@@ -430,3 +430,80 @@ func TestGetOrSetFuncIsThreadSafe(t *testing.T) {
 	}
 	waitAttempts.Wait()
 }
+
+func TestTypedMap_Merge(t *testing.T) {
+	key1 := NewTypedKey[string]("key1")
+	key2 := NewTypedKey[string]("key2")
+
+	tests := []struct {
+		name      string
+		mapsSetup func() []ReadableTypedMap
+		verifyKey TypedKey[string]
+		wantVal   string
+	}{
+		{
+			name: "Merge TypedMap into TypedMap",
+			mapsSetup: func() []ReadableTypedMap {
+				tm1 := NewTypedMap()
+				Set(tm1, key1, "value1")
+				tm2 := NewTypedMap()
+				Set(tm2, key2, "value2")
+				return []ReadableTypedMap{tm1, tm2}
+			},
+			verifyKey: key2,
+			wantVal:   "value2",
+		},
+		{
+			name: "Merge ReadonlyTypedMap into TypedMap",
+			mapsSetup: func() []ReadableTypedMap {
+				tm1 := NewTypedMap()
+				Set(tm1, key1, "value1")
+				tm2 := NewTypedMap()
+				Set(tm2, key2, "value2")
+				return []ReadableTypedMap{tm1, tm2.AsReadonly()}
+			},
+			verifyKey: key2,
+			wantVal:   "value2",
+		},
+		{
+			name: "Merge overwrites existing keys",
+			mapsSetup: func() []ReadableTypedMap {
+				tm1 := NewTypedMap()
+				Set(tm1, key1, "value1")
+				tm2 := NewTypedMap()
+				Set(tm2, key1, "value2")
+				return []ReadableTypedMap{tm1, tm2}
+			},
+			verifyKey: key1,
+			wantVal:   "value2",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			maps := tt.mapsSetup()
+
+			merged := Merge(maps...)
+
+			got, ok := Get(merged, tt.verifyKey)
+			if !ok {
+				t.Fatalf("expected key to exist in merged map")
+			}
+			if diff := cmp.Diff(tt.wantVal, got); diff != "" {
+				t.Errorf("Value mismatch (-want +got):\n%s", diff)
+			}
+
+			// Verify immutability of the first map
+			if len(maps) > 0 {
+				if first, ok := maps[0].(*TypedMap); ok {
+					if tt.verifyKey == key2 {
+						_, ok1 := Get(first, key2)
+						if ok1 {
+							t.Errorf("expected original first map not to be modified (key2 found)")
+						}
+					}
+				}
+			}
+		})
+	}
+}

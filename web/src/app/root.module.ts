@@ -14,10 +14,17 @@
  * limitations under the License.
  */
 
-import { Injector, NgModule, importProvidersFrom, inject } from '@angular/core';
+import {
+  ErrorHandler,
+  Injector,
+  NgModule,
+  importProvidersFrom,
+  inject,
+} from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { ReporterErrorHandler } from 'src/app/common/reporter/reporter-error-handler';
 import { provideHighlightOptions } from 'ngx-highlightjs';
 import { InspectionDataLoaderService } from './services/data-loader.service';
 import { TimelineSelectionService } from './services/timeline-selection.service';
@@ -68,6 +75,9 @@ import {
 } from './dialogs/new-inspection/components/service/file-uploader';
 import { KHIIconRegistrationModule } from './shared/module/icon-registration.module';
 
+/**
+ * The root module of the application.
+ */
 @NgModule({
   declarations: [RootComponent],
   imports: [
@@ -75,10 +85,11 @@ import { KHIIconRegistrationModule } from './shared/module/icon-registration.mod
     BrowserAnimationsModule,
     RouterModule.forRoot(KHIRoutes),
     KHIIconRegistrationModule,
-    // Standoalone components
+    // Standalone components.
     ...environment.pluginModules,
   ],
   providers: [
+    { provide: ErrorHandler, useClass: ReporterErrorHandler },
     { provide: EXTENSION_STORE, useValue: new ExtensionStore() },
     importProvidersFrom(HttpClientModule),
     provideHighlightOptions({
@@ -141,6 +152,9 @@ import { KHIIconRegistrationModule } from './shared/module/icon-registration.mod
   bootstrap: [RootComponent],
 })
 export class RootModule {
+  /**
+   * Initializes the root module and extensions.
+   */
   constructor() {
     const injector = inject(Injector);
     const extensionStore = inject<ExtensionStore>(EXTENSION_STORE);

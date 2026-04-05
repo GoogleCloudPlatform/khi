@@ -40,6 +40,9 @@ func NewTypedKey[T any](key string) TypedKey[T] {
 type ReadableTypedMap interface {
 	// load retrieves a value by its string key
 	load(key string) (interface{}, bool)
+	// rangeAll iterates over all key-value pairs in the map.
+	// This is an internal method to support Merge operations without exposing internal iteration to external packages.
+	rangeAll(f func(k, v interface{}) bool)
 }
 
 // TypedMap is a thread-safe map with type-safe operations.
@@ -58,9 +61,16 @@ func (m *TypedMap) load(key string) (interface{}, bool) {
 	return m.container.Load(key)
 }
 
-// load implements ReadableTypedMap interface.
+func (m *TypedMap) rangeAll(f func(k, v interface{}) bool) {
+	m.container.Range(f)
+}
+
 func (m *ReadonlyTypedMap) load(key string) (interface{}, bool) {
 	return m.source.load(key)
+}
+
+func (m *ReadonlyTypedMap) rangeAll(f func(k, v interface{}) bool) {
+	m.source.rangeAll(f)
 }
 
 // NewTypedMap creates a new empty TypedMap.
@@ -95,6 +105,21 @@ func (m *TypedMap) Clone() *TypedMap {
 	})
 
 	return cloned
+}
+
+// Merge imports all key-value pairs from multiple ReadableTypedMaps into a new ReadonlyTypedMap.
+func Merge(maps ...ReadableTypedMap) *ReadonlyTypedMap {
+	merged := NewTypedMap()
+	for _, m := range maps {
+		if m == nil {
+			continue
+		}
+		m.rangeAll(func(k, v interface{}) bool {
+			merged.container.Store(k, v)
+			return true
+		})
+	}
+	return merged.AsReadonly()
 }
 
 // Clone creates a new ReadonlyTypedMap with the same contents.

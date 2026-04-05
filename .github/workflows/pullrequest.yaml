@@ -19,6 +19,10 @@ on:
     branches:
       - 'main'
       - epic/**
+  merge_group:
+    branches:
+      - 'main'
+      - epic/**
 
 jobs:
   markdownlint:

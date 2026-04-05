@@ -139,7 +139,8 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 			ctx.JSON(http.StatusOK, &GetInspectionsResponse{
 				Inspections: responseInspections,
 				ServerStat: &ServerStat{
-					TotalMemoryAvailable: serverConfig.ResourceMonitor.GetUsedMemory(),
+					CurrentMemoryUsage: serverConfig.ResourceMonitor.GetUsedMemory(),
+					TotalMemory:        serverConfig.ResourceMonitor.GetTotalMemory(),
 				},
 			})
 		})

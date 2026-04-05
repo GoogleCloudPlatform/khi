@@ -7,20 +7,29 @@ globs: **/*.go
 
 When developing or modifying Go code in the KHI project, you **must** adhere to the following rules and best practices.
 
-## 1. General Coding Rules
+## 1. Verifications
 
 1. **Build Verification**: Before running tests or submitting changes, you must always verify that your code compiles successfully.
    - Run `make build-go` to ensure there are no compilation errors across the backend.
-2. **Review Verification**: Before asking the user to verify your changes, you MUST invoke a subagent to review your code. See Section 3 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
-3. **Test Verification**: Run `go test` with appropriate filter to run tests only for changed parts first. But make sure you run `make test` before asking user to verify.
+2. **Review Verification**: Before asking the user to verify your changes, you MUST invoke a subagent for code review. See Section 5 for the procedure. **If you make any modifications based on the review, you MUST run the review again to verify the changes.**
+3. **Test Verification**: Run `go test` with an appropriate filter to run tests only for changed parts first. But make sure you run `make test-go` before asking the user to verify.
 4. **Formatting and Linting**:
+   - Run `make format-go` to ensure standard Go formatting.
    - Run `make lint-go` if applicable, and ensure no new linting errors are introduced.
-5. **Comments**:
+5. **Restart on Correction**: If you make any corrections during a verification phase, you MUST restart the verification from the beginning for that phase.
+
+## 2. General Coding Rules
+
+1. **Comments**:
+   - All comments must be written in English.
    - Use `godoc`-style comments for all public types, functions, and methods.
-6. **Implementing Interface**
+
+## 3. Language-Specific Conventions
+
+1. **Implementing Interface**:
    - Add `var _ Interface = &Implementation{};` after the type definition to show that it's implementing the interface explicitly.
 
-## 2. Testing Practices
+## 4. Testing Practices
 
 1. **Table-Driven Tests**: Tests must be written using the table-driven testing pattern. Define a slice of anonymous structs representing the test cases, and iterate over them using `t.Run()`.
 2. **Assertions and Diffs**:
@@ -65,48 +74,118 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 
 ## 3. Subagent Review Guidelines
 
-> [!IMPORTANT]
-> **DO NOT FORGET** to invoke the subagent for code review after making changes. You must complete the subagent review before asking the user to verify your implementation.
+Follow these rules to perform code reviews using three parallel temporary subagents with distinct perspectives to catch more issues.
 
-Follow these rules to perform code reviews using a temporary subagent.
+- **Define**: Use `define_subagent` to create three temporary subagents with distinct roles.
+- **Invoke**: Invoke all three subagents in parallel using `invoke_subagent`. Do not wait for one to finish before invoking the next.
+- **Capabilities**: The subagents can read files, perform web searches, and read URL contents (e.g., to reference external style guides like [Go Style Decisions](https://google.github.io/styleguide/go/decisions)).
 
-- **Define**: Use `define_subagent` to create a temporary subagent.
-- **Invoke**: Pass the modified file paths to the subagent during `invoke_subagent`.
-- **Capabilities**: The subagent can read files and perform web searches (e.g., to reference external style guides like [Go Style Decisions](https://google.github.io/styleguide/go/decisions)).
+### Reviewer Roles
 
-### Review Checklist Focus
-
-The subagent must verify:
-
-- Compliance with Go coding standards.
-- Opportunities to simplify or shorten code using newer Go features.
-- Any duplicated implementations.
-- Sufficiency of test cases covering realistic and practical scenarios.
+1. **QA Engineer** (`go_standards_reviewer`): A QA engineer obsessed with coding standards, style guides, and consistency. Focuses on idiomatic Go and Uber style guide.
+2. **Senior Architect** (`go_logic_reviewer`): A senior architect with deep knowledge of system design. Focuses on business logic correctness, error handling, race conditions, and clean abstractions.
+3. **Senior Test Engineer** (`go_test_reviewer`): A senior test engineer obsessed with thorough testing. Focuses on table-driven tests, boundary values, and regression coverage.
 
 ### Example Format
 
-**`define_subagent`**
+**`define_subagent` (QA Engineer)**
 
 ```json
 {
-  "name": "temp_go_reviewer",
-  "description": "Reviews Go code against project standards.",
+  "name": "go_standards_reviewer",
+  "description": "QA Engineer obsessed with style guidelines and modernization.",
   "prompt_sections": [
     {
+      "title": "Persona",
+      "content": "You are a strict QA engineer who cannot tolerate any violation of coding standards or style guides."
+    },
+    {
       "title": "Checklist",
-      "content": "- Compliance with Go coding standards\n- Use of newer Go features\n- Duplicated implementations\n- Sufficient realistic test coverage"
+      "content": "- Compliance with Go coding standards and Uber style guide\n- Opportunities to use newer Go features\n- Code simplicity and readability"
     }
   ],
-  "tool_names": ["view_file", "search_web"]
+  "tool_names": [
+    "view_file",
+    "search_web",
+    "read_url_content",
+    "list_dir",
+    "grep_search"
+  ]
 }
 ```
 
-**`invoke_subagent`**
+**`define_subagent` (Senior Architect)**
 
 ```json
 {
-  "TypeName": "temp_go_reviewer",
-  "Role": "Go Code Reviewer",
-  "Prompt": "Review the changes in: [file path]"
+  "name": "go_logic_reviewer",
+  "description": "Senior Architect focusing on logic correctness and design.",
+  "prompt_sections": [
+    {
+      "title": "Persona",
+      "content": "You are a senior architect who values clean design, robust error handling, and concurrency safety."
+    },
+    {
+      "title": "Checklist",
+      "content": "- Correctness of business logic\n- Proper error handling (errors wrapped or handled)\n- Race conditions or concurrency pitfalls\n- Boundary values and edge cases"
+    }
+  ],
+  "tool_names": [
+    "view_file",
+    "search_web",
+    "read_url_content",
+    "list_dir",
+    "grep_search"
+  ]
 }
+```
+
+**`define_subagent` (Senior Test Engineer)**
+
+```json
+{
+  "name": "go_test_reviewer",
+  "description": "Senior Test Engineer obsessed with test coverage and quality.",
+  "prompt_sections": [
+    {
+      "title": "Persona",
+      "content": "You are a senior test engineer who believes that code without thorough tests is broken."
+    },
+    {
+      "title": "Checklist",
+      "content": "- Table-driven test pattern used with cmp.Diff\n- Sufficient test cases covering realistic scenarios\n- No use of reflect.DeepEqual for assertions"
+    }
+  ],
+  "tool_names": [
+    "view_file",
+    "search_web",
+    "read_url_content",
+    "list_dir",
+    "grep_search"
+  ]
+}
+```
+
+**`invoke_subagent` (Parallel Invocations)**
+
+Call these tools in a single turn without waiting between them.
+
+```json
+[
+  {
+    "TypeName": "go_standards_reviewer",
+    "Role": "Go Standards Reviewer",
+    "Prompt": "Review the changes in: [file path]"
+  },
+  {
+    "TypeName": "go_logic_reviewer",
+    "Role": "Go Logic Reviewer",
+    "Prompt": "Review the changes in: [file path]"
+  },
+  {
+    "TypeName": "go_test_reviewer",
+    "Role": "Go Test Reviewer",
+    "Prompt": "Review the changes in: [file path]"
+  }
+]
 ```

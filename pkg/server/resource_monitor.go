@@ -14,32 +14,66 @@
 
 package server
 
-import "runtime"
+import (
+	"log/slog"
+	"runtime"
+	"sync"
 
+	"github.com/shirou/gopsutil/v3/mem"
+)
+
+// ResourceMonitor provides methods to monitor server resources.
 type ResourceMonitor interface {
-	GetUsedMemory() int
+	// GetUsedMemory returns the current memory usage of the server process in bytes.
+	GetUsedMemory() uint64
+
+	// GetTotalMemory returns the total physical memory of the server in bytes.
+	GetTotalMemory() uint64
 }
 
+// ResourceMonitorImpl is the real implementation of ResourceMonitor.
 type ResourceMonitorImpl struct {
+	totalMemory uint64
+	once        sync.Once
 }
 
-// GetUsedMemory implements ResourceMonitor.
-func (r *ResourceMonitorImpl) GetUsedMemory() int {
-	// Get server status
+// GetUsedMemory returns the current memory usage using runtime.MemStats (Alloc).
+func (r *ResourceMonitorImpl) GetUsedMemory() uint64 {
 	var memStat runtime.MemStats
 	runtime.ReadMemStats(&memStat)
-	return int(memStat.Sys)
+	return memStat.Alloc
 }
 
-var _ ResourceMonitor = (*ResourceMonitorImpl)(nil)
+// GetTotalMemory returns the total physical memory using gopsutil.
+// The result is cached after the first call.
+func (r *ResourceMonitorImpl) GetTotalMemory() uint64 {
+	r.once.Do(func() {
+		v, err := mem.VirtualMemory()
+		if err == nil {
+			r.totalMemory = v.Total
+		} else {
+			slog.Error("Failed to get total memory", "error", err)
+		}
+	})
+	return r.totalMemory
+}
 
+var _ ResourceMonitor = &ResourceMonitorImpl{}
+
+// ResourceMonitorMock is a mock implementation of ResourceMonitor for testing.
 type ResourceMonitorMock struct {
-	UsedMemory int
+	UsedMemory  uint64
+	TotalMemory uint64
 }
 
-// GetUsedMemory implements ResourceMonitor.
-func (r *ResourceMonitorMock) GetUsedMemory() int {
+// GetUsedMemory returns the mocked used memory.
+func (r *ResourceMonitorMock) GetUsedMemory() uint64 {
 	return r.UsedMemory
 }
 
-var _ ResourceMonitor = (*ResourceMonitorMock)(nil)
+// GetTotalMemory returns the mocked total memory.
+func (r *ResourceMonitorMock) GetTotalMemory() uint64 {
+	return r.TotalMemory
+}
+
+var _ ResourceMonitor = &ResourceMonitorMock{}

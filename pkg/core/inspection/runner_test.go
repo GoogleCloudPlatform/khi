@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package coreinspection_test
+package coreinspection
 
 import (
 	"context"
 	"testing"
 
-	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -34,12 +33,12 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 	ioConfig := &inspectioncore_contract.IOConfig{
 		TemporaryFolder: t.TempDir(),
 	}
-	server, err := coreinspection.NewServer(ioConfig)
+	server, err := NewServer(ioConfig)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	inspectionType := coreinspection.InspectionType{
+	inspectionType := InspectionType{
 		Id:   "test-inspection",
 		Name: "Test Inspection",
 	}
@@ -107,5 +106,93 @@ func TestInspectionTaskRunner_Interceptor(t *testing.T) {
 
 	if diff := cmp.Diff(expectedOrder, executionOrder); diff != "" {
 		t.Errorf("Execution order mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestIsTaskCompatible(t *testing.T) {
+	runner := &InspectionTaskRunner{}
+
+	tests := []struct {
+		name        string
+		taskLabels  map[string]any // simplified setup
+		currentType *InspectionType
+		want        bool
+	}{
+		{
+			name: "Selector matches target labels",
+			taskLabels: map[string]any{
+				inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key(): inspectioncore_contract.LabelSelector{"platform": "gke"},
+			},
+			currentType: &InspectionType{
+				Id:     "some-env",
+				Labels: map[string]string{"platform": "gke", "provider": "google"},
+			},
+			want: true,
+		},
+		{
+			name: "Selector does not match target labels",
+			taskLabels: map[string]any{
+				inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key(): inspectioncore_contract.LabelSelector{"platform": "gke"},
+			},
+			currentType: &InspectionType{
+				Id:     "some-env",
+				Labels: map[string]string{"platform": "gdc"},
+			},
+			want: false,
+		},
+		{
+			name: "Fallback to legacy list - match",
+			taskLabels: map[string]any{
+				inspectioncore_contract.LabelKeyInspectionTypes.Key(): []string{"legacy-env", "other-env"},
+			},
+			currentType: &InspectionType{
+				Id: "legacy-env",
+			},
+			want: true,
+		},
+		{
+			name: "Fallback to legacy list - no match",
+			taskLabels: map[string]any{
+				inspectioncore_contract.LabelKeyInspectionTypes.Key(): []string{"other-env"},
+			},
+			currentType: &InspectionType{
+				Id: "legacy-env",
+			},
+			want: false,
+		},
+		{
+			name:       "No selector, no legacy list (Global task)",
+			taskLabels: map[string]any{},
+			currentType: &InspectionType{
+				Id: "any-env",
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create task with labels
+			opts := []coretask.LabelOpt{}
+			for k, v := range tt.taskLabels {
+				if k == inspectioncore_contract.LabelKeyInspectionTypeLabelSelector.Key() {
+					opts = append(opts, inspectioncore_contract.InspectionTypeLabelSelector(v.(inspectioncore_contract.LabelSelector)))
+				} else if k == inspectioncore_contract.LabelKeyInspectionTypes.Key() {
+					opts = append(opts, coretask.WithLabelValue(inspectioncore_contract.LabelKeyInspectionTypes, v.([]string)))
+				}
+			}
+
+			task := coretask.NewTask(
+				taskid.NewDefaultImplementationID[any]("test-task"),
+				nil,
+				func(ctx context.Context) (any, error) { return nil, nil },
+				opts...,
+			)
+
+			got := runner.isTaskCompatible(task, tt.currentType)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("isTaskCompatible() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

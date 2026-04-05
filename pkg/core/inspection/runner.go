@@ -126,17 +126,30 @@ func (i *InspectionTaskRunner) Started() bool {
 // SetInspectionType sets the type of inspection and initializes the available tasks.
 // It filters the root task set from the server to get tasks relevant to the specified inspectionType.
 func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
-	typeFound := false
+	var currentType *InspectionType
 	for _, inspection := range i.inspectionServer.inspectionTypes {
 		if inspection.Id == inspectionType {
-			typeFound = true
+			currentType = inspection
 			break
 		}
 	}
-	if !typeFound {
+	if currentType == nil {
 		return fmt.Errorf("inspection type %s was not found", inspectionType)
 	}
-	i.availableTasks = coretask.Subset(i.inspectionServer.RootTaskSet, filter.NewContainsElementFilter(inspectioncore_contract.LabelKeyInspectionTypes, inspectionType, true))
+
+	filteredTasks := []coretask.UntypedTask{}
+	for _, task := range i.inspectionServer.RootTaskSet.GetAll() {
+		if i.isTaskCompatible(task, currentType) {
+			filteredTasks = append(filteredTasks, task)
+		}
+	}
+
+	var err error
+	i.availableTasks, err = coretask.NewTaskSet(filteredTasks)
+	if err != nil {
+		return fmt.Errorf("failed to filter tasks for inspection type %s: %w", currentType.Id, err)
+	}
+
 	defaultFeatures := coretask.Subset(i.availableTasks, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyInspectionDefaultFeatureFlag, false))
 	defaultFeatureIds := []string{}
 	for _, featureTask := range defaultFeatures.GetAll() {
@@ -144,6 +157,27 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 	}
 	i.currentInspectionType = inspectionType
 	return i.SetFeatureList(defaultFeatureIds)
+}
+
+func (i *InspectionTaskRunner) isTaskCompatible(task coretask.UntypedTask, currentType *InspectionType) bool {
+	labels := task.Labels()
+
+	// 1. Evaluate with new Label Selector if present
+	if selector, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypeLabelSelector); ok {
+		return selector.Match(currentType.Labels)
+	}
+
+	// 2. Fallback to legacy list
+	if legacyList, ok := typedmap.Get(labels, inspectioncore_contract.LabelKeyInspectionTypes); ok {
+		if slices.Contains(legacyList, currentType.Id) {
+			slog.Warn("Legacy inspection type list is used for task. Please migrate to label-selector approach.", "taskID", task.UntypedID().String())
+			return true
+		}
+		return false
+	}
+
+	// 3. Defaults to true if neither is defined (global tasks)
+	return true
 }
 
 // FeatureList returns the list of available features for the current inspection type.

@@ -25,6 +25,7 @@ import { GraphPageDataSource } from 'src/app/services/frame-connection/frames/gr
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { of } from 'rxjs';
+import { BACKEND_CONNECTION } from '../../services/api/backend-connection.service';
 
 describe('GraphComponent', () => {
   beforeEach(async () => {
@@ -43,6 +44,13 @@ describe('GraphComponent', () => {
                 viewerMode: false,
               });
             },
+          },
+        },
+        {
+          provide: BACKEND_CONNECTION,
+          useValue: {
+            tasks: () =>
+              of({ serverStat: { currentMemoryUsage: 0, totalMemory: 0 } }),
           },
         },
         GraphPageDataSource,

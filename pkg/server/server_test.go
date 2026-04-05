@@ -245,7 +245,7 @@ func TestApiResponses(t *testing.T) {
 	serverConfig := ServerConfig{
 		ViewerMode:       false,
 		StaticFolderPath: "dist",
-		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000},
+		ResourceMonitor:  &ResourceMonitorMock{UsedMemory: 1000, TotalMemory: 2000},
 		ServerBasePath:   "/foo",
 	}
 	engine := gin.New()
@@ -265,7 +265,7 @@ func TestApiResponses(t *testing.T) {
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection",
-			BodyValidator: bodyCompareWithStringExpectedValue(`{"inspections":{},"serverStat":{"totalMemoryAvailable":1000}}`),
+			BodyValidator: bodyCompareWithStringExpectedValue(`{"inspections":{},"serverStat":{"currentMemoryUsage":1000,"totalMemory":2000}}`),
 		},
 		{
 			// 002

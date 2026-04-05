@@ -23,9 +23,10 @@ limitations under the License.
       >
         <p>
           Server RAM usage:
-          {{
-            (serverStat.totalMemoryAvailable / 1024 / 1024 / 1024).toFixed(2)
-          }}
+          {{ (serverStat.currentMemoryUsage / 1024 / 1024 / 1024).toFixed(2) }}
+          @if (serverStat.totalMemory > 0) {
+            / {{ (serverStat.totalMemory / 1024 / 1024 / 1024).toFixed(2) }}
+          }
           GB
         </p>
       </div>

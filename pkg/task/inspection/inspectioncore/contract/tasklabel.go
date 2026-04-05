@@ -22,14 +22,29 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
+// LabelSelector represents a set of labels to match against target resources/features.
+type LabelSelector map[string]string
+
+// Match returns true if all keys defined in the selector are present in the target with matching values.
+func (s LabelSelector) Match(target map[string]string) bool {
+	for k, v := range s {
+		if tv, ok := target[k]; !ok || tv != v {
+			return false
+		}
+	}
+	return true
+}
+
 var (
 	LabelKeyInspectionFeatureFlag        = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
 	LabelKeyInspectionDefaultFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "default-feature")
 	LabelKeyProgressReportable           = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "progress-reportable")
 	LabelKeyInspectionTypes              = coretask.NewTaskLabelKey[[]string](InspectionTaskPrefix + "inspection-type")
-	LabelKeyFeatureTaskTitle             = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
-	LabelKeyFeatureTaskTargetLogType     = coretask.NewTaskLabelKey[enum.LogType](InspectionTaskPrefix + "feature/log-type")
-	LabelKeyFeatureTaskDescription       = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
+	// LabelKeyInspectionTypeLabelSelector is a label key used to specify multiple target environments using a label selector.
+	LabelKeyInspectionTypeLabelSelector = coretask.NewTaskLabelKey[LabelSelector](InspectionTaskPrefix + "inspection-type-selector")
+	LabelKeyFeatureTaskTitle            = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
+	LabelKeyFeatureTaskTargetLogType    = coretask.NewTaskLabelKey[enum.LogType](InspectionTaskPrefix + "feature/log-type")
+	LabelKeyFeatureTaskDescription      = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
 	// LabelKeyFeatureTaskOrder is a label key of an integer assigned for a feature task. Feature task with smaller order is placed at the top of the feature task list.
 	LabelKeyFeatureTaskOrder = coretask.NewTaskLabelKey[int](InspectionTaskPrefix + "feature/order")
 )
@@ -85,6 +100,24 @@ Please define task IDs and types used in its type parameter in a different packa
 		featureOrder:     featureOrder,
 		isDefaultFeature: isDefaultFeature,
 		inspectionTypes:  inspectionTypes,
+	}
+}
+
+type InspectionTypeLabelSelectorImpl struct {
+	selector LabelSelector
+}
+
+// Write implements task.LabelOpt.
+func (itl *InspectionTypeLabelSelectorImpl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyInspectionTypeLabelSelector, itl.selector)
+}
+
+var _ coretask.LabelOpt = (*InspectionTypeLabelSelectorImpl)(nil)
+
+// InspectionTypeLabelSelector returns a LabelOpt to mark the task to match with the selector instead of raw ID lists.
+func InspectionTypeLabelSelector(selector map[string]string) *InspectionTypeLabelSelectorImpl {
+	return &InspectionTypeLabelSelectorImpl{
+		selector: LabelSelector(selector),
 	}
 }
 

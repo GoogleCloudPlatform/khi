@@ -37,6 +37,3 @@ $(MSDF_SETUP_DUMMY):
 add-licenses: ## Add license headers to all files
 	go tool addlicense  -c "Google LLC" -l apache .
 
-.PHONY: generate-reference
-generate-reference: ## Generate reference documentation
-	go run ./cmd/reference-generator/

@@ -40,6 +40,7 @@ import { ViewStateService } from 'src/app/services/view-state.service';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { of } from 'rxjs';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
+import { BACKEND_CONNECTION } from '../../services/api/backend-connection.service';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
@@ -75,6 +76,13 @@ describe('AppComponent', () => {
             new InspectionDataStoreService(),
             new ViewStateService(),
           ),
+        },
+        {
+          provide: BACKEND_CONNECTION,
+          useValue: {
+            tasks: () =>
+              of({ serverStat: { currentMemoryUsage: 0, totalMemory: 0 } }),
+          },
         },
         provideHttpClient(),
         DiffPageDataSourceServer,

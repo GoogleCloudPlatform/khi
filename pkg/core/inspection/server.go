@@ -28,11 +28,12 @@ import (
 type InspectionRegistrationFunc = func(registry InspectionTaskRegistry) error
 
 type InspectionType struct {
-	Id          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
-	Priority    int    `json:"-"`
+	Id          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Icon        string            `json:"icon"`
+	Priority    int               `json:"-"`
+	Labels      map[string]string `json:"labels,omitempty"`
 
 	// Document properties
 	DocumentDescription string `json:"-"`

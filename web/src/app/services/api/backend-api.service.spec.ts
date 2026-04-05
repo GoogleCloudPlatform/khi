@@ -103,7 +103,8 @@ describe('BackendAPIImpl testing', () => {
     const testData: GetInspectionResponse = {
       inspections: {},
       serverStat: {
-        totalMemoryAvailable: 10,
+        currentMemoryUsage: 10,
+        totalMemory: 20,
       },
     };
 
