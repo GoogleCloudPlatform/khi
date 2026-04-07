@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { Injectable, OnDestroy, ViewContainerRef } from '@angular/core';
+import {
+  inject,
+  Injectable,
+  OnDestroy,
+  signal,
+  ViewContainerRef,
+} from '@angular/core';
 import {
   GoldenLayout,
   ComponentContainer,
@@ -24,12 +30,14 @@ import {
 import { TimelineSmartComponent } from '../../timeline/timeline-smart.component';
 import { LogSmartComponent } from '../../log/log-smart.component';
 import { DiffSmartComponent } from '../../diff/diff-smart.component';
+import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
 
 /**
  * LayoutService manages the GoldenLayout instance and component registration.
  */
 @Injectable()
 export class LayoutService implements OnDestroy {
+  private readonly menuManager = inject(MenuManager);
   /** The GoldenLayout instance. */
   private goldenLayout!: GoldenLayout;
 
@@ -38,6 +46,10 @@ export class LayoutService implements OnDestroy {
 
   /** ResizeObserver to track container size changes. */
   private resizeObserver?: ResizeObserver;
+
+  private readonly disableCreateDiffPane = signal(false);
+
+  private readonly disableCreateLogPane = signal(false);
 
   /** The default layout configuration used if no saved state is found. */
   private readonly defaultLayout: LayoutConfig = {
@@ -64,7 +76,7 @@ export class LayoutService implements OnDestroy {
         },
         {
           type: 'component',
-          componentType: 'diff',
+          componentType: 'history',
           title: 'History',
           size: '15%',
         },
@@ -73,7 +85,7 @@ export class LayoutService implements OnDestroy {
   };
 
   /**
-   * Initialize GoldenLayout.
+   * Initializes GoldenLayout.
    */
   public init(hostElement: HTMLElement, vcr: ViewContainerRef) {
     this.viewContainerRef = vcr;
@@ -88,10 +100,11 @@ export class LayoutService implements OnDestroy {
       );
     });
     this.resizeObserver.observe(hostElement);
+    this.setupMenu();
   }
 
   /**
-   * Register components to GoldenLayout.
+   * Registers components to GoldenLayout.
    */
   private registerComponents() {
     this.goldenLayout.registerComponentFactoryFunction(
@@ -113,24 +126,32 @@ export class LayoutService implements OnDestroy {
           this.viewContainerRef.createComponent(LogSmartComponent);
         container.element.appendChild(componentRef.location.nativeElement);
         this.addIconToTab(container, 'cards_stack');
-        container.on('destroy', () => componentRef.destroy());
+        container.on('destroy', () => {
+          componentRef.destroy();
+          this.disableCreateLogPane.set(false);
+        });
+        this.disableCreateLogPane.set(true);
       },
     );
 
     this.goldenLayout.registerComponentFactoryFunction(
-      'diff',
+      'history',
       (container: ComponentContainer) => {
         const componentRef =
           this.viewContainerRef.createComponent(DiffSmartComponent);
         container.element.appendChild(componentRef.location.nativeElement);
         this.addIconToTab(container, 'deployed_code_history');
-        container.on('destroy', () => componentRef.destroy());
+        container.on('destroy', () => {
+          componentRef.destroy();
+          this.disableCreateDiffPane.set(false);
+        });
+        this.disableCreateDiffPane.set(true);
       },
     );
   }
 
   /**
-   * Add icon to tab.
+   * Adds icon to tab.
    */
   private addIconToTab(container: ComponentContainer, iconName: string) {
     container.on('tab', (tab: Tab) => {
@@ -146,10 +167,74 @@ export class LayoutService implements OnDestroy {
   }
 
   /**
-   * Load default layout configuration.
+   * Loads default layout configuration.
    */
   public loadDefaultLayout() {
     this.goldenLayout.loadLayout(this.defaultLayout);
+  }
+
+  private setupMenu() {
+    this.menuManager.addGroup('view', 'View', 2, 'dashboard_customize');
+    this.menuManager.addItem('view', {
+      label: 'Open timeline',
+      type: MenuItemType.Button,
+      icon: 'timeline',
+      priority: 1,
+      action: () => {
+        this.addPane('timeline', 'Timeline');
+      },
+    });
+    this.menuManager.addItem('view', {
+      label: 'Open log view',
+      type: MenuItemType.Button,
+      icon: 'cards_stack',
+      priority: 2,
+      disabled: this.disableCreateLogPane,
+      action: () => {
+        this.addPane('log', 'Logs');
+      },
+    });
+    this.menuManager.addItem('view', {
+      label: 'Open history view',
+      type: MenuItemType.Button,
+      icon: 'difference',
+      disabled: this.disableCreateDiffPane,
+      priority: 3,
+      action: () => {
+        this.addPane('history', 'History');
+      },
+    });
+    this.menuManager.addItem('view', {
+      type: MenuItemType.Separator,
+      priority: 4,
+    });
+    this.menuManager.addItem('view', {
+      label: 'Reset layout',
+      type: MenuItemType.Button,
+      icon: 'refresh',
+      priority: 5,
+      action: () => {
+        this.loadDefaultLayout();
+      },
+    });
+  }
+
+  /**
+   * Adds a new pane to the layout.
+   */
+  private addPane(componentType: string, title: string) {
+    try {
+      this.goldenLayout.addItem({
+        type: 'component',
+        componentType: componentType,
+        title: title,
+      });
+    } catch (e) {
+      console.error(
+        `[LayoutService] Failed to add pane "${componentType}":`,
+        e,
+      );
+    }
   }
 
   ngOnDestroy(): void {

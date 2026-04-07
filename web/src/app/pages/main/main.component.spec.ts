@@ -41,6 +41,7 @@ import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { of } from 'rxjs';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { BACKEND_CONNECTION } from '../../services/api/backend-connection.service';
+import { MenuManager } from '../../services/menu/menu-manager.service';
 
 describe('AppComponent', () => {
   beforeEach(async () => {
@@ -87,6 +88,7 @@ describe('AppComponent', () => {
         provideHttpClient(),
         DiffPageDataSourceServer,
         GraphPageDataSourceServer,
+        MenuManager,
       ],
     }).compileComponents();
   });
