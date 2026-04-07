@@ -33,7 +33,7 @@ limitations under the License.
             }
           </ng-template>
           <div class="inspection-type-spacer"></div>
-          @if (inspectionTypes | async; as types) {
+          @if (inspectionTypes.value(); as types) {
             @for (inspectionType of types.types; track inspectionType) {
               <mat-card
                 class="inspection-type"

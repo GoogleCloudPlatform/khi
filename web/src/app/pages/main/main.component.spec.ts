@@ -16,6 +16,7 @@
 
 import { TestBed } from '@angular/core/testing';
 import { AppComponent } from './main.component';
+import { signal } from '@angular/core';
 import { InspectionDataLoaderService } from '../../services/data-loader.service';
 import {
   WINDOW_CONNECTION_PROVIDER,
@@ -40,7 +41,7 @@ import { ViewStateService } from 'src/app/services/view-state.service';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { of } from 'rxjs';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
-import { BACKEND_CONNECTION } from '../../services/api/backend-connection.service';
+import { BACKEND_SYNC } from '../../services/api/backend-sync.service';
 import { MenuManager } from '../../services/menu/menu-manager.service';
 
 describe('AppComponent', () => {
@@ -79,10 +80,13 @@ describe('AppComponent', () => {
           ),
         },
         {
-          provide: BACKEND_CONNECTION,
+          provide: BACKEND_SYNC,
           useValue: {
-            tasks: () =>
-              of({ serverStat: { currentMemoryUsage: 0, totalMemory: 0 } }),
+            tasks: {
+              value: signal({
+                serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
+              }),
+            },
           },
         },
         provideHttpClient(),

@@ -16,7 +16,7 @@
 
 import { Component, inject } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { combineLatest, interval, map, startWith } from 'rxjs';
+import { combineLatest, filter, interval, map, startWith } from 'rxjs';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { InspectionMetadataDialogComponent } from '../inspection-metadata/inspection-metadata.component';
 import { openNewInspectionDialog } from '../new-inspection/new-inspection.component';
@@ -29,11 +29,11 @@ import {
   BACKEND_API,
   BackendAPI,
 } from 'src/app/services/api/backend-api-interface';
-import { BACKEND_CONNECTION } from 'src/app/services/api/backend-connection.service';
-import { BackendConnectionService } from 'src/app/services/api/backend-connection-interface';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { BackendSyncService } from 'src/app/services/api/backend-sync-interface';
 import { environment } from 'src/environments/environment';
 import { VERSION } from 'src/environments/version';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { TaskCardListComponent } from './components/task-card-list.component';
 import {
   TaskCardItemProgressBarViewModel,
@@ -66,8 +66,7 @@ export class StartupDialogComponent {
   private readonly dialog = inject(MatDialog);
   private readonly dialogRef = inject<MatDialogRef<void>>(MatDialogRef);
   private readonly backendAPI = inject<BackendAPI>(BACKEND_API);
-  private readonly backendConnection =
-    inject<BackendConnectionService>(BACKEND_CONNECTION);
+  private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
   private readonly loader = inject(InspectionDataLoaderService);
   private readonly progress = inject<ProgressDialogStatusUpdator>(
     PROGRESS_DIALOG_STATUS_UPDATOR,
@@ -87,7 +86,7 @@ export class StartupDialogComponent {
 
   documentUrl = environment.documentUrl;
 
-  tasks = this.backendConnection.tasks();
+  tasks = this.backendSync.tasks;
 
   version = VERSION;
 
@@ -97,7 +96,9 @@ export class StartupDialogComponent {
       interval(StartupDialogComponent.UI_TIME_REFRESH_INTERVAL).pipe(
         startWith(0),
       ),
-      this.tasks,
+      toObservable(this.tasks.value).pipe(
+        filter((tp): tp is NonNullable<typeof tp> => !!tp),
+      ),
     ]).pipe(
       map(([, tp]) => {
         const keys = Object.keys(tp.inspections).sort(
@@ -142,8 +143,6 @@ export class StartupDialogComponent {
       }),
     ),
   );
-
-  serverStat = this.tasks.pipe(map((resp) => resp.serverStat));
 
   openNewInspectionDialog() {
     openNewInspectionDialog(this.dialog);

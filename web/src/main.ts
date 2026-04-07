@@ -50,9 +50,9 @@ import { BroadcastChannelWindowConnectionProvider } from './app/services/frame-c
 import { BACKEND_API } from './app/services/api/backend-api-interface';
 import { BackendAPIImpl } from './app/services/api/backend-api.service';
 import {
-  BACKEND_CONNECTION,
-  BackendConnectionServiceImpl,
-} from './app/services/api/backend-connection.service';
+  BACKEND_SYNC,
+  BackendSyncServiceImpl,
+} from './app/services/api/backend-sync.service';
 import { POPUP_MANAGER } from './app/services/popup/popup-manager';
 import { PopupManagerImpl } from './app/services/popup/popup-manager-impl';
 import {
@@ -120,8 +120,8 @@ export const appConfig: ApplicationConfig = {
       useClass: BackendAPIImpl,
     },
     {
-      provide: BACKEND_CONNECTION,
-      useClass: BackendConnectionServiceImpl,
+      provide: BACKEND_SYNC,
+      useClass: BackendSyncServiceImpl,
     },
     {
       provide: POPUP_MANAGER,

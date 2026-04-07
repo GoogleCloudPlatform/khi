@@ -128,7 +128,7 @@ export function createMenuGroupViewModel(group: MenuGroup): MenuGroupViewModel {
  * Manages the application menu state.
  * Centralizes the registration and retrieval of menu groups and items.
  */
-@Injectable()
+@Injectable({ providedIn: "root" })
 export class MenuManager {
   private readonly groupsSignal = signal<Map<string, MenuGroup>>(new Map());
 

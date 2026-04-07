@@ -43,8 +43,8 @@ import {
   BACKEND_API,
   BackendAPI,
 } from 'src/app/services/api/backend-api-interface';
-import { BACKEND_CONNECTION } from 'src/app/services/api/backend-connection.service';
-import { BackendConnectionService } from 'src/app/services/api/backend-connection-interface';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { BackendSyncService } from 'src/app/services/api/backend-sync-interface';
 import { MatCardModule } from '@angular/material/card';
 import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -122,8 +122,7 @@ export function openNewInspectionDialog(dialog: MatDialog) {
 export class NewInspectionDialogComponent implements OnDestroy {
   private readonly dialogRef =
     inject<MatDialogRef<object, NewInspectionDialogResult>>(MatDialogRef);
-  private readonly backendConnection =
-    inject<BackendConnectionService>(BACKEND_CONNECTION);
+  private readonly backendSync = inject<BackendSyncService>(BACKEND_SYNC);
   private readonly apiClient = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 
@@ -197,7 +196,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   @ViewChild('stepper') private stepper!: MatStepper;
 
-  public inspectionTypes = this.backendConnection.inspectionTypes();
+  public inspectionTypes = this.backendSync.inspectionTypes;
 
   public currentInspectionType = new BehaviorSubject<InspectionType | null>(
     null,
