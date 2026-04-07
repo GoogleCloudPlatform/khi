@@ -234,8 +234,6 @@ export class LayoutService implements OnDestroy {
         `[LayoutService] Failed to add pane "${componentType}":`,
         e,
       );
-      // Fallback or secondary attempt if addItem is not available.
-      // e.g., this.goldenLayout.root.addChild(...)
     }
   }
 
