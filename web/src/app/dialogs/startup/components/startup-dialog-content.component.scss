@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-@use "@angular/material" as mat;
+@use '@angular/material' as mat;
 
 $background-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
 
 :host {
   display: grid;
   grid-template:
-    "list" 1fr
+    'list' 1fr
     / 1fr;
 
   padding: 24px;

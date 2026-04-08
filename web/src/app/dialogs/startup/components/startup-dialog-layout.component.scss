@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-@use "@angular/material" as mat;
+@use '@angular/material' as mat;
 
 $border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
 
 .layout-container {
   display: grid;
   grid-template:
-    "sidebar content" 600px
+    'sidebar content' 600px
     / auto 1fr;
 
   width: 100%;
