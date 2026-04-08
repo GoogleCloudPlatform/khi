@@ -16,6 +16,20 @@ package googlecloudcommon_contract
 
 import "github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 
+const (
+	// InspectionTypeLabelKeyProduct is the label key for the Google Cloud product name running on the cluster.
+	// Expected values: "composer", etc.
+	InspectionTypeLabelKeyProduct = "cloud.google.com/product"
+
+	// InspectionTypeLabelKeyClusterType is the label key for the cluster type.
+	// Expected values: "gke", "gdc", "gke_multicloud", etc.
+	InspectionTypeLabelKeyClusterType = "cloud.google.com/cluster_type"
+
+	// InspectionTypeLabelKeyClusterSubType is the label key for the cluster sub type.
+	// Expected values: "aws", "azure", etc.
+	InspectionTypeLabelKeyClusterSubType = "cloud.google.com/cluster_subtype"
+)
+
 // RequestOptionalInputResourceNameTaskLabel is a label assigned to a task that requests the Cloud Logging resource name optionally.
 // The value is the query ID.
 var RequestOptionalInputResourceNameTaskLabel = typedmap.NewTypedKey[string]("request-optional-input-resource-name")
