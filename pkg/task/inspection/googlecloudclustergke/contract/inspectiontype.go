@@ -23,7 +23,7 @@ import (
 )
 
 // InspectionTypeID is the unique identifier for the GKE inspection type.
-var InspectionTypeID = "gcp-gke"
+const InspectionTypeID = "gcp-gke"
 
 // GKEInspectionType defines the inspection type for Google Kubernetes Engine.
 var GKEInspectionType = coreinspection.InspectionType{

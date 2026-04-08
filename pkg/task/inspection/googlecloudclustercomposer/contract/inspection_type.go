@@ -23,7 +23,7 @@ import (
 )
 
 // InspectionTypeID is the inspection type id for google cloud composer.
-var InspectionTypeID = "gcp-composer"
+const InspectionTypeID = "gcp-composer"
 
 // ComposerInspectionType is the inspection type for google cloud composer.
 var ComposerInspectionType = coreinspection.InspectionType{
