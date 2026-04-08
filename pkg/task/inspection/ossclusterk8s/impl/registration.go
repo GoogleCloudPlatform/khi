@@ -17,17 +17,26 @@ package ossclusterk8s_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
 
-// Register registers all googlecloudlogserialport inspection tasks to the registry.
+// Register registers all ossclusterk8s inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType)
-	if err != nil {
+	if err := registry.AddInspectionType(ossclusterk8s_contract.OSSKubernetesLogFilesInspectionType); err != nil {
 		return err
 	}
 
-	return coretask.RegisterTasks(registry,
+	scoped := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "oss",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+			inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "file",
+		}),
+	)
+
+	return coretask.RegisterTasks(scoped,
 		InputAuditLogFilesTask,
 		AuditLogFileReaderTask,
 		EventAuditLogFilterTask,

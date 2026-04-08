@@ -29,7 +29,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -59,7 +58,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*per
 		enum.LogTypeNetworkAPI,
 		7000,
 		true,
-		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...),
+	),
 )
 
 type negAttachOrDetachRequestEndpoint struct {

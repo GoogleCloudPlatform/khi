@@ -24,7 +24,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -70,7 +69,7 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(goog
 				Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 					Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
-Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
+Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE queries from the previous section.`,
 				},
 			}, nil
 		}
@@ -95,6 +94,6 @@ Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE ques
 			},
 		},
 	}, nil
-}, inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...),
+},
 	coretask.WithSelectionPriority(1000), // Setting higher priority compared to the default autocomplete cluster name finder to override it. Composer cluster finder is currently overriding the common autocomplete cluster name finder using Cloud Monitoring to compare the environment label name.
 )

@@ -90,7 +90,9 @@ func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
 	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
-	typedmap.Set(label, LabelKeyInspectionTypes, ftl.inspectionTypes)
+	if len(ftl.inspectionTypes) > 0 {
+		typedmap.Set(label, LabelKeyInspectionTypes, ftl.inspectionTypes)
+	}
 }
 
 func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTaskLabelImpl {

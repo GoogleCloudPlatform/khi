@@ -17,12 +17,32 @@ package googlecloudlogk8saudit_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// Register registers all tasks related to GKE Kubernetes audit log.
+// Register registers all tasks related to Kubernetes audit logs on Google Cloud.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	return coretask.RegisterTasks(registry,
-		GCPK8sAuditLogListLogEntriesTask,
+	scopedWithLogSource := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		}),
+	)
+	if err := coretask.RegisterTasks(scopedWithLogSource, GCPK8sAuditLogListLogEntriesTask); err != nil {
+		return err
+	}
+
+	scoped := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		}),
+	)
+
+	return coretask.RegisterTasks(scoped,
 		GCPK8sAuditLogCommonFieldSetReaderTask,
 		GCPK8sAuditLogParserTailTask,
 	)

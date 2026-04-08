@@ -60,7 +60,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ComposerEnvironmentClusterFinderTask,
 
 		AutocompleteComposerClusterNamesTask,
-		ComposerClusterNamePrefixTask,
 
 		AutocompleteComposerEnvironmentIdentityTask,
 		AutocompleteLocationForComposerEnvironmentTask,

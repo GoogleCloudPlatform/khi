@@ -17,6 +17,7 @@ package googlecloudlogcsm_impl
 import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 /*
@@ -40,11 +41,29 @@ import (
 */
 // Register registers all googlecloudlogcsm inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	return coretask.RegisterTasks(registry,
+	scopedWithLogSource := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyLogSource:    "cloud_logging",
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		}),
+	)
+	if err := coretask.RegisterTasks(scopedWithLogSource, ListLogEntriesTask); err != nil {
+		return err
+	}
+
+	scoped := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:  "googlecloud",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform: "kubernetes",
+		}),
+	)
+	return coretask.RegisterTasks(scoped,
 		ClusterIdentityAliasTask,
 
 		InputCSMResponseFlagsTask,
-		ListLogEntriesTask,
 		FieldSetReaderTask,
 		LogIngesterTask,
 		LogGrouperTask,

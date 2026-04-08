@@ -17,7 +17,6 @@ package googlecloudk8scommon_contract
 import (
 	queryutil "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -48,9 +47,6 @@ var AutocompletePodNamesTaskID = taskid.NewDefaultImplementationID[*inspectionco
 
 // HeaderSuggestedFileNameTaskID is the task ID for the suggested file name of the inspection file included in the header metadata. This name is used for the default name of downloaded file.
 var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudCommonK8STaskIDPrefix + "header-suggested-file-name")
-
-// K8sResourceMergeConfigTaskID is the task ID for generating merge config used for merging patch requst logs to generate the manifest at the time.
-var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.K8sManifestMergeConfigRegistry](GoogleCloudCommonK8STaskIDPrefix + "merge-config")
 
 // ClusterNamePrefixTaskRef is the task reference ID for generating the cluster name prefix used in query.
 // For GKE, it's just a task to return "" always.
