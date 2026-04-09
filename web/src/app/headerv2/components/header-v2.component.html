@@ -1,0 +1,96 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<header>
+  <div class="title-section">
+    <img src="assets/icons/khi.svg" alt="Khi Logo" />
+    <h1 class="app-title">Kubernetes History Inspector</h1>
+    <span class="version-badge">v{{ version() }}</span>
+    @if (sessionId()) {
+      <span
+        class="session-badge"
+        [matTooltip]="'Browser windows viewing the same data have the same Session ID.'"
+        >Session: {{ sessionId() }}</span
+      >
+    }
+    @if (viewerMode()) {
+      <span class="version-badge viewer">Viewer Mode</span>
+    }
+  </div>
+  <div class="main-menu">
+    @for (group of menuGroups(); track group.id) {
+      <!-- Group buttons -->
+      <button mat-button [matMenuTriggerFor]="menu" class="menu-group">
+        @if (group.icon) {
+          <mat-icon>{{ group.icon }}</mat-icon>
+        }
+        {{ group.label }}
+      </button>
+      <!-- Child menu item buttons-->
+      <mat-menu #menu="matMenu">
+        @for (item of group.items; track item.id) {
+          @if (item.type === MenuItemType.Separator) {
+            <mat-divider></mat-divider>
+          } @else {
+            <button
+              mat-menu-item
+              (click)="menuItemClick.emit(item)"
+              [disabled]="item.disabled()"
+            >
+              @if (item.icon) {
+                <mat-icon>{{ item.icon }}</mat-icon>
+              }
+              <span>{{ item.label }}</span>
+
+              @if (item.type === MenuItemType.Checkbox && item.checked()) {
+                <mat-icon>check</mat-icon>
+              }
+            </button>
+          }
+        }
+      </mat-menu>
+    }
+  </div>
+  <div class="status-section">
+    <div class="status-item connection-status">
+      <span
+        class="status-dot"
+        [class.connected]="serverStatus() === BackendConnectionStatus.Connected"
+        [class.connecting]="
+          serverStatus() === BackendConnectionStatus.Connecting
+        "
+        [class.disconnected]="
+          serverStatus() === BackendConnectionStatus.Disconnected
+        "
+      ></span>
+      <span class="status-label">Server: {{ serverStatus() }}</span>
+    </div>
+    @if (serverMemory()) {
+      <div
+        class="status-item memory-usage"
+        matTooltip="Memory usage on KHI server. Be careful not to cause OOM with querying big time range."
+      >
+        <mat-icon>memory</mat-icon>
+        <span class="status-label">
+          {{ serverMemory() }} GB
+          @if (serverMaxMemory()) {
+            / {{ serverMaxMemory() }} GB
+          }
+        </span>
+      </div>
+    }
+  </div>
+</header>

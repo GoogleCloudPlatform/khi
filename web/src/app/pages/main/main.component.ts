@@ -43,7 +43,8 @@ import { SidePaneComponent } from 'src/app/common/components/side-pane.component
 import { LogSmartComponent } from 'src/app/log/log-smart.component';
 import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { MatIconModule } from '@angular/material/icon';
-import { HeaderComponent } from 'src/app/header/header.component';
+import { HeaderV2SmartComponent } from 'src/app/headerv2/header-v2-smart.component';
+import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
 import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
 import { StartupDialogComponent } from 'src/app/dialogs/startup/startup.component';
 import {
@@ -52,6 +53,10 @@ import {
 } from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
 import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import {
+  MenuManager,
+  MenuItemType,
+} from 'src/app/services/menu/menu-manager.service';
 
 /**
  * AppComponent serves as the main container for the application layout.
@@ -62,7 +67,8 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
   styleUrls: ['./main.component.scss'],
   imports: [
     CommonModule,
-    HeaderComponent,
+    HeaderV2SmartComponent,
+    TimelineToolbarSmartComponent,
     SidePaneComponent,
     LogSmartComponent,
     DiffSmartComponent,
@@ -70,7 +76,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
     KHIIconRegistrationModule,
     TimelineSmartComponent,
   ],
-  providers: [LayoutService],
+  providers: [LayoutService, MenuManager],
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Store for extension data. */
@@ -84,6 +90,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /** Service for managing GoldenLayout. */
   private readonly layoutService = inject(LayoutService);
+
+  /** Service for managing menu. */
+  private readonly menuManager = inject(MenuManager);
 
   /** Container element for GoldenLayout. */
   readonly layoutContainer = viewChild<ElementRef>('layoutContainer');
@@ -113,6 +122,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
    * Checks for data in URL, opens startup dialog if needed, and starts monitoring popup requests.
    */
   ngOnInit() {
+    this.setupMenu();
     if (!this.extensionStore.tryOpenDataFromURL()) {
       this.dialog.open(StartupDialogComponent, {
         maxWidth: '100vw',
@@ -120,14 +130,14 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         disableClose: true,
       });
     }
-    // Start monitoring popup request from server
+    // Start monitoring popup request from server.
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
       null;
     this.popupManager
       .requests()
       .pipe(takeUntil(this.destroyed))
       .subscribe((formRequest) => {
-        // The last opened dialog will be closed automatically When the popup was cancelled from server side,
+        // The last opened dialog will be closed automatically When the popup was cancelled from server side.
         if (formRequest.id === NilPopupFormRequest.id) {
           lastDialogRef?.close();
           lastDialogRef = null;
@@ -166,5 +176,22 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   ngOnDestroy(): void {
     this.destroyed.next();
+  }
+
+  private setupMenu() {
+    this.menuManager.addGroup('file', 'File', 1, 'browse');
+    this.menuManager.addItem('file', {
+      id: 'open-inspection',
+      label: 'Open inspection dialog',
+      type: MenuItemType.Button,
+      icon: 'home',
+      priority: 1,
+      action: () => {
+        this.dialog.open(StartupDialogComponent, {
+          maxWidth: '100vw',
+          panelClass: 'startup-modalbox',
+        });
+      },
+    });
   }
 }

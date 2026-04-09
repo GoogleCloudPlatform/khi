@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,36 +14,6 @@
  * limitations under the License.
  */
 
-@use "sass:color";
-@use "../../common";
-
-@use "@angular/material" as mat;
-
-.container {
-  display: grid;
-  grid-template:
-    "titlebar" auto
-    "toolbar" auto
-    "main" minmax(0, 1fr) /
-    minmax(0, 1fr);
-  height: 100%;
-  overflow: hidden;
-
-  khi-header-v2-smart {
-    grid-area: titlebar;
-  }
-
-  khi-timeline-toolbar-smart {
-    grid-area: toolbar;
-  }
-
-  .layout-container {
-    grid-area: main;
-    height: 100%;
-    width: 100%;
-  }
-}
-
-.timeline {
-  position: relative;
+:host {
+  display: contents;
 }

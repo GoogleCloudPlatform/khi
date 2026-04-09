@@ -30,6 +30,8 @@ export enum MenuItemType {
  * Represents a menu item configuration provided by users.
  */
 export interface MenuItem {
+  /** Identifier for the menu item. */
+  id: string;
   /** Label for the menu item. Not required if type is 'separator'. */
   label?: string;
   /** Type of the menu item. Default is MenuItemType.Button. */
@@ -70,6 +72,7 @@ export interface MenuGroup {
  * Represents a normalized menu item for display in components.
  */
 export interface MenuItemViewModel {
+  id: string;
   label: string;
   type: MenuItemType;
   icon: string;
@@ -98,6 +101,7 @@ export interface MenuGroupViewModel {
  */
 export function createMenuItemViewModel(item: MenuItem): MenuItemViewModel {
   return {
+    id: item.id,
     label: item.label || '',
     type: item.type || MenuItemType.Button,
     icon: item.icon || '',
@@ -110,35 +114,22 @@ export function createMenuItemViewModel(item: MenuItem): MenuItemViewModel {
 }
 
 /**
- * Creates a MenuGroupViewModel from a MenuGroup.
- * @param group The source menu group.
- * @returns The constructed view model.
- */
-export function createMenuGroupViewModel(group: MenuGroup): MenuGroupViewModel {
-  return {
-    id: group.id,
-    label: group.label,
-    icon: group.icon || '',
-    priority: group.priority,
-    items: group.items.map((item) => createMenuItemViewModel(item)),
-  };
-}
-
-/**
  * Manages the application menu state.
  * Centralizes the registration and retrieval of menu groups and items.
  */
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class MenuManager {
-  private readonly groupsSignal = signal<Map<string, MenuGroup>>(new Map());
+  private readonly groupsSignal = signal<Map<string, MenuGroupViewModel>>(
+    new Map(),
+  );
 
   /**
-   * Provides the list of groups sorted by priority and converted to ViewModel.
+   * Provides the list of groups sorted by priority.
    */
   readonly groups = computed<MenuGroupViewModel[]>(() => {
-    return Array.from(this.groupsSignal().values())
-      .sort((a, b) => a.priority - b.priority)
-      .map((group) => createMenuGroupViewModel(group));
+    return Array.from(this.groupsSignal().values()).sort(
+      (a, b) => a.priority - b.priority,
+    );
   });
 
   /**
@@ -151,7 +142,7 @@ export class MenuManager {
   addGroup(id: string, label: string, priority: number, icon?: string): void {
     const current = this.groupsSignal();
     if (!current.has(id)) {
-      current.set(id, { id, label, priority, icon, items: [] });
+      current.set(id, { id, label, priority, icon: icon || '', items: [] });
       this.groupsSignal.set(new Map(current));
     }
   }
@@ -169,7 +160,7 @@ export class MenuManager {
       console.warn(`[MenuManager] MenuGroup "${groupId}" not found.`);
       return;
     }
-    group.items.push(item);
+    group.items.push(createMenuItemViewModel(item));
     group.items.sort((a, b) => a.priority - b.priority);
     this.groupsSignal.set(new Map(current));
   }

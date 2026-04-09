@@ -1,5 +1,5 @@
 <!--
- Copyright 2024 Google LLC
+ Copyright 2026 Google LLC
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,13 @@
  limitations under the License.
 -->
 
-<div class="root">
-  <khi-header-v2-smart></khi-header-v2-smart>
-  <div class="graph-wrapper">
-    <graph-architecture-graph></graph-architecture-graph>
-  </div>
-</div>
+<khi-header-v2
+  [version]="version"
+  [viewerMode]="viewerMode()"
+  [menuGroups]="menuManager.groups()"
+  [serverStatus]="serverStatus()"
+  [serverMemory]="serverMemory()"
+  [serverMaxMemory]="serverMaxMemory()"
+  [sessionId]="sessionId()"
+  (menuItemClick)="handleMenuItemClick($event)"
+></khi-header-v2>

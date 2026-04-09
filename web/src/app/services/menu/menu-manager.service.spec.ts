@@ -44,8 +44,8 @@ describe('MenuManager', () => {
   it('should add item and sort by priority', () => {
     service.addGroup('a', 'A', 1);
 
-    const item1: MenuItem = { label: 'Item 1', priority: 10 };
-    const item2: MenuItem = { label: 'Item 2', priority: 5 };
+    const item1: MenuItem = { id: 'item1', label: 'Item 1', priority: 10 };
+    const item2: MenuItem = { id: 'item2', label: 'Item 2', priority: 5 };
 
     service.addItem('a', item1);
     service.addItem('a', item2);
@@ -60,7 +60,7 @@ describe('MenuManager', () => {
   it('should fallback to default values in ViewModel', () => {
     service.addGroup('a', 'A', 1);
 
-    const item: MenuItem = { priority: 1 }; // label, type などを省略
+    const item: MenuItem = { id: 'item', priority: 1 };
     service.addItem('a', item);
 
     const groups = service.groups();

@@ -176,6 +176,7 @@ export class LayoutService implements OnDestroy {
   private setupMenu() {
     this.menuManager.addGroup('view', 'View', 2, 'dashboard_customize');
     this.menuManager.addItem('view', {
+      id: 'open-timeline',
       label: 'Open timeline',
       type: MenuItemType.Button,
       icon: 'timeline',
@@ -185,6 +186,7 @@ export class LayoutService implements OnDestroy {
       },
     });
     this.menuManager.addItem('view', {
+      id: 'open-log',
       label: 'Open log view',
       type: MenuItemType.Button,
       icon: 'cards_stack',
@@ -195,6 +197,7 @@ export class LayoutService implements OnDestroy {
       },
     });
     this.menuManager.addItem('view', {
+      id: 'open-history',
       label: 'Open history view',
       type: MenuItemType.Button,
       icon: 'difference',
@@ -205,10 +208,12 @@ export class LayoutService implements OnDestroy {
       },
     });
     this.menuManager.addItem('view', {
+      id: 'view-separator',
       type: MenuItemType.Separator,
       priority: 4,
     });
     this.menuManager.addItem('view', {
+      id: 'reset-layout',
       label: 'Reset layout',
       type: MenuItemType.Button,
       icon: 'refresh',

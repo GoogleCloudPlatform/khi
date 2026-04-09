@@ -14,15 +14,50 @@
  * limitations under the License.
  */
 
-import { Component } from '@angular/core';
-import { GraphMenuComponent } from 'src/app/header/graph-menu.component';
-import { TitleBarComponent } from 'src/app/header/titlebar.component';
+import { Component, inject, OnInit } from '@angular/core';
 import { ArchitectureGraphComponent } from './architecture-graph/architecture-graph.component';
+import { HeaderV2SmartComponent } from 'src/app/headerv2/header-v2-smart.component';
+import {
+  MenuManager,
+  MenuItemType,
+} from 'src/app/services/menu/menu-manager.service';
+import { DownloadService } from 'src/app/pages/graph/services/donwload-service';
 
+/**
+ * GraphComponent renders the architecture graph view.
+ * It uses MenuManager to register page-specific menus.
+ */
 @Component({
-  selector: 'graph-root',
+  selector: 'khi-graph-root',
   templateUrl: './graph.component.html',
   styleUrls: ['./graph.component.scss'],
-  imports: [TitleBarComponent, GraphMenuComponent, ArchitectureGraphComponent],
+  imports: [HeaderV2SmartComponent, ArchitectureGraphComponent],
+  providers: [MenuManager],
 })
-export class GraphComponent {}
+export class GraphComponent implements OnInit {
+  private readonly menuManager = inject(MenuManager);
+  private readonly downloadService = inject(DownloadService);
+
+  /**
+   * Initializes the component and registers the download menu.
+   */
+  ngOnInit() {
+    this.menuManager.addGroup('graph-download', 'Download', 10, 'download');
+    this.menuManager.addItem('graph-download', {
+      id: 'download-png',
+      label: 'Download as PNG',
+      type: MenuItemType.Button,
+      icon: 'image',
+      action: () => this.downloadService.downloadAsPng(),
+      priority: 1,
+    });
+    this.menuManager.addItem('graph-download', {
+      id: 'download-svg',
+      label: 'Download as SVG',
+      type: MenuItemType.Button,
+      icon: 'code',
+      action: () => this.downloadService.downloadAsSvg(),
+      priority: 2,
+    });
+  }
+}
