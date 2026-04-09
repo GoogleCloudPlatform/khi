@@ -28,7 +28,7 @@ const compat = new FlatCompat({
     allConfig: js.configs.all
 });
 
-export default defineConfig([globalIgnores(["projects/**/*"]), {
+export default defineConfig([globalIgnores(["src/app/generated/**/*"]), {
     extends: compat.extends("plugin:storybook/recommended"),
 }, {
     files: ["**/*.ts"],
