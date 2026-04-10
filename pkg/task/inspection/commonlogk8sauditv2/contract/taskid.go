@@ -18,6 +18,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -57,6 +58,9 @@ var NamespaceRequestLogToTimelineMapperTaskID = taskid.NewDefaultImplementationI
 
 // ManifestGeneratorTaskID is the task ID for the task to generate manifests.
 var ManifestGeneratorTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "manifest-generator")
+
+// K8sResourceMergeConfigTaskID is the task ID for generating merge config used for merging patch request logs to generate the manifest at the time.
+var K8sResourceMergeConfigTaskID = taskid.NewDefaultImplementationID[*k8s.K8sManifestMergeConfigRegistry](TaskIDPrefix + "merge-config")
 
 // ResourceLifetimeTrackerTaskID is the task ID for the task to track resource lifetime.
 var ResourceLifetimeTrackerTaskID = taskid.NewDefaultImplementationID[ResourceManifestLogGroupMap](TaskIDPrefix + "resource-lifetime-tracker")

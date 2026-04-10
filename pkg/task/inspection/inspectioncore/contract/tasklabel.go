@@ -35,6 +35,20 @@ func (s LabelSelector) Match(target map[string]string) bool {
 	return true
 }
 
+const (
+	// InspectionTypeLabelKeyLogSource is the label key for the log source of the inspection.
+	// Expected values: "cloud_logging", "jsonl_upload", etc.
+	InspectionTypeLabelKeyLogSource = "khi.google.com/log_source"
+
+	// InspectionTypeLabelKeyEnvironment is the label key for the environment where the target product is running.
+	// Expected values: "googlecloud", "onprem", etc.
+	InspectionTypeLabelKeyEnvironment = "khi.google.com/environment"
+
+	// InspectionTypeLabelKeyBasePlatform is the label key for the base platform of the cluster.
+	// Expected values: "kubernetes", etc.
+	InspectionTypeLabelKeyBasePlatform = "khi.google.com/base_platform"
+)
+
 var (
 	LabelKeyInspectionFeatureFlag        = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "feature")
 	LabelKeyInspectionDefaultFeatureFlag = coretask.NewTaskLabelKey[bool](InspectionTaskPrefix + "default-feature")
@@ -76,7 +90,9 @@ func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
 	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
-	typedmap.Set(label, LabelKeyInspectionTypes, ftl.inspectionTypes)
+	if len(ftl.inspectionTypes) > 0 {
+		typedmap.Set(label, LabelKeyInspectionTypes, ftl.inspectionTypes)
+	}
 }
 
 func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTaskLabelImpl {

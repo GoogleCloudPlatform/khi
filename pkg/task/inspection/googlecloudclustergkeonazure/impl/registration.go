@@ -18,15 +18,27 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudclustergkeonazure_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // Register registers all googlecloudclustergkeonazure inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergkeonazure_contract.AnthosOnAzureInspectionType)
-	if err != nil {
+	if err := registry.AddInspectionType(googlecloudclustergkeonazure_contract.AnthosOnAzureInspectionType); err != nil {
 		return err
 	}
-	return coretask.RegisterTasks(registry,
+
+	scoped := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",
+			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gke_multicloud",
+			googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "azure",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:      "kubernetes",
+		}),
+	)
+
+	return coretask.RegisterTasks(scoped,
 		AnthosOnAzureClusterNamePrefixTask,
 	)
 }

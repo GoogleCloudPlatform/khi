@@ -18,17 +18,26 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// InspectionTypeId is the unique identifier for the GKE on Azure inspection type.
-var InspectionTypeId = "gcp-gke-on-azure"
+// InspectionTypeID is the unique identifier for the GKE on Azure inspection type.
+const InspectionTypeID = "gcp-gke-on-azure"
 
 // AnthosOnAzureInspectionType defines the inspection type for GKE on Azure.
 var AnthosOnAzureInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeId,
+	Id:   InspectionTypeID,
 	Name: "GKE on Azure(Anthos on Azure)",
 	Description: `Visualize logs generated from GKE on Azure cluster. 
-Supporting K8s audit log, k8s event log,k8s node log, k8s container log and MultiCloud API audit log.`,
+Supporting K8s audit log, k8s event log, k8s node log, k8s container log and MultiCloud API audit log.`,
 	Icon:     "assets/icons/anthos.png",
 	Priority: math.MaxInt - 3,
+	Labels: map[string]string{
+		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
+		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gke_multicloud",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "azure",
+		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:      "kubernetes",
+	},
 }

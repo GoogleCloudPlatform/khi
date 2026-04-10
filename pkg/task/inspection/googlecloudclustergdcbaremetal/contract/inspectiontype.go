@@ -18,19 +18,28 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// InspectionTypeId is the unique identifier for the GDCV for Baremetal inspection type.
-var InspectionTypeId = "gcp-gdcv-for-baremetal"
+// InspectionTypeID is the unique identifier for the GDCV for Baremetal inspection type.
+const InspectionTypeID = "gcp-gdcv-for-baremetal"
 
 // GDCVForBaremetalInspectionType defines the inspection type for GDCV for Baremetal.
 var GDCVForBaremetalInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeId,
-	Name: "GDCV for Baremetal(GKE on Baremetal, Anthos on Baremetal)",
-	Description: `Visualize logs generated from GDCV for baremetal cluster(including user cluster/admin cluster/hybrid cluster or standalone cluster).
-Supporting K8s audit log, k8s event log,k8s node log, k8s container log and OnPream API audit log.
+	Id:   InspectionTypeID,
+	Name: "GDCV for Baremetal (GKE on Baremetal, Anthos on Baremetal)",
+	Description: `Visualize logs generated from GDCV for baremetal cluster (including user, admin, hybrid, or standalone clusters).
+Supporting K8s audit log, K8s event log, K8s node log, K8s container log and OnPrem API audit log.
 
 This type can also be used for GCDE or GDCH.`,
 	Icon:     "assets/icons/anthos.png",
 	Priority: math.MaxInt - 3,
+	Labels: map[string]string{
+		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
+		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gdc",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "baremetal",
+		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:      "kubernetes",
+	},
 }

@@ -18,15 +18,27 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudclustergdcvmware_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcvmware/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // Register registers all googlecloudclustergdcvmware inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustergdcvmware_contract.GDCVForVMWareInspectionType)
-	if err != nil {
+	if err := registry.AddInspectionType(googlecloudclustergdcvmware_contract.GDCVForVMWareInspectionType); err != nil {
 		return err
 	}
-	return coretask.RegisterTasks(registry,
+
+	scoped := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",
+			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gdc",
+			googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "vmware",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:      "kubernetes",
+		}),
+	)
+
+	return coretask.RegisterTasks(scoped,
 		GDCVForVMWareClusterNamePrefixTask,
 	)
 }

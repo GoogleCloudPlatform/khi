@@ -18,17 +18,26 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// InspectionTypeId is the inspection type id for google cloud composer.
-var InspectionTypeId = "gcp-composer"
+// InspectionTypeID is the inspection type id for google cloud composer.
+const InspectionTypeID = "gcp-composer"
 
 // ComposerInspectionType is the inspection type for google cloud composer.
 var ComposerInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeId,
+	Id:   InspectionTypeID,
 	Name: "Cloud Composer",
 	Description: `Visualize logs related to Cloud Composer environment.
 Supports all GKE related logs(Cloud Composer v2) and Airflow logs(Airflow 2.0.0 or higher in any Cloud Composer version(v1-v2, partical v3))`,
 	Icon:     "assets/icons/composer.webp",
 	Priority: math.MaxInt - 10,
+	Labels: map[string]string{
+		inspectioncore_contract.InspectionTypeLabelKeyLogSource:      "cloud_logging",
+		googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
+		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
+		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+	},
 }

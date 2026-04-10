@@ -25,25 +25,25 @@ import (
 
 // GCPK8sClusterInspectionTypes is the list of inspection types of k8s clusters from Google Cloud.
 var GCPK8sClusterInspectionTypes = []string{
-	googlecloudclustergke_contract.InspectionTypeId, googlecloudclustercomposer_contract.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId, googlecloudclustergdcbaremetal_contract.InspectionTypeId, googlecloudclustergkeonaws_contract.InspectionTypeId, googlecloudclustergkeonazure_contract.InspectionTypeId,
+	googlecloudclustergke_contract.InspectionTypeID, googlecloudclustercomposer_contract.InspectionTypeID, googlecloudclustergdcvmware_contract.InspectionTypeID, googlecloudclustergdcbaremetal_contract.InspectionTypeID, googlecloudclustergkeonaws_contract.InspectionTypeID, googlecloudclustergkeonazure_contract.InspectionTypeID,
 }
 
 // GKEBasedClusterInspectionTypes is the list of inspection types of GKE.
 var GKEBasedClusterInspectionTypes = []string{
-	googlecloudclustergke_contract.InspectionTypeId, googlecloudclustercomposer_contract.InspectionTypeId,
+	googlecloudclustergke_contract.InspectionTypeID, googlecloudclustercomposer_contract.InspectionTypeID,
 }
 
 // GKEMultiCloudClusterInspectionTypes is the list of inspection types of GKE multicloud.
 var GKEMultiCloudClusterInspectionTypes = []string{
-	googlecloudclustergkeonaws_contract.InspectionTypeId, googlecloudclustergkeonazure_contract.InspectionTypeId,
+	googlecloudclustergkeonaws_contract.InspectionTypeID, googlecloudclustergkeonazure_contract.InspectionTypeID,
 }
 
 // GDCClusterInspectionTypes is the list of inspection types of GDC clusters.
 var GDCClusterInspectionTypes = []string{
-	googlecloudclustergdcbaremetal_contract.InspectionTypeId, googlecloudclustergdcvmware_contract.InspectionTypeId,
+	googlecloudclustergdcbaremetal_contract.InspectionTypeID, googlecloudclustergdcvmware_contract.InspectionTypeID,
 }
 
 // CloudComposerInspectionTypes is the list of inspection types of Cloud Composer.
 var CloudComposerInspectionTypes = []string{
-	googlecloudclustercomposer_contract.InspectionTypeId,
+	googlecloudclustercomposer_contract.InspectionTypeID,
 }

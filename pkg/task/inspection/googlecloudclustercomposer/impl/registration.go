@@ -18,22 +18,48 @@ import (
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // Register registers all googlecloudclustercomposer inspection tasks to the registry.
 func Register(registry coreinspection.InspectionTaskRegistry) error {
-	err := registry.AddInspectionType(googlecloudclustercomposer_contract.ComposerInspectionType)
-	if err != nil {
+	if err := registry.AddInspectionType(googlecloudclustercomposer_contract.ComposerInspectionType); err != nil {
 		return err
 	}
-	return coretask.RegisterTasks(registry,
+
+	scopedCloudLogging := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			inspectioncore_contract.InspectionTypeLabelKeyLogSource:      "cloud_logging",
+			googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
+			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+		}),
+	)
+
+	if err := coretask.RegisterTasks(scopedCloudLogging, ComposerLogsQueryTask); err != nil {
+		return err
+	}
+
+	scopedAll := coreinspection.NewScopedRegistry(
+		registry,
+		inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{
+			googlecloudcommon_contract.InspectionTypeLabelKeyProduct:     "composer",
+			inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
+			googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
+			inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+		}),
+	)
+
+	return coretask.RegisterTasks(scopedAll,
 		ClusterIdentityAliasTask,
 
 		ComposerEnvironmentListFetcherTask,
 		ComposerEnvironmentClusterFinderTask,
 
 		AutocompleteComposerClusterNamesTask,
-		ComposerClusterNamePrefixTask,
 
 		AutocompleteComposerEnvironmentIdentityTask,
 		AutocompleteLocationForComposerEnvironmentTask,
@@ -41,8 +67,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 		AutocompleteComposerComponentsTask,
 		InputComposerComponentsTask,
-
-		ComposerLogsQueryTask,
 
 		AirflowSchedulerLogFilterTask,
 		AirflowSchedulerLogGrouperTask,

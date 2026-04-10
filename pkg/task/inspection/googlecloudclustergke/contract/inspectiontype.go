@@ -18,17 +18,25 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// InspectionTypeId is the unique identifier for the GKE inspection type.
-var InspectionTypeId = "gcp-gke"
+// InspectionTypeID is the unique identifier for the GKE inspection type.
+const InspectionTypeID = "gcp-gke"
 
 // GKEInspectionType defines the inspection type for Google Kubernetes Engine.
 var GKEInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeId,
+	Id:   InspectionTypeID,
 	Name: "Google Kubernetes Engine",
 	Description: `Visualize logs generated from GKE cluster. 
 Supporting K8s audit log, K8s event log,K8s node log, K8s container log, GCE audit log, Networking audit log(NEG attach/detach) and autoscaler log.`,
 	Icon:     "assets/icons/gke.png",
 	Priority: math.MaxInt,
+	Labels: map[string]string{
+		inspectioncore_contract.InspectionTypeLabelKeyLogSource:      "cloud_logging",
+		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType: "gke",
+		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:   "kubernetes",
+	},
 }

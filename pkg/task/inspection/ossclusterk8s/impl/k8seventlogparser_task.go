@@ -86,7 +86,4 @@ var _ legacyparser.Parser = (*OSSK8sEventFromK8sAudit)(nil)
 
 var OSSK8sEventLogParserTask = legacyparser.NewParserTaskFromParser(
 	ossclusterk8s_contract.OSSK8sEventLogParserTaskID,
-	&OSSK8sEventFromK8sAudit{}, 2000, true, []string{
-		ossclusterk8s_contract.InspectionTypeID,
-	},
-)
+	&OSSK8sEventFromK8sAudit{}, 2000, true, []string{})

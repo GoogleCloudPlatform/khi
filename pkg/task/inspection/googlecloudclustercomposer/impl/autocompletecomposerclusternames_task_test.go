@@ -128,7 +128,7 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{{
 				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
 				Error: `Not found. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.
-Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE questies from the previous section.`,
+Note: Composer 3 does not run on your GKE. Please remove all Kubernetes/GKE queries from the previous section.`,
 			}},
 		},
 	}

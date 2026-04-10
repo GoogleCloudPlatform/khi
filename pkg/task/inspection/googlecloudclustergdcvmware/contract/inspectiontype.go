@@ -18,17 +18,26 @@ import (
 	"math"
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// InspectionTypeId is the unique identifier for the GDCV for VMWare inspection type.
-var InspectionTypeId = "gcp-gdcv-for-vmware"
+// InspectionTypeID is the unique identifier for the GDCV for VMWare inspection type.
+const InspectionTypeID = "gcp-gdcv-for-vmware"
 
 // GDCVForVMWareInspectionType defines the inspection type for GDCV for VMWare.
 var GDCVForVMWareInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeId,
-	Name: "GDCV for VMWare(GKE on VMWare, Anthos on VMWare)",
-	Description: `Visualize logs generated from GDCV for VMWare cluster(including admin clsuter/user cluster).
-Supporting K8s audit log, k8s event log,k8s node log, k8s container log and OnPream API audit log.`,
+	Id:   InspectionTypeID,
+	Name: "GDCV for VMWare (GKE on VMWare, Anthos on VMWare)",
+	Description: `Visualize logs generated from GDCV for VMWare cluster (including admin cluster/user cluster).
+Supporting K8s audit log, K8s event log, K8s node log, K8s container log and OnPrem API audit log.`,
 	Icon:     "assets/icons/anthos.png",
 	Priority: math.MaxInt - 4,
+	Labels: map[string]string{
+		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
+		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterType:    "gdc",
+		googlecloudcommon_contract.InspectionTypeLabelKeyClusterSubType: "vmware",
+		inspectioncore_contract.InspectionTypeLabelKeyBasePlatform:      "kubernetes",
+	},
 }
