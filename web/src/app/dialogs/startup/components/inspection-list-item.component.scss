@@ -1,0 +1,374 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "sass:color";
+@use "@angular/material" as mat;
+@use "../../../common.scss" as common;
+
+// Color Variables
+$primary-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
+$bg-muted: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+$text-muted: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$error-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 500);
+$white: #ffffff;
+$text-default: #000000;
+$hover-bg: rgba(0, 0, 0, 0.05);
+$white-transparent: rgba(255, 255, 255, 0);
+$white-semi-transparent: rgba(255, 255, 255, 0.4);
+
+// Chip Colors
+$chip-running-bg: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
+$chip-running-text: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 900);
+$chip-running-dot: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
+
+$chip-done-bg: mat.m2-get-color-from-palette(mat.$m2-green-palette, 50);
+$chip-done-text: mat.m2-get-color-from-palette(mat.$m2-green-palette, 900);
+$chip-done-dot: mat.m2-get-color-from-palette(mat.$m2-green-palette, 500);
+
+$chip-error-bg: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$chip-error-text: mat.m2-get-color-from-palette(mat.$m2-red-palette, 900);
+$chip-error-dot: mat.m2-get-color-from-palette(mat.$m2-red-palette, 500);
+
+$chip-cancelled-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$chip-cancelled-text: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$chip-cancelled-dot: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
+
+@keyframes chip-pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes indeterminate-progress-animation {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@mixin chip-style($bg-color, $text-color, $dot-color, $pulse: false) {
+  color: $text-color;
+  background-color: $bg-color;
+
+  &::before {
+    background-color: $dot-color;
+    @if $pulse {
+      animation: chip-pulse 2s infinite ease-in-out;
+    }
+  }
+}
+
+.container {
+  display: grid;
+  grid-template:
+    "content" auto
+    / 100%;
+
+  border: 1px solid mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+  width: 100%;
+  border-radius: 8px;
+
+  background-color: $white;
+  box-shadow: none;
+}
+
+.header {
+  display: grid;
+  grid-template:
+    "title phase" 20px
+    "title time" auto
+    / 1fr auto;
+  align-items: center;
+
+  padding: 8px 20px;
+}
+
+.title-container {
+  grid-area: title;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-items: center;
+  gap: 5px;
+
+  border-radius: 4px;
+
+  transition: background-color 0.2s;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid $primary-color;
+    outline-offset: 2px;
+  }
+
+  .title {
+    margin: 0;
+
+    font-size: 1.2em;
+    font-weight: 600;
+  }
+
+  mat-icon {
+    display: none;
+    @include common.adjust-mat-icon-size(15px);
+  }
+
+  &:hover {
+    background-color: $hover-bg;
+
+    mat-icon {
+      display: block;
+      color: $text-muted;
+    }
+  }
+}
+
+.title-edit {
+  grid-area: title;
+
+  .title-input {
+    margin: 0;
+    border: none;
+    border-bottom: 2px solid $primary-color;
+    padding: 0;
+    width: 100%;
+
+    font-size: 1.2em;
+    font-weight: 600;
+
+    background: transparent;
+    outline: none;
+
+    &:focus {
+      border-bottom-width: 3px;
+    }
+  }
+}
+
+.phase {
+  grid-area: phase;
+  justify-self: end;
+
+  .phase-inner {
+    display: inline-grid;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 6px;
+
+    padding: 5px 20px;
+    border-radius: 8px;
+
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    &.DONE {
+      @include chip-style($chip-done-bg, $chip-done-text, $chip-done-dot);
+    }
+    &.RUNNING {
+      @include chip-style(
+        $chip-running-bg,
+        $chip-running-text,
+        $chip-running-dot,
+        true
+      );
+    }
+    &.CANCELLED {
+      @include chip-style(
+        $chip-cancelled-bg,
+        $chip-cancelled-text,
+        $chip-cancelled-dot
+      );
+    }
+    &.ERROR {
+      @include chip-style($chip-error-bg, $chip-error-text, $chip-error-dot);
+    }
+  }
+}
+
+.time {
+  grid-area: time;
+  margin: 3px 0;
+
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.progress-container {
+  padding: 8px 20px;
+
+  .progress-element {
+    position: relative;
+
+    border-radius: 4px;
+    overflow: hidden;
+
+    color: $white;
+    background-color: $bg-muted;
+
+    &.total-progress {
+      margin-bottom: 6px;
+      height: 24px;
+      font-size: 13px;
+    }
+
+    &.sub-task-progress {
+      margin-bottom: 1px;
+      margin-left: 16px;
+      height: 14px;
+      font-size: 10px;
+    }
+
+    .progress-label {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: grid;
+      align-items: center;
+
+      padding: 0 10px;
+      overflow: hidden;
+
+      .progress-label-inner {
+        margin: 0;
+
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .progress-message-span {
+        font-weight: 600;
+      }
+    }
+
+    .progress-bar {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+
+      width: calc(var(--percentage) * 1%);
+
+      background-color: $primary-color;
+    }
+
+    &.intermediate {
+      &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;
+        height: 100%;
+
+        background: linear-gradient(
+          90deg,
+          $white-transparent 0%,
+          $white-semi-transparent 50%,
+          $white-transparent 100%
+        );
+        animation: indeterminate-progress-animation 1.5s infinite linear;
+      }
+    }
+  }
+}
+
+.error-container {
+  padding: 4px 0;
+
+  .error {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    align-items: center;
+    gap: 4px;
+
+    font-size: 13px;
+    color: $error-color;
+
+    .error-icon {
+      color: $error-color;
+      @include common.adjust-mat-icon-size(16px);
+    }
+
+    .error-link {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: max-content;
+      align-items: center;
+      gap: 2px;
+
+      color: $error-color;
+      text-decoration: underline;
+
+      &:hover {
+        color: color.adjust($error-color, $lightness: -10%);
+      }
+    }
+
+    .error-link-icon {
+      @include common.adjust-mat-icon-size(14px);
+    }
+  }
+}
+
+.task-commands {
+  display: grid;
+  grid-template:
+    "left middle right" auto
+    / auto 1fr auto;
+  align-items: center;
+
+  padding: 8px 0;
+
+  .primary-buttons {
+    grid-area: left;
+    display: grid;
+    grid-auto-flow: column;
+    gap: 20px;
+  }
+
+  .misc-buttons {
+    grid-area: right;
+    display: grid;
+    grid-auto-flow: column;
+    gap: 8px;
+
+    color: $text-default;
+  }
+}

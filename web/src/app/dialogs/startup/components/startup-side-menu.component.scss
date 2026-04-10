@@ -1,0 +1,155 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Color variables based on the design image
+$sidebar-bg-color: #f5f6f9;
+$primary-blue: #2f54eb;
+$text-dark: #1f2329;
+$text-muted: #64748b;
+$white: #ffffff;
+$border-color: #d9d9d9;
+$shadow-color: rgba(0, 0, 0, 0.05);
+$icon-bg-alpha: rgba(255, 255, 255, 0.2);
+
+.side-menu-container {
+  display: grid;
+  grid-template:
+    "brand" auto
+    "actions" 1fr
+    "footer" auto
+    / 100%;
+  gap: 40px;
+
+  width: 220px;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+
+  background-color: $sidebar-bg-color;
+}
+
+.brand {
+  grid-area: brand;
+  display: grid;
+  grid-template:
+    "logo title" auto
+    "tagline tagline" auto
+    / auto 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.logo-container {
+  grid-area: logo;
+  display: grid;
+  place-items: center;
+
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+
+  background-color: $white;
+  box-shadow: 0 2px 8px $shadow-color;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+}
+
+.title-group {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    "name" auto
+    "version" auto
+    / 100%;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: $text-dark;
+}
+
+.tagline {
+  grid-area: tagline;
+  margin: 0;
+
+  font-size: 12px;
+  font-style: italic;
+  color: $text-muted;
+  line-height: 1.4;
+}
+
+.version {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.actions {
+  grid-area: actions;
+  display: grid;
+  gap: 12px;
+  align-content: space-around;
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.description {
+  margin: 0;
+
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.footer-links {
+  grid-area: footer;
+  display: grid;
+  gap: 12px;
+}
+
+.footer-link {
+  display: grid;
+  grid-template: "icon text" / auto 1fr;
+  gap: 8px;
+  align-items: center;
+
+  font-size: 14px;
+  color: $text-muted;
+  text-decoration: none;
+
+  transition: color 0.2s;
+
+  &:hover {
+    color: $primary-blue;
+  }
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}

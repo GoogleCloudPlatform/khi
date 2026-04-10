@@ -1,0 +1,62 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="side-menu-container">
+  <div class="brand">
+    <div class="logo-container">
+      <img src="assets/icons/khi.svg" alt="KHI Logo" class="logo" />
+    </div>
+    <div class="title-group">
+      <h1 class="title">Kubernetes History Inspector</h1>
+      <span class="version">{{ version() }}</span>
+    </div>
+    <p class="tagline">A log viewer for Kubernetes troubleshooting</p>
+  </div>
+
+  <div class="actions">
+    <div class="action-item">
+      <button mat-flat-button color="primary" (click)="newInvestigation.emit()">
+        New Inspection
+        <mat-icon aria-hidden="true">add</mat-icon>
+      </button>
+      <p class="description">
+        Collect and process cluster logs for visual analysis.
+      </p>
+    </div>
+
+    <div class="action-item">
+      <button mat-stroked-button (click)="openKhiFile.emit()">
+        Open .khi file
+        <mat-icon aria-hidden="true">folder</mat-icon>
+      </button>
+      <p class="description">Import a previously exported inspection file.</p>
+    </div>
+  </div>
+
+  <div class="footer-links">
+    @for (link of links(); track link.url) {
+      <a
+        [href]="link.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="footer-link"
+      >
+        <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+        {{ link.label }}
+      </a>
+    }
+  </div>
+</div>
