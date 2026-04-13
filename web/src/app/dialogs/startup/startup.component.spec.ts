@@ -16,6 +16,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StartupDialogComponent } from './startup.component';
+import { signal } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import {
   BACKEND_API,
@@ -23,9 +24,9 @@ import {
 } from 'src/app/services/api/backend-api-interface';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import { ProgressDialogService } from 'src/app/services/progress/progress-dialog.service';
-import { BACKEND_CONNECTION } from 'src/app/services/api/backend-connection.service';
-import { BackendConnectionService } from 'src/app/services/api/backend-connection-interface';
-import { of, ReplaySubject, Subject } from 'rxjs';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+
+import { of } from 'rxjs';
 import {
   GetConfigResponse,
   GetInspectionResponse,
@@ -37,16 +38,15 @@ import {
 
 describe('StartupDialogComponent', () => {
   let component: ComponentFixture<StartupDialogComponent>;
-  let backendConnectionSpy: jasmine.SpyObj<BackendConnectionService>;
+
   let backendAPISpy: jasmine.SpyObj<BackendAPI>;
-  let taskListSubject: Subject<GetInspectionResponse>;
+
   beforeEach(async () => {
-    taskListSubject = new ReplaySubject(1);
-    backendConnectionSpy = jasmine.createSpyObj<BackendConnectionService>(
-      'BackendConnectionService',
-      ['tasks'],
-    );
-    backendConnectionSpy.tasks.and.returnValue(taskListSubject);
+    const tasksSignal = signal<GetInspectionResponse>({
+      inspections: {},
+      serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
+    });
+
     backendAPISpy = jasmine.createSpyObj<BackendAPI>('BackendAPIService', [
       'getConfig',
       'patchInspection',
@@ -69,8 +69,12 @@ describe('StartupDialogComponent', () => {
           useValue: backendAPISpy,
         },
         {
-          provide: BACKEND_CONNECTION,
-          useValue: backendConnectionSpy,
+          provide: BACKEND_SYNC,
+          useValue: {
+            tasks: {
+              value: tasksSignal,
+            },
+          },
         },
         {
           provide: EXTENSION_STORE,

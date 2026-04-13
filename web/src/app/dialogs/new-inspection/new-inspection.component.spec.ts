@@ -16,12 +16,13 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialogRef } from '@angular/material/dialog';
+import { signal } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { NewInspectionDialogComponent } from './new-inspection.component';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
-import { BACKEND_CONNECTION } from 'src/app/services/api/backend-connection.service';
-import { BackendConnectionService } from 'src/app/services/api/backend-connection-interface';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+
 import {
   EXTENSION_STORE,
   ExtensionStore,
@@ -30,13 +31,8 @@ import {
 describe('NewInspectionDialogTest', () => {
   let component: NewInspectionDialogComponent;
   let fixture: ComponentFixture<NewInspectionDialogComponent>;
-  let backendConnectionSpy: jasmine.SpyObj<BackendConnectionService>;
-
   beforeEach(async () => {
-    backendConnectionSpy = jasmine.createSpyObj<BackendConnectionService>(
-      'BackendConnectionService',
-      ['inspectionTypes'],
-    );
+    const inspectionTypesSignal = signal({ types: [] });
     await TestBed.configureTestingModule({
       imports: [NoopAnimationsModule],
       providers: [
@@ -49,8 +45,12 @@ describe('NewInspectionDialogTest', () => {
           useValue: {},
         },
         {
-          provide: BACKEND_CONNECTION,
-          useValue: backendConnectionSpy,
+          provide: BACKEND_SYNC,
+          useValue: {
+            inspectionTypes: {
+              value: inspectionTypesSignal,
+            },
+          },
         },
         {
           provide: EXTENSION_STORE,

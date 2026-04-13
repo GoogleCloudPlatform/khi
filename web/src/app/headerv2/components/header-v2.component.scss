@@ -1,0 +1,212 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use "@angular/material" as mat;
+
+$primary-bg-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 50);
+$primary-text-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 500);
+$dark-gray: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$light-gray: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$badge-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+
+$badge-bg-color: $light-gray;
+$viewer-badge-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  500
+);
+$color-shadow-light: rgba($dark-gray, 0.1);
+$color-shadow-dark: rgba($dark-gray, 0.5);
+
+$status-dot-default-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  400
+);
+$status-dot-connected-color: mat.m2-get-color-from-palette(
+  mat.$m2-green-palette,
+  500
+);
+$status-dot-connecting-color: mat.m2-get-color-from-palette(
+  mat.$m2-amber-palette,
+  500
+);
+$status-dot-disconnected-color: mat.m2-get-color-from-palette(
+  mat.$m2-red-palette,
+  500
+);
+
+$session-badge-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  800
+);
+$session-badge-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-teal-palette,
+  100
+);
+
+:host {
+  display: block;
+  height: 40px;
+  box-shadow: 0 2px 4px $color-shadow-light;
+}
+
+header {
+  display: grid;
+  grid-template:
+    "title-section main-menu status-section"
+    / auto auto 1fr;
+  height: 100%;
+  background-color: $primary-bg-color;
+}
+
+.title-section {
+  display: grid;
+  grid-area: title-section;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  height: 100%;
+
+  img {
+    height: 30px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(2px 2px 4px $color-shadow-dark);
+  }
+
+  .app-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: $primary-text-color;
+  }
+}
+
+.main-menu {
+  display: grid;
+  grid-area: main-menu;
+  grid-auto-flow: column;
+  align-items: center;
+  height: 100%;
+}
+
+.menu-group {
+  position: relative;
+  margin: 0px 2px;
+  font-weight: 600;
+
+  &::after {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    content: "";
+    width: 100%;
+    height: 2px;
+    background-color: $primary-text-color;
+  }
+
+  --mat-button-text-with-icon-horizontal-padding: 20px;
+}
+
+:host header .menu-group {
+  color: $primary-text-color;
+}
+
+.version-badge {
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $primary-text-color;
+  background-color: $badge-bg-color;
+  box-shadow: 0 1px 2px $color-shadow-light;
+
+  &.viewer {
+    background-color: $viewer-badge-bg-color;
+    color: $badge-text-color;
+  }
+}
+
+.session-badge {
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $session-badge-text-color;
+  background-color: $session-badge-bg-color;
+  box-shadow: 0 1px 2px $color-shadow-light;
+}
+
+.status-section {
+  display: grid;
+  grid-area: status-section;
+  grid-auto-flow: column;
+  align-items: center;
+  justify-self: end;
+  gap: 15px;
+  padding: 0 15px;
+}
+
+.status-item {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $primary-text-color;
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: $status-dot-default-color;
+
+  &.connected {
+    background-color: $status-dot-connected-color;
+  }
+
+  @keyframes pulse {
+    0% {
+      opacity: 0.4;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.4;
+    }
+  }
+
+  &.connecting {
+    background-color: $status-dot-connecting-color;
+    animation: pulse 2s infinite ease-in-out;
+  }
+
+  &.disconnected {
+    background-color: $status-dot-disconnected-color;
+  }
+}

@@ -20,7 +20,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -40,7 +39,6 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 		enum.LogTypeControlPlaneComponent,
 		9000,
 		false,
-		googlecloudinspectiontypegroup_contract.GKEBasedClusterInspectionTypes...,
 	),
 )
 

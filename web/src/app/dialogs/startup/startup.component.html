@@ -15,23 +15,7 @@ limitations under the License.
 -->
 
 <div class="container">
-  <div class="header">
-    @if (isViewerMode() === false && (serverStat | async); as serverStat) {
-      <div
-        class="mem-usage"
-        matTooltip="Memory usage on KHI server. Be careful not to cause OOM with querying big time range"
-      >
-        <p>
-          Server RAM usage:
-          {{ (serverStat.currentMemoryUsage / 1024 / 1024 / 1024).toFixed(2) }}
-          @if (serverStat.totalMemory > 0) {
-            / {{ (serverStat.totalMemory / 1024 / 1024 / 1024).toFixed(2) }}
-          }
-          GB
-        </p>
-      </div>
-    }
-  </div>
+  <div class="header"></div>
   <div class="left">
     <khi-startup-header
       [version]="version"

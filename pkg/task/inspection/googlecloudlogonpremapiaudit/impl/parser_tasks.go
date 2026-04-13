@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -61,7 +60,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[stru
 		enum.LogTypeOnPremAPI,
 		5000,
 		true,
-		googlecloudinspectiontypegroup_contract.GDCClusterInspectionTypes...),
+	),
 )
 
 type onpremAuditLogLogToTimelineMapperSetting struct {

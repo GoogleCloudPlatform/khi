@@ -31,7 +31,6 @@ var OSSK8sAuditLogFieldExtractorTask = inspectiontaskbase.NewFieldSetReadTask(
 	ossclusterk8s_contract.OSSK8sAuditLogProviderTaskID,
 	ossclusterk8s_contract.NonEventAuditLogFilterTaskID.Ref(),
 	[]log.FieldSetReader{(&ossclusterk8s_contract.OSSK8sAuditLogFieldSetReader{})},
-	inspectioncore_contract.InspectionTypeLabel(ossclusterk8s_contract.InspectionTypeID),
 )
 
 var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
@@ -55,5 +54,5 @@ var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Log(v3)", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, 1001, true, ossclusterk8s_contract.InspectionTypeID), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Log(v3)", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, 1001, true), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
 )

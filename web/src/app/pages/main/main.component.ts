@@ -14,8 +14,18 @@
  * limitations under the License.
  */
 
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
-import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
+import {
+  Component,
+  inject,
+  OnDestroy,
+  OnInit,
+  AfterViewInit,
+  viewChild,
+  ElementRef,
+  ViewContainerRef,
+} from '@angular/core';
+import { LayoutService } from 'src/app/services/layout/layout.service';
+import { Subject, takeUntil } from 'rxjs';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   POPUP_MANAGER,
@@ -33,49 +43,86 @@ import { SidePaneComponent } from 'src/app/common/components/side-pane.component
 import { LogSmartComponent } from 'src/app/log/log-smart.component';
 import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { MatIconModule } from '@angular/material/icon';
-import { HeaderComponent } from 'src/app/header/header.component';
+import { HeaderV2SmartComponent } from 'src/app/headerv2/header-v2-smart.component';
+import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
 import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
-import { AngularSplitModule } from 'angular-split';
 import { StartupDialogComponent } from 'src/app/dialogs/startup/startup.component';
 import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
 } from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
 import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import {
+  MenuManager,
+  MenuItemType,
+} from 'src/app/services/menu/menu-manager.service';
 
+/**
+ * AppComponent serves as the main container for the application layout.
+ * It initializes GoldenLayout and manages top-level dialogs and notifications.
+ */
 @Component({
   templateUrl: './main.component.html',
   styleUrls: ['./main.component.scss'],
   imports: [
     CommonModule,
-    HeaderComponent,
+    HeaderV2SmartComponent,
+    TimelineToolbarSmartComponent,
     SidePaneComponent,
     LogSmartComponent,
     DiffSmartComponent,
     MatIconModule,
+    KHIIconRegistrationModule,
     TimelineSmartComponent,
-    AngularSplitModule,
-    AngularSplitModule,
   ],
+  providers: [LayoutService, MenuManager],
 })
-export class AppComponent implements OnInit, OnDestroy {
-  private extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
-  public dialog = inject(MatDialog);
+export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
+  /** Store for extension data. */
+  private readonly extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
 
-  readonly destroyed = new Subject<void>();
-  readonly showLogPane = new BehaviorSubject<boolean>(true);
-  readonly showHistoryPane = new BehaviorSubject<boolean>(true);
-  readonly popupManager: PopupManager = inject(POPUP_MANAGER);
-  readonly diffPageSourceSender: DiffPageDataSourceServer = inject(
+  /** Dialog service. */
+  private readonly dialog = inject(MatDialog);
+
+  /** ViewContainerRef for creating components dynamically. */
+  private readonly viewContainerRef = inject(ViewContainerRef);
+
+  /** Service for managing GoldenLayout. */
+  private readonly layoutService = inject(LayoutService);
+
+  /** Service for managing menu. */
+  private readonly menuManager = inject(MenuManager);
+
+  /** Container element for GoldenLayout. */
+  readonly layoutContainer = viewChild<ElementRef>('layoutContainer');
+
+  /** Subject for cleaning up subscriptions. */
+  private readonly destroyed = new Subject<void>();
+
+  /** Popup manager service. */
+  private readonly popupManager: PopupManager = inject(POPUP_MANAGER);
+
+  /** Data source server for diff page. */
+  private readonly diffPageSourceSender: DiffPageDataSourceServer = inject(
     DiffPageDataSourceServer,
   );
-  readonly graphPageSourceSender: GraphPageDataSourceServer = inject(
+
+  /** Data source server for graph page. */
+  private readonly graphPageSourceSender: GraphPageDataSourceServer = inject(
     GraphPageDataSourceServer,
   );
-  readonly notificationManager: NotificationManager =
+
+  /** Notification manager service. */
+  private readonly notificationManager: NotificationManager =
     inject(NotificationManager);
 
+  /**
+   * Initializes the component.
+   * Checks for data in URL, opens startup dialog if needed, and starts monitoring popup requests.
+   */
   ngOnInit() {
+    this.setupMenu();
     if (!this.extensionStore.tryOpenDataFromURL()) {
       this.dialog.open(StartupDialogComponent, {
         maxWidth: '100vw',
@@ -83,14 +130,14 @@ export class AppComponent implements OnInit, OnDestroy {
         disableClose: true,
       });
     }
-    // Start monitoring popup request from server
+    // Start monitoring popup request from server.
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
       null;
     this.popupManager
       .requests()
       .pipe(takeUntil(this.destroyed))
       .subscribe((formRequest) => {
-        // The last opened dialog will be closed automatically When the popup was cancelled from server side,
+        // The last opened dialog will be closed automatically When the popup was cancelled from server side.
         if (formRequest.id === NilPopupFormRequest.id) {
           lastDialogRef?.close();
           lastDialogRef = null;
@@ -113,18 +160,38 @@ export class AppComponent implements OnInit, OnDestroy {
     this.graphPageSourceSender.activate();
   }
 
-  togglePane(pane: 'log' | 'history') {
-    switch (pane) {
-      case 'log':
-        this.showLogPane.next(!this.showLogPane.value);
-        break;
-      case 'history':
-        this.showHistoryPane.next(!this.showHistoryPane.value);
-        break;
+  /**
+   * Initializes GoldenLayout after the view is initialized.
+   */
+  ngAfterViewInit() {
+    const container = this.layoutContainer()?.nativeElement;
+    if (container) {
+      this.layoutService.init(container, this.viewContainerRef);
+      this.layoutService.loadDefaultLayout();
     }
   }
 
+  /**
+   * Cleans up subscriptions when the component is destroyed.
+   */
   ngOnDestroy(): void {
     this.destroyed.next();
+  }
+
+  private setupMenu() {
+    this.menuManager.addGroup('file', 'File', 1, 'browse');
+    this.menuManager.addItem('file', {
+      id: 'open-inspection',
+      label: 'Open inspection dialog',
+      type: MenuItemType.Button,
+      icon: 'home',
+      priority: 1,
+      action: () => {
+        this.dialog.open(StartupDialogComponent, {
+          maxWidth: '100vw',
+          panelClass: 'startup-modalbox',
+        });
+      },
+    });
   }
 }

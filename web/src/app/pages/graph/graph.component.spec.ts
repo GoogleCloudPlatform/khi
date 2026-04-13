@@ -16,6 +16,7 @@
 
 import { TestBed } from '@angular/core/testing';
 import { GraphComponent } from './graph.component';
+import { signal } from '@angular/core';
 import {
   WINDOW_CONNECTION_PROVIDER,
   WindowConnectorService,
@@ -25,7 +26,7 @@ import { GraphPageDataSource } from 'src/app/services/frame-connection/frames/gr
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { of } from 'rxjs';
-import { BACKEND_CONNECTION } from '../../services/api/backend-connection.service';
+import { BACKEND_SYNC } from '../../services/api/backend-sync.service';
 
 describe('GraphComponent', () => {
   beforeEach(async () => {
@@ -47,10 +48,13 @@ describe('GraphComponent', () => {
           },
         },
         {
-          provide: BACKEND_CONNECTION,
+          provide: BACKEND_SYNC,
           useValue: {
-            tasks: () =>
-              of({ serverStat: { currentMemoryUsage: 0, totalMemory: 0 } }),
+            tasks: {
+              value: signal({
+                serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
+              }),
+            },
           },
         },
         GraphPageDataSource,

@@ -35,7 +35,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
 )
@@ -45,14 +44,14 @@ var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. A
 // ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
 var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8sauditv2_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
 	commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID.Ref(),
-	googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref(),
+	commonlogk8sauditv2_contract.K8sResourceMergeConfigTaskID.Ref(),
 }, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ResourceManifestLogGroupMap, error) {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return map[string]*commonlogk8sauditv2_contract.ResourceManifestLogGroup{}, nil
 	}
 
 	logGroups := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ChangeTargetGrouperTaskID.Ref())
-	mergeConfigRegistry := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.K8sResourceMergeConfigTaskID.Ref())
+	mergeConfigRegistry := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.K8sResourceMergeConfigTaskID.Ref())
 	result := commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{}
 	resultLock := sync.Mutex{}
 

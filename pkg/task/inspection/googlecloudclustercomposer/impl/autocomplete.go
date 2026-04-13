@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -178,7 +177,7 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewCache
 		},
 		DependencyDigest: currentDigest,
 	}, nil
-}, inspectioncore_contract.InspectionTypeLabel(googlecloudinspectiontypegroup_contract.CloudComposerInspectionTypes...),
+},
 	coretask.WithSelectionPriority(1000),
 )
 

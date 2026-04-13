@@ -20,10 +20,9 @@ import (
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergkeonaws_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // AnthosOnAWSClusterNamePrefixTask is a task that provides the cluster name prefix for GKE on AWS.
-var AnthosOnAWSClusterNamePrefixTask = common_task.NewTask(googlecloudclustergkeonaws_contract.ClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
+var AnthosOnAWSClusterNamePrefixTask = common_task.NewTask(googlecloudclustergkeonaws_contract.ClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(_ context.Context) (string, error) {
 	return "awsClusters/", nil
-}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustergkeonaws_contract.InspectionTypeId))
+})

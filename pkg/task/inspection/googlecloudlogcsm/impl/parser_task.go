@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -53,7 +52,6 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[stru
 	enum.LogTypeCSMAccessLog,
 	10000,
 	false,
-	googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...,
 ))
 
 type csmAccessLogLogToTimelineMapperSetting struct{}

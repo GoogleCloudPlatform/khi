@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	googlecloudinspectiontypegroup_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudinspectiontypegroup/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -49,7 +48,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[stru
 		enum.LogTypeContainer,
 		4000,
 		false,
-		googlecloudinspectiontypegroup_contract.GCPK8sClusterInspectionTypes...),
+	),
 )
 
 type containerLogLogToTimelineMapperSetting struct {

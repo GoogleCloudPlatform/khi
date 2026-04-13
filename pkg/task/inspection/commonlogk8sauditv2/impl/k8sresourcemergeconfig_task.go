@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudclustercomposer_impl
+package commonlogk8sauditv2_impl
 
 import (
 	"context"
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
+	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
 )
 
-// ComposerClusterNamePrefixTask is the task that returns the composer cluster name prefix.
-var ComposerClusterNamePrefixTask = coretask.NewTask(googlecloudclustercomposer_contract.ComposerClusterNamePrefixTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
-	return "", nil
-}, inspectioncore_contract.InspectionTypeLabel(googlecloudclustercomposer_contract.InspectionTypeId))
+// DefaultK8sResourceMergeConfigTask is the task that generates the default patch request merge config.
+var DefaultK8sResourceMergeConfigTask = coretask.NewTask(commonlogk8sauditv2_contract.K8sResourceMergeConfigTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (*k8s.K8sManifestMergeConfigRegistry, error) {
+	return k8s.GenerateDefaultMergeConfig()
+})
