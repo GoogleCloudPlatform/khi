@@ -9,19 +9,19 @@ globs: **/*.ts
 * Test files must be named with `A.spec.ts` if `A.ts` exists. Do not define spec files by scenarios.
 * Do NOT use `any`.
 * Make fields `readonly` as much as possible.
-* Define enum type rather than define an union of string literal types.
+* Define enum type rather than define a union of string literal types.
 * Write import path in absolute form from the project base path like `src/app/...`.
 
 ## Angular coding rules
 
 * Use Angular signal rather than RxJS.
-* Define templates and styles in separated file. Do not define them in @Component.
+* Define templates and styles in separate files. Do not define them in @Component.
 * Import `KHIIconRegistrationModule` when the component uses `MatIconModule`.
 * Use `input()` or `input.required()` for component inputs instead of `@Input`.
 * Use `output()` instead of `@Output`.
 * Use `model()` for two-way bindings.
 * Use `signal()` and `computed()` for component-level state management.
-* To export enum type to the template, use protected readonly and it must be placed before any other fields,methods or constructor.
+* To export enum type to the template, use protected readonly and it must be placed before any other fields, methods or constructor.
 
 ## Smart-Dumb Component Architecture
 

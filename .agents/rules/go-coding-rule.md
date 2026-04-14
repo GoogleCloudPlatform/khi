@@ -22,7 +22,7 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
 1. **Comments**:
    - All comments must be written in English.
    - Add GoDoc comments for all public types, functions, and methods.
-   - Add GoDoc comments for private types functions and methods when its name is not self explanatory or usage is not intuitive.
+   - Add GoDoc comments for private types, functions, and methods when their names are not self-explanatory or usage is not intuitive.
    - Add `var _ Interface = (*Implementation)(nil);` after the type definition to show that it's implementing the interface explicitly.
 
 ## Testing Practices
