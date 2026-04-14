@@ -32,11 +32,11 @@ import (
 
 var clusterNameValidator = regexp.MustCompile(`^\s*[0-9a-z\-]+\s*$`)
 
-// InputClusterNameTask is a form task receving cluster name from the user.
-// This task return the cluster name with the prefixes defined from the cluster type. For example, a cluster named foo-cluster is `foo-cluster` in GKE but `awsCluster/foo-cluster` in GKE on AWS.
-// This input also supports autocomplete cluster names from some task having ID for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID.
+// InputClusterNameTask is a form task receiving cluster name from the user.
+// This task returns the raw cluster name without the prefix defined from the cluster type.
+// This input also supports autocomplete cluster names from some task having ID for googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.
 var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_contract.InputClusterNameTaskID, googlecloudcommon_contract.PriorityForResourceIdentifierGroup+4000, "Cluster name").
-	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.ClusterNamePrefixTaskRef}).
+	WithDependencies([]taskid.UntypedTaskReference{googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref()}).
 	WithDescription("The cluster name to gather logs.").
 	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
 		clusters := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref())
@@ -73,16 +73,8 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 		}
 		return fmt.Sprintf("Cluster '%s' was not found in the specified project at this time. It works for the clusters existed in the past but make sure the cluster name is right if you believe the cluster should be there.\nAvailable cluster names:\n%s", value, availableClusterNameStr), inspectionmetadata.Warning, nil
 	}).
-	WithValidator(func(ctx context.Context, value string) (string, error) {
-		if !clusterNameValidator.Match([]byte(value)) {
-			return "Cluster name must match `^[0-9a-z:\\-]+$`", nil
-		}
-		return "", nil
-	}).
-	WithConverter(func(ctx context.Context, value string) (string, error) {
-		prefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskRef)
-		return prefix + strings.TrimSpace(value), nil
-	}).
+	WithValidator(validateClusterName).
+	WithConverter(convertClusterName).
 	Build()
 
 func hasClusterNameInAutocomplete(autocmpleteList []googlecloudk8scommon_contract.GoogleCloudClusterIdentity, clusterName string) bool {
@@ -105,4 +97,15 @@ func dedupeClusterName(clusters []googlecloudk8scommon_contract.GoogleCloudClust
 	}
 	sort.Strings(result)
 	return result
+}
+
+func validateClusterName(ctx context.Context, value string) (string, error) {
+	if !clusterNameValidator.Match([]byte(value)) {
+		return "Cluster name must consist of alphanumeric characters and hyphens only.", nil
+	}
+	return "", nil
+}
+
+func convertClusterName(ctx context.Context, value string) (string, error) {
+	return strings.TrimSpace(value), nil
 }
