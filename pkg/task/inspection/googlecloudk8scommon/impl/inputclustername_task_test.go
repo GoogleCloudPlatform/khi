@@ -15,6 +15,7 @@
 package googlecloudk8scommon_impl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common"
@@ -24,6 +25,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestClusterNameInput(t *testing.T) {
@@ -89,7 +91,7 @@ func TestClusterNameInput(t *testing.T) {
 					Label:       "Cluster name",
 					Description: wantDescription,
 					HintType:    inspectionmetadata.Error,
-					Hint:        "Cluster name must match `^[0-9a-z:\\-]+$`",
+					Hint:        "Cluster name must consist of alphanumeric characters and hyphens only.",
 				},
 				Suggestions:      common.SortForAutocomplete("An invalid cluster name", []string{"foo-cluster", "bar-cluster"}),
 				Default:          "foo-cluster",
@@ -120,4 +122,101 @@ Available cluster names:
 			},
 		},
 	})
+}
+
+func TestValidateClusterName(t *testing.T) {
+	tests := []struct {
+		name          string
+		value         string
+		expectedError string
+	}{
+		{
+			name:          "valid cluster name",
+			value:         "my-cluster-1",
+			expectedError: "",
+		},
+		{
+			name:          "valid cluster name with spaces",
+			value:         "  my-cluster-1  ",
+			expectedError: "",
+		},
+		{
+			name:          "invalid cluster name with underscore",
+			value:         "my_cluster",
+			expectedError: "Cluster name must consist of alphanumeric characters and hyphens only.",
+		},
+		{
+			name:          "invalid cluster name with dot",
+			value:         "my.cluster",
+			expectedError: "Cluster name must consist of alphanumeric characters and hyphens only.",
+		},
+		{
+			name:          "invalid cluster name with colon",
+			value:         "my:cluster",
+			expectedError: "Cluster name must consist of alphanumeric characters and hyphens only.",
+		},
+		{
+			name:          "empty string is invalid",
+			value:         "",
+			expectedError: "Cluster name must consist of alphanumeric characters and hyphens only.",
+		},
+		{
+			name:          "only spaces is invalid",
+			value:         "   ",
+			expectedError: "Cluster name must consist of alphanumeric characters and hyphens only.",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			errStr, err := validateClusterName(context.Background(), tc.value)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.expectedError, errStr); diff != "" {
+				t.Errorf("validateClusterName() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestConvertClusterName(t *testing.T) {
+	tests := []struct {
+		name          string
+		value         string
+		expectedValue string
+	}{
+		{
+			name:          "no spaces",
+			value:         "my-cluster",
+			expectedValue: "my-cluster",
+		},
+		{
+			name:          "leading spaces",
+			value:         "  my-cluster",
+			expectedValue: "my-cluster",
+		},
+		{
+			name:          "trailing spaces",
+			value:         "my-cluster  ",
+			expectedValue: "my-cluster",
+		},
+		{
+			name:          "leading and trailing spaces",
+			value:         "  my-cluster  ",
+			expectedValue: "my-cluster",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := convertClusterName(context.Background(), tc.value)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if diff := cmp.Diff(tc.expectedValue, got); diff != "" {
+				t.Errorf("convertClusterName() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }
