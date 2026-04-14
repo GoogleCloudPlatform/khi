@@ -133,7 +133,9 @@ $icon-bg-alpha: rgba(255, 255, 255, 0.2);
 
 .footer-link {
   display: grid;
-  grid-template: 'icon text' / auto 1fr;
+  grid-template:
+    'icon text'
+    / auto 1fr;
   gap: 8px;
   align-items: center;
 

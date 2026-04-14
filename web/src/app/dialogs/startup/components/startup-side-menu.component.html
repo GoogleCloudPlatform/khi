@@ -30,7 +30,7 @@
     <div class="action-item">
       <button mat-flat-button color="primary" (click)="newInvestigation.emit()">
         New Inspection
-        <mat-icon aria-hidden="true">add</mat-icon>
+        <mat-icon>add</mat-icon>
       </button>
       <p class="description">
         Collect and process cluster logs for visual analysis.
@@ -40,7 +40,7 @@
     <div class="action-item">
       <button mat-stroked-button (click)="openKhiFile.emit()">
         Open .khi file
-        <mat-icon aria-hidden="true">folder</mat-icon>
+        <mat-icon>folder</mat-icon>
       </button>
       <p class="description">Import a previously exported inspection file.</p>
     </div>
@@ -54,7 +54,7 @@
         rel="noopener noreferrer"
         class="footer-link"
       >
-        <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+        <mat-icon>{{ link.icon }}</mat-icon>
         {{ link.label }}
       </a>
     }

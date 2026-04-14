@@ -1,0 +1,50 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="list-header">
+  <mat-icon>list</mat-icon>
+  <h2>Available inspection data</h2>
+</div>
+
+@if (isLoading()) {
+  <div class="loading-overlay">
+    <mat-spinner diameter="40"></mat-spinner>
+    <span>Loading inspections...</span>
+  </div>
+} @else if (items().length > 0) {
+  <div class="list-container">
+    @for (item of items(); track item.id) {
+      <khi-inspection-list-item
+        [item]="item"
+        (openInspectionResult)="openInspectionResult.emit($event)"
+        (openInspectionMetadata)="openInspectionMetadata.emit($event)"
+        (cancelInspection)="cancelInspection.emit($event)"
+        (downloadInspectionResult)="downloadInspectionResult.emit($event)"
+        (changeInspectionTitle)="changeInspectionTitle.emit($event)"
+      />
+    }
+  </div>
+} @else {
+  <div class="empty-state">
+    <p>No recent inspections found.</p>
+    @if (!isViewerMode()) {
+      <button mat-stroked-button (click)="createNewInspection.emit()">
+        New Inspection
+        <mat-icon>add</mat-icon>
+      </button>
+    }
+  </div>
+}
