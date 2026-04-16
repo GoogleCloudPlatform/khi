@@ -16,23 +16,28 @@
 
 import { Component, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { StartupDialogComponent } from '../dialogs/startup/startup.component';
+import { openStartupDialog } from '../dialogs/startup/startup-smart.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 
+/**
+ * Component for the main menu in the header.
+ * Provides access to the startup dialog and other global actions.
+ */
 @Component({
   selector: 'khi-main-menu',
   templateUrl: './main-menu.component.html',
   styleUrls: ['./main-menu.component.scss'],
-  imports: [MatIconModule, MatButtonModule],
+  imports: [MatIconModule, MatButtonModule, KHIIconRegistrationModule],
 })
 export class MainMenuComponent {
   private readonly dialog = inject(MatDialog);
 
-  openStartupMenu() {
-    this.dialog.open(StartupDialogComponent, {
-      maxWidth: '100vw',
-      panelClass: 'startup-modalbox',
-    });
+  /**
+   * Opens the startup dialog.
+   */
+  protected openStartupMenu() {
+    openStartupDialog(this.dialog);
   }
 }

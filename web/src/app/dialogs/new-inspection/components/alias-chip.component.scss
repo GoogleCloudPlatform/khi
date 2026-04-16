@@ -30,10 +30,6 @@ $alias-color: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 600);
       container-shape-radius: 5px,
     )
   );
-
-  &.exclusion {
-    background-color: $exclusion-color;
-  }
 }
 
 .display-label {

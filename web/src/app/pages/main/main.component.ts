@@ -39,14 +39,10 @@ import {
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { CommonModule } from '@angular/common';
-import { SidePaneComponent } from 'src/app/common/components/side-pane.component';
-import { LogSmartComponent } from 'src/app/log/log-smart.component';
-import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
 import { MatIconModule } from '@angular/material/icon';
 import { HeaderV2SmartComponent } from 'src/app/headerv2/header-v2-smart.component';
 import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
-import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
-import { StartupDialogComponent } from 'src/app/dialogs/startup/startup.component';
+import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
 import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
@@ -69,12 +65,8 @@ import {
     CommonModule,
     HeaderV2SmartComponent,
     TimelineToolbarSmartComponent,
-    SidePaneComponent,
-    LogSmartComponent,
-    DiffSmartComponent,
     MatIconModule,
     KHIIconRegistrationModule,
-    TimelineSmartComponent,
   ],
   providers: [LayoutService, MenuManager],
 })
@@ -124,11 +116,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit() {
     this.setupMenu();
     if (!this.extensionStore.tryOpenDataFromURL()) {
-      this.dialog.open(StartupDialogComponent, {
-        maxWidth: '100vw',
-        panelClass: 'startup-modalbox',
-        disableClose: true,
-      });
+      openStartupDialog(this.dialog);
     }
     // Start monitoring popup request from server.
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
@@ -187,10 +175,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       icon: 'home',
       priority: 1,
       action: () => {
-        this.dialog.open(StartupDialogComponent, {
-          maxWidth: '100vw',
-          panelClass: 'startup-modalbox',
-        });
+        openStartupDialog(this.dialog);
       },
     });
   }

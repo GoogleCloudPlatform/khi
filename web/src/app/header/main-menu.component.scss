@@ -28,11 +28,11 @@
   width: 140px;
 
   &.mat-menu-group {
+    font-size: 20px;
     color: white;
     background-color: mat.m2-get-color-from-palette(
       mat.$m2-indigo-palette,
       400
     );
-    font-size: 20px;
   }
 }

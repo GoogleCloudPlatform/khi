@@ -51,10 +51,12 @@ $chip-cancelled-dot: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
     opacity: 0.4;
     transform: scale(0.8);
   }
+
   50% {
     opacity: 1;
     transform: scale(1.2);
   }
+
   100% {
     opacity: 0.4;
     transform: scale(0.8);
@@ -65,6 +67,7 @@ $chip-cancelled-dot: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
   0% {
     transform: translateX(-100%);
   }
+
   100% {
     transform: translateX(200%);
   }
