@@ -49,9 +49,9 @@ $icon-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 500);
   h2 {
     margin: 0;
 
-    color: $title-color;
     font-size: 1.2rem;
     font-weight: 500;
+    color: $title-color;
   }
 }
 
@@ -61,8 +61,8 @@ $icon-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 500);
   flex-direction: column;
   gap: 8px;
 
-  width: 90%;
   margin: 0 auto;
+  width: 90%;
   overflow: hidden;
   overflow-y: auto;
 }
@@ -77,8 +77,8 @@ $icon-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 500);
 
   padding: 40px;
 
-  color: $empty-text-color;
   font-size: 14px;
+  color: $empty-text-color;
 }
 
 .loading-overlay {
