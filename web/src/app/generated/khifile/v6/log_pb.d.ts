@@ -19,7 +19,7 @@
 import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
 import type { Message } from '@bufbuild/protobuf';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
-import type { Struct } from './shared_pb';
+import type { InternedStruct } from './shared_pb';
 
 /**
  * Describes the file khifile/v6/log.proto.
@@ -65,9 +65,9 @@ export declare type Log = Message<'khifile.v6.Log'> & {
   /**
    * Structured data of the log body.
    *
-   * @generated from field: khifile.v6.Struct body = 3;
+   * @generated from field: khifile.v6.InternedStruct body = 3;
    */
-  body?: Struct;
+  body?: InternedStruct;
 
   /**
    * ID of the summary string in InterningPoolChunk.

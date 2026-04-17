@@ -33,7 +33,7 @@ message Log {
   google.protobuf.Timestamp ts = 2;
 
   // Structured data of the log body.
-  Struct body = 3;
+  InternedStruct body = 3;
 
   // ID of the summary string in InterningPoolChunk.
   uint32 summary_string_id = 4;

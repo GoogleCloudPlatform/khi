@@ -55,7 +55,7 @@ message Revision {
   uint32 log_id = 1;
   google.protobuf.Timestamp changed_time = 2;
   // The resource body at the time of the change. Use Struct to represent the resource body.
-  Struct resource_body = 3;
+  InternedStruct resource_body = 3;
   // ID of the InternString message in InterningPoolChunk.
   uint32 principal_string_id = 4;
   // The method verb type changed this revision. ID of VerbType in TimelineStyleChunk.

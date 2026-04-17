@@ -19,7 +19,7 @@
 import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
 import type { Message } from '@bufbuild/protobuf';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
-import type { Struct } from './shared_pb';
+import type { InternedStruct } from './shared_pb';
 
 /**
  * Describes the file khifile/v6/timeline.proto.
@@ -147,9 +147,9 @@ export declare type Revision = Message<'khifile.v6.Revision'> & {
   /**
    * The resource body at the time of the change. Use Struct to represent the resource body.
    *
-   * @generated from field: khifile.v6.Struct resource_body = 3;
+   * @generated from field: khifile.v6.InternedStruct resource_body = 3;
    */
-  resourceBody?: Struct;
+  resourceBody?: InternedStruct;
 
   /**
    * ID of the InternString message in InterningPoolChunk.

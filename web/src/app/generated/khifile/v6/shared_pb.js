@@ -16,48 +16,33 @@
 // @generated from file khifile/v6/shared.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, messageDesc, tsEnum } from "@bufbuild/protobuf/codegenv1";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file khifile/v6/shared.proto.
  */
 export const file_khifile_v6_shared = /*@__PURE__*/
-  fileDesc("ChdraGlmaWxlL3Y2L3NoYXJlZC5wcm90bxIKa2hpZmlsZS52NiJGCgZTdHJ1Y3QSGQoRZmllbGRfcGF0aF9zZXRfaWQYASABKA0SIQoGdmFsdWVzGAIgAygLMhEua2hpZmlsZS52Ni5WYWx1ZSKSAgoFVmFsdWUSKwoKbnVsbF92YWx1ZRgBIAEoDjIVLmtoaWZpbGUudjYuTnVsbFZhbHVlSAASFgoMbnVtYmVyX3ZhbHVlGAIgASgBSAASFgoMc3RyaW5nX3ZhbHVlGAMgASgNSAASFAoKYm9vbF92YWx1ZRgEIAEoCEgAEioKDHN0cnVjdF92YWx1ZRgFIAEoCzISLmtoaWZpbGUudjYuU3RydWN0SAASKwoKbGlzdF92YWx1ZRgGIAEoCzIVLmtoaWZpbGUudjYuTGlzdFZhbHVlSAASNQoPdGltZXN0YW1wX3ZhbHVlGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAQgYKBGtpbmQiLgoJTGlzdFZhbHVlEiEKBnZhbHVlcxgBIAMoCzIRLmtoaWZpbGUudjYuVmFsdWUqJwoJTnVsbFZhbHVlEhoKFk5VTExfVkFMVUVfVU5TUEVDSUZJRUQQAEJHWkVnaXRodWIuY29tL0dvb2dsZUNsb3VkUGxhdGZvcm0va2hpL3BrZy9nZW5lcmF0ZWQva2hpZmlsZS92NjtraGlmaWxldjZiCGVkaXRpb25zcOgH", [file_google_protobuf_timestamp]);
+  fileDesc("ChdraGlmaWxlL3Y2L3NoYXJlZC5wcm90bxIKa2hpZmlsZS52NiJWCg5JbnRlcm5lZFN0cnVjdBIZChFmaWVsZF9wYXRoX3NldF9pZBgBIAEoDRIpCgZ2YWx1ZXMYAiADKAsyGS5raGlmaWxlLnY2LkludGVybmVkVmFsdWUirwIKDUludGVybmVkVmFsdWUSMAoKbnVsbF92YWx1ZRgBIAEoDjIaLmdvb2dsZS5wcm90b2J1Zi5OdWxsVmFsdWVIABIWCgxudW1iZXJfdmFsdWUYAiABKAFIABIWCgxzdHJpbmdfdmFsdWUYAyABKA1IABIUCgpib29sX3ZhbHVlGAQgASgISAASMgoMc3RydWN0X3ZhbHVlGAUgASgLMhoua2hpZmlsZS52Ni5JbnRlcm5lZFN0cnVjdEgAEjMKCmxpc3RfdmFsdWUYBiABKAsyHS5raGlmaWxlLnY2LkludGVybmVkTGlzdFZhbHVlSAASNQoPdGltZXN0YW1wX3ZhbHVlGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAQgYKBGtpbmQiPgoRSW50ZXJuZWRMaXN0VmFsdWUSKQoGdmFsdWVzGAEgAygLMhkua2hpZmlsZS52Ni5JbnRlcm5lZFZhbHVlQkdaRWdpdGh1Yi5jb20vR29vZ2xlQ2xvdWRQbGF0Zm9ybS9raGkvcGtnL2dlbmVyYXRlZC9raGlmaWxlL3Y2O2toaWZpbGV2NmIIZWRpdGlvbnNw6Ac", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
 
 /**
- * Describes the message khifile.v6.Struct.
- * Use `create(StructSchema)` to create a new message.
+ * Describes the message khifile.v6.InternedStruct.
+ * Use `create(InternedStructSchema)` to create a new message.
  */
-export const StructSchema = /*@__PURE__*/
+export const InternedStructSchema = /*@__PURE__*/
   messageDesc(file_khifile_v6_shared, 0);
 
 /**
- * Describes the message khifile.v6.Value.
- * Use `create(ValueSchema)` to create a new message.
+ * Describes the message khifile.v6.InternedValue.
+ * Use `create(InternedValueSchema)` to create a new message.
  */
-export const ValueSchema = /*@__PURE__*/
+export const InternedValueSchema = /*@__PURE__*/
   messageDesc(file_khifile_v6_shared, 1);
 
 /**
- * Describes the message khifile.v6.ListValue.
- * Use `create(ListValueSchema)` to create a new message.
+ * Describes the message khifile.v6.InternedListValue.
+ * Use `create(InternedListValueSchema)` to create a new message.
  */
-export const ListValueSchema = /*@__PURE__*/
+export const InternedListValueSchema = /*@__PURE__*/
   messageDesc(file_khifile_v6_shared, 2);
-
-/**
- * Describes the enum khifile.v6.NullValue.
- */
-export const NullValueSchema = /*@__PURE__*/
-  enumDesc(file_khifile_v6_shared, 0);
-
-/**
- * `NullValue` is a singleton enumeration to represent the null value for the
- * `Value` type union.
- *
- * @generated from enum khifile.v6.NullValue
- */
-export const NullValue = /*@__PURE__*/
-  tsEnum(NullValueSchema);
 

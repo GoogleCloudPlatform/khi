@@ -16,13 +16,9 @@
 // @generated from file khifile/v6/shared.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type {
-  GenEnum,
-  GenFile,
-  GenMessage,
-} from '@bufbuild/protobuf/codegenv1';
+import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
 import type { Message } from '@bufbuild/protobuf';
-import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import type { NullValue, Timestamp } from '@bufbuild/protobuf/wkt';
 
 /**
  * Describes the file khifile/v6/shared.proto.
@@ -30,12 +26,12 @@ import type { Timestamp } from '@bufbuild/protobuf/wkt';
 export declare const file_khifile_v6_shared: GenFile;
 
 /**
- * `Struct` represents a structured data value, consisting of fields
+ * `InternedStruct` represents a structured data value, consisting of fields
  * corresponding to a FieldPath.
  *
- * @generated from message khifile.v6.Struct
+ * @generated from message khifile.v6.InternedStruct
  */
-export declare type Struct = Message<'khifile.v6.Struct'> & {
+export declare type InternedStruct = Message<'khifile.v6.InternedStruct'> & {
   /**
    * The ID of the field path in InterningPoolChunk.
    * A field path is an ordered list of field names (represented as interned string IDs).
@@ -60,37 +56,37 @@ export declare type Struct = Message<'khifile.v6.Struct'> & {
   /**
    * Values corresponding to the field path order.
    *
-   * @generated from field: repeated khifile.v6.Value values = 2;
+   * @generated from field: repeated khifile.v6.InternedValue values = 2;
    */
-  values: Value[];
+  values: InternedValue[];
 };
 
 /**
- * Describes the message khifile.v6.Struct.
- * Use `create(StructSchema)` to create a new message.
+ * Describes the message khifile.v6.InternedStruct.
+ * Use `create(InternedStructSchema)` to create a new message.
  */
-export declare const StructSchema: GenMessage<Struct>;
+export declare const InternedStructSchema: GenMessage<InternedStruct>;
 
 /**
- * `Value` represents a dynamically typed value which can be either
+ * `InternedValue` represents a dynamically typed value which can be either
  * null, a number, a string, a boolean, a recursive struct value, or a
  * list of values. A producer of value is expected to set one of these
  * variants. Absence of any variant indicates an error.
  *
- * @generated from message khifile.v6.Value
+ * @generated from message khifile.v6.InternedValue
  */
-export declare type Value = Message<'khifile.v6.Value'> & {
+export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
   /**
    * The kind of value.
    *
-   * @generated from oneof khifile.v6.Value.kind
+   * @generated from oneof khifile.v6.InternedValue.kind
    */
   kind:
     | {
         /**
          * Represents a null value.
          *
-         * @generated from field: khifile.v6.NullValue null_value = 1;
+         * @generated from field: google.protobuf.NullValue null_value = 1;
          */
         value: NullValue;
         case: 'nullValue';
@@ -128,18 +124,18 @@ export declare type Value = Message<'khifile.v6.Value'> & {
         /**
          * Represents a structured value.
          *
-         * @generated from field: khifile.v6.Struct struct_value = 5;
+         * @generated from field: khifile.v6.InternedStruct struct_value = 5;
          */
-        value: Struct;
+        value: InternedStruct;
         case: 'structValue';
       }
     | {
         /**
-         * Represents a repeated `Value`.
+         * Represents a repeated `InternedValue`.
          *
-         * @generated from field: khifile.v6.ListValue list_value = 6;
+         * @generated from field: khifile.v6.InternedListValue list_value = 6;
          */
-        value: ListValue;
+        value: InternedListValue;
         case: 'listValue';
       }
     | {
@@ -155,47 +151,28 @@ export declare type Value = Message<'khifile.v6.Value'> & {
 };
 
 /**
- * Describes the message khifile.v6.Value.
- * Use `create(ValueSchema)` to create a new message.
+ * Describes the message khifile.v6.InternedValue.
+ * Use `create(InternedValueSchema)` to create a new message.
  */
-export declare const ValueSchema: GenMessage<Value>;
+export declare const InternedValueSchema: GenMessage<InternedValue>;
 
 /**
- * `ListValue` is a wrapper around a repeated field of values.
+ * `InternedListValue` is a wrapper around a repeated field of values.
  *
- * @generated from message khifile.v6.ListValue
+ * @generated from message khifile.v6.InternedListValue
  */
-export declare type ListValue = Message<'khifile.v6.ListValue'> & {
-  /**
-   * Repeated field of dynamically typed values.
-   *
-   * @generated from field: repeated khifile.v6.Value values = 1;
-   */
-  values: Value[];
-};
+export declare type InternedListValue =
+  Message<'khifile.v6.InternedListValue'> & {
+    /**
+     * Repeated field of dynamically typed values.
+     *
+     * @generated from field: repeated khifile.v6.InternedValue values = 1;
+     */
+    values: InternedValue[];
+  };
 
 /**
- * Describes the message khifile.v6.ListValue.
- * Use `create(ListValueSchema)` to create a new message.
+ * Describes the message khifile.v6.InternedListValue.
+ * Use `create(InternedListValueSchema)` to create a new message.
  */
-export declare const ListValueSchema: GenMessage<ListValue>;
-
-/**
- * `NullValue` is a singleton enumeration to represent the null value for the
- * `Value` type union.
- *
- * @generated from enum khifile.v6.NullValue
- */
-export enum NullValue {
-  /**
-   * Null value.
-   *
-   * @generated from enum value: NULL_VALUE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-}
-
-/**
- * Describes the enum khifile.v6.NullValue.
- */
-export declare const NullValueSchema: GenEnum<NullValue>;
+export declare const InternedListValueSchema: GenMessage<InternedListValue>;
