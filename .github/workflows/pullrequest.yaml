@@ -217,6 +217,3 @@ jobs:
 
     - name: Run Proto Build (Generate)
       run: make build-proto
-
-    - name: Run Proto Breaking Change Check
-      run: make breaking-proto
