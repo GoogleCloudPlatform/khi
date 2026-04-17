@@ -189,3 +189,34 @@ jobs:
       - name: Run addlicense
         id: license_header_check
         run: go tool addlicense  -c "Google LLC" -l apache -v -check .
+
+  proto-checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version-file: './.node-version'
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: './go.mod'
+
+    - name: npm install (web)
+      working-directory: ./web
+      run: npm ci
+
+    - name: Run Proto Lint
+      run: make lint-proto
+
+    - name: Run Proto Build (Generate)
+      run: make build-proto
+
+    - name: Run Proto Breaking Change Check
+      run: make breaking-proto

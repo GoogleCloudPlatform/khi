@@ -16,9 +16,9 @@ syntax = "proto3";
 
 package khifile.v7;
 
-option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
-
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
 
 // `Struct` represents a structured data value, consisting of fields
 // corresponding to a FieldPath.
@@ -39,7 +39,7 @@ message Struct {
   // If the IDs for "metadata\0name" is 20 , and "metadata\0namespace" is 21, the field path is [20, 21].
   // The `values` array would contain the single string value "pod-1".
   uint32 field_path_set_id = 1;
-  
+
   // Values corresponding to the field path order.
   repeated Value values = 2;
 }

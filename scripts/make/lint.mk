@@ -60,3 +60,15 @@ lint-markdown: ## Run markdown linter
 .PHONY: lint-markdown-fix
 lint-markdown-fix: ## Fix markdown linter errors
 	npx markdownlint-cli2 --fix
+
+.PHONY: lint-proto
+lint-proto: ## Run proto linter
+	npx @bufbuild/buf lint
+
+.PHONY: format-proto
+format-proto: ## Format proto source code
+	npx @bufbuild/buf format -w
+
+.PHONY: breaking-proto
+breaking-proto: ## Check for breaking changes against main branch
+	npx @bufbuild/buf breaking --against .git#branch=main

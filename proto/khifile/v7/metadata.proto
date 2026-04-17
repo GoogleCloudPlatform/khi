@@ -20,6 +20,8 @@ import "google/protobuf/any.proto";
 
 option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
 
+// MetadataChunk stores arbitrary metadata associated with the inspection.
 message MetadataChunk {
+  // Extensible metadata fields to store tool-specific or environment-specific information not covered by the standard schema.
   repeated google.protobuf.Any metadata = 1;
 }

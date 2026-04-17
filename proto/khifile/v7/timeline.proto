@@ -22,43 +22,50 @@ import "khifile/v7/shared.proto";
 option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
 
 message TimelineChunk {
-   repeated Timeline timelines = 1;
-   repeated TimelineItems timeline_items = 2;
-   repeated Revision revisions = 3;
-   repeated Event events = 4;
-   repeated ResourceBody resource_bodies = 6; // Field 5 was removed (Identity)
+  repeated Timeline timelines = 1;
+  repeated TimelineItems timeline_items = 2;
 }
 
+// Timeline represents a single row rendered on the frontend.
 message Timeline {
-   uint32 id = 1;
-   uint32 timeline_type = 2;
-   uint32 name_string_id = 3; // An ID of InternString message
-   uint32 timeline_items_id = 4; // An ID of TimelineItems message
-   uint32 parent_timeline_id = 5; // 0 means no parent
+   // The id of a single timeline.
+  uint32 id = 1;
+  // The ID of TimelineType.
+  uint32 timeline_type = 2;
+  // ID of the InternString message in InterningPoolChunk.
+  uint32 name_string_id = 3;
+  // ID of the TimelineItems message in this chunk.
+  uint32 timeline_items_id = 4;
+  // ID of the parent Timeline message. 0 means no parent.
+  uint32 parent_timeline_id = 5;
 }
 
-message TimelineItems { // Multiple Timeline may share the same list of revisions and events. Thus Timeline holds this information by referencing TimelineItems with Id.
-   uint32 id = 1;
-   repeated uint32 revision_ids = 2; // List of Revision message IDs
-   repeated uint32 event_ids = 3; // List of Event message IDs
+// TimelineItems represents a list of events and revisions associated to a timeline.
+// Multiple timelines can share the same items by aliasing a timline to the other. Thus Timelien and TimelineItems are separated and located by its id number.
+message TimelineItems {
+  uint32 id = 1;
+  // Revision associated with this timeline. The order usually represents chronological order.
+  repeated Revision revisions = 2;
+  // Event associated with this timeline.
+  repeated Event events = 3;
 }
 
+// Revision represents a contious stat of a resource changed by a request.
 message Revision {
-   uint32 id = 1;
-   uint32 log_id = 2; // An ID of a Log defined in Log chunk
-   google.protobuf.Timestamp changed_time = 3;
-   Struct resource_body = 4;
-   uint32 principal_string_id = 5; // An ID of InternString message
-   uint32 verb_type = 6;
-   uint32 state_type = 7;
+  uint32 log_id = 1;
+  google.protobuf.Timestamp changed_time = 2;
+  // The resource body at the time of the change. Use Struct to represent the resource body.
+  Struct resource_body = 3;
+  // ID of the InternString message in InterningPoolChunk.
+  uint32 principal_string_id = 4;
+  // The method verb type changed this revision. ID of VerbType in TimelineStyleChunk.
+  uint32 verb_type = 5;
+  // The state type after this revision. ID of StateType in TimelineStyleChunk.
+  uint32 state_type = 6;
 }
 
+// Event represents a log associated on specific timeline.
 message Event {
-   uint32 id = 1;
-   uint32 log_id = 2; // An ID of a Log defined in Log chunk
-}
-
-message ResourceBody {
-   uint32 id = 1;
-   Struct body = 2;
+  // ID of a Log defined in LogChunk.
+  uint32 log_id = 1;
 }

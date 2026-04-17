@@ -31,7 +31,7 @@ message HDRColor4 {
   float a = 4;
 }
 
-// Severity represents the severity level of a log entry (e.g., INFO, ERROR) 
+// Severity represents the severity level of a log entry (e.g., INFO, ERROR)
 // and its associated styling information.
 message Severity {
   // id is the unique identifier of the severity. Do not set this value directly, it will be assigned automatically on its registration.
@@ -78,7 +78,7 @@ message LogType {
   HDRColor4 foreground_color = 5;
 }
 
-// RevisionStateStyle defines internal visual presentation modes 
+// RevisionStateStyle defines internal visual presentation modes
 // for representing the state of an object in a timeline.
 enum RevisionStateStyle {
   // NORMAL represents a standard, existing object state.
@@ -125,7 +125,7 @@ message TimelineType {
   int32 sort_priority = 7;
 }
 
-// IconAtlas is a collection of icons used in the UI. 
+// IconAtlas is a collection of icons used in the UI.
 message IconAtlas {
   // msdf_icon_image is the MSDF icon image.
   repeated bytes msdf_icon_image = 1;
