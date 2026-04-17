@@ -26,7 +26,7 @@ message TimelineChunk {
    repeated TimelineItems timeline_items = 2;
    repeated Revision revisions = 3;
    repeated Event events = 4;
-   repeated ResourceBody resourceBodies = 6; // Field 5 was removed (Identity)
+   repeated ResourceBody resource_bodies = 6; // Field 5 was removed (Identity)
 }
 
 message Timeline {
@@ -46,7 +46,7 @@ message TimelineItems { // Multiple Timeline may share the same list of revision
 message Revision {
    uint32 id = 1;
    uint32 log_id = 2; // An ID of a Log defined in Log chunk
-   google.protobuf.Timestamp changedTime = 3;
+   google.protobuf.Timestamp changed_time = 3;
    Struct resource_body = 4;
    uint32 principal_string_id = 5; // An ID of InternString message
    uint32 verb_type = 6;

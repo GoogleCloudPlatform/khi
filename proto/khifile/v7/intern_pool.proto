@@ -20,7 +20,7 @@ option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7
 
 message InterningPoolChunk {
    repeated InternString strings = 1;
-   repeated InternFieldPathSet fild_path_sets = 2;
+   repeated InternFieldPathSet field_path_sets = 2;
 }
 
 message InternString {

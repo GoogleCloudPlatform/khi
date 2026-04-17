@@ -53,7 +53,7 @@ export declare type TimelineChunk = Message<'khifile.v7.TimelineChunk'> & {
   /**
    * Field 5 was removed (Identity)
    *
-   * @generated from field: repeated khifile.v7.ResourceBody resourceBodies = 6;
+   * @generated from field: repeated khifile.v7.ResourceBody resource_bodies = 6;
    */
   resourceBodies: ResourceBody[];
 };
@@ -155,7 +155,7 @@ export declare type Revision = Message<'khifile.v7.Revision'> & {
   logId: number;
 
   /**
-   * @generated from field: google.protobuf.Timestamp changedTime = 3;
+   * @generated from field: google.protobuf.Timestamp changed_time = 3;
    */
   changedTime?: Timestamp;
 

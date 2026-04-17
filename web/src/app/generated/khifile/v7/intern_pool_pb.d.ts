@@ -35,9 +35,9 @@ export declare type InterningPoolChunk =
     strings: InternString[];
 
     /**
-     * @generated from field: repeated khifile.v7.InternFieldPathSet fild_path_sets = 2;
+     * @generated from field: repeated khifile.v7.InternFieldPathSet field_path_sets = 2;
      */
-    fildPathSets: InternFieldPathSet[];
+    fieldPathSets: InternFieldPathSet[];
   };
 
 /**
