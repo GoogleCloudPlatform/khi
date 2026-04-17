@@ -40,9 +40,9 @@ type InterningPoolChunk struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Pool of unique strings to avoid duplication. Referenced by ID from other messages.
 	// This repeated field is not guranteed to be sorted by its id to compress them effectively.
-	Strings []*InternString `protobuf:"bytes,1,rep,name=strings,proto3" json:"strings,omitempty"`
+	Strings []*InternString `protobuf:"bytes,1,rep,name=strings" json:"strings,omitempty"`
 	// Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
-	FieldPathSets []*InternFieldPathSet `protobuf:"bytes,2,rep,name=field_path_sets,json=fieldPathSets,proto3" json:"field_path_sets,omitempty"`
+	FieldPathSets []*InternFieldPathSet `protobuf:"bytes,2,rep,name=field_path_sets,json=fieldPathSets" json:"field_path_sets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -95,9 +95,9 @@ func (x *InterningPoolChunk) GetFieldPathSets() []*InternFieldPathSet {
 type InternString struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The id of interned string.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// The string value to be interned.
-	Value         string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Value         *string `protobuf:"bytes,2,opt,name=value" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -133,15 +133,15 @@ func (*InternString) Descriptor() ([]byte, []int) {
 }
 
 func (x *InternString) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *InternString) GetValue() string {
-	if x != nil {
-		return x.Value
+	if x != nil && x.Value != nil {
+		return *x.Value
 	}
 	return ""
 }
@@ -149,9 +149,9 @@ func (x *InternString) GetValue() string {
 // InternFieldPathSet represents an ordered list of field names.
 type InternFieldPathSet struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id    *uint32                `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// Array of interned string IDs corresponding to field names.
-	FieldNames    []uint32 `protobuf:"varint,2,rep,packed,name=field_names,json=fieldNames,proto3" json:"field_names,omitempty"`
+	FieldNames    []uint32 `protobuf:"varint,2,rep,packed,name=field_names,json=fieldNames" json:"field_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -187,8 +187,8 @@ func (*InternFieldPathSet) Descriptor() ([]byte, []int) {
 }
 
 func (x *InternFieldPathSet) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
@@ -227,7 +227,7 @@ var file_khifile_v7_intern_pool_proto_rawDesc = string([]byte{
 	0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69,
 	0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b,
 	0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c,
-	0x65, 0x76, 0x37, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x65, 0x76, 0x37, 0x62, 0x08, 0x65, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (

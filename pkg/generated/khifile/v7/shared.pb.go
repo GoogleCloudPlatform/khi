@@ -42,16 +42,16 @@ type NullValue int32
 
 const (
 	// Null value.
-	NullValue_NULL_VALUE NullValue = 0
+	NullValue_NULL_VALUE_UNSPECIFIED NullValue = 0
 )
 
 // Enum value maps for NullValue.
 var (
 	NullValue_name = map[int32]string{
-		0: "NULL_VALUE",
+		0: "NULL_VALUE_UNSPECIFIED",
 	}
 	NullValue_value = map[string]int32{
-		"NULL_VALUE": 0,
+		"NULL_VALUE_UNSPECIFIED": 0,
 	}
 )
 
@@ -101,9 +101,9 @@ type Struct struct {
 	// it can be flattened into a single field path `["metadata\0name","metadata\0namespace"]`.
 	// If the IDs for "metadata\0name" is 20 , and "metadata\0namespace" is 21, the field path is [20, 21].
 	// The `values` array would contain the single string value "pod-1".
-	FieldPathSetId uint32 `protobuf:"varint,1,opt,name=field_path_set_id,json=fieldPathSetId,proto3" json:"field_path_set_id,omitempty"`
+	FieldPathSetId *uint32 `protobuf:"varint,1,opt,name=field_path_set_id,json=fieldPathSetId" json:"field_path_set_id,omitempty"`
 	// Values corresponding to the field path order.
-	Values        []*Value `protobuf:"bytes,2,rep,name=values,proto3" json:"values,omitempty"`
+	Values        []*Value `protobuf:"bytes,2,rep,name=values" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -139,8 +139,8 @@ func (*Struct) Descriptor() ([]byte, []int) {
 }
 
 func (x *Struct) GetFieldPathSetId() uint32 {
-	if x != nil {
-		return x.FieldPathSetId
+	if x != nil && x.FieldPathSetId != nil {
+		return *x.FieldPathSetId
 	}
 	return 0
 }
@@ -217,7 +217,7 @@ func (x *Value) GetNullValue() NullValue {
 			return x.NullValue
 		}
 	}
-	return NullValue_NULL_VALUE
+	return NullValue_NULL_VALUE_UNSPECIFIED
 }
 
 func (x *Value) GetNumberValue() float64 {
@@ -280,37 +280,37 @@ type isValue_Kind interface {
 
 type Value_NullValue struct {
 	// Represents a null value.
-	NullValue NullValue `protobuf:"varint,1,opt,name=null_value,json=nullValue,proto3,enum=khifile.v7.NullValue,oneof"`
+	NullValue NullValue `protobuf:"varint,1,opt,name=null_value,json=nullValue,enum=khifile.v7.NullValue,oneof"`
 }
 
 type Value_NumberValue struct {
 	// Represents a double value.
-	NumberValue float64 `protobuf:"fixed64,2,opt,name=number_value,json=numberValue,proto3,oneof"`
+	NumberValue float64 `protobuf:"fixed64,2,opt,name=number_value,json=numberValue,oneof"`
 }
 
 type Value_StringValue struct {
 	// Represents a string value.
-	StringValue uint32 `protobuf:"varint,3,opt,name=string_value,json=stringValue,proto3,oneof"` // the id in InterningPoolChunk
+	StringValue uint32 `protobuf:"varint,3,opt,name=string_value,json=stringValue,oneof"` // the id in InterningPoolChunk
 }
 
 type Value_BoolValue struct {
 	// Represents a boolean value.
-	BoolValue bool `protobuf:"varint,4,opt,name=bool_value,json=boolValue,proto3,oneof"`
+	BoolValue bool `protobuf:"varint,4,opt,name=bool_value,json=boolValue,oneof"`
 }
 
 type Value_StructValue struct {
 	// Represents a structured value.
-	StructValue *Struct `protobuf:"bytes,5,opt,name=struct_value,json=structValue,proto3,oneof"`
+	StructValue *Struct `protobuf:"bytes,5,opt,name=struct_value,json=structValue,oneof"`
 }
 
 type Value_ListValue struct {
 	// Represents a repeated `Value`.
-	ListValue *ListValue `protobuf:"bytes,6,opt,name=list_value,json=listValue,proto3,oneof"`
+	ListValue *ListValue `protobuf:"bytes,6,opt,name=list_value,json=listValue,oneof"`
 }
 
 type Value_TimestampValue struct {
 	// Represents a timestamp value.
-	TimestampValue *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=timestamp_value,json=timestampValue,proto3,oneof"`
+	TimestampValue *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=timestamp_value,json=timestampValue,oneof"`
 }
 
 func (*Value_NullValue) isValue_Kind() {}
@@ -331,7 +331,7 @@ func (*Value_TimestampValue) isValue_Kind() {}
 type ListValue struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Repeated field of dynamically typed values.
-	Values        []*Value `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	Values        []*Value `protobuf:"bytes,1,rep,name=values" json:"values,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -412,14 +412,15 @@ var file_khifile_v7_shared_proto_rawDesc = string([]byte{
 	0x69, 0x6e, 0x64, 0x22, 0x36, 0x0a, 0x09, 0x4c, 0x69, 0x73, 0x74, 0x56, 0x61, 0x6c, 0x75, 0x65,
 	0x12, 0x29, 0x0a, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
 	0x32, 0x11, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x2e, 0x56, 0x61,
-	0x6c, 0x75, 0x65, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x2a, 0x1b, 0x0a, 0x09, 0x4e,
-	0x75, 0x6c, 0x6c, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x0e, 0x0a, 0x0a, 0x4e, 0x55, 0x4c, 0x4c,
-	0x5f, 0x56, 0x41, 0x4c, 0x55, 0x45, 0x10, 0x00, 0x42, 0x47, 0x5a, 0x45, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f,
-	0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70,
-	0x6b, 0x67, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69,
-	0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76,
-	0x37, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6c, 0x75, 0x65, 0x52, 0x06, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x73, 0x2a, 0x27, 0x0a, 0x09, 0x4e,
+	0x75, 0x6c, 0x6c, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x1a, 0x0a, 0x16, 0x4e, 0x55, 0x4c, 0x4c,
+	0x5f, 0x56, 0x41, 0x4c, 0x55, 0x45, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49,
+	0x45, 0x44, 0x10, 0x00, 0x42, 0x47, 0x5a, 0x45, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63,
+	0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c,
+	0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67,
+	0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65,
+	0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x08, 0x65,
+	0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (

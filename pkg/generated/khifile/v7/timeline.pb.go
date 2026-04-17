@@ -38,8 +38,8 @@ const (
 
 type TimelineChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Timelines     []*Timeline            `protobuf:"bytes,1,rep,name=timelines,proto3" json:"timelines,omitempty"`
-	TimelineItems []*TimelineItems       `protobuf:"bytes,2,rep,name=timeline_items,json=timelineItems,proto3" json:"timeline_items,omitempty"`
+	Timelines     []*Timeline            `protobuf:"bytes,1,rep,name=timelines" json:"timelines,omitempty"`
+	TimelineItems []*TimelineItems       `protobuf:"bytes,2,rep,name=timeline_items,json=timelineItems" json:"timeline_items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -92,15 +92,15 @@ func (x *TimelineChunk) GetTimelineItems() []*TimelineItems {
 type Timeline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The id of a single timeline.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// The ID of TimelineType.
-	TimelineType uint32 `protobuf:"varint,2,opt,name=timeline_type,json=timelineType,proto3" json:"timeline_type,omitempty"`
+	TimelineType *uint32 `protobuf:"varint,2,opt,name=timeline_type,json=timelineType" json:"timeline_type,omitempty"`
 	// ID of the InternString message in InterningPoolChunk.
-	NameStringId uint32 `protobuf:"varint,3,opt,name=name_string_id,json=nameStringId,proto3" json:"name_string_id,omitempty"`
+	NameStringId *uint32 `protobuf:"varint,3,opt,name=name_string_id,json=nameStringId" json:"name_string_id,omitempty"`
 	// ID of the TimelineItems message in this chunk.
-	TimelineItemsId uint32 `protobuf:"varint,4,opt,name=timeline_items_id,json=timelineItemsId,proto3" json:"timeline_items_id,omitempty"`
+	TimelineItemsId *uint32 `protobuf:"varint,4,opt,name=timeline_items_id,json=timelineItemsId" json:"timeline_items_id,omitempty"`
 	// ID of the parent Timeline message. 0 means no parent.
-	ParentTimelineId uint32 `protobuf:"varint,5,opt,name=parent_timeline_id,json=parentTimelineId,proto3" json:"parent_timeline_id,omitempty"`
+	ParentTimelineId *uint32 `protobuf:"varint,5,opt,name=parent_timeline_id,json=parentTimelineId" json:"parent_timeline_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -136,36 +136,36 @@ func (*Timeline) Descriptor() ([]byte, []int) {
 }
 
 func (x *Timeline) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *Timeline) GetTimelineType() uint32 {
-	if x != nil {
-		return x.TimelineType
+	if x != nil && x.TimelineType != nil {
+		return *x.TimelineType
 	}
 	return 0
 }
 
 func (x *Timeline) GetNameStringId() uint32 {
-	if x != nil {
-		return x.NameStringId
+	if x != nil && x.NameStringId != nil {
+		return *x.NameStringId
 	}
 	return 0
 }
 
 func (x *Timeline) GetTimelineItemsId() uint32 {
-	if x != nil {
-		return x.TimelineItemsId
+	if x != nil && x.TimelineItemsId != nil {
+		return *x.TimelineItemsId
 	}
 	return 0
 }
 
 func (x *Timeline) GetParentTimelineId() uint32 {
-	if x != nil {
-		return x.ParentTimelineId
+	if x != nil && x.ParentTimelineId != nil {
+		return *x.ParentTimelineId
 	}
 	return 0
 }
@@ -174,11 +174,11 @@ func (x *Timeline) GetParentTimelineId() uint32 {
 // Multiple timelines can share the same items by aliasing a timline to the other. Thus Timelien and TimelineItems are separated and located by its id number.
 type TimelineItems struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id    *uint32                `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// Revision associated with this timeline. The order usually represents chronological order.
-	Revisions []*Revision `protobuf:"bytes,2,rep,name=revisions,proto3" json:"revisions,omitempty"`
+	Revisions []*Revision `protobuf:"bytes,2,rep,name=revisions" json:"revisions,omitempty"`
 	// Event associated with this timeline.
-	Events        []*Event `protobuf:"bytes,3,rep,name=events,proto3" json:"events,omitempty"`
+	Events        []*Event `protobuf:"bytes,3,rep,name=events" json:"events,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,8 +214,8 @@ func (*TimelineItems) Descriptor() ([]byte, []int) {
 }
 
 func (x *TimelineItems) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
@@ -237,16 +237,16 @@ func (x *TimelineItems) GetEvents() []*Event {
 // Revision represents a contious stat of a resource changed by a request.
 type Revision struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
-	LogId       uint32                 `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
-	ChangedTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=changed_time,json=changedTime,proto3" json:"changed_time,omitempty"`
+	LogId       *uint32                `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
+	ChangedTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=changed_time,json=changedTime" json:"changed_time,omitempty"`
 	// The resource body at the time of the change. Use Struct to represent the resource body.
-	ResourceBody *Struct `protobuf:"bytes,3,opt,name=resource_body,json=resourceBody,proto3" json:"resource_body,omitempty"`
+	ResourceBody *Struct `protobuf:"bytes,3,opt,name=resource_body,json=resourceBody" json:"resource_body,omitempty"`
 	// ID of the InternString message in InterningPoolChunk.
-	PrincipalStringId uint32 `protobuf:"varint,4,opt,name=principal_string_id,json=principalStringId,proto3" json:"principal_string_id,omitempty"`
+	PrincipalStringId *uint32 `protobuf:"varint,4,opt,name=principal_string_id,json=principalStringId" json:"principal_string_id,omitempty"`
 	// The method verb type changed this revision. ID of VerbType in TimelineStyleChunk.
-	VerbType uint32 `protobuf:"varint,5,opt,name=verb_type,json=verbType,proto3" json:"verb_type,omitempty"`
+	VerbType *uint32 `protobuf:"varint,5,opt,name=verb_type,json=verbType" json:"verb_type,omitempty"`
 	// The state type after this revision. ID of StateType in TimelineStyleChunk.
-	StateType     uint32 `protobuf:"varint,6,opt,name=state_type,json=stateType,proto3" json:"state_type,omitempty"`
+	StateType     *uint32 `protobuf:"varint,6,opt,name=state_type,json=stateType" json:"state_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -282,8 +282,8 @@ func (*Revision) Descriptor() ([]byte, []int) {
 }
 
 func (x *Revision) GetLogId() uint32 {
-	if x != nil {
-		return x.LogId
+	if x != nil && x.LogId != nil {
+		return *x.LogId
 	}
 	return 0
 }
@@ -303,22 +303,22 @@ func (x *Revision) GetResourceBody() *Struct {
 }
 
 func (x *Revision) GetPrincipalStringId() uint32 {
-	if x != nil {
-		return x.PrincipalStringId
+	if x != nil && x.PrincipalStringId != nil {
+		return *x.PrincipalStringId
 	}
 	return 0
 }
 
 func (x *Revision) GetVerbType() uint32 {
-	if x != nil {
-		return x.VerbType
+	if x != nil && x.VerbType != nil {
+		return *x.VerbType
 	}
 	return 0
 }
 
 func (x *Revision) GetStateType() uint32 {
-	if x != nil {
-		return x.StateType
+	if x != nil && x.StateType != nil {
+		return *x.StateType
 	}
 	return 0
 }
@@ -327,7 +327,7 @@ func (x *Revision) GetStateType() uint32 {
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of a Log defined in LogChunk.
-	LogId         uint32 `protobuf:"varint,1,opt,name=log_id,json=logId,proto3" json:"log_id,omitempty"`
+	LogId         *uint32 `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -363,8 +363,8 @@ func (*Event) Descriptor() ([]byte, []int) {
 }
 
 func (x *Event) GetLogId() uint32 {
-	if x != nil {
-		return x.LogId
+	if x != nil && x.LogId != nil {
+		return *x.LogId
 	}
 	return 0
 }
@@ -429,8 +429,8 @@ var file_khifile_v7_timeline_proto_rawDesc = string([]byte{
 	0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61,
 	0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x65,
 	0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f,
-	0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x08, 0x65, 0x64,
+	0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (

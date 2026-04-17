@@ -39,7 +39,7 @@ const (
 // LogChunk represents a unit of log storage, aggregating multiple logs to optimize I/O and processing efficiency.
 type LogChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Logs          []*Log                 `protobuf:"bytes,1,rep,name=logs,proto3" json:"logs,omitempty"`
+	Logs          []*Log                 `protobuf:"bytes,1,rep,name=logs" json:"logs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -84,17 +84,17 @@ func (x *LogChunk) GetLogs() []*Log {
 // Log represents a single log entry with its associated metadata.
 type Log struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id    *uint32                `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// Timestamp when the log was recorded (e.g., when the event occurred in the source system).
-	Ts *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ts,proto3" json:"ts,omitempty"`
+	Ts *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ts" json:"ts,omitempty"`
 	// Structured data of the log body.
-	Body *Struct `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Body *Struct `protobuf:"bytes,3,opt,name=body" json:"body,omitempty"`
 	// ID of the summary string in InterningPoolChunk.
-	SummaryStringId uint32 `protobuf:"varint,4,opt,name=summary_string_id,json=summaryStringId,proto3" json:"summary_string_id,omitempty"`
+	SummaryStringId *uint32 `protobuf:"varint,4,opt,name=summary_string_id,json=summaryStringId" json:"summary_string_id,omitempty"`
 	// ID of the log type in TimelineStyleChunk.
-	LogTypeId uint32 `protobuf:"varint,5,opt,name=log_type_id,json=logTypeId,proto3" json:"log_type_id,omitempty"`
+	LogTypeId *uint32 `protobuf:"varint,5,opt,name=log_type_id,json=logTypeId" json:"log_type_id,omitempty"`
 	// ID of the severity in TimelineStyleChunk.
-	SeverityTypeId uint32 `protobuf:"varint,6,opt,name=severity_type_id,json=severityTypeId,proto3" json:"severity_type_id,omitempty"`
+	SeverityTypeId *uint32 `protobuf:"varint,6,opt,name=severity_type_id,json=severityTypeId" json:"severity_type_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -130,8 +130,8 @@ func (*Log) Descriptor() ([]byte, []int) {
 }
 
 func (x *Log) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
@@ -151,22 +151,22 @@ func (x *Log) GetBody() *Struct {
 }
 
 func (x *Log) GetSummaryStringId() uint32 {
-	if x != nil {
-		return x.SummaryStringId
+	if x != nil && x.SummaryStringId != nil {
+		return *x.SummaryStringId
 	}
 	return 0
 }
 
 func (x *Log) GetLogTypeId() uint32 {
-	if x != nil {
-		return x.LogTypeId
+	if x != nil && x.LogTypeId != nil {
+		return *x.LogTypeId
 	}
 	return 0
 }
 
 func (x *Log) GetSeverityTypeId() uint32 {
-	if x != nil {
-		return x.SeverityTypeId
+	if x != nil && x.SeverityTypeId != nil {
+		return *x.SeverityTypeId
 	}
 	return 0
 }
@@ -201,7 +201,8 @@ var file_khifile_v7_log_proto_rawDesc = string([]byte{
 	0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72,
 	0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61,
 	0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b,
-	0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x08, 0x65, 0x64, 0x69, 0x74, 0x69, 0x6f,
+	0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (

@@ -39,7 +39,17 @@ When developing or modifying Proto files in the KHI project, you **must** adhere
        }
        ```
 
-3. **Package and Options**:
+3. **Edition**:
+   - **Always use Editions**: Use Editions instead of `proto3`. Specify `edition = "2023";` at the top of the file.
+     - Example:
+
+       ```proto
+       edition = "2023";
+
+       package khifile.v7;
+       ```
+
+4. **Package and Options**:
    - Package names must follow the pattern `khifile.vX` where X is the version (e.g., `khifile.v7`).
    - Always specify `go_package` option correctly, matching the project structure.
      - Example: `option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";`

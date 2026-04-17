@@ -40,25 +40,29 @@ const (
 type RevisionStateStyle int32
 
 const (
-	// NORMAL represents a standard, existing object state.
-	RevisionStateStyle_NORMAL RevisionStateStyle = 0
-	// DELETED represents a state where the object has been deleted.
-	RevisionStateStyle_DELETED RevisionStateStyle = 1
-	// PARTIAL_INFO represents a state where only incomplete information about the object is available.
-	RevisionStateStyle_PARTIAL_INFO RevisionStateStyle = 2
+	// REVISION_STATE_STYLE_UNSPECIFIED represents an unspecified state.
+	RevisionStateStyle_REVISION_STATE_STYLE_UNSPECIFIED RevisionStateStyle = 0
+	// REVISION_STATE_STYLE_NORMAL represents a standard, existing object state.
+	RevisionStateStyle_REVISION_STATE_STYLE_NORMAL RevisionStateStyle = 1
+	// REVISION_STATE_STYLE_DELETED represents a state where the object has been deleted.
+	RevisionStateStyle_REVISION_STATE_STYLE_DELETED RevisionStateStyle = 2
+	// REVISION_STATE_STYLE_PARTIAL_INFO represents a state where only incomplete information about the object is available.
+	RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO RevisionStateStyle = 3
 )
 
 // Enum value maps for RevisionStateStyle.
 var (
 	RevisionStateStyle_name = map[int32]string{
-		0: "NORMAL",
-		1: "DELETED",
-		2: "PARTIAL_INFO",
+		0: "REVISION_STATE_STYLE_UNSPECIFIED",
+		1: "REVISION_STATE_STYLE_NORMAL",
+		2: "REVISION_STATE_STYLE_DELETED",
+		3: "REVISION_STATE_STYLE_PARTIAL_INFO",
 	}
 	RevisionStateStyle_value = map[string]int32{
-		"NORMAL":       0,
-		"DELETED":      1,
-		"PARTIAL_INFO": 2,
+		"REVISION_STATE_STYLE_UNSPECIFIED":  0,
+		"REVISION_STATE_STYLE_NORMAL":       1,
+		"REVISION_STATE_STYLE_DELETED":      2,
+		"REVISION_STATE_STYLE_PARTIAL_INFO": 3,
 	}
 )
 
@@ -94,13 +98,13 @@ func (RevisionStateStyle) EnumDescriptor() ([]byte, []int) {
 type HDRColor4 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The red component of the color.
-	R float32 `protobuf:"fixed32,1,opt,name=r,proto3" json:"r,omitempty"`
+	R *float32 `protobuf:"fixed32,1,opt,name=r" json:"r,omitempty"`
 	// The green component of the color.
-	G float32 `protobuf:"fixed32,2,opt,name=g,proto3" json:"g,omitempty"`
+	G *float32 `protobuf:"fixed32,2,opt,name=g" json:"g,omitempty"`
 	// The blue component of the color.
-	B float32 `protobuf:"fixed32,3,opt,name=b,proto3" json:"b,omitempty"`
+	B *float32 `protobuf:"fixed32,3,opt,name=b" json:"b,omitempty"`
 	// The alpha (opacity) component of the color. 0.0 is fully transparent, 1.0 is fully opaque.
-	A             float32 `protobuf:"fixed32,4,opt,name=a,proto3" json:"a,omitempty"`
+	A             *float32 `protobuf:"fixed32,4,opt,name=a" json:"a,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -136,29 +140,29 @@ func (*HDRColor4) Descriptor() ([]byte, []int) {
 }
 
 func (x *HDRColor4) GetR() float32 {
-	if x != nil {
-		return x.R
+	if x != nil && x.R != nil {
+		return *x.R
 	}
 	return 0
 }
 
 func (x *HDRColor4) GetG() float32 {
-	if x != nil {
-		return x.G
+	if x != nil && x.G != nil {
+		return *x.G
 	}
 	return 0
 }
 
 func (x *HDRColor4) GetB() float32 {
-	if x != nil {
-		return x.B
+	if x != nil && x.B != nil {
+		return *x.B
 	}
 	return 0
 }
 
 func (x *HDRColor4) GetA() float32 {
-	if x != nil {
-		return x.A
+	if x != nil && x.A != nil {
+		return *x.A
 	}
 	return 0
 }
@@ -168,17 +172,17 @@ func (x *HDRColor4) GetA() float32 {
 type Severity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// id is the unique identifier of the severity. Do not set this value directly, it will be assigned automatically on its registration.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// label is a human readable string of the severity. (e.g: INFO, WARNING)
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Label *string `protobuf:"bytes,2,opt,name=label" json:"label,omitempty"`
 	// short_label is a short human readable string of the severity. (e.g: I, W)
-	ShortLabel string `protobuf:"bytes,3,opt,name=short_label,json=shortLabel,proto3" json:"short_label,omitempty"`
+	ShortLabel *string `protobuf:"bytes,3,opt,name=short_label,json=shortLabel" json:"short_label,omitempty"`
 	// background_color of the label on log pane and used for the upper part of log dots on timeline.
-	BackgroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=background_color,json=backgroundColor,proto3" json:"background_color,omitempty"`
+	BackgroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=background_color,json=backgroundColor" json:"background_color,omitempty"`
 	// foreground_color of the label on log pane.
-	ForegroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=foreground_color,json=foregroundColor,proto3" json:"foreground_color,omitempty"`
+	ForegroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=foreground_color,json=foregroundColor" json:"foreground_color,omitempty"`
 	// order is the order of the severity. Lower values are displayed on the top.
-	Order         int32 `protobuf:"varint,6,opt,name=order,proto3" json:"order,omitempty"`
+	Order         *int32 `protobuf:"varint,6,opt,name=order" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,22 +218,22 @@ func (*Severity) Descriptor() ([]byte, []int) {
 }
 
 func (x *Severity) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *Severity) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
 
 func (x *Severity) GetShortLabel() string {
-	if x != nil {
-		return x.ShortLabel
+	if x != nil && x.ShortLabel != nil {
+		return *x.ShortLabel
 	}
 	return ""
 }
@@ -249,8 +253,8 @@ func (x *Severity) GetForegroundColor() *HDRColor4 {
 }
 
 func (x *Severity) GetOrder() int32 {
-	if x != nil {
-		return x.Order
+	if x != nil && x.Order != nil {
+		return *x.Order
 	}
 	return 0
 }
@@ -260,15 +264,15 @@ func (x *Severity) GetOrder() int32 {
 type Verb struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// id is the unique identifier of the verb. Do not set this value directly, it will be assigned automatically on its registration.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// label is a human readable string of the verb.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Label *string `protobuf:"bytes,2,opt,name=label" json:"label,omitempty"`
 	// background_color used in history view.
-	BackgroundColor *HDRColor4 `protobuf:"bytes,3,opt,name=background_color,json=backgroundColor,proto3" json:"background_color,omitempty"`
+	BackgroundColor *HDRColor4 `protobuf:"bytes,3,opt,name=background_color,json=backgroundColor" json:"background_color,omitempty"`
 	// foreground_color used in history view.
-	ForegroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=foreground_color,json=foregroundColor,proto3" json:"foreground_color,omitempty"`
+	ForegroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=foreground_color,json=foregroundColor" json:"foreground_color,omitempty"`
 	// visible controls whether this verb should be displayed in the history view.
-	Visible       bool `protobuf:"varint,5,opt,name=visible,proto3" json:"visible,omitempty"`
+	Visible       *bool `protobuf:"varint,5,opt,name=visible" json:"visible,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -304,15 +308,15 @@ func (*Verb) Descriptor() ([]byte, []int) {
 }
 
 func (x *Verb) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *Verb) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
@@ -332,8 +336,8 @@ func (x *Verb) GetForegroundColor() *HDRColor4 {
 }
 
 func (x *Verb) GetVisible() bool {
-	if x != nil {
-		return x.Visible
+	if x != nil && x.Visible != nil {
+		return *x.Visible
 	}
 	return false
 }
@@ -343,15 +347,15 @@ func (x *Verb) GetVisible() bool {
 type LogType struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// id is the unique identifier of the log type. Do not set this value directly, it will be assigned automatically on its registration.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// label is a human readable string of the log type.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Label *string `protobuf:"bytes,2,opt,name=label" json:"label,omitempty"`
 	// description provides more context about the log type.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Description *string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
 	// background_color used for rendering the log type badge or the lower part of log dots on timeline.
-	BackgroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=background_color,json=backgroundColor,proto3" json:"background_color,omitempty"`
+	BackgroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=background_color,json=backgroundColor" json:"background_color,omitempty"`
 	// foreground_color used for rendering the text on the log type background.
-	ForegroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=foreground_color,json=foregroundColor,proto3" json:"foreground_color,omitempty"`
+	ForegroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=foreground_color,json=foregroundColor" json:"foreground_color,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -387,22 +391,22 @@ func (*LogType) Descriptor() ([]byte, []int) {
 }
 
 func (x *LogType) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *LogType) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
 
 func (x *LogType) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -426,17 +430,17 @@ func (x *LogType) GetForegroundColor() *HDRColor4 {
 type RevisionState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// id is the unique identifier of the revision state. Do not set this value directly, it will be assigned automatically on its registration.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// label is a human readable string for the state.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Label *string `protobuf:"bytes,2,opt,name=label" json:"label,omitempty"`
 	// icon is the name of the icon (e.g., Material Symbol name) used to represent the state.
-	Icon string `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
+	Icon *string `protobuf:"bytes,3,opt,name=icon" json:"icon,omitempty"`
 	// description provides more context about the state.
-	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Description *string `protobuf:"bytes,4,opt,name=description" json:"description,omitempty"`
 	// background_color used for badges or indicators of this state.
-	BackgroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=background_color,json=backgroundColor,proto3" json:"background_color,omitempty"`
+	BackgroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=background_color,json=backgroundColor" json:"background_color,omitempty"`
 	// style defines the specific rendering mode for this state in the UI.
-	Style         RevisionStateStyle `protobuf:"varint,6,opt,name=style,proto3,enum=khifile.v7.RevisionStateStyle" json:"style,omitempty"`
+	Style         *RevisionStateStyle `protobuf:"varint,6,opt,name=style,enum=khifile.v7.RevisionStateStyle" json:"style,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -472,29 +476,29 @@ func (*RevisionState) Descriptor() ([]byte, []int) {
 }
 
 func (x *RevisionState) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *RevisionState) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
 
 func (x *RevisionState) GetIcon() string {
-	if x != nil {
-		return x.Icon
+	if x != nil && x.Icon != nil {
+		return *x.Icon
 	}
 	return ""
 }
 
 func (x *RevisionState) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -507,10 +511,10 @@ func (x *RevisionState) GetBackgroundColor() *HDRColor4 {
 }
 
 func (x *RevisionState) GetStyle() RevisionStateStyle {
-	if x != nil {
-		return x.Style
+	if x != nil && x.Style != nil {
+		return *x.Style
 	}
-	return RevisionStateStyle_NORMAL
+	return RevisionStateStyle_REVISION_STATE_STYLE_UNSPECIFIED
 }
 
 // TimelineType defines the presentation style for a specific type of timeline line
@@ -518,19 +522,19 @@ func (x *RevisionState) GetStyle() RevisionStateStyle {
 type TimelineType struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// id is the unique identifier of the timeline type. Do not set this value directly, it will be assigned automatically on its registration.
-	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id *uint32 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
 	// label is the human readable name for the timeline type.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Label *string `protobuf:"bytes,2,opt,name=label" json:"label,omitempty"`
 	// description provides additional context for the timeline type. This is shown on the legends.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Description *string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
 	// background_color used for styling the timeline rows.
-	BackgroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=background_color,json=backgroundColor,proto3" json:"background_color,omitempty"`
+	BackgroundColor *HDRColor4 `protobuf:"bytes,4,opt,name=background_color,json=backgroundColor" json:"background_color,omitempty"`
 	// foreground_color used for text or specific marks on the timeline.
-	ForegroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=foreground_color,json=foregroundColor,proto3" json:"foreground_color,omitempty"`
+	ForegroundColor *HDRColor4 `protobuf:"bytes,5,opt,name=foreground_color,json=foregroundColor" json:"foreground_color,omitempty"`
 	// visible controls whether this timeline type should be displayed by default.
-	Visible bool `protobuf:"varint,6,opt,name=visible,proto3" json:"visible,omitempty"`
+	Visible *bool `protobuf:"varint,6,opt,name=visible" json:"visible,omitempty"`
 	// sort_priority determines the default vertical ordering of timelines (lower values sort higher).
-	SortPriority  int32 `protobuf:"varint,7,opt,name=sort_priority,json=sortPriority,proto3" json:"sort_priority,omitempty"`
+	SortPriority  *int32 `protobuf:"varint,7,opt,name=sort_priority,json=sortPriority" json:"sort_priority,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -566,22 +570,22 @@ func (*TimelineType) Descriptor() ([]byte, []int) {
 }
 
 func (x *TimelineType) GetId() uint32 {
-	if x != nil {
-		return x.Id
+	if x != nil && x.Id != nil {
+		return *x.Id
 	}
 	return 0
 }
 
 func (x *TimelineType) GetLabel() string {
-	if x != nil {
-		return x.Label
+	if x != nil && x.Label != nil {
+		return *x.Label
 	}
 	return ""
 }
 
 func (x *TimelineType) GetDescription() string {
-	if x != nil {
-		return x.Description
+	if x != nil && x.Description != nil {
+		return *x.Description
 	}
 	return ""
 }
@@ -601,15 +605,15 @@ func (x *TimelineType) GetForegroundColor() *HDRColor4 {
 }
 
 func (x *TimelineType) GetVisible() bool {
-	if x != nil {
-		return x.Visible
+	if x != nil && x.Visible != nil {
+		return *x.Visible
 	}
 	return false
 }
 
 func (x *TimelineType) GetSortPriority() int32 {
-	if x != nil {
-		return x.SortPriority
+	if x != nil && x.SortPriority != nil {
+		return *x.SortPriority
 	}
 	return 0
 }
@@ -618,11 +622,11 @@ func (x *TimelineType) GetSortPriority() int32 {
 type IconAtlas struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// msdf_icon_image is the MSDF icon image.
-	MsdfIconImage [][]byte `protobuf:"bytes,1,rep,name=msdf_icon_image,json=msdfIconImage,proto3" json:"msdf_icon_image,omitempty"`
+	MsdfIconImage [][]byte `protobuf:"bytes,1,rep,name=msdf_icon_image,json=msdfIconImage" json:"msdf_icon_image,omitempty"`
 	// bmfont_json is the embedded BMFont configuration in JSON format for the msdf_icon_image.
-	BmfontJson []byte `protobuf:"bytes,2,opt,name=bmfont_json,json=bmfontJson,proto3" json:"bmfont_json,omitempty"`
+	BmfontJson []byte `protobuf:"bytes,2,opt,name=bmfont_json,json=bmfontJson" json:"bmfont_json,omitempty"`
 	// name_to_codepoints maps icon names to their codepoints.
-	NameToCodepoints map[string]string `protobuf:"bytes,3,rep,name=name_to_codepoints,json=nameToCodepoints,proto3" json:"name_to_codepoints,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	NameToCodepoints map[string]string `protobuf:"bytes,3,rep,name=name_to_codepoints,json=nameToCodepoints" json:"name_to_codepoints,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -683,17 +687,17 @@ func (x *IconAtlas) GetNameToCodepoints() map[string]string {
 type TimelineStyleChunk struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// severities contains definitions for different log severity levels.
-	Severities []*Severity `protobuf:"bytes,1,rep,name=severities,proto3" json:"severities,omitempty"`
+	Severities []*Severity `protobuf:"bytes,1,rep,name=severities" json:"severities,omitempty"`
 	// verbs contains definitions for different actions (verbs).
-	Verbs []*Verb `protobuf:"bytes,2,rep,name=verbs,proto3" json:"verbs,omitempty"`
+	Verbs []*Verb `protobuf:"bytes,2,rep,name=verbs" json:"verbs,omitempty"`
 	// log_types contains definitions for the various sources/categories of logs.
-	LogTypes []*LogType `protobuf:"bytes,3,rep,name=log_types,json=logTypes,proto3" json:"log_types,omitempty"`
+	LogTypes []*LogType `protobuf:"bytes,3,rep,name=log_types,json=logTypes" json:"log_types,omitempty"`
 	// revision_states contains definitions for resource statuses.
-	RevisionStates []*RevisionState `protobuf:"bytes,4,rep,name=revision_states,json=revisionStates,proto3" json:"revision_states,omitempty"`
+	RevisionStates []*RevisionState `protobuf:"bytes,4,rep,name=revision_states,json=revisionStates" json:"revision_states,omitempty"`
 	// timeline_types contains definitions for types of timelines.
-	TimelineTypes []*TimelineType `protobuf:"bytes,5,rep,name=timeline_types,json=timelineTypes,proto3" json:"timeline_types,omitempty"`
+	TimelineTypes []*TimelineType `protobuf:"bytes,5,rep,name=timeline_types,json=timelineTypes" json:"timeline_types,omitempty"`
 	// icon_atlas contains the icon atlas used for rendering revision state icons.
-	IconAtlas     *IconAtlas `protobuf:"bytes,6,opt,name=icon_atlas,json=iconAtlas,proto3" json:"icon_atlas,omitempty"`
+	IconAtlas     *IconAtlas `protobuf:"bytes,6,opt,name=icon_atlas,json=iconAtlas" json:"icon_atlas,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -890,16 +894,23 @@ var file_khifile_v7_style_proto_rawDesc = string([]byte{
 	0x73, 0x12, 0x34, 0x0a, 0x0a, 0x69, 0x63, 0x6f, 0x6e, 0x5f, 0x61, 0x74, 0x6c, 0x61, 0x73, 0x18,
 	0x06, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e,
 	0x76, 0x37, 0x2e, 0x49, 0x63, 0x6f, 0x6e, 0x41, 0x74, 0x6c, 0x61, 0x73, 0x52, 0x09, 0x69, 0x63,
-	0x6f, 0x6e, 0x41, 0x74, 0x6c, 0x61, 0x73, 0x2a, 0x3f, 0x0a, 0x12, 0x52, 0x65, 0x76, 0x69, 0x73,
-	0x69, 0x6f, 0x6e, 0x53, 0x74, 0x61, 0x74, 0x65, 0x53, 0x74, 0x79, 0x6c, 0x65, 0x12, 0x0a, 0x0a,
-	0x06, 0x4e, 0x4f, 0x52, 0x4d, 0x41, 0x4c, 0x10, 0x00, 0x12, 0x0b, 0x0a, 0x07, 0x44, 0x45, 0x4c,
-	0x45, 0x54, 0x45, 0x44, 0x10, 0x01, 0x12, 0x10, 0x0a, 0x0c, 0x50, 0x41, 0x52, 0x54, 0x49, 0x41,
-	0x4c, 0x5f, 0x49, 0x4e, 0x46, 0x4f, 0x10, 0x02, 0x42, 0x47, 0x5a, 0x45, 0x67, 0x69, 0x74, 0x68,
-	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f,
-	0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70,
-	0x6b, 0x67, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69,
-	0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76,
-	0x37, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x6e, 0x41, 0x74, 0x6c, 0x61, 0x73, 0x2a, 0xa4, 0x01, 0x0a, 0x12, 0x52, 0x65, 0x76, 0x69,
+	0x73, 0x69, 0x6f, 0x6e, 0x53, 0x74, 0x61, 0x74, 0x65, 0x53, 0x74, 0x79, 0x6c, 0x65, 0x12, 0x24,
+	0x0a, 0x20, 0x52, 0x45, 0x56, 0x49, 0x53, 0x49, 0x4f, 0x4e, 0x5f, 0x53, 0x54, 0x41, 0x54, 0x45,
+	0x5f, 0x53, 0x54, 0x59, 0x4c, 0x45, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49,
+	0x45, 0x44, 0x10, 0x00, 0x12, 0x1f, 0x0a, 0x1b, 0x52, 0x45, 0x56, 0x49, 0x53, 0x49, 0x4f, 0x4e,
+	0x5f, 0x53, 0x54, 0x41, 0x54, 0x45, 0x5f, 0x53, 0x54, 0x59, 0x4c, 0x45, 0x5f, 0x4e, 0x4f, 0x52,
+	0x4d, 0x41, 0x4c, 0x10, 0x01, 0x12, 0x20, 0x0a, 0x1c, 0x52, 0x45, 0x56, 0x49, 0x53, 0x49, 0x4f,
+	0x4e, 0x5f, 0x53, 0x54, 0x41, 0x54, 0x45, 0x5f, 0x53, 0x54, 0x59, 0x4c, 0x45, 0x5f, 0x44, 0x45,
+	0x4c, 0x45, 0x54, 0x45, 0x44, 0x10, 0x02, 0x12, 0x25, 0x0a, 0x21, 0x52, 0x45, 0x56, 0x49, 0x53,
+	0x49, 0x4f, 0x4e, 0x5f, 0x53, 0x54, 0x41, 0x54, 0x45, 0x5f, 0x53, 0x54, 0x59, 0x4c, 0x45, 0x5f,
+	0x50, 0x41, 0x52, 0x54, 0x49, 0x41, 0x4c, 0x5f, 0x49, 0x4e, 0x46, 0x4f, 0x10, 0x03, 0x42, 0x47,
+	0x5a, 0x45, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d,
+	0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74,
+	0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68,
+	0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x08, 0x65, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e,
+	0x73, 0x70, 0xe8, 0x07,
 })
 
 var (

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-syntax = "proto3";
+edition = "2023";
 
 package khifile.v7;
 
@@ -81,12 +81,14 @@ message LogType {
 // RevisionStateStyle defines internal visual presentation modes
 // for representing the state of an object in a timeline.
 enum RevisionStateStyle {
-  // NORMAL represents a standard, existing object state.
-  NORMAL = 0;
-  // DELETED represents a state where the object has been deleted.
-  DELETED = 1;
-  // PARTIAL_INFO represents a state where only incomplete information about the object is available.
-  PARTIAL_INFO = 2;
+  // REVISION_STATE_STYLE_UNSPECIFIED represents an unspecified state.
+  REVISION_STATE_STYLE_UNSPECIFIED = 0;
+  // REVISION_STATE_STYLE_NORMAL represents a standard, existing object state.
+  REVISION_STATE_STYLE_NORMAL = 1;
+  // REVISION_STATE_STYLE_DELETED represents a state where the object has been deleted.
+  REVISION_STATE_STYLE_DELETED = 2;
+  // REVISION_STATE_STYLE_PARTIAL_INFO represents a state where only incomplete information about the object is available.
+  REVISION_STATE_STYLE_PARTIAL_INFO = 3;
 }
 
 // RevisionState represents a specific status of a resource at a given point in time
