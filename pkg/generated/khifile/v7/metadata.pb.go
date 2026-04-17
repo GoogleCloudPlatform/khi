@@ -36,9 +36,11 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// MetadataChunk stores arbitrary metadata associated with the inspection.
 type MetadataChunk struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metadata      []*anypb.Any           `protobuf:"bytes,1,rep,name=metadata,proto3" json:"metadata,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Extensible metadata fields to store tool-specific or environment-specific information not covered by the standard schema.
+	Metadata      []*anypb.Any `protobuf:"bytes,1,rep,name=metadata,proto3" json:"metadata,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

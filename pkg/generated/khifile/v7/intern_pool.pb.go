@@ -35,10 +35,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// InterningPoolChunk reduces file size by pooling common strings and field paths.
 type InterningPoolChunk struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Strings       []*InternString        `protobuf:"bytes,1,rep,name=strings,proto3" json:"strings,omitempty"`
-	FieldPathSets []*InternFieldPathSet  `protobuf:"bytes,2,rep,name=field_path_sets,json=fieldPathSets,proto3" json:"field_path_sets,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Pool of unique strings to avoid duplication. Referenced by ID from other messages.
+	// This repeated field is not guranteed to be sorted by its id to compress them effectively.
+	Strings []*InternString `protobuf:"bytes,1,rep,name=strings,proto3" json:"strings,omitempty"`
+	// Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
+	FieldPathSets []*InternFieldPathSet `protobuf:"bytes,2,rep,name=field_path_sets,json=fieldPathSets,proto3" json:"field_path_sets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -87,10 +91,13 @@ func (x *InterningPoolChunk) GetFieldPathSets() []*InternFieldPathSet {
 	return nil
 }
 
+// InternString is a pool of unique strings.
 type InternString struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The id of interned string.
+	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// The string value to be interned.
+	Value         string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -139,10 +146,12 @@ func (x *InternString) GetValue() string {
 	return ""
 }
 
+// InternFieldPathSet represents an ordered list of field names.
 type InternFieldPathSet struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	FieldNames    []uint32               `protobuf:"varint,2,rep,packed,name=field_names,json=fieldNames,proto3" json:"field_names,omitempty"` // Array of interned string IDs
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Array of interned string IDs corresponding to field names.
+	FieldNames    []uint32 `protobuf:"varint,2,rep,packed,name=field_names,json=fieldNames,proto3" json:"field_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

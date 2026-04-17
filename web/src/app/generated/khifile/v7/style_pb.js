@@ -87,7 +87,7 @@ export const RevisionStateStyleSchema = /*@__PURE__*/
   enumDesc(file_khifile_v7_style, 0);
 
 /**
- * RevisionStateStyle defines internal visual presentation modes 
+ * RevisionStateStyle defines internal visual presentation modes
  * for representing the state of an object in a timeline.
  *
  * @generated from enum khifile.v7.RevisionStateStyle

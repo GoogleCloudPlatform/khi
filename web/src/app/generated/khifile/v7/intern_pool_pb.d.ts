@@ -25,16 +25,23 @@ import type { Message } from '@bufbuild/protobuf';
 export declare const file_khifile_v7_intern_pool: GenFile;
 
 /**
+ * InterningPoolChunk reduces file size by pooling common strings and field paths.
+ *
  * @generated from message khifile.v7.InterningPoolChunk
  */
 export declare type InterningPoolChunk =
   Message<'khifile.v7.InterningPoolChunk'> & {
     /**
+     * Pool of unique strings to avoid duplication. Referenced by ID from other messages.
+     * This repeated field is not guranteed to be sorted by its id to compress them effectively.
+     *
      * @generated from field: repeated khifile.v7.InternString strings = 1;
      */
     strings: InternString[];
 
     /**
+     * Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
+     *
      * @generated from field: repeated khifile.v7.InternFieldPathSet field_path_sets = 2;
      */
     fieldPathSets: InternFieldPathSet[];
@@ -47,15 +54,21 @@ export declare type InterningPoolChunk =
 export declare const InterningPoolChunkSchema: GenMessage<InterningPoolChunk>;
 
 /**
+ * InternString is a pool of unique strings.
+ *
  * @generated from message khifile.v7.InternString
  */
 export declare type InternString = Message<'khifile.v7.InternString'> & {
   /**
+   * The id of interned string.
+   *
    * @generated from field: uint32 id = 1;
    */
   id: number;
 
   /**
+   * The string value to be interned.
+   *
    * @generated from field: string value = 2;
    */
   value: string;
@@ -68,6 +81,8 @@ export declare type InternString = Message<'khifile.v7.InternString'> & {
 export declare const InternStringSchema: GenMessage<InternString>;
 
 /**
+ * InternFieldPathSet represents an ordered list of field names.
+ *
  * @generated from message khifile.v7.InternFieldPathSet
  */
 export declare type InternFieldPathSet =
@@ -78,7 +93,7 @@ export declare type InternFieldPathSet =
     id: number;
 
     /**
-     * Array of interned string IDs
+     * Array of interned string IDs corresponding to field names.
      *
      * @generated from field: repeated uint32 field_names = 2;
      */

@@ -27,6 +27,8 @@ import type { Struct } from './shared_pb';
 export declare const file_khifile_v7_log: GenFile;
 
 /**
+ * LogChunk represents a unit of log storage, aggregating multiple logs to optimize I/O and processing efficiency.
+ *
  * @generated from message khifile.v7.LogChunk
  */
 export declare type LogChunk = Message<'khifile.v7.LogChunk'> & {
@@ -43,6 +45,8 @@ export declare type LogChunk = Message<'khifile.v7.LogChunk'> & {
 export declare const LogChunkSchema: GenMessage<LogChunk>;
 
 /**
+ * Log represents a single log entry with its associated metadata.
+ *
  * @generated from message khifile.v7.Log
  */
 export declare type Log = Message<'khifile.v7.Log'> & {
@@ -52,26 +56,36 @@ export declare type Log = Message<'khifile.v7.Log'> & {
   id: number;
 
   /**
+   * Timestamp when the log was recorded (e.g., when the event occurred in the source system).
+   *
    * @generated from field: google.protobuf.Timestamp ts = 2;
    */
   ts?: Timestamp;
 
   /**
+   * Structured data of the log body.
+   *
    * @generated from field: khifile.v7.Struct body = 3;
    */
   body?: Struct;
 
   /**
+   * ID of the summary string in InterningPoolChunk.
+   *
    * @generated from field: uint32 summary_string_id = 4;
    */
   summaryStringId: number;
 
   /**
+   * ID of the log type in TimelineStyleChunk.
+   *
    * @generated from field: uint32 log_type_id = 5;
    */
   logTypeId: number;
 
   /**
+   * ID of the severity in TimelineStyleChunk.
+   *
    * @generated from field: uint32 severity_type_id = 6;
    */
   severityTypeId: number;

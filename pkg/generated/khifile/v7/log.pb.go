@@ -36,6 +36,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// LogChunk represents a unit of log storage, aggregating multiple logs to optimize I/O and processing efficiency.
 type LogChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Logs          []*Log                 `protobuf:"bytes,1,rep,name=logs,proto3" json:"logs,omitempty"`
@@ -80,16 +81,22 @@ func (x *LogChunk) GetLogs() []*Log {
 	return nil
 }
 
+// Log represents a single log entry with its associated metadata.
 type Log struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Ts              *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ts,proto3" json:"ts,omitempty"`
-	Body            *Struct                `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	SummaryStringId uint32                 `protobuf:"varint,4,opt,name=summary_string_id,json=summaryStringId,proto3" json:"summary_string_id,omitempty"`
-	LogTypeId       uint32                 `protobuf:"varint,5,opt,name=log_type_id,json=logTypeId,proto3" json:"log_type_id,omitempty"`
-	SeverityTypeId  uint32                 `protobuf:"varint,6,opt,name=severity_type_id,json=severityTypeId,proto3" json:"severity_type_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Timestamp when the log was recorded (e.g., when the event occurred in the source system).
+	Ts *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ts,proto3" json:"ts,omitempty"`
+	// Structured data of the log body.
+	Body *Struct `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	// ID of the summary string in InterningPoolChunk.
+	SummaryStringId uint32 `protobuf:"varint,4,opt,name=summary_string_id,json=summaryStringId,proto3" json:"summary_string_id,omitempty"`
+	// ID of the log type in TimelineStyleChunk.
+	LogTypeId uint32 `protobuf:"varint,5,opt,name=log_type_id,json=logTypeId,proto3" json:"log_type_id,omitempty"`
+	// ID of the severity in TimelineStyleChunk.
+	SeverityTypeId uint32 `protobuf:"varint,6,opt,name=severity_type_id,json=severityTypeId,proto3" json:"severity_type_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Log) Reset() {

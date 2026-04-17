@@ -26,10 +26,14 @@ import type { Any } from '@bufbuild/protobuf/wkt';
 export declare const file_khifile_v7_metadata: GenFile;
 
 /**
+ * MetadataChunk stores arbitrary metadata associated with the inspection.
+ *
  * @generated from message khifile.v7.MetadataChunk
  */
 export declare type MetadataChunk = Message<'khifile.v7.MetadataChunk'> & {
   /**
+   * Extensible metadata fields to store tool-specific or environment-specific information not covered by the standard schema.
+   *
    * @generated from field: repeated google.protobuf.Any metadata = 1;
    */
   metadata: Any[];

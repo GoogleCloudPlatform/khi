@@ -39,23 +39,6 @@ export declare type TimelineChunk = Message<'khifile.v7.TimelineChunk'> & {
    * @generated from field: repeated khifile.v7.TimelineItems timeline_items = 2;
    */
   timelineItems: TimelineItems[];
-
-  /**
-   * @generated from field: repeated khifile.v7.Revision revisions = 3;
-   */
-  revisions: Revision[];
-
-  /**
-   * @generated from field: repeated khifile.v7.Event events = 4;
-   */
-  events: Event[];
-
-  /**
-   * Field 5 was removed (Identity)
-   *
-   * @generated from field: repeated khifile.v7.ResourceBody resource_bodies = 6;
-   */
-  resourceBodies: ResourceBody[];
 };
 
 /**
@@ -65,35 +48,41 @@ export declare type TimelineChunk = Message<'khifile.v7.TimelineChunk'> & {
 export declare const TimelineChunkSchema: GenMessage<TimelineChunk>;
 
 /**
+ * Timeline represents a single row rendered on the frontend.
+ *
  * @generated from message khifile.v7.Timeline
  */
 export declare type Timeline = Message<'khifile.v7.Timeline'> & {
   /**
+   * The id of a single timeline.
+   *
    * @generated from field: uint32 id = 1;
    */
   id: number;
 
   /**
+   * The ID of TimelineType.
+   *
    * @generated from field: uint32 timeline_type = 2;
    */
   timelineType: number;
 
   /**
-   * An ID of InternString message
+   * ID of the InternString message in InterningPoolChunk.
    *
    * @generated from field: uint32 name_string_id = 3;
    */
   nameStringId: number;
 
   /**
-   * An ID of TimelineItems message
+   * ID of the TimelineItems message in this chunk.
    *
    * @generated from field: uint32 timeline_items_id = 4;
    */
   timelineItemsId: number;
 
   /**
-   * 0 means no parent
+   * ID of the parent Timeline message. 0 means no parent.
    *
    * @generated from field: uint32 parent_timeline_id = 5;
    */
@@ -107,7 +96,8 @@ export declare type Timeline = Message<'khifile.v7.Timeline'> & {
 export declare const TimelineSchema: GenMessage<Timeline>;
 
 /**
- * Multiple Timeline may share the same list of revisions and events. Thus Timeline holds this information by referencing TimelineItems with Id.
+ * TimelineItems represents a list of events and revisions associated to a timeline.
+ * Multiple timelines can share the same items by aliasing a timline to the other. Thus Timelien and TimelineItems are separated and located by its id number.
  *
  * @generated from message khifile.v7.TimelineItems
  */
@@ -118,18 +108,18 @@ export declare type TimelineItems = Message<'khifile.v7.TimelineItems'> & {
   id: number;
 
   /**
-   * List of Revision message IDs
+   * Revision associated with this timeline. The order usually represents chronological order.
    *
-   * @generated from field: repeated uint32 revision_ids = 2;
+   * @generated from field: repeated khifile.v7.Revision revisions = 2;
    */
-  revisionIds: number[];
+  revisions: Revision[];
 
   /**
-   * List of Event message IDs
+   * Event associated with this timeline.
    *
-   * @generated from field: repeated uint32 event_ids = 3;
+   * @generated from field: repeated khifile.v7.Event events = 3;
    */
-  eventIds: number[];
+  events: Event[];
 };
 
 /**
@@ -139,45 +129,46 @@ export declare type TimelineItems = Message<'khifile.v7.TimelineItems'> & {
 export declare const TimelineItemsSchema: GenMessage<TimelineItems>;
 
 /**
+ * Revision represents a contious stat of a resource changed by a request.
+ *
  * @generated from message khifile.v7.Revision
  */
 export declare type Revision = Message<'khifile.v7.Revision'> & {
   /**
-   * @generated from field: uint32 id = 1;
-   */
-  id: number;
-
-  /**
-   * An ID of a Log defined in Log chunk
-   *
-   * @generated from field: uint32 log_id = 2;
+   * @generated from field: uint32 log_id = 1;
    */
   logId: number;
 
   /**
-   * @generated from field: google.protobuf.Timestamp changed_time = 3;
+   * @generated from field: google.protobuf.Timestamp changed_time = 2;
    */
   changedTime?: Timestamp;
 
   /**
-   * @generated from field: khifile.v7.Struct resource_body = 4;
+   * The resource body at the time of the change. Use Struct to represent the resource body.
+   *
+   * @generated from field: khifile.v7.Struct resource_body = 3;
    */
   resourceBody?: Struct;
 
   /**
-   * An ID of InternString message
+   * ID of the InternString message in InterningPoolChunk.
    *
-   * @generated from field: uint32 principal_string_id = 5;
+   * @generated from field: uint32 principal_string_id = 4;
    */
   principalStringId: number;
 
   /**
-   * @generated from field: uint32 verb_type = 6;
+   * The method verb type changed this revision. ID of VerbType in TimelineStyleChunk.
+   *
+   * @generated from field: uint32 verb_type = 5;
    */
   verbType: number;
 
   /**
-   * @generated from field: uint32 state_type = 7;
+   * The state type after this revision. ID of StateType in TimelineStyleChunk.
+   *
+   * @generated from field: uint32 state_type = 6;
    */
   stateType: number;
 };
@@ -189,18 +180,15 @@ export declare type Revision = Message<'khifile.v7.Revision'> & {
 export declare const RevisionSchema: GenMessage<Revision>;
 
 /**
+ * Event represents a log associated on specific timeline.
+ *
  * @generated from message khifile.v7.Event
  */
 export declare type Event = Message<'khifile.v7.Event'> & {
   /**
-   * @generated from field: uint32 id = 1;
-   */
-  id: number;
-
-  /**
-   * An ID of a Log defined in Log chunk
+   * ID of a Log defined in LogChunk.
    *
-   * @generated from field: uint32 log_id = 2;
+   * @generated from field: uint32 log_id = 1;
    */
   logId: number;
 };
@@ -210,24 +198,3 @@ export declare type Event = Message<'khifile.v7.Event'> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export declare const EventSchema: GenMessage<Event>;
-
-/**
- * @generated from message khifile.v7.ResourceBody
- */
-export declare type ResourceBody = Message<'khifile.v7.ResourceBody'> & {
-  /**
-   * @generated from field: uint32 id = 1;
-   */
-  id: number;
-
-  /**
-   * @generated from field: khifile.v7.Struct body = 2;
-   */
-  body?: Struct;
-};
-
-/**
- * Describes the message khifile.v7.ResourceBody.
- * Use `create(ResourceBodySchema)` to create a new message.
- */
-export declare const ResourceBodySchema: GenMessage<ResourceBody>;
