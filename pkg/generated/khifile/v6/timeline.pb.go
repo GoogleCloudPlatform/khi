@@ -16,9 +16,9 @@
 // versions:
 // 	protoc-gen-go v1.36.5
 // 	protoc        (unknown)
-// source: khifile/v7/timeline.proto
+// source: khifile/v6/timeline.proto
 
-package khifilev7
+package khifilev6
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -46,7 +46,7 @@ type TimelineChunk struct {
 
 func (x *TimelineChunk) Reset() {
 	*x = TimelineChunk{}
-	mi := &file_khifile_v7_timeline_proto_msgTypes[0]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -58,7 +58,7 @@ func (x *TimelineChunk) String() string {
 func (*TimelineChunk) ProtoMessage() {}
 
 func (x *TimelineChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_timeline_proto_msgTypes[0]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -71,7 +71,7 @@ func (x *TimelineChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineChunk.ProtoReflect.Descriptor instead.
 func (*TimelineChunk) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_timeline_proto_rawDescGZIP(), []int{0}
+	return file_khifile_v6_timeline_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *TimelineChunk) GetTimelines() []*Timeline {
@@ -107,7 +107,7 @@ type Timeline struct {
 
 func (x *Timeline) Reset() {
 	*x = Timeline{}
-	mi := &file_khifile_v7_timeline_proto_msgTypes[1]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -119,7 +119,7 @@ func (x *Timeline) String() string {
 func (*Timeline) ProtoMessage() {}
 
 func (x *Timeline) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_timeline_proto_msgTypes[1]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -132,7 +132,7 @@ func (x *Timeline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Timeline.ProtoReflect.Descriptor instead.
 func (*Timeline) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_timeline_proto_rawDescGZIP(), []int{1}
+	return file_khifile_v6_timeline_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Timeline) GetId() uint32 {
@@ -185,7 +185,7 @@ type TimelineItems struct {
 
 func (x *TimelineItems) Reset() {
 	*x = TimelineItems{}
-	mi := &file_khifile_v7_timeline_proto_msgTypes[2]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -197,7 +197,7 @@ func (x *TimelineItems) String() string {
 func (*TimelineItems) ProtoMessage() {}
 
 func (x *TimelineItems) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_timeline_proto_msgTypes[2]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -210,7 +210,7 @@ func (x *TimelineItems) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineItems.ProtoReflect.Descriptor instead.
 func (*TimelineItems) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_timeline_proto_rawDescGZIP(), []int{2}
+	return file_khifile_v6_timeline_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *TimelineItems) GetId() uint32 {
@@ -253,7 +253,7 @@ type Revision struct {
 
 func (x *Revision) Reset() {
 	*x = Revision{}
-	mi := &file_khifile_v7_timeline_proto_msgTypes[3]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -265,7 +265,7 @@ func (x *Revision) String() string {
 func (*Revision) ProtoMessage() {}
 
 func (x *Revision) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_timeline_proto_msgTypes[3]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -278,7 +278,7 @@ func (x *Revision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Revision.ProtoReflect.Descriptor instead.
 func (*Revision) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_timeline_proto_rawDescGZIP(), []int{3}
+	return file_khifile_v6_timeline_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Revision) GetLogId() uint32 {
@@ -334,7 +334,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_khifile_v7_timeline_proto_msgTypes[4]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +346,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_timeline_proto_msgTypes[4]
+	mi := &file_khifile_v6_timeline_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +359,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_timeline_proto_rawDescGZIP(), []int{4}
+	return file_khifile_v6_timeline_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Event) GetLogId() uint32 {
@@ -369,22 +369,22 @@ func (x *Event) GetLogId() uint32 {
 	return 0
 }
 
-var File_khifile_v7_timeline_proto protoreflect.FileDescriptor
+var File_khifile_v6_timeline_proto protoreflect.FileDescriptor
 
-var file_khifile_v7_timeline_proto_rawDesc = string([]byte{
-	0x0a, 0x19, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x2f, 0x74, 0x69, 0x6d,
+var file_khifile_v6_timeline_proto_rawDesc = string([]byte{
+	0x0a, 0x19, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x36, 0x2f, 0x74, 0x69, 0x6d,
 	0x65, 0x6c, 0x69, 0x6e, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x0a, 0x6b, 0x68, 0x69,
-	0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x1a, 0x1f, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f,
+	0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x1a, 0x1f, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
 	0x6d, 0x70, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x17, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c,
-	0x65, 0x2f, 0x76, 0x37, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x65, 0x64, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x65, 0x2f, 0x76, 0x36, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x65, 0x64, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x22, 0x85, 0x01, 0x0a, 0x0d, 0x54, 0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x43, 0x68,
 	0x75, 0x6e, 0x6b, 0x12, 0x32, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x73,
 	0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65,
-	0x2e, 0x76, 0x37, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x52, 0x09, 0x74, 0x69,
+	0x2e, 0x76, 0x36, 0x2e, 0x54, 0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x52, 0x09, 0x74, 0x69,
 	0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x73, 0x12, 0x40, 0x0a, 0x0e, 0x74, 0x69, 0x6d, 0x65, 0x6c,
 	0x69, 0x6e, 0x65, 0x5f, 0x69, 0x74, 0x65, 0x6d, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32,
-	0x19, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x2e, 0x54, 0x69, 0x6d,
+	0x19, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x2e, 0x54, 0x69, 0x6d,
 	0x65, 0x6c, 0x69, 0x6e, 0x65, 0x49, 0x74, 0x65, 0x6d, 0x73, 0x52, 0x0d, 0x74, 0x69, 0x6d, 0x65,
 	0x6c, 0x69, 0x6e, 0x65, 0x49, 0x74, 0x65, 0x6d, 0x73, 0x22, 0xbf, 0x01, 0x0a, 0x08, 0x54, 0x69,
 	0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
@@ -402,10 +402,10 @@ var file_khifile_v7_timeline_proto_rawDesc = string([]byte{
 	0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x49, 0x74, 0x65, 0x6d, 0x73, 0x12, 0x0e, 0x0a, 0x02,
 	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x02, 0x69, 0x64, 0x12, 0x32, 0x0a, 0x09,
 	0x72, 0x65, 0x76, 0x69, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32,
-	0x14, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x2e, 0x52, 0x65, 0x76,
+	0x14, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x2e, 0x52, 0x65, 0x76,
 	0x69, 0x73, 0x69, 0x6f, 0x6e, 0x52, 0x09, 0x72, 0x65, 0x76, 0x69, 0x73, 0x69, 0x6f, 0x6e, 0x73,
 	0x12, 0x29, 0x0a, 0x06, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b,
-	0x32, 0x11, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x2e, 0x45, 0x76,
+	0x32, 0x11, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x2e, 0x45, 0x76,
 	0x65, 0x6e, 0x74, 0x52, 0x06, 0x65, 0x76, 0x65, 0x6e, 0x74, 0x73, 0x22, 0x85, 0x02, 0x0a, 0x08,
 	0x52, 0x65, 0x76, 0x69, 0x73, 0x69, 0x6f, 0x6e, 0x12, 0x15, 0x0a, 0x06, 0x6c, 0x6f, 0x67, 0x5f,
 	0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x6c, 0x6f, 0x67, 0x49, 0x64, 0x12,
@@ -415,7 +415,7 @@ var file_khifile_v7_timeline_proto_rawDesc = string([]byte{
 	0x70, 0x52, 0x0b, 0x63, 0x68, 0x61, 0x6e, 0x67, 0x65, 0x64, 0x54, 0x69, 0x6d, 0x65, 0x12, 0x37,
 	0x0a, 0x0d, 0x72, 0x65, 0x73, 0x6f, 0x75, 0x72, 0x63, 0x65, 0x5f, 0x62, 0x6f, 0x64, 0x79, 0x18,
 	0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e,
-	0x76, 0x37, 0x2e, 0x53, 0x74, 0x72, 0x75, 0x63, 0x74, 0x52, 0x0c, 0x72, 0x65, 0x73, 0x6f, 0x75,
+	0x76, 0x36, 0x2e, 0x53, 0x74, 0x72, 0x75, 0x63, 0x74, 0x52, 0x0c, 0x72, 0x65, 0x73, 0x6f, 0x75,
 	0x72, 0x63, 0x65, 0x42, 0x6f, 0x64, 0x79, 0x12, 0x2e, 0x0a, 0x13, 0x70, 0x72, 0x69, 0x6e, 0x63,
 	0x69, 0x70, 0x61, 0x6c, 0x5f, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x5f, 0x69, 0x64, 0x18, 0x04,
 	0x20, 0x01, 0x28, 0x0d, 0x52, 0x11, 0x70, 0x72, 0x69, 0x6e, 0x63, 0x69, 0x70, 0x61, 0x6c, 0x53,
@@ -429,39 +429,39 @@ var file_khifile_v7_timeline_proto_rawDesc = string([]byte{
 	0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61,
 	0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x65,
 	0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f,
-	0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x08, 0x65, 0x64,
+	0x76, 0x36, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x36, 0x62, 0x08, 0x65, 0x64,
 	0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (
-	file_khifile_v7_timeline_proto_rawDescOnce sync.Once
-	file_khifile_v7_timeline_proto_rawDescData []byte
+	file_khifile_v6_timeline_proto_rawDescOnce sync.Once
+	file_khifile_v6_timeline_proto_rawDescData []byte
 )
 
-func file_khifile_v7_timeline_proto_rawDescGZIP() []byte {
-	file_khifile_v7_timeline_proto_rawDescOnce.Do(func() {
-		file_khifile_v7_timeline_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_khifile_v7_timeline_proto_rawDesc), len(file_khifile_v7_timeline_proto_rawDesc)))
+func file_khifile_v6_timeline_proto_rawDescGZIP() []byte {
+	file_khifile_v6_timeline_proto_rawDescOnce.Do(func() {
+		file_khifile_v6_timeline_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_khifile_v6_timeline_proto_rawDesc), len(file_khifile_v6_timeline_proto_rawDesc)))
 	})
-	return file_khifile_v7_timeline_proto_rawDescData
+	return file_khifile_v6_timeline_proto_rawDescData
 }
 
-var file_khifile_v7_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_khifile_v7_timeline_proto_goTypes = []any{
-	(*TimelineChunk)(nil),         // 0: khifile.v7.TimelineChunk
-	(*Timeline)(nil),              // 1: khifile.v7.Timeline
-	(*TimelineItems)(nil),         // 2: khifile.v7.TimelineItems
-	(*Revision)(nil),              // 3: khifile.v7.Revision
-	(*Event)(nil),                 // 4: khifile.v7.Event
+var file_khifile_v6_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_khifile_v6_timeline_proto_goTypes = []any{
+	(*TimelineChunk)(nil),         // 0: khifile.v6.TimelineChunk
+	(*Timeline)(nil),              // 1: khifile.v6.Timeline
+	(*TimelineItems)(nil),         // 2: khifile.v6.TimelineItems
+	(*Revision)(nil),              // 3: khifile.v6.Revision
+	(*Event)(nil),                 // 4: khifile.v6.Event
 	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
-	(*Struct)(nil),                // 6: khifile.v7.Struct
+	(*Struct)(nil),                // 6: khifile.v6.Struct
 }
-var file_khifile_v7_timeline_proto_depIdxs = []int32{
-	1, // 0: khifile.v7.TimelineChunk.timelines:type_name -> khifile.v7.Timeline
-	2, // 1: khifile.v7.TimelineChunk.timeline_items:type_name -> khifile.v7.TimelineItems
-	3, // 2: khifile.v7.TimelineItems.revisions:type_name -> khifile.v7.Revision
-	4, // 3: khifile.v7.TimelineItems.events:type_name -> khifile.v7.Event
-	5, // 4: khifile.v7.Revision.changed_time:type_name -> google.protobuf.Timestamp
-	6, // 5: khifile.v7.Revision.resource_body:type_name -> khifile.v7.Struct
+var file_khifile_v6_timeline_proto_depIdxs = []int32{
+	1, // 0: khifile.v6.TimelineChunk.timelines:type_name -> khifile.v6.Timeline
+	2, // 1: khifile.v6.TimelineChunk.timeline_items:type_name -> khifile.v6.TimelineItems
+	3, // 2: khifile.v6.TimelineItems.revisions:type_name -> khifile.v6.Revision
+	4, // 3: khifile.v6.TimelineItems.events:type_name -> khifile.v6.Event
+	5, // 4: khifile.v6.Revision.changed_time:type_name -> google.protobuf.Timestamp
+	6, // 5: khifile.v6.Revision.resource_body:type_name -> khifile.v6.Struct
 	6, // [6:6] is the sub-list for method output_type
 	6, // [6:6] is the sub-list for method input_type
 	6, // [6:6] is the sub-list for extension type_name
@@ -469,27 +469,27 @@ var file_khifile_v7_timeline_proto_depIdxs = []int32{
 	0, // [0:6] is the sub-list for field type_name
 }
 
-func init() { file_khifile_v7_timeline_proto_init() }
-func file_khifile_v7_timeline_proto_init() {
-	if File_khifile_v7_timeline_proto != nil {
+func init() { file_khifile_v6_timeline_proto_init() }
+func file_khifile_v6_timeline_proto_init() {
+	if File_khifile_v6_timeline_proto != nil {
 		return
 	}
-	file_khifile_v7_shared_proto_init()
+	file_khifile_v6_shared_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v7_timeline_proto_rawDesc), len(file_khifile_v7_timeline_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v6_timeline_proto_rawDesc), len(file_khifile_v6_timeline_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_khifile_v7_timeline_proto_goTypes,
-		DependencyIndexes: file_khifile_v7_timeline_proto_depIdxs,
-		MessageInfos:      file_khifile_v7_timeline_proto_msgTypes,
+		GoTypes:           file_khifile_v6_timeline_proto_goTypes,
+		DependencyIndexes: file_khifile_v6_timeline_proto_depIdxs,
+		MessageInfos:      file_khifile_v6_timeline_proto_msgTypes,
 	}.Build()
-	File_khifile_v7_timeline_proto = out.File
-	file_khifile_v7_timeline_proto_goTypes = nil
-	file_khifile_v7_timeline_proto_depIdxs = nil
+	File_khifile_v6_timeline_proto = out.File
+	file_khifile_v6_timeline_proto_goTypes = nil
+	file_khifile_v6_timeline_proto_depIdxs = nil
 }

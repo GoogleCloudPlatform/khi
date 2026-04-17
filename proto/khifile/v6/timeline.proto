@@ -14,12 +14,12 @@
 
 edition = "2023";
 
-package khifile.v7;
+package khifile.v6;
 
 import "google/protobuf/timestamp.proto";
-import "khifile/v7/shared.proto";
+import "khifile/v6/shared.proto";
 
-option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
 
 message TimelineChunk {
   repeated Timeline timelines = 1;

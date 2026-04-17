@@ -16,9 +16,9 @@
 // versions:
 // 	protoc-gen-go v1.36.5
 // 	protoc        (unknown)
-// source: khifile/v7/intern_pool.proto
+// source: khifile/v6/intern_pool.proto
 
-package khifilev7
+package khifilev6
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -49,7 +49,7 @@ type InterningPoolChunk struct {
 
 func (x *InterningPoolChunk) Reset() {
 	*x = InterningPoolChunk{}
-	mi := &file_khifile_v7_intern_pool_proto_msgTypes[0]
+	mi := &file_khifile_v6_intern_pool_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -61,7 +61,7 @@ func (x *InterningPoolChunk) String() string {
 func (*InterningPoolChunk) ProtoMessage() {}
 
 func (x *InterningPoolChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_intern_pool_proto_msgTypes[0]
+	mi := &file_khifile_v6_intern_pool_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -74,7 +74,7 @@ func (x *InterningPoolChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterningPoolChunk.ProtoReflect.Descriptor instead.
 func (*InterningPoolChunk) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_intern_pool_proto_rawDescGZIP(), []int{0}
+	return file_khifile_v6_intern_pool_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *InterningPoolChunk) GetStrings() []*InternString {
@@ -104,7 +104,7 @@ type InternString struct {
 
 func (x *InternString) Reset() {
 	*x = InternString{}
-	mi := &file_khifile_v7_intern_pool_proto_msgTypes[1]
+	mi := &file_khifile_v6_intern_pool_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -116,7 +116,7 @@ func (x *InternString) String() string {
 func (*InternString) ProtoMessage() {}
 
 func (x *InternString) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_intern_pool_proto_msgTypes[1]
+	mi := &file_khifile_v6_intern_pool_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -129,7 +129,7 @@ func (x *InternString) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InternString.ProtoReflect.Descriptor instead.
 func (*InternString) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_intern_pool_proto_rawDescGZIP(), []int{1}
+	return file_khifile_v6_intern_pool_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *InternString) GetId() uint32 {
@@ -158,7 +158,7 @@ type InternFieldPathSet struct {
 
 func (x *InternFieldPathSet) Reset() {
 	*x = InternFieldPathSet{}
-	mi := &file_khifile_v7_intern_pool_proto_msgTypes[2]
+	mi := &file_khifile_v6_intern_pool_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +170,7 @@ func (x *InternFieldPathSet) String() string {
 func (*InternFieldPathSet) ProtoMessage() {}
 
 func (x *InternFieldPathSet) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_intern_pool_proto_msgTypes[2]
+	mi := &file_khifile_v6_intern_pool_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,7 +183,7 @@ func (x *InternFieldPathSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InternFieldPathSet.ProtoReflect.Descriptor instead.
 func (*InternFieldPathSet) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_intern_pool_proto_rawDescGZIP(), []int{2}
+	return file_khifile_v6_intern_pool_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *InternFieldPathSet) GetId() uint32 {
@@ -200,19 +200,19 @@ func (x *InternFieldPathSet) GetFieldNames() []uint32 {
 	return nil
 }
 
-var File_khifile_v7_intern_pool_proto protoreflect.FileDescriptor
+var File_khifile_v6_intern_pool_proto protoreflect.FileDescriptor
 
-var file_khifile_v7_intern_pool_proto_rawDesc = string([]byte{
-	0x0a, 0x1c, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x2f, 0x69, 0x6e, 0x74,
+var file_khifile_v6_intern_pool_proto_rawDesc = string([]byte{
+	0x0a, 0x1c, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x36, 0x2f, 0x69, 0x6e, 0x74,
 	0x65, 0x72, 0x6e, 0x5f, 0x70, 0x6f, 0x6f, 0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x0a,
-	0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x22, 0x90, 0x01, 0x0a, 0x12, 0x49,
+	0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x22, 0x90, 0x01, 0x0a, 0x12, 0x49,
 	0x6e, 0x74, 0x65, 0x72, 0x6e, 0x69, 0x6e, 0x67, 0x50, 0x6f, 0x6f, 0x6c, 0x43, 0x68, 0x75, 0x6e,
 	0x6b, 0x12, 0x32, 0x0a, 0x07, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x73, 0x18, 0x01, 0x20, 0x03,
-	0x28, 0x0b, 0x32, 0x18, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x2e,
+	0x28, 0x0b, 0x32, 0x18, 0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x2e,
 	0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x07, 0x73, 0x74,
 	0x72, 0x69, 0x6e, 0x67, 0x73, 0x12, 0x46, 0x0a, 0x0f, 0x66, 0x69, 0x65, 0x6c, 0x64, 0x5f, 0x70,
 	0x61, 0x74, 0x68, 0x5f, 0x73, 0x65, 0x74, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1e,
-	0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x2e, 0x49, 0x6e, 0x74, 0x65,
+	0x2e, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x2e, 0x49, 0x6e, 0x74, 0x65,
 	0x72, 0x6e, 0x46, 0x69, 0x65, 0x6c, 0x64, 0x50, 0x61, 0x74, 0x68, 0x53, 0x65, 0x74, 0x52, 0x0d,
 	0x66, 0x69, 0x65, 0x6c, 0x64, 0x50, 0x61, 0x74, 0x68, 0x53, 0x65, 0x74, 0x73, 0x22, 0x34, 0x0a,
 	0x0c, 0x49, 0x6e, 0x74, 0x65, 0x72, 0x6e, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x12, 0x0e, 0x0a,
@@ -226,31 +226,31 @@ var file_khifile_v7_intern_pool_proto_rawDesc = string([]byte{
 	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43,
 	0x6c, 0x6f, 0x75, 0x64, 0x50, 0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69,
 	0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b,
-	0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c,
-	0x65, 0x76, 0x37, 0x62, 0x08, 0x65, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
+	0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x36, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c,
+	0x65, 0x76, 0x36, 0x62, 0x08, 0x65, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (
-	file_khifile_v7_intern_pool_proto_rawDescOnce sync.Once
-	file_khifile_v7_intern_pool_proto_rawDescData []byte
+	file_khifile_v6_intern_pool_proto_rawDescOnce sync.Once
+	file_khifile_v6_intern_pool_proto_rawDescData []byte
 )
 
-func file_khifile_v7_intern_pool_proto_rawDescGZIP() []byte {
-	file_khifile_v7_intern_pool_proto_rawDescOnce.Do(func() {
-		file_khifile_v7_intern_pool_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_khifile_v7_intern_pool_proto_rawDesc), len(file_khifile_v7_intern_pool_proto_rawDesc)))
+func file_khifile_v6_intern_pool_proto_rawDescGZIP() []byte {
+	file_khifile_v6_intern_pool_proto_rawDescOnce.Do(func() {
+		file_khifile_v6_intern_pool_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_khifile_v6_intern_pool_proto_rawDesc), len(file_khifile_v6_intern_pool_proto_rawDesc)))
 	})
-	return file_khifile_v7_intern_pool_proto_rawDescData
+	return file_khifile_v6_intern_pool_proto_rawDescData
 }
 
-var file_khifile_v7_intern_pool_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_khifile_v7_intern_pool_proto_goTypes = []any{
-	(*InterningPoolChunk)(nil), // 0: khifile.v7.InterningPoolChunk
-	(*InternString)(nil),       // 1: khifile.v7.InternString
-	(*InternFieldPathSet)(nil), // 2: khifile.v7.InternFieldPathSet
+var file_khifile_v6_intern_pool_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_khifile_v6_intern_pool_proto_goTypes = []any{
+	(*InterningPoolChunk)(nil), // 0: khifile.v6.InterningPoolChunk
+	(*InternString)(nil),       // 1: khifile.v6.InternString
+	(*InternFieldPathSet)(nil), // 2: khifile.v6.InternFieldPathSet
 }
-var file_khifile_v7_intern_pool_proto_depIdxs = []int32{
-	1, // 0: khifile.v7.InterningPoolChunk.strings:type_name -> khifile.v7.InternString
-	2, // 1: khifile.v7.InterningPoolChunk.field_path_sets:type_name -> khifile.v7.InternFieldPathSet
+var file_khifile_v6_intern_pool_proto_depIdxs = []int32{
+	1, // 0: khifile.v6.InterningPoolChunk.strings:type_name -> khifile.v6.InternString
+	2, // 1: khifile.v6.InterningPoolChunk.field_path_sets:type_name -> khifile.v6.InternFieldPathSet
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -258,26 +258,26 @@ var file_khifile_v7_intern_pool_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_khifile_v7_intern_pool_proto_init() }
-func file_khifile_v7_intern_pool_proto_init() {
-	if File_khifile_v7_intern_pool_proto != nil {
+func init() { file_khifile_v6_intern_pool_proto_init() }
+func file_khifile_v6_intern_pool_proto_init() {
+	if File_khifile_v6_intern_pool_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v7_intern_pool_proto_rawDesc), len(file_khifile_v7_intern_pool_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v6_intern_pool_proto_rawDesc), len(file_khifile_v6_intern_pool_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_khifile_v7_intern_pool_proto_goTypes,
-		DependencyIndexes: file_khifile_v7_intern_pool_proto_depIdxs,
-		MessageInfos:      file_khifile_v7_intern_pool_proto_msgTypes,
+		GoTypes:           file_khifile_v6_intern_pool_proto_goTypes,
+		DependencyIndexes: file_khifile_v6_intern_pool_proto_depIdxs,
+		MessageInfos:      file_khifile_v6_intern_pool_proto_msgTypes,
 	}.Build()
-	File_khifile_v7_intern_pool_proto = out.File
-	file_khifile_v7_intern_pool_proto_goTypes = nil
-	file_khifile_v7_intern_pool_proto_depIdxs = nil
+	File_khifile_v6_intern_pool_proto = out.File
+	file_khifile_v6_intern_pool_proto_goTypes = nil
+	file_khifile_v6_intern_pool_proto_depIdxs = nil
 }

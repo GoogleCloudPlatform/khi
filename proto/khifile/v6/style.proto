@@ -14,9 +14,9 @@
 
 edition = "2023";
 
-package khifile.v7;
+package khifile.v6;
 
-option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
 
 // HDRColor4 represents a color with high dynamic range (HDR) capabilities.
 // Each component is represented as a float value ranging from 0.0 to 1.0.

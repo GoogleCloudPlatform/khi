@@ -16,9 +16,9 @@
 // versions:
 // 	protoc-gen-go v1.36.5
 // 	protoc        (unknown)
-// source: khifile/v7/metadata.proto
+// source: khifile/v6/metadata.proto
 
-package khifilev7
+package khifilev6
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -47,7 +47,7 @@ type MetadataChunk struct {
 
 func (x *MetadataChunk) Reset() {
 	*x = MetadataChunk{}
-	mi := &file_khifile_v7_metadata_proto_msgTypes[0]
+	mi := &file_khifile_v6_metadata_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -59,7 +59,7 @@ func (x *MetadataChunk) String() string {
 func (*MetadataChunk) ProtoMessage() {}
 
 func (x *MetadataChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v7_metadata_proto_msgTypes[0]
+	mi := &file_khifile_v6_metadata_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -72,7 +72,7 @@ func (x *MetadataChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetadataChunk.ProtoReflect.Descriptor instead.
 func (*MetadataChunk) Descriptor() ([]byte, []int) {
-	return file_khifile_v7_metadata_proto_rawDescGZIP(), []int{0}
+	return file_khifile_v6_metadata_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *MetadataChunk) GetMetadata() []*anypb.Any {
@@ -82,12 +82,12 @@ func (x *MetadataChunk) GetMetadata() []*anypb.Any {
 	return nil
 }
 
-var File_khifile_v7_metadata_proto protoreflect.FileDescriptor
+var File_khifile_v6_metadata_proto protoreflect.FileDescriptor
 
-var file_khifile_v7_metadata_proto_rawDesc = string([]byte{
-	0x0a, 0x19, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x37, 0x2f, 0x6d, 0x65, 0x74,
+var file_khifile_v6_metadata_proto_rawDesc = string([]byte{
+	0x0a, 0x19, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x2f, 0x76, 0x36, 0x2f, 0x6d, 0x65, 0x74,
 	0x61, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x0a, 0x6b, 0x68, 0x69,
-	0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x37, 0x1a, 0x19, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f,
+	0x66, 0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x1a, 0x19, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f,
 	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x61, 0x6e, 0x79, 0x2e, 0x70, 0x72, 0x6f,
 	0x74, 0x6f, 0x22, 0x41, 0x0a, 0x0d, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x43, 0x68,
 	0x75, 0x6e, 0x6b, 0x12, 0x30, 0x0a, 0x08, 0x6d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0x18,
@@ -97,29 +97,29 @@ var file_khifile_v7_metadata_proto_rawDesc = string([]byte{
 	0x63, 0x6f, 0x6d, 0x2f, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x50,
 	0x6c, 0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x2f, 0x6b, 0x68, 0x69, 0x2f, 0x70, 0x6b, 0x67, 0x2f,
 	0x67, 0x65, 0x6e, 0x65, 0x72, 0x61, 0x74, 0x65, 0x64, 0x2f, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c,
-	0x65, 0x2f, 0x76, 0x37, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x37, 0x62, 0x08,
+	0x65, 0x2f, 0x76, 0x36, 0x3b, 0x6b, 0x68, 0x69, 0x66, 0x69, 0x6c, 0x65, 0x76, 0x36, 0x62, 0x08,
 	0x65, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x70, 0xe8, 0x07,
 })
 
 var (
-	file_khifile_v7_metadata_proto_rawDescOnce sync.Once
-	file_khifile_v7_metadata_proto_rawDescData []byte
+	file_khifile_v6_metadata_proto_rawDescOnce sync.Once
+	file_khifile_v6_metadata_proto_rawDescData []byte
 )
 
-func file_khifile_v7_metadata_proto_rawDescGZIP() []byte {
-	file_khifile_v7_metadata_proto_rawDescOnce.Do(func() {
-		file_khifile_v7_metadata_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_khifile_v7_metadata_proto_rawDesc), len(file_khifile_v7_metadata_proto_rawDesc)))
+func file_khifile_v6_metadata_proto_rawDescGZIP() []byte {
+	file_khifile_v6_metadata_proto_rawDescOnce.Do(func() {
+		file_khifile_v6_metadata_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_khifile_v6_metadata_proto_rawDesc), len(file_khifile_v6_metadata_proto_rawDesc)))
 	})
-	return file_khifile_v7_metadata_proto_rawDescData
+	return file_khifile_v6_metadata_proto_rawDescData
 }
 
-var file_khifile_v7_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_khifile_v7_metadata_proto_goTypes = []any{
-	(*MetadataChunk)(nil), // 0: khifile.v7.MetadataChunk
+var file_khifile_v6_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_khifile_v6_metadata_proto_goTypes = []any{
+	(*MetadataChunk)(nil), // 0: khifile.v6.MetadataChunk
 	(*anypb.Any)(nil),     // 1: google.protobuf.Any
 }
-var file_khifile_v7_metadata_proto_depIdxs = []int32{
-	1, // 0: khifile.v7.MetadataChunk.metadata:type_name -> google.protobuf.Any
+var file_khifile_v6_metadata_proto_depIdxs = []int32{
+	1, // 0: khifile.v6.MetadataChunk.metadata:type_name -> google.protobuf.Any
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -127,26 +127,26 @@ var file_khifile_v7_metadata_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_khifile_v7_metadata_proto_init() }
-func file_khifile_v7_metadata_proto_init() {
-	if File_khifile_v7_metadata_proto != nil {
+func init() { file_khifile_v6_metadata_proto_init() }
+func file_khifile_v6_metadata_proto_init() {
+	if File_khifile_v6_metadata_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v7_metadata_proto_rawDesc), len(file_khifile_v7_metadata_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v6_metadata_proto_rawDesc), len(file_khifile_v6_metadata_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_khifile_v7_metadata_proto_goTypes,
-		DependencyIndexes: file_khifile_v7_metadata_proto_depIdxs,
-		MessageInfos:      file_khifile_v7_metadata_proto_msgTypes,
+		GoTypes:           file_khifile_v6_metadata_proto_goTypes,
+		DependencyIndexes: file_khifile_v6_metadata_proto_depIdxs,
+		MessageInfos:      file_khifile_v6_metadata_proto_msgTypes,
 	}.Build()
-	File_khifile_v7_metadata_proto = out.File
-	file_khifile_v7_metadata_proto_goTypes = nil
-	file_khifile_v7_metadata_proto_depIdxs = nil
+	File_khifile_v6_metadata_proto = out.File
+	file_khifile_v6_metadata_proto_goTypes = nil
+	file_khifile_v6_metadata_proto_depIdxs = nil
 }

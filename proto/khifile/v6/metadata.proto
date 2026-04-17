@@ -14,11 +14,11 @@
 
 edition = "2023";
 
-package khifile.v7;
+package khifile.v6;
 
 import "google/protobuf/any.proto";
 
-option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v7;khifilev7";
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
 
 // MetadataChunk stores arbitrary metadata associated with the inspection.
 message MetadataChunk {
