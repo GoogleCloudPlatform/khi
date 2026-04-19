@@ -21,7 +21,7 @@ option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6
 // InterningPoolChunk reduces file size by pooling common strings and field paths.
 message InterningPoolChunk {
   // Pool of unique strings to avoid duplication. Referenced by ID from other messages.
-  // This repeated field is not guranteed to be sorted by its id to compress them effectively.
+  // This repeated field is not guaranteed to be sorted by its id to compress them effectively.
   repeated InternString strings = 1;
 
   // Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.

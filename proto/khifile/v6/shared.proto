@@ -37,7 +37,7 @@ message InternedStruct {
   // Example (Flattened):
   // If a nested JSON object is `{"metadata": {"name": "pod-1", "namespace": "default"}}`,
   // it can be flattened into a single field path `["metadata\0name","metadata\0namespace"]`.
-  // If the IDs for "metadata\0name" is 20 , and "metadata\0namespace" is 21, the field path is [20, 21].
+  // If the IDs for "metadata\0name" is 20, and "metadata\0namespace" is 21, the field path is [20, 21].
   // The `values` array would contain the single string value "pod-1".
   uint32 field_path_set_id = 1;
 
@@ -57,7 +57,7 @@ message InternedValue {
     // Represents a double value.
     double number_value = 2;
     // Represents a string value.
-    uint32 string_value = 3; // the id in InterningPoolChunk
+    uint32 string_value = 3; // the id in InterningPoolChunk.
     // Represents a boolean value.
     bool bool_value = 4;
     // Represents a structured value.

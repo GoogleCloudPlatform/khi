@@ -41,7 +41,7 @@ message Timeline {
 }
 
 // TimelineItems represents a list of events and revisions associated to a timeline.
-// Multiple timelines can share the same items by aliasing a timline to the other. Thus Timelien and TimelineItems are separated and located by its id number.
+// Multiple timelines can share the same items by aliasing a timeline to the other. Thus Timeline and TimelineItems are separated and located by its id number.
 message TimelineItems {
   uint32 id = 1;
   // Revision associated with this timeline. The order usually represents chronological order.
@@ -50,7 +50,7 @@ message TimelineItems {
   repeated Event events = 3;
 }
 
-// Revision represents a contious stat of a resource changed by a request.
+// Revision represents a continuous state of a resource changed by a request.
 message Revision {
   uint32 log_id = 1;
   google.protobuf.Timestamp changed_time = 2;
