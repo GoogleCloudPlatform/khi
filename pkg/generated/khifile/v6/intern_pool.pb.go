@@ -39,7 +39,7 @@ const (
 type InterningPoolChunk struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Pool of unique strings to avoid duplication. Referenced by ID from other messages.
-	// This repeated field is not guranteed to be sorted by its id to compress them effectively.
+	// This repeated field is not guaranteed to be sorted by its id to compress them effectively.
 	Strings []*InternString `protobuf:"bytes,1,rep,name=strings" json:"strings,omitempty"`
 	// Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
 	FieldPathSets []*InternFieldPathSet `protobuf:"bytes,2,rep,name=field_path_sets,json=fieldPathSets" json:"field_path_sets,omitempty"`

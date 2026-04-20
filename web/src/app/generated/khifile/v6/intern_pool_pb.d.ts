@@ -33,7 +33,7 @@ export declare type InterningPoolChunk =
   Message<'khifile.v6.InterningPoolChunk'> & {
     /**
      * Pool of unique strings to avoid duplication. Referenced by ID from other messages.
-     * This repeated field is not guranteed to be sorted by its id to compress them effectively.
+     * This repeated field is not guaranteed to be sorted by its id to compress them effectively.
      *
      * @generated from field: repeated khifile.v6.InternString strings = 1;
      */
