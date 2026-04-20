@@ -16,9 +16,9 @@
 // @generated from file khifile/v6/metadata.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
-import type { Message } from "@bufbuild/protobuf";
-import type { Any } from "@bufbuild/protobuf/wkt";
+import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
+import type { Message } from '@bufbuild/protobuf';
+import type { Any } from '@bufbuild/protobuf/wkt';
 
 /**
  * Describes the file khifile/v6/metadata.proto.
@@ -30,7 +30,7 @@ export declare const file_khifile_v6_metadata: GenFile;
  *
  * @generated from message khifile.v6.MetadataChunk
  */
-export declare type MetadataChunk = Message<"khifile.v6.MetadataChunk"> & {
+export declare type MetadataChunk = Message<'khifile.v6.MetadataChunk'> & {
   /**
    * Extensible metadata fields to store tool-specific or environment-specific information not covered by the standard schema.
    *
@@ -44,4 +44,3 @@ export declare type MetadataChunk = Message<"khifile.v6.MetadataChunk"> & {
  * Use `create(MetadataChunkSchema)` to create a new message.
  */
 export declare const MetadataChunkSchema: GenMessage<MetadataChunk>;
-
