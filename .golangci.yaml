@@ -52,6 +52,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - ^pkg/generated/
 formatters:
   enable:
     - goimports
@@ -61,3 +62,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - ^pkg/generated/

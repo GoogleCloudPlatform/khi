@@ -37,3 +37,7 @@ $(MSDF_SETUP_DUMMY):
 add-licenses: ## Add license headers to all files
 	go tool addlicense  -c "Google LLC" -l apache .
 
+.PHONY: build-proto
+build-proto: ## Generate code from protobuf definitions
+	npx @bufbuild/buf generate
+

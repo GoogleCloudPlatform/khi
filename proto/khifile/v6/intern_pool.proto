@@ -1,0 +1,44 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package khifile.v6;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
+
+// InterningPoolChunk reduces file size by pooling common strings and field paths.
+message InterningPoolChunk {
+  // Pool of unique strings to avoid duplication. Referenced by ID from other messages.
+  // This repeated field is not guaranteed to be sorted by its id to compress them effectively.
+  repeated InternString strings = 1;
+
+  // Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
+  repeated InternFieldPathSet field_path_sets = 2;
+}
+
+// InternString is a pool of unique strings.
+message InternString {
+  // The id of interned string.
+  uint32 id = 1;
+  // The string value to be interned.
+  string value = 2;
+}
+
+// InternFieldPathSet represents an ordered list of field names.
+message InternFieldPathSet {
+  uint32 id = 1;
+  // Array of interned string IDs corresponding to field names.
+  repeated uint32 field_names = 2;
+}

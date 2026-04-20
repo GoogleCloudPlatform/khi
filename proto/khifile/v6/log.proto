@@ -1,0 +1,46 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package khifile.v6;
+
+import "google/protobuf/timestamp.proto";
+import "khifile/v6/shared.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
+
+// LogChunk represents a unit of log storage, aggregating multiple logs to optimize I/O and processing efficiency.
+message LogChunk {
+  repeated Log logs = 1;
+}
+
+// Log represents a single log entry with its associated metadata.
+message Log {
+  uint32 id = 1;
+  // Timestamp when the log was recorded (e.g., when the event occurred in the source system).
+  google.protobuf.Timestamp ts = 2;
+
+  // Structured data of the log body.
+  InternedStruct body = 3;
+
+  // ID of the summary string in InterningPoolChunk.
+  uint32 summary_string_id = 4;
+
+  // ID of the log type in TimelineStyleChunk.
+  uint32 log_type_id = 5;
+
+  // ID of the severity in TimelineStyleChunk.
+  uint32 severity_type_id = 6;
+}

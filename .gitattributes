@@ -1,0 +1,3 @@
+# Mark generated code as such for GitHub Linguist
+pkg/generated/** linguist-generated=true
+web/src/app/generated/** linguist-generated=true

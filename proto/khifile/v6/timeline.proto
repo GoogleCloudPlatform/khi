@@ -1,0 +1,71 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package khifile.v6;
+
+import "google/protobuf/timestamp.proto";
+import "khifile/v6/shared.proto";
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
+
+message TimelineChunk {
+  repeated Timeline timelines = 1;
+  repeated TimelineItems timeline_items = 2;
+}
+
+// Timeline represents a single row rendered on the frontend.
+message Timeline {
+   // The id of a single timeline.
+  uint32 id = 1;
+  // The ID of TimelineType.
+  uint32 timeline_type = 2;
+  // ID of the InternString message in InterningPoolChunk.
+  uint32 name_string_id = 3;
+  // ID of the TimelineItems message in this chunk.
+  uint32 timeline_items_id = 4;
+  // ID of the parent Timeline message. 0 means no parent.
+  uint32 parent_timeline_id = 5;
+}
+
+// TimelineItems represents a list of events and revisions associated to a timeline.
+// Multiple timelines can share the same items by aliasing a timeline to the other. Thus Timeline and TimelineItems are separated and located by its id number.
+message TimelineItems {
+  uint32 id = 1;
+  // Revision associated with this timeline. The order usually represents chronological order.
+  repeated Revision revisions = 2;
+  // Event associated with this timeline.
+  repeated Event events = 3;
+}
+
+// Revision represents a continuous state of a resource changed by a request.
+message Revision {
+  uint32 log_id = 1;
+  google.protobuf.Timestamp changed_time = 2;
+  // The resource body at the time of the change. Use Struct to represent the resource body.
+  InternedStruct resource_body = 3;
+  // ID of the InternString message in InterningPoolChunk.
+  uint32 principal_string_id = 4;
+  // The method verb type changed this revision. ID of VerbType in TimelineStyleChunk.
+  uint32 verb_type = 5;
+  // The state type after this revision. ID of StateType in TimelineStyleChunk.
+  uint32 state_type = 6;
+}
+
+// Event represents a log associated on specific timeline.
+message Event {
+  // ID of a Log defined in LogChunk.
+  uint32 log_id = 1;
+}
