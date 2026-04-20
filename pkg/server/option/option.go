@@ -68,7 +68,6 @@ func (s *requiredOption) Apply(engine *gin.Engine) error {
 
 var _ Option = (*requiredOption)(nil)
 
-
 type accessLogOption struct {
 	ignoredPath []string
 }

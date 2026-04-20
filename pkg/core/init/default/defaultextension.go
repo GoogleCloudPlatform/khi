@@ -163,7 +163,6 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 func (d *DefaultInitExtension) ConfigureKHIWebServerFactory(serverFactory *server.ServerFactory) error {
 	serverFactory.AddOptions(option.Required())
 
-
 	if *parameters.Debug.Verbose {
 		serverFactory.AddOptions(
 			option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoreing noisy paths
@@ -180,7 +179,5 @@ func (d *DefaultInitExtension) ConfigureKHIWebServerFactory(serverFactory *serve
 func (d *DefaultInitExtension) BeforeTerminate() error {
 	return nil
 }
-
-
 
 var _ coreinit.InitExtension = (*DefaultInitExtension)(nil)

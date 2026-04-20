@@ -121,4 +121,3 @@ func TestApplyOptions(t *testing.T) {
 		})
 	}
 }
-
