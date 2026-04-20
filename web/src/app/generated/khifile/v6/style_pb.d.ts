@@ -16,12 +16,8 @@
 // @generated from file khifile/v6/style.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type {
-  GenEnum,
-  GenFile,
-  GenMessage,
-} from '@bufbuild/protobuf/codegenv1';
-import type { Message } from '@bufbuild/protobuf';
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file khifile/v6/style.proto.
@@ -34,7 +30,7 @@ export declare const file_khifile_v6_style: GenFile;
  *
  * @generated from message khifile.v6.HDRColor4
  */
-export declare type HDRColor4 = Message<'khifile.v6.HDRColor4'> & {
+export declare type HDRColor4 = Message<"khifile.v6.HDRColor4"> & {
   /**
    * The red component of the color.
    *
@@ -76,7 +72,7 @@ export declare const HDRColor4Schema: GenMessage<HDRColor4>;
  *
  * @generated from message khifile.v6.Severity
  */
-export declare type Severity = Message<'khifile.v6.Severity'> & {
+export declare type Severity = Message<"khifile.v6.Severity"> & {
   /**
    * id is the unique identifier of the severity. Do not set this value directly, it will be assigned automatically on its registration.
    *
@@ -132,7 +128,7 @@ export declare const SeveritySchema: GenMessage<Severity>;
  *
  * @generated from message khifile.v6.Verb
  */
-export declare type Verb = Message<'khifile.v6.Verb'> & {
+export declare type Verb = Message<"khifile.v6.Verb"> & {
   /**
    * id is the unique identifier of the verb. Do not set this value directly, it will be assigned automatically on its registration.
    *
@@ -181,7 +177,7 @@ export declare const VerbSchema: GenMessage<Verb>;
  *
  * @generated from message khifile.v6.LogType
  */
-export declare type LogType = Message<'khifile.v6.LogType'> & {
+export declare type LogType = Message<"khifile.v6.LogType"> & {
   /**
    * id is the unique identifier of the log type. Do not set this value directly, it will be assigned automatically on its registration.
    *
@@ -230,7 +226,7 @@ export declare const LogTypeSchema: GenMessage<LogType>;
  *
  * @generated from message khifile.v6.RevisionState
  */
-export declare type RevisionState = Message<'khifile.v6.RevisionState'> & {
+export declare type RevisionState = Message<"khifile.v6.RevisionState"> & {
   /**
    * id is the unique identifier of the revision state. Do not set this value directly, it will be assigned automatically on its registration.
    *
@@ -286,7 +282,7 @@ export declare const RevisionStateSchema: GenMessage<RevisionState>;
  *
  * @generated from message khifile.v6.TimelineType
  */
-export declare type TimelineType = Message<'khifile.v6.TimelineType'> & {
+export declare type TimelineType = Message<"khifile.v6.TimelineType"> & {
   /**
    * id is the unique identifier of the timeline type. Do not set this value directly, it will be assigned automatically on its registration.
    *
@@ -348,7 +344,7 @@ export declare const TimelineTypeSchema: GenMessage<TimelineType>;
  *
  * @generated from message khifile.v6.IconAtlas
  */
-export declare type IconAtlas = Message<'khifile.v6.IconAtlas'> & {
+export declare type IconAtlas = Message<"khifile.v6.IconAtlas"> & {
   /**
    * msdf_icon_image is the MSDF icon image.
    *
@@ -383,50 +379,49 @@ export declare const IconAtlasSchema: GenMessage<IconAtlas>;
  *
  * @generated from message khifile.v6.TimelineStyleChunk
  */
-export declare type TimelineStyleChunk =
-  Message<'khifile.v6.TimelineStyleChunk'> & {
-    /**
-     * severities contains definitions for different log severity levels.
-     *
-     * @generated from field: repeated khifile.v6.Severity severities = 1;
-     */
-    severities: Severity[];
+export declare type TimelineStyleChunk = Message<"khifile.v6.TimelineStyleChunk"> & {
+  /**
+   * severities contains definitions for different log severity levels.
+   *
+   * @generated from field: repeated khifile.v6.Severity severities = 1;
+   */
+  severities: Severity[];
 
-    /**
-     * verbs contains definitions for different actions (verbs).
-     *
-     * @generated from field: repeated khifile.v6.Verb verbs = 2;
-     */
-    verbs: Verb[];
+  /**
+   * verbs contains definitions for different actions (verbs).
+   *
+   * @generated from field: repeated khifile.v6.Verb verbs = 2;
+   */
+  verbs: Verb[];
 
-    /**
-     * log_types contains definitions for the various sources/categories of logs.
-     *
-     * @generated from field: repeated khifile.v6.LogType log_types = 3;
-     */
-    logTypes: LogType[];
+  /**
+   * log_types contains definitions for the various sources/categories of logs.
+   *
+   * @generated from field: repeated khifile.v6.LogType log_types = 3;
+   */
+  logTypes: LogType[];
 
-    /**
-     * revision_states contains definitions for resource statuses.
-     *
-     * @generated from field: repeated khifile.v6.RevisionState revision_states = 4;
-     */
-    revisionStates: RevisionState[];
+  /**
+   * revision_states contains definitions for resource statuses.
+   *
+   * @generated from field: repeated khifile.v6.RevisionState revision_states = 4;
+   */
+  revisionStates: RevisionState[];
 
-    /**
-     * timeline_types contains definitions for types of timelines.
-     *
-     * @generated from field: repeated khifile.v6.TimelineType timeline_types = 5;
-     */
-    timelineTypes: TimelineType[];
+  /**
+   * timeline_types contains definitions for types of timelines.
+   *
+   * @generated from field: repeated khifile.v6.TimelineType timeline_types = 5;
+   */
+  timelineTypes: TimelineType[];
 
-    /**
-     * icon_atlas contains the icon atlas used for rendering revision state icons.
-     *
-     * @generated from field: khifile.v6.IconAtlas icon_atlas = 6;
-     */
-    iconAtlas?: IconAtlas;
-  };
+  /**
+   * icon_atlas contains the icon atlas used for rendering revision state icons.
+   *
+   * @generated from field: khifile.v6.IconAtlas icon_atlas = 6;
+   */
+  iconAtlas?: IconAtlas;
+};
 
 /**
  * Describes the message khifile.v6.TimelineStyleChunk.
@@ -474,3 +469,4 @@ export enum RevisionStateStyle {
  * Describes the enum khifile.v6.RevisionStateStyle.
  */
 export declare const RevisionStateStyleSchema: GenEnum<RevisionStateStyle>;
+

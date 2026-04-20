@@ -16,8 +16,8 @@
 // @generated from file khifile/v6/intern_pool.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
-import type { Message } from '@bufbuild/protobuf';
+import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file khifile/v6/intern_pool.proto.
@@ -29,23 +29,22 @@ export declare const file_khifile_v6_intern_pool: GenFile;
  *
  * @generated from message khifile.v6.InterningPoolChunk
  */
-export declare type InterningPoolChunk =
-  Message<'khifile.v6.InterningPoolChunk'> & {
-    /**
-     * Pool of unique strings to avoid duplication. Referenced by ID from other messages.
-     * This repeated field is not guaranteed to be sorted by its id to compress them effectively.
-     *
-     * @generated from field: repeated khifile.v6.InternString strings = 1;
-     */
-    strings: InternString[];
+export declare type InterningPoolChunk = Message<"khifile.v6.InterningPoolChunk"> & {
+  /**
+   * Pool of unique strings to avoid duplication. Referenced by ID from other messages.
+   * This repeated field is not guaranteed to be sorted by its id to compress them effectively.
+   *
+   * @generated from field: repeated khifile.v6.InternString strings = 1;
+   */
+  strings: InternString[];
 
-    /**
-     * Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
-     *
-     * @generated from field: repeated khifile.v6.InternFieldPathSet field_path_sets = 2;
-     */
-    fieldPathSets: InternFieldPathSet[];
-  };
+  /**
+   * Pool of unique field names used in struct to avoid duplication. Referenced by ID from other messages.
+   *
+   * @generated from field: repeated khifile.v6.InternFieldPathSet field_path_sets = 2;
+   */
+  fieldPathSets: InternFieldPathSet[];
+};
 
 /**
  * Describes the message khifile.v6.InterningPoolChunk.
@@ -58,7 +57,7 @@ export declare const InterningPoolChunkSchema: GenMessage<InterningPoolChunk>;
  *
  * @generated from message khifile.v6.InternString
  */
-export declare type InternString = Message<'khifile.v6.InternString'> & {
+export declare type InternString = Message<"khifile.v6.InternString"> & {
   /**
    * The id of interned string.
    *
@@ -85,23 +84,23 @@ export declare const InternStringSchema: GenMessage<InternString>;
  *
  * @generated from message khifile.v6.InternFieldPathSet
  */
-export declare type InternFieldPathSet =
-  Message<'khifile.v6.InternFieldPathSet'> & {
-    /**
-     * @generated from field: uint32 id = 1;
-     */
-    id: number;
+export declare type InternFieldPathSet = Message<"khifile.v6.InternFieldPathSet"> & {
+  /**
+   * @generated from field: uint32 id = 1;
+   */
+  id: number;
 
-    /**
-     * Array of interned string IDs corresponding to field names.
-     *
-     * @generated from field: repeated uint32 field_names = 2;
-     */
-    fieldNames: number[];
-  };
+  /**
+   * Array of interned string IDs corresponding to field names.
+   *
+   * @generated from field: repeated uint32 field_names = 2;
+   */
+  fieldNames: number[];
+};
 
 /**
  * Describes the message khifile.v6.InternFieldPathSet.
  * Use `create(InternFieldPathSetSchema)` to create a new message.
  */
 export declare const InternFieldPathSetSchema: GenMessage<InternFieldPathSet>;
+
