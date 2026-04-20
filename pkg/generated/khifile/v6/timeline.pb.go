@@ -171,7 +171,7 @@ func (x *Timeline) GetParentTimelineId() uint32 {
 }
 
 // TimelineItems represents a list of events and revisions associated to a timeline.
-// Multiple timelines can share the same items by aliasing a timline to the other. Thus Timelien and TimelineItems are separated and located by its id number.
+// Multiple timelines can share the same items by aliasing a timeline to the other. Thus Timeline and TimelineItems are separated and located by its id number.
 type TimelineItems struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Id    *uint32                `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
@@ -234,7 +234,7 @@ func (x *TimelineItems) GetEvents() []*Event {
 	return nil
 }
 
-// Revision represents a contious stat of a resource changed by a request.
+// Revision represents a continuous state of a resource changed by a request.
 type Revision struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	LogId       *uint32                `protobuf:"varint,1,opt,name=log_id,json=logId" json:"log_id,omitempty"`

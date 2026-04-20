@@ -97,7 +97,7 @@ export declare const TimelineSchema: GenMessage<Timeline>;
 
 /**
  * TimelineItems represents a list of events and revisions associated to a timeline.
- * Multiple timelines can share the same items by aliasing a timline to the other. Thus Timelien and TimelineItems are separated and located by its id number.
+ * Multiple timelines can share the same items by aliasing a timeline to the other. Thus Timeline and TimelineItems are separated and located by its id number.
  *
  * @generated from message khifile.v6.TimelineItems
  */
@@ -129,7 +129,7 @@ export declare type TimelineItems = Message<'khifile.v6.TimelineItems'> & {
 export declare const TimelineItemsSchema: GenMessage<TimelineItems>;
 
 /**
- * Revision represents a contious stat of a resource changed by a request.
+ * Revision represents a continuous state of a resource changed by a request.
  *
  * @generated from message khifile.v6.Revision
  */

@@ -46,7 +46,7 @@ export declare type InternedStruct = Message<'khifile.v6.InternedStruct'> & {
    * Example (Flattened):
    * If a nested JSON object is `{"metadata": {"name": "pod-1", "namespace": "default"}}`,
    * it can be flattened into a single field path `["metadata\0name","metadata\0namespace"]`.
-   * If the IDs for "metadata\0name" is 20 , and "metadata\0namespace" is 21, the field path is [20, 21].
+   * If the IDs for "metadata\0name" is 20, and "metadata\0namespace" is 21, the field path is [20, 21].
    * The `values` array would contain the single string value "pod-1".
    *
    * @generated from field: uint32 field_path_set_id = 1;
@@ -93,20 +93,29 @@ export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
       }
     | {
         /**
+         * Represents a 64 bit signed integer value.
+         *
+         * @generated from field: int64 int64_value = 2;
+         */
+        value: bigint;
+        case: 'int64Value';
+      }
+    | {
+        /**
          * Represents a double value.
          *
-         * @generated from field: double number_value = 2;
+         * @generated from field: double double_value = 3;
          */
         value: number;
-        case: 'numberValue';
+        case: 'doubleValue';
       }
     | {
         /**
          * Represents a string value.
          *
-         * the id in InterningPoolChunk
+         * the id in InterningPoolChunk.
          *
-         * @generated from field: uint32 string_value = 3;
+         * @generated from field: uint32 string_value = 4;
          */
         value: number;
         case: 'stringValue';
@@ -115,7 +124,7 @@ export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
         /**
          * Represents a boolean value.
          *
-         * @generated from field: bool bool_value = 4;
+         * @generated from field: bool bool_value = 5;
          */
         value: boolean;
         case: 'boolValue';
@@ -124,7 +133,7 @@ export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
         /**
          * Represents a structured value.
          *
-         * @generated from field: khifile.v6.InternedStruct struct_value = 5;
+         * @generated from field: khifile.v6.InternedStruct struct_value = 6;
          */
         value: InternedStruct;
         case: 'structValue';
@@ -133,7 +142,7 @@ export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
         /**
          * Represents a repeated `InternedValue`.
          *
-         * @generated from field: khifile.v6.InternedListValue list_value = 6;
+         * @generated from field: khifile.v6.InternedListValue list_value = 7;
          */
         value: InternedListValue;
         case: 'listValue';
@@ -142,7 +151,7 @@ export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
         /**
          * Represents a timestamp value.
          *
-         * @generated from field: google.protobuf.Timestamp timestamp_value = 7;
+         * @generated from field: google.protobuf.Timestamp timestamp_value = 8;
          */
         value: Timestamp;
         case: 'timestampValue';
