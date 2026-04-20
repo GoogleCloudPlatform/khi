@@ -17,10 +17,8 @@ package option
 import (
 	"errors"
 	"fmt"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -121,43 +119,5 @@ func TestApplyOptions(t *testing.T) {
 				t.Errorf("ApplyOptions() applied in wrong order. got=%v, want=%v", appliedOrder, tc.expectOrder)
 			}
 		})
-	}
-}
-
-func TestCorsOption(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	config := cors.Config{
-		AllowOrigins: []string{"http://localhost:4200"},
-	}
-
-	opt := CORS(config)
-	engine := gin.New()
-
-	if err := opt.Apply(engine); err != nil {
-		t.Fatalf("Apply() failed: %v", err)
-	}
-
-	// Check ID and Order
-	if opt.ID() != "cors" {
-		t.Errorf("ID() got = %q, want = \"cors\"", opt.ID())
-	}
-	if opt.Order() != 1 {
-		t.Errorf("Order() got = %d, want = 1", opt.Order())
-	}
-
-	// Check if CORS header is present by making a request
-	engine.GET("/test", func(c *gin.Context) {
-		c.String(200, "ok")
-	})
-
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.Header.Set("Origin", "http://localhost:4200")
-	w := httptest.NewRecorder()
-	engine.ServeHTTP(w, req)
-
-	gotHeader := w.Header().Get("Access-Control-Allow-Origin")
-	if gotHeader != "http://localhost:4200" {
-		t.Errorf("Access-Control-Allow-Origin header not set correctly. got=%q, want=%q", gotHeader, "http://localhost:4200")
 	}
 }

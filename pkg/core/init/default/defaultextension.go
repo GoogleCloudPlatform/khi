@@ -34,7 +34,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/option"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
@@ -164,9 +163,6 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 func (d *DefaultInitExtension) ConfigureKHIWebServerFactory(serverFactory *server.ServerFactory) error {
 	serverFactory.AddOptions(option.Required())
 
-	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowAllOrigins = true
-	serverFactory.AddOptions(option.CORS(corsConfig))
 	if *parameters.Debug.Verbose {
 		serverFactory.AddOptions(
 			option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoreing noisy paths
