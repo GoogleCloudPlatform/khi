@@ -23,4 +23,16 @@ export const environment = {
   documentUrl: 'https://github.com/GoogleCloudPlatform/khi',
   pluginModules: [PublicKHIExtension],
   options: {} as Record<string, unknown>,
+  links: [
+    {
+      label: 'GitHub',
+      url: 'https://github.com/GoogleCloudPlatform/khi',
+      icon: 'code',
+    },
+    {
+      label: 'Bug Report',
+      url: 'https://github.com/GoogleCloudPlatform/khi/issues/new?template=Blank+issue',
+      icon: 'bug_report',
+    },
+  ],
 };
