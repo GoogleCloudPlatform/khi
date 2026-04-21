@@ -47,12 +47,18 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version-file: './go.mod'
+    - name: Install jq
+      run: sudo apt-get update && sudo apt-get install -y jq
+    # Building frontend artifacts because that is used in embed.fs in Go.
+    - name: npm install
+      working-directory: ./web
+      run: npm ci
+    - name: Build web
+      run: make build-web
+
     - name: Backend Test
       run: |
         make generate-backend
-        mkdir -p pkg/server/dist/browser/session
-        # A placeholder frontend code read from backend test
-        echo '<!--INJECT GENERATED CODE HERE FROM BACKEND-->' > ./pkg/server/dist/browser/index.html
         go test ./... -args -skip-cloud-logging=true
     - name: Backend Format and Lint Check
       run: |
