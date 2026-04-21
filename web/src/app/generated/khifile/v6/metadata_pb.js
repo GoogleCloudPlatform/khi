@@ -17,13 +17,12 @@
 /* eslint-disable */
 
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
-import { file_google_protobuf_any } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file khifile/v6/metadata.proto.
  */
 export const file_khifile_v6_metadata = /*@__PURE__*/
-  fileDesc("ChlraGlmaWxlL3Y2L21ldGFkYXRhLnByb3RvEgpraGlmaWxlLnY2IjcKDU1ldGFkYXRhQ2h1bmsSJgoIbWV0YWRhdGEYASADKAsyFC5nb29nbGUucHJvdG9idWYuQW55QkdaRWdpdGh1Yi5jb20vR29vZ2xlQ2xvdWRQbGF0Zm9ybS9raGkvcGtnL2dlbmVyYXRlZC9raGlmaWxlL3Y2O2toaWZpbGV2NmIIZWRpdGlvbnNw6Ac", [file_google_protobuf_any]);
+  fileDesc("ChlraGlmaWxlL3Y2L21ldGFkYXRhLnByb3RvEgpraGlmaWxlLnY2IjsKDU1ldGFkYXRhQ2h1bmsSKgoIbWV0YWRhdGEYASADKAsyGC5raGlmaWxlLnY2Lk1ldGFkYXRhSXRlbSJzCgxNZXRhZGF0YUl0ZW0SLAoGaGVhZGVyGAEgASgLMhoua2hpZmlsZS52Ni5IZWFkZXJNZXRhZGF0YUgAEioKBXF1ZXJ5GAIgASgLMhkua2hpZmlsZS52Ni5RdWVyeU1ldGFkYXRhSABCCQoHcGF5bG9hZCL3AQoOSGVhZGVyTWV0YWRhdGESFwoPaW5zcGVjdGlvbl90eXBlGAEgASgJEhcKD2luc3BlY3Rpb25fbmFtZRgCIAEoCRIhChlpbnNwZWN0aW9uX3R5cGVfaWNvbl9wYXRoGAMgASgJEh8KF3N0YXJ0X3RpbWVfdW5peF9zZWNvbmRzGAQgASgDEh0KFWVuZF90aW1lX3VuaXhfc2Vjb25kcxgFIAEoAxIhChlpbnNwZWN0X3RpbWVfdW5peF9zZWNvbmRzGAYgASgDEhoKEnN1Z2dlc3RlZF9maWxlbmFtZRgHIAEoCRIRCglmaWxlX3NpemUYCCABKAMiNAoJUXVlcnlJdGVtEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDQoFcXVlcnkYAyABKAkiNwoNUXVlcnlNZXRhZGF0YRImCgdxdWVyaWVzGAEgAygLMhUua2hpZmlsZS52Ni5RdWVyeUl0ZW1CR1pFZ2l0aHViLmNvbS9Hb29nbGVDbG91ZFBsYXRmb3JtL2toaS9wa2cvZ2VuZXJhdGVkL2toaWZpbGUvdjY7a2hpZmlsZXY2YghlZGl0aW9uc3DoBw");
 
 /**
  * Describes the message khifile.v6.MetadataChunk.
@@ -31,4 +30,32 @@ export const file_khifile_v6_metadata = /*@__PURE__*/
  */
 export const MetadataChunkSchema = /*@__PURE__*/
   messageDesc(file_khifile_v6_metadata, 0);
+
+/**
+ * Describes the message khifile.v6.MetadataItem.
+ * Use `create(MetadataItemSchema)` to create a new message.
+ */
+export const MetadataItemSchema = /*@__PURE__*/
+  messageDesc(file_khifile_v6_metadata, 1);
+
+/**
+ * Describes the message khifile.v6.HeaderMetadata.
+ * Use `create(HeaderMetadataSchema)` to create a new message.
+ */
+export const HeaderMetadataSchema = /*@__PURE__*/
+  messageDesc(file_khifile_v6_metadata, 2);
+
+/**
+ * Describes the message khifile.v6.QueryItem.
+ * Use `create(QueryItemSchema)` to create a new message.
+ */
+export const QueryItemSchema = /*@__PURE__*/
+  messageDesc(file_khifile_v6_metadata, 3);
+
+/**
+ * Describes the message khifile.v6.QueryMetadata.
+ * Use `create(QueryMetadataSchema)` to create a new message.
+ */
+export const QueryMetadataSchema = /*@__PURE__*/
+  messageDesc(file_khifile_v6_metadata, 4);
 

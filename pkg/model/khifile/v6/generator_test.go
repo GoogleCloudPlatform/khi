@@ -19,27 +19,25 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 func TestSplittingGenerator(t *testing.T) {
-	// Create a sequence of 5 string messages.
-	// Each StringValue("test") is about 6 bytes serialized.
-	seq := func(yield func(*wrapperspb.StringValue) bool) {
+	// Create a sequence of 5 metadata items.
+	// Each item is a few bytes serialized.
+	seq := func(yield func(*pb.MetadataItem) bool) {
 		for i := 0; i < 5; i++ {
-			if !yield(wrapperspb.String("test")) {
+			if !yield(&pb.MetadataItem{Payload: &pb.MetadataItem_Header{Header: &pb.HeaderMetadata{InspectionType: proto.String("test")}}}) {
 				return
 			}
 		}
 	}
 
 	// Wrapper to group them into MetadataChunk (reusing for test).
-	// Although MetadataChunk expects Any, we just use MetadataChunk for the structure and cast it below.
-	wrapper := func(batch []*wrapperspb.StringValue) *pb.MetadataChunk {
+	wrapper := func(batch []*pb.MetadataItem) *pb.MetadataChunk {
 		// Mock implementation just for checking chunk boundaries
-		return &pb.MetadataChunk{}
+		return &pb.MetadataChunk{Metadata: batch}
 	}
 
 	// Case 1: Limit is large enough for all items.

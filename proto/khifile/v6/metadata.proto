@@ -16,12 +16,58 @@ edition = "2023";
 
 package khifile.v6;
 
-import "google/protobuf/any.proto";
-
 option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
 
 // MetadataChunk stores arbitrary metadata associated with the inspection.
 message MetadataChunk {
-  // Extensible metadata fields to store tool-specific or environment-specific information not covered by the standard schema.
-  repeated google.protobuf.Any metadata = 1;
+  // Extensible metadata fields to store information about the inspection itself.
+  repeated MetadataItem metadata = 1;
+}
+
+// MetadataItem represents a single unit of metadata associated with the inspection.
+// It uses a oneof payload to support various specialized metadata types.
+message MetadataItem {
+  // The specific payload of this metadata item.
+  oneof payload {
+    // Core information about the inspection run itself.
+    HeaderMetadata header = 1;
+    // Queries that were executed to generate the inspection data.
+    QueryMetadata query = 2;
+  }
+}
+
+// HeaderMetadata holds high-level information about the inspection.
+message HeaderMetadata {
+  // The type of inspection (e.g., "gcp-gke").
+  string inspection_type = 1;
+  // The display name or identifier for this specific inspection instance.
+  string inspection_name = 2;
+  // The path to the icon associated with this inspection type, used in the UI.
+  string inspection_type_icon_path = 3;
+  // The start timestamp of the logs analyzed by this inspection, in Unix seconds.
+  int64 start_time_unix_seconds = 4;
+  // The end timestamp of the logs analyzed by this inspection, in Unix seconds.
+  int64 end_time_unix_seconds = 5;
+  // The timestamp when this inspection was actually performed, in Unix seconds.
+  int64 inspect_time_unix_seconds = 6;
+  // The default filename suggested when downloading or exporting this inspection.
+  string suggested_filename = 7;
+  // The size of the inspected data in bytes.
+  int64 file_size = 8;
+}
+
+// QueryItem describes a specific query used during the inspection process.
+message QueryItem {
+  // The identifier for the query.
+  string id = 1;
+  // The human-readable name of the query shown in the UI.
+  string name = 2;
+  // The actual query string (e.g., LQL in Cloud Logging) executed.
+  string query = 3;
+}
+
+// QueryMetadata groups all queries executed for the inspection to provide context on how data was gathered.
+message QueryMetadata {
+  // The list of queries executed.
+  repeated QueryItem queries = 1;
 }
