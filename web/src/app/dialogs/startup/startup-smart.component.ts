@@ -107,7 +107,7 @@ export class StartupDialogSmartComponent {
       return {
         id: key,
         label: taskMetadata.header.inspectionName,
-        inspectionTimeLabel: this.durationToTimeSeconds(
+        inspectionTimeLabel: this.durationToTimeString(
           Date.now() - taskMetadata.header.inspectTimeUnixSeconds * 1000,
         ),
         phase: taskMetadata.progress.phase as InspectionMetadataProgressPhase,
@@ -188,7 +188,7 @@ export class StartupDialogSmartComponent {
       });
   }
 
-  private durationToTimeSeconds(duration: number): string {
+  private durationToTimeString(duration: number): string {
     const hour = 1000 * 60 * 60;
     const minute = 1000 * 60;
     if (duration >= hour) {
