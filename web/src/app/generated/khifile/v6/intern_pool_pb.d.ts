@@ -93,11 +93,12 @@ export declare type InternFieldPathSet =
     id: number;
 
     /**
-     * Array of interned string IDs corresponding to field names.
+     * Array of interned string IDs corresponding to field paths.
+     * The referenced string is the form of `foo\0bar\0baz` for `foo.bar.baz`.
      *
-     * @generated from field: repeated uint32 field_names = 2;
+     * @generated from field: repeated uint32 field_path_string_ids = 2;
      */
-    fieldNames: number[];
+    fieldPathStringIds: number[];
   };
 
 /**

@@ -39,6 +39,7 @@ message InternString {
 // InternFieldPathSet represents an ordered list of field names.
 message InternFieldPathSet {
   uint32 id = 1;
-  // Array of interned string IDs corresponding to field names.
-  repeated uint32 field_names = 2;
+  // Array of interned string IDs corresponding to field paths.
+  // The referenced string is the form of `foo\0bar\0baz` for `foo.bar.baz`.
+  repeated uint32 field_path_string_ids = 2;
 }
