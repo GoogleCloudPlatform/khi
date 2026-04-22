@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/structpb"

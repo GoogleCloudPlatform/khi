@@ -15,56 +15,24 @@
  */
 
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
-
-/**
- * Represents an interned structured object converted from Protobuf.
- */
-export interface InternedStructDTO {
-  /**
-   * The ID of the field path set.
-   */
-  readonly fieldPathSetId: number;
-  /**
-   * The list of interned field values.
-   */
-  readonly values: readonly InternedValueDTO[];
-}
-
-/**
- * Represents an interned field value.
- */
-export interface InternedValueDTO {
-  /**
-   * The specific variant type and its associated payload.
-   */
-  readonly kind:
-    | { readonly case: 'nullValue'; readonly value: unknown }
-    | { readonly case: 'int64Value'; readonly value: number }
-    | { readonly case: 'doubleValue'; readonly value: number }
-    | { readonly case: 'stringValue'; readonly value: number }
-    | { readonly case: 'boolValue'; readonly value: boolean }
-    | { readonly case: 'structValue'; readonly value: InternedStructDTO }
-    | {
-        readonly case: 'listValue';
-        readonly value: { readonly values: readonly InternedValueDTO[] };
-      }
-    | {
-        readonly case: 'timestampValue';
-        readonly value: bigint;
-      }
-    | { readonly case: undefined; readonly value?: undefined };
-}
+import {
+  InternedStruct,
+  InternedValue,
+} from 'src/app/generated/khifile/shared_pb';
 
 /**
  * Utility to decode InternedStruct into standard JavaScript objects.
  */
 export class InternedStructDecoder {
+  /**
+   * Creates a new InternedStructDecoder instance.
+   */
   constructor(private readonly internPool: InternPoolStore) {}
 
   /**
    * Decodes an InternedStruct into a nested Record.
    */
-  public decode(struct: InternedStructDTO): Record<string, unknown> {
+  public decode(struct: InternedStruct): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     const fieldPathSet = this.internPool.getFieldPathSet(struct.fieldPathSetId);
 
@@ -94,12 +62,12 @@ export class InternedStructDecoder {
     return result;
   }
 
-  private decodeValue(value: InternedValueDTO): unknown {
+  private decodeValue(value: InternedValue): unknown {
     switch (value.kind.case) {
       case 'nullValue':
         return null;
       case 'int64Value':
-        return value.kind.value;
+        return Number(value.kind.value);
       case 'doubleValue':
         return value.kind.value;
       case 'stringValue':
@@ -110,8 +78,10 @@ export class InternedStructDecoder {
         return this.decode(value.kind.value);
       case 'listValue':
         return value.kind.value.values.map((v) => this.decodeValue(v));
-      case 'timestampValue':
-        return value.kind.value;
+      case 'timestampValue': {
+        const ts = value.kind.value;
+        return BigInt(ts.seconds) * 1_000_000_000n + BigInt(ts.nanos);
+      }
       case undefined:
         throw new Error('InternedValue kind is undefined');
       default: {
