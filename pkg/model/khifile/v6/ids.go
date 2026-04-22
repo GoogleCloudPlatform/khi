@@ -28,6 +28,12 @@ const (
 	IDString IDNamespace = iota
 	// IDFieldSet is the namespace for field set IDs.
 	IDFieldSet
+	// IDTimelinePath is the namespace for timeline path IDs.
+	IDTimelinePath
+	// IDTimelineItems is the namespace for timeline items IDs.
+	IDTimelineItems
+	// IDLog is the namespace for log IDs.
+	IDLog
 
 	// idNamespaceMax is the sentinel value for the maximum number of namespaces.
 	idNamespaceMax
