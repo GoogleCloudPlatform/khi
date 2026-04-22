@@ -35,7 +35,11 @@ import {
   TimelineType,
   Verb,
 } from 'src/app/store/domain/style';
-import { MetadataStore } from 'src/app/store/domain/metadata-store';
+import {
+  InspectionHeader,
+  InspectionQuery,
+  MetadataStore,
+} from 'src/app/store/domain/metadata-store';
 
 /**
  * Core InspectionDataBuilder for compiling raw store inputs.
@@ -170,6 +174,36 @@ export class InspectionDataBuilder {
     this.iconAtlasPromise = this.styleStore.setIconAtlas(dto);
     this.iconAtlasPromise.catch(() => {}); // Prevents the unhandled rejection. Error will be thrown in the build method to actually await the promise.
     return this;
+  }
+
+  /**
+   * Sets the primary inspection metadata header.
+   */
+  public setMetadataHeader(header: InspectionHeader): void {
+    this.metadataStore.header = header;
+  }
+
+  /**
+   * Adds saved inspection queries to the collection.
+   */
+  public addMetadataQueries(queries: Iterable<InspectionQuery>): void {
+    for (const q of queries) {
+      this.metadataStore.queries.push(q);
+    }
+  }
+
+  /**
+   * Retrieves the StyleStore instance managed by this builder.
+   */
+  public getStyleStore(): StyleStore {
+    return this.styleStore;
+  }
+
+  /**
+   * Retrieves the InternPoolStore instance managed by this builder.
+   */
+  public getInternPoolStore(): InternPoolStore {
+    return this.internPool;
   }
 
   /**
