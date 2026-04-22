@@ -16,10 +16,10 @@
 // @generated from file khifile/v6/timeline.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
-import type { Message } from "@bufbuild/protobuf";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import type { InternedStruct } from "./shared_pb";
+import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
+import type { Message } from '@bufbuild/protobuf';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import type { InternedStruct } from './shared_pb';
 
 /**
  * Describes the file khifile/v6/timeline.proto.
@@ -29,7 +29,7 @@ export declare const file_khifile_v6_timeline: GenFile;
 /**
  * @generated from message khifile.v6.TimelineChunk
  */
-export declare type TimelineChunk = Message<"khifile.v6.TimelineChunk"> & {
+export declare type TimelineChunk = Message<'khifile.v6.TimelineChunk'> & {
   /**
    * @generated from field: repeated khifile.v6.Timeline timelines = 1;
    */
@@ -52,7 +52,7 @@ export declare const TimelineChunkSchema: GenMessage<TimelineChunk>;
  *
  * @generated from message khifile.v6.Timeline
  */
-export declare type Timeline = Message<"khifile.v6.Timeline"> & {
+export declare type Timeline = Message<'khifile.v6.Timeline'> & {
   /**
    * The id of a single timeline.
    *
@@ -101,7 +101,7 @@ export declare const TimelineSchema: GenMessage<Timeline>;
  *
  * @generated from message khifile.v6.TimelineItems
  */
-export declare type TimelineItems = Message<"khifile.v6.TimelineItems"> & {
+export declare type TimelineItems = Message<'khifile.v6.TimelineItems'> & {
   /**
    * @generated from field: uint32 id = 1;
    */
@@ -133,7 +133,7 @@ export declare const TimelineItemsSchema: GenMessage<TimelineItems>;
  *
  * @generated from message khifile.v6.Revision
  */
-export declare type Revision = Message<"khifile.v6.Revision"> & {
+export declare type Revision = Message<'khifile.v6.Revision'> & {
   /**
    * @generated from field: uint32 log_id = 1;
    */
@@ -184,7 +184,7 @@ export declare const RevisionSchema: GenMessage<Revision>;
  *
  * @generated from message khifile.v6.Event
  */
-export declare type Event = Message<"khifile.v6.Event"> & {
+export declare type Event = Message<'khifile.v6.Event'> & {
   /**
    * ID of a Log defined in LogChunk.
    *
@@ -198,4 +198,3 @@ export declare type Event = Message<"khifile.v6.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export declare const EventSchema: GenMessage<Event>;
-

@@ -16,10 +16,10 @@
 // @generated from file khifile/v6/log.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
-import type { Message } from "@bufbuild/protobuf";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import type { InternedStruct } from "./shared_pb";
+import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
+import type { Message } from '@bufbuild/protobuf';
+import type { Timestamp } from '@bufbuild/protobuf/wkt';
+import type { InternedStruct } from './shared_pb';
 
 /**
  * Describes the file khifile/v6/log.proto.
@@ -31,7 +31,7 @@ export declare const file_khifile_v6_log: GenFile;
  *
  * @generated from message khifile.v6.LogChunk
  */
-export declare type LogChunk = Message<"khifile.v6.LogChunk"> & {
+export declare type LogChunk = Message<'khifile.v6.LogChunk'> & {
   /**
    * @generated from field: repeated khifile.v6.Log logs = 1;
    */
@@ -49,7 +49,7 @@ export declare const LogChunkSchema: GenMessage<LogChunk>;
  *
  * @generated from message khifile.v6.Log
  */
-export declare type Log = Message<"khifile.v6.Log"> & {
+export declare type Log = Message<'khifile.v6.Log'> & {
   /**
    * @generated from field: uint32 id = 1;
    */
@@ -96,4 +96,3 @@ export declare type Log = Message<"khifile.v6.Log"> & {
  * Use `create(LogSchema)` to create a new message.
  */
 export declare const LogSchema: GenMessage<Log>;
-

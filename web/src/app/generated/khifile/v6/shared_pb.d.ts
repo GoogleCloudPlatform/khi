@@ -16,9 +16,9 @@
 // @generated from file khifile/v6/shared.proto (package khifile.v6, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv1";
-import type { Message } from "@bufbuild/protobuf";
-import type { NullValue, Timestamp } from "@bufbuild/protobuf/wkt";
+import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
+import type { Message } from '@bufbuild/protobuf';
+import type { NullValue, Timestamp } from '@bufbuild/protobuf/wkt';
 
 /**
  * Describes the file khifile/v6/shared.proto.
@@ -31,7 +31,7 @@ export declare const file_khifile_v6_shared: GenFile;
  *
  * @generated from message khifile.v6.InternedStruct
  */
-export declare type InternedStruct = Message<"khifile.v6.InternedStruct"> & {
+export declare type InternedStruct = Message<'khifile.v6.InternedStruct'> & {
   /**
    * The ID of the field path in InterningPoolChunk.
    * A field path is an ordered list of field names (represented as interned string IDs).
@@ -75,79 +75,88 @@ export declare const InternedStructSchema: GenMessage<InternedStruct>;
  *
  * @generated from message khifile.v6.InternedValue
  */
-export declare type InternedValue = Message<"khifile.v6.InternedValue"> & {
+export declare type InternedValue = Message<'khifile.v6.InternedValue'> & {
   /**
    * The kind of value.
    *
    * @generated from oneof khifile.v6.InternedValue.kind
    */
-  kind: {
-    /**
-     * Represents a null value.
-     *
-     * @generated from field: google.protobuf.NullValue null_value = 1;
-     */
-    value: NullValue;
-    case: "nullValue";
-  } | {
-    /**
-     * Represents a 64 bit signed integer value.
-     *
-     * @generated from field: int64 int64_value = 2;
-     */
-    value: bigint;
-    case: "int64Value";
-  } | {
-    /**
-     * Represents a double value.
-     *
-     * @generated from field: double double_value = 3;
-     */
-    value: number;
-    case: "doubleValue";
-  } | {
-    /**
-     * Represents a string value.
-     *
-     * the id in InterningPoolChunk.
-     *
-     * @generated from field: uint32 string_value = 4;
-     */
-    value: number;
-    case: "stringValue";
-  } | {
-    /**
-     * Represents a boolean value.
-     *
-     * @generated from field: bool bool_value = 5;
-     */
-    value: boolean;
-    case: "boolValue";
-  } | {
-    /**
-     * Represents a structured value.
-     *
-     * @generated from field: khifile.v6.InternedStruct struct_value = 6;
-     */
-    value: InternedStruct;
-    case: "structValue";
-  } | {
-    /**
-     * Represents a repeated `InternedValue`.
-     *
-     * @generated from field: khifile.v6.InternedListValue list_value = 7;
-     */
-    value: InternedListValue;
-    case: "listValue";
-  } | {
-    /**
-     * Represents a timestamp value.
-     *
-     * @generated from field: google.protobuf.Timestamp timestamp_value = 8;
-     */
-    value: Timestamp;
-    case: "timestampValue";
-  } | { case: undefined; value?: undefined };
+  kind:
+    | {
+        /**
+         * Represents a null value.
+         *
+         * @generated from field: google.protobuf.NullValue null_value = 1;
+         */
+        value: NullValue;
+        case: 'nullValue';
+      }
+    | {
+        /**
+         * Represents a 64 bit signed integer value.
+         *
+         * @generated from field: int64 int64_value = 2;
+         */
+        value: bigint;
+        case: 'int64Value';
+      }
+    | {
+        /**
+         * Represents a double value.
+         *
+         * @generated from field: double double_value = 3;
+         */
+        value: number;
+        case: 'doubleValue';
+      }
+    | {
+        /**
+         * Represents a string value.
+         *
+         * the id in InterningPoolChunk.
+         *
+         * @generated from field: uint32 string_value = 4;
+         */
+        value: number;
+        case: 'stringValue';
+      }
+    | {
+        /**
+         * Represents a boolean value.
+         *
+         * @generated from field: bool bool_value = 5;
+         */
+        value: boolean;
+        case: 'boolValue';
+      }
+    | {
+        /**
+         * Represents a structured value.
+         *
+         * @generated from field: khifile.v6.InternedStruct struct_value = 6;
+         */
+        value: InternedStruct;
+        case: 'structValue';
+      }
+    | {
+        /**
+         * Represents a repeated `InternedValue`.
+         *
+         * @generated from field: khifile.v6.InternedListValue list_value = 7;
+         */
+        value: InternedListValue;
+        case: 'listValue';
+      }
+    | {
+        /**
+         * Represents a timestamp value.
+         *
+         * @generated from field: google.protobuf.Timestamp timestamp_value = 8;
+         */
+        value: Timestamp;
+        case: 'timestampValue';
+      }
+    | { case: undefined; value?: undefined };
 };
 
 /**
@@ -161,18 +170,18 @@ export declare const InternedValueSchema: GenMessage<InternedValue>;
  *
  * @generated from message khifile.v6.InternedListValue
  */
-export declare type InternedListValue = Message<"khifile.v6.InternedListValue"> & {
-  /**
-   * Repeated field of dynamically typed values.
-   *
-   * @generated from field: repeated khifile.v6.InternedValue values = 1;
-   */
-  values: InternedValue[];
-};
+export declare type InternedListValue =
+  Message<'khifile.v6.InternedListValue'> & {
+    /**
+     * Repeated field of dynamically typed values.
+     *
+     * @generated from field: repeated khifile.v6.InternedValue values = 1;
+     */
+    values: InternedValue[];
+  };
 
 /**
  * Describes the message khifile.v6.InternedListValue.
  * Use `create(InternedListValueSchema)` to create a new message.
  */
 export declare const InternedListValueSchema: GenMessage<InternedListValue>;
-
