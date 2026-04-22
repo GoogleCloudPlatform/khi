@@ -80,3 +80,24 @@ export interface ProgressDialogStatusUpdator {
    */
   updateProgress(progress: CurrentProgress): void;
 }
+
+/**
+ * ProgressReporter is an interface to report progress during a long-running task.
+ */
+export interface ProgressReporter {
+  /**
+   * Reports the current status message of the progress.
+   */
+  reportMessage(message: string): void;
+
+  /**
+   * Reports the current progress percentage.
+   * @param percent The progress percentage, or undefined if indeterminate.
+   */
+  reportProgress(percent?: number): void;
+
+  /**
+   * Completes the progress reporting.
+   */
+  complete(): void;
+}

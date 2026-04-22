@@ -21,7 +21,7 @@ import {
   StringEntryDTO,
   FieldPathSetEntryDTO,
 } from 'src/app/store/domain/intern-pool-store';
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { IconAtlasDTO, StyleStore } from 'src/app/store/domain/style-store';
 import {
   TimelineStore,
   RevisionDTO,
@@ -50,6 +50,8 @@ export class InspectionDataBuilder {
   private readonly rawTimelines: TimelineDTO[] = [];
   private readonly rawRevisions: RevisionDTO[] = [];
   private readonly rawEvents: EventDTO[] = [];
+
+  private iconAtlasPromise?: Promise<void>;
 
   constructor() {
     this.logStore = new LogStore(this.internPool, this.styleStore);
@@ -157,9 +159,32 @@ export class InspectionDataBuilder {
   }
 
   /**
+   * Sets the icon atlas and tracks the asynchronous loading promise.
+   */
+  public setIconAtlas(dto: IconAtlasDTO): this {
+    this.iconAtlasPromise = this.styleStore.setIconAtlas(dto);
+    this.iconAtlasPromise.catch(() => {}); // Prevents the unhandled rejection. Error will be thrown in the build method to actually await the promise.
+    return this;
+  }
+
+  /**
+   * Retrieves the StyleStore instance managed by this builder.
+   */
+  public getStyleStore(): StyleStore {
+    return this.styleStore;
+  }
+
+  /**
+   * Retrieves the InternPoolStore instance managed by this builder.
+   */
+  public getInternPoolStore(): InternPoolStore {
+    return this.internPool;
+  }
+
+  /**
    * Instantiates data store contexts returning root inspection model.
    */
-  public build(): InspectionDataV2 {
+  public async build(): Promise<InspectionDataV2> {
     this.logStore.initialize(this.rawLogs, this.rawLogs.length);
     this.timelineStore.initialize(
       this.rawTimelines,
@@ -169,6 +194,10 @@ export class InspectionDataBuilder {
       this.rawEvents,
       this.rawEvents.length,
     );
+
+    if (this.iconAtlasPromise) {
+      await this.iconAtlasPromise;
+    }
 
     return {
       internPool: this.internPool,

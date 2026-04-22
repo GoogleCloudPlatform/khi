@@ -39,7 +39,7 @@ describe('InspectionDataBuilder (Core)', () => {
     builder = new InspectionDataBuilder();
   });
 
-  it('should accumulate stores and construct domain instances correctly', () => {
+  it('should accumulate stores and construct domain instances correctly', async () => {
     const rawLogs: LogDTO[] = [
       {
         id: 100,
@@ -126,7 +126,7 @@ describe('InspectionDataBuilder (Core)', () => {
       height: 1,
     };
 
-    const result = builder
+    const result = await builder
       .addStrings([{ id: 1, value: 'summary_value' }])
       .addFieldPathSets([{ id: 10, fieldPathStringIds: [1] }])
       .addLogs(rawLogs)

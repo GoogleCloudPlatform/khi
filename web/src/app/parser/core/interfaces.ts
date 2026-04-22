@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-// Placeholder for the builder pattern to be implemented in a subsequent stage
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface InspectionDataBuilder {}
+import { InspectionDataBuilder } from 'src/app/parser/core/builder';
 
 /**
  * Stateful assembler that collects decoded Protobufs and mutates the final model.
@@ -38,6 +36,10 @@ export interface IDataAssembler<TProto = unknown> {
  */
 export interface ChunkDefinition<TProto = unknown> {
   readonly typeId: number;
+  /**
+   * Human-readable label/name for the chunk type (used in progress reports).
+   */
+  readonly label: string;
   /**
    * Stateless function to decode raw bytes into a Protobuf object.
    */
