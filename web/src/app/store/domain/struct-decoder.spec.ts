@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
+import { create } from '@bufbuild/protobuf';
+import { NullValue, TimestampSchema } from '@bufbuild/protobuf/wkt';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
 import {
-  InternedStructDecoder,
-  InternedStructDTO,
-} from 'src/app/store/domain/struct-decoder';
+  InternedStructSchema,
+  InternedValueSchema,
+  InternedListValueSchema,
+} from 'src/app/generated/khifile/shared_pb';
 
 describe('InternedStructDecoder', () => {
   let store: InternPoolStore;
@@ -44,17 +48,32 @@ describe('InternedStructDecoder', () => {
       { id: 10, fieldPathStringIds: [1, 2, 3, 4, 5, 6] },
     ]);
 
-    const struct: InternedStructDTO = {
+    const struct = create(InternedStructSchema, {
       fieldPathSetId: 10,
       values: [
-        { kind: { case: 'nullValue', value: null } },
-        { kind: { case: 'int64Value', value: 123 } },
-        { kind: { case: 'doubleValue', value: 3.14 } },
-        { kind: { case: 'boolValue', value: true } },
-        { kind: { case: 'stringValue', value: 100 } },
-        { kind: { case: 'timestampValue', value: 1000000000500n } },
+        create(InternedValueSchema, {
+          kind: { case: 'nullValue', value: NullValue.NULL_VALUE },
+        }),
+        create(InternedValueSchema, {
+          kind: { case: 'int64Value', value: 123n },
+        }),
+        create(InternedValueSchema, {
+          kind: { case: 'doubleValue', value: 3.14 },
+        }),
+        create(InternedValueSchema, {
+          kind: { case: 'boolValue', value: true },
+        }),
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 100 },
+        }),
+        create(InternedValueSchema, {
+          kind: {
+            case: 'timestampValue',
+            value: create(TimestampSchema, { seconds: 1000n, nanos: 500 }),
+          },
+        }),
       ],
-    };
+    });
 
     const result = decoder.decode(struct);
 
@@ -64,7 +83,7 @@ describe('InternedStructDecoder', () => {
       c: 3.14,
       d: true,
       e: 'resolved_value',
-      f: 1000000000500n,
+      f: 1_000_000_000_500n,
     });
   });
 
@@ -81,13 +100,17 @@ describe('InternedStructDecoder', () => {
       { id: 11, value: 'production' },
     ]);
 
-    const struct: InternedStructDTO = {
+    const struct = create(InternedStructSchema, {
       fieldPathSetId: 20,
       values: [
-        { kind: { case: 'stringValue', value: 10 } },
-        { kind: { case: 'stringValue', value: 11 } },
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 10 },
+        }),
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 11 },
+        }),
       ],
-    };
+    });
 
     const result = decoder.decode(struct);
 
@@ -114,28 +137,38 @@ describe('InternedStructDecoder', () => {
       { id: 31, fieldPathStringIds: [3] },
     ]);
 
-    const nestedStruct: InternedStructDTO = {
+    const nestedStruct = create(InternedStructSchema, {
       fieldPathSetId: 31,
-      values: [{ kind: { case: 'stringValue', value: 10 } }],
-    };
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 10 },
+        }),
+      ],
+    });
 
-    const struct: InternedStructDTO = {
+    const struct = create(InternedStructSchema, {
       fieldPathSetId: 30,
       values: [
-        { kind: { case: 'structValue', value: nestedStruct } },
-        {
+        create(InternedValueSchema, {
+          kind: { case: 'structValue', value: nestedStruct },
+        }),
+        create(InternedValueSchema, {
           kind: {
             case: 'listValue',
-            value: {
+            value: create(InternedListValueSchema, {
               values: [
-                { kind: { case: 'int64Value', value: 10 } },
-                { kind: { case: 'boolValue', value: false } },
+                create(InternedValueSchema, {
+                  kind: { case: 'int64Value', value: 10n },
+                }),
+                create(InternedValueSchema, {
+                  kind: { case: 'boolValue', value: false },
+                }),
               ],
-            },
+            }),
           },
-        },
+        }),
       ],
-    };
+    });
 
     const result = decoder.decode(struct);
 
@@ -155,10 +188,14 @@ describe('InternedStructDecoder', () => {
 
     store.addFieldPathSets([{ id: 40, fieldPathStringIds: [1, 2] }]);
 
-    const struct: InternedStructDTO = {
+    const struct = create(InternedStructSchema, {
       fieldPathSetId: 40,
-      values: [{ kind: { case: 'boolValue', value: true } }],
-    };
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'boolValue', value: true },
+        }),
+      ],
+    });
 
     expect(() => decoder.decode(struct)).toThrowError(
       /does not match values length/,
@@ -169,10 +206,14 @@ describe('InternedStructDecoder', () => {
     store.addFieldPathSets([{ id: 50, fieldPathStringIds: [1] }]);
     store.addStrings([{ id: 1, value: 'item' }]);
 
-    const struct: InternedStructDTO = {
+    const struct = create(InternedStructSchema, {
       fieldPathSetId: 50,
-      values: [{ kind: { case: undefined, value: undefined } }],
-    };
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: undefined, value: undefined },
+        }),
+      ],
+    });
 
     expect(() => decoder.decode(struct)).toThrowError(
       'InternedValue kind is undefined',
