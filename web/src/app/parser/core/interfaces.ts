@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InspectionDataBuilder } from './builder';
+import { InspectionData } from 'src/app/store/inspection-data';
 
 /**
  * Stateful assembler that collects decoded Protobufs and mutates the final model.
@@ -28,7 +28,7 @@ export interface IDataAssembler<TProto = unknown> {
   /**
    * Integrates the ingested data into the final InspectionData model.
    */
-  assembleInto(builder: InspectionDataBuilder): void;
+  assembleInto(model: InspectionData): void;
 }
 
 /**
