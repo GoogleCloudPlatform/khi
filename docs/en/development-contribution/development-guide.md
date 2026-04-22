@@ -20,9 +20,18 @@ You can't create a new branch our repository directly. Please fork our repositor
 Please check [this document](https://docs.github.com/en/authentication/managing-commit-signature-verification) to make sure your commits are signed.
 Our repository can't accept unsigned commits.
 
-## About the Git hooks
+## Version Control and Pre-commit Hooks
 
-The `make setup` make target installs git hooks to your local repository. This hook automatically checks license header existence, formats code, and runs linters before your commit. It will reduce the possibility for you to face CI failure with simple format errors.
+In this project, we recommend using Jujutsu (`jj`) over `git` as the version control tool.
+
+If you are using `git`, the `make setup` make target installs git pre-commit hooks to your local repository. This hook automatically checks license header existence, formats code, and runs linters before your commit, reducing the possibility of CI failures due to simple format errors.
+
+If you are using `jj`, since it does not currently support native automatic hooks, `make setup` will not install any hooks. When using `jj`, you must either manually run `make pre-commit` before creating a commit (or pushing), or automate the execution of `make pre-commit` using `jj` aliases.
+
+## AI Assistant (Gemini CLI / Antigravity) Support
+
+This repository is configured to support AI assistant tools like `gemini-cli` or `Antigravity`.
+We maintain `GEMINI.md` files in various directories and rule definitions inside the `.agents` folder. These files provide the AI assistant with project-specific coding conventions and context, enabling it to assist your development effectively. When using an AI assistant, ensure that it loads these configuration files.
 
 ### Setup VSCode config
 
