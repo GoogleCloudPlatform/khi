@@ -35,6 +35,11 @@ import {
   TimelineType,
   Verb,
 } from 'src/app/store/domain/style';
+import {
+  InspectionHeader,
+  InspectionQuery,
+  MetadataStore,
+} from 'src/app/store/domain/metadata-store';
 
 /**
  * Core InspectionDataBuilder for compiling raw store inputs.
@@ -50,6 +55,9 @@ export class InspectionDataBuilder {
   private readonly rawTimelines: TimelineDTO[] = [];
   private readonly rawRevisions: RevisionDTO[] = [];
   private readonly rawEvents: EventDTO[] = [];
+
+  private metadataHeader?: InspectionHeader;
+  private readonly metadataQueries: InspectionQuery[] = [];
 
   private iconAtlasPromise?: Promise<void>;
 
@@ -159,29 +167,6 @@ export class InspectionDataBuilder {
   }
 
   /**
-   * Sets the icon atlas and tracks the asynchronous loading promise.
-   */
-  public setIconAtlas(dto: IconAtlasDTO): this {
-    this.iconAtlasPromise = this.styleStore.setIconAtlas(dto);
-    this.iconAtlasPromise.catch(() => {}); // Prevents the unhandled rejection. Error will be thrown in the build method to actually await the promise.
-    return this;
-  }
-
-  /**
-   * Retrieves the StyleStore instance managed by this builder.
-   */
-  public getStyleStore(): StyleStore {
-    return this.styleStore;
-  }
-
-  /**
-   * Retrieves the InternPoolStore instance managed by this builder.
-   */
-  public getInternPoolStore(): InternPoolStore {
-    return this.internPool;
-  }
-
-  /**
    * Instantiates data store contexts returning root inspection model.
    */
   public async build(): Promise<InspectionDataV2> {
@@ -204,6 +189,7 @@ export class InspectionDataBuilder {
       styleStore: this.styleStore,
       logStore: this.logStore,
       timelineStore: this.timelineStore,
+      metadata: this.getMetadataStore(),
     };
   }
 }
