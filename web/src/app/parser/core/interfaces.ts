@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-import { InspectionData } from 'src/app/store/inspection-data';
+// Placeholder for the builder pattern to be implemented in a subsequent stage
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface InspectionDataBuilder {}
 
 /**
  * Stateful assembler that collects decoded Protobufs and mutates the final model.
@@ -28,7 +30,7 @@ export interface IDataAssembler<TProto = unknown> {
   /**
    * Integrates the ingested data into the final InspectionData model.
    */
-  assembleInto(model: InspectionData): void;
+  assembleInto(builder: InspectionDataBuilder): void;
 }
 
 /**

@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { KHIFileStreamer } from 'src/app/parser/core/file-streamer';
+import { KHIFileParser } from 'src/app/parser/core/file-parser';
 import {
   ParserBlueprint,
   ChunkDefinition,
   IDataAssembler,
 } from 'src/app/parser/core/interfaces';
-import { InspectionData } from 'src/app/store/inspection-data';
 
-describe('KHIFileStreamer', () => {
+describe('KHIFileParser', () => {
   /**
    * Helper to compress a Uint8Array using gzip
    */
@@ -54,7 +53,10 @@ describe('KHIFileStreamer', () => {
       'assembleInto',
     ]);
 
-    const blueprint: ParserBlueprint = new Map<number, ChunkDefinition<any>>([
+    const blueprint: ParserBlueprint = new Map<
+      number,
+      ChunkDefinition<unknown>
+    >([
       [
         1,
         {
@@ -81,25 +83,25 @@ describe('KHIFileStreamer', () => {
   });
 
   it('should throw an error for invalid magic bytes', async () => {
-    const streamer = new KHIFileStreamer(registry);
+    const parser = new KHIFileParser(registry);
     const buffer = new Uint8Array([88, 88, 88, 6]).buffer; // XXX\x06
 
-    await expectAsync(streamer.parse(buffer)).toBeRejectedWithError(
+    await expectAsync(parser.parse(buffer)).toBeRejectedWithError(
       'Invalid magic bytes. Not a KHI file.',
     );
   });
 
   it('should throw an error for unsupported version', async () => {
-    const streamer = new KHIFileStreamer(registry);
+    const parser = new KHIFileParser(registry);
     const buffer = new Uint8Array([75, 72, 73, 99]).buffer; // KHI\x99
 
-    await expectAsync(streamer.parse(buffer)).toBeRejectedWithError(
+    await expectAsync(parser.parse(buffer)).toBeRejectedWithError(
       'Unsupported KHI file version: 99',
     );
   });
 
   it('should parse chunks and assemble based on priority', async () => {
-    const streamer = new KHIFileStreamer(registry);
+    const parser = new KHIFileParser(registry);
 
     const data1 = new TextEncoder().encode('hello');
     const compressed1 = await compressData(data1);
@@ -123,7 +125,7 @@ describe('KHIFileStreamer', () => {
     dv.setUint32(offset2 + 4, 2, true);
     uint8View.set(compressed2, offset2 + 8);
 
-    const result = await streamer.parse(buffer);
+    const result = await parser.parse(buffer);
 
     expect(result).toBeNull(); // Because assembly logic is deferred to the builder
 

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { assertNecessaryAPI } from 'src/app/common/misc-util';
+
 /**
  * Data associated with a single chunk in the KHI file.
  */
@@ -34,6 +36,7 @@ export class BinaryReader {
    * Creates a new BinaryReader for the given buffer.
    */
   constructor(private readonly buffer: ArrayBuffer) {
+    assertNecessaryAPI('DecompressionStream');
     this.dv = new DataView(buffer);
   }
 
@@ -55,6 +58,9 @@ export class BinaryReader {
    * Reads and validates the header of the KHI file.
    */
   public readHeader(): { magic: string; version: number } {
+    if (this.offset !== 0) {
+      throw new Error('Offset must be 0 to read header');
+    }
     if (this.buffer.byteLength < 4) {
       throw new Error('Buffer too small to contain header');
     }
@@ -93,7 +99,7 @@ export class BinaryReader {
     const compressedData = new Uint8Array(this.buffer, this.offset + 8, size);
 
     // Decompress the gzip data
-    const decompressionStream = new globalThis.DecompressionStream('gzip');
+    const decompressionStream = new DecompressionStream('gzip');
     const sourceBlob = new Blob([compressedData]);
     const textDecompressionStream = sourceBlob
       .stream()

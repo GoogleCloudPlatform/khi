@@ -56,6 +56,17 @@ describe('BinaryReader', () => {
     );
   });
 
+  it('should throw an error if readHeader is called when offset is not 0', () => {
+    const buffer = new Uint8Array([75, 72, 73, 6]).buffer;
+    const reader = new BinaryReader(buffer);
+
+    reader.readHeader(); // First call succeeds
+
+    expect(() => reader.readHeader()).toThrowError(
+      'Offset must be 0 to read header',
+    );
+  });
+
   it('should read chunks correctly', async () => {
     const data1 = new Uint8Array([10, 20]);
     const compressed1 = await compressData(data1);

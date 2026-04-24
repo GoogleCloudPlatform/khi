@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-import { InspectionData, TimeRange } from 'src/app/store/inspection-data';
-import { NullReferenceResolver } from 'src/app/common/loader/reference-resolver';
+import { InspectionData } from 'src/app/store/inspection-data';
 import {
   KHIInvalidFileError,
   KHIVersionMismatchError,
   KHIChunkDecodeError,
-  KHIDataAssemblyError,
 } from 'src/app/parser/errors/parser-errors';
 import {
   IDataAssembler,
@@ -31,11 +29,11 @@ import { BinaryReader } from 'src/app/parser/core/binary-reader';
 /**
  * Orchestrator class responsible for streaming and parsing KHI inspection files.
  */
-export class KHIFileStreamer {
+export class KHIFileParser {
   private static readonly MAGIC = 'KHI';
 
   /**
-   * Creates a new instance of the KHIFileStreamer.
+   * Creates a new instance of the KHIFileParser.
    */
   constructor(
     private readonly versionRegistry: Record<number, ParserBlueprint>,
@@ -49,7 +47,7 @@ export class KHIFileStreamer {
 
     // 1. Header Validation
     const { magic, version } = reader.readHeader();
-    if (magic !== KHIFileStreamer.MAGIC) {
+    if (magic !== KHIFileParser.MAGIC) {
       throw new KHIInvalidFileError('Invalid magic bytes. Not a KHI file.');
     }
 
@@ -71,7 +69,7 @@ export class KHIFileStreamer {
     // 3. Chunk Streaming & Ingestion Phase
     while (reader.hasMore()) {
       const offset = reader.currentOffset;
-      const { size, typeId, data } = await reader.readNextChunk();
+      const { typeId, data } = await reader.readNextChunk();
 
       const assembler = activeAssemblers.get(typeId);
       if (!assembler) {
@@ -96,7 +94,7 @@ export class KHIFileStreamer {
       chunkIndex++;
     }
 
-    // 4. Priority-Based Assembly Phase
+    // 4. TODO: Priority-Based Assembly Phase
     // The assembly logic and domain stores instantiation (InspectionDataBuilder)
     // will be implemented in a subsequent stage.
     return null as unknown as InspectionData;
