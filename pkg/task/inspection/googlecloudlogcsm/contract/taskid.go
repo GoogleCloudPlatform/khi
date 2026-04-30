@@ -53,3 +53,15 @@ var CSMClusterIdentifierTaskID = taskid.NewDefaultImplementationID[[]string](Tas
 
 // ListCSMTrafficDirectorLogEntriesTaskID is the task ID for the task that queries CSM Traffic Director logs from Cloud Logging.
 var ListCSMTrafficDirectorLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "list-traffic-director-log-entries")
+
+// CSMTrafficDirectorFieldSetReaderTaskID is the task ID to read the CSM Traffic Director related fieldset.
+var CSMTrafficDirectorFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "traffic-director/fieldset-reader")
+
+// CSMTrafficDirectorLogIngesterTaskID is the task ID to finalize the CSM Traffic Director logs.
+var CSMTrafficDirectorLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "traffic-director/log-ingester")
+
+// CSMTrafficDirectorLogGrouperTaskID is the task ID to group CSM Traffic Director logs.
+var CSMTrafficDirectorLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "traffic-director/grouper")
+
+// CSMTrafficDirectorLogToTimelineMapperTaskID is the task ID for associating CSM Traffic Director logs with resource timelines.
+var CSMTrafficDirectorLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "traffic-director/timeline-mapper")
