@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { bisectLeft, bisectRight, defaultNumberComparator } from './misc-util';
+import {
+  assertNecessaryAPI,
+  bisectLeft,
+  bisectRight,
+  defaultNumberComparator,
+} from './misc-util';
 
 describe('misc-util', () => {
   describe('bisectLeft', () => {
@@ -96,6 +101,20 @@ describe('misc-util', () => {
         item.val - target;
       expect(bisectRight(arr, 15, comparator)).toBe(1);
       expect(bisectRight(arr, 20, comparator)).toBe(3);
+    });
+  });
+
+  describe('assertNecessaryAPI', () => {
+    it('should not throw if API exists', () => {
+      (globalThis as unknown as Record<string, unknown>)['mockAPI'] = {};
+      expect(() => assertNecessaryAPI('mockAPI')).not.toThrow();
+      delete (globalThis as unknown as Record<string, unknown>)['mockAPI'];
+    });
+
+    it('should throw if API does not exist', () => {
+      expect(() => assertNecessaryAPI('nonExistentAPI')).toThrowError(
+        'nonExistentAPI API is not supported in this environment.',
+      );
     });
   });
 });

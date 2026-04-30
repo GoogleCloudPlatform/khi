@@ -94,3 +94,13 @@ export function bisectRight<T, U>(
   }
   return lo;
 }
+
+/**
+ * Asserts that the specified browser API is available in the current environment.
+ * @param apiName The name of the API on globalThis.
+ */
+export function assertNecessaryAPI(apiName: string): void {
+  if (!(apiName in globalThis)) {
+    throw new Error(`${apiName} API is not supported in this environment.`);
+  }
+}
