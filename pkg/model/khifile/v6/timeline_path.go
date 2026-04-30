@@ -124,7 +124,6 @@ func (p *TimelinePathPool) getOrCreateSingle(parent *TimelinePath, name string, 
 	actual, loaded := p.paths.LoadOrStore(key, newPath)
 	if loaded {
 		p.idToPath.Store(newID, (*TimelinePath)(nil))
-		return actual.(*TimelinePath)
 	}
 	return actual.(*TimelinePath)
 }
