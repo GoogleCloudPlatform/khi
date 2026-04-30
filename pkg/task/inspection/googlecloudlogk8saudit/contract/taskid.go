@@ -18,6 +18,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
 // TaskIDPrefix is the prefix for all task IDs in the googlecloudlogk8saudit package.
@@ -28,3 +29,6 @@ var GCPK8sAuditLogListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*lo
 var GCPK8sAuditLogCommonFieldSetReaderTaskID = taskid.NewImplementationID(commonlogk8sauditv2_contract.K8sAuditLogProviderRef, "gcp")
 
 var GCPK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8sauditv2_contract.K8sAuditLogParserTailRef, "gcp")
+
+// NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Audit logs.
+var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.NEGToBackendServiceMap](TaskIDPrefix + "neg-discovery")

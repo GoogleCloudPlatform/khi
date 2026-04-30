@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
@@ -68,6 +69,27 @@ func (g *GCPAuditLogFieldSet) OperationPath(pathToParent resourcepath.ResourcePa
 		shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
 	}
 	return resourcepath.Operation(pathToParent, shortMethodName, g.OperationID)
+}
+
+// GuessRevisionVerb returns the guessed revision verb from the method name.
+func (g *GCPAuditLogFieldSet) GuessRevisionVerb() enum.RevisionVerb {
+	methodNameSplitted := strings.Split(g.MethodName, ".")
+	shortMethodName := "unknown"
+	if len(methodNameSplitted) > 0 {
+		shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
+	}
+	shortMethodName = strings.ToLower(shortMethodName)
+
+	switch {
+	case strings.HasPrefix(shortMethodName, "create"), strings.HasPrefix(shortMethodName, "insert"):
+		return enum.RevisionVerbCreate
+	case strings.HasPrefix(shortMethodName, "delete"):
+		return enum.RevisionVerbDelete
+	case strings.HasPrefix(shortMethodName, "update"), strings.HasPrefix(shortMethodName, "patch"):
+		return enum.RevisionVerbUpdate
+	default:
+		return enum.RevisionVerbUpdate
+	}
 }
 
 // RequestString returns the request body as a YAML string.

@@ -46,5 +46,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		InputNodeNameFilterTask,
 		NEGNamesInventoryTask,
 		NEGNamesDiscoveryTask,
+		NEGToBackendServiceInventoryTask,
 	)
 }
