@@ -17,6 +17,11 @@
 @use 'sass:color';
 @use '../../common.scss' as common;
 
+:host {
+  width: 100%;
+  max-width: 600px;
+}
+
 .popup-container {
   background: white;
   padding: 12px;
