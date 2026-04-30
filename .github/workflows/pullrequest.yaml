@@ -17,11 +17,11 @@ name: PR Tests
 on:
   pull_request:
     branches:
-      - 'main'
+      - "main"
       - epic/**
   merge_group:
     branches:
-      - 'main'
+      - "main"
       - epic/**
 
 jobs:
@@ -37,138 +37,146 @@ jobs:
   backend-tests:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: "read"
+      id-token: "write"
     steps:
-    - name: Checkout
-      uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: './go.mod'
-    - name: Backend Test
-      run: |
-        make generate-backend
-        mkdir -p pkg/server/dist/browser/session
-        # A placeholder frontend code read from backend test
-        echo '<!--INJECT GENERATED CODE HERE FROM BACKEND-->' > ./pkg/server/dist/browser/index.html
-        go test ./... -args -skip-cloud-logging=true
-    - name: Backend Format and Lint Check
-      run: |
-        make check-format-go
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
-      with:
-        version: v2.7.1
-        args: --config=.golangci.yaml
-    - name: Prepare depguard config for golangci-lint
-      run: make generate-depguard-rules
-    - name: Check for diff in depguard config
-      run: git diff --exit-code .generated-golangci-depguard.yaml
-    - name: Run golangci-lint for depguard
-      uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
-      with:
-        version: v2.7.1
-        args: --config=.generated-golangci-depguard.yaml --issues-exit-code=0 # This check is currently optional. Remove `--issues-exit-code=0` once issues are fixed.
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: npm install
+        working-directory: ./web
+        run: npm ci
+
+      - name: Generate frontend codes
+        run: make generate-frontend
+
+      - name: Backend Test
+        run: |
+          make generate-backend
+          mkdir -p pkg/server/dist/browser/session
+          go test ./... -args -skip-cloud-logging=true
+      - name: Backend Format and Lint Check
+        run: |
+          make check-format-go
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: v2.7.1
+          args: --config=.golangci.yaml
+      - name: Prepare depguard config for golangci-lint
+        run: make generate-depguard-rules
+      - name: Check for diff in depguard config
+        run: git diff --exit-code .generated-golangci-depguard.yaml
+      - name: Run golangci-lint for depguard
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        with:
+          version: v2.7.1
+          args: --config=.generated-golangci-depguard.yaml --issues-exit-code=0 # This check is currently optional. Remove `--issues-exit-code=0` once issues are fixed.
 
   frontend-tests:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
+      contents: "read"
     steps:
-    - name: Checkout
-      uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version-file: './.node-version'
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "./.node-version"
 
-    - name: Set up Go # Go dependency is needed for `make generate-frontend`
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: './go.mod'
+      - name: Set up Go # Go dependency is needed for `make generate-frontend`
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
 
-    - name: Install jq
-      run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-    - name: npm install
-      working-directory: ./web
-      run: npm ci
+      - name: npm install
+        working-directory: ./web
+        run: npm ci
 
-    - name: Generate frontend codes
-      run: make generate-frontend
+      - name: Generate frontend codes
+        run: make generate-frontend
 
-    - name: Install Chrome for Angular Test
-      uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # 1.7.3
-      with:
-        chrome-version: stable
+      - name: Install Chrome for Angular Test
+        uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce # 1.7.3
+        with:
+          chrome-version: stable
 
-    - name: Angular Test
-      run: make coverage-web
+      - name: Angular Test
+        run: make coverage-web
 
-    - name: Frontend Format and Lint Check
-      run: |
-        make check-format-web
-        make lint-web
+      - name: Frontend Format and Lint Check
+        run: |
+          make check-format-web
+          make lint-web
 
   build-frontend:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
+      contents: "read"
     strategy:
       matrix:
         configuration: [prod, dev]
     steps:
-    - name: Checkout
-      uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version-file: './.node-version'
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "./.node-version"
 
-    - name: Set up Go # Go dependency is needed for `make generate-frontend`
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: './go.mod'
+      - name: Set up Go # Go dependency is needed for `make generate-frontend`
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
 
-    - name: npm install
-      working-directory: ./web
-      run: npm ci
+      - name: npm install
+        working-directory: ./web
+        run: npm ci
 
-    - name: Generate frontend codes
-      run: make generate-frontend
+      - name: Generate frontend codes
+        run: make generate-frontend
 
-    - name: Build web
-      working-directory: ./web
-      run: npx ng build --configuration ${{ matrix.configuration }}
+      - name: Build web
+        working-directory: ./web
+        run: npx ng build --configuration ${{ matrix.configuration }}
 
-    - name: Build Storybook
-      working-directory: ./web
-      run: npm run build-storybook 
+      - name: Build Storybook
+        working-directory: ./web
+        run: npm run build-storybook
   build-binaries:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
+      contents: "read"
     steps:
-    - name: Checkout
-      uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: './go.mod'
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version-file: './.node-version'
-    - name: npm install
-      working-directory: ./web
-      run: npm ci
-    - name: Build binary
-      run: make build-go-binaries
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "./.node-version"
+      - name: npm install
+        working-directory: ./web
+        run: npm ci
+      - name: Build binary
+        run: make build-go-binaries
 
   license-header-check:
     runs-on: ubuntu-latest
@@ -181,7 +189,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: './go.mod'
+          go-version-file: "./go.mod"
 
       - name: Install addlicense package
         run: go mod download
@@ -193,27 +201,27 @@ jobs:
   proto-checks:
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
+      contents: "read"
     steps:
-    - name: Checkout
-      uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version-file: './.node-version'
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: "./.node-version"
 
-    - name: Set up Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: './go.mod'
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./go.mod"
 
-    - name: npm install (web)
-      working-directory: ./web
-      run: npm ci
+      - name: npm install (web)
+        working-directory: ./web
+        run: npm ci
 
-    - name: Run Proto Lint
-      run: make lint-proto
+      - name: Run Proto Lint
+        run: make lint-proto
 
-    - name: Run Proto Build (Generate)
-      run: make build-proto
+      - name: Run Proto Build (Generate)
+        run: make build-proto
