@@ -71,5 +71,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		LogIngesterTask,
 		LogGrouperTask,
 		LogToTimelineMapperTask,
+
+		CSMTrafficDirectorFieldSetReaderTask,
+		CSMTrafficDirectorLogIngesterTask,
+		CSMTrafficDirectorLogGrouperTask,
+		CSMTrafficDirectorLogToTimelineMapperTask,
 	)
 }
