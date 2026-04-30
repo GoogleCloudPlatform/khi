@@ -44,3 +44,12 @@ var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogG
 
 // LogToTimelineMapperTaskID is the task ID for associating CSM access log events with resource timelines.
 var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
+
+// InputFleetProjectIDTaskID is the task ID for the form input that specifies the Fleet Project ID where CSM control plane logs are stored.
+var InputFleetProjectIDTaskID = taskid.NewDefaultImplementationID[string](TaskIDPrefix + "input/fleet-project-id")
+
+// CSMClusterIdentifierTaskID is the task ID for the unique cluster identifier(s) extracted from BackendService names.
+var CSMClusterIdentifierTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "cluster-identifier")
+
+// ListCSMTrafficDirectorLogEntriesTaskID is the task ID for the task that queries CSM Traffic Director logs from Cloud Logging.
+var ListCSMTrafficDirectorLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "list-traffic-director-log-entries")

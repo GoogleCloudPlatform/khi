@@ -64,6 +64,9 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		ClusterIdentityAliasTask,
 
 		InputCSMResponseFlagsTask,
+		InputFleetProjectIDTask,
+		CSMClusterIdentifierTask,
+		ListCSMTrafficDirectorLogEntriesTask,
 		FieldSetReaderTask,
 		LogIngesterTask,
 		LogGrouperTask,
