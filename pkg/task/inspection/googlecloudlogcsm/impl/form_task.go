@@ -24,11 +24,27 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
 )
 
 const priorityForCSMGroup = googlecloudcommon_contract.FormBasePriority + 10000
+
+var InputFleetProjectIDTask = formtask.NewTextFormTaskBuilder(googlecloudlogcsm_contract.InputFleetProjectIDTaskID, priorityForCSMGroup+500, "Fleet project ID").
+	WithDependencies([]taskid.UntypedTaskReference{
+		googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(),
+	}).
+	WithDescription("The project ID where the Fleet is hosted and CSM control plane logs are stored. Default is the cluster's project ID.").
+	WithDefaultValueFunc(func(ctx context.Context, previousValues []string) (string, error) {
+		if len(previousValues) > 0 {
+			return previousValues[0], nil
+		}
+		cluster := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref())
+		return cluster.ProjectID, nil
+	}).
+	Build()
 
 var inputCSMAliasMap gcpqueryutil.SetFilterAliasToItemsMap = map[string][]string{}
 
