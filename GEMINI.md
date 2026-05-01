@@ -14,6 +14,8 @@ All the following `make` commands must be run from the root folder:
 * `make build-go`, `make build-web`: Builds the backend and frontend source code respectively.
 * `make test-go`, `make test-web`: Runs the backend and frontend tests respectively.
 * `make lint-go`, `make lint-web`: Runs the backend and frontend linters respectively.
+* `make format-go`, `make format-web`: Runs the backend and frontend formatters respectively.
+* Run `make pre-commit` before finalizing a task. It runs formatter for every file.
 
 ## Technical stack
 
