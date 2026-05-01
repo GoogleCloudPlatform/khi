@@ -31,7 +31,7 @@ The data lifecycle is divided into two distinct phases: **Phase 1 (Parsing)** wh
                ( 1. BinaryReader )  <--- Extracts chunk binary sequentially
                          |
                          v
-             ( 2. KHIFileStreamer ) <--- Resolves Version (e.g. V6_BLUEPRINT)
+             ( 2. KHIFileParser ) <--- Resolves Version (e.g. V6_BLUEPRINT)
                          |
                          v
       +-------------------------------------+
@@ -100,9 +100,9 @@ The data lifecycle is divided into two distinct phases: **Phase 1 (Parsing)** wh
 
 ### Core Concepts
 
-1. **`BinaryReader` and `KHIFileStreamer` (Orchestrator)**
+1. **`BinaryReader` and `KHIFileParser` (Orchestrator)**
    - The file is read chunk by chunk directly from the `ArrayBuffer` to avoid memory spikes.
-   - The streamer identifies the chunk type and looks up how to handle it in the version-specific registry.
+   - The parser identifies the chunk type and looks up how to handle it in the version-specific registry.
 
 2. **`ParserBlueprint` and `ChunkDefinition`**
    - Each file version (e.g., v6) defines a blueprint that maps chunk IDs to their corresponding Protobuf decoding logic and `IDataAssembler`.
@@ -135,7 +135,7 @@ web/src/app/
       ├── core/        # Version-agnostic orchestrator and interfaces
       │    ├── interfaces.ts       # IDataAssembler, ParserBlueprint, ChunkDefinition
       │    ├── binary-reader.ts    # Utility to read chunks from ArrayBuffer
-      │    ├── file-streamer.ts    # KHIFileStreamer (Main orchestrator)
+      │    ├── file-parser.ts      # KHIFileParser (Main orchestrator)
       │    └── builder.ts          # InspectionDataBuilder
       │
       ├── errors/      # Custom error definitions for the parsing phase
