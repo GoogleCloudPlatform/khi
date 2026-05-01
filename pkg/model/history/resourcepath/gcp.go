@@ -14,6 +14,13 @@
 
 package resourcepath
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+)
+
 // NetworkEndpointGroup returns the ResourcePath of timeline for NEG.
 func NetworkEndpointGroup(negNamespace string, negName string) ResourcePath {
 	if negNamespace == "" {
@@ -23,4 +30,36 @@ func NetworkEndpointGroup(negNamespace string, negName string) ResourcePath {
 		negName = nonSpecifiedPlaceholder
 	}
 	return NameLayerGeneralItem("networking.gke.io/v1beta1", "servicenetworkendpointgroup", negNamespace, negName)
+}
+
+// GCPResource returns the ResourcePath for a generic GCP resource.
+// It parses resource names like "projects/(project)/locations/(location)/(type)/(name)"
+// or "projects/(project)/regions/(region)/(type)/(name)"
+// and generates a ResourcePath under "@GCP" pseudo API version.
+func GCPResource(resourceName string) ResourcePath {
+	if resourceName == "" || resourceName == "unknown" {
+		return ResourcePath{
+			Path:               fmt.Sprintf("@GCP#CSM#unknown#%s", nonSpecifiedPlaceholder),
+			ParentRelationship: enum.RelationshipChild,
+		}
+	}
+
+	parts := strings.Split(resourceName, "/")
+	// projects/(project)/locations/(location)/(type)/(name) -> 6 parts
+	// projects/(project)/global/(type)/(name) -> 5 parts
+	// We want to extract the type and name, and potentially the location.
+
+	var resourceType, name string
+	if len(parts) >= 2 {
+		resourceType = parts[len(parts)-2]
+		name = parts[len(parts)-1]
+	} else {
+		resourceType = "unknown"
+		name = resourceName
+	}
+
+	return ResourcePath{
+		Path:               fmt.Sprintf("@GCP#CSM#%s#%s", resourceType, name),
+		ParentRelationship: enum.RelationshipChild,
+	}
 }
