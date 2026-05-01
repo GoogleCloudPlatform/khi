@@ -103,13 +103,13 @@ npm install
 下記のコマンドでリンターが実行されます:
 
 ```bash
-make lint-markdown
+make lint-md
 ```
 
 マークダウンを自動的に修正するには下記を実行します:
 
 ```bash
-make lint-markdown-fix
+make format-md
 ```
 
 ## コンテナイメージのリリース

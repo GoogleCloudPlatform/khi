@@ -5,7 +5,7 @@ globs: **/*.md
 
 # KHI Markdown Standards
 
-- Run `make lint-markdown` to check style and formatting.
+- Run `make format-md` and `make lint-md` to check style and formatting.
 
 ## 2. Language and Style
 

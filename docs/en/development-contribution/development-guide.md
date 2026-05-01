@@ -104,13 +104,13 @@ npm install
 To lint Markdown files, run:
 
 ```bash
-make lint-markdown
+make lint-md
 ```
 
 To automatically fix markdownlint issues:
 
 ```bash
-make lint-markdown-fix
+make format-md
 ```
 
 ## Releasing container image

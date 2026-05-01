@@ -26,7 +26,7 @@ watch-karma: $(GENERATE_FRONTEND_DUMMY) ## Run karma test server
 	cd web && npm run test
 
 khi: $(GENERATE_BACKEND_DUMMY) $(FRONTEND_ARTIFACT_FILES_DUMMY) $(BACKEND_SRCS)
-	CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi ./cmd/kubernetes-history-inspector/...
+	CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/GoogleCloudPlatform/khi/pkg/common/constants.VERSION=$(shell cat ./VERSION)" -o ./khi ./cmd/kubernetes-history-inspector/...
 
 .PHONY: build-go
 build-go: khi ## Build backend for production
