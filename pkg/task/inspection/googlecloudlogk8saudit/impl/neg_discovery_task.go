@@ -16,6 +16,7 @@ package googlecloudlogk8saudit_impl
 
 import (
 	"context"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
@@ -40,7 +41,7 @@ var AuditLogNEGDiscoveryTask = googlecloudk8scommon_contract.NEGToBackendService
 		result := make(googlecloudk8scommon_contract.NEGToBackendServiceMap)
 
 		for _, group := range groups {
-			if group.Resource == nil || group.Resource.Kind != "Pod" {
+			if group.Resource == nil || strings.ToLower(group.Resource.Kind) != "pod" {
 				continue
 			}
 			for _, mLog := range group.Logs {
