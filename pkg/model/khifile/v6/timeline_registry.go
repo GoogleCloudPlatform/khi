@@ -61,7 +61,6 @@ func (r *TimelineRegistry) GetBuilder(path *TimelinePath) *TimelineBuilder {
 	actual, loaded := r.builders.LoadOrStore(path, newBuilder)
 	if loaded {
 		r.idToBuilder.Store(newID, (*TimelineBuilder)(nil))
-		return actual.(*TimelineBuilder)
 	}
 	return actual.(*TimelineBuilder)
 }
