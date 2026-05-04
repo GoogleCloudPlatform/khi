@@ -69,8 +69,8 @@ func (r *FieldPathSetRef) ToProto() *pb.InternFieldPathSet {
 	id := r.id
 	names := r.pool.resolveFieldSetFromID(r.id)
 	return &pb.InternFieldPathSet{
-		Id:         &id,
-		FieldNames: names,
+		Id:                 &id,
+		FieldPathStringIds: names,
 	}
 }
 
