@@ -15,3 +15,4 @@ globs: **/*.scss
    / 1fr 1fr; // <- the column widths must be after a line break of the last grid area row.
 4. **DO NOT** use `repeat()` in grid layouts unless the number of elements is dynamic or unknown.
 5. KHI's color scheme is light theme.
+6. Run `make format-web` and `make lint-web` to follow the standard coding convention in this project.

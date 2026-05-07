@@ -11,6 +11,7 @@ globs: **/*.ts
 * Make fields `readonly` as much as possible.
 * Define enum type rather than define a union of string literal types.
 * Write import path in absolute form from the project base path like `src/app/...`.
+* Run `make format-web` and `make lint-web` to follow the standard typescript coding convention in this project.
 
 ## Angular coding rules
 

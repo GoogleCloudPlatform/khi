@@ -53,12 +53,12 @@ check-format-go: ## Check backend source code format
 check-format-web: $(GENERATE_FRONTEND_DUMMY) ## Check frontend source code format
 	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html|scss)"
 
-.PHONY: lint-markdown
-lint-markdown: ## Run markdown linter
+.PHONY: lint-md
+lint-md: ## Run markdown linter
 	npx markdownlint-cli2
 
-.PHONY: lint-markdown-fix
-lint-markdown-fix: ## Fix markdown linter errors
+.PHONY: format-md
+format-md: ## Fix markdown linter errors
 	npx markdownlint-cli2 --fix
 
 .PHONY: lint-proto

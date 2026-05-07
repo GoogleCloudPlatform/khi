@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 VERSION := $(shell cat ./VERSION)
-GIT_SHORT_HASH := $(shell git rev-parse --short HEAD)
+GIT_SHORT_HASH := $(shell if jj root >/dev/null 2>&1; then jj log --no-graph -T 'commit_id.short(7)' -r @ 2>/dev/null; else git rev-parse --short HEAD 2>/dev/null; fi || echo "unknown")
 GIT_TAG_NAME := "release-"$(VERSION)
 
 DUMMY_DIR := scripts/make
@@ -61,11 +61,16 @@ setup: setup-hooks
 
 .PHONY: setup-hooks
 setup-hooks: ## Set up git hooks
-	@HOOK_DIR=$$(git rev-parse --git-path hooks); \
-	PRE_COMMIT_HOOK="$$HOOK_DIR/pre-commit"; \
-	mkdir -p "$$HOOK_DIR"; \
-	printf '%s\n' '#!/bin/sh' 'cd "$$(git rev-parse --show-toplevel)"' 'exec make pre-commit' > "$$PRE_COMMIT_HOOK"; \
-	chmod +x "$$PRE_COMMIT_HOOK"
+	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		HOOK_DIR=$$(git rev-parse --git-path hooks); \
+		PRE_COMMIT_HOOK="$$HOOK_DIR/pre-commit"; \
+		mkdir -p "$$HOOK_DIR"; \
+		printf '%s\n' '#!/bin/sh' 'cd "$$(git rev-parse --show-toplevel)"' 'exec make pre-commit' > "$$PRE_COMMIT_HOOK"; \
+		chmod +x "$$PRE_COMMIT_HOOK"; \
+		echo "Git hooks configured. (Note: jj users should run 'make pre-commit' manually)"; \
+	else \
+		echo "Not a git repository. Skipping git hook setup. If you use jj, you can manually run 'make pre-commit' before 'jj commit'."; \
+	fi
 
 # ====================================================================================
 #  Utils

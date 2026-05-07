@@ -82,7 +82,7 @@ export class ArchLabel extends ArchShape<SVGTextElement> {
       const bbox = this.typedElement.getBoundingClientRect();
       return { width: bbox.width, height: bbox.height };
     };
-    this.typedElement.innerHTML = label;
+    this.typedElement.textContent = label;
   }
 
   private get fontSize(): number {

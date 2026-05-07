@@ -82,6 +82,7 @@ func (n *networkAPILogToTimelineMapperTaskSetting) Dependencies() []taskid.Untyp
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.IPLeaseHistoryInventoryTaskID.Ref(),
+		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
 	}
 }
 
@@ -169,6 +170,7 @@ func (n *networkAPILogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context
 		state = enum.RevisionStateConditionFalse
 	}
 	if negRequest != nil {
+		negToBS := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref())
 		for _, endpoint := range negRequest.NetworkEndpoints {
 			lease, err := ipLeases.GetResourceLeaseHolderAt(endpoint.IpAddress, commonFieldSet.Timestamp)
 			if err != nil {
@@ -185,6 +187,17 @@ func (n *networkAPILogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context
 					Requestor:  auditFieldSet.PrincipalEmail,
 					ChangeTime: commonFieldSet.Timestamp,
 				})
+				if bsName, found := negToBS[negName]; found {
+					// BackendService is usually global in the context of gsmrsvd backends.
+					bsPath := resourcepath.GCPResource(fmt.Sprintf("projects/unknown/global/backendServices/%s", bsName))
+					negSubresourcePath := resourcepath.NetworkEndpointGroupUnderResource(bsPath, holder.Namespace, holder.Name)
+					cs.AddRevision(negSubresourcePath, &history.StagingResourceRevision{
+						Verb:       verb,
+						State:      state,
+						Requestor:  auditFieldSet.PrincipalEmail,
+						ChangeTime: commonFieldSet.Timestamp,
+					})
+				}
 			}
 		}
 

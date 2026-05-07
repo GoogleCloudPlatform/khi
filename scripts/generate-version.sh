@@ -20,7 +20,12 @@ PROD_ENV_NAMES=$(echo $PROD_ENV_FILES| jq -R -s -c '[split(" ")[]|capture(".web/
 DEV_ENV_NAMES=$(echo $DEV_ENV_FILES| jq -R -s -c '[split(" ")[]|capture(".web/src/environments/environment.(?<env>.*).ts")|.env]')
 
 PROD_VERSION_CONTENT=$(echo "export const VERSION=\"$(cat VERSION)\"")
-DEV_VERSION_CONTENT=$(echo "export const VERSION=\"$(cat VERSION)@$(git log -1 --pretty=format:%h )\"")
+if jj root >/dev/null 2>&1; then
+  GIT_HASH=$(jj log --no-graph -T 'commit_id.short(7)' -r @ 2>/dev/null || echo "unknown")
+else
+  GIT_HASH=$(git log -1 --pretty=format:%h 2>/dev/null || echo "unknown")
+fi
+DEV_VERSION_CONTENT=$(echo "export const VERSION=\"$(cat VERSION)@${GIT_HASH}\"")
 
 for PROD_ENV in $(echo $PROD_ENV_NAMES | jq -r '.[]'); do
     echo "$PROD_VERSION_CONTENT" > ./web/src/environments/version.${PROD_ENV}.ts

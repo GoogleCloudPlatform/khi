@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { StartupDialogComponent } from './startup.component';
+import { StartupDialogSmartComponent } from './startup-smart.component';
+import { StartupDialogLayoutComponent } from 'src/app/dialogs/startup/components/startup-dialog-layout.component';
 import { signal } from '@angular/core';
 import { MatDialogRef } from '@angular/material/dialog';
 import {
@@ -35,9 +36,10 @@ import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
+import { By } from '@angular/platform-browser';
 
 describe('StartupDialogComponent', () => {
-  let component: ComponentFixture<StartupDialogComponent>;
+  let component: ComponentFixture<StartupDialogSmartComponent>;
 
   let backendAPISpy: jasmine.SpyObj<BackendAPI>;
 
@@ -57,6 +59,7 @@ describe('StartupDialogComponent', () => {
       }),
     );
     backendAPISpy.patchInspection.and.returnValue(of());
+
     TestBed.configureTestingModule({
       providers: [
         ...ProgressDialogService.providers(),
@@ -86,7 +89,7 @@ describe('StartupDialogComponent', () => {
         },
       ],
     });
-    component = TestBed.createComponent(StartupDialogComponent);
+    component = TestBed.createComponent(StartupDialogSmartComponent);
     component.detectChanges();
   });
 
@@ -95,7 +98,10 @@ describe('StartupDialogComponent', () => {
   });
 
   it('should save title to backend', () => {
-    component.componentInstance.updateInspectionTitle({
+    const layoutEl = component.debugElement.query(
+      By.directive(StartupDialogLayoutComponent),
+    );
+    layoutEl.triggerEventHandler('changeInspectionTitle', {
       id: 'test-task',
       changeTo: 'New Title',
     });

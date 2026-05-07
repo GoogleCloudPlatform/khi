@@ -46,5 +46,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		LogGrouperTask,
 		LogIngesterTask,
 		LogToTimelineMapperTask,
+		EventLogNEGDiscoveryTask,
 	)
 }

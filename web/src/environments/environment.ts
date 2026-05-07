@@ -20,4 +20,5 @@ export const environment = {
   documentUrl: '',
   pluginModules: [],
   options: {} as Record<string, unknown>,
+  links: [],
 };

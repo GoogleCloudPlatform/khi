@@ -83,7 +83,6 @@ require (
 	cloud.google.com/go/compute v1.57.0
 	cloud.google.com/go/errorreporting v0.4.0
 	cloud.google.com/go/profiler v0.4.3
-	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/gin-contrib/static v1.1.5
 	github.com/gin-gonic/gin v1.12.0

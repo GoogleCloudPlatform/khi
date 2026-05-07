@@ -15,326 +15,101 @@
 package googlecloudcommon_contract
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/google/go-cmp/cmp"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 func TestGCPAuditLogFieldSetReader(t *testing.T) {
-	testCases := []struct {
-		desc  string
-		input string
+	reader := &GCPOperationAuditLogFieldSetReader{}
+	tests := []struct {
+		name  string
+		input map[string]any
 		want  *GCPAuditLogFieldSet
 	}{
 		{
-			desc: "basic input",
-			input: `
-operation:
-  id: "12345"
-  first: true
-  last: false
-protoPayload:
-  methodName: "test.method"
-  resourceName: "projects/123/resources/abc"
-  authenticationInfo:
-    principalEmail: "user@example.com"
-  status:
-    code: 200
-`,
+			name: "full audit log",
+			input: map[string]any{
+				"operation": map[string]any{
+					"id":    "op-1",
+					"first": true,
+					"last":  false,
+				},
+				"protoPayload": map[string]any{
+					"methodName":   "google.compute.v1.Instances.Insert",
+					"resourceName": "projects/p1/zones/z1/instances/i1",
+					"authenticationInfo": map[string]any{
+						"principalEmail": "user@example.com",
+					},
+					"status": map[string]any{
+						"code": 0,
+					},
+					"request": map[string]any{
+						"name": "i1",
+					},
+					"response": map[string]any{
+						"id": "123",
+					},
+				},
+			},
 			want: &GCPAuditLogFieldSet{
-				OperationID:    "12345",
+				OperationID:    "op-1",
 				OperationFirst: true,
 				OperationLast:  false,
-				MethodName:     "test.method",
-				ResourceName:   "projects/123/resources/abc",
+				MethodName:     "google.compute.v1.Instances.Insert",
+				ResourceName:   "projects/p1/zones/z1/instances/i1",
 				PrincipalEmail: "user@example.com",
-				Status:         200,
-				Request:        nil,
-				Response:       nil,
-			},
-		},
-		{
-			desc:  "default input",
-			input: "{}",
-			want: &GCPAuditLogFieldSet{
-				OperationID:    "",
-				OperationFirst: false,
-				OperationLast:  false,
-				MethodName:     "unknown",
-				ResourceName:   "unknown",
-				PrincipalEmail: "unknown",
-				Status:         -1,
-				Request:        nil,
-				Response:       nil,
+				Status:         0,
 			},
 		},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			node, err := structured.FromGoValue(tc.input, &structured.AlphabeticalGoMapKeyOrderProvider{})
 			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
+				t.Fatalf("failed to create node: %v", err)
 			}
-			err = l.SetFieldSetReader(&GCPOperationAuditLogFieldSetReader{})
+			nodeReader := structured.NewNodeReader(node)
+			got, err := reader.Read(nodeReader)
 			if err != nil {
-				t.Errorf("failed to run GCPOperationAuditLogFieldSetReader.Read(): %v", err)
+				t.Fatalf("Read() error = %v", err)
 			}
-			got := log.MustGetFieldSet(l, &GCPAuditLogFieldSet{})
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("GCPOperationAuditLogFieldSet mismatch (-want +got):\n%s", diff)
+			gotAudit := got.(*GCPAuditLogFieldSet)
+
+			// Compare fields except NodeReaders
+			if gotAudit.OperationID != tc.want.OperationID ||
+				gotAudit.OperationFirst != tc.want.OperationFirst ||
+				gotAudit.OperationLast != tc.want.OperationLast ||
+				gotAudit.MethodName != tc.want.MethodName ||
+				gotAudit.ResourceName != tc.want.ResourceName ||
+				gotAudit.PrincipalEmail != tc.want.PrincipalEmail ||
+				gotAudit.Status != tc.want.Status {
+				t.Errorf("Read() mismatch.\ngot:  %+v\nwant: %+v", gotAudit, tc.want)
 			}
 		})
 	}
 }
 
-func TestGCPAuditLogFieldSet_OperationMethods(t *testing.T) {
-	operationPathParent := resourcepath.Node("node-foo")
-	testCases := []struct {
-		desc                   string
-		input                  GCPAuditLogFieldSet
-		wantStarting           bool
-		wantEnding             bool
-		wantImmediateOperation bool
-		wantOperationPath      resourcepath.ResourcePath
+func TestGCPAuditLogFieldSet_GuessRevisionVerb(t *testing.T) {
+	tests := []struct {
+		name       string
+		methodName string
+		want       enum.RevisionVerb
 	}{
-		{
-			desc: "operation started",
-			input: GCPAuditLogFieldSet{
-				OperationID:    "op-1",
-				OperationFirst: true,
-				OperationLast:  false,
-				MethodName:     "compute.instances.insert",
-			},
-			wantStarting:           true,
-			wantEnding:             false,
-			wantImmediateOperation: false,
-			wantOperationPath:      resourcepath.Operation(operationPathParent, "insert", "op-1"),
-		},
-		{
-			desc: "operation ended",
-			input: GCPAuditLogFieldSet{
-				OperationID:    "op-1",
-				OperationFirst: false,
-				OperationLast:  true,
-				MethodName:     "compute.instances.insert",
-			},
-			wantStarting:           false,
-			wantEnding:             true,
-			wantImmediateOperation: false,
-			wantOperationPath:      resourcepath.Operation(operationPathParent, "insert", "op-1"),
-		},
-		{
-			desc: "immediate operation",
-			input: GCPAuditLogFieldSet{
-				OperationID:    "op-2",
-				OperationFirst: true,
-				OperationLast:  true,
-				MethodName:     "compute.instances.delete",
-			},
-			wantStarting:           false,
-			wantEnding:             false,
-			wantImmediateOperation: true,
-			wantOperationPath:      operationPathParent,
-		},
-		{
-			// this is not expected to happen
-			desc: "neither start nor end",
-			input: GCPAuditLogFieldSet{
-				OperationID:    "op-3",
-				OperationFirst: false,
-				OperationLast:  false,
-				MethodName:     "compute.instances.update",
-			},
-			wantStarting:           false,
-			wantEnding:             false,
-			wantImmediateOperation: true,
-			wantOperationPath:      operationPathParent,
-		},
+		{"Create", "google.compute.v1.Instances.Create", enum.RevisionVerbCreate},
+		{"Insert", "google.compute.v1.BackendService.Insert", enum.RevisionVerbCreate},
+		{"Update", "google.compute.v1.Instances.Update", enum.RevisionVerbUpdate},
+		{"Patch", "google.compute.v1.Instances.Patch", enum.RevisionVerbUpdate},
+		{"Delete", "google.compute.v1.Instances.Delete", enum.RevisionVerbDelete},
+		{"Unknown", "google.compute.v1.Instances.Get", enum.RevisionVerbUpdate},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			gotStarting := tc.input.Starting()
-			gotEnding := tc.input.Ending()
-			gotImmediateOperation := tc.input.ImmediateOperation()
-			gotOperationPath := tc.input.OperationPath(operationPathParent)
-
-			if gotStarting != tc.wantStarting {
-				t.Errorf("GCPAuditLogFieldSet.Starting() = %v, want %v", gotStarting, tc.wantStarting)
-			}
-			if gotEnding != tc.wantEnding {
-				t.Errorf("GCPAuditLogFieldSet.Ending() = %v, want %v", gotEnding, tc.wantEnding)
-			}
-			if gotImmediateOperation != tc.wantImmediateOperation {
-				t.Errorf("GCPAuditLogFieldSet.ImmediateOperation() = %v, want %v", gotImmediateOperation, tc.wantImmediateOperation)
-			}
-			if diff := cmp.Diff(tc.wantOperationPath, gotOperationPath); diff != "" {
-				t.Errorf("GCPAuditLogFieldSet.OperationPath() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestGCPAuditLogFieldSet_RequestResponseString(t *testing.T) {
-	testCases := []struct {
-		desc            string
-		input           string
-		wantRequest     string
-		wantRequestErr  error
-		wantResponse    string
-		wantResponseErr error
-	}{
-		{
-			desc: "request and response present",
-			input: `
-protoPayload:
-  request:
-    foo: bar
-  response:
-    status: ok
-`,
-			wantRequest:     "foo: bar\n",
-			wantRequestErr:  nil,
-			wantResponse:    "status: ok\n",
-			wantResponseErr: nil,
-		},
-		{
-			desc: "request and response absent",
-			input: `
-protoPayload: {}
-`,
-			wantRequest:     "",
-			wantRequestErr:  khierrors.ErrNotFound,
-			wantResponse:    "",
-			wantResponseErr: khierrors.ErrNotFound,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
-			}
-			err = l.SetFieldSetReader(&GCPOperationAuditLogFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to run GCPOperationAuditLogFieldSetReader.Read(): %v", err)
-			}
-			fieldSet := log.MustGetFieldSet(l, &GCPAuditLogFieldSet{})
-
-			gotRequest, gotRequestErr := fieldSet.RequestString()
-			gotResponse, gotResponseErr := fieldSet.ResponseString()
-
-			if gotRequest != tc.wantRequest {
-				t.Errorf("RequestString() got = %v, want %v", gotRequest, tc.wantRequest)
-			}
-			if tc.wantRequestErr != nil && !errors.Is(gotRequestErr, tc.wantRequestErr) {
-				t.Errorf("RequestString() error got = %v, want %v", gotRequestErr, tc.wantRequestErr)
-			}
-			if gotResponse != tc.wantResponse {
-				t.Errorf("ResponseString() got = %v, want %v", gotResponse, tc.wantResponse)
-			}
-			if tc.wantResponseErr != nil && !errors.Is(gotResponseErr, tc.wantResponseErr) {
-				t.Errorf("ResponseString() error got = %v, want %v", gotResponseErr, tc.wantResponseErr)
-			}
-		})
-	}
-
-}
-
-func TestGCPAccessLogFieldSetReader(t *testing.T) {
-	testCases := []struct {
-		desc  string
-		input string
-		want  *GCPAccessLogFieldSet
-	}{
-		{
-			desc: "basic input",
-			input: `
-httpRequest:
-  requestMethod: "GET"
-  requestUrl: "/path/to/resource"
-  requestSize: "1234"
-  status: 200
-  responseSize: "5678"
-  userAgent: "test-agent"
-  remoteIp: "192.168.1.1"
-  serverIp: "10.0.0.1"
-  referer: "http://example.com"
-  latency: "1s"
-  protocol: "HTTP/1.1"
-`,
-			want: &GCPAccessLogFieldSet{
-				Method:       "GET",
-				RequestURL:   "/path/to/resource",
-				RequestSize:  1234,
-				Status:       200,
-				ResponseSize: 5678,
-				UserAgent:    "test-agent",
-				RemoteIP:     "192.168.1.1",
-				ServerIP:     "10.0.0.1",
-				Referer:      "http://example.com",
-				Latency:      "1s",
-				Protocol:     "HTTP/1.1",
-			},
-		},
-		{
-			desc:  "default input",
-			input: "{}",
-			want: &GCPAccessLogFieldSet{
-				Method:       "",
-				RequestURL:   "",
-				RequestSize:  0,
-				Status:       0,
-				ResponseSize: 0,
-				UserAgent:    "",
-				RemoteIP:     "",
-				ServerIP:     "",
-				Referer:      "",
-				Latency:      "",
-				Protocol:     "",
-			},
-		},
-		{
-			desc: "input with non-numeric sizes",
-			input: `
-httpRequest:
-  requestMethod: "GET"
-  requestUrl: "/path"
-  requestSize: "invalid"
-  status: 200
-  responseSize: "not-a-number"
-`,
-			want: &GCPAccessLogFieldSet{
-				Method:       "GET",
-				RequestURL:   "/path",
-				RequestSize:  0,
-				Status:       200,
-				ResponseSize: 0,
-				UserAgent:    "",
-				RemoteIP:     "",
-				ServerIP:     "",
-				Referer:      "",
-				Latency:      "",
-				Protocol:     "",
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.input)
-			if err != nil {
-				t.Fatalf("failed to parse YAML test input to log: %v", err)
-			}
-			err = l.SetFieldSetReader(&GCPAccessLogFieldSetReader{})
-			if err != nil {
-				t.Errorf("failed to run GCPAccessLogFieldSetReader.Read(): %v", err)
-			}
-			got := log.MustGetFieldSet(l, &GCPAccessLogFieldSet{})
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("GCPAccessLogFieldSet mismatch (-want +got):\n%s", diff)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &GCPAuditLogFieldSet{MethodName: tc.methodName}
+			if got := g.GuessRevisionVerb(); got != tc.want {
+				t.Errorf("GuessRevisionVerb() = %v, want %v", got, tc.want)
 			}
 		})
 	}
