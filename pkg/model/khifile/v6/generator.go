@@ -128,6 +128,9 @@ func (g *splittingGenerator[T, C]) Close() error {
 	return nil
 }
 
+// splittingGenerator implements ChunkGenerator
+var _ ChunkGenerator = (*splittingGenerator[proto.Message, proto.Message])(nil)
+
 // NewInternPoolGenerator creates a SplittingGenerator for InternPool chunks.
 // It groups pb.InternString messages into pb.InterningPoolChunk respecting the size limit.
 func NewInternPoolGenerator(seq iter.Seq[*pb.InternString]) ChunkGenerator {
