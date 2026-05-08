@@ -20,8 +20,6 @@ import (
 	"slices"
 	"sync"
 
-	"google.golang.org/protobuf/proto"
-
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
@@ -77,110 +75,63 @@ func reset() {
 	timelineTypes = nil
 }
 
-// Color represents a color with high dynamic range (HDR) capabilities.
-type Color struct {
-	R, G, B, A float32
-}
-
-func (c Color) toProto() *pb.HDRColor4 {
-	return &pb.HDRColor4{
-		R: proto.Float32(c.R),
-		G: proto.Float32(c.G),
-		B: proto.Float32(c.B),
-		A: proto.Float32(c.A),
-	}
-}
-
 // RegisterTimelineType registers a TimelineType, assigns a unique ID to it,
-// and returns the generated pointer. This allows for global inline initialization in plugins.
-func RegisterTimelineType(label string, description string, backgroundColor Color, foregroundColor Color, visible bool, sortPriority int32) *pb.TimelineType {
+// mutates the provided pointer by setting its Id field, and returns the same pointer.
+// This allows for global inline initialization in plugins.
+func RegisterTimelineType(t *pb.TimelineType) *pb.TimelineType {
 	mu.Lock()
 	defer mu.Unlock()
 
 	id := uint32(len(timelineTypes) + 1)
-	t := &pb.TimelineType{
-		Id:              proto.Uint32(id),
-		Label:           proto.String(label),
-		Description:     proto.String(description),
-		BackgroundColor: backgroundColor.toProto(),
-		ForegroundColor: foregroundColor.toProto(),
-		Visible:         proto.Bool(visible),
-		SortPriority:    proto.Int32(sortPriority),
-	}
+	t.Id = &id
 	timelineTypes = append(timelineTypes, t)
 	return t
 }
 
 // RegisterSeverity registers a Severity, assigns a unique ID to it,
-// and returns the generated pointer.
-func RegisterSeverity(label string, shortLabel string, backgroundColor Color, foregroundColor Color, order int32) *pb.Severity {
+// mutates the provided pointer by setting its Id field, and returns the same pointer.
+func RegisterSeverity(s *pb.Severity) *pb.Severity {
 	mu.Lock()
 	defer mu.Unlock()
 
 	id := uint32(len(severities) + 1)
-	s := &pb.Severity{
-		Id:              proto.Uint32(id),
-		Label:           proto.String(label),
-		ShortLabel:      proto.String(shortLabel),
-		BackgroundColor: backgroundColor.toProto(),
-		ForegroundColor: foregroundColor.toProto(),
-		Order:           proto.Int32(order),
-	}
+	s.Id = &id
 	severities = append(severities, s)
 	return s
 }
 
 // RegisterVerb registers a Verb, assigns a unique ID to it,
-// and returns the generated pointer.
-func RegisterVerb(label string, backgroundColor Color, foregroundColor Color, visible bool) *pb.Verb {
+// mutates the provided pointer by setting its Id field, and returns the same pointer.
+func RegisterVerb(v *pb.Verb) *pb.Verb {
 	mu.Lock()
 	defer mu.Unlock()
 
 	id := uint32(len(verbs) + 1)
-	v := &pb.Verb{
-		Id:              proto.Uint32(id),
-		Label:           proto.String(label),
-		BackgroundColor: backgroundColor.toProto(),
-		ForegroundColor: foregroundColor.toProto(),
-		Visible:         proto.Bool(visible),
-	}
+	v.Id = &id
 	verbs = append(verbs, v)
 	return v
 }
 
 // RegisterLogType registers a LogType, assigns a unique ID to it,
-// and returns the generated pointer.
-func RegisterLogType(label string, description string, backgroundColor Color, foregroundColor Color) *pb.LogType {
+// mutates the provided pointer by setting its Id field, and returns the same pointer.
+func RegisterLogType(l *pb.LogType) *pb.LogType {
 	mu.Lock()
 	defer mu.Unlock()
 
 	id := uint32(len(logTypes) + 1)
-	l := &pb.LogType{
-		Id:              proto.Uint32(id),
-		Label:           proto.String(label),
-		Description:     proto.String(description),
-		BackgroundColor: backgroundColor.toProto(),
-		ForegroundColor: foregroundColor.toProto(),
-	}
+	l.Id = &id
 	logTypes = append(logTypes, l)
 	return l
 }
 
 // RegisterRevisionState registers a RevisionState, assigns a unique ID to it,
-// and returns the generated pointer.
-func RegisterRevisionState(label string, icon string, description string, backgroundColor Color, style pb.RevisionStateStyle) *pb.RevisionState {
+// mutates the provided pointer by setting its Id field, and returns the same pointer.
+func RegisterRevisionState(rs *pb.RevisionState) *pb.RevisionState {
 	mu.Lock()
 	defer mu.Unlock()
 
 	id := uint32(len(revisionStates) + 1)
-	rs := &pb.RevisionState{
-		Id:              proto.Uint32(id),
-		Label:           proto.String(label),
-		Icon:            proto.String(icon),
-		Description:     proto.String(description),
-		BackgroundColor: backgroundColor.toProto(),
-		Style:           &style,
-	}
+	rs.Id = &id
 	revisionStates = append(revisionStates, rs)
 	return rs
 }

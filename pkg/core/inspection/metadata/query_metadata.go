@@ -35,7 +35,7 @@ type QueryMetadata struct {
 
 // Labels implements Metadata.
 func (*QueryMetadata) Labels() *typedmap.ReadonlyTypedMap {
-	return NewLabelSet(IncludeInDryRunResult(), IncludeInRunResult(), IncludeInResultBinary())
+	return NewLabelSet(IncludeInDryRunResult(), IncludeInRunResult())
 }
 
 // ToSerializable implements Metadata.

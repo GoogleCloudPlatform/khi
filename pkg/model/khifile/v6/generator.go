@@ -172,12 +172,3 @@ func NewTimelineItemsGenerator(seq iter.Seq[*pb.TimelineItems]) ChunkGenerator {
 	}
 	return NewSplittingGenerator(ChunkTypeTimeline, seq, DefaultChunkSizeLimit, wrapper)
 }
-
-// NewMetadataGenerator creates a SplittingGenerator for Metadata chunks.
-// It groups pb.MetadataItem messages into pb.MetadataChunk respecting the size limit.
-func NewMetadataGenerator(seq iter.Seq[*pb.MetadataItem]) ChunkGenerator {
-	wrapper := func(batch []*pb.MetadataItem) *pb.MetadataChunk {
-		return &pb.MetadataChunk{Metadata: batch}
-	}
-	return NewSplittingGenerator(ChunkTypeMetadata, seq, DefaultChunkSizeLimit, wrapper)
-}
