@@ -54,7 +54,7 @@ var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 		commonlogk8sauditv2_contract.ContainerIDDiscoveryTaskID.Ref(),
 		commonlogk8sauditv2_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
-		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
+		googlecloudlogk8saudit_contract.NEGToBackendServiceDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

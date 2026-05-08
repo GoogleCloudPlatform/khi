@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8sevent_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8sevent/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -56,7 +57,9 @@ type KubernetesEventLogToTimelineMapperSetting struct {
 
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (k *KubernetesEventLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
+	}
 }
 
 // GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.

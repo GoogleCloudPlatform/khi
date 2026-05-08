@@ -55,7 +55,7 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 			groupMap: commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{
 				"group1": {
 					Resource: &commonlogk8sauditv2_contract.ResourceIdentity{
-						Kind: "Pod",
+						Kind: "pod",
 					},
 					Logs: []*commonlogk8sauditv2_contract.ResourceManifestLog{
 						{
@@ -74,7 +74,7 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 			groupMap: commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{
 				"group1": {
 					Resource: &commonlogk8sauditv2_contract.ResourceIdentity{
-						Kind: "Deployment",
+						Kind: "deployment",
 					},
 					Logs: []*commonlogk8sauditv2_contract.ResourceManifestLog{
 						{
