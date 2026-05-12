@@ -24,22 +24,22 @@ import {
 import { VERSION } from 'src/environments/version';
 import { map } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { HeaderV2Component } from './components/header-v2.component';
+import { HeaderComponent } from './components/header.component';
 import { BACKEND_SYNC } from '../services/api/backend-sync.service';
 import { BackendSyncService } from '../services/api/backend-sync-interface';
 import { WindowConnectorService } from '../services/frame-connection/window-connector.service';
 
 /**
- * Smart component for Header version 2.
+ * Smart component for Header.
  * Manages dependencies and provides data to the dumb component.
  */
 @Component({
-  selector: 'khi-header-v2-smart',
-  imports: [HeaderV2Component],
-  templateUrl: './header-v2-smart.component.html',
-  styleUrls: ['./header-v2-smart.component.scss'],
+  selector: 'khi-header-smart',
+  imports: [HeaderComponent],
+  templateUrl: './header-smart.component.html',
+  styleUrls: ['./header-smart.component.scss'],
 })
-export class HeaderV2SmartComponent {
+export class HeaderSmartComponent {
   /** Menu manager service. */
   protected readonly menuManager = inject(MenuManager);
 

@@ -40,7 +40,7 @@ import {
 } from 'src/app/extensions/extension-common/extension-store';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { HeaderV2SmartComponent } from 'src/app/headerv2/header-v2-smart.component';
+import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
 import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
 import {
@@ -63,7 +63,7 @@ import {
   styleUrls: ['./main.component.scss'],
   imports: [
     CommonModule,
-    HeaderV2SmartComponent,
+    HeaderSmartComponent,
     TimelineToolbarSmartComponent,
     MatIconModule,
     KHIIconRegistrationModule,

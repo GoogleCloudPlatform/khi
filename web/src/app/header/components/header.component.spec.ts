@@ -15,7 +15,7 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HeaderV2Component } from './header-v2.component';
+import { HeaderComponent } from './header.component';
 import {
   MenuItemType,
   MenuGroupViewModel,
@@ -27,16 +27,16 @@ import { By } from '@angular/platform-browser';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 
-describe('HeaderV2Component', () => {
-  let component: HeaderV2Component;
-  let fixture: ComponentFixture<HeaderV2Component>;
+describe('HeaderComponent', () => {
+  let component: HeaderComponent;
+  let fixture: ComponentFixture<HeaderComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HeaderV2Component, MatIconTestingModule],
+      imports: [HeaderComponent, MatIconTestingModule],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(HeaderV2Component);
+    fixture = TestBed.createComponent(HeaderComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
