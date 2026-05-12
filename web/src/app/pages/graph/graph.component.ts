@@ -16,7 +16,7 @@
 
 import { Component, inject, OnInit } from '@angular/core';
 import { ArchitectureGraphComponent } from './architecture-graph/architecture-graph.component';
-import { HeaderV2SmartComponent } from 'src/app/headerv2/header-v2-smart.component';
+import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import {
   MenuManager,
   MenuItemType,
@@ -31,7 +31,7 @@ import { DownloadService } from 'src/app/pages/graph/services/donwload-service';
   selector: 'khi-graph-root',
   templateUrl: './graph.component.html',
   styleUrls: ['./graph.component.scss'],
-  imports: [HeaderV2SmartComponent, ArchitectureGraphComponent],
+  imports: [HeaderSmartComponent, ArchitectureGraphComponent],
   providers: [MenuManager],
 })
 export class GraphComponent implements OnInit {

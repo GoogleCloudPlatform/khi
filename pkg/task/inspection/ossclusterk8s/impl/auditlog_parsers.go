@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
 )
@@ -36,20 +36,20 @@ var OSSK8sAuditLogFieldExtractorTask = inspectiontaskbase.NewFieldSetReadTask(
 var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	ossclusterk8s_contract.OSSK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
-		commonlogk8sauditv2_contract.LogSummaryLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.ConditionLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.ResourceOwnerReferenceTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.PodPhaseLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.EndpointResourceLogToTimelineMapperTaskID.Ref(),
-		commonlogk8sauditv2_contract.ContainerLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.LogSummaryLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.ConditionLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.ResourceOwnerReferenceTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.PodPhaseLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.EndpointResourceLogToTimelineMapperTaskID.Ref(),
+		commonlogk8saudit_contract.ContainerLogToTimelineMapperTaskID.Ref(),
 
-		commonlogk8sauditv2_contract.NodeNameDiscoveryTaskID.Ref(),
-		commonlogk8sauditv2_contract.ResourceUIDDiscoveryTaskID.Ref(),
-		commonlogk8sauditv2_contract.ContainerIDDiscoveryTaskID.Ref(),
-		commonlogk8sauditv2_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
+		commonlogk8saudit_contract.NodeNameDiscoveryTaskID.Ref(),
+		commonlogk8saudit_contract.ResourceUIDDiscoveryTaskID.Ref(),
+		commonlogk8saudit_contract.ContainerIDDiscoveryTaskID.Ref(),
+		commonlogk8saudit_contract.IPLeaseHistoryDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

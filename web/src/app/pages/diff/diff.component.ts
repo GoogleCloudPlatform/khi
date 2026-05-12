@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, model } from '@angular/core';
 import { SideBySideDiffComponent } from 'ngx-diff';
 import { map } from 'rxjs';
-import { TitleBarComponent } from 'src/app/header/titlebar.component';
+import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/diff-page-datasource.service';
 import { TimelineLayer } from 'src/app/store/timeline';
 import { DiffToolbarComponent } from 'src/app/diff/components/diff-toolbar.component';
@@ -34,7 +34,7 @@ import { CopiableKeyValueComponent } from 'src/app/shared/components/copiable-ke
   styleUrls: ['./diff.component.scss'],
   imports: [
     CommonModule,
-    TitleBarComponent,
+    HeaderSmartComponent,
     SideBySideDiffComponent,
     DiffToolbarComponent,
     CopiableKeyValueComponent,
