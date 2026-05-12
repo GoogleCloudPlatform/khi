@@ -18,7 +18,6 @@
 
 import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
 import type { Message } from '@bufbuild/protobuf';
-import type { Any } from '@bufbuild/protobuf/wkt';
 
 /**
  * Describes the file khifile/v6/metadata.proto.
@@ -32,11 +31,11 @@ export declare const file_khifile_v6_metadata: GenFile;
  */
 export declare type MetadataChunk = Message<'khifile.v6.MetadataChunk'> & {
   /**
-   * Extensible metadata fields to store tool-specific or environment-specific information not covered by the standard schema.
+   * Extensible metadata fields to store information about the inspection itself.
    *
-   * @generated from field: repeated google.protobuf.Any metadata = 1;
+   * @generated from field: repeated khifile.v6.MetadataItem metadata = 1;
    */
-  metadata: Any[];
+  metadata: MetadataItem[];
 };
 
 /**
@@ -44,3 +43,166 @@ export declare type MetadataChunk = Message<'khifile.v6.MetadataChunk'> & {
  * Use `create(MetadataChunkSchema)` to create a new message.
  */
 export declare const MetadataChunkSchema: GenMessage<MetadataChunk>;
+
+/**
+ * MetadataItem represents a single unit of metadata associated with the inspection.
+ * It uses a oneof payload to support various specialized metadata types.
+ *
+ * @generated from message khifile.v6.MetadataItem
+ */
+export declare type MetadataItem = Message<'khifile.v6.MetadataItem'> & {
+  /**
+   * The specific payload of this metadata item.
+   *
+   * @generated from oneof khifile.v6.MetadataItem.payload
+   */
+  payload:
+    | {
+        /**
+         * Core information about the inspection run itself.
+         *
+         * @generated from field: khifile.v6.HeaderMetadata header = 1;
+         */
+        value: HeaderMetadata;
+        case: 'header';
+      }
+    | {
+        /**
+         * Queries that were executed to generate the inspection data.
+         *
+         * @generated from field: khifile.v6.QueryMetadata query = 2;
+         */
+        value: QueryMetadata;
+        case: 'query';
+      }
+    | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message khifile.v6.MetadataItem.
+ * Use `create(MetadataItemSchema)` to create a new message.
+ */
+export declare const MetadataItemSchema: GenMessage<MetadataItem>;
+
+/**
+ * HeaderMetadata holds high-level information about the inspection.
+ *
+ * @generated from message khifile.v6.HeaderMetadata
+ */
+export declare type HeaderMetadata = Message<'khifile.v6.HeaderMetadata'> & {
+  /**
+   * The type of inspection (e.g., "gcp-gke").
+   *
+   * @generated from field: string inspection_type = 1;
+   */
+  inspectionType: string;
+
+  /**
+   * The display name or identifier for this specific inspection instance.
+   *
+   * @generated from field: string inspection_name = 2;
+   */
+  inspectionName: string;
+
+  /**
+   * The path to the icon associated with this inspection type, used in the UI.
+   *
+   * @generated from field: string inspection_type_icon_path = 3;
+   */
+  inspectionTypeIconPath: string;
+
+  /**
+   * The start timestamp of the logs analyzed by this inspection, in Unix seconds.
+   *
+   * @generated from field: int64 start_time_unix_seconds = 4;
+   */
+  startTimeUnixSeconds: bigint;
+
+  /**
+   * The end timestamp of the logs analyzed by this inspection, in Unix seconds.
+   *
+   * @generated from field: int64 end_time_unix_seconds = 5;
+   */
+  endTimeUnixSeconds: bigint;
+
+  /**
+   * The timestamp when this inspection was actually performed, in Unix seconds.
+   *
+   * @generated from field: int64 inspect_time_unix_seconds = 6;
+   */
+  inspectTimeUnixSeconds: bigint;
+
+  /**
+   * The default filename suggested when downloading or exporting this inspection.
+   *
+   * @generated from field: string suggested_filename = 7;
+   */
+  suggestedFilename: string;
+
+  /**
+   * The size of the inspected data in bytes.
+   *
+   * @generated from field: int64 file_size = 8;
+   */
+  fileSize: bigint;
+};
+
+/**
+ * Describes the message khifile.v6.HeaderMetadata.
+ * Use `create(HeaderMetadataSchema)` to create a new message.
+ */
+export declare const HeaderMetadataSchema: GenMessage<HeaderMetadata>;
+
+/**
+ * QueryItem describes a specific query used during the inspection process.
+ *
+ * @generated from message khifile.v6.QueryItem
+ */
+export declare type QueryItem = Message<'khifile.v6.QueryItem'> & {
+  /**
+   * The identifier for the query.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * The human-readable name of the query shown in the UI.
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * The actual query string (e.g., LQL in Cloud Logging) executed.
+   *
+   * @generated from field: string query = 3;
+   */
+  query: string;
+};
+
+/**
+ * Describes the message khifile.v6.QueryItem.
+ * Use `create(QueryItemSchema)` to create a new message.
+ */
+export declare const QueryItemSchema: GenMessage<QueryItem>;
+
+/**
+ * QueryMetadata groups all queries executed for the inspection to provide context on how data was gathered.
+ *
+ * @generated from message khifile.v6.QueryMetadata
+ */
+export declare type QueryMetadata = Message<'khifile.v6.QueryMetadata'> & {
+  /**
+   * The list of queries executed.
+   *
+   * @generated from field: repeated khifile.v6.QueryItem queries = 1;
+   */
+  queries: QueryItem[];
+};
+
+/**
+ * Describes the message khifile.v6.QueryMetadata.
+ * Use `create(QueryMetadataSchema)` to create a new message.
+ */
+export declare const QueryMetadataSchema: GenMessage<QueryMetadata>;

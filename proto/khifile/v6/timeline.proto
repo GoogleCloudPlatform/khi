@@ -28,7 +28,7 @@ message TimelineChunk {
 
 // Timeline represents a single row rendered on the frontend.
 message Timeline {
-   // The id of a single timeline.
+  // The id of a single timeline.
   uint32 id = 1;
   // The ID of TimelineType.
   uint32 timeline_type = 2;
