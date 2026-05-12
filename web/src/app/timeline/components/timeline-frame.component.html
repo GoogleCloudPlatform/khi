@@ -51,11 +51,25 @@
         (scrollOnRuler)="onWheelForScaling($event)"
       ></khi-timeline-ruler>
     </div>
-    <div class="chart-sticky-header">
-      @if (stickyChartViewModel().timelinesInDrawArea.length > 0) {
-        <div class="kind-placeholder"></div>
-        <div class="namespace-placeholder"></div>
-      }
+    <div class="chart-sticky-header" [style.height.px]="stickyHeaderHeight()">
+      <khi-timeline-chart
+        [style.height.px]="maxStickyHeaderHeight()"
+        [chartViewModel]="stickyChartViewModel()"
+        [rulerViewModel]="rulerViewModel()"
+        [pixelsPerMs]="pixelsPerMs()"
+        [leftEdgeTime]="contentLeftTime()"
+        [chartStyle]="chartStyle()"
+        [rulerStyle]="rulerStyle()"
+        [timelineHighlights]="timelineHighlights()"
+        [timelineChartItemHighlights]="timelineChartItemHighlights()"
+        [activeLogsIndices]="activeLogsIndices()"
+        (mouseMoveOnTimelineItem)="
+          handleTimelineChartItemEvent($event, hoverOnTimelineItem)
+        "
+        (clickOnTimelineItem)="
+          handleTimelineChartItemEvent($event, clickOnTimelineItem)
+        "
+      ></khi-timeline-chart>
     </div>
     <!--Elements stick to left edge-->
     <div class="index">

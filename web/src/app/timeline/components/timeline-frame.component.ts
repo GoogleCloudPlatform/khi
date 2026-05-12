@@ -43,7 +43,7 @@ import {
 } from './timeline-chart.component';
 import { CaptureShiftKeyDirective } from 'src/app/common/capture-shiftkey.directive';
 import { TimelineCornerIndicatorComponent } from './timeline-corner-indicator.component';
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { CommonModule } from '@angular/common';
@@ -534,6 +534,31 @@ export class TimelineFrameComponent implements AfterViewInit {
     return this.verticalScrollCalculator().stickyTimelines(
       this.viewportScrollTop(),
     );
+  });
+
+  /**
+   * The total height of the sticky timelines in pixels.
+   */
+  protected readonly stickyHeaderHeight = computed(() => {
+    const stickyTimelines = this.stickyTimelines();
+    const style = this.chartStyle();
+    let height = 0;
+    for (const t of stickyTimelines) {
+      height += style.heightsByLayer[t.layer] ?? 0;
+    }
+    return height;
+  });
+
+  /**
+   * The maximum possible height of the sticky header in pixels.
+   */
+  protected readonly maxStickyHeaderHeight = computed(() => {
+    const style = this.chartStyle();
+    let height = 0;
+    for (let l = TimelineLayer.Kind; l <= TimelineLayer.Name; l++) {
+      height += style.heightsByLayer[l] ?? 0;
+    }
+    return height;
   });
 
   /**

@@ -133,7 +133,7 @@ export class VerticalScrollCalculator {
   }
 
   /**
-   * Returns the sticky timelines (e.g. Kind, Namespace) that should be pinned to the top of the view
+   * Returns the sticky timelines (e.g. Kind, Namespace, Name) that should be pinned to the top of the view
    * at the current scroll position.
    *
    * @param scrollY Current vertical scroll position (px)
@@ -143,33 +143,54 @@ export class VerticalScrollCalculator {
     if (this.accumulatedHeights.length === 0) {
       return [];
     }
-    const stickyHeaderSize =
-      this.style.heightsByLayer[TimelineLayer.Kind] +
-      this.style.heightsByLayer[TimelineLayer.Namespace];
-    let i = bisectLeft(
-      this.accumulatedHeights,
-      scrollY + stickyHeaderSize,
-      defaultNumberComparator,
-    ); // Starting from the timeline that is at least visible behind the sticky header
-    i = Math.min(Math.max(0, i - 1), this.timelines.length - 1);
-    let namespaceTimeline: ResourceTimeline | null = null;
-    for (; i >= 0; i--) {
-      if (this.timelines[i].layer === TimelineLayer.Namespace) {
-        namespaceTimeline = this.timelines[i];
+    let maxStickyLayer = TimelineLayer.Name;
+    let currIndex = 0;
+    // At scroll position 0, simply returns the timelines up to the maximum sticky layer to ensure initial shadow consistency.
+    // While an empty array visually behaves almost the same, having actual items prevents the bottom shadow from disappearing initially.
+    if (scrollY === 0) {
+      const result = [];
+      for (let i = 0; i < this.timelines.length; i++) {
+        result.push(this.timelines[i]);
+        if (this.timelines[i].layer === maxStickyLayer) {
+          break;
+        }
+      }
+      return result;
+    }
+    // Looks ahead by the total size of the candidate sticky header. If the resulting timeline layer matches the candidate layer, it would overlap (e.g. a Pod row sticking over another Pod row).
+    // In such cases, shrinks the maximum sticky layer candidate by one to fallback to an upper layer timeline as the base context.
+    for (; maxStickyLayer > TimelineLayer.APIVersion; maxStickyLayer--) {
+      let stickyHeaderSize = 0;
+      for (let l = TimelineLayer.APIVersion; l <= maxStickyLayer; l++) {
+        stickyHeaderSize += this.style.heightsByLayer[l];
+      }
+      let i = bisectLeft(
+        this.accumulatedHeights,
+        scrollY + stickyHeaderSize,
+        defaultNumberComparator,
+      );
+      i = Math.min(Math.max(0, i - 1), this.timelines.length - 1);
+      if (this.timelines[i].layer > maxStickyLayer) {
+        currIndex = i;
         break;
       }
     }
-    let kindTimeline: ResourceTimeline | null = null;
-    for (; i >= 0; i--) {
-      if (this.timelines[i].layer === TimelineLayer.Kind) {
-        kindTimeline = this.timelines[i];
-        break;
+
+    // Retrieves the ancestor timelines for each target sticky layer from the established base index.
+    const result: ResourceTimeline[] = [];
+    for (let l = maxStickyLayer; l >= TimelineLayer.Kind; l--) {
+      for (let j = currIndex; j >= 0; j--) {
+        if (this.timelines[j].layer === l) {
+          result.push(this.timelines[j]);
+          currIndex = j;
+          break;
+        }
+        if (this.timelines[j].layer < l) {
+          break;
+        }
       }
     }
-    if (kindTimeline === null || namespaceTimeline === null) {
-      return [];
-    }
-    return [kindTimeline, namespaceTimeline];
+    return result.filter((timeline) => timeline !== null).reverse();
   }
 
   /**

@@ -219,61 +219,67 @@ describe('VerticalScrollCalculator', () => {
           TimelineLayer.Name, // 300-400 (Pod2)
           TimelineLayer.Namespace, // 400-500 (Namespace2)
           TimelineLayer.Name, // 500-600 (Pod3)
-          TimelineLayer.Kind, // 600-700 (Kind2)
-          TimelineLayer.Namespace, // 700-800 (Namespace3)
+          TimelineLayer.Subresource, // 600-650 (Subresource1)
+          TimelineLayer.Kind, // 650-750 (Kind2)
+          TimelineLayer.Namespace, // 750-850 (Namespace3)
+          TimelineLayer.Name, // 850-950 (Pod4)
+          TimelineLayer.Subresource, // 950-1050 (Subresource2)
         ]);
         calculator = new VerticalScrollCalculator(timelines, mockStyle, 0);
       });
 
       it('should return initial sticky header at scroll 0', () => {
         const result = calculator.stickyTimelines(0);
+        expect(result.length).toBe(3);
+        expect(result[0]).toBe(timelines[0]);
+        expect(result[1]).toBe(timelines[1]);
+        expect(result[2]).toBe(timelines[2]);
+      });
+
+      it('should maintain current sticky header before next header arrives (scroll 99)', () => {
+        // 99 + 200 = 299 -> invades Pod1 (200-300).
+        const result = calculator.stickyTimelines(99);
         expect(result.length).toBe(2);
         expect(result[0]).toBe(timelines[0]);
         expect(result[1]).toBe(timelines[1]);
+        // The next item is also the Name layer, so the sticky header is up to the namespace layer.
       });
 
-      it('should maintain current sticky header before next header arrives (scroll 199)', () => {
-        // Namespace2 starts at 400.
-        // 400 - 199 = 201.
-        // Sticky header area is 200.
-        // So Namespace2 is NOT yet sticky.
-        const result = calculator.stickyTimelines(199);
-        expect(result[0]).toBe(timelines[0]);
-        expect(result[1]).toBe(timelines[1]);
-      });
-
-      it('should maintain current sticky header at exact boundary (scroll 200)', () => {
-        // Namespace2 is at 200 from viewport top (400 - 200 = 200).
-        // Sticky header area is 200.
-        const result = calculator.stickyTimelines(200);
+      it('should maintain current sticky header at exact boundary (scroll 100)', () => {
+        // 100 + 200 = 300 -> reaches Pod2 (300-400).
+        const result = calculator.stickyTimelines(100);
+        expect(result.length).toBe(2);
         expect(result[0]).toBe(timelines[0]); // Kind1
         expect(result[1]).toBe(timelines[1]); // Namespace1
       });
 
-      it('should switch to next sticky header after boundary (scroll 201)', () => {
-        // Namespace2 is at 199 relative to viewport top (invading sticky area).
-        // Should pick Namespace2.
-        const result = calculator.stickyTimelines(201);
+      it('should switch to next sticky header after boundary when the next item is name resource (scroll 101)', () => {
+        // 101 + 200 = 301 -> inside Pod2.
+        const result = calculator.stickyTimelines(101);
+        expect(result.length).toBe(2);
         expect(result[0]).toBe(timelines[0]); // Kind1
-        expect(result[1]).toBe(timelines[4]); // Namespace2
+        expect(result[1]).toBe(timelines[1]); // Namespace1
+        // The next item is also the Name layer, so the sticky header is up to the namespace layer.
       });
 
-      it('should update both Kind and Namespace when scrolling deep into next section (scroll 550)', () => {
-        // Scroll 550 (inside Pod3, Namespace2, Kind1)
-        // Kind2 starts at 600.
-        // Scroll 550 + 200 = 750.
-        // Returns [Kind2, Namespace3].
+      it('should return sticky timelines only when the sticky timeline is fully visible (scroll 550)', () => {
+        // Scroll 550 (inside Pod3, Namespace2, Kind1).
+        // Kind2 starts at 600. There is no enough space to show Kind1 & Namespace1 as stickyTimelines
+        // Scroll 550 + 300 = 850.
+        // Returns [Kind1].
         const result = calculator.stickyTimelines(550);
-        expect(result[0]).toBe(timelines[6]); // Kind2
-        expect(result[1]).toBe(timelines[7]); // Namespace3
+        expect(result.length).toBe(1);
+        expect(result[0]).toBe(timelines[0]); // Kind1
       });
 
       it('should maintain the last sticky header when scrolling past total height', () => {
-        // Total height is 800.
-        // Scroll 1000.
-        const result = calculator.stickyTimelines(1000);
-        expect(result[0]).toBe(timelines[6]); // Kind2
-        expect(result[1]).toBe(timelines[7]); // Namespace3
+        // Total height is 1050.
+        // Scroll 1200.
+        const result = calculator.stickyTimelines(1200);
+        expect(result.length).toBe(3);
+        expect(result[0]).toBe(timelines[7]); // Kind2
+        expect(result[1]).toBe(timelines[8]); // Namespace3
+        expect(result[2]).toBe(timelines[9]); // Pod4
       });
     });
   });
