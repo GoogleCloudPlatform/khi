@@ -71,18 +71,20 @@ func TestProgressUpdator_StartAndDone(t *testing.T) {
 	if tickCount < 2 {
 		t.Errorf("OnTick should be called again after interval, got count %d", tickCount)
 	}
-	initialTickCount := tickCount
 	mu.Unlock()
 
 	// Check that it stops
 	if err := updator.Done(); err != nil {
 		t.Fatalf("Done() returned an error: %v", err)
 	}
-	time.Sleep(interval * 2)
+	mu.Lock()
+	tickCountJustAfterDone := tickCount
+	mu.Unlock()
+	time.Sleep(interval * 10)
 
 	mu.Lock()
-	if tickCount > initialTickCount {
-		t.Errorf("OnTick should not be called after Done, got count %d, want %d", tickCount, initialTickCount)
+	if tickCount > tickCountJustAfterDone {
+		t.Errorf("OnTick should not be called after Done, got count %d, want %d", tickCount, tickCountJustAfterDone)
 	}
 	mu.Unlock()
 }
