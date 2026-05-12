@@ -29,13 +29,13 @@ import { KHIIconRegistrationModule } from '../../shared/module/icon-registration
 import { BackendConnectionStatus } from '../../services/api/backend-sync-interface';
 
 /**
- * Header component version 2 (Dumb component).
+ * Header component (Dumb component).
  */
 
 @Component({
-  selector: 'khi-header-v2',
-  templateUrl: './header-v2.component.html',
-  styleUrls: ['./header-v2.component.scss'],
+  selector: 'khi-header',
+  templateUrl: './header.component.html',
+  styleUrls: ['./header.component.scss'],
   imports: [
     MatButtonModule,
     MatMenuModule,
@@ -45,7 +45,7 @@ import { BackendConnectionStatus } from '../../services/api/backend-sync-interfa
     KHIIconRegistrationModule,
   ],
 })
-export class HeaderV2Component {
+export class HeaderComponent {
   /** Expose MenuItemType to template. */
   protected readonly MenuItemType = MenuItemType;
 

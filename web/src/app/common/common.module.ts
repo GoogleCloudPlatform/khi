@@ -19,13 +19,8 @@ import {
   LongTimestampFormatPipe,
   TimestampFormatPipe,
 } from './timestamp-format.pipe';
-import { FirstOrUndefined } from './first-or-null.pipe';
-import { ParsePathPipe } from './parse-path.pipe';
-import { RainbowPipe } from './rainbow.pipe';
-import { SidePaneComponent } from './components/side-pane.component';
 import { ResolveTextPipe } from './resolve-text.pipe';
 import { MetaTableRowComponent } from './components/meta-table-row.component';
-import { CssClassFormatPipe } from './css-class-format.pipe';
 import { BreaklinePipe } from './breakline.pipe';
 import { CaptureShiftKeyDirective } from './capture-shiftkey.directive';
 
@@ -33,12 +28,7 @@ import { CaptureShiftKeyDirective } from './capture-shiftkey.directive';
   imports: [
     TimestampFormatPipe,
     LongTimestampFormatPipe,
-    FirstOrUndefined,
-    ParsePathPipe,
-    RainbowPipe,
     ResolveTextPipe,
-    CssClassFormatPipe,
-    SidePaneComponent,
     MetaTableRowComponent,
     BreaklinePipe,
     CaptureShiftKeyDirective,
@@ -46,12 +36,7 @@ import { CaptureShiftKeyDirective } from './capture-shiftkey.directive';
   exports: [
     TimestampFormatPipe,
     LongTimestampFormatPipe,
-    FirstOrUndefined,
-    ParsePathPipe,
-    RainbowPipe,
     ResolveTextPipe,
-    CssClassFormatPipe,
-    SidePaneComponent,
     MetaTableRowComponent,
     BreaklinePipe,
     CaptureShiftKeyDirective,

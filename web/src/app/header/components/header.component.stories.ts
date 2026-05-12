@@ -15,7 +15,7 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { HeaderV2Component } from './header-v2.component';
+import { HeaderComponent } from './header.component';
 import {
   MenuGroupViewModel,
   MenuItemType,
@@ -108,14 +108,14 @@ const mockMenuGroups: MenuGroupViewModel[] = [
   },
 ];
 
-const meta: Meta<HeaderV2Component> = {
-  title: 'HeaderV2',
-  component: HeaderV2Component,
+const meta: Meta<HeaderComponent> = {
+  title: 'Header',
+  component: HeaderComponent,
   tags: ['autodocs'],
 };
 
 export default meta;
-type Story = StoryObj<HeaderV2Component>;
+type Story = StoryObj<HeaderComponent>;
 
 export const Default: Story = {
   args: {
