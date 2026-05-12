@@ -5,8 +5,8 @@ precision highp int;
 #define MAX_REVISION_INDEX_DIGITS 5
 #define MIN_LEFT_REVISION_LOCATION 300.0
 
-#include "v2.shared.glsl"
-#include "revision-v2.shared.glsl"
+#include "shared.glsl"
+#include "revision.shared.glsl"
 
 // Input attributes from the vertex buffer.
 layout(location = 0) in uvec4 time; // x: start time(s), y: start time(ns), z: end time(s), w: end time(ns)

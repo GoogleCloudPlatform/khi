@@ -352,11 +352,11 @@ export class TimelineRevisionsSharedResources {
   async setup(gl: WebGL2RenderingContext): Promise<void> {
     this.revisionsColorProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
-      'assets/revision-v2.vertex.glsl',
-      'assets/revision-v2.color-fragment.glsl',
+      'assets/revision.vertex.glsl',
+      'assets/revision.color-fragment.glsl',
       {
-        '#include "v2.shared.glsl"': 'assets/v2.shared.glsl',
-        '#include "revision-v2.shared.glsl"': 'assets/revision-v2.shared.glsl',
+        '#include "shared.glsl"': 'assets/shared.glsl',
+        '#include "revision.shared.glsl"': 'assets/revision.shared.glsl',
       },
     );
     WebGLUtil.setProgramUniformBlockBinding(
@@ -386,11 +386,11 @@ export class TimelineRevisionsSharedResources {
 
     this.revisionsHittestProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
-      'assets/revision-v2.vertex.glsl',
-      'assets/revision-v2.hittest-fragment.glsl',
+      'assets/revision.vertex.glsl',
+      'assets/revision.hittest-fragment.glsl',
       {
-        '#include "v2.shared.glsl"': 'assets/v2.shared.glsl',
-        '#include "revision-v2.shared.glsl"': 'assets/revision-v2.shared.glsl',
+        '#include "shared.glsl"': 'assets/shared.glsl',
+        '#include "revision.shared.glsl"': 'assets/revision.shared.glsl',
       },
     );
     WebGLUtil.setProgramUniformBlockBinding(

@@ -2,8 +2,8 @@
 precision highp float;
 precision highp int;
 
-#include "v2.shared.glsl"
-#include "event-v2.shared.glsl"
+#include "shared.glsl"
+#include "event.shared.glsl"
 
 layout(location = 0) out vec4 fragColor;
 

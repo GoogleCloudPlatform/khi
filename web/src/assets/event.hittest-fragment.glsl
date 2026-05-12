@@ -2,8 +2,8 @@
 precision highp float;
 precision highp int;
 
-#include "v2.shared.glsl"
-#include "event-v2.shared.glsl"
+#include "shared.glsl"
+#include "event.shared.glsl"
 
 // Helper output for hit testing (picking).
 // Stores internal IDs to identify which object is under the mouse cursor.
