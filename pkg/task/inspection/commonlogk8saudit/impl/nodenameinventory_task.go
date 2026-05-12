@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudk8scommon_impl
+package commonlogk8saudit_impl
 
 import (
 	"context"
@@ -22,46 +22,56 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var NEGNamesInventoryTask = googlecloudk8scommon_contract.NEGNamesInventoryTaskBuilder.InventoryTask(&negNamesInventoryMergerStrategy{})
+// NodeNameInventoryTask provides list of node name found in this inspection for later task usage.
+var NodeNameInventoryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.InventoryTask(&nodeNameMergeStrategy{})
 
-type negNamesInventoryMergerStrategy struct{}
+type nodeNameMergeStrategy struct{}
 
 // Merge implements inspectiontaskbase.InventoryMergerStrategy.
-func (s *negNamesInventoryMergerStrategy) Merge(results []googlecloudk8scommon_contract.NEGNameToResourceIdentityMap) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
-	result := map[string]commonlogk8saudit_contract.ResourceIdentity{}
+func (n *nodeNameMergeStrategy) Merge(results [][]string) ([]string, error) {
+	result := map[string]struct{}{}
 	for _, r := range results {
-		for negName, identity := range r {
-			result[negName] = identity
+		for _, s := range r {
+			result[s] = struct{}{}
 		}
 	}
-	return result, nil
+
+	var ret []string
+	for k := range result {
+		ret = append(ret, k)
+	}
+	return ret, nil
 }
 
-var _ inspectiontaskbase.InventoryMergerStrategy[googlecloudk8scommon_contract.NEGNameToResourceIdentityMap] = (*negNamesInventoryMergerStrategy)(nil)
+var _ inspectiontaskbase.InventoryMergerStrategy[[]string] = (*nodeNameMergeStrategy)(nil)
 
-var NEGNamesDiscoveryTask = googlecloudk8scommon_contract.NEGNamesInventoryTaskBuilder.DiscoveryTask(googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID,
-	[]taskid.UntypedTaskReference{
-		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
-	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
+// NodeNameDiscoveryTask extracts node name from audit logs and node names are registered on NodeNameInventoryTask.
+var NodeNameDiscoveryTask = commonlogk8saudit_contract.NodeNameInventoryBuilder.DiscoveryTask(
+	commonlogk8saudit_contract.NodeNameDiscoveryTaskID,
+	[]taskid.UntypedTaskReference{commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref()},
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]string, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
-		result := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{}
+
+		foundNodeNames := map[string]struct{}{}
 		resourceLogs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref())
 		for _, group := range resourceLogs {
 			if group.Resource.Type() != commonlogk8saudit_contract.Resource {
 				continue
 			}
-			if group.Resource.APIVersion != "networking.gke.io/v1beta1" || group.Resource.Kind != "servicenetworkendpointgroup" {
+			if group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "node" {
 				continue
 			}
-			result[group.Resource.Name] = *group.Resource
+			foundNodeNames[group.Resource.Name] = struct{}{}
 		}
-		return result, nil
+		var ret []string
+		for k := range foundNodeNames {
+			ret = append(ret, k)
+		}
+		return ret, nil
 	},
 )

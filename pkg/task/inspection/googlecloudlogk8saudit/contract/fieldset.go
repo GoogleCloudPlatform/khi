@@ -21,19 +21,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 type GCPK8sAuditLogFieldSetReader struct{}
 
 // FieldSetKind implements log.FieldSetReader.
 func (g *GCPK8sAuditLogFieldSetReader) FieldSetKind() string {
-	return (&commonlogk8sauditv2_contract.K8sAuditLogFieldSet{}).Kind()
+	return (&commonlogk8saudit_contract.K8sAuditLogFieldSet{}).Kind()
 }
 
 // Read implements log.FieldSetReader.
 func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	var result commonlogk8sauditv2_contract.K8sAuditLogFieldSet
+	var result commonlogk8saudit_contract.K8sAuditLogFieldSet
 	result.OperationID = reader.ReadStringOrDefault("operation.id", "")
 	result.IsFirst = reader.ReadBoolOrDefault("operation.first", false)
 	result.IsLast = reader.ReadBoolOrDefault("operation.last", false)
