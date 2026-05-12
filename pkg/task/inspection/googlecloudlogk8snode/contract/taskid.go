@@ -20,7 +20,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
@@ -74,4 +74,4 @@ var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
 
-var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[commonlogk8sauditv2_contract.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")
+var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[commonlogk8saudit_contract.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")

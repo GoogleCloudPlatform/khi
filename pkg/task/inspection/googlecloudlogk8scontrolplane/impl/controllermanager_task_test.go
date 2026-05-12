@@ -23,7 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
@@ -99,8 +99,8 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			modifier := controllerManagerLogToTimelineMapperTaskSetting{}
 			cs := history.NewChangeSet(l)
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
-			finder := patternfinder.NewTriePatternFinder[*commonlogk8sauditv2_contract.ResourceIdentity]()
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+			finder := patternfinder.NewTriePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
 			_, err := modifier.ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
 			if err != nil {
 				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)

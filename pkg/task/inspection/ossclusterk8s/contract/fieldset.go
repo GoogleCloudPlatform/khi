@@ -21,19 +21,19 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 type OSSK8sAuditLogFieldSetReader struct{}
 
 // FieldSetKind implements log.FieldSetReader.
 func (o *OSSK8sAuditLogFieldSetReader) FieldSetKind() string {
-	return (&commonlogk8sauditv2_contract.K8sAuditLogFieldSet{}).Kind()
+	return (&commonlogk8saudit_contract.K8sAuditLogFieldSet{}).Kind()
 }
 
 // Read implements log.FieldSetReader.
 func (o *OSSK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	var result commonlogk8sauditv2_contract.K8sAuditLogFieldSet
+	var result commonlogk8saudit_contract.K8sAuditLogFieldSet
 	result.OperationID = reader.ReadStringOrDefault("auditID", "")
 	// Currently this won't support the long running operation. TODO: support long runnning operation
 	result.IsFirst = true

@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlognetworkapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlognetworkapiaudit/contract"
@@ -81,7 +81,7 @@ type networkAPILogToTimelineMapperTaskSetting struct{}
 func (n *networkAPILogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
-		commonlogk8sauditv2_contract.IPLeaseHistoryInventoryTaskID.Ref(),
+		commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
 	}
 }
@@ -135,7 +135,7 @@ func (n *networkAPILogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context
 		})
 	}
 
-	ipLeases := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.IPLeaseHistoryInventoryTaskID.Ref())
+	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())
 	// Add neg subresource under resources with the same IP of the endpoint
 	shortMethodName := getShortMethodNameFromMethodName(auditFieldSet.MethodName)
 	var negRequest *negAttachOrDetachRequest

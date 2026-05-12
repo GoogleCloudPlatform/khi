@@ -21,7 +21,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -32,7 +32,7 @@ type negNamesInventoryMergerStrategy struct{}
 
 // Merge implements inspectiontaskbase.InventoryMergerStrategy.
 func (s *negNamesInventoryMergerStrategy) Merge(results []googlecloudk8scommon_contract.NEGNameToResourceIdentityMap) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
-	result := map[string]commonlogk8sauditv2_contract.ResourceIdentity{}
+	result := map[string]commonlogk8saudit_contract.ResourceIdentity{}
 	for _, r := range results {
 		for negName, identity := range r {
 			result[negName] = identity
@@ -45,16 +45,16 @@ var _ inspectiontaskbase.InventoryMergerStrategy[googlecloudk8scommon_contract.N
 
 var NEGNamesDiscoveryTask = googlecloudk8scommon_contract.NEGNamesInventoryTaskBuilder.DiscoveryTask(googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
-		commonlogk8sauditv2_contract.ManifestGeneratorTaskID.Ref(),
+		commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (googlecloudk8scommon_contract.NEGNameToResourceIdentityMap, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
 		result := googlecloudk8scommon_contract.NEGNameToResourceIdentityMap{}
-		resourceLogs := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ManifestGeneratorTaskID.Ref())
+		resourceLogs := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref())
 		for _, group := range resourceLogs {
-			if group.Resource.Type() != commonlogk8sauditv2_contract.Resource {
+			if group.Resource.Type() != commonlogk8saudit_contract.Resource {
 				continue
 			}
 			if group.Resource.APIVersion != "networking.gke.io/v1beta1" || group.Resource.Kind != "servicenetworkendpointgroup" {

@@ -83,6 +83,10 @@ func generateInspectionRegistration() error {
 		return fmt.Errorf("failed to format generated code: %w", err)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(inspectionRegistrationOutputPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory for generated file: %w", err)
+	}
+
 	if err := os.WriteFile(inspectionRegistrationOutputPath, formattedSource, 0644); err != nil {
 		return fmt.Errorf("failed to write generated file: %w", err)
 	}

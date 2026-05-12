@@ -24,7 +24,7 @@ import (
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
@@ -36,8 +36,8 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
-		inputContainerIDInfo map[string]*commonlogk8sauditv2_contract.ContainerIdentity
-		inputResourceUIDInfo map[string]*commonlogk8sauditv2_contract.ResourceIdentity
+		inputContainerIDInfo map[string]*commonlogk8saudit_contract.ContainerIdentity
+		inputResourceUIDInfo map[string]*commonlogk8saudit_contract.ResourceIdentity
 		asserter             []testchangeset.ChangeSetAsserter
 	}{
 		{
@@ -80,7 +80,7 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputContainerIDInfo: map[string]*commonlogk8sauditv2_contract.ContainerIdentity{
+			inputContainerIDInfo: map[string]*commonlogk8saudit_contract.ContainerIdentity{
 				"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256": {
 					PodSandboxID:  "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 					ContainerName: "fluentbit-gke-init",
@@ -185,7 +185,7 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
-			inputResourceUIDInfo: map[string]*commonlogk8sauditv2_contract.ResourceIdentity{
+			inputResourceUIDInfo: map[string]*commonlogk8saudit_contract.ResourceIdentity{
 				"4cba26fb-f074-44fe-9afa-5195e903c337": {
 					Name:       "podname1",
 					Namespace:  "kube-system",
@@ -219,7 +219,7 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			inputResourceUIDInfo: map[string]*commonlogk8sauditv2_contract.ResourceIdentity{
+			inputResourceUIDInfo: map[string]*commonlogk8saudit_contract.ResourceIdentity{
 				"4cba26fb-f074-44fe-9afa-5195e903c337": {
 					Name:       "podname",
 					Namespace:  "kube-system",
@@ -249,13 +249,13 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 					podIDFinder.AddPattern(k, v)
 				}
 			}
-			containerIDFinder := patternfinder.NewNaivePatternFinder[*commonlogk8sauditv2_contract.ContainerIdentity]()
+			containerIDFinder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
 			if tc.inputContainerIDInfo != nil {
 				for k, v := range tc.inputContainerIDInfo {
 					containerIDFinder.AddPattern(k, v)
 				}
 			}
-			finder := patternfinder.NewNaivePatternFinder[*commonlogk8sauditv2_contract.ResourceIdentity]()
+			finder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			if tc.inputResourceUIDInfo != nil {
 				for k, v := range tc.inputResourceUIDInfo {
 					finder.AddPattern(k, v)
@@ -264,9 +264,9 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 
-			ctx = tasktest.WithTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
 			klogParser := logutil.NewKLogTextParser(true)
 			message := klogParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message

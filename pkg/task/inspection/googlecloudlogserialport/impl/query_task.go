@@ -24,7 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
@@ -78,7 +78,7 @@ func (s *serialPortLoggingFilterTaskSetting) Dependencies() []taskid.UntypedTask
 	return []taskid.UntypedTaskReference{
 		googlecloudlogserialport_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref(),
-		commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref(),
+		commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref(),
 	}
 }
 
@@ -96,7 +96,7 @@ func (s *serialPortLoggingFilterTaskSetting) Description() *googlecloudcommon_co
 
 // LogFilters implements googlecloudcommon_contract.CloudLoggingFilterTaskSetting.
 func (s *serialPortLoggingFilterTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
-	nodeNames := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.NodeNameInventoryTaskID.Ref())
+	nodeNames := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.NodeNameInventoryTaskID.Ref())
 	nodeNameSubstrings := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNodeNameFilterTaskID.Ref())
 	return GenerateSerialPortQuery(taskMode, nodeNames, nodeNameSubstrings), nil
 }

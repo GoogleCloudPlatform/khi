@@ -26,6 +26,10 @@ import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/dif
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { of } from 'rxjs';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
+import { signal } from '@angular/core';
+import { MenuManager } from 'src/app/services/menu/menu-manager.service';
 
 describe('DiffComponent', () => {
   let component: DiffComponent;
@@ -49,6 +53,16 @@ describe('DiffComponent', () => {
             },
           },
         },
+        {
+          provide: BACKEND_SYNC,
+          useValue: {
+            tasks: {
+              value: signal(null),
+            },
+            connectionStatus: signal(BackendConnectionStatus.Connected),
+          },
+        },
+        MenuManager,
         DiffPageDataSource,
       ],
     }).compileComponents();
