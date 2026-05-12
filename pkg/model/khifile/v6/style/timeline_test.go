@@ -18,31 +18,21 @@ import (
 	"sync"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 func TestRegisterTimelineType(t *testing.T) {
 	reset()
 
-	t1 := &pb.TimelineType{Label: proto.String("Type 1")}
-	t2 := &pb.TimelineType{Label: proto.String("Type 2")}
-
-	res1 := RegisterTimelineType(t1)
-	RegisterTimelineType(t2)
-
-	// Verify the returned pointer is the same as the input
-	if res1 != t1 {
-		t.Errorf("Expected returned pointer to be the same, got different")
-	}
+	res1 := RegisterTimelineType("Type 1", "Desc 1", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
+	res2 := RegisterTimelineType("Type 2", "Desc 2", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 2)
 
 	// Verify IDs were assigned starting from 1
-	if t1.Id == nil || *t1.Id != 1 {
-		t.Errorf("Expected ID 1, got %v", t1.Id)
+	if res1.Id == nil || *res1.Id != 1 {
+		t.Errorf("Expected ID 1, got %v", res1.Id)
 	}
-	if t2.Id == nil || *t2.Id != 2 {
-		t.Errorf("Expected ID 2, got %v", t2.Id)
+	if res2.Id == nil || *res2.Id != 2 {
+		t.Errorf("Expected ID 2, got %v", res2.Id)
 	}
 
 	chunk := GenerateChunk()
@@ -64,7 +54,7 @@ func TestRegisterConcurrent(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(index int) {
 			defer wg.Done()
-			RegisterVerb(&pb.Verb{Label: proto.String("Concurrent Verb")})
+			RegisterVerb("Concurrent Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
 		}(i)
 	}
 
@@ -95,11 +85,11 @@ func TestRegisterConcurrent(t *testing.T) {
 func TestGenerateChunkHasAllSlices(t *testing.T) {
 	reset()
 
-	RegisterSeverity(&pb.Severity{Label: proto.String("Sev")})
-	RegisterVerb(&pb.Verb{Label: proto.String("Verb")})
-	RegisterLogType(&pb.LogType{Label: proto.String("Log")})
-	RegisterRevisionState(&pb.RevisionState{Label: proto.String("RevState")})
-	RegisterTimelineType(&pb.TimelineType{Label: proto.String("Timeline")})
+	RegisterSeverity("Sev", "S", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, 1)
+	RegisterVerb("Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
+	RegisterLogType("Log", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
+	RegisterRevisionState("RevState", "icon", "Desc", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
+	RegisterTimelineType("Timeline", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
 
 	chunk := GenerateChunk()
 
