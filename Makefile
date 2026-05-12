@@ -27,6 +27,22 @@ include scripts/make/*.mk
 #  Development commands
 # ====================================================================================
 
+## Clean
+.PHONY: clean
+clean: ## Clean build artifacts and generated files
+	@echo "Cleaning Go binaries..."
+	rm -rf ./bin ./khi ./khi-debug
+	@echo "Cleaning frontend artifacts..."
+	rm -rf ./pkg/server/dist web/.angular web/coverage
+	@echo "Cleaning test and coverage reports..."
+	rm -rf go-cover.html go-cover.output result.json
+	@echo "Cleaning intermediate generated files..."
+	find . -path "./web" -prune -o -path "./.git" -prune -o -type f -name "zzz_*.go" -exec rm -f {} + -o -type f -name "zzz_*.json" -exec rm -f {} +
+	rm -rf pkg/generated
+	rm -rf web/src/app/zzz-generated.scss web/src/app/zzz-generated.ts web/angular.json web/src/environments/version.*.ts
+	@echo "Cleaning make dummy files..."
+	rm -rf scripts/make/*.done
+
 ## Test
 .PHONY: test
 test: test-web test-go ## Run all tests
