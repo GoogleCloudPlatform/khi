@@ -19,10 +19,10 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-type NEGNameToResourceIdentityMap = map[string]commonlogk8sauditv2_contract.ResourceIdentity
+type NEGNameToResourceIdentityMap = map[string]commonlogk8saudit_contract.ResourceIdentity
 
 var NEGNamesInventoryTaskID = taskid.NewDefaultImplementationID[NEGNameToResourceIdentityMap](GoogleCloudCommonK8STaskIDPrefix + "neg-names-inventory")
 

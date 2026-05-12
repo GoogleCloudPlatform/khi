@@ -22,7 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -46,18 +46,18 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		groupMap commonlogk8sauditv2_contract.ResourceManifestLogGroupMap
+		groupMap commonlogk8saudit_contract.ResourceManifestLogGroupMap
 		taskMode inspectioncore_contract.InspectionTaskModeType
 		want     googlecloudk8scommon_contract.NEGToBackendServiceMap
 	}{
 		{
 			name: "valid audit log",
-			groupMap: commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{
+			groupMap: commonlogk8saudit_contract.ResourceManifestLogGroupMap{
 				"group1": {
-					Resource: &commonlogk8sauditv2_contract.ResourceIdentity{
+					Resource: &commonlogk8saudit_contract.ResourceIdentity{
 						Kind: "pod",
 					},
-					Logs: []*commonlogk8sauditv2_contract.ResourceManifestLog{
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
 						{
 							ResourceBodyReader: createNode(t, `Pod has become Healthy in NEG "Key{\"k8s1-audit\", zone: \"asia-northeast1-b\"}" attached to BackendService "Key{\"bs-audit\"}". Marking condition "cloud.google.com/load-balancer-neg-ready" to True.`),
 						},
@@ -71,12 +71,12 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 		},
 		{
 			name: "not a pod",
-			groupMap: commonlogk8sauditv2_contract.ResourceManifestLogGroupMap{
+			groupMap: commonlogk8saudit_contract.ResourceManifestLogGroupMap{
 				"group1": {
-					Resource: &commonlogk8sauditv2_contract.ResourceIdentity{
+					Resource: &commonlogk8saudit_contract.ResourceIdentity{
 						Kind: "deployment",
 					},
-					Logs: []*commonlogk8sauditv2_contract.ResourceManifestLog{
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
 						{
 							ResourceBodyReader: createNode(t, `Pod has become Healthy in NEG "Key{\"k8s1-audit\", zone: \"asia-northeast1-b\"}" attached to BackendService "Key{\"bs-audit\"}". Marking condition "cloud.google.com/load-balancer-neg-ready" to True.`),
 						},
@@ -92,7 +92,7 @@ func TestAuditLogNEGDiscoveryTask(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
 			result, _, err := inspectiontest.RunInspectionTask(ctx, AuditLogNEGDiscoveryTask, tc.taskMode, map[string]any{},
-				tasktest.NewTaskDependencyValuePair(commonlogk8sauditv2_contract.ManifestGeneratorTaskID.Ref(), tc.groupMap),
+				tasktest.NewTaskDependencyValuePair(commonlogk8saudit_contract.ManifestGeneratorTaskID.Ref(), tc.groupMap),
 			)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)

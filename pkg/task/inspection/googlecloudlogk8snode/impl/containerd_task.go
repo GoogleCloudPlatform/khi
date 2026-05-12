@@ -32,7 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
@@ -45,11 +45,11 @@ var ContainerdLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_cont
 
 var ContainerdLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.ContainerdLogGroupTaskID, googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref())
 
-var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventoryBuilder.DiscoveryTask(googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID,
+var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBuilder.DiscoveryTask(googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
 	},
-	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8sauditv2_contract.ContainerIDToContainerIdentity, error) {
+	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			return nil, nil
 		}
@@ -67,10 +67,10 @@ var ContainerIDDiscoveryTask = commonlogk8sauditv2_contract.ContainerIDInventory
 		updator.Start(ctx)
 		defer updator.Done()
 
-		result := commonlogk8sauditv2_contract.ContainerIDToContainerIdentity{}
+		result := commonlogk8saudit_contract.ContainerIDToContainerIdentity{}
 		logChan := make(chan *log.Log)
 		errGrp, childRoutineCtx := errgroup.WithContext(ctx)
-		containerIdentitiesChan := make(chan *commonlogk8sauditv2_contract.ContainerIdentity, runtime.GOMAXPROCS(0))
+		containerIdentitiesChan := make(chan *commonlogk8saudit_contract.ContainerIdentity, runtime.GOMAXPROCS(0))
 		for i := 0; i < runtime.GOMAXPROCS(0); i++ {
 			errGrp.Go(func() error {
 				for {
@@ -207,7 +207,7 @@ func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) 
 	return nil, fmt.Errorf("pod index information not found:%w", khierrors.ErrNotFound)
 }
 
-func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTarget chan *commonlogk8sauditv2_contract.ContainerIdentity) {
+func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTarget chan *commonlogk8saudit_contract.ContainerIdentity) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 	container, err := findContainerIDInfo(componentFieldSet.Message)
 	if err != nil {
@@ -216,7 +216,7 @@ func processContainerIDDiscoveryForLog(ctx context.Context, l *log.Log, exportTa
 	exportTarget <- container
 }
 
-func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*commonlogk8sauditv2_contract.ContainerIdentity, error) {
+func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*commonlogk8saudit_contract.ContainerIdentity, error) {
 	msg, err := jsonPayloadMessage.MainMessage()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
@@ -238,7 +238,7 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 			return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 		}
 		if fields["Name"] != "" {
-			return &commonlogk8sauditv2_contract.ContainerIdentity{
+			return &commonlogk8saudit_contract.ContainerIdentity{
 				PodSandboxID:  sandboxID,
 				ContainerName: fields["Name"],
 				ContainerID:   containerID,
@@ -256,7 +256,7 @@ type containerdNodeLogLogToTimelineMapperSetting struct{}
 func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
-		commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(),
+		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -273,7 +273,7 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.T
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	podSandboxIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
-	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref())
+	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
 	nodeLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 
 	checkStartingAndTerminationLog(cs, l, ContainerdStartingMsg, ContainerdTerminationMsg)

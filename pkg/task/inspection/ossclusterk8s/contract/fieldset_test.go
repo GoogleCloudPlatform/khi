@@ -21,7 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -30,7 +30,7 @@ func TestOSSK8sAuditLogFieldSetReader(t *testing.T) {
 	testCases := []struct {
 		desc  string
 		input string
-		want  *commonlogk8sauditv2_contract.K8sAuditLogFieldSet
+		want  *commonlogk8saudit_contract.K8sAuditLogFieldSet
 	}{
 		{
 			desc: "standard operation",
@@ -50,7 +50,7 @@ objectRef:
   name: "test-pod"
 requestURI: "/api/v1/namespaces/default/pods/test-pod"
 `,
-			want: &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				OperationID:   "test-audit-id",
 				IsFirst:       true,
 				IsLast:        true,
@@ -85,7 +85,7 @@ responseObject:
 responseStatus:
   code: 201
 `,
-			want: &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				OperationID:   "test-audit-id-2",
 				IsFirst:       true,
 				IsLast:        true,
@@ -116,7 +116,7 @@ objectRef:
   resource: "pods"
   name: "missing-pod"
 `,
-			want: &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
 				OperationID:   "error-audit-id",
 				IsFirst:       true,
 				IsLast:        true,
@@ -147,11 +147,11 @@ objectRef:
 			if err != nil {
 				t.Errorf("failed to run OSSK8sAuditLogFieldSetReader.Read(): %v", err)
 			}
-			got := log.MustGetFieldSet(l, &commonlogk8sauditv2_contract.K8sAuditLogFieldSet{})
+			got := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 
 			// Ignore Request and Response fields for now as they are NodeReaders and hard to compare directly with cmp.Diff without custom options
 			opts := []cmp.Option{
-				cmpopts.IgnoreFields(commonlogk8sauditv2_contract.K8sAuditLogFieldSet{}, "Request", "Response"),
+				cmpopts.IgnoreFields(commonlogk8saudit_contract.K8sAuditLogFieldSet{}, "Request", "Response"),
 			}
 
 			if diff := cmp.Diff(tc.want, got, opts...); diff != "" {

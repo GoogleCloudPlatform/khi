@@ -27,7 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8sauditv2_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8sauditv2/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
@@ -43,8 +43,8 @@ type kubeletNodeLogLogToTimelineMapperSetting struct{}
 func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
-		commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref(),
-		commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref(),
+		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
+		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
@@ -61,9 +61,9 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.Task
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
-	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ContainerIDPatternFinderTaskID.Ref())
+	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
 	podIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
-	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8sauditv2_contract.ResourceUIDPatternFinderTaskID.Ref())
+	resourceUIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
 	cs.AddEvent(componentFieldSet.ResourcePath())
 
 	original := componentFieldSet.Message.Raw()
