@@ -325,11 +325,11 @@ export class TimelineEventsSharedResources {
   async setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
     this.eventsColorProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
-      'assets/event-v2.vertex.glsl',
-      'assets/event-v2.color-fragment.glsl',
+      'assets/event.vertex.glsl',
+      'assets/event.color-fragment.glsl',
       {
-        '#include "v2.shared.glsl"': 'assets/v2.shared.glsl',
-        '#include "event-v2.shared.glsl"': 'assets/event-v2.shared.glsl',
+        '#include "shared.glsl"': 'assets/shared.glsl',
+        '#include "event.shared.glsl"': 'assets/event.shared.glsl',
       },
     );
     WebGLUtil.setProgramUniformBlockBinding(
@@ -353,11 +353,11 @@ export class TimelineEventsSharedResources {
 
     this.eventsHittestProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
-      'assets/event-v2.vertex.glsl',
-      'assets/event-v2.hittest-fragment.glsl',
+      'assets/event.vertex.glsl',
+      'assets/event.hittest-fragment.glsl',
       {
-        '#include "v2.shared.glsl"': 'assets/v2.shared.glsl',
-        '#include "event-v2.shared.glsl"': 'assets/event-v2.shared.glsl',
+        '#include "shared.glsl"': 'assets/shared.glsl',
+        '#include "event.shared.glsl"': 'assets/event.shared.glsl',
       },
     );
     WebGLUtil.setProgramUniformBlockBinding(

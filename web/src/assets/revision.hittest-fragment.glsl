@@ -4,8 +4,8 @@ precision highp int;
 
 #define MAX_REVISION_INDEX_DIGITS 5
 
-#include "v2.shared.glsl"
-#include "revision-v2.shared.glsl"
+#include "shared.glsl"
+#include "revision.shared.glsl"
 
 flat in RevisionModel revisionModel;
 in vec2 uv;

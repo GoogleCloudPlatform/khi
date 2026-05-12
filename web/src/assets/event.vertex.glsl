@@ -2,8 +2,8 @@
 precision highp float;
 precision highp int;
 
-#include "v2.shared.glsl"
-#include "event-v2.shared.glsl"
+#include "shared.glsl"
+#include "event.shared.glsl"
 
 // Input attributes from the vertex buffer.
 // instanced rendering is used, so these attributes are per-instance (per-event).
