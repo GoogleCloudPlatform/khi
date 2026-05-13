@@ -23,6 +23,7 @@
     "@bufbuild/protobuf": "^2.11.0",
     "@fontsource/google-sans-code": "^5.2.3",
     "@fontsource/roboto": "^5.2.10",
+    "@marcbachmann/cel-js": "^7.6.1",
     "angular-split": "^20.0.0",
     "golden-layout": "^2.6.0",
     "highlight.js": "^11.11.1",
