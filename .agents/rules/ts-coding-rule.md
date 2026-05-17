@@ -11,7 +11,11 @@ globs: **/*.ts
 * Make fields `readonly` as much as possible.
 * Define enum type rather than define a union of string literal types.
 * Write import path in absolute form from the project base path like `src/app/...`.
-* Run `make format-web` and `make lint-web` to follow the standard typescript coding convention in this project.
+* Run `make format-web`, `make lint-web`, and `make build-storybook` to follow the standard typescript coding convention in this project. Since running these serially takes a long time, launch them as separate background tasks to run them in parallel.
+* The default type for timestamps is `bigint` in nanoseconds (ns) unless specified otherwise. If a timestamp is in another unit, append the unit name to the field or method name (e.g., `timestampMs`).
+* Prefix private fields with `_` only if there is a corresponding property (getter or setter) with the same name. If there is no property with the same name and the field name can be defined without `_`, do not use the `_` prefix.
+* Do NOT prefix interface names with `I`.
+* Do NOT use `as unknown as X` type assertions unless explicitly permitted by the user.
 
 ## Angular coding rules
 
