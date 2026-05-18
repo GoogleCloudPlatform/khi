@@ -14,36 +14,78 @@
  * limitations under the License.
  */
 
-import { LogEntry } from 'src/app/store/log';
-import { LogType, Severity } from 'src/app/zzz-generated';
-import { ReferenceType } from 'src/app/common/loader/interface';
+import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { StyleStore } from 'src/app/store/domain/style-store';
+import { LogStore } from 'src/app/store/domain/log-store';
 import { HistogramCache } from './histogram-cache';
 
-function createTestLogEntryForSeverity(
-  severity: Severity,
-  time: number,
-): LogEntry {
-  return new LogEntry(
-    0,
-    '',
-    LogType.LogTypeUnknown,
-    severity,
-    time,
-    '',
-    { type: ReferenceType.NullReference },
-    [],
+enum Severity {
+  SeverityUnknown = 0,
+  SeverityInfo = 1,
+  SeverityWarning = 2,
+  SeverityError = 3,
+  SeverityFatal = 4,
+}
+
+function createCacheWithLogs(
+  severityTimes: { severity: Severity; timeMs: number }[],
+  minBucketTime: number,
+  minTimeMs?: number,
+  maxTimeMs?: number,
+): HistogramCache {
+  const internPool = new InternPoolStore();
+  const styleStore = new StyleStore();
+  const logStore = new LogStore(internPool, styleStore);
+
+  styleStore.addSeverities([
+    {
+      id: Severity.SeverityInfo,
+      label: 'Info',
+      shortLabel: 'I',
+      backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      order: 1,
+    },
+    {
+      id: Severity.SeverityError,
+      label: 'Error',
+      shortLabel: 'E',
+      backgroundColor: { r: 1, g: 0, b: 0, a: 1 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      order: 2,
+    },
+  ]);
+
+  const logsDto = severityTimes.map((item, index) => ({
+    id: index + 1,
+    ts: BigInt(item.timeMs) * 1000000n,
+    logTypeId: 0,
+    severityTypeId: item.severity,
+    summaryStringId: 0,
+  }));
+
+  logStore.initialize(logsDto, logsDto.length);
+  const logs = Array.from(logStore.logs());
+  return new HistogramCache(
+    styleStore.severities,
+    logs,
+    minBucketTime,
+    minTimeMs,
+    maxTimeMs,
   );
 }
 
 describe('HistogramCache', () => {
   it('should correctly calculate ratios for a basic scenario', () => {
     // 1000ms ticks, Range: 0 - 3000ms
-    const logs = [
-      createTestLogEntryForSeverity(Severity.SeverityError, 500), // Window 0 (0-1000)
-      createTestLogEntryForSeverity(Severity.SeverityError, 1500), // Window 1 (1000-2000)
-      createTestLogEntryForSeverity(Severity.SeverityInfo, 2500), // Window 2 (2000-3000)
-    ];
-    const cache = new HistogramCache(logs, 1000);
+    const cache = createCacheWithLogs(
+      [
+        { severity: Severity.SeverityError, timeMs: 500 }, // Window 0 (0-1000)
+        { severity: Severity.SeverityError, timeMs: 1500 }, // Window 1 (1000-2000)
+        { severity: Severity.SeverityInfo, timeMs: 2500 }, // Window 2 (2000-3000)
+      ],
+      1000,
+    );
 
     // Get data for 0-3000ms with window 1000ms
     const result = cache.getHistogramData(0, 3000, 1000);
@@ -71,13 +113,16 @@ describe('HistogramCache', () => {
 
   it('should handle aggregated windows', () => {
     // Min tick 1000ms, Window 2000ms
-    const logs = [
-      createTestLogEntryForSeverity(Severity.SeverityError, 500), // Window 0 (0-2000)
-      createTestLogEntryForSeverity(Severity.SeverityError, 1500), // Window 0 (0-2000)
-      createTestLogEntryForSeverity(Severity.SeverityError, 2500), // Window 1 (2000-4000)
-    ];
-    // Cache range based on logs: 500 to 2500 -> aligned 0 to 3000 (if 1000ms steps)
-    const cache = new HistogramCache(logs, 1000, 0, 4000);
+    const cache = createCacheWithLogs(
+      [
+        { severity: Severity.SeverityError, timeMs: 500 }, // Window 0 (0-2000)
+        { severity: Severity.SeverityError, timeMs: 1500 }, // Window 0 (0-2000)
+        { severity: Severity.SeverityError, timeMs: 2500 }, // Window 1 (2000-4000)
+      ],
+      1000,
+      0,
+      4000,
+    );
 
     const result = cache.getHistogramData(0, 4000, 2000);
 
@@ -93,8 +138,7 @@ describe('HistogramCache', () => {
   });
 
   it('should handle no logs gracefully', () => {
-    const logs: LogEntry[] = [];
-    const cache = new HistogramCache(logs, 1000);
+    const cache = createCacheWithLogs([], 1000);
     const result = cache.getHistogramData(0, 3000, 1000);
 
     expect(result.logRatios[Severity.SeverityError].length).toBe(0);
@@ -107,14 +151,15 @@ describe('HistogramCache', () => {
     // Logs: 500, 1500, 2500, 3500.
     // Min: 500. Aligned Min: floor(500/1000)*1000 = 0.
     // Max: 3500. Aligned Max: ceil(3500/1000)*1000 = 4000.
-    const logs = [
-      createTestLogEntryForSeverity(Severity.SeverityError, 500),
-      createTestLogEntryForSeverity(Severity.SeverityError, 1500),
-      createTestLogEntryForSeverity(Severity.SeverityInfo, 2500),
-      createTestLogEntryForSeverity(Severity.SeverityError, 3500),
-    ];
-    // minLogTime will be 500 -> aligned 0.
-    const cache = new HistogramCache(logs, 1000);
+    const cache = createCacheWithLogs(
+      [
+        { severity: Severity.SeverityError, timeMs: 500 },
+        { severity: Severity.SeverityError, timeMs: 1500 },
+        { severity: Severity.SeverityInfo, timeMs: 2500 },
+        { severity: Severity.SeverityError, timeMs: 3500 },
+      ],
+      1000,
+    );
 
     // Query range: 2000ms - 4000ms (Window 1 and Window 2 relative to 0?)
     // alignedMinTimeMS = 0.
@@ -139,8 +184,10 @@ describe('HistogramCache', () => {
 
   it('should treat windowTimeMS smaller than minTickTimeMS as minTickTimeMS', () => {
     // 1000ms ticks.
-    const logs = [createTestLogEntryForSeverity(Severity.SeverityError, 500)];
-    const cache = new HistogramCache(logs, 1000);
+    const cache = createCacheWithLogs(
+      [{ severity: Severity.SeverityError, timeMs: 500 }],
+      1000,
+    );
 
     // Request window 500ms (< 1000ms)
     // Should behave as 1000ms window.
