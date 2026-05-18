@@ -79,12 +79,12 @@ export interface HistogramBucketViewModel {
   /**
    * [0-1] ratio of the log count in the bucket for each severity.
    */
-  all: { [severity in Severity]: number };
+  all: { [severityId: number]: number };
 
   /**
    * [0-1] ratio of the highlighted log count in the bucket for each severity.
    */
-  highlighted: { [severity in Severity]: number };
+  highlighted: { [severityId: number]: number };
 }
 
 /**

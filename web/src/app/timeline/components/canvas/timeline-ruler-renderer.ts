@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineRulerStyle, generateDefaultRulerStyle } from '../style-model';
+import { TimelineRulerStyle } from '../style-model-v2';
 import { TimelineRulerViewModel } from '../timeline-ruler.viewmodel';
 import { RendererConvertUtil } from './convertutil';
 
@@ -26,15 +26,13 @@ export class TimelineRulerRenderer {
   private width = 0;
   private height = 0;
   private dpr = 1;
-  private style: TimelineRulerStyle;
+  private style!: TimelineRulerStyle;
 
   /**
    * Creates a new instance of TimelineRulerRenderer.
    * @param ctx The 2D rendering context of the canvas.
    */
-  constructor(private ctx: CanvasRenderingContext2D) {
-    this.style = generateDefaultRulerStyle();
-  }
+  constructor(private ctx: CanvasRenderingContext2D) {}
 
   /**
    * Resizes the renderer and adjusts the canvas context scaling.
@@ -60,7 +58,9 @@ export class TimelineRulerRenderer {
     viewModel: TimelineRulerViewModel,
     leftEdgeTimeMS: number,
     pixelsPerMs: number,
+    style: TimelineRulerStyle,
   ) {
+    this.style = style;
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, this.width, this.height);
     this.ctx.scale(this.dpr, this.dpr);
@@ -92,15 +92,15 @@ export class TimelineRulerRenderer {
       for (const group of barGroups) {
         let currentY = 0;
         for (const severity of this.style.severitiesInDrawOrder) {
-          const ratio = group.ratios[severity];
+          const ratio = group.ratios[severity.id];
           if (ratio === 0) continue;
           this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColorWithAlpha(
-            this.style.severityColors[severity],
+            this.style.severityColors[severity.id],
             group.alpha,
           );
           this.ctx.strokeStyle =
             RendererConvertUtil.hdrColorToCSSColorWithAlpha(
-              this.style.severityStrokeColors[severity],
+              this.style.severityStrokeColors[severity.id],
               group.alpha * 0.5,
             );
           const height = ratio * histogramHeight;
