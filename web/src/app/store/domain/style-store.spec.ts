@@ -115,6 +115,105 @@ describe('StyleStore', () => {
     );
   });
 
+  describe('Array-returning getters', () => {
+    it('should return all added elements, filtering out undefined slots', () => {
+      const severity1 = {
+        id: 2,
+        label: 'WARNING',
+        shortLabel: 'W',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        order: 2,
+      };
+      const severity2 = {
+        id: 5,
+        label: 'ERROR',
+        shortLabel: 'E',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        order: 3,
+      };
+      store.addSeverities([severity1, severity2]);
+      expect(store.severities).toEqual([severity1, severity2]);
+
+      const logType1 = {
+        id: 1,
+        label: 'API Server',
+        description: 'Kubernetes API Server logs',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+      };
+      const logType2 = {
+        id: 3,
+        label: 'Controller Manager',
+        description: 'Kubernetes Controller Manager logs',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+      };
+      store.addLogTypes([logType1, logType2]);
+      expect(store.logTypes).toEqual([logType1, logType2]);
+
+      const verb1 = {
+        id: 0,
+        label: 'Get',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        visible: true,
+      };
+      const verb2 = {
+        id: 2,
+        label: 'Create',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        visible: true,
+      };
+      store.addVerbs([verb1, verb2]);
+      expect(store.verbs).toEqual([verb1, verb2]);
+
+      const revisionState1 = {
+        id: 1,
+        label: 'Running',
+        icon: 'play_arrow',
+        description: 'Resource is running',
+        backgroundColor: mockColor,
+        style: RevisionStateStyle.NORMAL,
+      };
+      const revisionState2 = {
+        id: 4,
+        label: 'Failed',
+        icon: 'error',
+        description: 'Resource failed',
+        backgroundColor: mockColor,
+        style: RevisionStateStyle.NORMAL,
+      };
+      store.addRevisionStates([revisionState1, revisionState2]);
+      expect(store.revisionStates).toEqual([revisionState1, revisionState2]);
+
+      const timelineType1 = {
+        id: 2,
+        label: 'Pod',
+        description: 'Pod lifecycle timeline',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        typeChipBackgroundColor: mockColor,
+        visible: true,
+        sortPriority: 10,
+      };
+      const timelineType2 = {
+        id: 5,
+        label: 'Node',
+        description: 'Node lifecycle timeline',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        typeChipBackgroundColor: mockColor,
+        visible: true,
+        sortPriority: 20,
+      };
+      store.addTimelineTypes([timelineType1, timelineType2]);
+      expect(store.timelineTypes).toEqual([timelineType1, timelineType2]);
+    });
+  });
+
   describe('IconAtlas', () => {
     it('should throw an error if getIconAtlas is called before setIconAtlas', () => {
       expect(() => store.getIconAtlas()).toThrowError(
