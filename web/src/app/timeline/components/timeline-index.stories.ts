@@ -17,9 +17,12 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { TimelineIndexComponent } from './timeline-index.component';
 import { componentWrapperDecorator } from '@storybook/angular';
-import { ParentRelationship, revisionStates } from 'src/app/zzz-generated';
-import { ResourceTimeline } from 'src/app/store/timeline';
 import { TimelineHighlightType } from './interaction-model';
+import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { StyleStore } from 'src/app/store/domain/style-store';
+import { LogStore } from 'src/app/store/domain/log-store';
+import { Timeline } from 'src/app/store/domain/timeline';
 
 const meta: Meta<TimelineIndexComponent> = {
   title: 'Timeline/Index',
@@ -53,38 +56,156 @@ const meta: Meta<TimelineIndexComponent> = {
 export default meta;
 type Story = StoryObj<TimelineIndexComponent>;
 
-function createTimeline(
-  tid: string,
-  path: string,
-  relationship: ParentRelationship,
-): ResourceTimeline {
-  return new ResourceTimeline(tid, path, [], [], relationship);
-}
+function createTimelines(): Timeline[] {
+  const internPool = new InternPoolStore();
+  const styleStore = new StyleStore();
+  styleStore.addTimelineTypes([
+    {
+      id: 1,
+      label: 'Kind',
+      description: 'Kubernetes Resource Kind',
+      icon: 'category',
+      backgroundColor: { r: 63 / 255, g: 81 / 255, b: 181 / 255, a: 0.15 },
+      foregroundColor: { r: 63 / 255, g: 81 / 255, b: 181 / 255, a: 1 },
+      typeChipBackgroundColor: { r: 63 / 255, g: 81 / 255, b: 181 / 255, a: 1 },
+      visible: true,
+      sortPriority: 1,
+      height: 0.7,
+    },
+    {
+      id: 2,
+      label: 'Namespace',
+      description: 'Kubernetes Namespace',
+      icon: 'space_dashboard',
+      backgroundColor: { r: 100 / 255, g: 100 / 255, b: 100 / 255, a: 0.15 },
+      foregroundColor: { r: 100 / 255, g: 100 / 255, b: 100 / 255, a: 1 },
+      typeChipBackgroundColor: {
+        r: 100 / 255,
+        g: 100 / 255,
+        b: 100 / 255,
+        a: 1,
+      },
+      visible: true,
+      sortPriority: 2,
+      height: 0.7,
+    },
+    {
+      id: 3,
+      label: 'Resource',
+      description: 'Kubernetes Resource Instance',
+      icon: 'layers',
+      backgroundColor: { r: 200 / 255, g: 200 / 255, b: 200 / 255, a: 0.15 },
+      foregroundColor: { r: 50 / 255, g: 50 / 255, b: 50 / 255, a: 1 },
+      typeChipBackgroundColor: {
+        r: 200 / 255,
+        g: 200 / 255,
+        b: 200 / 255,
+        a: 1,
+      },
+      visible: true,
+      sortPriority: 3,
+      height: 1,
+    },
+    {
+      id: 4,
+      label: 'Subresource A',
+      description: 'Kubernetes Subresource Type A',
+      icon: 'mediation',
+      backgroundColor: { r: 245 / 255, g: 245 / 255, b: 245 / 255, a: 0.15 },
+      foregroundColor: { r: 100 / 255, g: 100 / 255, b: 100 / 255, a: 1 },
+      typeChipBackgroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      visible: true,
+      sortPriority: 4,
+      height: 0.5,
+    },
+    {
+      id: 5,
+      label: 'Subresource B',
+      description: 'Kubernetes Subresource Type B',
+      icon: 'schema',
+      backgroundColor: { r: 245 / 255, g: 245 / 255, b: 245 / 255, a: 0.15 },
+      foregroundColor: { r: 100 / 255, g: 100 / 255, b: 100 / 255, a: 1 },
+      typeChipBackgroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      visible: true,
+      sortPriority: 5,
+      height: 0.5,
+    },
+  ]);
+  const logStore = new LogStore(internPool, styleStore);
+  const timelineStore = new TimelineStore(internPool, styleStore, logStore);
 
-function createTimelines(): ResourceTimeline[] {
-  const result = [
-    createTimeline(
-      't-kind',
-      'core/v1#foo',
-      ParentRelationship.RelationshipChild,
-    ),
-    createTimeline(
-      't-namespace',
-      'core/v1#foo#bar',
-      ParentRelationship.RelationshipChild,
-    ),
-    createTimeline(
-      't-resource',
-      'core/v1#foo#bar#resource-1',
-      ParentRelationship.RelationshipChild,
-    ),
+  internPool.addStrings([
+    { id: 1, value: 'core/v1' },
+    { id: 2, value: 'foo' },
+    { id: 3, value: 'resource-1' },
+    { id: 4, value: 'sub0' },
+    { id: 5, value: 'sub1' },
+    { id: 6, value: 'sub2' },
+    { id: 7, value: 'very-very-very-very-long-name-subresource' },
+  ]);
+
+  const timelinesData = [
+    {
+      id: 1, // t-kind
+      timelineTypeId: 1,
+      nameStringId: 1,
+      parentTimelineId: 0,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 2, // t-namespace
+      timelineTypeId: 2,
+      nameStringId: 2,
+      parentTimelineId: 1,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 3, // t-resource
+      timelineTypeId: 3,
+      nameStringId: 3,
+      parentTimelineId: 2,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 4, // t-sub0
+      timelineTypeId: 4,
+      nameStringId: 4,
+      parentTimelineId: 3,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 5, // t-sub1
+      timelineTypeId: 5,
+      nameStringId: 5,
+      parentTimelineId: 3,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 6, // t-sub2
+      timelineTypeId: 4,
+      nameStringId: 6,
+      parentTimelineId: 3,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 9, // t-sub5
+      timelineTypeId: 5,
+      nameStringId: 7,
+      parentTimelineId: 3,
+      revisionIds: [],
+      eventIds: [],
+    },
   ];
-  for (let i = 0; i < revisionStates.length; i++) {
-    result.push(
-      createTimeline(`t-sub${i}`, `core/v1#foo#bar#resource-1#sub${i}`, i),
-    );
-  }
-  return result;
+
+  timelineStore.initialize(timelinesData, timelinesData.length, [], 0, [], 0);
+
+  return timelineStore.timelines as Timeline[];
 }
 
 export const Default: Story = {};
@@ -92,11 +213,11 @@ export const Default: Story = {};
 export const SelectionAndHover: Story = {
   args: {
     highlights: {
-      't-resource': TimelineHighlightType.Selected,
-      't-sub0': TimelineHighlightType.ChildrenOfSelected,
-      't-sub1': TimelineHighlightType.ChildrenOfSelected,
-      't-sub2': TimelineHighlightType.ChildrenOfSelected,
-      't-sub5': TimelineHighlightType.Hovered,
+      3: TimelineHighlightType.Selected, // t-resource
+      4: TimelineHighlightType.ChildrenOfSelected, // t-sub0
+      5: TimelineHighlightType.ChildrenOfSelected, // t-sub1
+      6: TimelineHighlightType.ChildrenOfSelected, // t-sub2
+      9: TimelineHighlightType.Hovered, // t-sub5
     },
   },
 };
@@ -104,7 +225,7 @@ export const SelectionAndHover: Story = {
 export const SelectingKind: Story = {
   args: {
     highlights: {
-      't-kind': TimelineHighlightType.Selected,
+      1: TimelineHighlightType.Selected, // t-kind
     },
   },
 };
@@ -112,7 +233,7 @@ export const SelectingKind: Story = {
 export const SelectingNamespace: Story = {
   args: {
     highlights: {
-      't-namespace': TimelineHighlightType.Selected,
+      2: TimelineHighlightType.Selected, // t-namespace
     },
   },
 };
