@@ -24,7 +24,7 @@ import {
   UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
   UpdateSelectedResourceMessage,
 } from 'src/app/common/schema/inter-window-messages';
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { ResourceTimeline } from 'src/app/store/timeline';
 
 @Injectable()
 export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> {
@@ -71,16 +71,10 @@ export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> 
   }
 
   private updatePath(data: DiffPageViewModel) {
-    const kind = data.timeline.getNameOfLayer(TimelineLayer.Kind) ?? '-';
-    const namespace =
-      data.timeline.getNameOfLayer(TimelineLayer.Namespace) ?? '-';
-    const name = data.timeline.getNameOfLayer(TimelineLayer.Name) ?? '-';
-    const subresource =
-      data.timeline.getNameOfLayer(TimelineLayer.Subresource) ?? '-';
     const logIndex = data.logIndex;
 
     this.navigationCandidate.next(
-      `diff/${kind}/${namespace}/${name}/${subresource}?logIndex=${logIndex}`,
+      `diff?timeline=${data.timeline.timelineId}&logIndex=${logIndex}`,
     );
   }
 }

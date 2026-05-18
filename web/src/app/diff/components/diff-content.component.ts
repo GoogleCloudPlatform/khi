@@ -16,12 +16,13 @@
 
 import { Component, inject, input, model, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ResourceRevision } from '../../store/revision';
 import { DiffToolbarComponent } from './diff-toolbar.component';
 import { UnifiedDiffComponent } from 'ngx-diff';
 import { HighlightModule } from 'ngx-highlightjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
+import { Revision } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 /**
  * Component for displaying the unified diff of a resource revision.
@@ -38,13 +39,14 @@ import { Clipboard } from '@angular/cdk/clipboard';
   ],
 })
 export class DiffContentComponent {
-  private readonly _clipboard = inject(Clipboard);
-  private readonly _snackBar = inject(MatSnackBar);
+  private readonly clipboard = inject(Clipboard);
+  private readonly snackBar = inject(MatSnackBar);
 
   /**
    * The current revision being viewed.
    */
-  readonly currentRevision = input.required<ResourceRevision | null>();
+  readonly currentRevision =
+    input.required<ReadonlyDomainElement<Revision> | null>();
 
   /**
    * The content string of the current revision.
@@ -79,9 +81,9 @@ export class DiffContentComponent {
   protected copyContent() {
     const content = this.currentRevisionContent();
     let snackbarMessage = 'Copy failed';
-    if (this._clipboard.copy(content)) {
+    if (this.clipboard.copy(content)) {
       snackbarMessage = 'Copied!';
     }
-    this._snackBar.open(snackbarMessage, undefined, { duration: 1000 });
+    this.snackBar.open(snackbarMessage, undefined, { duration: 1000 });
   }
 }

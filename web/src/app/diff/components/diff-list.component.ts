@@ -29,12 +29,13 @@ import {
   ScrollingModule,
   VIRTUAL_SCROLL_STRATEGY,
 } from '@angular/cdk/scrolling';
-import { ResourceRevision } from '../../store/revision';
-import { ResourceTimeline } from '../../store/timeline';
-import { LogEntry } from '../../store/log';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Timeline, Revision } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 
 class DiffListScrollStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
@@ -58,12 +59,17 @@ export interface ResourceOperatorPrincipal {
 }
 
 export interface DiffListRowViewModel {
-  revision: ResourceRevision;
-  log: LogEntry | null;
+  revision: ReadonlyDomainElement<Revision>;
+  log: ReadonlyDomainElement<Log> | null;
   index: number;
   isContentChanged: boolean;
   timeLabel: string;
   author: ResourceOperatorPrincipal | null;
+  verbLabel: string;
+  verbStyle: {
+    backgroundColor: string;
+    color: string;
+  };
 }
 
 /**
@@ -135,7 +141,7 @@ export class DiffListComponent {
   /**
    * The selected timeline containing revisions.
    */
-  readonly timeline = input.required<ResourceTimeline | null>();
+  readonly timeline = input.required<ReadonlyDomainElement<Timeline> | null>();
 
   /**
    * The index of the currently selected log.
@@ -150,7 +156,7 @@ export class DiffListComponent {
   /**
    * Array of all log entries.
    */
-  readonly logs = input.required<LogEntry[]>();
+  readonly logs = input.required<ReadonlyDomainElement<Log>[]>();
 
   /**
    * Timezone shift in hours to adjust the displayed timestamps.
@@ -171,18 +177,37 @@ export class DiffListComponent {
       let isContentChanged = true;
       if (index > 0) {
         const prevRev = tl.revisions[index - 1];
-        isContentChanged = rev.resourceContent !== prevRev.resourceContent;
+        isContentChanged = rev.bodyYAML !== prevRev.bodyYAML;
       }
 
       const log = rev.logIndex !== -1 ? ls[rev.logIndex] : null;
+
+      const verb = rev.verb;
+      const bg = RendererConvertUtil.hdrColorToCSSColor([
+        verb.backgroundColor.r,
+        verb.backgroundColor.g,
+        verb.backgroundColor.b,
+        verb.backgroundColor.a,
+      ]);
+      const fg = RendererConvertUtil.hdrColorToCSSColor([
+        verb.foregroundColor.r,
+        verb.foregroundColor.g,
+        verb.foregroundColor.b,
+        verb.foregroundColor.a,
+      ]);
 
       return {
         revision: rev,
         log: log,
         index: index,
         isContentChanged: isContentChanged,
-        timeLabel: formatTimeLabel(rev.startAt, shift),
-        author: rev.requestor ? parsePrincipal(rev.requestor) : null,
+        timeLabel: formatTimeLabel(rev.legacyChangedTimeMs, shift),
+        author: rev.principal ? parsePrincipal(rev.principal) : null,
+        verbLabel: verb.label,
+        verbStyle: {
+          backgroundColor: bg,
+          color: fg,
+        },
       };
     });
   });
@@ -190,12 +215,12 @@ export class DiffListComponent {
   /**
    * Emitted when a revision is selected by clicking.
    */
-  readonly selectRevision = output<ResourceRevision>();
+  readonly selectRevision = output<ReadonlyDomainElement<Revision>>();
 
   /**
    * Emitted when a revision is highlighted by hovering.
    */
-  readonly highlightRevision = output<ResourceRevision>();
+  readonly highlightRevision = output<ReadonlyDomainElement<Revision>>();
 
   /**
    * Emitted when keyboard navigation (Up/Down) commands are received.
@@ -228,12 +253,12 @@ export class DiffListComponent {
     });
   }
 
-  protected _selectRevision(r: ResourceRevision) {
+  protected _selectRevision(r: ReadonlyDomainElement<Revision>) {
     this.disableScrollForNext = true;
     this.selectRevision.emit(r);
   }
 
-  protected _highlightRevision(r: ResourceRevision) {
+  protected _highlightRevision(r: ReadonlyDomainElement<Revision>) {
     this.highlightRevision.emit(r);
   }
 

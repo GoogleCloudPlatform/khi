@@ -16,21 +16,11 @@
 
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { DiffContentComponent } from './diff-content.component';
-import { ResourceRevision } from '../../store/revision';
-import { RevisionState, RevisionVerb } from '../../zzz-generated';
+import { Revision } from '../../store/domain/timeline';
+import { ReadonlyDomainElement } from '../../store/domain/types';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
-const mockCurrentRevision = new ResourceRevision(
-  new Date('2025-01-01T00:00:01Z').getTime(),
-  new Date('2025-01-01T00:00:02Z').getTime(),
-  RevisionState.RevisionStateExisting,
-  RevisionVerb.RevisionVerbUpdate,
-  'content2',
-  'user@example.com',
-  false,
-  false,
-  1,
-);
+const mockCurrentRevision = {} as ReadonlyDomainElement<Revision>;
 
 const currentContentWithManagedFields = `apiVersion: v1
 kind: Pod
