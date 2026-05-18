@@ -16,16 +16,12 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { TimelineLegendComponent } from './timeline-legend.component';
-import { ResourceTimeline } from 'src/app/store/timeline';
-import {
-  LogType,
-  ParentRelationship,
-  RevisionState,
-  RevisionVerb,
-  Severity,
-} from 'src/app/zzz-generated';
-import { ResourceRevision } from 'src/app/store/revision';
-import { ResourceEvent } from 'src/app/store/event';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { StyleStore } from 'src/app/store/domain/style-store';
+import { LogStore } from 'src/app/store/domain/log-store';
+import { RevisionStateStyle } from 'src/app/store/domain/style';
 
 const meta: Meta<TimelineLegendComponent> = {
   title: 'Timeline/Legend',
@@ -40,54 +36,219 @@ const meta: Meta<TimelineLegendComponent> = {
 export default meta;
 type Story = StoryObj<TimelineLegendComponent>;
 
-function createRevisionForRevisionState(state: RevisionState) {
-  return new ResourceRevision(
-    0,
-    0,
-    state,
-    RevisionVerb.RevisionVerbCreate,
-    '',
-    '',
-    false,
-    false,
-    0,
-  );
+function createMockTimeline(isKind: boolean): Timeline {
+  const internPool = new InternPoolStore();
+  const styleStore = new StyleStore();
+  const logStore = new LogStore(internPool, styleStore);
+  const timelineStore = new TimelineStore(internPool, styleStore, logStore);
+
+  internPool.addStrings([
+    { id: 1, value: 'core/v1#default' },
+    { id: 2, value: 'core/v1#pods#default#foo' },
+  ]);
+
+  styleStore.addTimelineTypes([
+    {
+      id: 1,
+      label: 'Pod',
+      description: 'Kubernetes Pod Resource',
+      icon: 'pod',
+      backgroundColor: { r: 0.129, g: 0.588, b: 0.953, a: 1 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      typeChipBackgroundColor: { r: 0.129, g: 0.588, b: 0.953, a: 1 },
+      visible: true,
+      sortPriority: 1,
+      height: 20,
+    },
+  ]);
+
+  styleStore.addRevisionStates([
+    {
+      id: 1,
+      label: 'Inferred',
+      description: 'Inferred state',
+      icon: 'help',
+      style: RevisionStateStyle.PARTIAL_INFO,
+      backgroundColor: { r: 0.62, g: 0.62, b: 0.62, a: 1 },
+    },
+    {
+      id: 2,
+      label: 'Provisioning',
+      description: 'Provisioning state',
+      icon: 'autorenew',
+      style: RevisionStateStyle.NORMAL,
+      backgroundColor: { r: 1, g: 0.757, b: 0.027, a: 1 },
+    },
+    {
+      id: 3,
+      label: 'Deleting',
+      description: 'Deleting state',
+      icon: 'delete_sweep',
+      style: RevisionStateStyle.PARTIAL_INFO,
+      backgroundColor: { r: 0.957, g: 0.263, b: 0.212, a: 1 },
+    },
+    {
+      id: 4,
+      label: 'Deleted',
+      description: 'Deleted state',
+      icon: 'delete',
+      style: RevisionStateStyle.DELETED,
+      backgroundColor: { r: 0.459, g: 0.459, b: 0.459, a: 1 },
+    },
+  ]);
+
+  styleStore.addLogTypes([
+    {
+      id: 1,
+      label: 'Audit',
+      description: 'Audit log',
+      backgroundColor: { r: 0.298, g: 0.686, b: 0.314, a: 1 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+    },
+    {
+      id: 2,
+      label: 'ComputeApi',
+      description: 'Compute API log',
+      backgroundColor: { r: 0.612, g: 0.153, b: 0.69, a: 1 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+    },
+    {
+      id: 3,
+      label: 'GkeAudit',
+      description: 'GKE Audit log',
+      backgroundColor: { r: 0.247, g: 0.318, b: 0.71, a: 1 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+    },
+  ]);
+
+  styleStore.addSeverities([
+    {
+      id: 1,
+      label: 'Info',
+      shortLabel: 'I',
+      backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      order: 1,
+    },
+  ]);
+
+  styleStore.addVerbs([
+    {
+      id: 1,
+      label: 'Create',
+      backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+      foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      visible: true,
+    },
+  ]);
+
+  if (isKind) {
+    const timelineData = [
+      {
+        id: 1,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [],
+        eventIds: [],
+      },
+    ];
+    timelineStore.initialize(timelineData, 1, [], 0, [], 0);
+    return timelineStore.getTimeline(1) as Timeline;
+  } else {
+    const timelineData = [
+      {
+        id: 1,
+        timelineTypeId: 1,
+        nameStringId: 2,
+        parentTimelineId: 0,
+        revisionIds: [101, 102, 103, 104],
+        eventIds: [201, 202, 203],
+      },
+    ];
+    const revisionsData = [
+      {
+        id: 101,
+        logId: 1,
+        changedTime: 0n,
+        principalStringId: 0,
+        verbTypeId: 1,
+        stateTypeId: 1,
+      },
+      {
+        id: 102,
+        logId: 2,
+        changedTime: 1000n,
+        principalStringId: 0,
+        verbTypeId: 1,
+        stateTypeId: 2,
+      },
+      {
+        id: 103,
+        logId: 3,
+        changedTime: 2000n,
+        principalStringId: 0,
+        verbTypeId: 1,
+        stateTypeId: 3,
+      },
+      {
+        id: 104,
+        logId: 4,
+        changedTime: 3000n,
+        principalStringId: 0,
+        verbTypeId: 1,
+        stateTypeId: 4,
+      },
+    ];
+    const eventsData = [
+      { id: 201, logId: 1 },
+      { id: 202, logId: 2 },
+      { id: 203, logId: 3 },
+    ];
+    const logsData = [
+      {
+        id: 1,
+        ts: 0n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 0,
+        body: undefined,
+      },
+      {
+        id: 2,
+        ts: 1000n,
+        logTypeId: 2,
+        severityTypeId: 1,
+        summaryStringId: 0,
+        body: undefined,
+      },
+      {
+        id: 3,
+        ts: 2000n,
+        logTypeId: 3,
+        severityTypeId: 1,
+        summaryStringId: 0,
+        body: undefined,
+      },
+      {
+        id: 4,
+        ts: 3000n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 0,
+        body: undefined,
+      },
+    ];
+
+    logStore.initialize(logsData, logsData.length);
+    timelineStore.initialize(timelineData, 1, revisionsData, 4, eventsData, 3);
+    return timelineStore.getTimeline(1) as Timeline;
+  }
 }
-
-const timeline = new ResourceTimeline(
-  '',
-  'core/v1#pods#default#foo',
-  [
-    createRevisionForRevisionState(RevisionState.RevisionStateInferred),
-    createRevisionForRevisionState(RevisionState.RevisionStateProvisioning),
-    createRevisionForRevisionState(RevisionState.RevisionStateDeleting),
-    createRevisionForRevisionState(RevisionState.RevisionStateDeleted),
-  ],
-  [
-    new ResourceEvent(0, 0, LogType.LogTypeAudit, Severity.SeverityInfo),
-    new ResourceEvent(0, 0, LogType.LogTypeComputeApi, Severity.SeverityInfo),
-    new ResourceEvent(0, 0, LogType.LogTypeGkeAudit, Severity.SeverityInfo),
-  ],
-  ParentRelationship.RelationshipChild,
-);
-
-const kind = new ResourceTimeline(
-  '',
-  'core/v1#default',
-  [],
-  [],
-  ParentRelationship.RelationshipChild,
-);
 
 export const Default: Story = {
   args: {
-    timeline,
-  },
-};
-
-export const NonResourceOrSubresource: Story = {
-  args: {
-    timeline: kind,
+    timeline: createMockTimeline(false),
   },
 };
 
