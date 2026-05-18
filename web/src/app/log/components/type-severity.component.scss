@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@use '../../zzz-generated' as gen;
-
 @use '@angular/material' as mat;
 
 $font-size: 12px;
@@ -43,7 +41,6 @@ $label-color: white;
 
 .log-type {
   flex: 1;
-  @include gen.log-type-shape-colors-for-all;
 
   color: white;
   padding: 0 8px;
@@ -52,7 +49,6 @@ $label-color: white;
 
 .log-severity {
   flex: 1;
-  @include gen.log-severity-colors-for-all;
 
   color: white;
   padding: 0 8px;

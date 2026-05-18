@@ -15,16 +15,18 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, computed, input, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 /**
  * Represents a view model for a single resource reference link.
  */
 export interface ResourceRefAnnotationViewModel {
   label: string;
-  path: string;
+  timelineId: number;
 }
 
 /**
@@ -37,7 +39,7 @@ export interface ResourceRefAnnotationViewModel {
   standalone: true,
   templateUrl: './resource-reference-list.component.html',
   styleUrl: './resource-reference-list.component.scss',
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, KHIIconRegistrationModule],
 })
 export class ResourceReferenceListComponent {
   /**
@@ -48,36 +50,29 @@ export class ResourceReferenceListComponent {
   /**
    * Input tracking the currently selected timeline to visually indicate selection state.
    */
-  selectedTimeline = input<ResourceTimeline | null>(null);
+  selectedTimeline = input<ReadonlyDomainElement<Timeline> | null>(null);
 
   /**
-   * Computed signal tracking the currently selected timeline path to visually indicate selection state.
+   * Output emitted when a timeline is clicked.
    */
-  currentSelectedTimelinePath = computed(() => {
-    return this.selectedTimeline()?.resourcePath ?? '';
-  });
+  timelineSelected = output<number>();
 
   /**
-   * Output emitted when a resource is clicked.
+   * Output emitted when a timeline is hovered.
    */
-  resourceSelected = output<string>();
+  timelineHighlighted = output<number>();
 
   /**
-   * Output emitted when a resource is hovered.
+   * Select the timeline by its ID.
    */
-  resourceHighlighted = output<string>();
-
-  /**
-   * Select the resource at the resource path.
-   */
-  public selectResource(resourcePath: string) {
-    this.resourceSelected.emit(resourcePath);
+  public selectResource(timelineId: number) {
+    this.timelineSelected.emit(timelineId);
   }
 
   /**
-   * Highlight the resource at the resource path.
+   * Highlight the timeline by its ID.
    */
-  public highlightResource(resourcePath: string) {
-    this.resourceHighlighted.emit(resourcePath);
+  public highlightResource(timelineId: number) {
+    this.timelineHighlighted.emit(timelineId);
   }
 }

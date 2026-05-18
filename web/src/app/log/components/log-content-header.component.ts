@@ -16,25 +16,26 @@
 
 import { Component, computed, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LogEntry } from 'src/app/store/log';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { CopiableKeyValueComponent } from 'src/app/shared/components/copiable-key-value/copiable-key-value.component';
 import {
   ResourceReferenceListComponent,
   ResourceRefAnnotationViewModel,
 } from './resource-reference-list.component';
-import { ResourceTimeline } from 'src/app/store/timeline';
-import { LogTypeMetadata } from 'src/app/zzz-generated';
-
+import { Timeline } from 'src/app/store/domain/timeline';
 import { LongTimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
 import { TypeSeverityComponent } from './type-severity.component';
+
+import { LogType, Severity } from 'src/app/store/domain/style';
 
 /**
  * Aggregates all the extracted view models required to render the log header,
  * including severity, type, timestamp, and related resource references.
  */
 export interface LogContentHeaderViewModel {
-  logType: string;
-  severity: string;
+  logType: LogType | null;
+  severity: Severity | null;
   timestamp: string;
   resourceRefs: ResourceRefAnnotationViewModel[];
 }
@@ -60,7 +61,7 @@ export class LogContentHeaderComponent {
   /**
    * The active `LogEntry` to display in the header.
    */
-  log = input<LogEntry | null>(null);
+  log = input<ReadonlyDomainElement<Log> | null>(null);
 
   /**
    * The timezone shift to apply to the timestamp.
@@ -70,23 +71,23 @@ export class LogContentHeaderComponent {
   /**
    * Output emitted when a resource timeline is clicked from the reference list.
    */
-  resourceSelected = output<string>();
+  timelineSelected = output<number>();
 
   /**
    * Output emitted when a resource timeline is hovered from the reference list.
    */
-  resourceHighlighted = output<string>();
+  timelineHighlighted = output<number>();
 
   /**
    * Input tracking the currently selected timeline to visually indicate selection state
    * in the resource reference list.
    */
-  selectedTimeline = input<ResourceTimeline | null>(null);
+  selectedTimeline = input<ReadonlyDomainElement<Timeline> | null>(null);
 
   /**
-   * The resolved paths for resource references associated with this log.
+   * The pre-resolved resource references associated with this log.
    */
-  referencedResourcePaths = input<string[]>([]);
+  resourceRefs = input<ResourceRefAnnotationViewModel[]>([]);
 
   /**
    * Computes the unified `LogContentHeaderViewModel` based on the current `log` input.
@@ -97,34 +98,21 @@ export class LogContentHeaderComponent {
     const l = this.log();
     if (!l || l.logIndex < 0) {
       return {
-        logType: '',
-        severity: '',
+        logType: null,
+        severity: null,
         timestamp: '',
         resourceRefs: [],
       };
     }
 
-    let resourceRefs = [] as ResourceRefAnnotationViewModel[];
-    const paths = this.referencedResourcePaths();
-    if (paths && paths.length > 0) {
-      resourceRefs = paths.map((path) => {
-        const splittedPath = path.split('#');
-        const resourceRefLabel = `${splittedPath[splittedPath.length - 1]} of ${splittedPath[splittedPath.length - 2]}`;
-        return {
-          label: resourceRefLabel,
-          path,
-        };
-      });
-    }
-
     return {
-      logType: LogTypeMetadata[l.logType]?.label ?? 'Unknown',
-      severity: l.logSeverityLabel ?? 'N/A',
+      logType: l.logType,
+      severity: l.severity,
       timestamp: LongTimestampFormatPipe.toLongDisplayTimestamp(
-        l.time,
+        l.legacyTimestampMs,
         this.timezoneShift(),
       ),
-      resourceRefs,
+      resourceRefs: this.resourceRefs(),
     };
   });
 }
