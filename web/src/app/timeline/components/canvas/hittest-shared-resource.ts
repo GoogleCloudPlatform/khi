@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { WebGLContextLostException } from './glcontextmanager';
 
 /**
@@ -22,7 +23,7 @@ import { WebGLContextLostException } from './glcontextmanager';
  */
 export interface HitTestResult {
   /** The timeline that was hit, or null if no timeline was hit. */
-  timeline: ResourceTimeline | null;
+  timeline: ReadonlyDomainElement<Timeline> | null;
   /** The index of the revision that was hit, if applicable. */
   revisionIndex?: number;
   /** The index of the event that was hit, if applicable. */
@@ -179,7 +180,7 @@ export class TimelineHitTestSharedResource {
     gl: WebGL2RenderingContext,
     x: number,
     y: number,
-    timeline: ResourceTimeline,
+    timeline: ReadonlyDomainElement<Timeline>,
   ): HitTestResult {
     const pixels = new Uint32Array(2);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.hittestFBO);
