@@ -28,6 +28,7 @@ $z-index-hover-overlay: 1500;
 $z-index-sticky-chart: 501;
 $z-index-chart: 6;
 $z-index-resizer: 1000;
+$sticky-header-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.6);
 
 // stick-to-header mixin is for the container element sticky to the header area.
 // margin-left is applied to align with the right grid area (header or chart) without considering the size of the gutter.
@@ -181,24 +182,15 @@ $z-index-resizer: 1000;
 }
 
 .chart-sticky-header {
-  height: 50px;
   @include stick-to-header(60px);
   z-index: $z-index-sticky-chart;
+  box-shadow: $sticky-header-shadow;
+  overflow: hidden;
 
-  .kind-placeholder {
-    height: 25px;
-    background-color: rgba(63, 81, 181, 0.9);
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.3);
-  }
-
-  .namespace-placeholder {
-    height: 25px;
-    background-color: rgba(100, 100, 100, 0.9);
-    position: relative;
-    z-index: 1;
-    box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.3);
+  khi-timeline-chart {
+    width: var(--content-render-width);
+    transform: translateX(var(--content-horizontal-offset));
+    will-change: transform;
   }
 }
 
@@ -332,6 +324,8 @@ $z-index-resizer: 1000;
 
   .sticky-index {
     grid-area: index;
+    align-self: start;
+    box-shadow: $sticky-header-shadow;
 
     .sticky-index-inner {
       pointer-events: all;
