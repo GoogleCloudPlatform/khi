@@ -17,8 +17,10 @@
 /**
  * Deeply readonly type to ensure domain objects cannot be mutated by the view.
  */
-export type ReadonlyDomainElement<T> =
-  T extends ReadonlyArray<infer U>
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+export type ReadonlyDomainElement<T> = T extends Function
+  ? T
+  : T extends ReadonlyArray<infer U>
     ? ReadonlyArray<ReadonlyDomainElement<U>>
     : T extends object
       ? { readonly [K in keyof T]: ReadonlyDomainElement<T[K]> }

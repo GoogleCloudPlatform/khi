@@ -18,13 +18,13 @@
 
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv1";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import { file_khifile_v6_shared } from "./shared_pb";
+import { file_khifile_shared } from "../shared_pb";
 
 /**
  * Describes the file khifile/v6/log.proto.
  */
 export const file_khifile_v6_log = /*@__PURE__*/
-  fileDesc("ChRraGlmaWxlL3Y2L2xvZy5wcm90bxIKa2hpZmlsZS52NiIpCghMb2dDaHVuaxIdCgRsb2dzGAEgAygLMg8ua2hpZmlsZS52Ni5Mb2cirQEKA0xvZxIKCgJpZBgBIAEoDRImCgJ0cxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKAoEYm9keRgDIAEoCzIaLmtoaWZpbGUudjYuSW50ZXJuZWRTdHJ1Y3QSGQoRc3VtbWFyeV9zdHJpbmdfaWQYBCABKA0SEwoLbG9nX3R5cGVfaWQYBSABKA0SGAoQc2V2ZXJpdHlfdHlwZV9pZBgGIAEoDUJHWkVnaXRodWIuY29tL0dvb2dsZUNsb3VkUGxhdGZvcm0va2hpL3BrZy9nZW5lcmF0ZWQva2hpZmlsZS92NjtraGlmaWxldjZiCGVkaXRpb25zcOgH", [file_google_protobuf_timestamp, file_khifile_v6_shared]);
+  fileDesc("ChRraGlmaWxlL3Y2L2xvZy5wcm90bxIKa2hpZmlsZS52NiIpCghMb2dDaHVuaxIdCgRsb2dzGAEgAygLMg8ua2hpZmlsZS52Ni5Mb2ciqgEKA0xvZxIKCgJpZBgBIAEoDRImCgJ0cxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJQoEYm9keRgDIAEoCzIXLmtoaWZpbGUuSW50ZXJuZWRTdHJ1Y3QSGQoRc3VtbWFyeV9zdHJpbmdfaWQYBCABKA0SEwoLbG9nX3R5cGVfaWQYBSABKA0SGAoQc2V2ZXJpdHlfdHlwZV9pZBgGIAEoDUJHWkVnaXRodWIuY29tL0dvb2dsZUNsb3VkUGxhdGZvcm0va2hpL3BrZy9nZW5lcmF0ZWQva2hpZmlsZS92NjtraGlmaWxldjZiCGVkaXRpb25zcOgH", [file_google_protobuf_timestamp, file_khifile_shared]);
 
 /**
  * Describes the message khifile.v6.LogChunk.

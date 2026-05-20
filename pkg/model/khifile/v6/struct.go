@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

@@ -14,12 +14,12 @@
 
 edition = "2023";
 
-package khifile.v6;
+package khifile;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6;khifilev6";
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile;khifile";
 
 // `InternedStruct` represents a structured data value, consisting of fields
 // corresponding to a FieldPath.
