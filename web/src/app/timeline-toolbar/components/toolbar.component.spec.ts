@@ -91,4 +91,22 @@ describe('ToolbarComponent', () => {
     // The state should be toggled
     expect(component.hideSubresourcesWithoutMatchingLogs()).toBeTrue();
   });
+
+  it('should emit switchToAdvanced when advanced button is clicked', () => {
+    let emitted = false;
+    component.switchToAdvanced.subscribe(() => (emitted = true));
+
+    const buttons = fixture.debugElement.queryAll(
+      By.css('button[mat-icon-button]'),
+    );
+    const advancedButton = buttons.find(
+      (btn) =>
+        btn.nativeElement.getAttribute('matTooltip') ===
+        'Switch to advanced filter mode',
+    );
+    expect(advancedButton).toBeTruthy();
+
+    advancedButton!.nativeElement.click();
+    expect(emitted).toBeTrue();
+  });
 });

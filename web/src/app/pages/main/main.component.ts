@@ -23,6 +23,7 @@ import {
   viewChild,
   ElementRef,
   ViewContainerRef,
+  signal,
 } from '@angular/core';
 import { LayoutService } from 'src/app/services/layout/layout.service';
 import { Subject, takeUntil } from 'rxjs';
@@ -42,6 +43,7 @@ import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
+import { TimelineToolbarAdvancedSmartComponent } from 'src/app/timeline-toolbar-advanced/timeline-toolbar-advanced-smart.component';
 import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
 import {
   RequestUserActionPopupComponent,
@@ -65,12 +67,16 @@ import {
     CommonModule,
     HeaderSmartComponent,
     TimelineToolbarSmartComponent,
+    TimelineToolbarAdvancedSmartComponent,
     MatIconModule,
     KHIIconRegistrationModule,
   ],
   providers: [LayoutService, MenuManager],
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
+  /** Whether the advanced toolbar mode is active. */
+  protected readonly isAdvancedMode = signal<boolean>(false);
+
   /** Store for extension data. */
   private readonly extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
 

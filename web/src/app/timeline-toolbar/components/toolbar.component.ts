@@ -72,6 +72,7 @@ export class ToolbarComponent {
 
   // Outputs (Outputs)
   readonly drawDiagram = output<void>();
+  readonly switchToAdvanced = output<void>();
 
   protected readonly ToolbarPopupStatus = ToolbarPopupStatus;
 

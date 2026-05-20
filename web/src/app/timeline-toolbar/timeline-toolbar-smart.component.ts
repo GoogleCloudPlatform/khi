@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, inject } from '@angular/core';
+import { Component, OnDestroy, inject, output } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
@@ -44,6 +44,11 @@ import {
 })
 export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly viewStateService = inject(ViewStateService);
+
+  /**
+   * Emits an event to switch to advanced mode.
+   */
+  readonly switchToAdvanced = output<void>();
   private readonly selectionManager = inject(SelectionManagerService);
   private readonly timelineFilter = inject<TimelineFilter>(
     DEFAULT_TIMELINE_FILTER,

@@ -19,6 +19,15 @@ limitations under the License.
     <div class="toolbar-grid">
       <div class="smaller-input left-control">
         <div class="button-group">
+          <!-- Switch to advanced mode button -->
+          <button
+            mat-icon-button
+            color="primary"
+            (click)="switchToAdvanced.emit()"
+            matTooltip="Switch to advanced filter mode"
+          >
+            <mat-icon>search_gear</mat-icon>
+          </button>
           <!--Kind filter-->
           <button
             mat-stroked-button
