@@ -46,7 +46,7 @@ describe('HeaderComponent', () => {
   });
 
   it('should render version badge', () => {
-    fixture.componentRef.setInput('version', '1.2.3');
+    fixture.componentRef.setInput('version', 'v1.2.3');
     fixture.detectChanges();
 
     const badgeEl = fixture.debugElement.query(By.css('.version-badge'));
