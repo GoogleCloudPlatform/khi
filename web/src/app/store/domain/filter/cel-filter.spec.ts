@@ -56,7 +56,7 @@ describe('CelTimelineFilter', () => {
     });
 
     const filter = new CelTimelineFilter();
-    const res = filter.updateFilter("timeline.name == 'T1'");
+    const res = filter.updateFilter("t.name == 'T1'");
     expect(res.success).toBe(true);
 
     const context: LogTimelineFilterContext = {
@@ -86,7 +86,7 @@ describe('CelTimelineFilter', () => {
 
   it('should return error and not filter context when updateFilter is called with an invalid expression', () => {
     const filter = new CelTimelineFilter();
-    const res = filter.updateFilter("timeline.name == 'T1");
+    const res = filter.updateFilter("t.name == 'T1");
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
 
@@ -105,9 +105,9 @@ describe('CelTimelineFilter', () => {
 
   it('should reset evaluator and return original context if an invalid expression is provided after a valid one', () => {
     const filter = new CelTimelineFilter();
-    filter.updateFilter("timeline.name == 'T1'");
+    filter.updateFilter("t.name == 'T1'");
 
-    const res = filter.updateFilter("timeline.name == 'T1");
+    const res = filter.updateFilter("t.name == 'T1");
     expect(res.success).toBe(false);
 
     const context: LogTimelineFilterContext = {
@@ -157,7 +157,7 @@ describe('CelLogFilter', () => {
     });
 
     const filter = new CelLogFilter();
-    const res = filter.updateFilter("log.summary == 'L1'");
+    const res = filter.updateFilter("l.summary == 'L1'");
     expect(res.success).toBe(true);
 
     const context: LogTimelineFilterContext = {
@@ -187,7 +187,7 @@ describe('CelLogFilter', () => {
 
   it('should return error and not filter context when updateFilter is called with an invalid expression', () => {
     const filter = new CelLogFilter();
-    const res = filter.updateFilter("log.summary == 'L1");
+    const res = filter.updateFilter("l.summary == 'L1");
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
 
@@ -206,9 +206,9 @@ describe('CelLogFilter', () => {
 
   it('should reset evaluator and return original context if an invalid expression is provided after a valid one', () => {
     const filter = new CelLogFilter();
-    filter.updateFilter("log.summary == 'L1'");
+    filter.updateFilter("l.summary == 'L1'");
 
-    const res = filter.updateFilter("log.summary == 'L1");
+    const res = filter.updateFilter("l.summary == 'L1");
     expect(res.success).toBe(false);
 
     const context: LogTimelineFilterContext = {
@@ -256,7 +256,7 @@ describe('CelLogFilter', () => {
     });
 
     const filter = new CelLogFilter();
-    const res = filter.updateFilter('log.severity >= ERROR');
+    const res = filter.updateFilter('l.severity >= ERROR');
     expect(res.success).toBe(true);
 
     const context: LogTimelineFilterContext = {

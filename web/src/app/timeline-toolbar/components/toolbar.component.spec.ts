@@ -48,20 +48,6 @@ describe('ToolbarComponent', () => {
     expect(component.timezoneShift()).toBe(0);
   });
 
-  it('should display the count of included kinds when showButtonLabel is true', () => {
-    // Set inputs
-    fixture.componentRef.setInput('showButtonLabel', true);
-    fixture.componentRef.setInput('kinds', new Set(['pod', 'service', 'node']));
-    component.includedKinds.set(new Set(['pod', 'service']));
-
-    fixture.detectChanges();
-
-    const element = fixture.debugElement.nativeElement;
-    // The template renders something like "Kinds2/3" (without spacing in the indicator span)
-    expect(element.textContent).toContain('Kinds');
-    expect(element.textContent).toContain('2/3');
-  });
-
   it('should emit drawDiagram when draw button is clicked', () => {
     let emitted = false;
     component.drawDiagram.subscribe(() => (emitted = true));
@@ -80,16 +66,16 @@ describe('ToolbarComponent', () => {
     expect(emitted).toBeTrue();
   });
 
-  it('should toggle hideSubresourcesWithoutMatchingLogs model when toggle in template is clicked', () => {
+  it('should toggle hideTimelinesWithoutMatchingLogs model when toggle in template is clicked', () => {
     const toggles = fixture.debugElement.queryAll(By.css('mat-button-toggle'));
-    expect(toggles.length).toBe(2);
+    expect(toggles.length).toBe(1);
 
-    const subresourceToggle = toggles[0];
-    subresourceToggle.nativeElement.querySelector('button').click();
+    const toggle = toggles[0];
+    toggle.nativeElement.querySelector('button').click();
     fixture.detectChanges();
 
     // The state should be toggled
-    expect(component.hideSubresourcesWithoutMatchingLogs()).toBeTrue();
+    expect(component.hideTimelinesWithoutMatchingLogs()).toBeTrue();
   });
 
   it('should emit switchToAdvanced when advanced button is clicked', () => {

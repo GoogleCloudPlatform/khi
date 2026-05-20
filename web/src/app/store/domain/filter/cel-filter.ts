@@ -83,13 +83,13 @@ export interface CELTimeline {
  * Function type representing the evaluation of a timeline context against a CEL expression.
  */
 export type TimelineEvaluator = (context: {
-  readonly timeline: CELTimeline;
+  readonly t: CELTimeline;
 }) => boolean;
 
 /**
  * Function type representing the evaluation of a log context against a CEL expression.
  */
-export type LogEvaluator = (context: { readonly log: CELLog }) => boolean;
+export type LogEvaluator = (context: { readonly l: CELLog }) => boolean;
 
 /**
  * Represents the result of updating a CEL filter expression.
@@ -155,7 +155,7 @@ export class CelTimelineFilter implements LogTimelineFilter {
           revisions: 'list',
         },
       })
-      .registerVariable('timeline', 'Timeline')
+      .registerVariable('t', 'Timeline')
       .registerVariable('UNKNOWN', 'int')
       .registerVariable('INFO', 'int')
       .registerVariable('WARNING', 'int')
@@ -215,7 +215,7 @@ export class CelTimelineFilter implements LogTimelineFilter {
     const passedTimelineIds = new Set<number>();
     for (const id of context.timelineIds) {
       const t = timelineStore.getTimeline(id);
-      if (evalFn({ timeline: this.toCelTimeline(t) })) {
+      if (evalFn({ t: this.toCelTimeline(t) })) {
         passedTimelineIds.add(id);
       }
     }
@@ -288,7 +288,7 @@ export class CelLogFilter implements LogTimelineFilter {
           summary: 'string',
         },
       })
-      .registerVariable('log', 'Log')
+      .registerVariable('l', 'Log')
       .registerVariable('UNKNOWN', 'int')
       .registerVariable('INFO', 'int')
       .registerVariable('WARNING', 'int')
@@ -347,7 +347,7 @@ export class CelLogFilter implements LogTimelineFilter {
     const passedLogIds = new Set<number>();
     for (const id of context.logIds) {
       const log = timelineStore.logStore.getLog(id);
-      if (evalFn({ log: this.toCelLog(log) })) {
+      if (evalFn({ l: this.toCelLog(log) })) {
         passedLogIds.add(id);
       }
     }

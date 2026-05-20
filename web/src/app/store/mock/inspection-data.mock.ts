@@ -174,6 +174,30 @@ export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
       sortPriority: 5,
       height: 0.6,
     },
+    {
+      id: 6,
+      label: 'Cloud Composer',
+      description: 'Cloud Composer related resources',
+      icon: 'page_info',
+      backgroundColor: parseHexColor('#ff1111'),
+      foregroundColor: parseHexColor('#ffffff'),
+      typeChipBackgroundColor: parseHexColor('#ffffff'),
+      visible: true,
+      sortPriority: 0,
+      height: 0.7,
+    },
+    {
+      id: 7,
+      label: 'Airflow worker logs',
+      description: 'Cloud Composer worker logs',
+      icon: 'page_info',
+      backgroundColor: parseHexColor('#f0fff0'),
+      foregroundColor: parseHexColor('#000000'),
+      typeChipBackgroundColor: parseHexColor('#ffffff'),
+      visible: true,
+      sortPriority: 0,
+      height: 1,
+    },
   ]);
 
   // 1-4. Verb Definitions
@@ -242,6 +266,9 @@ export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
   const deploymentNameCorednsStringId = idState.nextStringId++;
   const subresourceStatusStringId = idState.nextStringId++;
 
+  const composerTimelineStringId = idState.nextStringId++;
+  const airflowWorkerTimelineStringId = idState.nextStringId++;
+
   // Dynamic timeline strings
   const apiStrings: number[] = [];
   const kindStrings: number[] = [];
@@ -266,6 +293,8 @@ export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
     { id: namespaceKubeSystemStringId, value: 'kube-system' },
     { id: deploymentNameCorednsStringId, value: 'coredns' },
     { id: subresourceStatusStringId, value: 'status' },
+    { id: composerTimelineStringId, value: 'Cloud Composer' },
+    { id: airflowWorkerTimelineStringId, value: 'Airflow worker logs' },
   ];
 
   for (let i = 0; i < 10; i++) {
@@ -356,6 +385,38 @@ export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
   const timelines: TimelineDTO[] = [
     {
       id: 1,
+      timelineTypeId: 6,
+      nameStringId: composerTimelineStringId,
+      parentTimelineId: 0,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 2,
+      timelineTypeId: 7,
+      nameStringId: airflowWorkerTimelineStringId,
+      parentTimelineId: 1,
+      revisionIds: [],
+      eventIds: [1],
+    },
+    {
+      id: 3,
+      timelineTypeId: 7,
+      nameStringId: airflowWorkerTimelineStringId,
+      parentTimelineId: 1,
+      revisionIds: [],
+      eventIds: [1],
+    },
+    {
+      id: 4,
+      timelineTypeId: 7,
+      nameStringId: airflowWorkerTimelineStringId,
+      parentTimelineId: 1,
+      revisionIds: [],
+      eventIds: [1],
+    },
+    {
+      id: 5,
       timelineTypeId: 1, // APIVersion
       nameStringId: apiVersionStringId,
       parentTimelineId: 0,
@@ -363,65 +424,33 @@ export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
       eventIds: [],
     },
     {
-      id: 2,
+      id: 6,
       timelineTypeId: 2, // Kind
       nameStringId: kindStringId,
-      parentTimelineId: 1,
-      revisionIds: [],
-      eventIds: [],
-    },
-    {
-      id: 3,
-      timelineTypeId: 3, // Namespace
-      nameStringId: namespaceStringId,
-      parentTimelineId: 2,
-      revisionIds: [],
-      eventIds: [],
-    },
-    {
-      id: 4,
-      timelineTypeId: 4, // Resource
-      nameStringId: podNameStringId,
-      parentTimelineId: 3,
-      revisionIds: [1],
-      eventIds: [1],
-    },
-    {
-      id: 5,
-      timelineTypeId: 5, // SubResource
-      nameStringId: subresourceStringId,
-      parentTimelineId: 4,
-      revisionIds: [],
-      eventIds: [],
-    },
-    {
-      id: 6,
-      timelineTypeId: 4, // Resource
-      nameStringId: podNameMockPod2StringId,
-      parentTimelineId: 3,
+      parentTimelineId: 5,
       revisionIds: [],
       eventIds: [],
     },
     {
       id: 7,
-      timelineTypeId: 1, // APIVersion
-      nameStringId: apiVersionAppsV1StringId,
-      parentTimelineId: 0,
+      timelineTypeId: 3, // Namespace
+      nameStringId: namespaceStringId,
+      parentTimelineId: 6,
       revisionIds: [],
       eventIds: [],
     },
     {
       id: 8,
-      timelineTypeId: 2, // Kind
-      nameStringId: kindDeploymentStringId,
+      timelineTypeId: 4, // Resource
+      nameStringId: podNameStringId,
       parentTimelineId: 7,
-      revisionIds: [],
-      eventIds: [],
+      revisionIds: [1],
+      eventIds: [1],
     },
     {
       id: 9,
-      timelineTypeId: 3, // Namespace
-      nameStringId: namespaceKubeSystemStringId,
+      timelineTypeId: 5, // SubResource
+      nameStringId: subresourceStringId,
       parentTimelineId: 8,
       revisionIds: [],
       eventIds: [],
@@ -429,22 +458,54 @@ export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
     {
       id: 10,
       timelineTypeId: 4, // Resource
-      nameStringId: deploymentNameCorednsStringId,
-      parentTimelineId: 9,
+      nameStringId: podNameMockPod2StringId,
+      parentTimelineId: 7,
       revisionIds: [],
       eventIds: [],
     },
     {
       id: 11,
+      timelineTypeId: 1, // APIVersion
+      nameStringId: apiVersionAppsV1StringId,
+      parentTimelineId: 0,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 12,
+      timelineTypeId: 2, // Kind
+      nameStringId: kindDeploymentStringId,
+      parentTimelineId: 11,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 13,
+      timelineTypeId: 3, // Namespace
+      nameStringId: namespaceKubeSystemStringId,
+      parentTimelineId: 12,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 14,
+      timelineTypeId: 4, // Resource
+      nameStringId: deploymentNameCorednsStringId,
+      parentTimelineId: 13,
+      revisionIds: [],
+      eventIds: [],
+    },
+    {
+      id: 15,
       timelineTypeId: 5, // SubResource
       nameStringId: subresourceStatusStringId,
-      parentTimelineId: 10,
+      parentTimelineId: 14,
       revisionIds: [],
       eventIds: [],
     },
   ];
 
-  let nextTimelineId = 12;
+  let nextTimelineId = 16;
   let mockItemIndex = 2;
 
   const resourceTimelineIds: number[] = [];

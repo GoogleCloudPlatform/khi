@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { Severity } from 'src/app/zzz-generated';
 import { HistogramCache } from './misc/histogram-cache';
 import {
   getRulerStep,
@@ -96,10 +95,6 @@ export enum TickImportance {
   High,
 }
 
-const severities = Object.values(Severity).filter(
-  (s) => !isNaN(Number(s)),
-) as Severity[];
-
 /**
  * RulerViewModelBuilder calculates the view model for the timeline ruler.
  * It determines the appropriate time step (tick interval) based on the zoom level,
@@ -175,12 +170,12 @@ export class RulerViewModelBuilder {
     // Initialize windows using a loop for performance
     for (let i = 0; i < histogramData.bucketCount; i++) {
       windows[i] = { all: {}, highlighted: {} } as HistogramBucketViewModel;
-      for (const severity of severities) {
-        windows[i].all[severity] =
-          histogramData.logRatios[severity][i] /
+      for (const severity of allLogsHistogramCache.severities) {
+        windows[i].all[severity.id] =
+          histogramData.logRatios[severity.id][i] /
           histogramData.maxBucketSumRatio;
-        windows[i].highlighted[severity] =
-          filteredHistogramData.logRatios[severity][i] /
+        windows[i].highlighted[severity.id] =
+          filteredHistogramData.logRatios[severity.id][i] /
           histogramData.maxBucketSumRatio;
       }
     }

@@ -29,12 +29,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 })
 export class ToolbarSettingsComponent {
   /**
-   * Holds the two-way bound option to hide subresources without matching logs.
+   * Holds the two-way bound option to hide timelines without matching logs.
    */
-  readonly hideSubresourcesWithoutMatchingLogs = model(false);
-
-  /**
-   * Holds the two-way bound option to hide resources without matching logs.
-   */
-  readonly hideResourcesWithoutMatchingLogs = model(false);
+  readonly hideTimelinesWithoutMatchingLogs = model(false);
 }

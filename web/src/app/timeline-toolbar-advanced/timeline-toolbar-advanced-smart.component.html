@@ -19,20 +19,14 @@
   [logCelError]="logCelError() || ''"
   [timezoneShift]="timezoneShift() || 0"
   [logOrTimelineNotSelected]="logOrTimelineNotSelected() || false"
-  [hideSubresourcesWithoutMatchingLogs]="
-    hideSubresourcesWithoutMatchingLogs() || false
-  "
-  [hideResourcesWithoutMatchingLogs]="
-    hideResourcesWithoutMatchingLogs() || false
+  [hideTimelinesWithoutMatchingLogs]="
+    hideTimelinesWithoutMatchingLogs() || false
   "
   (timezoneShiftChange)="onTimezoneshiftCommit($event)"
   (timelineCelFilterChange)="onTimelineCelFilterChange($event)"
   (logCelFilterChange)="onLogCelFilterChange($event)"
-  (hideSubresourcesWithoutMatchingLogsChange)="
-    onToggleHideSubresourcesWithoutMatchingLogs($event)
-  "
-  (hideResourcesWithoutMatchingLogsChange)="
-    onToggleHideResourcesWithoutMatchingLogs($event)
+  (hideTimelinesWithoutMatchingLogsChange)="
+    onToggleHideTimelinesWithoutMatchingLogs($event)
   "
   (drawDiagram)="onDrawDiagram()"
   (switchToStandard)="switchToStandard.emit()"

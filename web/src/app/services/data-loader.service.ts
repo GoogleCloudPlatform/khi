@@ -46,6 +46,10 @@ import {
 } from '../common/loader/reference-resolver';
 import { ToTextReferenceFromKHIFileBinary } from '../common/loader/reference-type';
 import { ProgressUtil } from './progress/progress-util';
+import { KHIFileParser } from 'src/app/parser/core/file-parser';
+import { V6_BLUEPRINT } from 'src/app/parser/v6/blueprint';
+import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { ProgressReporter } from 'src/app/services/progress/progress-interface';
 
 @Injectable()
 export class InspectionDataLoaderService {
@@ -53,6 +57,7 @@ export class InspectionDataLoaderService {
     PROGRESS_DIALOG_STATUS_UPDATOR,
   );
   private readonly inspectionDataStore = inject(InspectionDataStoreService);
+  private readonly inspectionDataStoreV2 = inject(InspectionDataStoreV2);
   private readonly backendService = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 
@@ -327,38 +332,69 @@ export class InspectionDataLoaderService {
         );
         return;
       }
-      const jsonSizeOffset = 3;
-      const jsonDataOffset = jsonSizeOffset + Uint32Array.BYTES_PER_ELEMENT;
-      const fileDataView = new DataView(rawInspectionData);
-      const metaDataPart = fileDataView.getUint32(jsonSizeOffset, true);
-      const jsonPartBytes = new Uint8Array(
-        rawInspectionData,
-        jsonDataOffset,
-        metaDataPart,
-      );
-      const textDecoder = new TextDecoder();
-      const parsedJsonData = JSON.parse(textDecoder.decode(jsonPartBytes));
-      const textBuffers = await this.decodeBuffers(
-        rawInspectionData,
-        jsonDataOffset + metaDataPart,
-      );
 
-      const resolver = new ReferenceResolverStore([
-        new KHIFileReferenceResolver(textBuffers),
-        new NullReferenceResolver(),
-      ]);
-      const khiInspectionViewModel = await this.responseDataToViewInspection(
-        parsedJsonData,
-        resolver,
-      );
+      const dv = new DataView(rawInspectionData);
+      const version = dv.getUint8(3);
 
-      this.extension.notifyLifecycleOnInspectionDataOpen(
-        khiInspectionViewModel,
-        resolver,
-        rawInspectionData,
-      );
+      if (version === 6) {
+        const parser = new KHIFileParser({ 6: V6_BLUEPRINT });
+        const progressReporter: ProgressReporter = {
+          reportProgress: (percent?: number) => {
+            this.progress.updateProgress({
+              percent: percent ?? 0,
+              message: 'Parsing inspection data...',
+              mode:
+                typeof percent === 'number' ? 'determinate' : 'indeterminate',
+            });
+          },
+          reportMessage: (message: string) => {
+            this.progress.updateProgress({
+              percent: 0,
+              message,
+              mode: 'indeterminate',
+            });
+          },
+          complete: () => {},
+        };
+        const parsedData = await parser.parse(
+          rawInspectionData,
+          progressReporter,
+        );
+        this.inspectionDataStoreV2.setNewInspectionData(parsedData);
+      } else {
+        const jsonSizeOffset = 3;
+        const jsonDataOffset = jsonSizeOffset + Uint32Array.BYTES_PER_ELEMENT;
+        const fileDataView = new DataView(rawInspectionData);
+        const metaDataPart = fileDataView.getUint32(jsonSizeOffset, true);
+        const jsonPartBytes = new Uint8Array(
+          rawInspectionData,
+          jsonDataOffset,
+          metaDataPart,
+        );
+        const textDecoder = new TextDecoder();
+        const parsedJsonData = JSON.parse(textDecoder.decode(jsonPartBytes));
+        const textBuffers = await this.decodeBuffers(
+          rawInspectionData,
+          jsonDataOffset + metaDataPart,
+        );
 
-      this.inspectionDataStore.setNewInspectionData(khiInspectionViewModel);
+        const resolver = new ReferenceResolverStore([
+          new KHIFileReferenceResolver(textBuffers),
+          new NullReferenceResolver(),
+        ]);
+        const khiInspectionViewModel = await this.responseDataToViewInspection(
+          parsedJsonData,
+          resolver,
+        );
+
+        this.extension.notifyLifecycleOnInspectionDataOpen(
+          khiInspectionViewModel,
+          resolver,
+          rawInspectionData,
+        );
+
+        this.inspectionDataStore.setNewInspectionData(khiInspectionViewModel);
+      }
     } catch (e) {
       console.error(e);
       alert(

@@ -37,11 +37,9 @@ describe('ToolbarSettingsComponent', () => {
   });
 
   it('should bind inputs correctly', () => {
-    fixture.componentRef.setInput('hideSubresourcesWithoutMatchingLogs', true);
-    fixture.componentRef.setInput('hideResourcesWithoutMatchingLogs', false);
+    fixture.componentRef.setInput('hideTimelinesWithoutMatchingLogs', true);
     fixture.detectChanges();
 
-    expect(component.hideSubresourcesWithoutMatchingLogs()).toBeTrue();
-    expect(component.hideResourcesWithoutMatchingLogs()).toBeFalse();
+    expect(component.hideTimelinesWithoutMatchingLogs()).toBeTrue();
   });
 });

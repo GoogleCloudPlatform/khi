@@ -29,7 +29,6 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RegexInputComponent } from './regex-input.component';
-import { SetInputPopupComponent } from './set-input-popup.component';
 
 export enum ToolbarPopupStatus {
   None = 'NONE_OPEN',
@@ -44,7 +43,6 @@ export enum ToolbarPopupStatus {
   styleUrls: ['./toolbar.component.scss'],
   imports: [
     CommonModule,
-    SetInputPopupComponent,
     MatIconModule,
     OverlayModule,
     RegexInputComponent,
@@ -65,8 +63,7 @@ export class ToolbarComponent {
   readonly includedSubresourceRelationships = model<Set<string>>(new Set());
   readonly timezoneShift = model(0);
   readonly logOrTimelineNotSelected = input(true);
-  readonly hideSubresourcesWithoutMatchingLogs = model(false);
-  readonly hideResourcesWithoutMatchingLogs = model(false);
+  readonly hideTimelinesWithoutMatchingLogs = model(false);
   readonly nameFilter = model('');
   readonly logFilter = model('');
 

@@ -196,7 +196,7 @@ describe('StyleStore', () => {
         id: 2,
         label: 'Pod',
         description: 'Pod lifecycle timeline',
-        icon: 'description',
+        icon: 'pod',
         backgroundColor: mockColor,
         foregroundColor: mockColor,
         typeChipBackgroundColor: mockColor,
@@ -208,7 +208,7 @@ describe('StyleStore', () => {
         id: 5,
         label: 'Node',
         description: 'Node lifecycle timeline',
-        icon: 'folder',
+        icon: 'node',
         backgroundColor: mockColor,
         foregroundColor: mockColor,
         typeChipBackgroundColor: mockColor,
@@ -222,12 +222,6 @@ describe('StyleStore', () => {
   });
 
   describe('IconAtlas', () => {
-    it('should throw an error if getIconAtlas is called before setIconAtlas', () => {
-      expect(() => store.getIconAtlas()).toThrowError(
-        'IconAtlas is not yet loaded',
-      );
-    });
-
     it('should initialize and retrieve IconAtlas correctly', async () => {
       const mockPngBuffer = new Uint8Array([
         137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0,
@@ -265,11 +259,14 @@ describe('StyleStore', () => {
       await store.setIconAtlas(dto);
 
       const retrieved = store.getIconAtlas();
-      expect(retrieved.msdfIconImage.length).toBe(1);
-      expect(retrieved.msdfIconImage[0] instanceof HTMLImageElement).toBeTrue();
-      expect((retrieved.msdfIconImage[0] as HTMLImageElement).width).toBe(1);
-      expect(retrieved.bmfontJson.pages).toEqual(['page1']);
-      expect(retrieved.nameToCodepoints).toEqual(mockCodepoints);
+      expect(retrieved).toBeDefined();
+      expect(retrieved!.msdfIconImage.length).toBe(1);
+      expect(
+        retrieved!.msdfIconImage[0] instanceof HTMLImageElement,
+      ).toBeTrue();
+      expect((retrieved!.msdfIconImage[0] as HTMLImageElement).width).toBe(1);
+      expect(retrieved!.bmfontJson.pages).toEqual(['page1']);
+      expect(retrieved!.nameToCodepoints).toEqual(mockCodepoints);
     });
   });
 });

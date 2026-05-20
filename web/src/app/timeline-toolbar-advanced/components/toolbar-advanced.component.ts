@@ -78,14 +78,9 @@ export class ToolbarAdvancedComponent {
   readonly logCelError = input('');
 
   /**
-   * Holds the two-way bound option to hide subresources without matching logs.
+   * Holds the two-way bound option to hide timelines without matching logs.
    */
-  readonly hideSubresourcesWithoutMatchingLogs = model(false);
-
-  /**
-   * Holds the two-way bound option to hide resources without matching logs.
-   */
-  readonly hideResourcesWithoutMatchingLogs = model(false);
+  readonly hideTimelinesWithoutMatchingLogs = model(false);
 
   /**
    * Holds the two-way bound timeline CEL filter string.

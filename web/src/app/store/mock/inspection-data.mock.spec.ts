@@ -29,12 +29,12 @@ describe('inspection-data.mock', () => {
       expect(mockData.metadata).toBeDefined();
 
       const timelines = mockData.timelineStore.timelines;
-      expect(timelines.length).toBe(111121);
+      expect(timelines.length).toBe(111125);
 
       const leaf = mockData.timelineStore.getTimeline(4);
       expect(leaf.id).toBe(4);
-      expect(leaf.name).toBe('mock-pod-1');
-      expect(leaf.parent?.id).toBe(3);
+      expect(leaf.name).toBe('Airflow worker logs');
+      expect(leaf.parent?.id).toBe(1);
 
       expect(mockData.logStore.count).toBe(130001);
 

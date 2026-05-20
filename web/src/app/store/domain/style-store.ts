@@ -269,10 +269,7 @@ export class StyleStore {
    * Gets the loaded icon atlas.
    * @returns The parsed and initialized icon atlas.
    */
-  public getIconAtlas(): IconAtlas {
-    if (!this.iconAtlas) {
-      throw new Error('IconAtlas is not yet loaded');
-    }
+  public getIconAtlas(): IconAtlas | undefined {
     return this.iconAtlas;
   }
 }
