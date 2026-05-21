@@ -39,7 +39,8 @@ import { bisectLeft } from '../../common/misc-util';
 
 class LogListScrollingStrategy extends FixedSizeVirtualScrollStrategy {
   constructor() {
-    super(14.5, 500, 1000);
+    // heght:12px + border-bottom: 0.2px
+    super(12.2, 500, 1000);
   }
 }
 
