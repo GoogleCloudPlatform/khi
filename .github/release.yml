@@ -17,13 +17,28 @@ changelog:
     - title: New features 🎉
       labels:
         - features
+    - title: Bug Fixes 🐛
+      labels:
+        - bug
+    - title: CI/CD ⚙️
+      labels:
+        - cicd
+    - title: Development Environment 💻
+      labels:
+        - devenv
+    - title: Documentation 📝
+      labels:
+        - documentation
     - title: Other Changes 🛠
       labels:
         - "*"
       exclude:
         labels:
           - features
-          - dependencies
+          - bug
+          - cicd
+          - devenv
+          - documentation
     - title: Dependencies ⏫
       labels:
         - dependencies
