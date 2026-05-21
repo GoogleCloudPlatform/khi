@@ -720,6 +720,10 @@ export class TimelineFrameComponent implements AfterViewInit {
     // Updates the viewportLeftTimeMs property when the curosrTime is updated if that is outside of the viewport.
     effect(() => {
       const cursorTime = this.cursorTimeMS();
+      if (cursorTime === 0) {
+        // Do not scroll when there is no active log selection.
+        return;
+      }
       const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
       const viewportWidth = untracked(this.viewportWidth);
       const pixelsPerMs = untracked(this.pixelsPerMs);
