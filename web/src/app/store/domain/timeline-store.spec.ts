@@ -43,10 +43,13 @@ describe('TimelineStore', () => {
         id: 1,
         label: 'type-a',
         description: 'desc',
+        icon: '',
         backgroundColor: mockColor,
         foregroundColor: mockColor,
+        typeChipBackgroundColor: mockColor,
         visible: true,
         sortPriority: 0,
+        height: 1,
       },
     ]);
 
