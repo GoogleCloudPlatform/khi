@@ -332,6 +332,25 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
+   * Returns the actual timeline that contains the currently selected log.
+   */
+  protected readonly selectedLogTimeline = computed(() => {
+    const logIndexStr = this.selectedLogIndex();
+    if (logIndexStr === null) {
+      return null;
+    }
+    const logIndex = Number(logIndexStr);
+    const timelines = this.timelines();
+    return (
+      timelines.find(
+        (timeline) =>
+          timeline.events.some((e) => e.logIndex === logIndex) ||
+          timeline.revisions.some((r) => r.logIndex === logIndex),
+      ) ?? null
+    );
+  });
+
+  /**
    * current cursor position time in milliseconds.
    */
   readonly cursorTimeMS = input<number>(0);
@@ -649,7 +668,7 @@ export class TimelineFrameComponent implements AfterViewInit {
    * The current action that is being performed.
    * This is defined not to move and scale at the same frame.
    */
-  private currrentAction: 'moving' | 'scaling' | 'none' = 'none';
+  private currentAction: 'moving' | 'scaling' | 'none' = 'none';
 
   /**
    * The source of truth for the horizontal scroll position.
@@ -659,6 +678,12 @@ export class TimelineFrameComponent implements AfterViewInit {
    * This property is usually kept as "property" but changed to "scroll" only when users triggers scrolling animation.
    */
   private horizontalScrollSourceOfTruth: 'scroll' | 'property' = 'property';
+
+  /**
+   * A scroll may register an event handler and it must be ignored on the next frame.
+   * This is the current event ID to let the even handler to know if the handler is obsolete.
+   */
+  private currentScrollEventID = 0;
 
   constructor() {
     // Updates the scrollLeft property of the container element when the viewportLeftTimeMS changes.
@@ -677,10 +702,28 @@ export class TimelineFrameComponent implements AfterViewInit {
       if (this.horizontalScrollSourceOfTruth === 'scroll') {
         return;
       }
-      container.nativeElement.scrollLeft = calculator.timeMSToOffsetLeft(
-        vpLT,
-        pixelsPerMs,
-      );
+      const targetScrollLeft = calculator.timeMSToOffsetLeft(vpLT, pixelsPerMs);
+      // The scroll target may take few frames to complete its resize.
+      // If the element is smaller than the expected size, wait a frame to apply. If it failed on the next frame, it'll retry the next frame and so on.
+      this.currentScrollEventID++;
+      const scrollEventID = this.currentScrollEventID;
+      const moveToTargetScroll = () => {
+        container.nativeElement.scrollLeft = targetScrollLeft;
+        if (scrollEventID === this.currentScrollEventID) {
+          if (
+            Math.abs(container.nativeElement.scrollLeft - targetScrollLeft) < 1
+          ) {
+            // scroll position is matching with the target. Finish the scaling behavior.
+            this.currentAction = 'none';
+          } else {
+            // scroll position is not matching with the target. Retry on the next frame.
+            this.renderingLoopManager.registerOnceBeforeRenderHandler(
+              moveToTargetScroll,
+            );
+          }
+        }
+      };
+      moveToTargetScroll();
     });
     // Updates the viewportLeftTimeMS property and pxielsPerMs when the loaded inspection data is updated.
     effect(() => {
@@ -701,6 +744,10 @@ export class TimelineFrameComponent implements AfterViewInit {
     // Updates the viewportLeftTimeMs property when the curosrTime is updated if that is outside of the viewport.
     effect(() => {
       const cursorTime = this.cursorTimeMS();
+      if (cursorTime === 0) {
+        // Do not scroll when there is no active log selection.
+        return;
+      }
       const viewportLeftTimeMS = untracked(this.viewportLeftTimeMS);
       const viewportWidth = untracked(this.viewportWidth);
       const pixelsPerMs = untracked(this.pixelsPerMs);
@@ -726,7 +773,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     });
     effect(() => {
       this.selectedLogIndex(); // Just for triggering the effect when the selected log index is changed.
-      const selectedTimeline = this.selectedTimeline();
+      const logTimeline = this.selectedLogTimeline();
+      const selectedTimeline = logTimeline ?? this.selectedTimeline();
       if (!selectedTimeline) {
         return;
       }
@@ -869,7 +917,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       });
 
       const onContainerScroll = () => {
-        if (this.shiftStatus() || this.currrentAction !== 'none') {
+        if (this.shiftStatus() || this.currentAction !== 'none') {
           return;
         }
         this.onScrollForMove();
@@ -923,9 +971,9 @@ export class TimelineFrameComponent implements AfterViewInit {
       throw new Error('failed to lookup container');
     }
     const horizontalScrollCalculator = this.horizontalScrollCalculator();
-    this.currrentAction = 'moving';
+    this.currentAction = 'moving';
     this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
-      this.currrentAction = 'none';
+      this.currentAction = 'none';
       const pixelsPerMS = this.pixelsPerMs();
       const maxScrollLeft = horizontalScrollCalculator.maxScrollLeft(
         pixelsPerMS,
@@ -946,13 +994,13 @@ export class TimelineFrameComponent implements AfterViewInit {
   }
 
   onWheelForScaling(event: WheelEvent) {
-    if (this.currrentAction !== 'none') return;
-    this.currrentAction = 'scaling';
+    if (this.currentAction !== 'none') return;
+    this.currentAction = 'scaling';
     this.renderingLoopManager.registerOnceBeforeRenderHandler(() => {
       const container = this.container();
       const indexArea = this.indexSplitArea();
       if (!container || !indexArea) {
-        this.currrentAction = 'none';
+        this.currentAction = 'none';
         return;
       }
       const containerBox = container.nativeElement.getBoundingClientRect();
@@ -962,7 +1010,7 @@ export class TimelineFrameComponent implements AfterViewInit {
         containerBox.left -
         indexAreaBox.width -
         this.GUTTER_WIDTH;
-      this.currrentAction = 'none';
+      this.currentAction = 'none';
       const calculator = this.horizontalScrollCalculator();
 
       const currentPixelsPerMs = this.pixelsPerMs();
