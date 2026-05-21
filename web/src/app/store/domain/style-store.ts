@@ -69,11 +69,11 @@ export interface IconAtlasDTO {
  * Manages the style-related definitions for the UI.
  */
 export class StyleStore {
-  private readonly severities: Severity[] = [];
-  private readonly logTypes: LogType[] = [];
-  private readonly verbs: Verb[] = [];
-  private readonly revisionStates: RevisionState[] = [];
-  private readonly timelineTypes: TimelineType[] = [];
+  private readonly _severities: Severity[] = [];
+  private readonly _logTypes: LogType[] = [];
+  private readonly _verbs: Verb[] = [];
+  private readonly _revisionStates: RevisionState[] = [];
+  private readonly _timelineTypes: TimelineType[] = [];
 
   private iconAtlas: IconAtlas | undefined;
 
@@ -83,7 +83,7 @@ export class StyleStore {
    */
   public addSeverities(items: Iterable<SeverityDTO>): void {
     for (const item of items) {
-      this.severities[item.id] = item;
+      this._severities[item.id] = item;
     }
   }
 
@@ -93,7 +93,7 @@ export class StyleStore {
    */
   public addLogTypes(items: Iterable<LogTypeDTO>): void {
     for (const item of items) {
-      this.logTypes[item.id] = item;
+      this._logTypes[item.id] = item;
     }
   }
 
@@ -103,7 +103,7 @@ export class StyleStore {
    */
   public addVerbs(items: Iterable<VerbDTO>): void {
     for (const item of items) {
-      this.verbs[item.id] = item;
+      this._verbs[item.id] = item;
     }
   }
 
@@ -113,7 +113,7 @@ export class StyleStore {
    */
   public addRevisionStates(items: Iterable<RevisionStateDTO>): void {
     for (const item of items) {
-      this.revisionStates[item.id] = item;
+      this._revisionStates[item.id] = item;
     }
   }
 
@@ -123,7 +123,7 @@ export class StyleStore {
    */
   public addTimelineTypes(items: Iterable<TimelineTypeDTO>): void {
     for (const item of items) {
-      this.timelineTypes[item.id] = item;
+      this._timelineTypes[item.id] = item;
     }
   }
 
@@ -164,8 +164,8 @@ export class StyleStore {
    * @param id The ID of the severity.
    * @returns The resolved severity.
    */
-  public getSeverity(id: number): ReadonlyDomainElement<SeverityDTO> {
-    const item = this.severities[id];
+  public getSeverity(id: number): ReadonlyDomainElement<Severity> {
+    const item = this._severities[id];
     if (!item) {
       throw new Error(`Severity ID ${id} not found`);
     }
@@ -177,8 +177,8 @@ export class StyleStore {
    * @param id The ID of the log type.
    * @returns The resolved log type.
    */
-  public getLogType(id: number): ReadonlyDomainElement<LogTypeDTO> {
-    const item = this.logTypes[id];
+  public getLogType(id: number): ReadonlyDomainElement<LogType> {
+    const item = this._logTypes[id];
     if (!item) {
       throw new Error(`LogType ID ${id} not found`);
     }
@@ -190,8 +190,8 @@ export class StyleStore {
    * @param id The ID of the verb.
    * @returns The resolved verb.
    */
-  public getVerb(id: number): ReadonlyDomainElement<VerbDTO> {
-    const item = this.verbs[id];
+  public getVerb(id: number): ReadonlyDomainElement<Verb> {
+    const item = this._verbs[id];
     if (!item) {
       throw new Error(`Verb ID ${id} not found`);
     }
@@ -203,8 +203,8 @@ export class StyleStore {
    * @param id The ID of the revision state.
    * @returns The resolved revision state.
    */
-  public getRevisionState(id: number): ReadonlyDomainElement<RevisionStateDTO> {
-    const item = this.revisionStates[id];
+  public getRevisionState(id: number): ReadonlyDomainElement<RevisionState> {
+    const item = this._revisionStates[id];
     if (!item) {
       throw new Error(`RevisionState ID ${id} not found`);
     }
@@ -216,12 +216,53 @@ export class StyleStore {
    * @param id The ID of the timeline type.
    * @returns The resolved timeline type.
    */
-  public getTimelineType(id: number): ReadonlyDomainElement<TimelineTypeDTO> {
-    const item = this.timelineTypes[id];
+  public getTimelineType(id: number): ReadonlyDomainElement<TimelineType> {
+    const item = this._timelineTypes[id];
     if (!item) {
       throw new Error(`TimelineType ID ${id} not found`);
     }
     return item;
+  }
+
+  /**
+   * Returns all severities defined in the store.
+   */
+  public get severities(): ReadonlyDomainElement<Severity[]> {
+    return this._severities.filter(
+      (item): item is Severity => item !== undefined,
+    );
+  }
+
+  /**
+   * Returns all log types defined in the store.
+   */
+  public get logTypes(): ReadonlyDomainElement<LogType[]> {
+    return this._logTypes.filter((item): item is LogType => item !== undefined);
+  }
+
+  /**
+   * Returns all verbs defined in the store.
+   */
+  public get verbs(): ReadonlyDomainElement<Verb[]> {
+    return this._verbs.filter((item): item is Verb => item !== undefined);
+  }
+
+  /**
+   * Returns all revision states defined in the store.
+   */
+  public get revisionStates(): ReadonlyDomainElement<RevisionState[]> {
+    return this._revisionStates.filter(
+      (item): item is RevisionState => item !== undefined,
+    );
+  }
+
+  /**
+   * Returns all timeline types defined in the store.
+   */
+  public get timelineTypes(): ReadonlyDomainElement<TimelineType[]> {
+    return this._timelineTypes.filter(
+      (item): item is TimelineType => item !== undefined,
+    );
   }
 
   /**
