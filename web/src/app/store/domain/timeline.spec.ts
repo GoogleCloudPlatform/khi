@@ -243,42 +243,6 @@ describe('Timeline', () => {
     });
   });
 
-  describe('parent', () => {
-    it('should return null for parent timeline and reference parent for child timeline', () => {
-      internPool.addStrings([
-        { id: 1, value: 'parent-tl' },
-        { id: 2, value: 'child-tl' },
-      ]);
-
-      const rawTimelines: TimelineDTO[] = [
-        {
-          id: 10,
-          timelineTypeId: 1,
-          nameStringId: 1,
-          parentTimelineId: 0,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 20,
-          timelineTypeId: 1,
-          nameStringId: 2,
-          parentTimelineId: 10,
-          revisionIds: [],
-          eventIds: [],
-        },
-      ];
-
-      timelineStore.initialize(rawTimelines, 2, [], 0, [], 0);
-
-      const parent = timelineStore.getTimeline(10);
-      const child = timelineStore.getTimeline(20);
-
-      expect(parent.parent).toBeNull();
-      expect(child.parent?.id).toBe(10);
-    });
-  });
-
   describe('layer', () => {
     it('should return correct layer depth based on lineage', () => {
       internPool.addStrings([
@@ -326,12 +290,12 @@ describe('Timeline', () => {
     });
   });
 
-  describe('childrenCount', () => {
-    it('should return correct count of direct children', () => {
+  describe('lookupRevisionFromLog and lookupEventFromLog', () => {
+    it('should lookup events and revisions from logIndex using binary search', () => {
       internPool.addStrings([
-        { id: 1, value: 'parent-tl' },
-        { id: 2, value: 'child-tl' },
-        { id: 3, value: 'grandchild-tl' },
+        { id: 1, value: 'timeline-label' },
+        { id: 2, value: 'user-name' },
+        { id: 3, value: 'log-summary' },
       ]);
 
       const rawTimelines: TimelineDTO[] = [
@@ -340,44 +304,106 @@ describe('Timeline', () => {
           timelineTypeId: 1,
           nameStringId: 1,
           parentTimelineId: 0,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 20,
-          timelineTypeId: 1,
-          nameStringId: 2,
-          parentTimelineId: 10,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 30,
-          timelineTypeId: 1,
-          nameStringId: 3,
-          parentTimelineId: 20,
-          revisionIds: [],
-          eventIds: [],
+          revisionIds: [100, 101],
+          eventIds: [200, 201],
         },
       ];
 
-      timelineStore.initialize(rawTimelines, 3, [], 0, [], 0);
+      const rawRevisions: RevisionDTO[] = [
+        {
+          id: 100,
+          logId: 1,
+          changedTime: 100n,
+          principalStringId: 2,
+          verbTypeId: 1,
+          stateTypeId: 1,
+        },
+        {
+          id: 101,
+          logId: 3,
+          changedTime: 300n,
+          principalStringId: 2,
+          verbTypeId: 1,
+          stateTypeId: 1,
+        },
+      ];
 
-      const parent = timelineStore.getTimeline(10);
-      const child = timelineStore.getTimeline(20);
-      const grandchild = timelineStore.getTimeline(30);
+      const rawEvents: EventDTO[] = [
+        {
+          id: 200,
+          logId: 2,
+        },
+        {
+          id: 201,
+          logId: 4,
+        },
+      ];
 
-      expect(parent.childrenCount).toBe(1);
-      expect(child.childrenCount).toBe(1);
-      expect(grandchild.childrenCount).toBe(0);
+      const rawLogs: LogDTO[] = [
+        {
+          id: 1,
+          ts: 100n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 2,
+          ts: 200n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 3,
+          ts: 300n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 4,
+          ts: 400n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+      ];
+
+      logStore.initialize(rawLogs, 4);
+      timelineStore.initialize(rawTimelines, 1, rawRevisions, 2, rawEvents, 2);
+
+      const timeline = timelineStore.getTimeline(10);
+
+      const log1 = logStore.getLog(1);
+      const log2 = logStore.getLog(2);
+      const log3 = logStore.getLog(3);
+      const log4 = logStore.getLog(4);
+
+      // Test lookups for revisions
+      expect(timeline.lookupRevisionFromLog(log1)).not.toBeNull();
+      expect(timeline.lookupRevisionFromLog(log1)!.id).toBe(100);
+      expect(timeline.lookupRevisionFromLog(log3)).not.toBeNull();
+      expect(timeline.lookupRevisionFromLog(log3)!.id).toBe(101);
+      expect(timeline.lookupRevisionFromLog(log2)).toBeNull();
+      expect(timeline.lookupRevisionFromLog(null)).toBeNull();
+
+      // Test lookups for events
+      expect(timeline.lookupEventFromLog(log2)).not.toBeNull();
+      expect(timeline.lookupEventFromLog(log2)!.id).toBe(200);
+      expect(timeline.lookupEventFromLog(log4)).not.toBeNull();
+      expect(timeline.lookupEventFromLog(log4)!.id).toBe(201);
+      expect(timeline.lookupEventFromLog(log1)).toBeNull();
+      expect(timeline.lookupEventFromLog(null)).toBeNull();
     });
   });
 
-  describe('children', () => {
-    it('should yield the direct children of the timeline', () => {
+  describe('lookupRevisionAtNs', () => {
+    it('should lookup active revisions at given times', () => {
       internPool.addStrings([
-        { id: 1, value: 'parent-tl' },
-        { id: 2, value: 'child-tl' },
+        { id: 1, value: 'timeline-label' },
+        { id: 2, value: 'user-name' },
+        { id: 3, value: 'log-summary' },
       ]);
 
       const rawTimelines: TimelineDTO[] = [
@@ -386,79 +412,85 @@ describe('Timeline', () => {
           timelineTypeId: 1,
           nameStringId: 1,
           parentTimelineId: 0,
-          revisionIds: [],
+          revisionIds: [100, 101],
           eventIds: [],
         },
         {
           id: 20,
-          timelineTypeId: 1,
-          nameStringId: 2,
-          parentTimelineId: 10,
-          revisionIds: [],
-          eventIds: [],
-        },
-      ];
-
-      timelineStore.initialize(rawTimelines, 2, [], 0, [], 0);
-
-      const parent = timelineStore.getTimeline(10);
-      const childrenIter = parent.children();
-      const firstChild = childrenIter.next().value;
-      expect(firstChild?.id).toBe(20);
-      expect(childrenIter.next().done).toBe(true);
-    });
-  });
-
-  describe('descendants', () => {
-    it('should traverse descendants recursively using the descendants generator', () => {
-      internPool.addStrings([
-        { id: 1, value: 'parent-tl' },
-        { id: 2, value: 'child-tl' },
-        { id: 3, value: 'grandchild-tl' },
-        { id: 4, value: 'sibling-tl' },
-      ]);
-
-      const rawTimelines: TimelineDTO[] = [
-        {
-          id: 10,
           timelineTypeId: 1,
           nameStringId: 1,
           parentTimelineId: 0,
           revisionIds: [],
           eventIds: [],
         },
+      ];
+
+      const rawRevisions: RevisionDTO[] = [
         {
-          id: 20,
-          timelineTypeId: 1,
-          nameStringId: 2,
-          parentTimelineId: 10,
-          revisionIds: [],
-          eventIds: [],
+          id: 100,
+          logId: 1,
+          changedTime: 100n,
+          principalStringId: 2,
+          verbTypeId: 1,
+          stateTypeId: 1,
         },
         {
-          id: 30,
-          timelineTypeId: 1,
-          nameStringId: 3,
-          parentTimelineId: 20,
-          revisionIds: [],
-          eventIds: [],
-        },
-        {
-          id: 40,
-          timelineTypeId: 1,
-          nameStringId: 4,
-          parentTimelineId: 10,
-          revisionIds: [],
-          eventIds: [],
+          id: 101,
+          logId: 2,
+          changedTime: 200n,
+          principalStringId: 2,
+          verbTypeId: 1,
+          stateTypeId: 1,
         },
       ];
 
-      timelineStore.initialize(rawTimelines, 4, [], 0, [], 0);
+      const rawLogs: LogDTO[] = [
+        {
+          id: 1,
+          ts: 100n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 2,
+          ts: 200n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+      ];
 
-      const parent = timelineStore.getTimeline(10);
-      const descendantIds = Array.from(parent.descendants()).map((t) => t.id);
+      logStore.initialize(rawLogs, 2);
+      timelineStore.initialize(rawTimelines, 2, rawRevisions, 2, [], 0);
 
-      expect(descendantIds).toEqual([20, 30, 40]);
+      const timeline = timelineStore.getTimeline(10);
+      const emptyTimeline = timelineStore.getTimeline(20);
+
+      // 1. Before any revision starts
+      expect(timeline.lookupRevisionAtNs(50n)).toBeNull();
+
+      // 2. Exactly at first revision start
+      expect(timeline.lookupRevisionAtNs(100n)).not.toBeNull();
+      expect(timeline.lookupRevisionAtNs(100n)!.id).toBe(100);
+
+      // 3. Exactly at first revision start with exclusive = true
+      expect(timeline.lookupRevisionAtNs(100n, true)).toBeNull();
+
+      // 4. Between first and second revision
+      expect(timeline.lookupRevisionAtNs(150n)).not.toBeNull();
+      expect(timeline.lookupRevisionAtNs(150n)!.id).toBe(100);
+      expect(timeline.lookupRevisionAtNs(150n, true)!.id).toBe(100);
+
+      // 5. Exactly at second revision
+      expect(timeline.lookupRevisionAtNs(200n)!.id).toBe(101);
+      expect(timeline.lookupRevisionAtNs(200n, true)!.id).toBe(100);
+
+      // 6. After second revision
+      expect(timeline.lookupRevisionAtNs(250n)!.id).toBe(101);
+
+      // 7. Empty timeline
+      expect(emptyTimeline.lookupRevisionAtNs(150n)).toBeNull();
     });
   });
 

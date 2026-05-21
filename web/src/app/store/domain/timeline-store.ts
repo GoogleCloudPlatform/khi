@@ -278,7 +278,7 @@ export class TimelineStore {
     for (let i = 0; i < revIds.length; i++) {
       revisions.push(new Revision(revIds[i], id, this, i));
     }
-    revisions.sort((r1, r2) => Number(r1.changedTime - r2.changedTime));
+    revisions.sort((r1, r2) => r1.logIndex - r2.logIndex);
     return revisions;
   }
 

@@ -78,7 +78,7 @@ export function bisectLeft<T, U>(
  * to maintain the sorted order.
  */
 export function bisectRight<T, U>(
-  arr: T[],
+  arr: readonly T[],
   target: U,
   comparator: (item: T, target: U) => number,
   lo = 0,
