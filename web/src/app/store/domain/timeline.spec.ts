@@ -243,6 +243,42 @@ describe('Timeline', () => {
     });
   });
 
+  describe('parent', () => {
+    it('should return null for parent timeline and reference parent for child timeline', () => {
+      internPool.addStrings([
+        { id: 1, value: 'parent-tl' },
+        { id: 2, value: 'child-tl' },
+      ]);
+
+      const rawTimelines: TimelineDTO[] = [
+        {
+          id: 10,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 20,
+          timelineTypeId: 1,
+          nameStringId: 2,
+          parentTimelineId: 10,
+          revisionIds: [],
+          eventIds: [],
+        },
+      ];
+
+      timelineStore.initialize(rawTimelines, 2, [], 0, [], 0);
+
+      const parent = timelineStore.getTimeline(10);
+      const child = timelineStore.getTimeline(20);
+
+      expect(parent.parent).toBeNull();
+      expect(child.parent?.id).toBe(10);
+    });
+  });
+
   describe('layer', () => {
     it('should return correct layer depth based on lineage', () => {
       internPool.addStrings([
@@ -287,6 +323,142 @@ describe('Timeline', () => {
       expect(parent.layer).toBe(0);
       expect(child.layer).toBe(1);
       expect(grandchild.layer).toBe(2);
+    });
+  });
+
+  describe('childrenCount', () => {
+    it('should return correct count of direct children', () => {
+      internPool.addStrings([
+        { id: 1, value: 'parent-tl' },
+        { id: 2, value: 'child-tl' },
+        { id: 3, value: 'grandchild-tl' },
+      ]);
+
+      const rawTimelines: TimelineDTO[] = [
+        {
+          id: 10,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 20,
+          timelineTypeId: 1,
+          nameStringId: 2,
+          parentTimelineId: 10,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 30,
+          timelineTypeId: 1,
+          nameStringId: 3,
+          parentTimelineId: 20,
+          revisionIds: [],
+          eventIds: [],
+        },
+      ];
+
+      timelineStore.initialize(rawTimelines, 3, [], 0, [], 0);
+
+      const parent = timelineStore.getTimeline(10);
+      const child = timelineStore.getTimeline(20);
+      const grandchild = timelineStore.getTimeline(30);
+
+      expect(parent.childrenCount).toBe(1);
+      expect(child.childrenCount).toBe(1);
+      expect(grandchild.childrenCount).toBe(0);
+    });
+  });
+
+  describe('children', () => {
+    it('should yield the direct children of the timeline', () => {
+      internPool.addStrings([
+        { id: 1, value: 'parent-tl' },
+        { id: 2, value: 'child-tl' },
+      ]);
+
+      const rawTimelines: TimelineDTO[] = [
+        {
+          id: 10,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 20,
+          timelineTypeId: 1,
+          nameStringId: 2,
+          parentTimelineId: 10,
+          revisionIds: [],
+          eventIds: [],
+        },
+      ];
+
+      timelineStore.initialize(rawTimelines, 2, [], 0, [], 0);
+
+      const parent = timelineStore.getTimeline(10);
+      const childrenIter = parent.children();
+      const firstChild = childrenIter.next().value;
+      expect(firstChild?.id).toBe(20);
+      expect(childrenIter.next().done).toBe(true);
+    });
+  });
+
+  describe('descendants', () => {
+    it('should traverse descendants recursively using the descendants generator', () => {
+      internPool.addStrings([
+        { id: 1, value: 'parent-tl' },
+        { id: 2, value: 'child-tl' },
+        { id: 3, value: 'grandchild-tl' },
+        { id: 4, value: 'sibling-tl' },
+      ]);
+
+      const rawTimelines: TimelineDTO[] = [
+        {
+          id: 10,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 20,
+          timelineTypeId: 1,
+          nameStringId: 2,
+          parentTimelineId: 10,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 30,
+          timelineTypeId: 1,
+          nameStringId: 3,
+          parentTimelineId: 20,
+          revisionIds: [],
+          eventIds: [],
+        },
+        {
+          id: 40,
+          timelineTypeId: 1,
+          nameStringId: 4,
+          parentTimelineId: 10,
+          revisionIds: [],
+          eventIds: [],
+        },
+      ];
+
+      timelineStore.initialize(rawTimelines, 4, [], 0, [], 0);
+
+      const parent = timelineStore.getTimeline(10);
+      const descendantIds = Array.from(parent.descendants()).map((t) => t.id);
+
+      expect(descendantIds).toEqual([20, 30, 40]);
     });
   });
 
