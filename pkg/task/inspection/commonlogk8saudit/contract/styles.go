@@ -20,7 +20,7 @@ import (
 )
 
 // RevisionStateK8sResourceExisting is the style for a resource that is existing.
-var RevisionStateK8sResourceExisting = style.RegisterRevisionState(
+var RevisionStateK8sResourceExisting = style.MustRegisterRevisionState(
 	"Resource is existing",
 	"deployed_code",
 	"Resource is existing",
@@ -29,7 +29,7 @@ var RevisionStateK8sResourceExisting = style.RegisterRevisionState(
 )
 
 // RevisionStateK8sResourceDeleting is the style for a resource that is under deletion with graceful termination period or finalizer.
-var RevisionStateK8sResourceDeleting = style.RegisterRevisionState(
+var RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
 	"Resource is under deletion with graceful termination period or finalizer",
 	"auto_delete",
 	"Resource is under deletion with graceful termination period or finalizer",
@@ -38,7 +38,7 @@ var RevisionStateK8sResourceDeleting = style.RegisterRevisionState(
 )
 
 // RevisionStateK8sResourceIsDeleted is the style for a resource that is deleted.
-var RevisionStateK8sResourceIsDeleted = style.RegisterRevisionState(
+var RevisionStateK8sResourceIsDeleted = style.MustRegisterRevisionState(
 	"Resource is deleted",
 	"delete_forever",
 	"Resource is deleted",

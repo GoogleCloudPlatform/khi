@@ -15,6 +15,7 @@
 package style
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 
@@ -24,23 +25,23 @@ import (
 func TestRegisterTimelineType(t *testing.T) {
 	reset()
 
-	res1 := RegisterTimelineType("Type 1", "Desc 1", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
-	res2 := RegisterTimelineType("Type 2", "Desc 2", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 2)
+	res1 := MustRegisterTimelineType("Type 1", "Desc 1", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
+	res2 := MustRegisterTimelineType("Type 2", "Desc 2", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 2)
 
 	// Verify IDs were assigned starting from 1
 	if res1.Id == nil || *res1.Id != 1 {
-		t.Errorf("Expected ID 1, got %v", res1.Id)
+		t.Errorf("expected ID 1, got %v", res1.Id)
 	}
 	if res2.Id == nil || *res2.Id != 2 {
-		t.Errorf("Expected ID 2, got %v", res2.Id)
+		t.Errorf("expected ID 2, got %v", res2.Id)
 	}
 
 	chunk := GenerateChunk()
 	if len(chunk.TimelineTypes) != 2 {
-		t.Fatalf("Expected 2 TimelineTypes in chunk, got %d", len(chunk.TimelineTypes))
+		t.Fatalf("expected 2 TimelineTypes in chunk, got %d", len(chunk.TimelineTypes))
 	}
 	if *chunk.TimelineTypes[0].Id != 1 {
-		t.Errorf("Expected first chunk TimelineType ID to be 1")
+		t.Errorf("expected first chunk TimelineType ID to be 1")
 	}
 }
 
@@ -54,7 +55,7 @@ func TestRegisterConcurrent(t *testing.T) {
 	for i := 0; i < numGoroutines; i++ {
 		go func(index int) {
 			defer wg.Done()
-			RegisterVerb("Concurrent Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
+			MustRegisterVerb("Concurrent Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
 		}(i)
 	}
 
@@ -62,51 +63,51 @@ func TestRegisterConcurrent(t *testing.T) {
 
 	chunk := GenerateChunk()
 	if len(chunk.Verbs) != numGoroutines {
-		t.Fatalf("Expected %d Verbs registered, got %d", numGoroutines, len(chunk.Verbs))
+		t.Fatalf("expected %d Verbs registered, got %d", numGoroutines, len(chunk.Verbs))
 	}
 
 	// Verify all IDs from 1 to numGoroutines exist exactly once
 	idMap := make(map[uint32]bool)
 	for _, v := range chunk.Verbs {
 		if v.Id == nil {
-			t.Fatalf("Verb ID is nil")
+			t.Fatalf("verb ID is nil")
 		}
 		if idMap[*v.Id] {
-			t.Errorf("Duplicate ID found: %d", *v.Id)
+			t.Errorf("duplicate ID found: %d", *v.Id)
 		}
 		idMap[*v.Id] = true
 	}
 
 	if len(idMap) != numGoroutines {
-		t.Errorf("Expected %d unique IDs, got %d", numGoroutines, len(idMap))
+		t.Errorf("expected %d unique IDs, got %d", numGoroutines, len(idMap))
 	}
 }
 
 func TestGenerateChunkHasAllSlices(t *testing.T) {
 	reset()
 
-	RegisterSeverity("Sev", "S", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, 1)
-	RegisterVerb("Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
-	RegisterLogType("Log", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
-	RegisterRevisionState("RevState", "icon", "Desc", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
-	RegisterTimelineType("Timeline", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
+	MustRegisterSeverity("Sev", "S", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, 1)
+	MustRegisterVerb("Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
+	MustRegisterLogType("Log", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
+	MustRegisterRevisionState("RevState", "icon", "Desc", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
+	MustRegisterTimelineType("Timeline", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
 
 	chunk := GenerateChunk()
 
 	if len(chunk.Severities) != 1 {
-		t.Errorf("Expected 1 Severity, got %d", len(chunk.Severities))
+		t.Errorf("expected 1 Severity, got %d", len(chunk.Severities))
 	}
 	if len(chunk.Verbs) != 1 {
-		t.Errorf("Expected 1 Verb, got %d", len(chunk.Verbs))
+		t.Errorf("expected 1 Verb, got %d", len(chunk.Verbs))
 	}
 	if len(chunk.LogTypes) != 1 {
-		t.Errorf("Expected 1 LogType, got %d", len(chunk.LogTypes))
+		t.Errorf("expected 1 LogType, got %d", len(chunk.LogTypes))
 	}
 	if len(chunk.RevisionStates) != 1 {
-		t.Errorf("Expected 1 RevisionState, got %d", len(chunk.RevisionStates))
+		t.Errorf("expected 1 RevisionState, got %d", len(chunk.RevisionStates))
 	}
 	if len(chunk.TimelineTypes) != 1 {
-		t.Errorf("Expected 1 TimelineType, got %d", len(chunk.TimelineTypes))
+		t.Errorf("expected 1 TimelineType, got %d", len(chunk.TimelineTypes))
 	}
 }
 
@@ -115,18 +116,157 @@ func TestGenerateChunkHasIconAtlas(t *testing.T) {
 
 	chunk := GenerateChunk()
 	if chunk.IconAtlas == nil {
-		t.Fatal("Expected IconAtlas not to be nil in TimelineStyleChunk")
+		t.Fatal("expected IconAtlas not to be nil in TimelineStyleChunk")
 	}
 
 	if len(chunk.IconAtlas.MsdfIconImage) == 0 || len(chunk.IconAtlas.MsdfIconImage[0]) == 0 {
-		t.Error("Expected non-empty embedded PNG bytes in MsdfIconImage")
+		t.Error("expected non-empty embedded PNG bytes in MsdfIconImage")
 	}
 
 	if len(chunk.IconAtlas.BmfontJson) == 0 {
-		t.Error("Expected non-empty embedded BMFont configuration JSON")
+		t.Error("expected non-empty embedded BMFont configuration JSON")
 	}
 
 	if len(chunk.IconAtlas.NameToCodepoints) == 0 {
-		t.Error("Expected populated mapping in NameToCodepoints")
+		t.Error("expected populated mapping in NameToCodepoints")
+	}
+}
+
+func TestColorVerify(t *testing.T) {
+	testCases := []struct {
+		name    string
+		color   Color
+		wantErr bool
+	}{
+		{
+			name:    "valid color",
+			color:   Color{R: 0.5, G: 0.5, B: 0.5, A: 1.0},
+			wantErr: false,
+		},
+		{
+			name:    "invalid R (negative)",
+			color:   Color{R: -0.1, G: 0.5, B: 0.5, A: 1.0},
+			wantErr: true,
+		},
+		{
+			name:    "invalid R (too high)",
+			color:   Color{R: 1.1, G: 0.5, B: 0.5, A: 1.0},
+			wantErr: true,
+		},
+		{
+			name:    "invalid G (negative)",
+			color:   Color{R: 0.5, G: -0.1, B: 0.5, A: 1.0},
+			wantErr: true,
+		},
+		{
+			name:    "invalid G (too high)",
+			color:   Color{R: 0.5, G: 1.1, B: 0.5, A: 1.0},
+			wantErr: true,
+		},
+		{
+			name:    "invalid B (negative)",
+			color:   Color{R: 0.5, G: 0.5, B: -0.1, A: 1.0},
+			wantErr: true,
+		},
+		{
+			name:    "invalid B (too high)",
+			color:   Color{R: 0.5, G: 0.5, B: 1.1, A: 1.0},
+			wantErr: true,
+		},
+		{
+			name:    "invalid A (negative)",
+			color:   Color{R: 0.5, G: 0.5, B: 0.5, A: -0.1},
+			wantErr: true,
+		},
+		{
+			name:    "invalid A (too high)",
+			color:   Color{R: 0.5, G: 0.5, B: 0.5, A: 1.1},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.color.Verify()
+			if (err != nil) != tc.wantErr {
+				t.Errorf("Color.Verify() error = %v, wantErr = %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestLockRegistry(t *testing.T) {
+	testCases := []struct {
+		name       string
+		label      string
+		styleClass string
+		fn         func()
+	}{
+		{
+			name:       "RegisterTimelineType",
+			label:      "T",
+			styleClass: "timeline type",
+			fn: func() {
+				MustRegisterTimelineType("T", "D", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
+			},
+		},
+		{
+			name:       "RegisterSeverity",
+			label:      "S",
+			styleClass: "severity",
+			fn: func() {
+				MustRegisterSeverity("S", "S", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, 1)
+			},
+		},
+		{
+			name:       "RegisterVerb",
+			label:      "V",
+			styleClass: "verb",
+			fn: func() {
+				MustRegisterVerb("V", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
+			},
+		},
+		{
+			name:       "RegisterLogType",
+			label:      "L",
+			styleClass: "log type",
+			fn: func() {
+				MustRegisterLogType("L", "D", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
+			},
+		},
+		{
+			name:       "RegisterRevisionState",
+			label:      "R",
+			styleClass: "revision state",
+			fn: func() {
+				MustRegisterRevisionState("R", "I", "D", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reset()
+			LockRegistry()
+
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Errorf("expected panic, but did not panic")
+					return
+				}
+				msg, ok := r.(string)
+				if !ok {
+					t.Errorf("expected panic message to be a string, got %T", r)
+					return
+				}
+				wantMsg := fmt.Sprintf("failed to register %s style %q: style-related registrations must be done in task/inspection/**/contract packages during package initialization. Did you call it from outside of the contract or not at package initialization timing?", tc.styleClass, tc.label)
+				if msg != wantMsg {
+					t.Errorf("unexpected panic message: got %q, want %q", msg, wantMsg)
+				}
+			}()
+
+			tc.fn()
+		})
 	}
 }

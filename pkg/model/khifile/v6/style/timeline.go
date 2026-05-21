@@ -17,6 +17,7 @@ package style
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"sync"
 
@@ -58,6 +59,7 @@ func GetIconAtlas() *pb.IconAtlas {
 
 var (
 	mu             sync.RWMutex
+	locked         bool
 	severities     []*pb.Severity
 	verbs          []*pb.Verb
 	logTypes       []*pb.LogType
@@ -75,11 +77,38 @@ func reset() {
 	logTypes = nil
 	revisionStates = nil
 	timelineTypes = nil
+	locked = false
+}
+
+// LockRegistry locks the timeline style registry, preventing any further style registrations.
+// This must be called after task registration has completed.
+func LockRegistry() {
+	mu.Lock()
+	defer mu.Unlock()
+	locked = true
 }
 
 // Color represents a color with high dynamic range (HDR) capabilities.
 type Color struct {
 	R, G, B, A float32
+}
+
+// Verify checks if R, G, B, and A are within [0.0, 1.0] range.
+// Returns an error if any channel value is invalid.
+func (c Color) Verify() error {
+	if c.R < 0 || c.R > 1 {
+		return fmt.Errorf("R channel %f is out of range [0, 1]", c.R)
+	}
+	if c.G < 0 || c.G > 1 {
+		return fmt.Errorf("G channel %f is out of range [0, 1]", c.G)
+	}
+	if c.B < 0 || c.B > 1 {
+		return fmt.Errorf("B channel %f is out of range [0, 1]", c.B)
+	}
+	if c.A < 0 || c.A > 1 {
+		return fmt.Errorf("A channel %f is out of range [0, 1]", c.A)
+	}
+	return nil
 }
 
 func (c Color) toProto() *pb.HDRColor4 {
@@ -91,11 +120,21 @@ func (c Color) toProto() *pb.HDRColor4 {
 	}
 }
 
-// RegisterTimelineType registers a TimelineType, assigns a unique ID to it,
+// MustRegisterTimelineType registers a TimelineType, assigns a unique ID to it,
 // and returns the generated pointer. This allows for global inline initialization in plugins.
-func RegisterTimelineType(label string, description string, backgroundColor Color, foregroundColor Color, visible bool, sortPriority int32) *pb.TimelineType {
+func MustRegisterTimelineType(label string, description string, backgroundColor Color, foregroundColor Color, visible bool, sortPriority int32) *pb.TimelineType {
+	if err := backgroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid background color for timeline type %q: %v", label, err))
+	}
+	if err := foregroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid foreground color for timeline type %q: %v", label, err))
+	}
 	mu.Lock()
 	defer mu.Unlock()
+
+	if locked {
+		panic(fmt.Sprintf("failed to register timeline type style %q: style-related registrations must be done in task/inspection/**/contract packages during package initialization. Did you call it from outside of the contract or not at package initialization timing?", label))
+	}
 
 	id := uint32(len(timelineTypes) + 1)
 	t := &pb.TimelineType{
@@ -111,11 +150,21 @@ func RegisterTimelineType(label string, description string, backgroundColor Colo
 	return t
 }
 
-// RegisterSeverity registers a Severity, assigns a unique ID to it,
+// MustRegisterSeverity registers a Severity, assigns a unique ID to it,
 // and returns the generated pointer.
-func RegisterSeverity(label string, shortLabel string, backgroundColor Color, foregroundColor Color, order int32) *pb.Severity {
+func MustRegisterSeverity(label string, shortLabel string, backgroundColor Color, foregroundColor Color, order int32) *pb.Severity {
+	if err := backgroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid background color for severity %q: %v", label, err))
+	}
+	if err := foregroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid foreground color for severity %q: %v", label, err))
+	}
 	mu.Lock()
 	defer mu.Unlock()
+
+	if locked {
+		panic(fmt.Sprintf("failed to register severity style %q: style-related registrations must be done in task/inspection/**/contract packages during package initialization. Did you call it from outside of the contract or not at package initialization timing?", label))
+	}
 
 	id := uint32(len(severities) + 1)
 	s := &pb.Severity{
@@ -130,11 +179,21 @@ func RegisterSeverity(label string, shortLabel string, backgroundColor Color, fo
 	return s
 }
 
-// RegisterVerb registers a Verb, assigns a unique ID to it,
+// MustRegisterVerb registers a Verb, assigns a unique ID to it,
 // and returns the generated pointer.
-func RegisterVerb(label string, backgroundColor Color, foregroundColor Color, visible bool) *pb.Verb {
+func MustRegisterVerb(label string, backgroundColor Color, foregroundColor Color, visible bool) *pb.Verb {
+	if err := backgroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid background color for verb %q: %v", label, err))
+	}
+	if err := foregroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid foreground color for verb %q: %v", label, err))
+	}
 	mu.Lock()
 	defer mu.Unlock()
+
+	if locked {
+		panic(fmt.Sprintf("failed to register verb style %q: style-related registrations must be done in task/inspection/**/contract packages during package initialization. Did you call it from outside of the contract or not at package initialization timing?", label))
+	}
 
 	id := uint32(len(verbs) + 1)
 	v := &pb.Verb{
@@ -148,11 +207,21 @@ func RegisterVerb(label string, backgroundColor Color, foregroundColor Color, vi
 	return v
 }
 
-// RegisterLogType registers a LogType, assigns a unique ID to it,
+// MustRegisterLogType registers a LogType, assigns a unique ID to it,
 // and returns the generated pointer.
-func RegisterLogType(label string, description string, backgroundColor Color, foregroundColor Color) *pb.LogType {
+func MustRegisterLogType(label string, description string, backgroundColor Color, foregroundColor Color) *pb.LogType {
+	if err := backgroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid background color for log type %q: %v", label, err))
+	}
+	if err := foregroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid foreground color for log type %q: %v", label, err))
+	}
 	mu.Lock()
 	defer mu.Unlock()
+
+	if locked {
+		panic(fmt.Sprintf("failed to register log type style %q: style-related registrations must be done in task/inspection/**/contract packages during package initialization. Did you call it from outside of the contract or not at package initialization timing?", label))
+	}
 
 	id := uint32(len(logTypes) + 1)
 	l := &pb.LogType{
@@ -166,11 +235,18 @@ func RegisterLogType(label string, description string, backgroundColor Color, fo
 	return l
 }
 
-// RegisterRevisionState registers a RevisionState, assigns a unique ID to it,
+// MustRegisterRevisionState registers a RevisionState, assigns a unique ID to it,
 // and returns the generated pointer.
-func RegisterRevisionState(label string, icon string, description string, backgroundColor Color, style pb.RevisionStateStyle) *pb.RevisionState {
+func MustRegisterRevisionState(label string, icon string, description string, backgroundColor Color, style pb.RevisionStateStyle) *pb.RevisionState {
+	if err := backgroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid background color for revision state %q: %v", label, err))
+	}
 	mu.Lock()
 	defer mu.Unlock()
+
+	if locked {
+		panic(fmt.Sprintf("failed to register revision state style %q: style-related registrations must be done in task/inspection/**/contract packages during package initialization. Did you call it from outside of the contract or not at package initialization timing?", label))
+	}
 
 	id := uint32(len(revisionStates) + 1)
 	rs := &pb.RevisionState{
