@@ -335,6 +335,27 @@ export declare type TimelineType = Message<'khifile.v6.TimelineType'> & {
    * @generated from field: int32 sort_priority = 7;
    */
   sortPriority: number;
+
+  /**
+   * icon is the name of the icon (e.g., Material Symbol name) used to represent this timeline type.
+   *
+   * @generated from field: string icon = 8;
+   */
+  icon: string;
+
+  /**
+   * The relative height factor of the timeline row (1.0 is the baseline).
+   *
+   * @generated from field: float height = 9;
+   */
+  height: number;
+
+  /**
+   * type_chip_background_color is used for styling the type badge background in the timeline index or legend.
+   *
+   * @generated from field: khifile.v6.HDRColor4 type_chip_background_color = 10;
+   */
+  typeChipBackgroundColor?: HDRColor4;
 };
 
 /**

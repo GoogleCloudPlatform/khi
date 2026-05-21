@@ -125,6 +125,12 @@ message TimelineType {
   bool visible = 6;
   // sort_priority determines the default vertical ordering of timelines (lower values sort higher).
   int32 sort_priority = 7;
+  // icon is the name of the icon (e.g., Material Symbol name) used to represent this timeline type.
+  string icon = 8;
+  // The relative height factor of the timeline row (1.0 is the baseline).
+  float height = 9;
+  // type_chip_background_color is used for styling the type badge background in the timeline index or legend.
+  HDRColor4 type_chip_background_color = 10;
 }
 
 // IconAtlas is a collection of icons used in the UI.

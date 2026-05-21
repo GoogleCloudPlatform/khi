@@ -86,10 +86,13 @@ export interface TimelineType {
   readonly id: number;
   readonly label: string;
   readonly description: string;
+  readonly icon: string;
   readonly backgroundColor: HDRColor4;
   readonly foregroundColor: HDRColor4;
+  readonly typeChipBackgroundColor: HDRColor4;
   readonly visible: boolean;
   readonly sortPriority: number;
+  readonly height: number;
 }
 
 /**
