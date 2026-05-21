@@ -332,6 +332,25 @@ export class TimelineFrameComponent implements AfterViewInit {
   });
 
   /**
+   * Returns the actual timeline that contains the currently selected log.
+   */
+  protected readonly selectedLogTimeline = computed(() => {
+    const logIndexStr = this.selectedLogIndex();
+    if (logIndexStr === null) {
+      return null;
+    }
+    const logIndex = Number(logIndexStr);
+    const timelines = this.timelines();
+    return (
+      timelines.find(
+        (timeline) =>
+          timeline.events.some((e) => e.logIndex === logIndex) ||
+          timeline.revisions.some((r) => r.logIndex === logIndex),
+      ) ?? null
+    );
+  });
+
+  /**
    * current cursor position time in milliseconds.
    */
   readonly cursorTimeMS = input<number>(0);
@@ -726,7 +745,8 @@ export class TimelineFrameComponent implements AfterViewInit {
     });
     effect(() => {
       this.selectedLogIndex(); // Just for triggering the effect when the selected log index is changed.
-      const selectedTimeline = this.selectedTimeline();
+      const logTimeline = this.selectedLogTimeline();
+      const selectedTimeline = logTimeline ?? this.selectedTimeline();
       if (!selectedTimeline) {
         return;
       }
