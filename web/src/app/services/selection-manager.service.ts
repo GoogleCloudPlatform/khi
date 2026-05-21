@@ -349,6 +349,7 @@ export class SelectionManagerService {
               targetTimeline,
               relatedRevision,
               true,
+              true,
             );
             return;
           }
@@ -359,6 +360,7 @@ export class SelectionManagerService {
             this.changeSelectionByEventInternal(
               targetTimeline,
               relatedEvent,
+              true,
               true,
             );
             return;
@@ -371,8 +373,11 @@ export class SelectionManagerService {
     timeline: ResourceTimeline,
     event: ResourceEvent,
     ignoreLogSelect: boolean,
+    ignoreTimelineSelect: boolean = false,
   ) {
-    this.selectedTimelineSubject.next(timeline);
+    if (!ignoreTimelineSelect) {
+      this.selectedTimelineSubject.next(timeline);
+    }
 
     if (!ignoreLogSelect)
       this.changeSelectionByLogInternal(event.logIndex, true);
@@ -382,9 +387,12 @@ export class SelectionManagerService {
     timeline: ResourceTimeline,
     revision: ResourceRevision,
     ignoreLogSelect: boolean,
+    ignoreTimelineSelect: boolean = false,
   ) {
     this.selectedRevisionSubject.next(revision);
-    this.selectedTimelineSubject.next(timeline);
+    if (!ignoreTimelineSelect) {
+      this.selectedTimelineSubject.next(timeline);
+    }
 
     if (!ignoreLogSelect)
       this.changeSelectionByLogInternal(revision.logIndex, true);
