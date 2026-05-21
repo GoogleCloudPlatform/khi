@@ -21,6 +21,7 @@ import * as yaml from 'js-yaml';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
+import { bisectLeft } from 'src/app/common/misc-util';
 
 /**
  * Represents a node in the path from the root timeline.
@@ -284,5 +285,112 @@ export class Timeline {
       this._events = this.timelineStore._getEventsForTimeline(this.id);
     }
     return this._events;
+  }
+
+  /**
+   * Looks up an event on this timeline by its associated log using binary search.
+   * Returns the event if found, otherwise null.
+   */
+  public lookupEventFromLog(
+    log: ReadonlyDomainElement<Log> | null,
+  ): ReadonlyDomainElement<Event> | null {
+    if (!log) return null;
+    const arr = this.events;
+    const idx = bisectLeft(
+      arr,
+      log.logIndex,
+      (item, target) => item.logIndex - target,
+    );
+    if (idx < arr.length && arr[idx].logIndex === log.logIndex) {
+      return arr[idx];
+    }
+    return null;
+  }
+
+  /**
+   * Looks up a revision on this timeline by its associated log using binary search.
+   * Returns the revision if found, otherwise null.
+   */
+  public lookupRevisionFromLog(
+    log: ReadonlyDomainElement<Log> | null,
+  ): ReadonlyDomainElement<Revision> | null {
+    if (!log) return null;
+    const arr = this.revisions;
+    const idx = bisectLeft(
+      arr,
+      log.logIndex,
+      (item, target) => item.logIndex - target,
+    );
+    if (idx < arr.length && arr[idx].logIndex === log.logIndex) {
+      return arr[idx];
+    }
+    return null;
+  }
+
+  /**
+   * Looks up events on this timeline within a nanosecond time range [beginTimeNs, endTimeNs).
+   */
+  public lookupEventsInRangeNs(
+    beginTimeNs: bigint,
+    endTimeNs: bigint,
+  ): ReadonlyDomainElement<Event>[] {
+    const arr = this.events;
+    const startIdx = bisectLeft(arr, beginTimeNs, (item, target) =>
+      item.timestamp < target ? -1 : item.timestamp > target ? 1 : 0,
+    );
+    const endIdx = bisectLeft(arr, endTimeNs, (item, target) =>
+      item.timestamp < target ? -1 : item.timestamp > target ? 1 : 0,
+    );
+    return arr.slice(startIdx, endIdx);
+  }
+
+  /**
+   * Looks up revisions on this timeline that overlap with a nanosecond time range [beginTimeNs, endTimeNs).
+   */
+  public lookupRevisionsInRangeNs(
+    beginTimeNs: bigint,
+    endTimeNs: bigint,
+  ): ReadonlyDomainElement<Revision>[] {
+    const arr = this.revisions;
+    let startIdx = bisectLeft(arr, beginTimeNs, (item, target) =>
+      item.changedTime < target ? -1 : item.changedTime > target ? 1 : 0,
+    );
+    if (startIdx > 0) {
+      // Adjust the starting index to include the preceding revision if it overlaps with the query range.
+      // Since revisions form a contiguous sequence of intervals:
+      // - If startIdx reaches the end of the array, it means beginTimeNs is after the last revision's start time.
+      //   Since the last revision has no end time (it lasts indefinitely), it always overlaps with the range.
+      // - Otherwise, if the revision starting at startIdx begins after beginTimeNs, the preceding revision at
+      //   startIdx - 1 must end at arr[startIdx].changedTime, which is strictly after beginTimeNs. Thus,
+      //   the preceding revision overlaps with the range and must be included.
+      if (startIdx === arr.length || arr[startIdx].changedTime > beginTimeNs) {
+        startIdx--;
+      }
+    }
+    const endIdx = bisectLeft(
+      arr,
+      endTimeNs,
+      (item, target) =>
+        item.changedTime < target ? -1 : item.changedTime > target ? 1 : 0,
+      startIdx,
+    );
+    return arr.slice(startIdx, endIdx);
+  }
+
+  /**
+   * Returns the active revision at a given nanosecond time.
+   */
+  public lookupRevisionAtNs(
+    timeNs: bigint,
+    exclusive = false,
+  ): ReadonlyDomainElement<Revision> | null {
+    const arr = this.revisions;
+    const idx = bisectLeft(arr, timeNs, (item, target) =>
+      item.changedTime < target ? -1 : item.changedTime > target ? 1 : 0,
+    );
+    if (idx < arr.length && arr[idx].changedTime === timeNs && !exclusive) {
+      return arr[idx];
+    }
+    return idx > 0 ? arr[idx - 1] : null;
   }
 }
