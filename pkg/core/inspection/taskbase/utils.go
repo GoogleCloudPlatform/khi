@@ -1,0 +1,42 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package inspectiontaskbase
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+)
+
+// logTaskError logs an error message using slog.ErrorContext with raw log content.
+func logTaskError(ctx context.Context, message string, err error, l *log.Log) {
+	var yaml string
+	if l != nil {
+		yamlBytes, err2 := l.Serialize("", &structured.YAMLNodeSerializer{})
+		if err2 != nil {
+			yaml = "ERROR!! failed to dump in yaml"
+		} else {
+			yaml = string(yamlBytes)
+		}
+	} else {
+		yaml = "nil log"
+	}
+
+	// TODO: Use slog's attr after improbing KHI's logger.
+	slog.ErrorContext(ctx, fmt.Sprintf("%s\nerror: %v\nlogContent:\n%s", message, err, yaml))
+}
