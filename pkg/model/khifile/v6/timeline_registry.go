@@ -27,6 +27,8 @@ type TimelineRegistry struct {
 	idGen *IDGenerator
 	// internPool is passed to new TimelineBuilder instances for string interning.
 	internPool *InternPool
+	// logAcc is the LogAccumulator reference used to resolve log IDs.
+	logAcc *LogAccumulator
 	// builders is a concurrent map caching *TimelinePath to its *TimelineBuilder.
 	builders sync.Map // map[*TimelinePath]*TimelineBuilder
 	// idToBuilder is a concurrent map caching ID to *TimelineBuilder.
@@ -34,10 +36,11 @@ type TimelineRegistry struct {
 }
 
 // NewTimelineRegistry creates a new registry for managing TimelineBuilders.
-func NewTimelineRegistry(idGen *IDGenerator, sp *InternPool) *TimelineRegistry {
+func NewTimelineRegistry(idGen *IDGenerator, sp *InternPool, logAcc *LogAccumulator) *TimelineRegistry {
 	return &TimelineRegistry{
 		idGen:      idGen,
 		internPool: sp,
+		logAcc:     logAcc,
 	}
 }
 

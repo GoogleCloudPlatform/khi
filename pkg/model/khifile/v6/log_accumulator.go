@@ -37,18 +37,20 @@ type StagingLog struct {
 // by interning their structured data using an InternPool.
 // It is safe for concurrent use by multiple goroutines.
 type LogAccumulator struct {
-	pool  *InternPool
-	idGen *IDGenerator
-	logs  []*pb.Log
-	mu    sync.RWMutex
+	pool         *InternPool
+	idGen        *IDGenerator
+	logs         []*pb.Log
+	parserIDToID map[string]uint32
+	mu           sync.RWMutex
 }
 
 // NewLogAccumulator creates a new LogAccumulator with the provided InternPool and IDGenerator.
 func NewLogAccumulator(pool *InternPool, idGen *IDGenerator) *LogAccumulator {
 	return &LogAccumulator{
-		pool:  pool,
-		idGen: idGen,
-		logs:  make([]*pb.Log, 0),
+		pool:         pool,
+		idGen:        idGen,
+		logs:         make([]*pb.Log, 0),
+		parserIDToID: make(map[string]uint32),
 	}
 }
 
@@ -87,9 +89,21 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 		a.logs = append(a.logs, make([]*pb.Log, needed)...)
 	}
 	a.logs[id-1] = pbLog
+	a.parserIDToID[s.Log.ID] = id
 	a.mu.Unlock()
 
 	return nil
+}
+
+// ResolveLogID returns the serialized log ID (uint32) for a given parser-side log ID (string).
+// It returns false if the log ID is not found.
+// TODO: For the historical reason, KHI's log.Log generates ID in the form of string.
+// We should improve this and use the parser ID directly to reduce this logic in future.
+func (a *LogAccumulator) ResolveLogID(parserID string) (uint32, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	id, ok := a.parserIDToID[parserID]
+	return id, ok
 }
 
 // GetLog returns a log by its ID. Returns nil if the log is not found.

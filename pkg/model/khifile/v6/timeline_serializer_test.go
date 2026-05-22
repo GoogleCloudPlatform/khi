@@ -155,7 +155,8 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 			idGen := &IDGenerator{}
 			internPool := NewInternPool(idGen)
 			pathPool := NewTimelinePathPool(idGen, internPool)
-			registry := NewTimelineRegistry(idGen, internPool)
+			logAcc := NewLogAccumulator(internPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, logAcc)
 
 			pathMap := make(map[string]*TimelinePath)
 

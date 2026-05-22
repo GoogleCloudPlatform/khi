@@ -122,7 +122,8 @@ func TestTimelineRegistry_GetBuilder(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Use a fresh registry for each test case
-			registry := NewTimelineRegistry(idGen, internPool)
+			logAcc := NewLogAccumulator(internPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, logAcc)
 			tc.test(t, registry)
 		})
 	}
