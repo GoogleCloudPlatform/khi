@@ -28,9 +28,20 @@ var (
 		"host",
 		0.6,
 		style.ColorWhite,
-		style.ColorWhite,
+		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#FF5555"),
 		true,
 		10000,
+	)
+	TimelineTypeAutoscaler = style.MustRegisterTimelineType(
+		"autoscaler",
+		"GKE Cluster Autoscaler",
+		"smart_toy",
+		0.6,
+		style.ColorWhite,
+		style.ColorBlack,
+		style.MustForceConvertSRGBHex("#FF5555"),
+		true,
+		10500,
 	)
 )

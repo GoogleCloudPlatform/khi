@@ -121,4 +121,32 @@ var (
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
+		"Container is waiting",
+		"hourglass_empty",
+		"Container is waiting",
+		style.MustForceConvertSRGBHex("#777777"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateContainerStarted = style.MustRegisterRevisionState(
+		"Container is started/running",
+		"play_arrow",
+		"Container is started/running",
+		style.MustForceConvertSRGBHex("#008800"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateContainerTerminatedSucceeded = style.MustRegisterRevisionState(
+		"Container is terminated successfully (exit code 0)",
+		"check_circle",
+		"Container is terminated successfully (exit code 0)",
+		style.MustForceConvertSRGBHex("#224444"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateContainerTerminatedFailed = style.MustRegisterRevisionState(
+		"Container is terminated with error",
+		"error",
+		"Container is terminated with error",
+		style.MustForceConvertSRGBHex("#bb3333"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
 )

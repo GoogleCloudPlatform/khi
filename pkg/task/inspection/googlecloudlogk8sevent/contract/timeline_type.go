@@ -12,25 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudlogk8scontainer_contract
+package googlecloudlogk8sevent_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
-// The following block defines the registered timeline style TimelineTypes.
-// These are registered as package-level variables so they are initialized immediately
-// when this package is imported.
 var (
-	TimelineTypeContainer = style.MustRegisterTimelineType(
-		"container",
-		"Container status and logs",
-		"activity_zone",
+	// TimelineTypeEventExporter is the timeline style for the GKE Event Exporter.
+	TimelineTypeEventExporter = style.MustRegisterTimelineType(
+		"event-exporter",
+		"GKE Event Exporter logs",
+		"dns",
 		0.6,
 		style.ColorWhite,
 		style.ColorBlack,
-		style.MustForceConvertSRGBHex("#fe9bab"),
+		style.MustForceConvertSRGBHex("#4285F4"),
 		true,
-		5000,
+		1100,
 	)
 )

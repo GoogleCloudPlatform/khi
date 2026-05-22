@@ -27,6 +27,7 @@ var (
 	VerbUpdate           = style.MustRegisterVerb("Update", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
 	VerbPatch            = style.MustRegisterVerb("Patch", style.MustForceConvertSRGBHex("#FDD835"), style.ColorWhite, true)
 	VerbDeleteCollection = style.MustRegisterVerb("DeleteCollection", style.MustForceConvertSRGBHex("#F54945"), style.ColorWhite, true)
+	VerbUnknown          = style.MustRegisterVerb("Unknown", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, true)
 
 	// TODO: This will be removed when the history pane starts showing states as well as verbs.
 	VerbReady = style.MustRegisterVerb("Ready", style.MustForceConvertSRGBHex("#22CC22"), style.ColorWhite, true)
