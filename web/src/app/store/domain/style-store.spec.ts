@@ -100,10 +100,13 @@ describe('StyleStore', () => {
       id: 8,
       label: 'Deployment',
       description: 'Replicaset deployment status',
+      icon: 'workspaces',
       backgroundColor: mockColor,
       foregroundColor: mockColor,
+      typeChipBackgroundColor: mockColor,
       visible: true,
       sortPriority: 100,
+      height: 1,
     };
 
     store.addTimelineTypes([item]);
@@ -193,21 +196,25 @@ describe('StyleStore', () => {
         id: 2,
         label: 'Pod',
         description: 'Pod lifecycle timeline',
+        icon: 'description',
         backgroundColor: mockColor,
         foregroundColor: mockColor,
         typeChipBackgroundColor: mockColor,
         visible: true,
         sortPriority: 10,
+        height: 1,
       };
       const timelineType2 = {
         id: 5,
         label: 'Node',
         description: 'Node lifecycle timeline',
+        icon: 'folder',
         backgroundColor: mockColor,
         foregroundColor: mockColor,
         typeChipBackgroundColor: mockColor,
         visible: true,
         sortPriority: 20,
+        height: 1,
       };
       store.addTimelineTypes([timelineType1, timelineType2]);
       expect(store.timelineTypes).toEqual([timelineType1, timelineType2]);

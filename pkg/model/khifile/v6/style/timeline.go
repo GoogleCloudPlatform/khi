@@ -122,12 +122,15 @@ func (c Color) toProto() *pb.HDRColor4 {
 
 // MustRegisterTimelineType registers a TimelineType, assigns a unique ID to it,
 // and returns the generated pointer. This allows for global inline initialization in plugins.
-func MustRegisterTimelineType(label string, description string, backgroundColor Color, foregroundColor Color, visible bool, sortPriority int32) *pb.TimelineType {
+func MustRegisterTimelineType(label string, description string, icon string, height float32, backgroundColor Color, foregroundColor Color, typeChipBackgroundColor Color, visible bool, sortPriority int32) *pb.TimelineType {
 	if err := backgroundColor.Verify(); err != nil {
 		panic(fmt.Sprintf("invalid background color for timeline type %q: %v", label, err))
 	}
 	if err := foregroundColor.Verify(); err != nil {
 		panic(fmt.Sprintf("invalid foreground color for timeline type %q: %v", label, err))
+	}
+	if err := typeChipBackgroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid type chip background color for timeline type %q: %v", label, err))
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -138,13 +141,16 @@ func MustRegisterTimelineType(label string, description string, backgroundColor 
 
 	id := uint32(len(timelineTypes) + 1)
 	t := &pb.TimelineType{
-		Id:              proto.Uint32(id),
-		Label:           proto.String(label),
-		Description:     proto.String(description),
-		BackgroundColor: backgroundColor.toProto(),
-		ForegroundColor: foregroundColor.toProto(),
-		Visible:         proto.Bool(visible),
-		SortPriority:    proto.Int32(sortPriority),
+		Id:                      proto.Uint32(id),
+		Label:                   proto.String(label),
+		Description:             proto.String(description),
+		Icon:                    proto.String(icon),
+		Height:                  proto.Float32(height),
+		BackgroundColor:         backgroundColor.toProto(),
+		ForegroundColor:         foregroundColor.toProto(),
+		TypeChipBackgroundColor: typeChipBackgroundColor.toProto(),
+		Visible:                 proto.Bool(visible),
+		SortPriority:            proto.Int32(sortPriority),
 	}
 	timelineTypes = append(timelineTypes, t)
 	return t

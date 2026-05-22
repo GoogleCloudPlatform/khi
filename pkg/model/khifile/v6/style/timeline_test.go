@@ -25,8 +25,8 @@ import (
 func TestRegisterTimelineType(t *testing.T) {
 	reset()
 
-	res1 := MustRegisterTimelineType("Type 1", "Desc 1", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
-	res2 := MustRegisterTimelineType("Type 2", "Desc 2", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 2)
+	res1 := MustRegisterTimelineType("Type 1", "Desc 1", "icon-1", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1)
+	res2 := MustRegisterTimelineType("Type 2", "Desc 2", "icon-2", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 2)
 
 	// Verify IDs were assigned starting from 1
 	if res1.Id == nil || *res1.Id != 1 {
@@ -63,7 +63,7 @@ func TestRegisterConcurrent(t *testing.T) {
 
 	chunk := GenerateChunk()
 	if len(chunk.Verbs) != numGoroutines {
-		t.Fatalf("expected %d Verbs registered, got %d", numGoroutines, len(chunk.Verbs))
+		t.Fatalf("expected %d Verbs Mustregistered, got %d", numGoroutines, len(chunk.Verbs))
 	}
 
 	// Verify all IDs from 1 to numGoroutines exist exactly once
@@ -90,7 +90,7 @@ func TestGenerateChunkHasAllSlices(t *testing.T) {
 	MustRegisterVerb("Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
 	MustRegisterLogType("Log", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
 	MustRegisterRevisionState("RevState", "icon", "Desc", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
-	MustRegisterTimelineType("Timeline", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
+	MustRegisterTimelineType("Timeline", "Desc", "icon", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1)
 
 	chunk := GenerateChunk()
 
@@ -207,7 +207,7 @@ func TestLockRegistry(t *testing.T) {
 			label:      "T",
 			styleClass: "timeline type",
 			fn: func() {
-				MustRegisterTimelineType("T", "D", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true, 1)
+				MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10)
 			},
 		},
 		{
