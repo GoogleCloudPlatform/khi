@@ -1,12 +1,1 @@
-
-# Github Actions
-.github/ @kyasbal
-.cloudbuild/ @kyasbal
-
-# Golang related files
-cmd/ @kyasbal @RyuSA @jyane @yfuruyama @kkuchima
-pkg/ @kyasbal @RyuSA @jyane @yfuruyama @kkuchima
-test/ @kyasbal @RyuSA @jyane @yfuruyama @kkuchima
-
-# Web front related files
-web/ @kyasbal @renamoo @jyane
+* @kyasbal @RyuSA @jyane @kkuchima @renamoo @K53
