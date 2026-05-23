@@ -15,8 +15,8 @@
  */
 import { Component, effect, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { BACKEND_SYNC } from './services/api/backend-sync.service';
-import { BackendConnectionStatus } from './services/api/backend-sync-interface';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 
 @Component({
   selector: 'khi-root',
