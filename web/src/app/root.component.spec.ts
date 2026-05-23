@@ -17,12 +17,12 @@
 import { signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { BACKEND_SYNC } from './services/api/backend-sync.service';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import {
   BackendConnectionStatus,
   BackendSyncService,
-} from './services/api/backend-sync-interface';
-import { RootComponent } from './root.component';
+} from 'src/app/services/api/backend-sync-interface';
+import { RootComponent } from 'src/app/root.component';
 
 describe('RootComponent', () => {
   let connectionStatus: WritableSignal<BackendConnectionStatus>;
