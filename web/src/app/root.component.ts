@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { BACKEND_SYNC } from './services/api/backend-sync.service';
+import { BackendConnectionStatus } from './services/api/backend-sync-interface';
 
 @Component({
   selector: 'khi-root',
@@ -22,4 +24,27 @@ import { RouterOutlet } from '@angular/router';
   styleUrls: ['./root.component.scss'],
   imports: [RouterOutlet],
 })
-export class RootComponent {}
+export class RootComponent {
+  private readonly backendSync = inject(BACKEND_SYNC);
+
+  private readonly beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+    event.preventDefault();
+    event.returnValue = '';
+  };
+
+  constructor() {
+    effect((onCleanup) => {
+      if (
+        this.backendSync.connectionStatus() !==
+        BackendConnectionStatus.Disconnected
+      ) {
+        return;
+      }
+
+      window.addEventListener('beforeunload', this.beforeUnloadHandler);
+      onCleanup(() => {
+        window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      });
+    });
+  }
+}
