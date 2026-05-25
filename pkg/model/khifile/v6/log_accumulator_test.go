@@ -158,6 +158,55 @@ func TestLogAccumulator(t *testing.T) {
 			},
 		},
 		{
+			name: "multiple logs sorted chronologically",
+			logsToAdd: []*StagingLog{
+				{
+					Log:       log.NewLog(structured.NewNodeReader(node1)),
+					Summary:   "test summary 1",
+					Timestamp: time.Date(2026, 4, 29, 10, 0, 0, 0, time.UTC),
+					LogType:   testLogType,
+					Severity:  testSeverity,
+				},
+				{
+					Log:       log.NewLog(structured.NewNodeReader(node2)),
+					Summary:   "test summary 2",
+					Timestamp: time.Date(2026, 4, 29, 8, 0, 0, 0, time.UTC),
+					LogType:   testLogType,
+					Severity:  testSeverity,
+				},
+				{
+					Log:       log.NewLog(structured.NewNodeReader(node3)),
+					Summary:   "test summary 3",
+					Timestamp: time.Date(2026, 4, 29, 9, 0, 0, 0, time.UTC),
+					LogType:   testLogType,
+					Severity:  testSeverity,
+				},
+			},
+			wantErr:      false,
+			wantLogCount: 3,
+			validate: func(t *testing.T, acc *LogAccumulator) {
+				logs := acc.Accumulate()
+				// Expected order should be: summary 2 (8:00), summary 3 (9:00), summary 1 (10:00)
+				if logs[0].GetId() != 2 {
+					t.Errorf("expected first log to have ID 2, got %d", logs[0].GetId())
+				}
+				if logs[1].GetId() != 3 {
+					t.Errorf("expected second log to have ID 3, got %d", logs[1].GetId())
+				}
+				if logs[2].GetId() != 1 {
+					t.Errorf("expected third log to have ID 1, got %d", logs[2].GetId())
+				}
+
+				// Verify timestamps are in order
+				t0 := logs[0].GetTs().AsTime()
+				t1 := logs[1].GetTs().AsTime()
+				t2 := logs[2].GetTs().AsTime()
+				if t0.After(t1) || t1.After(t2) {
+					t.Errorf("logs are not sorted chronologically: %v, %v, %v", t0, t1, t2)
+				}
+			},
+		},
+		{
 			name: "missing severity error",
 			logsToAdd: []*StagingLog{
 				{
