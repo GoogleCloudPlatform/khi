@@ -21,6 +21,7 @@ import (
 
 	coreinspection "github.com/GoogleCloudPlatform/khi/pkg/core/inspection"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -37,6 +38,7 @@ func ConformanceTestForInspectionTypes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error %v. failed to complete the preparation step", err)
 	}
+	style.LockRegistry()
 
 	for _, inspectionType := range testServer.GetAllInspectionTypes() {
 		t.Run(fmt.Sprintf("%s-contains-at-least-one-feature", inspectionType.Name), func(t *testing.T) {

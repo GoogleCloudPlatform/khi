@@ -42,7 +42,7 @@ testem.log
 Thumbs.db
 
 # Ignore generated files
-src/app/zzz-generated.*
+
 angular.json
 src/environments/version.*.ts
 *storybook.log

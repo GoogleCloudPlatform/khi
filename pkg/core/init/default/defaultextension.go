@@ -30,6 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/tracing"
 	"github.com/GoogleCloudPlatform/khi/pkg/generated"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/option"
@@ -147,6 +148,7 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 			return err
 		}
 	}
+	style.LockRegistry()
 	if *parameters.Auth.QuotaProjectID != "" {
 		taskServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.QuotaProject(*parameters.Auth.QuotaProjectID)))
 	}
