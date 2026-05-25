@@ -17,6 +17,7 @@ package khifilev6
 import (
 	"iter"
 	"sort"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -95,6 +96,7 @@ func NewInternPool(idGen *IDGenerator) *InternPool {
 // InternString returns a InternStringRef for the given string.
 // If the string is not already interned, it assigns a new ID from IDGenerator and stores it.
 func (p *InternPool) InternString(value string) *InternStringRef {
+	value = strings.ToValidUTF8(value, "\uFFFD")
 	if id, ok := p.strToID.Load(value); ok {
 		return &InternStringRef{pool: p, id: id.(uint32)}
 	}
