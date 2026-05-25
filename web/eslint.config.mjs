@@ -64,6 +64,7 @@ export default defineConfig([globalIgnores(["src/app/generated/**/*"]), {
 
         "@typescript-eslint/no-unused-vars": "error",
         "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/array-type": ["error", { default: "array" }],
     },
 }, {
     files: ["**/*.html"],
