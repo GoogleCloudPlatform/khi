@@ -20,8 +20,8 @@
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 export type ReadonlyDomainElement<T> = T extends Function
   ? T
-  : T extends ReadonlyArray<infer U>
-    ? ReadonlyArray<ReadonlyDomainElement<U>>
+  : T extends readonly (infer U)[]
+    ? readonly ReadonlyDomainElement<U>[]
     : T extends object
       ? { readonly [K in keyof T]: ReadonlyDomainElement<T[K]> }
       : T;
