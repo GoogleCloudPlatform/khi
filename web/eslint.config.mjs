@@ -23,51 +23,62 @@ import { FlatCompat } from "@eslint/eslintrc";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
 });
 
-export default defineConfig([globalIgnores(["src/app/generated/**/*"]), {
+export default defineConfig([
+  globalIgnores(["src/app/generated/**/*"]),
+  {
     extends: compat.extends("plugin:storybook/recommended"),
-}, {
+  },
+  {
     files: ["**/*.ts"],
 
     extends: compat.extends(
-        "plugin:@typescript-eslint/recommended",
-        "plugin:@angular-eslint/recommended",
-        "plugin:@angular-eslint/template/process-inline-templates",
+      "plugin:@typescript-eslint/recommended",
+      "plugin:@angular-eslint/recommended",
+      "plugin:@angular-eslint/template/process-inline-templates",
     ),
 
     languageOptions: {
-        ecmaVersion: 5,
-        sourceType: "script",
+      ecmaVersion: 5,
+      sourceType: "script",
 
-        parserOptions: {
-            project: ["tsconfig.json"],
-            createDefaultProgram: true,
-        },
+      parserOptions: {
+        project: ["tsconfig.json"],
+        createDefaultProgram: true,
+      },
     },
 
     rules: {
-        "@angular-eslint/directive-selector": ["error", {
-            type: "attribute",
-            prefix: ["graph", "khi"],
-            style: "camelCase",
-        }],
+      "@angular-eslint/directive-selector": [
+        "error",
+        {
+          type: "attribute",
+          prefix: ["graph", "khi"],
+          style: "camelCase",
+        },
+      ],
 
-        "@angular-eslint/component-selector": ["error", {
-            type: "element",
-            prefix: ["graph", "khi"],
-            style: "kebab-case",
-        }],
+      "@angular-eslint/component-selector": [
+        "error",
+        {
+          type: "element",
+          prefix: ["graph", "khi"],
+          style: "kebab-case",
+        },
+      ],
 
-        "@typescript-eslint/no-unused-vars": "error",
-        "@typescript-eslint/no-explicit-any": "error",
-        "@typescript-eslint/array-type": ["error", { default: "array" }],
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/array-type": ["error", { default: "array" }],
     },
-}, {
+  },
+  {
     files: ["**/*.html"],
     extends: compat.extends("plugin:@angular-eslint/template/recommended"),
     rules: {},
-}]);
+  },
+]);
