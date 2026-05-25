@@ -24,6 +24,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 type GCPAuditLogFieldSet struct {
@@ -202,3 +203,23 @@ func (g *GCPAccessLogFieldSetReader) Read(reader *structured.NodeReader) (log.Fi
 }
 
 var _ log.FieldSetReader = (*GCPAccessLogFieldSetReader)(nil)
+
+// GCPDefaultSeverityFieldSetReader reads and parses the severity field from a GCP Cloud Logging entry.
+type GCPDefaultSeverityFieldSetReader struct {
+}
+
+// FieldSetKind implements log.FieldSetReader.
+func (g *GCPDefaultSeverityFieldSetReader) FieldSetKind() string {
+	return (&inspectioncore_contract.DefaultSeverityFieldSet{}).Kind()
+}
+
+// Read implements log.FieldSetReader.
+func (g *GCPDefaultSeverityFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	severityStr := reader.ReadStringOrDefault("severity", "")
+	parsedSeverity := ParseGCPSeverity(severityStr)
+	return &inspectioncore_contract.DefaultSeverityFieldSet{
+		Severity: parsedSeverity,
+	}, nil
+}
+
+var _ log.FieldSetReader = (*GCPDefaultSeverityFieldSetReader)(nil)

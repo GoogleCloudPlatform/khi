@@ -15,7 +15,9 @@
 package inspectioncore_contract
 
 import (
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 // The following block defines the registered timeline style Severities.
@@ -28,3 +30,16 @@ var (
 	SeverityError   = style.MustRegisterSeverity("ERROR", "E", style.MustForceConvertSRGBHex("#FF3935"), style.ColorWhite, 3)
 	SeverityFatal   = style.MustRegisterSeverity("FATAL", "F", style.MustForceConvertSRGBHex("#AA66AA"), style.ColorWhite, 4)
 )
+
+// DefaultSeverityFieldSet is a FieldSet struct type to hold the parsed log severity.
+type DefaultSeverityFieldSet struct {
+	// Severity is the parsed severity of the log.
+	Severity *pb.Severity
+}
+
+// Kind implements log.FieldSet.
+func (d *DefaultSeverityFieldSet) Kind() string {
+	return "default_severity"
+}
+
+var _ log.FieldSet = (*DefaultSeverityFieldSet)(nil)
