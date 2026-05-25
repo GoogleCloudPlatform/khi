@@ -338,8 +338,12 @@ export class Timeline {
     const startIdx = bisectLeft(arr, beginTimeNs, (item, target) =>
       item.timestamp < target ? -1 : item.timestamp > target ? 1 : 0,
     );
-    const endIdx = bisectLeft(arr, endTimeNs, (item, target) =>
-      item.timestamp < target ? -1 : item.timestamp > target ? 1 : 0,
+    const endIdx = bisectLeft(
+      arr,
+      endTimeNs,
+      (item, target) =>
+        item.timestamp < target ? -1 : item.timestamp > target ? 1 : 0,
+      startIdx,
     );
     return arr.slice(startIdx, endIdx);
   }
