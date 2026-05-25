@@ -11,9 +11,11 @@ web/angular.json: scripts/generate-angular-json.sh web/angular-template.json web
 
 # These frontend files are generated from Golang template.
 
-.PHONY: fontlist-gen
-fontlist-gen: generate-backend
+scripts/msdf-generator/zzz_generated_used_icons.json: $(GENERATE_BACKEND_DUMMY) $(BACKEND_SRCS)
 	go run ./scripts/fontlist-gen
+
+.PHONY: fontlist-gen
+fontlist-gen: scripts/msdf-generator/zzz_generated_used_icons.json
 
 # Generate web/src/environments/version.dev.ts and web/src/environments/version.prod.ts
 web/src/environments/version.*.ts: VERSION
@@ -26,7 +28,7 @@ $(GENERATE_BACKEND_DUMMY): ## Generate backend source code
  generate-backend: $(GENERATE_BACKEND_DUMMY) ## Generate backend source code
 
 # TODO: eventually the following cp commands are not needed after we removed icon image dependency directly from the frontend.
-$(FRONTEND_GENERATED_ASSETS_DUMMY): fontlist-gen scripts/msdf-generator/index.js scripts/msdf-generator/zzz_generated_used_icons.json $(MSDF_SETUP_DUMMY)## Generate font atlas
+$(FRONTEND_GENERATED_ASSETS_DUMMY): scripts/msdf-generator/zzz_generated_used_icons.json scripts/msdf-generator/index.js $(MSDF_SETUP_DUMMY) ## Generate font atlas
 	cd scripts/msdf-generator && node index.js
 	mkdir -p pkg/model/khifile/v6/style/assets
 	cp web/src/assets/zzz-icon-codepoints.json pkg/model/khifile/v6/style/assets/
