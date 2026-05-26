@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -41,8 +40,9 @@ func (k *K8sContainerLogFieldSet) Kind() string {
 	return "k8s_container"
 }
 
-func (k *K8sContainerLogFieldSet) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.Container(k.Namespace, k.PodName, k.ContainerName)
+// GroupKey returns the group key string for this container's Pod.
+func (k *K8sContainerLogFieldSet) GroupKey() string {
+	return fmt.Sprintf("core/v1#pod#%s#%s", k.Namespace, k.PodName)
 }
 
 var _ log.FieldSet = (*K8sContainerLogFieldSet)(nil)

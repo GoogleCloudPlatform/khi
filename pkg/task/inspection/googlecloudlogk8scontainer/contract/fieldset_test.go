@@ -167,3 +167,15 @@ labels:
 	}
 
 }
+
+func TestK8sContainerLogFieldSet_GroupKey(t *testing.T) {
+	fs := &K8sContainerLogFieldSet{
+		Namespace: "test-namespace",
+		PodName:   "test-pod",
+	}
+	want := "core/v1#pod#test-namespace#test-pod"
+	got := fs.GroupKey()
+	if got != want {
+		t.Errorf("GroupKey() = %q, want %q", got, want)
+	}
+}
