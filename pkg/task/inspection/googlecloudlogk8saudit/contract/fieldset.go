@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
@@ -40,7 +39,15 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	resourceName := reader.ReadStringOrDefault("protoPayload.resourceName", "")
 	methodName := reader.ReadStringOrDefault("protoPayload.methodName", "")
 	result.RequestURI = resourceName
-	result.K8sOperation = parseKubernetesOperation(resourceName, methodName)
+
+	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
+	result.APIVersion = apiVersion
+	result.PluralKind = pluralKind
+	result.Namespace = namespace
+	result.ResourceName = name
+	result.SubresourceName = subResourceName
+	result.Verb = verb
+
 	result.Principal = reader.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
 	result.StatusCode = reader.ReadIntOrDefault("protoPayload.status.code", 0)
 	result.StatusMessage = reader.ReadStringOrDefault("protoPayload.status.message", "")
@@ -53,25 +60,24 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 var _ log.FieldSetReader = (*GCPK8sAuditLogFieldSetReader)(nil)
 
 // parseKubernetesOperation parses the resourceName and methodName from a GCP audit log
-// to determine the details of a Kubernetes API operation.
-func parseKubernetesOperation(resourceName string, methodName string) *model.KubernetesObjectOperation {
+// to determine the details of a Kubernetes API operation, returning split fields.
+func parseKubernetesOperation(resourceName string, methodName string) (apiVersion, pluralKind, namespace, name, subResourceName string, verb *pb.Verb) {
 	resourceNameFragments := strings.Split(resourceName, "/")
 	methodNameFragments := strings.Split(methodName, ".")
 	verbStr := methodNameFragments[len(methodNameFragments)-1]
-	var verb enum.RevisionVerb
 	switch verbStr {
 	case "create":
-		verb = enum.RevisionVerbCreate
+		verb = commonlogk8saudit_contract.VerbCreate
 	case "update":
-		verb = enum.RevisionVerbUpdate
+		verb = commonlogk8saudit_contract.VerbUpdate
 	case "delete":
-		verb = enum.RevisionVerbDelete
+		verb = commonlogk8saudit_contract.VerbDelete
 	case "deletecollection":
-		verb = enum.RevisionVerbDeleteCollection
+		verb = commonlogk8saudit_contract.VerbDeleteCollection
 	case "patch":
-		verb = enum.RevisionVerbPatch
+		verb = commonlogk8saudit_contract.VerbPatch
 	default:
-		verb = enum.RevisionVerbUnknown
+		verb = commonlogk8saudit_contract.VerbUnknown
 	}
 	// Example methodName field formats:
 	// namespaced resource: core/v1/namespaces/kube-system/pods/event-exporter-gke-787cd5d885-dqf4b
@@ -80,7 +86,6 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	// cluster scoped resource with subresource: core/v1/nodes/gke-p0-gke-basic-1-default-8a2ac49b-19tq/status
 	// namespace resource: core/v1/namespaces/kube-system
 	// namespace resource with subresource: core/v1/namespaces/kube-system/finalize
-	var apiVersion, pluralKind, namespace, name, subResourceName string
 	switch {
 	case len(methodNameFragments) > 4 && methodNameFragments[4] == "namespaces": // This log is to modify "Namespace" resource itself
 		namespace = "cluster-scope"
@@ -117,12 +122,5 @@ func parseKubernetesOperation(resourceName string, methodName string) *model.Kub
 	if len(resourceNameFragments) >= 2 {
 		apiVersion = resourceNameFragments[0] + "/" + resourceNameFragments[1]
 	}
-	return &model.KubernetesObjectOperation{
-		APIVersion:      apiVersion,
-		PluralKind:      pluralKind,
-		Namespace:       namespace,
-		Name:            name,
-		SubResourceName: subResourceName,
-		Verb:            verb,
-	}
+	return
 }
