@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component, effect, inject } from '@angular/core';
+import { Component, inject, OnDestroy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
@@ -24,27 +24,26 @@ import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-inter
   styleUrls: ['./root.component.scss'],
   imports: [RouterOutlet],
 })
-export class RootComponent {
+export class RootComponent implements OnDestroy {
   private readonly backendSync = inject(BACKEND_SYNC);
 
   private readonly beforeUnloadHandler = (event: BeforeUnloadEvent) => {
+    if (
+      this.backendSync.connectionStatus() !==
+      BackendConnectionStatus.Disconnected
+    ) {
+      return;
+    }
+
     event.preventDefault();
     event.returnValue = '';
   };
 
   constructor() {
-    effect((onCleanup) => {
-      if (
-        this.backendSync.connectionStatus() !==
-        BackendConnectionStatus.Disconnected
-      ) {
-        return;
-      }
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+  }
 
-      window.addEventListener('beforeunload', this.beforeUnloadHandler);
-      onCleanup(() => {
-        window.removeEventListener('beforeunload', this.beforeUnloadHandler);
-      });
-    });
+  ngOnDestroy() {
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
   }
 }
