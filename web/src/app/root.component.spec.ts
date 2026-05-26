@@ -72,20 +72,21 @@ describe('RootComponent', () => {
     expect(event.returnValue).toBe('');
   });
 
-  it('should remove confirmation before unload when backend reconnects', () => {
+  it('should skip confirmation before unload when backend is connected', () => {
     const fixture = TestBed.createComponent(RootComponent);
-    fixture.detectChanges();
-    connectionStatus.set(BackendConnectionStatus.Disconnected);
     fixture.detectChanges();
     const handler = getBeforeUnloadHandler(addEventListenerSpy);
 
     connectionStatus.set(BackendConnectionStatus.Connected);
     fixture.detectChanges();
+    const event = {
+      preventDefault: jasmine.createSpy('preventDefault'),
+      returnValue: 'initial',
+    } as unknown as BeforeUnloadEvent;
+    handler(event);
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      'beforeunload',
-      handler,
-    );
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(event.returnValue).toBe('initial');
   });
 
   it('should remove confirmation before unload when destroyed', () => {
