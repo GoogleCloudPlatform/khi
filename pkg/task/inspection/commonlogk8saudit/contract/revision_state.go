@@ -122,31 +122,52 @@ var (
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
-		"Container is waiting",
-		"hourglass_empty",
-		"Container is waiting",
-		style.MustForceConvertSRGBHex("#777777"),
+		"Waiting for starting container",
+		"deployed_code_history",
+		"Waiting for starting container",
+		style.MustForceConvertSRGBHex("#4444ff"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateContainerRunningNonReady = style.MustRegisterRevisionState(
+		"Container is not ready",
+		"heart_broken",
+		"Container is not ready",
+		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateContainerRunningReady = style.MustRegisterRevisionState(
+		"Container is ready",
+		"heart_check",
+		"Container is ready",
+		style.MustForceConvertSRGBHex("#007700"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateContainerTerminatedWithSuccess = style.MustRegisterRevisionState(
+		"Container exited with healthy exit code",
+		"check_circle",
+		"Container exited with healthy exit code",
+		style.MustForceConvertSRGBHex("#113333"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateContainerTerminatedWithError = style.MustRegisterRevisionState(
+		"Container exited with erroneous exit code",
+		"error",
+		"Container exited with erroneous exit code",
+		style.MustForceConvertSRGBHex("#551111"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateContainerStatusNotAvailable = style.MustRegisterRevisionState(
+		"Container status is not available",
+		"unknown_document",
+		"Container status is not available",
+		style.MustForceConvertSRGBHex("#666666"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateContainerStarted = style.MustRegisterRevisionState(
-		"Container is started/running",
-		"play_arrow",
-		"Container is started/running",
-		style.MustForceConvertSRGBHex("#008800"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
-	)
-	RevisionStateContainerTerminatedSucceeded = style.MustRegisterRevisionState(
-		"Container is terminated successfully (exit code 0)",
-		"check_circle",
-		"Container is terminated successfully (exit code 0)",
-		style.MustForceConvertSRGBHex("#224444"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
-	)
-	RevisionStateContainerTerminatedFailed = style.MustRegisterRevisionState(
-		"Container is terminated with error",
-		"error",
-		"Container is terminated with error",
-		style.MustForceConvertSRGBHex("#bb3333"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+		"Container is started but readiness info is not available",
+		"siren_question",
+		"Container is started but readiness info is not available",
+		style.MustForceConvertSRGBHex("#997700"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 )

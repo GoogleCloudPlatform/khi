@@ -38,6 +38,7 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	result.IsLast = reader.ReadBoolOrDefault("operation.last", false)
 	resourceName := reader.ReadStringOrDefault("protoPayload.resourceName", "")
 	methodName := reader.ReadStringOrDefault("protoPayload.methodName", "")
+	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	result.RequestURI = resourceName
 
 	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
