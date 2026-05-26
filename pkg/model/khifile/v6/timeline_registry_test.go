@@ -91,7 +91,9 @@ func TestTimelineRegistry_GetBuilder(t *testing.T) {
 		{
 			name: "should resolve alias to target builder",
 			test: func(t *testing.T, registry *TimelineRegistry) {
-				registry.SetAlias(path1, path2)
+				if err := registry.SetAlias(path1, path2); err != nil {
+					t.Fatalf("failed to set alias: %v", err)
+				}
 				b1 := registry.GetBuilder(path1)
 				b2 := registry.GetBuilder(path2)
 
@@ -104,17 +106,15 @@ func TestTimelineRegistry_GetBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "should panic if setting alias on path with attached builder",
+			name: "should return error if setting alias on path with attached builder",
 			test: func(t *testing.T, registry *TimelineRegistry) {
 				// Force attaching a builder to path1
 				_ = registry.GetBuilder(path1)
 
-				defer func() {
-					if r := recover(); r == nil {
-						t.Errorf("expected SetAlias to panic when alias already has a builder")
-					}
-				}()
-				registry.SetAlias(path1, path2)
+				err := registry.SetAlias(path1, path2)
+				if err == nil {
+					t.Errorf("expected SetAlias to return an error when alias already has a builder")
+				}
 			},
 		},
 	}

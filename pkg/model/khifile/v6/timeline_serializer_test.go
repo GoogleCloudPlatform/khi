@@ -170,7 +170,9 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 				pathMap[def.id] = path
 
 				if def.aliasOf != "" {
-					registry.SetAlias(path, pathMap[def.aliasOf])
+					if err := registry.SetAlias(path, pathMap[def.aliasOf]); err != nil {
+						t.Fatalf("failed to set alias: %v", err)
+					}
 					continue
 				}
 

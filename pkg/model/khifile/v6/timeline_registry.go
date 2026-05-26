@@ -15,6 +15,7 @@
 package khifilev6
 
 import (
+	"errors"
 	"iter"
 	"sync"
 )
@@ -67,10 +68,10 @@ func (r *TimelineRegistry) GetBuilder(path *TimelinePath) *TimelineBuilder {
 
 // SetAlias configures aliasPath to be an alias of targetPath.
 // Any subsequent request for a builder for aliasPath will return the builder for targetPath.
-// Panics if aliasPath already has a builder attached (i.e., GetBuilder was already called on it).
-func (r *TimelineRegistry) SetAlias(aliasPath, targetPath *TimelinePath) {
+// Returns an error if aliasPath already has a builder attached (i.e., GetBuilder was already called on it).
+func (r *TimelineRegistry) SetAlias(aliasPath, targetPath *TimelinePath) error {
 	if aliasPath == targetPath {
-		return
+		return nil
 	}
 
 	targetBuilder := r.GetBuilder(targetPath)
@@ -79,8 +80,9 @@ func (r *TimelineRegistry) SetAlias(aliasPath, targetPath *TimelinePath) {
 	// Fail-fast: if aliasPath already has a builder attached, it's too late to alias it.
 	actual, loaded := r.builders.LoadOrStore(aliasPath, targetBuilder)
 	if loaded && actual != targetBuilder {
-		panic("TimelineRegistry: Cannot set alias on a path that already has a builder attached")
+		return errors.New("timeline registry: cannot set alias on a path that already has a builder attached")
 	}
+	return nil
 }
 
 // Builders returns an iterator over all unique TimelineBuilders present in the registry.

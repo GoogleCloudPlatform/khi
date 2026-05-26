@@ -43,6 +43,12 @@ func (a *TimelineAccumulator) GetBuilder(path *TimelinePath) *TimelineBuilder {
 	return a.registry.GetBuilder(path)
 }
 
+// SetAlias configures aliasPath to be an alias of targetPath.
+// Returns an error if aliasPath already has a builder attached (i.e., GetBuilder was already called on it).
+func (a *TimelineAccumulator) SetAlias(aliasPath, targetPath *TimelinePath) error {
+	return a.registry.SetAlias(aliasPath, targetPath)
+}
+
 // Accumulate extracts the arrays of Timeline and TimelineItems protobuf messages.
 func (a *TimelineAccumulator) Accumulate() ([]*pb.Timeline, []*pb.TimelineItems) {
 	return ExtractTimelinesAndItemsChunkSource(a.pathPool, a.registry)
