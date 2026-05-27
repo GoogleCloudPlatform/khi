@@ -32,6 +32,7 @@ var (
 		style.MustForceConvertSRGBHex("#4285F4"),
 		true,
 		40,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeGKENodePool = style.MustRegisterTimelineType(
 		"nodepool",
@@ -43,6 +44,7 @@ var (
 		style.MustForceConvertSRGBHex("#E0E0E0"),
 		true,
 		45,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeOperation = style.MustRegisterTimelineType(
 		"operation",
@@ -54,6 +56,7 @@ var (
 		style.ColorBlack,
 		true,
 		3000,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeGCPProject = style.MustRegisterTimelineType(
 		"project",
@@ -65,6 +68,7 @@ var (
 		style.MustForceConvertSRGBHex("#4285F4"),
 		true,
 		30,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeGCPResourceType = style.MustRegisterTimelineType(
 		"gcp_resource_type",
@@ -76,6 +80,7 @@ var (
 		style.MustForceConvertSRGBHex("#34A853"),
 		true,
 		31,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeGCPResource = style.MustRegisterTimelineType(
 		"gcp_resource",
@@ -87,5 +92,6 @@ var (
 		style.MustForceConvertSRGBHex("#FBBC05"),
 		true,
 		32,
+		style.AlphabeticalSortPolicy(),
 	)
 )

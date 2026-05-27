@@ -25,12 +25,13 @@ var (
 	TimelineTypeNodeComponent = style.MustRegisterTimelineType(
 		"node-component",
 		"Non-containerized component on the node",
-		"code_block",
+		"manufacturing",
 		0.6,
 		style.ColorWhite,
 		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#0077CC"),
 		true,
 		6000,
+		style.AlphabeticalSortPolicy(),
 	)
 )

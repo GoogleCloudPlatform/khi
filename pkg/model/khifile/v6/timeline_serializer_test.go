@@ -29,8 +29,8 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 	id2 := uint32(2)
 	priorityA := int32(100)
 	priorityB := int32(200)
-	typeA := &pb.TimelineType{Id: &id1, SortPriority: &priorityA}
-	typeB := &pb.TimelineType{Id: &id2, SortPriority: &priorityB}
+	typeA := &pb.TimelineType{Id: &id1, SortPriority: &priorityA, SortPolicyConfig: &pb.TimelineType_AlphabeticalPolicy{}}
+	typeB := &pb.TimelineType{Id: &id2, SortPriority: &priorityB, SortPolicyConfig: &pb.TimelineType_AlphabeticalPolicy{}}
 
 	type timelineDef struct {
 		id        string

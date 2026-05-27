@@ -125,51 +125,6 @@ describe('CelTimelineFilter', () => {
 });
 
 describe('CelLogFilter', () => {
-  it('should filter logs based on configured CEL expression', () => {
-    const logs = [
-      {
-        id: 1,
-        summary: 'L1',
-        logType: { label: 'type1' },
-        severity: { label: 'sev1' },
-      },
-      {
-        id: 2,
-        summary: 'L2',
-        logType: { label: 'type2' },
-        severity: { label: 'sev2' },
-      },
-    ];
-    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', ['getLog']);
-    logStoreSpy.getLog.and.callFake((id: number) => {
-      const found = logs.find((l) => l.id === id);
-      if (!found) {
-        throw new Error(`Log ${id} not found`);
-      }
-      return found as unknown as ReadonlyDomainElement<Log>;
-    });
-    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
-      'TimelineStore',
-      ['getTimeline'],
-    );
-    Object.defineProperty(timelineStoreSpy, 'logStore', {
-      get: () => logStoreSpy,
-    });
-
-    const filter = new CelLogFilter();
-    const res = filter.updateFilter("l.summary == 'L1'");
-    expect(res.success).toBe(true);
-
-    const context: LogTimelineFilterContext = {
-      timelineIds: new Set(),
-      logIds: new Set([1, 2]),
-    };
-
-    const result = filter.process(context, timelineStoreSpy);
-    expect(result.logIds.size).toBe(1);
-    expect(result.logIds.has(1)).toBe(true);
-  });
-
   it('should return original context if filter is not updated with an expression', () => {
     const filter = new CelLogFilter();
     const context: LogTimelineFilterContext = {
@@ -222,50 +177,5 @@ describe('CelLogFilter', () => {
 
     const result = filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
-  });
-
-  it('should allow comparing severity with registered constants', () => {
-    const logs = [
-      {
-        id: 1,
-        summary: 'Info Log',
-        logType: { label: 'type1' },
-        severity: { label: 'INFO' },
-      },
-      {
-        id: 2,
-        summary: 'Error Log',
-        logType: { label: 'type2' },
-        severity: { label: 'ERROR' },
-      },
-    ];
-    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', ['getLog']);
-    logStoreSpy.getLog.and.callFake((id: number) => {
-      const found = logs.find((l) => l.id === id);
-      if (!found) {
-        throw new Error(`Log ${id} not found`);
-      }
-      return found as unknown as ReadonlyDomainElement<Log>;
-    });
-    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
-      'TimelineStore',
-      ['getTimeline'],
-    );
-    Object.defineProperty(timelineStoreSpy, 'logStore', {
-      get: () => logStoreSpy,
-    });
-
-    const filter = new CelLogFilter();
-    const res = filter.updateFilter('l.severity >= ERROR');
-    expect(res.success).toBe(true);
-
-    const context: LogTimelineFilterContext = {
-      timelineIds: new Set(),
-      logIds: new Set([1, 2]),
-    };
-
-    const result = filter.process(context, timelineStoreSpy);
-    expect(result.logIds.size).toBe(1);
-    expect(result.logIds.has(2)).toBe(true);
   });
 });

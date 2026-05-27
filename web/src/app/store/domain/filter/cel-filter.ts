@@ -345,10 +345,19 @@ export class CelLogFilter implements LogTimelineFilter {
       return context;
     }
     const passedLogIds = new Set<number>();
-    for (const id of context.logIds) {
-      const log = timelineStore.logStore.getLog(id);
-      if (evalFn({ l: this.toCelLog(log) })) {
-        passedLogIds.add(id);
+    for (const tId of context.timelineIds) {
+      const timeline = timelineStore.getTimeline(tId);
+      for (const e of timeline.events) {
+        const l = timelineStore.logStore.getLog(e.log.id);
+        if (!passedLogIds.has(e.log.id) && evalFn({ l: this.toCelLog(l) })) {
+          passedLogIds.add(e.log.id);
+        }
+      }
+      for (const r of timeline.revisions) {
+        const l = timelineStore.logStore.getLog(r.log.id);
+        if (!passedLogIds.has(r.log.id) && evalFn({ l: this.toCelLog(l) })) {
+          passedLogIds.add(r.log.id);
+        }
       }
     }
     return {

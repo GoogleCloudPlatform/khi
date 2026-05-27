@@ -32,11 +32,9 @@ import (
 
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-	gkeClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: "test-cluster",
-		Type: googlecloudcommon_contract.TimelineTypeGKE,
-	})
+	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, "test-cluster")
 	wantCompTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
 		Name: "deployment-controller(controller-manager)",
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
@@ -46,39 +44,14 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
 
-	clusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: "test-cluster",
-		Type: inspectioncore_contract.TimelineTypeK8sCluster,
-	})
-	corev1Timeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
-		Name: "core/v1",
-		Type: inspectioncore_contract.TimelineTypeAPIVersion,
-	})
-	podKindTimeline := builder.TimelineAccumulator.GetPath(corev1Timeline, khifilev6.PathSegment{
-		Name: "pod",
-		Type: inspectioncore_contract.TimelineTypeKind,
-	})
-	nsTimeline := builder.TimelineAccumulator.GetPath(podKindTimeline, khifilev6.PathSegment{
-		Name: "default",
-		Type: inspectioncore_contract.TimelineTypeNamespace,
-	})
-	wantPodTimeline := builder.TimelineAccumulator.GetPath(nsTimeline, khifilev6.PathSegment{
-		Name: "pod-foo",
-		Type: inspectioncore_contract.TimelineTypeResource,
-	})
+	k8sClusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
+	corev1Timeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
+	podKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, corev1Timeline, "pod")
+	nsTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
+	wantPodTimeline := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "pod-foo")
 
-	nodeKindTimeline := builder.TimelineAccumulator.GetPath(corev1Timeline, khifilev6.PathSegment{
-		Name: "node",
-		Type: inspectioncore_contract.TimelineTypeKind,
-	})
-	nodeNamespaceTimeline := builder.TimelineAccumulator.GetPath(nodeKindTimeline, khifilev6.PathSegment{
-		Name: "cluster-scope",
-		Type: inspectioncore_contract.TimelineTypeNamespace,
-	})
-	wantNodeTimeline := builder.TimelineAccumulator.GetPath(nodeNamespaceTimeline, khifilev6.PathSegment{
-		Name: "node-1",
-		Type: inspectioncore_contract.TimelineTypeResource,
-	})
+	nodeKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, corev1Timeline, "node")
+	wantNodeTimeline := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "node-1")
 
 	testCases := []struct {
 		desc                           string

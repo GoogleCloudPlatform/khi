@@ -18,6 +18,8 @@ import (
 	"errors"
 	"iter"
 	"sync"
+
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 // TimelineRegistry manages the registration and retrieval of TimelineBuilders mapped by their unique TimelinePath.
@@ -119,4 +121,12 @@ func (r *TimelineRegistry) ResolveBuilderFromID(id uint32) *TimelineBuilder {
 		return value.(*TimelineBuilder)
 	}
 	return nil
+}
+
+// GetLog retrieves a log entry by its ID from the underlying accumulator.
+func (r *TimelineRegistry) GetLog(id uint32) *pb.Log {
+	if r.logAcc == nil {
+		return nil
+	}
+	return r.logAcc.GetLog(id)
 }

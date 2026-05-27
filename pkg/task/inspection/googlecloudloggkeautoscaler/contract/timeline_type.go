@@ -32,6 +32,7 @@ var (
 		style.MustForceConvertSRGBHex("#FF5555"),
 		true,
 		10000,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeAutoscaler = style.MustRegisterTimelineType(
 		"autoscaler",
@@ -43,5 +44,6 @@ var (
 		style.MustForceConvertSRGBHex("#FF5555"),
 		true,
 		10500,
+		style.AlphabeticalSortPolicy(),
 	)
 )

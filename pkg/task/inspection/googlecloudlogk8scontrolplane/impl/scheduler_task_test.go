@@ -39,12 +39,12 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
 
-	clusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+	k8sClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-cluster",
 		Type: inspectioncore_contract.TimelineTypeK8sCluster,
 	})
 
-	apiVersionTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+	apiVersionTimeline := builder.TimelineAccumulator.GetPath(k8sClusterTimeline, khifilev6.PathSegment{
 		Name: "core/v1",
 		Type: inspectioncore_contract.TimelineTypeAPIVersion,
 	})

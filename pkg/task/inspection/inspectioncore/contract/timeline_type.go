@@ -32,6 +32,7 @@ var (
 		style.MustForceConvertSRGBHex("#F5F5F5"),
 		true,
 		50,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeAPIVersion = style.MustRegisterTimelineType(
 		"apiVersion",
@@ -43,6 +44,7 @@ var (
 		style.MustForceConvertSRGBHex("#EEEEEE"),
 		true,
 		100,
+		style.AlphabeticalSortPolicy("core/v1", "apps/v1"),
 	)
 	TimelineTypeKind = style.MustRegisterTimelineType(
 		"kind",
@@ -54,6 +56,7 @@ var (
 		style.MustForceConvertSRGBHex("#DDDDDD"),
 		true,
 		200,
+		style.AlphabeticalSortPolicy("node", "pod", "service", "replicaset", "deployment", "statefulset", "daemonset", "job", "cronjob"),
 	)
 	TimelineTypeNamespace = style.MustRegisterTimelineType(
 		"namespace",
@@ -65,6 +68,7 @@ var (
 		style.MustForceConvertSRGBHex("#D0D0D0"),
 		true,
 		300,
+		style.AlphabeticalSortPolicy("kube-system", "default"),
 	)
 	TimelineTypeResource = style.MustRegisterTimelineType(
 		"resource",
@@ -76,6 +80,7 @@ var (
 		style.MustForceConvertSRGBHex("#CCCCCC"),
 		true,
 		1000,
+		style.ChronologicalSortPolicy(0),
 	)
 	TimelineTypeSubresource = style.MustRegisterTimelineType(
 		"subresource",
@@ -87,5 +92,6 @@ var (
 		style.MustForceConvertSRGBHex("#BBBBBB"),
 		true,
 		1200,
+		style.AlphabeticalSortPolicy(),
 	)
 )

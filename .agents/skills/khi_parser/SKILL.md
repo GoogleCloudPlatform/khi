@@ -188,10 +188,11 @@ var (
   "dns",
   0.6,
   style.ColorWhite,
-  style.ColorWhite,
+  style.ColorBlack,
   style.MustForceConvertSRGBHex("#4285F4"),
   true,
   1000,
+  style.AlphabeticalSortPolicy(),
  )
 
  // VerbCustomAppProcess is the verb style for Custom App state updates.

@@ -32,6 +32,7 @@ var (
 		style.MustForceConvertSRGBHex("#4c29e8"),
 		true,
 		2000,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeEndpointSlice = style.MustRegisterTimelineType(
 		"endpoint",
@@ -43,6 +44,7 @@ var (
 		style.MustForceConvertSRGBHex("#008000"),
 		true,
 		20000,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypeOwnerReference = style.MustRegisterTimelineType(
 		"owns",
@@ -54,6 +56,7 @@ var (
 		style.MustForceConvertSRGBHex("#33DD88"),
 		true,
 		7000,
+		style.AlphabeticalSortPolicy(),
 	)
 	TimelineTypePodPhase = style.MustRegisterTimelineType(
 		"pod",
@@ -65,6 +68,7 @@ var (
 		style.MustForceConvertSRGBHex("#FF8855"),
 		true,
 		8000,
+		style.AlphabeticalSortPolicy(),
 	)
 	// TimelineTypeContainer is the timeline type style for Kubernetes containers.
 	TimelineTypeContainer = style.MustRegisterTimelineType(
@@ -77,5 +81,6 @@ var (
 		style.MustForceConvertSRGBHex("#fe9bab"),
 		true,
 		5000,
+		style.AlphabeticalSortPolicy(),
 	)
 )

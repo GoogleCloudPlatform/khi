@@ -31,6 +31,7 @@ var (
 		style.MustForceConvertSRGBHex("#F5F5F5"),
 		true,
 		50,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeMultiCloudCluster is the timeline type style for MultiCloud Cluster resources.
@@ -44,6 +45,7 @@ var (
 		style.MustForceConvertSRGBHex("#4285F4"),
 		true,
 		1000,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeMultiCloudNodepool is the timeline type style for MultiCloud Nodepool resources.
@@ -57,6 +59,7 @@ var (
 		style.MustForceConvertSRGBHex("#34A853"),
 		true,
 		1100,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// RevisionStateProvisioning is the style for a resource that is being provisioned.

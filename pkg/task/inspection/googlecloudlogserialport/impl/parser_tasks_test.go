@@ -76,31 +76,8 @@ func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
 
 func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewBuilder()
-
-	clusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: "test-cluster",
-		Type: inspectioncore_contract.TimelineTypeK8sCluster,
-	})
-	apiVersionTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
-		Name: "core/v1",
-		Type: inspectioncore_contract.TimelineTypeAPIVersion,
-	})
-	kindTimeline := builder.TimelineAccumulator.GetPath(apiVersionTimeline, khifilev6.PathSegment{
-		Name: "node",
-		Type: inspectioncore_contract.TimelineTypeKind,
-	})
-	namespaceTimeline := builder.TimelineAccumulator.GetPath(kindTimeline, khifilev6.PathSegment{
-		Name: "cluster-scope",
-		Type: inspectioncore_contract.TimelineTypeNamespace,
-	})
-	nodeTimeline := builder.TimelineAccumulator.GetPath(namespaceTimeline, khifilev6.PathSegment{
-		Name: "node-name-bar",
-		Type: inspectioncore_contract.TimelineTypeResource,
-	})
-	wantSerialPortPath := builder.TimelineAccumulator.GetPath(nodeTimeline, khifilev6.PathSegment{
-		Name: "serial_port_output_qux",
-		Type: googlecloudlogserialport_contract.TimelineTypeSerialPort,
-	})
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	wantSerialPortPath := googlecloudlogserialport_contract.MustSerialPortTimeline(ctx, "test-cluster", "node-name-bar", "serial_port_output_qux")
 
 	testCases := []struct {
 		name     string

@@ -59,7 +59,8 @@ var InspectionRunMetadata = typedmap.NewTypedKey[*typedmap.ReadonlyTypedMap]("kh
 // for file operations during inspection task execution.
 var CurrentIOConfig = typedmap.NewTypedKey[*IOConfig]("khi.google.com/inspection/current-io-config")
 
-// Builder is the context key to access the KHI file builder instance.
+// Builder is the context key to access the builder instance
+// used for constructing KhiFile during inspection execution.
 var Builder = typedmap.NewTypedKey[*khifilev6.Builder]("khi.google.com/inspection/builder")
 
 // TaskRunner is the context key to access the task runner instance

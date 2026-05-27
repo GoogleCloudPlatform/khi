@@ -12,38 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudlogonpremapiaudit_contract
+package googlecloudlogk8scontainer_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
+// The following block defines the registered timeline style TimelineTypes.
+// These are registered as package-level variables so they are initialized immediately
+// when this package is imported.
 var (
-	// TimelineTypeOnPremCluster is the timeline type style for On-Prem Clusters.
-	TimelineTypeOnPremCluster = style.MustRegisterTimelineType(
-		"onpremCluster",
-		"On-Prem Cluster",
-		"dns",
+	TimelineTypeContainer = style.MustRegisterTimelineType(
+		"container",
+		"Container status and logs",
+		"activity_zone",
 		0.6,
 		style.ColorWhite,
 		style.ColorBlack,
-		style.MustForceConvertSRGBHex("#34A853"),
+		style.MustForceConvertSRGBHex("#fe9bab"),
 		true,
-		10100,
-		style.AlphabeticalSortPolicy(),
-	)
-
-	// TimelineTypeOnPremNodePool is the timeline type style for On-Prem NodePools.
-	TimelineTypeOnPremNodePool = style.MustRegisterTimelineType(
-		"onpremNodePool",
-		"On-Prem NodePool",
-		"workspaces",
-		0.6,
-		style.ColorWhite,
-		style.ColorBlack,
-		style.MustForceConvertSRGBHex("#FBBC05"),
-		true,
-		10200,
+		5000,
 		style.AlphabeticalSortPolicy(),
 	)
 )
