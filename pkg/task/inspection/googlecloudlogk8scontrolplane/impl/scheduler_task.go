@@ -17,12 +17,16 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"context"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var SchedulerLogFilterTask = inspectiontaskbase.NewLogFilterTask(
@@ -55,47 +59,64 @@ var SchedulerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-var SchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontrolplane_contract.SchedulerLogToTimelineMapperTaskID, &schedulerLogToTimelineMapperTaskSetting{})
-
-type schedulerLogToTimelineMapperTaskSetting struct {
+// SchedulerTimelineMapper maps scheduler logs to timeline paths.
+type SchedulerTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *schedulerLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+func (m *SchedulerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *schedulerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+func (m *SchedulerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8scontrolplane_contract.SchedulerLogGrouperTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *schedulerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+func (m *SchedulerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (o *schedulerLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+func (m *SchedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
 	if err != nil {
-		return struct{}{}, err
-	}
-	commonMainMessage, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{})
-	if err != nil {
-		return struct{}{}, err
+		return nil, struct{}{}, err
 	}
 	schedulerMessageFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sSchedulerComponentFieldSet{})
 	if err != nil {
-		return struct{}{}, err
+		return nil, struct{}{}, err
 	}
 
-	cs.SetLogSummary(commonMainMessage.Message)
-	cs.AddEvent(componentFieldSet.ResourcePath())
+	cs := khifilev6.NewTimelineChangeSet(l)
+
+	compTimeline := MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
+	cs.AddEvent(compTimeline)
+
 	if schedulerMessageFieldSet.HasPodField() {
-		cs.AddEvent(schedulerMessageFieldSet.ResourcePath())
+		clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, componentFieldSet.ClusterName)
+		apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+		kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+		namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, schedulerMessageFieldSet.PodNamespace)
+		podTimeline := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, schedulerMessageFieldSet.PodName)
+		cs.AddEvent(podTimeline)
 	}
-	return struct{}{}, nil
+
+	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*schedulerLogToTimelineMapperTaskSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*SchedulerTimelineMapper)(nil)
+
+var SchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(googlecloudlogk8scontrolplane_contract.SchedulerLogToTimelineMapperTaskID, &SchedulerTimelineMapper{})
+
+// MustControlPlaneComponentTimeline returns the timeline path for a Kubernetes control plane component.
+func MustControlPlaneComponentTimeline(ctx context.Context, clusterName string, componentName string) *khifilev6.TimelinePath {
+	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, clusterName)
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	return builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+		Name: componentName,
+		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
+	})
+}
