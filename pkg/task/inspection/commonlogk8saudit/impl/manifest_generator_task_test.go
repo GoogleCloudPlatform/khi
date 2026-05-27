@@ -27,6 +27,7 @@ import (
 
 type testGroupManifestGeneratorInput struct {
 	verb         *pb.Verb
+	truncated    bool
 	requestYAML  string
 	responseYAML string
 	isDryRun     bool
@@ -331,6 +332,50 @@ metadata:
 `,
 			},
 		},
+		{
+			desc: "truncated audit log does not advance the resource revision",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbUpdate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar`,
+				},
+				{
+					verb:      commonlogk8saudit_contract.VerbUpdate,
+					truncated: true,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    qux: quux`,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					requestYAML: `metadata:
+  labels:
+    baz: qux`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+`,
+				"",
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+    baz: qux
+`,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -355,6 +400,7 @@ metadata:
 				logs = append(logs, log.NewLogWithFieldSetsForTest(&commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					ClusterName: "k8s",
 					Verb:        verb,
+					Truncated:   input.truncated,
 					Request:     request,
 					Response:    response,
 					IsDryRun:    input.isDryRun,
