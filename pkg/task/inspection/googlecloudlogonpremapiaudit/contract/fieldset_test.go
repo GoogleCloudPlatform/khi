@@ -29,9 +29,13 @@ func TestOnPremAPIAuditResourceFieldSetReader(t *testing.T) {
 	}{
 		{
 			desc: "with all parameters",
-			input: `protoPayload:
+			input: `resource:
+  labels:
+    project_id: "123456"
+protoPayload:
   resourceName: projects/123456/locations/asia-southeast1/baremetalAdminClusters/cluster-foo/baremetalAdminNodepools/nodepool-bar`,
 			want: &OnPremAPIAuditResourceFieldSet{
+				Project:      "123456",
 				ClusterName:  "cluster-foo",
 				NodepoolName: "nodepool-bar",
 				ClusterType:  ClusterTypeBaremetalAdmin,
@@ -39,9 +43,13 @@ func TestOnPremAPIAuditResourceFieldSetReader(t *testing.T) {
 		},
 		{
 			desc: "resourceName for cluster",
-			input: `protoPayload: 
+			input: `resource:
+  labels:
+    project_id: "123456"
+protoPayload: 
   resourceName: projects/123456/locations/asia-southeast1/baremetalStandaloneClusters/cluster-foo`,
 			want: &OnPremAPIAuditResourceFieldSet{
+				Project:      "123456",
 				ClusterName:  "cluster-foo",
 				NodepoolName: "",
 				ClusterType:  ClusterTypeBaremetalStandalone,
@@ -49,12 +57,30 @@ func TestOnPremAPIAuditResourceFieldSetReader(t *testing.T) {
 		},
 		{
 			desc: "cluster name and nodepool name are missing",
-			input: `protoPayload: 
+			input: `resource:
+  labels:
+    project_id: "123456"
+protoPayload: 
   resourceName: projects/123456/locations/asia-southeast1`,
 			want: &OnPremAPIAuditResourceFieldSet{
+				Project:      "123456",
 				ClusterName:  "unknown",
 				NodepoolName: "",
 				ClusterType:  ClusterTypeUnknown,
+			},
+		},
+		{
+			desc: "with project_id in resource labels",
+			input: `resource:
+  labels:
+    project_id: "my-project-from-labels"
+protoPayload:
+  resourceName: projects/123456/locations/asia-southeast1/baremetalAdminClusters/cluster-foo/baremetalAdminNodepools/nodepool-bar`,
+			want: &OnPremAPIAuditResourceFieldSet{
+				Project:      "my-project-from-labels",
+				ClusterName:  "cluster-foo",
+				NodepoolName: "nodepool-bar",
+				ClusterType:  ClusterTypeBaremetalAdmin,
 			},
 		},
 	}

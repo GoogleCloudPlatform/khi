@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -33,7 +32,9 @@ const (
 	ClusterTypeUnknown             OnPremClusterType = "unknown"
 )
 
+// OnPremAPIAuditResourceFieldSet holds structured log data extracted from an OnPrem API log.
 type OnPremAPIAuditResourceFieldSet struct {
+	Project      string
 	ClusterType  OnPremClusterType
 	ClusterName  string
 	NodepoolName string
@@ -54,14 +55,6 @@ func (g *OnPremAPIAuditResourceFieldSet) IsNodepool() bool {
 	return g.NodepoolName != ""
 }
 
-func (g *OnPremAPIAuditResourceFieldSet) ResourcePath() resourcepath.ResourcePath {
-	if g.IsCluster() {
-		return resourcepath.Cluster(g.ClusterName)
-	} else {
-		return resourcepath.Nodepool(g.ClusterName, g.NodepoolName)
-	}
-}
-
 var _ log.FieldSet = (*OnPremAPIAuditResourceFieldSet)(nil)
 
 type OnPremAPIAuditResourceFieldSetReader struct {
@@ -75,9 +68,14 @@ func (m *OnPremAPIAuditResourceFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (m *OnPremAPIAuditResourceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	result := &OnPremAPIAuditResourceFieldSet{
+		Project:      "unknown",
 		ClusterType:  ClusterTypeUnknown,
 		NodepoolName: "",
 		ClusterName:  "unknown",
+	}
+
+	if projectID, err := reader.ReadString("resource.labels.project_id"); err == nil && projectID != "" {
+		result.Project = projectID
 	}
 
 	resourceName, err := reader.ReadString("protoPayload.resourceName")
