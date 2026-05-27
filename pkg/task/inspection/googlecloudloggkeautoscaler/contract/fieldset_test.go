@@ -63,6 +63,7 @@ receiveTimestamp: "2025-11-09T02:15:28.437679991Z"
 timestamp: "2025-11-09T02:15:27.768533131Z"
 `,
 			want: &AutoscalerLogFieldSet{
+				ClusterName: "ca-cluster",
 				DecisionLog: &DecisionLog{
 					DecideTime: "1762654527",
 					EventID:    "be492585-c6ca-4286-ac59-dd846560d64a",
@@ -130,6 +131,7 @@ receiveTimestamp: "2025-11-09T02:15:28.437679991Z"
 timestamp: "2025-11-09T02:15:27.768533131Z"
 `,
 			want: &AutoscalerLogFieldSet{
+				ClusterName: "ca-cluster",
 				NoDecisionLog: &NoDecisionStatusLog{
 					MeasureTime: "1762654527",
 					NoScaleDown: &NoScaleDownItem{
@@ -175,6 +177,7 @@ receiveTimestamp: "2025-11-09T02:16:43.703446262Z"
 timestamp: "2025-11-09T02:16:43.237461906Z"
 `,
 			want: &AutoscalerLogFieldSet{
+				ClusterName: "ca-cluster",
 				ResultInfoLog: &ResultInfoLog{
 					MeasureTime: "1762654602",
 					Results: []Result{

@@ -25,8 +25,8 @@ import (
 
 // MustAutoscalerTimeline returns the timeline path for GKE cluster autoscaler under the Kubernetes Cluster timeline.
 func MustAutoscalerTimeline(ctx context.Context, clusterTimeline *khifilev6.TimelinePath) *khifilev6.TimelinePath {
-	if clusterTimeline == nil || clusterTimeline.Type.GetId() != inspectioncore_contract.TimelineTypeK8sCluster.GetId() {
-		panic("parent timeline path must be K8sCluster type")
+	if clusterTimeline == nil || clusterTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKE.GetId() {
+		panic("parent timeline path must be GKE type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
