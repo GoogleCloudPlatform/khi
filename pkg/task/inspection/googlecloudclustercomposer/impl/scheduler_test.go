@@ -18,12 +18,17 @@ import (
 	"context"
 	"testing"
 	"time"
+	"unique"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 )
@@ -32,130 +37,135 @@ func TestAirflowSchedulerMapperTask_ProcessLogByGroup(t *testing.T) {
 	timestamp := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
-		name      string
-		logs      []*log.Log
-		asserters [][]testchangeset.ChangeSetAsserter
+		name   string
+		input  *log.Log
+		assert func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			name: "Scheduler basic identification and TaskInstance extraction",
-			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&log.CommonFieldSet{Timestamp: timestamp},
-					&log.MainMessageFieldSet{MainMessage: "Processing /app/models.py"},
-					&googlecloudclustercomposer_contract.ComposerFieldSet{
-						SchedulerID: "airflow-scheduler-7b5f",
-					},
-					&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
-						TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
-							"my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS,
-						),
-					},
-				),
-			},
-			asserters: [][]testchangeset.ChangeSetAsserter{
-				{
-					// Scheduler Identity Event
-					&testchangeset.HasEvent{
-						ResourcePath: resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", "airflow-scheduler-7b5f", "airflow-scheduler").Path,
-					},
-					// TaskInstance Revision
-					&testchangeset.HasRevision{
-						ResourcePath: googlecloudclustercomposer_contract.NewAirflowTaskInstance("my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS).ResourcePath().Path,
-						WantRevision: history.StagingResourceRevision{
-							Verb:       enum.RevisionVerbComposerTaskInstanceSuccess, // Based on "success" mapped to verb
-							State:      enum.RevisionStateComposerTiSuccess,
-							ChangeTime: timestamp,
-							Requestor:  "airflow-scheduler",
-							Body:       googlecloudclustercomposer_contract.NewAirflowTaskInstance("my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS).ToYaml(),
-						},
-					},
-					&testchangeset.HasEvent{
-						ResourcePath: googlecloudclustercomposer_contract.NewAirflowTaskInstance("my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS).ResourcePath().Path,
-					},
-					// Log Summary
-					&testchangeset.HasLogSummary{WantLogSummary: "Processing /app/models.py"},
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: timestamp},
+				&log.MainMessageFieldSet{MainMessage: "Processing /app/models.py"},
+				&googlecloudclustercomposer_contract.ComposerFieldSet{
+					SchedulerID: "airflow-scheduler-7b5f",
 				},
+				&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
+					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
+						"my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS,
+					),
+				},
+			),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, "test-project", "test-environment")
+				schedulerPath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, "airflow-scheduler-7b5f")
+				ti := googlecloudclustercomposer_contract.NewAirflowTaskInstance("my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "worker-1", googlecloudclustercomposer_contract.TASKINSTANCE_SUCCESS)
+				runPath := googlecloudclustercomposer_contract.MustAirflowDAGRunTimeline(ctx, envPath, ti.DagId(), ti.RunId())
+				tiPath := googlecloudclustercomposer_contract.MustAirflowTaskInstanceTimeline(ctx, runPath, "task_id_1+1")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(schedulerPath).
+					HasEvent(tiPath).
+					HasRevision(tiPath, &khifilev6.StagingRevision{
+						ChangedTime:  timestamp,
+						ResourceBody: mustParseYAMLNode(t, ti.ToYaml()),
+						Principal:    "airflow-scheduler",
+						VerbType:     googlecloudclustercomposer_contract.VerbComposerTaskInstanceSuccess,
+						StateType:    googlecloudclustercomposer_contract.RevisionStateComposerTiSuccess,
+					}, cmp.AllowUnexported(
+						structured.StandardMapNode{},
+						structured.StandardScalarNode[string]{},
+						structured.StandardScalarNode[any]{},
+						structured.StandardSequenceNode{},
+						unique.Handle[string]{},
+					))
 			},
 		},
 		{
 			name: "Zombie task adds event to worker",
-			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&log.CommonFieldSet{Timestamp: timestamp},
-					&log.MainMessageFieldSet{MainMessage: "Detected zombie task"},
-					&googlecloudclustercomposer_contract.ComposerFieldSet{
-						SchedulerID: "airflow-scheduler-7b5f",
-					},
-					&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
-						TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
-							"my_dag", "task_id_zombie", "2023-01-01T00:00:00Z", "1", "worker-bad", googlecloudclustercomposer_contract.TASKINSTANCE_ZOMBIE,
-						),
-					},
-				),
-			},
-			asserters: [][]testchangeset.ChangeSetAsserter{
-				{
-					// Scheduler Identity Event
-					&testchangeset.HasEvent{
-						ResourcePath: resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", "airflow-scheduler-7b5f", "airflow-scheduler").Path,
-					},
-					// Worker Event for Zombie
-					&testchangeset.HasEvent{
-						ResourcePath: googlecloudclustercomposer_contract.NewAirflowWorker("worker-bad").ResourcePath().Path,
-					},
-					// Log Summary
-					&testchangeset.HasLogSummary{WantLogSummary: "Detected zombie task"},
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: timestamp},
+				&log.MainMessageFieldSet{MainMessage: "Detected zombie task"},
+				&googlecloudclustercomposer_contract.ComposerFieldSet{
+					SchedulerID: "airflow-scheduler-7b5f",
 				},
+				&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{
+					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
+						"my_dag", "task_id_zombie", "2023-01-01T00:00:00Z", "1", "worker-bad", googlecloudclustercomposer_contract.TASKINSTANCE_ZOMBIE,
+					),
+				},
+			),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, "test-project", "test-environment")
+				schedulerPath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, "airflow-scheduler-7b5f")
+				workerPath := googlecloudclustercomposer_contract.MustAirflowWorkerTimeline(ctx, envPath, "worker-bad")
+				ti := googlecloudclustercomposer_contract.NewAirflowTaskInstance("my_dag", "task_id_zombie", "2023-01-01T00:00:00Z", "1", "worker-bad", googlecloudclustercomposer_contract.TASKINSTANCE_ZOMBIE)
+				runPath := googlecloudclustercomposer_contract.MustAirflowDAGRunTimeline(ctx, envPath, ti.DagId(), ti.RunId())
+				tiPath := googlecloudclustercomposer_contract.MustAirflowTaskInstanceTimeline(ctx, runPath, "task_id_zombie+1")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(schedulerPath).
+					HasEvent(workerPath).
+					HasEvent(tiPath).
+					HasRevision(tiPath, &khifilev6.StagingRevision{
+						ChangedTime:  timestamp,
+						ResourceBody: mustParseYAMLNode(t, ti.ToYaml()),
+						Principal:    "airflow-scheduler",
+						VerbType:     googlecloudclustercomposer_contract.VerbComposerTaskInstanceZombie,
+						StateType:    googlecloudclustercomposer_contract.RevisionStateComposerTiZombie,
+					}, cmp.AllowUnexported(
+						structured.StandardMapNode{},
+						structured.StandardScalarNode[string]{},
+						structured.StandardScalarNode[any]{},
+						structured.StandardSequenceNode{},
+						unique.Handle[string]{},
+					))
 			},
 		},
 		{
 			name: "Scheduler log without TaskInstance",
-			logs: []*log.Log{
-				log.NewLogWithFieldSetsForTest(
-					&log.CommonFieldSet{Timestamp: timestamp},
-					&log.MainMessageFieldSet{MainMessage: "Heartbeat"},
-					&googlecloudclustercomposer_contract.ComposerFieldSet{
-						SchedulerID: "airflow-scheduler-7b5f",
-					},
-				),
-			},
-			asserters: [][]testchangeset.ChangeSetAsserter{
-				{
-					// Scheduler Identity Event only
-					&testchangeset.HasEvent{
-						ResourcePath: resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", "airflow-scheduler-7b5f", "airflow-scheduler").Path,
-					},
-					// Log Summary
-					&testchangeset.HasLogSummary{WantLogSummary: "Heartbeat"},
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: timestamp},
+				&log.MainMessageFieldSet{MainMessage: "Heartbeat"},
+				&googlecloudclustercomposer_contract.ComposerFieldSet{
+					SchedulerID: "airflow-scheduler-7b5f",
 				},
+			),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, "test-project", "test-environment")
+				schedulerPath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, "airflow-scheduler-7b5f")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(schedulerPath)
 			},
 		},
 	}
 
+	mapper := &schedulerLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mapper := airflowSchedulerLogToTimelineMapperSetting{
-				targetLogType: enum.LogTypeComposerEnvironment,
+			builder := khifilev6.NewBuilder()
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+			taskDependentValues := typedmap.NewTypedMap()
+			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "test-project"})
+			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), "test-environment")
+			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
+
+			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.input, struct{}{})
+			if err != nil {
+				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}
 
-			state := struct{}{}
-			for i, l := range tc.logs {
-				changeSetAsserters := tc.asserters[i]
-				cs := history.NewChangeSet(l)
-
-				nextState, err := mapper.ProcessLogByGroup(context.Background(), l, cs, nil, state)
-				if err != nil {
-					t.Fatalf("ProcessLogByGroup failed at message %d: %v", i, err)
-				}
-				for _, asserter := range changeSetAsserters {
-					asserter.Assert(t, cs)
-				}
-				state = nextState
-			}
-
-			if diff := cmp.Diff(struct{}{}, state); diff != "" {
-				t.Errorf("state mismatch (-want +got):\n%s", diff)
-			}
+			tc.assert(t, ctx, cs)
 		})
 	}
+}
+
+func mustParseYAMLNode(t *testing.T, yamlStr string) structured.Node {
+	t.Helper()
+	node, err := structured.FromYAML(yamlStr)
+	if err != nil {
+		t.Fatalf("failed to parse yaml node in test: %v", err)
+	}
+	return node
 }

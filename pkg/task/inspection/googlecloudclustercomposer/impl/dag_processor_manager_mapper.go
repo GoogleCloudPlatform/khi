@@ -21,19 +21,23 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// AirflowDagProcessorManagerLogSorterTask sorts Airflow DAG processor manager logs.
 var AirflowDagProcessorManagerLogSorterTask = inspectiontaskbase.NewLogSorterByTimeTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID,
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID.Ref(),
 )
 
+// AirflowDagProcessorManagerLogGrouperTask groups Airflow DAG processor manager logs.
 var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID,
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref(),
@@ -46,19 +50,6 @@ var AirflowDagProcessorManagerLogGrouperTask = inspectiontaskbase.NewLogGrouperT
 			return fs.SchedulerID
 		}
 		return fs.DagProcessorManagerID
-	},
-)
-
-var AirflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
-	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogIngesterTaskID,
-	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogFilterTaskID.Ref(),
-)
-
-var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*DagProcessorState](
-	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogToTimelineMapperTaskID,
-	&airflowDagProcessorManagerLogToTimelineMapperSetting{
-		targetLogType: enum.LogTypeComposerEnvironment,
-		dagFilePath:   "/home/airflow/gcs/dags", // It seems dagFilePath was passed historically, fixing it to default.
 	},
 )
 
@@ -77,37 +68,134 @@ type DagProcessorState struct {
 	Reader *logutil.TabulateReader
 }
 
-type airflowDagProcessorManagerLogToTimelineMapperSetting struct {
-	targetLogType enum.LogType
-	dagFilePath   string
+type dagProcessorManagerLogIngester struct {
+	inspectiontaskbase.SinglePassGroupedIngesterBase[*DagProcessorState]
 }
 
-func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// RawLogTask returns the task reference that provides the raw logs to ingest.
+func (i *dagProcessorManagerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogSorterTaskID.Ref()
+}
+
+// GroupedLogTask returns a reference to the task that provides the grouped logs.
+func (i *dagProcessorManagerLogIngester) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID.Ref()
 }
 
-func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// Dependencies returns additional task dependencies of the ingester.
+func (i *dagProcessorManagerLogIngester) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
+}
+
+// ProcessLogByGroup is called for each log entry in a group to customize log metadata.
+// It parses tabular log entries and maintains sequence state within the group.
+func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *DagProcessorState) (*khifilev6.LogChangeSet, *DagProcessorState, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, prevGroupData, err
+	}
+	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeComposerEnvironment)
+
+	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
+		cs.SetTimestamp(commonFS.Timestamp)
+	}
+
+	// Default severity is Unknown and summary is empty
+	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
+	cs.SetSummary("")
+
+	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	if err != nil {
+		return cs, prevGroupData, nil
+	}
+
+	rawLog := mainMessage.MainMessage
+	rawLog = strings.TrimPrefix(rawLog, "DAG_PROCESSOR_MANAGER_LOG:")
+	rawLog = strings.TrimSpace(rawLog)
+
+	if prevGroupData == nil {
+		prevGroupData = &DagProcessorState{
+			Reader: logutil.NewTabulateReader(),
+		}
+	}
+
+	if strings.Contains(rawLog, "==========") {
+		prevGroupData.Reader.Reset()
+	}
+
+	res, err := prevGroupData.Reader.ParseLine(rawLog)
+	if err != nil {
+		cs.SetSummary(rawLog)
+		return cs, prevGroupData, nil
+	}
+
+	if res.Type != logutil.TabulateLineTypeBody {
+		cs.SetSummary(rawLog)
+		return cs, prevGroupData, nil
+	}
+
+	if res.Values[dagProcessorManagerColumnNumErrors] != "0" {
+		cs.SetSeverity(inspectioncore_contract.SeverityError)
+	}
+
+	summaryText := fmt.Sprintf("File Path: %s PID: %s #DAGs: %s #Errors: %s", res.Values[dagProcessorManagerColumnFilePath], res.Values[dagProcessorManagerColumnPID], res.Values[dagProcessorManagerColumnNumDags], res.Values[dagProcessorManagerColumnNumErrors])
+	cs.SetSummary(summaryText)
+
+	return cs, prevGroupData, nil
+}
+
+var _ inspectiontaskbase.GroupedLogIngesterV2[*DagProcessorState] = (*dagProcessorManagerLogIngester)(nil)
+
+// AirflowDagProcessorManagerLogIngesterTask is the task that ingests Airflow DAG processor manager logs.
+var AirflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.NewGroupedLogIngesterTaskV2(
+	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogIngesterTaskID,
+	&dagProcessorManagerLogIngester{},
+)
+
+type dagProcessorManagerTimelineMapper struct {
+	inspectiontaskbase.SinglePassMapperBase[*DagProcessorState]
+	targetLogType *pb.LogType
+	dagFilePath   string
+}
+
+// LogIngesterTask returns a reference to the ingester task.
+func (m *dagProcessorManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogIngesterTaskID.Ref()
 }
 
-func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return nil
+// Dependencies returns additional task dependencies of the mapper.
+func (m *dagProcessorManagerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
+		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
+	}
 }
 
-func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData *DagProcessorState) (*DagProcessorState, error) {
+// GroupedLogTask returns a reference to the task that provides the grouped logs.
+func (m *dagProcessorManagerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogGrouperTaskID.Ref()
+}
+
+// ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
+func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *DagProcessorState) (*khifilev6.TimelineChangeSet, *DagProcessorState, error) {
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
+	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
+	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
+
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
 	if err != nil {
-		return prevGroupData, nil
+		return nil, prevGroupData, nil
 	}
 	dpmField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+	cs := khifilev6.NewTimelineChangeSet(l)
 	parserID := "unknown-parser"
 	if err == nil {
 		if dpmField.SchedulerID != "" {
-			cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", dpmField.SchedulerID, "airflow-dag-processor-manager"))
+			cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, dpmField.SchedulerID))
 			parserID = dpmField.SchedulerID
 		} else if dpmField.DagProcessorManagerID != "" {
-			cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowDagProcessorManager", "cluster-scope", dpmField.DagProcessorManagerID, "airflow-dag-processor-manager"))
+			cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowDagProcessorManager, dpmField.DagProcessorManagerID))
 			parserID = dpmField.DagProcessorManagerID
 		}
 	}
@@ -124,31 +212,40 @@ func (c *airflowDagProcessorManagerLogToTimelineMapperSetting) ProcessLogByGroup
 	if strings.Contains(rawLog, "==========") {
 		prevGroupData.Reader.Reset()
 	}
+
 	res, err := prevGroupData.Reader.ParseLine(rawLog)
 	if err != nil {
-		cs.SetLogSummary(rawLog)
-		// Log format exception or end of table reached
-		return prevGroupData, nil
+		return cs, prevGroupData, nil
 	}
 
 	if res.Type != logutil.TabulateLineTypeBody {
-		cs.SetLogSummary(rawLog)
-		return prevGroupData, nil
+		return cs, prevGroupData, nil
 	}
 
-	condition := enum.RevisionStateConditionTrue
+	condition := commonlogk8saudit_contract.RevisionStateConditionTrue
 	if res.Values[dagProcessorManagerColumnNumErrors] != "0" {
-		cs.SetLogSeverity(enum.SeverityError)
-		condition = enum.RevisionStateConditionFalse
+		condition = commonlogk8saudit_contract.RevisionStateConditionFalse
 	}
 
-	cs.AddRevision(resourcepath.NameLayerGeneralItem("Apache Airflow", "Dag File Processor Stats", parserID, res.Values[dagProcessorManagerColumnFilePath]), &history.StagingResourceRevision{
-		Verb:       enum.RevisionVerbComposerTaskInstanceStats,
-		State:      condition,
-		Requestor:  "dag-processor-manager",
-		ChangeTime: commonField.Timestamp,
-	})
-	cs.SetLogSummary(fmt.Sprintf("File Path: %s PID: %s #DAGs: %s #Errors: %s", res.Values[dagProcessorManagerColumnFilePath], res.Values[dagProcessorManagerColumnPID], res.Values[dagProcessorManagerColumnNumDags], res.Values[dagProcessorManagerColumnNumErrors]))
+	timelinePath := googlecloudclustercomposer_contract.MustAirflowDAGProcessorManagerInstanceTimeline(ctx, envPath, res.Values[dagProcessorManagerColumnFilePath], parserID)
 
-	return prevGroupData, nil
+	cs.AddRevision(timelinePath, &khifilev6.StagingRevision{
+		ChangedTime: commonField.Timestamp,
+		Principal:   "dag-processor-manager",
+		VerbType:    googlecloudclustercomposer_contract.VerbComposerTaskInstanceStats,
+		StateType:   condition,
+	})
+
+	return cs, prevGroupData, nil
 }
+
+var _ inspectiontaskbase.LogToTimelineMapperV2[*DagProcessorState] = (*dagProcessorManagerTimelineMapper)(nil)
+
+// AirflowDagProcessorManagerLogToTimelineMapperTask is the task that maps Airflow DAG processor manager logs to timeline events.
+var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogToTimelineMapperTaskID,
+	&dagProcessorManagerTimelineMapper{
+		targetLogType: googlecloudclustercomposer_contract.LogTypeComposerEnvironment,
+		dagFilePath:   "/home/airflow/gcs/dags",
+	},
+)
