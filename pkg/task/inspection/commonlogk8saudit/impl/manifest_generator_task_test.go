@@ -28,6 +28,7 @@ import (
 
 type testGroupManifestGeneratorInput struct {
 	op           *model.KubernetesObjectOperation
+	truncated    bool
 	requestYAML  string
 	responseYAML string
 }
@@ -325,6 +326,56 @@ metadata:
 				"# Resource data is unavailable. Audit logs for this resource is recorded at metadata level.",
 			},
 		},
+		{
+			desc: "truncated audit log does not advance the resource revision",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					op: &model.KubernetesObjectOperation{
+						Verb: enum.RevisionVerbUpdate,
+					},
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar`,
+				},
+				{
+					op: &model.KubernetesObjectOperation{
+						Verb: enum.RevisionVerbUpdate,
+					},
+					truncated: true,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    qux: quux`,
+				},
+				{
+					op: &model.KubernetesObjectOperation{
+						Verb: enum.RevisionVerbPatch,
+					},
+					requestYAML: `metadata:
+  labels:
+    baz: qux`,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+`,
+				"# Resource data is unavailable because the audit log was truncated.",
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+    baz: qux
+`,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -347,6 +398,7 @@ metadata:
 				}
 				logs = append(logs, log.NewLogWithFieldSetsForTest(&commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					K8sOperation: input.op,
+					Truncated:    input.truncated,
 					Request:      request,
 					Response:     response,
 				}))
