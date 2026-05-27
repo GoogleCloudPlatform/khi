@@ -128,6 +128,12 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 			ResourceBodyReader: g.prevRevisionReader,
 		}, nil
 	}
+	if fieldSet.Truncated {
+		return &commonlogk8saudit_contract.ResourceManifestLog{
+			Log:                l,
+			ResourceBodyReader: nil,
+		}, nil
+	}
 	currentBodyReader := fieldSet.Response
 	partial := false
 	if currentBodyReader == nil {

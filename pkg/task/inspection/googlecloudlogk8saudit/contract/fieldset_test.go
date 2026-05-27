@@ -230,6 +230,28 @@ func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
 				IsDryRun:     true,
 			},
 		},
+		{
+			name: "with truncated label",
+			input: `{
+				"labels": {
+					"audit.k8s.io/truncated": "true"
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods/nginx",
+					"methodName": "io.k8s.core.v1.pods.update"
+				}
+			}`,
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				RequestURI:   "core/v1/namespaces/default/pods/nginx",
+				APIVersion:   "core/v1",
+				PluralKind:   "pods",
+				Namespace:    "default",
+				ResourceName: "nginx",
+				ClusterName:  "unknown",
+				Verb:         commonlogk8saudit_contract.VerbUpdate,
+				Truncated:    true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
