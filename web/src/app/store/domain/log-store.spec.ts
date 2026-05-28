@@ -17,7 +17,7 @@
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
-import { create } from '@bufbuild/protobuf';
+import { create, toBinary } from '@bufbuild/protobuf';
 import {
   InternedStructSchema,
   InternedValueSchema,
@@ -214,7 +214,7 @@ describe('LogStore', () => {
         logTypeId: 1,
         severityTypeId: 1,
         summaryStringId: 1,
-        body: struct,
+        body: toBinary(InternedStructSchema, struct),
       },
       { id: 2, ts: 20n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
     ];

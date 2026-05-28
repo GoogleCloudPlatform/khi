@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { fromBinary } from '@bufbuild/protobuf';
+import { fromBinary, toBinary } from '@bufbuild/protobuf';
+import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import {
   ChunkDefinition,
   IDataAssembler,
@@ -282,7 +283,7 @@ export class V6LogAssembler implements IDataAssembler<LogChunk> {
         logTypeId: log.logTypeId,
         severityTypeId: log.severityTypeId,
         summaryStringId: log.summaryStringId,
-        body: log.body,
+        body: log.body ? toBinary(InternedStructSchema, log.body) : undefined,
       });
     }
   }
@@ -333,7 +334,9 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
           principalStringId: r.principalStringId,
           verbTypeId: r.verbType,
           stateTypeId: r.stateType,
-          body: r.resourceBody,
+          body: r.resourceBody
+            ? toBinary(InternedStructSchema, r.resourceBody)
+            : undefined,
         });
         revisionIds.push(id);
       }
