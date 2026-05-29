@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -57,7 +58,9 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 		panic("Failed to create test IOConfig: " + err.Error())
 	}
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.CurrentIOConfig, ioConfig)
+	// TODO(#425): remove history builder injection. After KHI file format migration is done.
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.CurrentHistoryBuilder, history.NewBuilder(ioConfig.TemporaryFolder))
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, khifilev6.NewBuilder())
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionRunMetadata, generateTestMetadata())
 	return taskCtx
 }

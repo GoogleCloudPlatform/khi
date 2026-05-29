@@ -24,6 +24,12 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
+// BuilderProgressReporter is an interface to report progress during KHI file generation.
+type BuilderProgressReporter interface {
+	// ReportProgress reports the current progress with a percentage (0.0 to 1.0) and status message.
+	ReportProgress(progress float32, status string)
+}
+
 // Builder orchestrates the accumulators, pools, and final file generation for KHI v6 format.
 type Builder struct {
 	idGenerator         *IDGenerator
@@ -48,18 +54,27 @@ func NewBuilder() *Builder {
 }
 
 // Build writes the accumulated data to the provided io.Writer in KHI v6 format.
-func (b *Builder) Build(w io.Writer) error {
+func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
+	report := func(progress float32, status string) {
+		if reporter != nil {
+			reporter.ReportProgress(progress, status)
+		}
+	}
+
+	report(0.0, "Initializing KHI writer")
 	writer, err := NewWriter(w)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %w", err)
 	}
 
+	report(0.1, "Writing timeline style chunk")
 	// 1. Write TimelineStyleChunk directly (no generator needed since it's a single chunk)
 	styleChunk := style.GenerateChunk()
 	if err := writer.WriteChunk(ChunkTypeTimelineStyle, styleChunk); err != nil {
 		return fmt.Errorf("failed to write timeline style chunk: %w", err)
 	}
 
+	report(0.2, "Writing metadata chunk")
 	// 2. Write MetadataChunk
 	metadataList := b.MetadataAccumulator.Accumulate()
 	if len(metadataList) > 0 {
@@ -70,6 +85,7 @@ func (b *Builder) Build(w io.Writer) error {
 		}
 	}
 
+	report(0.4, "Writing log chunks")
 	// 3. Write LogChunks
 	logs := b.LogAccumulator.Accumulate()
 	if len(logs) > 0 {
@@ -80,6 +96,7 @@ func (b *Builder) Build(w io.Writer) error {
 		}
 	}
 
+	report(0.6, "Writing timeline chunks")
 	// 4. Write TimelineChunks
 	timelines, timelineItems := b.TimelineAccumulator.Accumulate()
 
@@ -99,6 +116,7 @@ func (b *Builder) Build(w io.Writer) error {
 		}
 	}
 
+	report(0.8, "Writing intern pool chunks")
 	// 5. Write InternPoolChunk (Strings and FieldPathSets)
 	stringSeq := mapSeq(b.internPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
 		return ref.ToProto()
@@ -116,6 +134,7 @@ func (b *Builder) Build(w io.Writer) error {
 		return fmt.Errorf("failed to write intern field path set chunks: %w", err)
 	}
 
+	report(1.0, "Done")
 	return nil
 }
 

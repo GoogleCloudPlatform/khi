@@ -240,7 +240,7 @@ func TestBuilder_Build(t *testing.T) {
 			tc.setup(b)
 
 			var buf bytes.Buffer
-			if err := b.Build(&buf); err != nil {
+			if err := b.Build(&buf, nil); err != nil {
 				t.Fatalf("Build() failed: %v.", err)
 			}
 
