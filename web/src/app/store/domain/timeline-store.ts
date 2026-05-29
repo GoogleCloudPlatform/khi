@@ -72,8 +72,9 @@ export class TimelineStore {
   private timelineParentIds = new Uint32Array(0);
   private readonly timelineRevisionIds: Uint32Array[] = [];
   private readonly timelineEventIds: Uint32Array[] = [];
-  private timelineIdToIndex: { [tid: number]: number } = {};
+  private readonly timelineChildrenIds: number[][] = [];
   private readonly timelinesList: ReadonlyDomainElement<Timeline>[] = [];
+  private timelineIdToIndex: { [tid: number]: number } = {};
 
   // Revision metadata stored in packed arrays
   private revisionIds = new Uint32Array(0);
@@ -126,6 +127,7 @@ export class TimelineStore {
     this.timelineEventIds.length = 0;
     this.revisionBodies.length = 0;
     this.timelinesList.length = 0;
+    this.timelineChildrenIds.length = 0;
     this.timelineIdToIndex = {};
     this.revisionIdToIndex = {};
     this.eventIdToIndex = {};
@@ -140,10 +142,19 @@ export class TimelineStore {
 
       this.timelineRevisionIds[tIndex] = new Uint32Array(t.revisionIds);
       this.timelineEventIds[tIndex] = new Uint32Array(t.eventIds);
+      this.timelineChildrenIds[tIndex] = [];
 
       this.timelineIdToIndex[t.id] = tIndex;
       this.timelinesList.push(new Timeline(t.id, this));
       tIndex++;
+    }
+
+    // Build child timeline relationships
+    for (const t of timelines) {
+      if (t.parentTimelineId !== 0) {
+        const pIndex = this.getTimelineIndex(t.parentTimelineId);
+        this.timelineChildrenIds[pIndex].push(t.id);
+      }
     }
 
     this.revisionIds = new Uint32Array(revisionCount);
@@ -287,6 +298,14 @@ export class TimelineStore {
     }
     events.sort((e1, e2) => e1.logIndex - e2.logIndex);
     return events;
+  }
+
+  /**
+   * Retrieves child timeline ID references for a specific timeline.
+   * @note Intended solely for internal retrieval inside the {@link Timeline} domain adapter.
+   */
+  public _getChildIdsForTimeline(id: number): readonly number[] {
+    return this.timelineChildrenIds[this.getTimelineIndex(id)] ?? [];
   }
 
   private getTimelineIndex(id: number): number {

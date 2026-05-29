@@ -288,6 +288,41 @@ export class Timeline {
   }
 
   /**
+   * Retrieves the parent timeline adapter, or null if this is a root timeline.
+   */
+  get parent(): ReadonlyDomainElement<Timeline> | null {
+    const pId = this.timelineStore._getTimelineParentId(this.id);
+    return pId === 0 ? null : this.timelineStore.getTimeline(pId);
+  }
+
+  /**
+   * Gets the number of child timelines associated with this timeline.
+   */
+  get childrenCount(): number {
+    return this.timelineStore._getChildIdsForTimeline(this.id).length;
+  }
+
+  /**
+   * Iterates over the child timelines associated with this timeline.
+   */
+  *children(): IterableIterator<ReadonlyDomainElement<Timeline>> {
+    const childIds = this.timelineStore._getChildIdsForTimeline(this.id);
+    for (let i = 0; i < childIds.length; i++) {
+      yield this.timelineStore.getTimeline(childIds[i]);
+    }
+  }
+
+  /**
+   * Gets all descendant child timelines recursively.
+   */
+  *descendants(): IterableIterator<ReadonlyDomainElement<Timeline>> {
+    for (const child of this.children()) {
+      yield child;
+      yield* child.descendants();
+    }
+  }
+
+  /**
    * Looks up an event on this timeline by its associated log using binary search.
    * Returns the event if found, otherwise null.
    */

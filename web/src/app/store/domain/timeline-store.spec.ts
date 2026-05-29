@@ -184,4 +184,41 @@ describe('TimelineStore', () => {
       'Timeline ID 999 not found',
     );
   });
+
+  it('should successfully map child timeline IDs on initialize', () => {
+    internPool.addStrings([
+      { id: 1, value: 'parent' },
+      { id: 2, value: 'child' },
+    ]);
+
+    const rawTimelines: TimelineDTO[] = [
+      {
+        id: 10,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [],
+        eventIds: [],
+      },
+      {
+        id: 20,
+        timelineTypeId: 1,
+        nameStringId: 2,
+        parentTimelineId: 10,
+        revisionIds: [],
+        eventIds: [],
+      },
+    ];
+
+    store.initialize(rawTimelines, 2, [], 0, [], 0);
+
+    const childIds = store._getChildIdsForTimeline(10);
+    expect(childIds.length).toBe(1);
+    expect(childIds[0]).toBe(20);
+
+    expect(store._getChildIdsForTimeline(20).length).toBe(0);
+    expect(() => store._getChildIdsForTimeline(999)).toThrowError(
+      'Timeline ID 999 not found',
+    );
+  });
 });
