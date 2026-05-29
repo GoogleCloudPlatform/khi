@@ -97,7 +97,7 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 
 // ResolveLogID returns the serialized log ID (uint32) for a given parser-side log ID (string).
 // It returns false if the log ID is not found.
-// TODO: For the historical reason, KHI's log.Log generates ID in the form of string.
+// TODO(#699): For the historical reason, KHI's log.Log generates ID in the form of string.
 // We should improve this and use the parser ID directly to reduce this logic in future.
 func (a *LogAccumulator) ResolveLogID(parserID string) (uint32, bool) {
 	a.mu.RLock()
