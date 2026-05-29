@@ -24,9 +24,9 @@ type TimelineAccumulator struct {
 }
 
 // NewTimelineAccumulator creates a new TimelineAccumulator facade.
-func NewTimelineAccumulator(idGen *IDGenerator, internPool *InternPool) *TimelineAccumulator {
+func NewTimelineAccumulator(idGen *IDGenerator, internPool *InternPool, logAcc *LogAccumulator) *TimelineAccumulator {
 	pathPool := NewTimelinePathPool(idGen, internPool)
-	registry := NewTimelineRegistry(idGen, internPool)
+	registry := NewTimelineRegistry(idGen, internPool, logAcc)
 	return &TimelineAccumulator{
 		pathPool: pathPool,
 		registry: registry,
@@ -41,6 +41,12 @@ func (a *TimelineAccumulator) GetPath(parent *TimelinePath, segments ...PathSegm
 // GetBuilder retrieves a thread-safe TimelineBuilder for the given path.
 func (a *TimelineAccumulator) GetBuilder(path *TimelinePath) *TimelineBuilder {
 	return a.registry.GetBuilder(path)
+}
+
+// SetAlias configures aliasPath to be an alias of targetPath.
+// Returns an error if aliasPath already has a builder attached (i.e., GetBuilder was already called on it).
+func (a *TimelineAccumulator) SetAlias(aliasPath, targetPath *TimelinePath) error {
+	return a.registry.SetAlias(aliasPath, targetPath)
 }
 
 // Accumulate extracts the arrays of Timeline and TimelineItems protobuf messages.

@@ -155,7 +155,8 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 			idGen := &IDGenerator{}
 			internPool := NewInternPool(idGen)
 			pathPool := NewTimelinePathPool(idGen, internPool)
-			registry := NewTimelineRegistry(idGen, internPool)
+			logAcc := NewLogAccumulator(internPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, logAcc)
 
 			pathMap := make(map[string]*TimelinePath)
 
@@ -170,7 +171,9 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 				pathMap[def.id] = path
 
 				if def.aliasOf != "" {
-					registry.SetAlias(path, pathMap[def.aliasOf])
+					if err := registry.SetAlias(path, pathMap[def.aliasOf]); err != nil {
+						t.Fatalf("failed to set alias: %v", err)
+					}
 					continue
 				}
 

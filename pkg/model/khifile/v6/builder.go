@@ -43,12 +43,13 @@ type Builder struct {
 func NewBuilder() *Builder {
 	gen := &IDGenerator{}
 	internPool := NewInternPool(gen)
+	logAcc := NewLogAccumulator(internPool, gen)
 
 	return &Builder{
 		idGenerator:         gen,
 		internPool:          internPool,
-		TimelineAccumulator: NewTimelineAccumulator(gen, internPool),
-		LogAccumulator:      NewLogAccumulator(internPool, gen),
+		TimelineAccumulator: NewTimelineAccumulator(gen, internPool, logAcc),
+		LogAccumulator:      logAcc,
 		MetadataAccumulator: NewMetadataAccumulator(),
 	}
 }
