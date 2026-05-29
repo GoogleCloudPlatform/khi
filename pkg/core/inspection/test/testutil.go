@@ -58,7 +58,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 		panic("Failed to create test IOConfig: " + err.Error())
 	}
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.CurrentIOConfig, ioConfig)
-	// TODO: remove history builder injection. After KHI file format migration is done.
+	// TODO(#425): remove history builder injection. After KHI file format migration is done.
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.CurrentHistoryBuilder, history.NewBuilder(ioConfig.TemporaryFolder))
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.Builder, khifilev6.NewBuilder())
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionRunMetadata, generateTestMetadata())
