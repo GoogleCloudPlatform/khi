@@ -231,6 +231,62 @@ describe('LogStore', () => {
     expect(() => store.getLog(99)).toThrowError('Log ID 99 not found');
   });
 
+  it('should cache body in WeakRef and re-decode when GC collected', () => {
+    internPool.addStrings([
+      { id: 10, value: 'user' },
+      { id: 11, value: 'alice' },
+    ]);
+
+    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
+
+    const struct = create(InternedStructSchema, {
+      fieldPathSetId: 1,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 11 },
+        }),
+      ],
+    });
+
+    const logs: LogDTO[] = [
+      {
+        id: 1,
+        ts: 10n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+        body: toBinary(InternedStructSchema, struct),
+      },
+    ];
+
+    store.initialize(logs, 1);
+
+    const log = store.getLog(1);
+
+    const spyDecode = spyOn(store, '_decodeBody').and.callThrough();
+    const body1 = log.body;
+    expect(body1).toEqual({ user: 'alice' });
+    expect(spyDecode).toHaveBeenCalledTimes(1);
+
+    spyDecode.calls.reset();
+    const body2 = log.body;
+    expect(body2).toBe(body1);
+    expect(spyDecode).not.toHaveBeenCalled();
+
+    const logRecord = log as Record<string, unknown>;
+    const internalBodyRef = logRecord['_body'] as WeakRef<
+      Record<string, unknown>
+    >;
+    expect(internalBodyRef).toBeInstanceOf(WeakRef);
+    spyOn(internalBodyRef, 'deref').and.returnValue(undefined);
+
+    spyDecode.calls.reset();
+    const body3 = log.body;
+    expect(body3).toEqual({ user: 'alice' });
+    expect(body3).not.toBe(body1);
+    expect(spyDecode).toHaveBeenCalledTimes(1);
+  });
+
   it('should return count and iterator correctly', () => {
     const logs: LogDTO[] = [
       { id: 1, ts: 1000n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
