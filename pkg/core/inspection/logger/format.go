@@ -68,9 +68,15 @@ func (lh *KHILogFormatHandler) Handle(ctx context.Context, r slog.Record) error 
 
 // WithAttrs implements slog.Handler.
 func (lh *KHILogFormatHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if len(attrs) == 0 {
+		return lh
+	}
+	newAttrs := make([]slog.Attr, 0, len(lh.attrs)+len(attrs))
+	newAttrs = append(newAttrs, lh.attrs...)
+	newAttrs = append(newAttrs, attrs...)
 	return &KHILogFormatHandler{
 		out:       lh.out,
-		attrs:     append(append([]slog.Attr{}, lh.attrs...), attrs...),
+		attrs:     newAttrs,
 		withColor: lh.withColor,
 	}
 }
@@ -81,7 +87,11 @@ func (lh *KHILogFormatHandler) WithGroup(name string) slog.Handler {
 }
 
 func (lh *KHILogFormatHandler) formatMessage(r slog.Record) string {
-	attrs := append([]slog.Attr{}, lh.attrs...)
+	if len(lh.attrs) == 0 && r.NumAttrs() == 0 {
+		return r.Message
+	}
+	attrs := make([]slog.Attr, 0, len(lh.attrs)+r.NumAttrs())
+	attrs = append(attrs, lh.attrs...)
 	r.Attrs(func(attr slog.Attr) bool {
 		attrs = append(attrs, attr)
 		return true
