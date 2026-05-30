@@ -194,6 +194,8 @@ Read [Using KHI with OSS Kubernetes Clusters - Example with Loki](/docs/en/setup
 
 Read [user guide](/docs/en/visualization-guide/user-guide.md).
 
+For scheduled or automated inspections, see [running KHI in job mode](/docs/en/setup-guide/job-mode.md).
+
 ## Development Contribution Guide
 
 If you'd like to contribute to the project KHI, read [Contribution Guide](/docs/en/development-contribution/contributing.md) and then follow [Development Guide](/docs/en/development-contribution/development-guide.md)
