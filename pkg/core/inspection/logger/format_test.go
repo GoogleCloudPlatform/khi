@@ -86,24 +86,41 @@ func TestKHILogFormatHandler_Handle(t *testing.T) {
 }
 
 func TestKHILogFormatHandler_WithAttrs(t *testing.T) {
-	var buf1, buf2 bytes.Buffer
-	handler1 := NewKHIFormatLogger(&buf1, false)
-	handler2Source := NewKHIFormatLogger(&buf2, false)
-	handler2 := handler2Source.WithAttrs([]slog.Attr{slog.String("key", "value")})
+	var buf bytes.Buffer
+	handlerSource := NewKHIFormatLogger(&buf, false)
+	handler := handlerSource.WithAttrs([]slog.Attr{slog.String("component", "parser")})
+
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "message", 0)
+	record.AddAttrs(slog.Int("count", 10))
+	ctx := context.Background()
+
+	if err := handler.Handle(ctx, record); err != nil {
+		t.Fatalf("Handle() failed: %v", err)
+	}
+
+	expectedOutput := "global > INFO message component=parser count=10\n"
+	if got := buf.String(); got != expectedOutput {
+		t.Errorf("mismatched log output:\ngot:  %q\nwant: %q", got, expectedOutput)
+	}
+}
+
+func TestKHILogFormatHandler_WithAttrsAppends(t *testing.T) {
+	var buf bytes.Buffer
+	handlerSource := NewKHIFormatLogger(&buf, false)
+	handler := handlerSource.
+		WithAttrs([]slog.Attr{slog.String("component", "parser")}).
+		WithAttrs([]slog.Attr{slog.String("phase", "read")})
 
 	record := slog.NewRecord(time.Now(), slog.LevelInfo, "message", 0)
 	ctx := context.Background()
 
-	if err := handler1.Handle(ctx, record); err != nil {
-		t.Fatalf("handler1.Handle() failed: %v", err)
-	}
-	if err := handler2.Handle(ctx, record); err != nil {
-		t.Fatalf("handler2.Handle() failed: %v", err)
+	if err := handler.Handle(ctx, record); err != nil {
+		t.Fatalf("Handle() failed: %v", err)
 	}
 
-	// The current implementation does not print attrs, so output should be identical.
-	if got1, got2 := buf1.String(), buf2.String(); got1 != got2 {
-		t.Errorf("output should be identical, but got1=%q, got2=%q", got1, got2)
+	expectedOutput := "global > INFO message component=parser phase=read\n"
+	if got := buf.String(); got != expectedOutput {
+		t.Errorf("mismatched log output:\ngot:  %q\nwant: %q", got, expectedOutput)
 	}
 }
 
