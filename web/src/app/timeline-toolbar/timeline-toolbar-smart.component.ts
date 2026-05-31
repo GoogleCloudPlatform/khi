@@ -19,31 +19,39 @@ import {
   OnDestroy,
   computed,
   inject,
-  output,
   signal,
   effect,
+  untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
-import { map } from 'rxjs';
-import { ViewStateService } from '../services/view-state.service';
-import { ToolbarComponent } from './components/toolbar.component';
-import { Subject } from 'rxjs';
-import { SelectionManagerV2 } from '../services/selection-manager-v2.service';
+import {
+  BehaviorSubject,
+  Subject,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  takeUntil,
+} from 'rxjs';
+import { ViewStateService } from 'src/app/services/view-state.service';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 import {
   CelTimelineFilter,
   CelLogFilter,
 } from 'src/app/store/domain/filter/cel-filter';
+import { ExcludeNoLogsFilter } from 'src/app/store/domain/filter/other-filter';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
-import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
-import { ExcludeNoLogsFilter } from '../store/domain/filter/other-filter';
+import { ToolbarFrameComponent } from './components/toolbar-frame.component';
 
+/**
+ * Acts as a single unified smart container logic controller for both standard and advanced timeline toolbars.
+ */
 @Component({
   selector: 'khi-timeline-toolbar-smart',
   templateUrl: './timeline-toolbar-smart.component.html',
-  imports: [ToolbarComponent],
+  imports: [ToolbarFrameComponent],
 })
 export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly viewStateService = inject(ViewStateService);
@@ -51,44 +59,69 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly celTimelineFilter = inject(CelTimelineFilter);
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
-
-  /**
-   * Direct severity filter option state.
-   */
-  protected readonly selectedSeverity =
-    this.viewStateService.standardSelectedSeverity;
-
-  /**
-   * Direct log search filter text state.
-   */
-  protected readonly logSearchQuery =
-    this.viewStateService.standardLogSearchQuery;
-
-  /**
-   * Emits an event to switch to advanced mode.
-   */
-  readonly switchToAdvanced = output<void>();
   private readonly selectionManager = inject(SelectionManagerV2);
   private readonly breakpointObserver = inject(BreakpointObserver);
 
-  /**
-   * Active timeline filters list.
-   */
+  private readonly destroyed = new Subject<void>();
+
+  // Global state
+  /** Global display mode state signal managed by ViewStateService. */
+  protected readonly isAdvancedMode = this.viewStateService.isAdvancedMode;
+
+  /** Signal holding the current timezone shift offset in hours. */
+  protected readonly timezoneShift = toSignal(
+    this.viewStateService.timezoneShift,
+    {
+      initialValue: 0,
+    },
+  );
+
+  /** Whether the app is currently filtering timelines and logs asynchronously. */
+  protected readonly isFiltering = computed(() => {
+    const view = this.inspectionDataStore.timelineView();
+    return view ? view.isFiltering() : false;
+  });
+
+  /** Holds the current concrete filtering progress details. */
+  private readonly filteringProgress = computed(() => {
+    const view = this.inspectionDataStore.timelineView();
+    return view ? view.progress() : null;
+  });
+
+  /** Computes the percentage completion of the current filtering step. */
+  protected readonly progressPercent = computed(() => {
+    const p = this.filteringProgress();
+    return p ? Math.round((p.current / p.total) * 100) : 0;
+  });
+
+  /** Signal locking button triggers when log/timeline selection context is missing. */
+  protected readonly logOrTimelineNotSelected = computed(() => {
+    const selectedTimeline = this.selectionManager.selectedTimeline();
+    const selectedLog = this.selectionManager.selectedLog();
+    return selectedTimeline == null || selectedLog == null;
+  });
+
+  // Standard Mode properties
+  /** Direct severity filter option state. */
+  protected readonly selectedSeverity =
+    this.viewStateService.standardSelectedSeverity;
+
+  /** Direct log search filter text query. */
+  protected readonly logSearchQuery =
+    this.viewStateService.standardLogSearchQuery;
+
+  /** Configured active standard timeline filters. */
   protected readonly timelineFilters =
     this.viewStateService.standardTimelineFilters;
 
-  /**
-   * The currently selected timeline type for the interactive filter builder.
-   */
+  /** Selected timeline type used within interactive filter builders. */
   protected readonly selectedTimelineTypeForBuilder = signal<string>('*');
 
   private readonly inspectionData = computed(() => {
     return this.inspectionDataStore.inspectionData();
   });
 
-  /**
-   * List of unique timeline types found in the inspection data.
-   */
+  /** List of unique timeline types located within loaded store elements. */
   protected readonly timelineTypes = computed<TimelineType[]>(() => {
     const store = this.inspectionData()?.timelineStore;
     const styleStore = this.inspectionData()?.styleStore;
@@ -106,9 +139,7 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       .sort((a, b) => a.label.localeCompare(b.label));
   });
 
-  /**
-   * List of candidates for the selected timeline type in the filter builder.
-   */
+  /** Interactive timeline label suggestions list. */
   protected readonly candidates = computed<string[]>(() => {
     const store = this.inspectionData()?.timelineStore;
     const selectedType = this.selectedTimelineTypeForBuilder();
@@ -127,57 +158,7 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     return Array.from(candSet).sort();
   });
 
-  /**
-   * Map of lowercased timeline type labels to their configured material icon strings.
-   */
-  protected readonly typeIcons = computed<Record<string, string>>(() => {
-    const styleStore = this.inspectionData()?.styleStore;
-    if (!styleStore) {
-      return {};
-    }
-    const map: Record<string, string> = {};
-    for (const type of styleStore.timelineTypes) {
-      map[type.label.toLowerCase()] = type.icon;
-    }
-    return map;
-  });
-
-  /**
-   * Map of lowercased timeline type labels to their computed CSS colors.
-   */
-  protected readonly typeColors = computed<
-    Record<string, { backgroundColor: string; foregroundColor: string }>
-  >(() => {
-    const styleStore = this.inspectionData()?.styleStore;
-    if (!styleStore) {
-      return {};
-    }
-    const map: Record<
-      string,
-      { backgroundColor: string; foregroundColor: string }
-    > = {};
-    for (const type of styleStore.timelineTypes) {
-      map[type.label.toLowerCase()] = {
-        backgroundColor: RendererConvertUtil.hdrColorToCSSColor([
-          type.backgroundColor.r,
-          type.backgroundColor.g,
-          type.backgroundColor.b,
-          type.backgroundColor.a,
-        ]),
-        foregroundColor: RendererConvertUtil.hdrColorToCSSColor([
-          type.foregroundColor.r,
-          type.foregroundColor.g,
-          type.foregroundColor.b,
-          type.foregroundColor.a,
-        ]),
-      };
-    }
-    return map;
-  });
-
-  /**
-   * Map of lowercased timeline type labels to their total candidate count.
-   */
+  /** Summary count metrics. */
   protected readonly typeCandidateCounts = computed<Record<string, number>>(
     () => {
       const store = this.inspectionData()?.timelineStore;
@@ -202,37 +183,61 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     },
   );
 
-  /**
-   * An empty set used as a fallback for template bindings.
-   */
-  protected readonly emptySet = new Set<string>();
-
-  /**
-   * Signal indicating whether to show button labels based on screen width.
-   */
+  /** Hides labels if screen viewport width is small. */
   protected readonly showButtonLabel = toSignal(
     this.breakpointObserver
       .observe(['(min-width: 1200px)'])
       .pipe(map((result) => result.matches)),
+    { initialValue: true },
   );
 
-  /**
-   * Signal containing the current timezone shift in hours.
-   */
-  protected readonly timezoneShift = toSignal(
-    this.viewStateService.timezoneShift,
-  );
+  // Advanced Mode properties
+  private readonly timelineCelFilter$ = new BehaviorSubject<string>('');
+  private readonly logCelFilter$ = new BehaviorSubject<string>('');
 
-  /**
-   * Signal indicating if no log or timeline is selected.
-   */
-  protected readonly logOrTimelineNotSelected = computed(() => {
-    const selectedTimeline = this.selectionManager.selectedTimeline();
-    const selectedLog = this.selectionManager.selectedLog();
-    return selectedTimeline == null || selectedLog == null;
+  /** Active advanced timeline CEL expression signal. */
+  protected readonly timelineCelFilter = toSignal(this.timelineCelFilter$, {
+    initialValue: '',
   });
 
-  private readonly destroyed = new Subject<void>();
+  /** Active advanced log CEL expression signal. */
+  protected readonly logCelFilter = toSignal(this.logCelFilter$, {
+    initialValue: '',
+  });
+
+  /** Validation result error output for timeline CEL queries. */
+  protected readonly timelineCelError = toSignal(
+    this.timelineCelFilter$.pipe(
+      map((val) => {
+        if (!val || val.trim() === '') return '';
+        const checkRes = this.celTimelineFilter.validate(val);
+        return checkRes.success
+          ? ''
+          : (checkRes.error?.message ?? 'Invalid CEL expression.');
+      }),
+    ),
+    { initialValue: '' },
+  );
+
+  /** Validation result error output for log CEL queries. */
+  protected readonly logCelError = toSignal(
+    this.logCelFilter$.pipe(
+      map((val) => {
+        if (!val || val.trim() === '') return '';
+        const checkRes = this.celLogFilter.validate(val);
+        return checkRes.success
+          ? ''
+          : (checkRes.error?.message ?? 'Invalid CEL expression.');
+      }),
+    ),
+    { initialValue: '' },
+  );
+
+  /** Active option toggle matching log hits. */
+  protected readonly hideTimelinesWithoutMatchingLogs = toSignal(
+    this.viewStateService.hideTimelinesWithoutMatchingLogs,
+    { initialValue: true },
+  );
 
   constructor() {
     const viewState = this.viewStateService;
@@ -257,20 +262,84 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       viewState.standardLogSearchQuery.set('');
       this.celLogFilter.updateFilter('');
     }
-
+    this.excludeNoLogsFilter.setEnabled(true);
+    // Effects executing standard compiler logic
     effect(() => {
-      const filters = this.timelineFilters();
-      const celExpr = compileFiltersToCel(filters);
-      this.celTimelineFilter.updateFilter(celExpr);
+      if (!this.isAdvancedMode()) {
+        const filters = this.timelineFilters();
+        const celExpr = compileFiltersToCel(filters);
+        this.celTimelineFilter.updateFilter(celExpr);
+      }
     });
 
     effect(() => {
-      const severity = this.selectedSeverity();
-      const searchQuery = this.logSearchQuery();
-      const celExpr = compileLogFiltersToCel(severity, searchQuery);
-      this.celLogFilter.updateFilter(celExpr);
+      if (!this.isAdvancedMode()) {
+        const severity = this.selectedSeverity();
+        const searchQuery = this.logSearchQuery();
+        const celExpr = compileLogFiltersToCel(severity, searchQuery);
+        this.celLogFilter.updateFilter(celExpr);
+      }
     });
-    this.excludeNoLogsFilter.enabled.set(true);
+
+    // Sync advanced mode CEL triggers
+    effect(() => {
+      if (this.isAdvancedMode()) {
+        const currentTimelineExpr = this.celTimelineFilter.celExpr();
+        if (this.timelineCelFilter$.value !== currentTimelineExpr) {
+          const hasError = untracked(() => this.timelineCelError() !== '');
+          if (currentTimelineExpr !== '' || !hasError) {
+            this.timelineCelFilter$.next(currentTimelineExpr);
+          }
+        }
+      }
+    });
+
+    effect(() => {
+      if (this.isAdvancedMode()) {
+        const currentLogExpr = this.celLogFilter.celExpr();
+        if (this.logCelFilter$.value !== currentLogExpr) {
+          const hasError = untracked(() => this.logCelError() !== '');
+          if (currentLogExpr !== '' || !hasError) {
+            this.logCelFilter$.next(currentLogExpr);
+          }
+        }
+      }
+    });
+
+    // Advanced mode RxJS streams debouncers
+    this.timelineCelFilter$
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        takeUntil(this.destroyed),
+      )
+      .subscribe((filter) => {
+        if (this.isAdvancedMode()) {
+          this.celTimelineFilter.updateFilter(filter);
+        }
+      });
+
+    this.logCelFilter$
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        takeUntil(this.destroyed),
+      )
+      .subscribe((filter) => {
+        if (this.isAdvancedMode()) {
+          this.celLogFilter.updateFilter(filter);
+        }
+      });
+
+    this.viewStateService.hideTimelinesWithoutMatchingLogs
+      .pipe(takeUntil(this.destroyed))
+      .subscribe((hide) => {
+        this.excludeNoLogsFilter.setEnabled(hide);
+      });
+
+    this.excludeNoLogsFilter.setEnabled(
+      this.hideTimelinesWithoutMatchingLogs(),
+    );
   }
 
   ngOnDestroy() {
@@ -279,17 +348,41 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   }
 
   /**
-   * Handles the commit of a new timezone shift value.
+   * Handles the commit of a timezone shift offset value.
    */
   protected onTimezoneshiftCommit(value: number) {
     this.viewStateService.setTimezoneShift(value);
   }
 
   /**
-   * Opens the graph page in a new tab.
+   * Commits a modified timeline CEL filter expression text queries.
+   */
+  protected onTimelineCelFilterChange(filter: string): void {
+    this.timelineCelFilter$.next(filter);
+  }
+
+  /**
+   * Commits a modified log CEL filter expression text queries.
+   */
+  protected onLogCelFilterChange(filter: string): void {
+    this.logCelFilter$.next(filter);
+  }
+
+  /**
+   * Triggers the rendering graph outputs.
    */
   protected onDrawDiagram() {
-    window.open(window.location.pathname + '/graph', '_blank');
+    const targetPath = window.location.pathname.endsWith('/')
+      ? window.location.pathname + 'graph'
+      : window.location.pathname + '/graph';
+    window.open(targetPath, '_blank');
+  }
+
+  /**
+   * Updates the state visibility for timelines missing log hits.
+   */
+  protected onToggleHideTimelinesWithoutMatchingLogs(value: boolean): void {
+    this.viewStateService.setHideTimelinesWithoutMatchingLogs(value);
   }
 }
 

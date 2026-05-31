@@ -248,6 +248,7 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
 }
 
 .log-filters {
+  --mat-form-field-container-height: 34px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -296,7 +297,7 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
 }
 
 .severity-select {
-  width: 130px;
+  width: 150px;
 }
 
 .search-input {

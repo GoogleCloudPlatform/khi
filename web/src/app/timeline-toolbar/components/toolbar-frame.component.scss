@@ -15,5 +15,16 @@
  */
 
 :host {
-  display: contents;
+  display: block;
+  position: relative;
+  width: 100%;
+}
+
+.toolbar-progress-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  height: 3px;
 }

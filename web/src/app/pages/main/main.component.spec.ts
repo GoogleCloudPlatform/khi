@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
+import { TestBed, fakeAsync, flush } from '@angular/core/testing';
 import { AppComponent } from 'src/app/pages/main/main.component';
 import { signal, Injector } from '@angular/core';
 import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
@@ -37,7 +37,6 @@ import { of } from 'rxjs';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
 import { MenuManager } from 'src/app/services/menu/menu-manager.service';
-import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
 import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
@@ -108,53 +107,6 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
-    fixture.destroy();
-    flush();
-  }));
-
-  it('should switch between standard and advanced toolbars when events are emitted', fakeAsync(() => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-
-    // By default, standard toolbar is displayed
-    let standardToolbar = fixture.debugElement.query(
-      By.css('khi-timeline-toolbar-smart'),
-    );
-    let advancedToolbar = fixture.debugElement.query(
-      By.css('khi-timeline-toolbar-advanced-smart'),
-    );
-    expect(standardToolbar).toBeTruthy();
-    expect(advancedToolbar).toBeFalsy();
-
-    // Switch to advanced mode by emitting switchToAdvanced event
-    standardToolbar.componentInstance.switchToAdvanced.emit();
-    fixture.detectChanges();
-    tick(200);
-
-    standardToolbar = fixture.debugElement.query(
-      By.css('khi-timeline-toolbar-smart'),
-    );
-    advancedToolbar = fixture.debugElement.query(
-      By.css('khi-timeline-toolbar-advanced-smart'),
-    );
-    expect(standardToolbar).toBeFalsy();
-    expect(advancedToolbar).toBeTruthy();
-
-    // Switch back to standard mode by emitting switchToStandard event
-    advancedToolbar.componentInstance.switchToStandard.emit();
-    fixture.detectChanges();
-    tick(200);
-
-    standardToolbar = fixture.debugElement.query(
-      By.css('khi-timeline-toolbar-smart'),
-    );
-    advancedToolbar = fixture.debugElement.query(
-      By.css('khi-timeline-toolbar-advanced-smart'),
-    );
-    expect(standardToolbar).toBeTruthy();
-    expect(advancedToolbar).toBeFalsy();
-
-    // Destroy fixture to clean up running subscriptions/timers inside components
     fixture.destroy();
     flush();
   }));

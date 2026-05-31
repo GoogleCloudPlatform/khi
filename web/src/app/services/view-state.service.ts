@@ -39,6 +39,11 @@ export class ViewStateService {
   public static DEVICE_PIXEL_RATIO_SCALE = 1;
 
   /**
+   * Whether the timeline toolbar is in advanced (CEL) mode.
+   */
+  public readonly isAdvancedMode = signal<boolean>(false);
+
+  /**
    * The persistent standard mode timeline filters.
    */
   public readonly standardTimelineFilters = signal<TimelineFilterConfig[]>([]);

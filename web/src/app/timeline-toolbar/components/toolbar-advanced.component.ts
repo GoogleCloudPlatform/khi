@@ -29,8 +29,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { OverlayModule } from '@angular/cdk/overlay';
-import { CelInputComponent } from 'src/app/timeline-toolbar-advanced/components/cel-input.component';
-import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar-advanced/components/toolbar-settings.component';
+import { CelInputComponent } from 'src/app/timeline-toolbar/components/cel-input.component';
+import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/toolbar-settings.component';
 
 /**
  * Provides an advanced toolbar for the timeline view featuring two-row CEL expression text fields.

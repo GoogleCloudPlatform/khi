@@ -25,7 +25,7 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { Timeline } from 'src/app/store/domain/timeline';
 
 describe('IncludeDescendantsFilter', () => {
-  it('should include all descendants and extract associated logs', () => {
+  it('should include all descendants and extract associated logs', async () => {
     const childTimeline = {
       id: 2,
       children: () => [],
@@ -59,7 +59,7 @@ describe('IncludeDescendantsFilter', () => {
       logIds: new Set(),
     };
 
-    const res = filter.process(context, timelineStoreSpy);
+    const res = await filter.process(context, timelineStoreSpy);
     expect(res.timelineIds.size).toBe(2);
     expect(res.timelineIds.has(1)).toBe(true);
     expect(res.timelineIds.has(2)).toBe(true);
@@ -70,7 +70,7 @@ describe('IncludeDescendantsFilter', () => {
 });
 
 describe('IncludeAncestorsFilter', () => {
-  it('should include all ancestors and extract associated logs', () => {
+  it('should include all ancestors and extract associated logs', async () => {
     const rootTimeline = {
       id: 1,
       parent: null,
@@ -104,7 +104,7 @@ describe('IncludeAncestorsFilter', () => {
       logIds: new Set(),
     };
 
-    const res = filter.process(context, timelineStoreSpy);
+    const res = await filter.process(context, timelineStoreSpy);
     expect(res.timelineIds.size).toBe(2);
     expect(res.timelineIds.has(1)).toBe(true);
     expect(res.timelineIds.has(2)).toBe(true);
@@ -113,7 +113,7 @@ describe('IncludeAncestorsFilter', () => {
 });
 
 describe('ExcludeNoLogsFilter', () => {
-  it('should exclude timelines without matching logs', () => {
+  it('should exclude timelines without matching logs', async () => {
     const t1 = {
       id: 1,
       revisions: [{ log: { id: 101 } }],
@@ -136,19 +136,19 @@ describe('ExcludeNoLogsFilter', () => {
     });
 
     const filter = new ExcludeNoLogsFilter();
-    filter.enabled.set(true);
+    filter.setEnabled(true);
     const context: LogTimelineFilterContext = {
       timelineIds: new Set([1, 2]),
       logIds: new Set([101]),
     };
 
-    const res = filter.process(context, timelineStoreSpy);
+    const res = await filter.process(context, timelineStoreSpy);
     expect(res.timelineIds.size).toBe(1);
     expect(res.timelineIds.has(1)).toBe(true);
     expect(res.timelineIds.has(2)).toBe(false);
   });
 
-  it('should bypass filtering when disabled', () => {
+  it('should bypass filtering when disabled', async () => {
     const t1 = {
       id: 1,
       revisions: [{ log: { id: 101 } }],
@@ -171,13 +171,13 @@ describe('ExcludeNoLogsFilter', () => {
     });
 
     const filter = new ExcludeNoLogsFilter();
-    filter.enabled.set(false);
+    filter.setEnabled(false);
     const context: LogTimelineFilterContext = {
       timelineIds: new Set([1, 2]),
       logIds: new Set([101]),
     };
 
-    const res = filter.process(context, timelineStoreSpy);
+    const res = await filter.process(context, timelineStoreSpy);
     expect(res.timelineIds.size).toBe(2);
     expect(res.timelineIds.has(1)).toBe(true);
     expect(res.timelineIds.has(2)).toBe(true);

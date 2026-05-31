@@ -24,7 +24,7 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { Timeline } from 'src/app/store/domain/timeline';
 
 describe('CelTimelineFilter', () => {
-  it('should filter timelines based on configured CEL expression', () => {
+  it('should filter timelines based on configured CEL expression', async () => {
     const timelines = [
       {
         id: 1,
@@ -62,12 +62,12 @@ describe('CelTimelineFilter', () => {
       logIds: new Set(),
     };
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result.timelineIds.size).toBe(1);
     expect(result.timelineIds.has(1)).toBe(true);
   });
 
-  it('should return original context if filter is not updated with an expression', () => {
+  it('should return original context if filter is not updated with an expression', async () => {
     const filter = new CelTimelineFilter();
     const context: LogTimelineFilterContext = {
       timelineIds: new Set([1, 2]),
@@ -78,11 +78,11 @@ describe('CelTimelineFilter', () => {
       ['getTimeline'],
     );
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
   });
 
-  it('should return error and not filter context when updateFilter is called with an invalid expression', () => {
+  it('should return error and not filter context when updateFilter is called with an invalid expression', async () => {
     const filter = new CelTimelineFilter();
     const res = filter.updateFilter("t.name == 'T1");
     expect(res.success).toBe(false);
@@ -97,11 +97,11 @@ describe('CelTimelineFilter', () => {
       ['getTimeline'],
     );
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
   });
 
-  it('should reset evaluator and return original context if an invalid expression is provided after a valid one', () => {
+  it('should reset evaluator and return original context if an invalid expression is provided after a valid one', async () => {
     const filter = new CelTimelineFilter();
     filter.updateFilter("t.name == 'T1'");
 
@@ -117,13 +117,13 @@ describe('CelTimelineFilter', () => {
       ['getTimeline'],
     );
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
   });
 });
 
 describe('CelLogFilter', () => {
-  it('should return original context if filter is not updated with an expression', () => {
+  it('should return original context if filter is not updated with an expression', async () => {
     const filter = new CelLogFilter();
     const context: LogTimelineFilterContext = {
       timelineIds: new Set(),
@@ -134,11 +134,11 @@ describe('CelLogFilter', () => {
       ['getTimeline'],
     );
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
   });
 
-  it('should return error and not filter context when updateFilter is called with an invalid expression', () => {
+  it('should return error and not filter context when updateFilter is called with an invalid expression', async () => {
     const filter = new CelLogFilter();
     const res = filter.updateFilter("l.summary == 'L1");
     expect(res.success).toBe(false);
@@ -153,11 +153,11 @@ describe('CelLogFilter', () => {
       ['getTimeline'],
     );
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
   });
 
-  it('should reset evaluator and return original context if an invalid expression is provided after a valid one', () => {
+  it('should reset evaluator and return original context if an invalid expression is provided after a valid one', async () => {
     const filter = new CelLogFilter();
     filter.updateFilter("l.summary == 'L1'");
 
@@ -173,7 +173,7 @@ describe('CelLogFilter', () => {
       ['getTimeline'],
     );
 
-    const result = filter.process(context, timelineStoreSpy);
+    const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
   });
 });

@@ -17,11 +17,11 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { CommonModule } from '@angular/common';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { CelInputComponent } from 'src/app/timeline-toolbar-advanced/components/cel-input.component';
+import { ToolbarAdvancedComponent } from 'src/app/timeline-toolbar/components/toolbar-advanced.component';
 
-const meta: Meta<CelInputComponent> = {
-  title: 'Timeline/Components/CelInput',
-  component: CelInputComponent,
+const meta: Meta<ToolbarAdvancedComponent> = {
+  title: 'Timeline/Components/ToolbarAdvanced',
+  component: ToolbarAdvancedComponent,
   tags: ['autodocs'],
   decorators: [
     moduleMetadata({
@@ -31,34 +31,15 @@ const meta: Meta<CelInputComponent> = {
 };
 
 export default meta;
-type Story = StoryObj<CelInputComponent>;
+type Story = StoryObj<ToolbarAdvancedComponent>;
 
-export const TimelineModeValid: Story = {
+export const Default: Story = {
   args: {
-    errorMessage: '',
-    tooltip: 'Timeline CEL',
-    placeholder: 'e.g. timeline.name == "pod-a"',
-    value: 'timeline.name == "pod-a"',
-    icon: 'view_timeline',
-  },
-};
-
-export const TimelineModeInvalid: Story = {
-  args: {
-    errorMessage: 'no such variable: timelin',
-    tooltip: 'Timeline CEL',
-    placeholder: 'e.g. timeline.name == "pod-a"',
-    value: 'timelin.name ==',
-    icon: 'view_timeline',
-  },
-};
-
-export const LogModeValid: Story = {
-  args: {
-    errorMessage: '',
-    tooltip: 'Log CEL',
-    placeholder: 'e.g. log.severity == ERROR',
-    value: 'log.severity == ERROR',
-    icon: 'view_timeline',
+    timelineCelError: '',
+    logCelError: '',
+    timezoneShift: 0,
+    logOrTimelineNotSelected: false,
+    timelineCelFilter: 'timeline.name == "foo"',
+    logCelFilter: 'log.severity == ERROR',
   },
 };

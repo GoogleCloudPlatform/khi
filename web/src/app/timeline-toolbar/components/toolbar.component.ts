@@ -22,6 +22,7 @@ import {
   output,
   inject,
   signal,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -37,6 +38,15 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
 import { TimelineFilterBuilderComponent } from './timeline-filter-builder.component';
 import { TimelineFilterConfig } from '../types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
+import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
+
+/**
+ * Visual theme representation for a timeline type chip.
+ */
+export interface TimelineTypeColor {
+  readonly backgroundColor: string;
+  readonly foregroundColor: string;
+}
 
 export enum ToolbarPopupStatus {
   None = 'NONE_OPEN',
@@ -85,11 +95,40 @@ export class ToolbarComponent {
   readonly timelineTypes = input<TimelineType[]>([]);
   readonly candidates = input<string[]>([]);
   readonly selectedTimelineTypeForBuilder = model<string>('*');
-  readonly typeIcons = input<Record<string, string>>({});
-  readonly typeColors = input<
-    Record<string, { backgroundColor: string; foregroundColor: string }>
-  >({});
   readonly typeCandidateCounts = input<Record<string, number>>({});
+
+  /** Map matching timeline type labels to standard icons. */
+  protected readonly typeIcons = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const type of this.timelineTypes()) {
+      map[type.label.toLowerCase()] = type.icon;
+    }
+    return map;
+  });
+
+  /** Theme colors mapped per timeline type. */
+  protected readonly typeColors = computed<Record<string, TimelineTypeColor>>(
+    () => {
+      const map: Record<string, TimelineTypeColor> = {};
+      for (const type of this.timelineTypes()) {
+        map[type.label.toLowerCase()] = {
+          backgroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.backgroundColor.r,
+            type.backgroundColor.g,
+            type.backgroundColor.b,
+            type.backgroundColor.a,
+          ]),
+          foregroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.foregroundColor.r,
+            type.foregroundColor.g,
+            type.foregroundColor.b,
+            type.foregroundColor.a,
+          ]),
+        };
+      }
+      return map;
+    },
+  );
 
   // Outputs (Outputs)
   readonly drawDiagram = output<void>();
