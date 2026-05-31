@@ -15,7 +15,8 @@ globs: **/*.ts
 - The default type for timestamps is `bigint` in nanoseconds (ns) unless specified otherwise. If a timestamp is in another unit, append the unit name to the field or method name (e.g., `timestampMs`).
 - Prefix private fields with `_` only if there is a corresponding property (getter or setter) with the same name. If there is no property with the same name and the field name can be defined without `_`, do not use the `_` prefix.
 - Do NOT prefix interface names with `I`.
-- Do NOT use `as unknown as X` type assertions unless explicitly permitted by the user.
+- Do NOT use `as unknown as X` type assertions in non test code.
+- Do NOT use Object literal type in non test code. Define an interface instead.
 
 ## Angular coding rules
 
