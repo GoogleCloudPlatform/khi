@@ -22,6 +22,8 @@
   [hideTimelinesWithoutMatchingLogs]="
     hideTimelinesWithoutMatchingLogs() || false
   "
+  [timelineCelFilter]="timelineCelFilter() || ''"
+  [logCelFilter]="logCelFilter() || ''"
   (timezoneShiftChange)="onTimezoneshiftCommit($event)"
   (timelineCelFilterChange)="onTimelineCelFilterChange($event)"
   (logCelFilterChange)="onLogCelFilterChange($event)"

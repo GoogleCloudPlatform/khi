@@ -32,7 +32,8 @@ import {
 @Injectable({ providedIn: 'root' })
 export class CelTimelineFilter implements LogTimelineFilter {
   private readonly celEnv = new CELTimelineFilterEnvironment();
-  private readonly celExpr = signal<string>('');
+  private readonly _celExpr = signal<string>('');
+  public readonly celExpr = this._celExpr.asReadonly();
 
   /**
    * Validates the given CEL timeline expression against the registered environment schemas.
@@ -48,10 +49,10 @@ export class CelTimelineFilter implements LogTimelineFilter {
   public updateFilter(celExpr: string): CelFilterUpdateResult {
     const compileRes = this.celEnv.compile(celExpr);
     if (!compileRes.success) {
-      this.celExpr.set('');
+      this._celExpr.set('');
       return compileRes;
     }
-    this.celExpr.set(celExpr);
+    this._celExpr.set(celExpr);
     return { success: true };
   }
 
@@ -92,7 +93,8 @@ export class CelTimelineFilter implements LogTimelineFilter {
 @Injectable({ providedIn: 'root' })
 export class CelLogFilter implements LogTimelineFilter {
   private readonly celEnv = new CELLogFilterEnvironment();
-  private readonly celExpr = signal<string>('');
+  private readonly _celExpr = signal<string>('');
+  public readonly celExpr = this._celExpr.asReadonly();
 
   /**
    * Validates the given CEL log expression against the registered environment schemas.
@@ -108,10 +110,10 @@ export class CelLogFilter implements LogTimelineFilter {
   public updateFilter(celExpr: string): CelFilterUpdateResult {
     const compileRes = this.celEnv.compile(celExpr);
     if (!compileRes.success) {
-      this.celExpr.set('');
+      this._celExpr.set('');
       return compileRes;
     }
-    this.celExpr.set(celExpr);
+    this._celExpr.set(celExpr);
     return { success: true };
   }
 

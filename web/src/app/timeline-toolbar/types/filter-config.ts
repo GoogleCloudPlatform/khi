@@ -1,5 +1,5 @@
 /**
- * Copyright 2024 Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,9 @@
  * limitations under the License.
  */
 
-import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
-
-export function RegexValidator(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    try {
-      new RegExp(control.value);
-    } catch (e) {
-      return { regex: e };
-    }
-    return null;
-  };
+export interface TimelineFilterConfig {
+  id: string;
+  timelineType: string;
+  mode: 'regex' | 'selection';
+  value: string;
 }
