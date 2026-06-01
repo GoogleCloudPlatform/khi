@@ -25,9 +25,13 @@ type CommonFieldSet struct {
 	// Timestamp is the timestamp of the log happens.
 	Timestamp time.Time
 	// Severity represents the log severity.
+	//
+	// Deprecated: Use DefaultSeverityFieldSet with defining log speicifc FieldSetReader for it.
 	Severity enum.Severity
 	// DisplayID is an unique identifier given from a log.
 	// This is only used for showing and it may be same as the ID.
+	//
+	// Deprecated: Define custom FieldSet and FieldSetReader instead.
 	DisplayID string
 }
 
@@ -40,6 +44,8 @@ var _ FieldSet = (*CommonFieldSet)(nil)
 
 // MainMessageFieldSet is an abstract FieldSet struct type to get the main message of its log.
 // This would be read from `textPayload`, `protoPayload` or `jsonPayload` when it is read from Cloud Logging.
+//
+// Deprecated: Define custom FieldSet and FieldSetReader instead.
 type MainMessageFieldSet struct {
 	MainMessage string
 }

@@ -19,6 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 func TestGCPAuditLogFieldSetReader(t *testing.T) {
@@ -110,6 +111,50 @@ func TestGCPAuditLogFieldSet_GuessRevisionVerb(t *testing.T) {
 			g := &GCPAuditLogFieldSet{MethodName: tc.methodName}
 			if got := g.GuessRevisionVerb(); got != tc.want {
 				t.Errorf("GuessRevisionVerb() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGCPDefaultSeverityFieldSetReader(t *testing.T) {
+	reader := &GCPDefaultSeverityFieldSetReader{}
+	tests := []struct {
+		name  string
+		input map[string]any
+		want  *inspectioncore_contract.DefaultSeverityFieldSet
+	}{
+		{
+			name: "severity info",
+			input: map[string]any{
+				"severity": "INFO",
+			},
+			want: &inspectioncore_contract.DefaultSeverityFieldSet{
+				Severity: inspectioncore_contract.SeverityInfo,
+			},
+		},
+		{
+			name:  "severity absent defaults to empty string which is Unknown",
+			input: map[string]any{},
+			want: &inspectioncore_contract.DefaultSeverityFieldSet{
+				Severity: inspectioncore_contract.SeverityUnknown,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			node, err := structured.FromGoValue(tc.input, &structured.AlphabeticalGoMapKeyOrderProvider{})
+			if err != nil {
+				t.Fatalf("failed to create node: %v", err)
+			}
+			nodeReader := structured.NewNodeReader(node)
+			gotFS, err := reader.Read(nodeReader)
+			if err != nil {
+				t.Fatalf("Read() error = %v", err)
+			}
+			got := gotFS.(*inspectioncore_contract.DefaultSeverityFieldSet)
+			if got.Severity != tc.want.Severity {
+				t.Errorf("Read() severity = %v, want %v", got.Severity, tc.want.Severity)
 			}
 		})
 	}
