@@ -39,9 +39,6 @@ import { InspectionDataLoaderService } from './app/services/data-loader.service'
 import { DiffPageDataSourceServer } from './app/services/frame-connection/frames/diff-page-datasource-server.service';
 import { GraphPageDataSourceServer } from './app/services/frame-connection/frames/graph-page-datasource-server.service';
 import { GraphPageDataSource } from './app/services/frame-connection/frames/graph-page-datasource.service';
-import { TimelineSelectionService } from './app/services/timeline-selection.service';
-import { InspectionDataStoreService } from './app/services/inspection-data-store.service';
-import { SelectionManagerService } from './app/services/selection-manager.service';
 import {
   WindowConnectorService,
   WINDOW_CONNECTION_PROVIDER,
@@ -55,11 +52,6 @@ import {
 } from './app/services/api/backend-sync.service';
 import { POPUP_MANAGER } from './app/services/popup/popup-manager';
 import { PopupManagerImpl } from './app/services/popup/popup-manager-impl';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from './app/services/timeline-filter.service';
-import { ViewStateService } from './app/services/view-state.service';
 import {
   MAT_TOOLTIP_DEFAULT_OPTIONS,
   MatTooltipDefaultOptions,
@@ -107,9 +99,6 @@ export const appConfig: ApplicationConfig = {
     DiffPageDataSourceServer,
     GraphPageDataSourceServer,
     GraphPageDataSource,
-    TimelineSelectionService,
-    InspectionDataStoreService,
-    SelectionManagerService,
     WindowConnectorService,
     {
       provide: WINDOW_CONNECTION_PROVIDER,
@@ -126,14 +115,6 @@ export const appConfig: ApplicationConfig = {
     {
       provide: POPUP_MANAGER,
       useClass: PopupManagerImpl,
-    },
-    {
-      provide: DEFAULT_TIMELINE_FILTER,
-      useFactory: () =>
-        new TimelineFilter(
-          inject(InspectionDataStoreService),
-          inject(ViewStateService),
-        ),
     },
     {
       provide: MAT_TOOLTIP_DEFAULT_OPTIONS,

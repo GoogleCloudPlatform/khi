@@ -21,8 +21,7 @@ import {
   UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
   UpdateSelectedResourceMessage,
 } from 'src/app/common/schema/inter-window-messages';
-import { SelectionManagerService } from '../../selection-manager.service';
-import { withLatestFrom } from 'rxjs';
+import { SelectionManagerV2 } from '../../selection-manager-v2.service';
 
 /**
  * DiffPageDataSourceServer sends data needed to show the diff page in the other tab.
@@ -30,29 +29,24 @@ import { withLatestFrom } from 'rxjs';
 @Injectable()
 export class DiffPageDataSourceServer {
   private connector = inject(WindowConnectorService);
-  private selectionManager = inject(SelectionManagerService);
+  private selectionManager = inject(SelectionManagerV2);
 
   public activate() {
     // Send the current selected revision and timeline to newly activated diff page
-    this.connector
-      .receiver(DIFF_PAGE_OPEN)
-      .pipe(
-        withLatestFrom(
-          this.selectionManager.selectedRevision,
-          this.selectionManager.selectedTimeline,
-        ),
-      )
-      .subscribe(([message, revision, timeline]) => {
-        if (timeline && revision) {
-          this.connector.unicast<UpdateSelectedResourceMessage>(
-            UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
-            {
-              timeline,
-              logIndex: revision.logIndex,
-            },
-            message.sourceFrameId!,
-          );
-        }
-      });
+    this.connector.receiver(DIFF_PAGE_OPEN).subscribe((message) => {
+      const revision = this.selectionManager.selectedRevision();
+      const timeline = this.selectionManager.selectedTimeline();
+
+      if (timeline && revision) {
+        this.connector.unicast<UpdateSelectedResourceMessage>(
+          UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
+          {
+            timeline,
+            logIndex: revision.logIndex,
+          },
+          message.sourceFrameId!,
+        );
+      }
+    });
   }
 }

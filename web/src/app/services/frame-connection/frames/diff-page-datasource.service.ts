@@ -24,7 +24,6 @@ import {
   UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
   UpdateSelectedResourceMessage,
 } from 'src/app/common/schema/inter-window-messages';
-import { ResourceTimeline } from 'src/app/store/timeline';
 
 @Injectable()
 export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> {
@@ -57,11 +56,10 @@ export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> 
       )
       .pipe(
         map((message) => ({
-          timeline: ResourceTimeline.clone(message.data.timeline),
+          timeline: message.data.timeline,
           logIndex: message.data.logIndex,
         })),
-      )
-      .subscribe(this.rawUpdateRequest$);
+      );
     this.data$.subscribe((data) => this.updatePath(data));
     this.connector.broadcast('DIFF_PAGE_OPEN', {});
   }

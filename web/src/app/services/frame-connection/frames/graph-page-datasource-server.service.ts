@@ -19,46 +19,38 @@ import {
   UPDATE_GRAPH_DATA,
 } from 'src/app/common/schema/inter-window-messages';
 import { GraphDataConverterService } from '../../graph-converter.service';
-import { SelectionManagerService } from '../../selection-manager.service';
 import { WindowConnectorService } from '../window-connector.service';
-import { withLatestFrom } from 'rxjs';
 import { Injectable, inject } from '@angular/core';
 import { UpdateGraphMessage } from './graph-page-datasource.service';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from '../../timeline-filter.service';
+
+import { InspectionDataStoreV2 } from '../../inspection-data-store-v2.service';
+
+import { SelectionManagerV2 } from '../../selection-manager-v2.service';
 
 @Injectable()
 export class GraphPageDataSourceServer {
   private readonly graphConverter = inject(GraphDataConverterService);
   private readonly connector = inject(WindowConnectorService);
-  private readonly selectionManager = inject(SelectionManagerService);
-  private readonly filter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+  private readonly store = inject(InspectionDataStoreV2);
+  private readonly selectionManager = inject(SelectionManagerV2);
 
   public activate() {
-    this.connector
-      .receiver(GRAPH_PAGE_OPEN)
-      .pipe(
-        withLatestFrom(
-          this.selectionManager.selectedLog,
-          this.filter.filteredTimeline,
-        ),
-      )
-      .subscribe(([message, log, timeline]) => {
-        if (log && timeline) {
-          const graphData = this.graphConverter.getGraphDataAt(
-            timeline,
-            log.time,
-          );
-          this.connector.unicast<UpdateGraphMessage>(
-            UPDATE_GRAPH_DATA,
-            {
-              graphData,
-            },
-            message.sourceFrameId!,
-          );
-        }
-      });
+    this.connector.receiver(GRAPH_PAGE_OPEN).subscribe((message) => {
+      const log = this.selectionManager.selectedLog();
+      const timelineView = this.store.timelineView();
+      if (log && timelineView) {
+        const graphData = this.graphConverter.getGraphDataAt(
+          timelineView.filteredTimelines(),
+          log.timestamp,
+        );
+        this.connector.unicast<UpdateGraphMessage>(
+          UPDATE_GRAPH_DATA,
+          {
+            graphData,
+          },
+          message.sourceFrameId!,
+        );
+      }
+    });
   }
 }

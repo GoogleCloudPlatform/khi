@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { ReferenceResolverStore } from 'src/app/common/loader/reference-resolver';
-import { InspectionData } from 'src/app/store/inspection-data';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 
 /**
  * LifecycleExtension is an interface with set of event handlers.
@@ -31,8 +30,7 @@ export interface LifecycleHookExtension {
    * onInspectionDataOpen called when any data load is completed.
    */
   onInspectionDataOpen?: (
-    inspectionData: InspectionData,
-    textBufferSource: ReferenceResolverStore,
+    inspectionData: InspectionDataV2,
     rawData: ArrayBuffer,
   ) => void;
 

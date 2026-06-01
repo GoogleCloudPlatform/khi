@@ -15,7 +15,6 @@
  */
 
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
 import {
   ArchGraphCondition,
   ContainerGraphData,
@@ -32,9 +31,9 @@ import * as k8s from '../store/k8s-types';
 import { isConditionPositive } from '../store/condition-positive-map';
 import { LongTimestampFormatPipe } from '../common/timestamp-format.pipe';
 import { ViewStateService } from '../services/view-state.service';
-import { asBehaviorSubject } from '../utils/observable-util';
-import { ResourceTimeline, TimelineLayer } from '../store/timeline';
-import { ResourceRevision } from '../store/revision';
+import { Timeline } from '../store/domain/timeline';
+import { ReadonlyDomainElement } from '../store/domain/types';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 interface PodGraphDataGroupedByNode {
   [nodeName: string]: PodGraphData[];
@@ -44,31 +43,25 @@ interface ContainerGraphDataMap {
   [containerName: string]: ContainerGraphData;
 }
 
-interface MappedTimelineEntry {
-  [label: string]: ResourceTimeline;
-}
-
 @Injectable({
   providedIn: 'root',
 })
 export class GraphDataConverterService {
   private readonly _viewStateService = inject(ViewStateService);
 
-  private $timeZoneShift: BehaviorSubject<number> = asBehaviorSubject(
+  private readonly timezoneShift = toSignal(
     this._viewStateService.timezoneShift,
-    0,
   );
 
-  public getGraphDataAt(timelines: ResourceTimeline[], t: number): GraphData {
-    const mappedTimeline: MappedTimelineEntry = {};
-    for (const timeline of timelines) {
-      mappedTimeline[timeline.resourcePath] = timeline;
-    }
+  public getGraphDataAt(
+    timelines: ReadonlyDomainElement<Timeline>[],
+    t: bigint,
+  ): GraphData {
     const nodes = this.getNodes(timelines);
-    const podNames = this.getPodGraphData(mappedTimeline, t);
+    const podNames = this.getPodGraphData(timelines, t);
     this.sortPods(podNames);
     const nodeData = nodes
-      .map((n) => this.getNodeGraphData(mappedTimeline, podNames, n, t))
+      .map((n) => this.getNodeGraphData(podNames, n, t))
       .filter((a) => a != null) as GraphNode[];
     const foundNodeNames = new Set(nodeData.map((n) => n.name));
 
@@ -90,36 +83,36 @@ export class GraphDataConverterService {
       daemonset: this._parsePodOwnerGraphObjects(
         'daemonset',
         nodeData,
-        mappedTimeline,
+        timelines,
         t,
       ),
-      job: this._parsePodOwnerGraphObjects('job', nodeData, mappedTimeline, t),
+      job: this._parsePodOwnerGraphObjects('job', nodeData, timelines, t),
       replicaset: this._parsePodOwnerGraphObjects(
         'replicaset',
         nodeData,
-        mappedTimeline,
+        timelines,
         t,
       ),
     };
     return {
       nodes: nodeData,
-      services: this.getServiceGraphData(nodeData, mappedTimeline, t),
+      services: this.getServiceGraphData(nodeData, timelines, t),
       graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(
-        t,
-        this.$timeZoneShift.value,
+        Number(t / 1_000_000n),
+        this.timezoneShift() ?? 0,
       ),
       podOwners,
       podOwnerOwners: {
         cronjob: this._parsePodOwnerOwnerGraphObjects(
           'cronjob',
           podOwners.job,
-          mappedTimeline,
+          timelines,
           t,
         ),
         deployment: this._parsePodOwnerOwnerGraphObjects(
           'deployment',
           podOwners.replicaset,
-          mappedTimeline,
+          timelines,
           t,
         ),
       },
@@ -128,27 +121,24 @@ export class GraphDataConverterService {
 
   private getServiceGraphData(
     nodes: GraphNode[],
-    timeline: MappedTimelineEntry,
-    t: number,
+    timelines: ReadonlyDomainElement<Timeline>[],
+    t: bigint,
   ): ServiceGraphData[] {
-    const services = Object.values(timeline).filter(
-      (t) =>
-        t.layer == TimelineLayer.Name &&
-        t.getNameOfLayer(TimelineLayer.Kind) == 'service',
-    );
+    const services = timelines.filter((serviceTimeline) => {
+      const path = serviceTimeline.path;
+      return path.length === 5 && path[2].label === 'service';
+    });
     const result: ServiceGraphData[] = [];
     for (const serviceTimeline of services) {
-      const manifest: k8s.K8sServiceResource = this._getManifest(
-        timeline,
-        serviceTimeline,
-        t,
-      ) as k8s.K8sServiceResource;
+      const rev = serviceTimeline.lookupRevisionAtNs(t, false);
+      if (!rev) continue;
+      const manifest =
+        rev.body as ReadonlyDomainElement<k8s.K8sServiceResource>;
       if (!manifest) continue;
 
-      const serviceName = serviceTimeline.getNameOfLayer(TimelineLayer.Name);
-      const serviceNamespace = serviceTimeline.getNameOfLayer(
-        TimelineLayer.Namespace,
-      );
+      const path = serviceTimeline.path;
+      const serviceName = path[4].label;
+      const serviceNamespace = path[3].label;
 
       const selector = manifest.spec?.selector ?? {};
       const connectedPods: PodConnectionGraphData[] = [];
@@ -187,7 +177,6 @@ export class GraphDataConverterService {
       if (
         this._checkDeletionThresholdAndUpdateTimestamp(
           t,
-          timeline,
           serviceTimeline,
           graphServiceData,
         )
@@ -198,29 +187,33 @@ export class GraphDataConverterService {
     return result;
   }
 
-  private getNodes(timeline: ResourceTimeline[]): ResourceTimeline[] {
-    return timeline.filter(
-      (t) =>
-        t.layer == TimelineLayer.Name &&
-        t.getNameOfLayer(TimelineLayer.Kind) == 'node' &&
-        t.getNameOfLayer(TimelineLayer.Namespace) == 'cluster-scope',
-    );
+  private getNodes(
+    timeline: ReadonlyDomainElement<Timeline>[],
+  ): ReadonlyDomainElement<Timeline>[] {
+    return timeline.filter((t) => {
+      const path = t.path;
+      // Cluster -> API version -> Kind -> Namespace -> Name
+      return (
+        path.length === 5 &&
+        path[2].label === 'node' &&
+        path[3].label === 'cluster-scope'
+      );
+    });
   }
 
   private getNodeGraphData(
-    timeline: MappedTimelineEntry,
     podNames: PodGraphDataGroupedByNode,
-    nodeTimeline: ResourceTimeline,
-    t: number,
+    nodeTimeline: ReadonlyDomainElement<Timeline>,
+    t: bigint,
   ): GraphNode | null {
-    const nodeManifest: k8s.K8sNodeResource = this._getManifest(
-      timeline,
-      nodeTimeline,
-      t,
-    ) as k8s.K8sNodeResource;
+    const rev = nodeTimeline.lookupRevisionAtNs(t, false);
+    if (!rev) return null;
+    const nodeManifest = rev.body as ReadonlyDomainElement<k8s.K8sNodeResource>;
     if (!nodeManifest) return null;
 
-    const nodeName = nodeTimeline.getNameOfLayer(TimelineLayer.Name);
+    const path = nodeTimeline.path;
+
+    const nodeName = path[4].label;
     const result: GraphNode = {
       name: nodeName,
       labels: {},
@@ -249,12 +242,7 @@ export class GraphDataConverterService {
     }
 
     if (
-      this._checkDeletionThresholdAndUpdateTimestamp(
-        t,
-        timeline,
-        nodeTimeline,
-        result,
-      )
+      this._checkDeletionThresholdAndUpdateTimestamp(t, nodeTimeline, result)
     ) {
       return result;
     }
@@ -262,47 +250,51 @@ export class GraphDataConverterService {
   }
 
   private getPodGraphData(
-    timeline: MappedTimelineEntry,
-    t: number,
+    timeline: ReadonlyDomainElement<Timeline>[],
+    t: bigint,
   ): PodGraphDataGroupedByNode {
     const result: PodGraphDataGroupedByNode = {};
-    const podTimelines = Object.values(timeline).filter(
-      (t) =>
-        t.layer == TimelineLayer.Name &&
-        t.getNameOfLayer(TimelineLayer.Kind) == 'pod',
-    );
+    const podTimelines = timeline.filter((t) => {
+      const path = t.path;
+      // Cluster -> API version -> Kind -> Namespace -> Name
+      return path.length === 5 && path[2].label === 'pod';
+    });
     for (const pd of podTimelines) {
-      const manifest = this._getManifest(timeline, pd, t) as k8s.K8sPodResource;
+      const rev = pd.lookupRevisionAtNs(t, false);
+      if (!rev) continue;
+      const manifest = rev.body as ReadonlyDomainElement<k8s.K8sPodResource>;
       if (manifest != null) {
-        this._parsePodInfo(timeline, t, pd, manifest, result);
+        this._parsePodInfo(t, pd, manifest, result);
       }
     }
     return result;
   }
 
   private _parsePodInfo(
-    timelines: MappedTimelineEntry,
-    t: number,
-    podTimeline: ResourceTimeline,
-    podManifest: k8s.K8sPodResource,
+    t: bigint,
+    podTimeline: ReadonlyDomainElement<Timeline>,
+    podManifest: ReadonlyDomainElement<k8s.K8sPodResource>,
     dest: PodGraphDataGroupedByNode,
   ) {
-    const podName = podTimeline.getNameOfLayer(TimelineLayer.Name);
-    const podNamespace = podTimeline.getNameOfLayer(TimelineLayer.Namespace);
+    const podPath = podTimeline.path;
+    const podName = podPath[4].label;
+    const podNamespace = podPath[3].label;
 
     const podSpec = podManifest.spec;
     if (!podSpec) return;
 
     let nodeName = podSpec.nodeName;
     if (!nodeName) {
-      const bindingResource = timelines[`${podTimeline.resourcePath}#binding`];
-      if (bindingResource) {
-        const bindingManifest = bindingResource.getLatestRevisionOfTime(t);
-        const bindingResourceManifest = bindingManifest?.parsedManifest;
-        if (bindingResourceManifest) {
-          nodeName = (
-            bindingResourceManifest as unknown as k8s.K8sPodBindingResource
-          ).target?.name;
+      for (const podChild of podTimeline.children()) {
+        if (podChild.name == 'binding') {
+          const bindingRev = podChild.lookupRevisionAtNs(t, false);
+          if (bindingRev) {
+            const bindingManifest =
+              bindingRev.body as ReadonlyDomainElement<k8s.K8sPodBindingResource>;
+            if (bindingManifest) {
+              nodeName = bindingManifest.target?.name;
+            }
+          }
         }
       }
       if (!nodeName) {
@@ -395,7 +387,6 @@ export class GraphDataConverterService {
     if (
       this._checkDeletionThresholdAndUpdateTimestamp(
         t,
-        timelines,
         podTimeline,
         podGraphResource,
       )
@@ -407,21 +398,19 @@ export class GraphDataConverterService {
   private _parsePodOwnerGraphObjects(
     kind: string,
     nodes: GraphNode[],
-    timeline: MappedTimelineEntry,
-    t: number,
+    timelines: ReadonlyDomainElement<Timeline>[],
+    t: bigint,
   ): GraphPodOwner[] {
-    const owners = Object.values(timeline).filter(
-      (t) =>
-        t.layer == TimelineLayer.Name &&
-        t.getNameOfLayer(TimelineLayer.Kind) == kind,
-    );
+    const owners = timelines.filter((t) => {
+      const path = t.path;
+      return path.length === 5 && path[2].label === kind;
+    });
     const result: GraphPodOwner[] = [];
     for (const owner of owners) {
-      const manifest = this._getManifest(
-        timeline,
-        owner,
-        t,
-      ) as k8s.K8sControlledResource;
+      const rev = owner.lookupRevisionAtNs(t, false);
+      if (!rev) continue;
+      const manifest =
+        rev.body as ReadonlyDomainElement<k8s.K8sControlledResource>;
       if (!manifest) continue;
       const uid = manifest.metadata?.uid;
       if (uid) {
@@ -431,10 +420,12 @@ export class GraphDataConverterService {
             ownerUids.add(ownerReference.uid);
           }
         }
+        const path = owner.path;
+
         const podOwnerGraphData: GraphPodOwner = {
           uid: uid,
-          name: owner.getNameOfLayer(TimelineLayer.Name),
-          namespace: owner.getNameOfLayer(TimelineLayer.Namespace),
+          name: path[4].label,
+          namespace: path[3].label,
           labels: manifest.metadata?.labels ?? {},
           connectedPods: this._getConnectedPodListFromOwnerUid(uid, nodes),
           status: manifest.status ?? {},
@@ -443,7 +434,6 @@ export class GraphDataConverterService {
         if (
           this._checkDeletionThresholdAndUpdateTimestamp(
             t,
-            timeline,
             owner,
             podOwnerGraphData,
           )
@@ -476,29 +466,28 @@ export class GraphDataConverterService {
   private _parsePodOwnerOwnerGraphObjects(
     kind: string,
     childGraphData: GraphPodOwner[],
-    timeline: MappedTimelineEntry,
-    t: number,
+    timelines: ReadonlyDomainElement<Timeline>[],
+    t: bigint,
   ): GraphPodOwnerOwner[] {
-    const ownerOwners = Object.values(timeline).filter(
-      (t) =>
-        t.layer == TimelineLayer.Name &&
-        t.getNameOfLayer(TimelineLayer.Kind) == kind,
-    );
+    const ownerOwners = timelines.filter((ownerTimeline) => {
+      const path = ownerTimeline.path;
+      return path.length === 5 && path[2].label === kind;
+    });
     const result: GraphPodOwnerOwner[] = [];
     for (const owner of ownerOwners) {
-      const manifest = this._getManifest(
-        timeline,
-        owner,
-        t,
-      ) as k8s.K8sControlledResource;
+      const rev = owner.lookupRevisionAtNs(t, false);
+      if (!rev) continue;
+      const manifest =
+        rev.body as ReadonlyDomainElement<k8s.K8sControlledResource>;
       if (!manifest) continue;
       const uid = manifest.metadata?.uid;
       if (uid) {
+        const path = owner.path;
         const podOwner = childGraphData.filter((c) => c.ownerUids.has(uid));
         const podOwnerOwnerGraphData: GraphPodOwnerOwner = {
           uid: uid,
-          name: owner.getNameOfLayer(TimelineLayer.Name),
-          namespace: owner.getNameOfLayer(TimelineLayer.Namespace),
+          name: path[4].label,
+          namespace: path[3].label,
           labels: manifest.metadata?.labels ?? {},
           connectedPodOwners: podOwner.map((connectedPod) => ({
             podOwner: connectedPod,
@@ -508,7 +497,6 @@ export class GraphDataConverterService {
         if (
           this._checkDeletionThresholdAndUpdateTimestamp(
             t,
-            timeline,
             owner,
             podOwnerOwnerGraphData,
           )
@@ -540,7 +528,7 @@ export class GraphDataConverterService {
 
   private _parseConditions(
     resourceType: 'pod' | 'node',
-    status?: k8s.K8sStatus,
+    status?: ReadonlyDomainElement<k8s.K8sStatus>,
   ): ArchGraphCondition[] {
     if (!status || !status.conditions) return [];
     return status.conditions.map((condition) => ({
@@ -555,63 +543,26 @@ export class GraphDataConverterService {
     }));
   }
 
-  private _getManifest(
-    timelines: MappedTimelineEntry,
-    targetEntry: ResourceTimeline,
-    t: number,
-  ): unknown {
-    const resourceLevelRevision = targetEntry.getLatestRevisionOfTime(t);
-    let statusLevelRevision: ResourceRevision | null = null;
-    const statusLevelEntry = timelines[`${targetEntry.resourcePath}#status`];
-    if (statusLevelEntry) {
-      statusLevelRevision = statusLevelEntry.getLatestRevisionOfTime(t);
-    }
-    if (!resourceLevelRevision) {
-      return statusLevelRevision?.parsedManifest ?? null;
-    }
-    let manifest: k8s.K8sControlledResource = {
-      ...resourceLevelRevision.parsedManifest!,
-    };
-    // Override status field in the manifest when newer status subresource update found
-    if (
-      statusLevelRevision &&
-      resourceLevelRevision.startAt < statusLevelRevision.startAt
-    ) {
-      const statusManifest =
-        statusLevelRevision.parsedManifest as k8s.K8sControlledResource;
-      if (statusManifest && statusManifest.status) {
-        manifest = {
-          ...manifest,
-          status: statusManifest.status,
-        };
-      }
-    }
-    return manifest;
-  }
-
   private _checkDeletionThresholdAndUpdateTimestamp(
-    t: number,
-    timelines: MappedTimelineEntry,
-    timeline: ResourceTimeline,
+    t: bigint,
+    timeline: ReadonlyDomainElement<Timeline>,
     result: GraphResourceData,
   ): boolean {
     const deletionThreshold = 180;
-    const revision = this._getRevisionLatestWithStatus(timelines, timeline, t);
+    const revision = timeline.lookupRevisionAtNs(t, false);
     if (revision) {
-      const diff = (t - revision.startAt) / 1000;
-      if (revision.isDeletion) {
+      const diff = Number((t - revision.changedTime)/1_000_000_000n);
+      if (
+        revision.verb.label === 'Delete' ||
+        revision.verb.label === 'DeleteCollection'
+      ) {
         if (diff <= deletionThreshold) {
           result.deletedAt = `${diff.toFixed(2)}s ago`;
         } else {
           return false;
         }
-      }
-      if (!revision.isDeletion) {
-        if (revision.isInferred) {
-          result.updatedAt = `more than ${diff.toFixed(2)}s ago`;
-        } else {
-          result.updatedAt = `${diff.toFixed(2)}s ago`;
-        }
+      } else {
+        result.updatedAt = `${diff.toFixed(2)}s ago`;
       }
     }
     return true;
@@ -634,23 +585,5 @@ export class GraphDataConverterService {
           phaseToScore(a) - phaseToScore(b),
       );
     }
-  }
-
-  private _getRevisionLatestWithStatus(
-    timelines: MappedTimelineEntry,
-    targetEntry: ResourceTimeline,
-    t: number,
-  ): ResourceRevision | null {
-    const statusLevelEntry = timelines[`${targetEntry.resourcePath}#status`];
-    const resourceLevelRevision = targetEntry.getLatestRevisionOfTime(t);
-    if (statusLevelEntry) {
-      const statusLevelRevision = statusLevelEntry.getLatestRevisionOfTime(t);
-      if (!resourceLevelRevision) return statusLevelRevision;
-      if (!statusLevelRevision) return resourceLevelRevision;
-      return statusLevelRevision.startAt > resourceLevelRevision.startAt
-        ? statusLevelRevision
-        : resourceLevelRevision;
-    }
-    return resourceLevelRevision;
   }
 }

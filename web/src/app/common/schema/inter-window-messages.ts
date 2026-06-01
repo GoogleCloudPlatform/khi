@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { ResourceTimeline } from 'src/app/store/timeline';
 
 export const DIFF_PAGE_OPEN = 'DIFF_PAGE_OPEN';
@@ -24,7 +26,7 @@ export const GRAPH_PAGE_OPEN = 'GRAPH_PAGE_OPEN';
  * Main window broadcast this message when another resource was selected.
  */
 export interface UpdateSelectedResourceMessage {
-  timeline: ResourceTimeline;
+  timeline: ReadonlyDomainElement<Timeline>;
   logIndex: number;
 }
 /**
