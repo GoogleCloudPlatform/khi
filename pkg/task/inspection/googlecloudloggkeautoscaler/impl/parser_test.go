@@ -227,10 +227,11 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	// 2. Resolve comparative path instances using the Builder's accumulator.
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-	autoscalerPath := googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, clusterTimeline)
-
 	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, "test-cluster")
+	autoscalerPath := googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, gkeClusterTimeline)
+
+	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
+
 	nodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "default-pool")
 	migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-a0c72690-grp")
 
