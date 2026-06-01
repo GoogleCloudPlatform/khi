@@ -74,6 +74,8 @@ var _ coretask.LabelOpt = (*ProgressReportableTaskLabelOptImpl)(nil)
 
 // FeatureTaskLabelImpl is an implementation of task.LabelOpt.
 // This annotate a task to be a feature in inspection.
+//
+// Deprecated: Use FeatureTaskLabelV2Impl instead.
 type FeatureTaskLabelImpl struct {
 	title            string
 	description      string
@@ -83,6 +85,7 @@ type FeatureTaskLabelImpl struct {
 	inspectionTypes  []string
 }
 
+// Write implements task.LabelOpt.
 func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyInspectionFeatureFlag, true)
 	typedmap.Set(label, LabelKeyFeatureTaskTargetLogType, ftl.logType)
@@ -95,13 +98,11 @@ func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	}
 }
 
-func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTaskLabelImpl {
-	ftl.description = description
-	return ftl
-}
-
 var _ coretask.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
+// FeatureTaskLabel returns a LabelOpt that annotates a task to be a feature in inspection.
+//
+// Deprecated: Use FeatureTaskLabelV2 instead.
 func FeatureTaskLabel(title string, description string, logType enum.LogType, featureOrder int, isDefaultFeature bool, inspectionTypes ...string) *FeatureTaskLabelImpl {
 	for i, t := range inspectionTypes {
 		if t == "" {
@@ -116,6 +117,36 @@ Please define task IDs and types used in its type parameter in a different packa
 		featureOrder:     featureOrder,
 		isDefaultFeature: isDefaultFeature,
 		inspectionTypes:  inspectionTypes,
+	}
+}
+
+// FeatureTaskLabelV2Impl is an implementation of task.LabelOpt.
+// This annotates a task to be a feature in inspection for v6 format.
+type FeatureTaskLabelV2Impl struct {
+	title            string
+	description      string
+	featureOrder     int
+	isDefaultFeature bool
+}
+
+// Write implements task.LabelOpt.
+func (ftl *FeatureTaskLabelV2Impl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyInspectionFeatureFlag, true)
+	typedmap.Set(label, LabelKeyFeatureTaskTitle, ftl.title)
+	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
+	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
+	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
+}
+
+var _ coretask.LabelOpt = (*FeatureTaskLabelV2Impl)(nil)
+
+// FeatureTaskLabelV2 returns a LabelOpt to mark the task as a feature in the inspection for v6 format.
+func FeatureTaskLabelV2(title string, description string, featureOrder int, isDefaultFeature bool) *FeatureTaskLabelV2Impl {
+	return &FeatureTaskLabelV2Impl{
+		title:            title,
+		description:      description,
+		featureOrder:     featureOrder,
+		isDefaultFeature: isDefaultFeature,
 	}
 }
 
