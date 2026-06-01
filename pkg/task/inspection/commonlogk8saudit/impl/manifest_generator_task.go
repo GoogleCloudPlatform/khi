@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -72,8 +71,6 @@ var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTa
 	grp.SetLimit(runtime.GOMAXPROCS(0))
 
 	for path, group := range logGroups {
-		path := path
-		group := group
 		grp.Go(func() error {
 			defer doneGroupCount.Add(1)
 			resourceLogs := []*commonlogk8saudit_contract.ResourceManifestLog{}
@@ -140,7 +137,10 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 			partial = true
 		}
 	}
-
+	// request or response may contain its proto type as @type. Removing it because its not a k8s field.
+	if currentBodyReader != nil{
+		currentBodyReader = structured.NewNodeReader(structured.NewFieldFilterNode(currentBodyReader.Node, []string{"@type"}))
+	}
 	if currentBodyReader == nil {
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
@@ -203,7 +203,6 @@ kind: %s
 		slog.WarnContext(ctx, fmt.Sprintf("failed to serialize resource body to yaml\n%s", err.Error()))
 	}
 	currentRevisionBody := string(currentRevisionBodyRaw)
-	currentRevisionBody = removeAtType(currentRevisionBody)
 
 	if fieldSet.Verb == commonlogk8saudit_contract.VerbPatch && partial {
 		mergeConfigResolver := g.mergeConfigRegistry.Get(fieldSet.APIVersion, commonlogk8saudit_contract.GetSingularKindName(fieldSet.PluralKind))
@@ -212,7 +211,6 @@ kind: %s
 			ArrayMergeConfigResolver: mergeConfigResolver,
 		})
 		var mergedNodeReader *structured.NodeReader
-		var mergedYAML string
 		if err != nil {
 			slog.WarnContext(ctx, fmt.Sprintf("failed to merge resource body\n%s", err.Error()))
 			return &commonlogk8saudit_contract.ResourceManifestLog{
@@ -226,8 +224,7 @@ kind: %s
 			if err != nil {
 				slog.WarnContext(ctx, fmt.Sprintf("failed to read the merged resource body\n%s", err.Error()))
 			}
-			mergedYAML = removeAtType(string(mergedYAMLRaw))
-			g.prevRevisionBody = mergedYAML
+			g.prevRevisionBody = string(mergedYAMLRaw)
 			g.prevRevisionReader = mergedNodeReader
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
@@ -253,17 +250,4 @@ kind: %s
 			ResourceBodyReader: g.prevRevisionReader,
 		}, nil
 	}
-}
-
-// removeAtType removes @type in response or request payload.
-func removeAtType(yamlString string) string {
-	lines := strings.Split(yamlString, "\n")
-	var result []string
-	for _, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "'@type'") {
-			continue
-		}
-		result = append(result, line)
-	}
-	return strings.Join(result, "\n")
 }
