@@ -61,6 +61,50 @@ func TestInternPool_Intern(t *testing.T) {
 	}
 }
 
+func TestInternPool_Intern_InvalidUTF8(t *testing.T) {
+	idGen := &IDGenerator{}
+	pool := NewInternPool(idGen)
+
+	testCases := []struct {
+		name        string
+		input       string
+		wantID      uint32
+		wantResolve string
+	}{
+		{
+			name:        "invalid utf8",
+			input:       "foo\xffbar",
+			wantID:      1,
+			wantResolve: "foo\uFFFDbar",
+		},
+		{
+			name:        "duplicate invalid utf8",
+			input:       "foo\xffbar",
+			wantID:      1,
+			wantResolve: "foo\uFFFDbar",
+		},
+		{
+			name:        "valid replacement string",
+			input:       "foo\uFFFDbar",
+			wantID:      1,
+			wantResolve: "foo\uFFFDbar",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ref := pool.InternString(tc.input)
+			if ref.id != tc.wantID {
+				t.Errorf("Intern(%q) ID = %d, want %d", tc.input, ref.id, tc.wantID)
+			}
+			got := ref.Resolve()
+			if diff := cmp.Diff(tc.wantResolve, got); diff != "" {
+				t.Errorf("Resolve() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestInternPool_ResolveStringFromID(t *testing.T) {
 	idGen := &IDGenerator{}
 	pool := NewInternPool(idGen)
@@ -200,6 +244,12 @@ func TestInternPool_InternFieldSet(t *testing.T) {
 			input:  []string{"a", "b"},
 			want:   []string{"a", "b"},
 			wantID: 1,
+		},
+		{
+			name:   "invalid utf8 set",
+			input:  []string{"foo\xffbar"},
+			want:   []string{"foo\uFFFDbar"},
+			wantID: 3,
 		},
 	}
 
