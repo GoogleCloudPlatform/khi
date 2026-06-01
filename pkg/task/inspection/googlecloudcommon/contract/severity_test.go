@@ -97,6 +97,11 @@ func TestParseGCPSeverity(t *testing.T) {
 			input: "WaRnInG",
 			want:  inspectioncore_contract.SeverityWarning,
 		},
+		{
+			name:  "surrounding spaces",
+			input: "  INFO  ",
+			want:  inspectioncore_contract.SeverityInfo,
+		},
 	}
 
 	for _, tc := range testCases {

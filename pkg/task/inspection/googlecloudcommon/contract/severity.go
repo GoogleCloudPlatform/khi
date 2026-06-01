@@ -25,7 +25,7 @@ import (
 // It maps the GCP log severities defined in https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
 // to KHI's registered timeline style Severities in the core contract.
 func ParseGCPSeverity(gcpSeverity string) *pb.Severity {
-	gcpSeverity = strings.ToUpper(gcpSeverity)
+	gcpSeverity = strings.ToUpper(strings.TrimSpace(gcpSeverity))
 	switch gcpSeverity {
 	case "DEFAULT", "DEBUG", "INFO", "NOTICE":
 		return inspectioncore_contract.SeverityInfo
