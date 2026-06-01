@@ -89,7 +89,11 @@ func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		Name: "node",
 		Type: inspectioncore_contract.TimelineTypeKind,
 	})
-	nodeTimeline := builder.TimelineAccumulator.GetPath(kindTimeline, khifilev6.PathSegment{
+	namespaceTimeline := builder.TimelineAccumulator.GetPath(kindTimeline, khifilev6.PathSegment{
+		Name: "cluster-scope",
+		Type: inspectioncore_contract.TimelineTypeNamespace,
+	})
+	nodeTimeline := builder.TimelineAccumulator.GetPath(namespaceTimeline, khifilev6.PathSegment{
 		Name: "node-name-bar",
 		Type: inspectioncore_contract.TimelineTypeResource,
 	})
