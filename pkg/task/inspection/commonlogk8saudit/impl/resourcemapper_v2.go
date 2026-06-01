@@ -83,7 +83,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSe
 			})
 			continue
 		case commonlogk8saudit_contract.Subresource:
-			parentGroup := groupedLogs[group.Resource.ParentIdentity().ResourcePathString()]
+			parentGroup := groupedLogs[group.Resource.ParentIdentity().String()]
 			result = append(result, commonlogk8saudit_contract.RelatedGroupSet{
 				Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
 					"source": parentGroup,

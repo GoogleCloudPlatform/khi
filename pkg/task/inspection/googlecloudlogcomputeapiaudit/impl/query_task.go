@@ -23,7 +23,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -80,8 +79,8 @@ func (c *computeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTas
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *computeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeComputeApi,
-		QueryName:      "Compute API Audit log",
+
+		QueryName: "Compute API Audit log",
 		ExampleQuery: GenerateComputeAPIQuery(inspectioncore_contract.TaskModeRun, []string{
 			"gke-test-cluster-node-1",
 			"gke-test-cluster-node-2",

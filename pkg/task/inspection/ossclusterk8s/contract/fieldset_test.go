@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/google/go-cmp/cmp"
@@ -172,9 +171,7 @@ auditID: "test-audit-id"
 stageTimestamp: "2023-10-26T10:00:00Z"
 `,
 			want: &log.CommonFieldSet{
-				DisplayID: "test-audit-id",
 				Timestamp: time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC),
-				Severity:  enum.SeverityUnknown,
 			},
 		},
 	}

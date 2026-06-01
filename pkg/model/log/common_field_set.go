@@ -16,23 +16,12 @@ package log
 
 import (
 	"time"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 // CommonFieldSet is an abstract FieldSet struct type to get fields commonly defined in logs.
 type CommonFieldSet struct {
 	// Timestamp is the timestamp of the log happens.
 	Timestamp time.Time
-	// Severity represents the log severity.
-	//
-	// Deprecated: Use DefaultSeverityFieldSet with defining log speicifc FieldSetReader for it.
-	Severity enum.Severity
-	// DisplayID is an unique identifier given from a log.
-	// This is only used for showing and it may be same as the ID.
-	//
-	// Deprecated: Define custom FieldSet and FieldSetReader instead.
-	DisplayID string
 }
 
 // Kind implements FieldSet.

@@ -342,7 +342,7 @@ func (s *customAppLogQueryTaskSetting) Dependencies() []taskid.UntypedTaskRefere
 
 func (s *customAppLogQueryTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
  return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-  DefaultLogType: customapp_contract.LogTypeCustomApp,
+
   QueryName:      "Custom App logs",
   ExampleQuery:   `resource.type="gke_cluster" AND log_id("custom-app")`,
  }

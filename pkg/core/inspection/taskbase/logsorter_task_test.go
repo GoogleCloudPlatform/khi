@@ -45,15 +45,12 @@ func TestLogSorterByTimeTask(t *testing.T) {
 			mode: inspectioncore_contract.TaskModeDryRun,
 			logs: []*log.CommonFieldSet{
 				{
-					DisplayID: "foo",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 				},
 				{
-					DisplayID: "bar",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
 				},
 				{
-					DisplayID: "qux",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 				},
 			},
@@ -64,29 +61,23 @@ func TestLogSorterByTimeTask(t *testing.T) {
 			mode: inspectioncore_contract.TaskModeRun,
 			logs: []*log.CommonFieldSet{
 				{
-					DisplayID: "foo",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 				},
 				{
-					DisplayID: "bar",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
 				},
 				{
-					DisplayID: "qux",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 				},
 			},
 			want: []*log.CommonFieldSet{
 				{
-					DisplayID: "qux",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 32, 0, time.UTC),
 				},
 				{
-					DisplayID: "bar",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 33, 0, time.UTC),
 				},
 				{
-					DisplayID: "foo",
 					Timestamp: time.Date(2025, 11, 21, 13, 16, 34, 0, time.UTC),
 				},
 			},

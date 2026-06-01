@@ -21,9 +21,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -60,21 +60,8 @@ func (g *GCPAuditLogFieldSet) ImmediateOperation() bool {
 	return (g.OperationFirst && g.OperationLast) || (!g.OperationFirst && !g.OperationLast)
 }
 
-// OperationPath returns the resource path for the operation.
-func (g *GCPAuditLogFieldSet) OperationPath(pathToParent resourcepath.ResourcePath) resourcepath.ResourcePath {
-	if g.ImmediateOperation() {
-		return pathToParent // operation logs immediately completes must be written on its parent resource.
-	}
-	methodNameSplitted := strings.Split(g.MethodName, ".")
-	shortMethodName := "unknown"
-	if len(methodNameSplitted) > 0 {
-		shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
-	}
-	return resourcepath.Operation(pathToParent, shortMethodName, g.OperationID)
-}
-
 // GuessRevisionVerb returns the guessed revision verb from the method name.
-func (g *GCPAuditLogFieldSet) GuessRevisionVerb() enum.RevisionVerb {
+func (g *GCPAuditLogFieldSet) GuessRevisionVerb() *pb.Verb {
 	methodNameSplitted := strings.Split(g.MethodName, ".")
 	shortMethodName := "unknown"
 	if len(methodNameSplitted) > 0 {
@@ -84,13 +71,13 @@ func (g *GCPAuditLogFieldSet) GuessRevisionVerb() enum.RevisionVerb {
 
 	switch {
 	case strings.HasPrefix(shortMethodName, "create"), strings.HasPrefix(shortMethodName, "insert"):
-		return enum.RevisionVerbCreate
+		return commonlogk8saudit_contract.VerbCreate
 	case strings.HasPrefix(shortMethodName, "delete"):
-		return enum.RevisionVerbDelete
+		return commonlogk8saudit_contract.VerbDelete
 	case strings.HasPrefix(shortMethodName, "update"), strings.HasPrefix(shortMethodName, "patch"):
-		return enum.RevisionVerbUpdate
+		return commonlogk8saudit_contract.VerbUpdate
 	default:
-		return enum.RevisionVerbUpdate
+		return commonlogk8saudit_contract.VerbUpdate
 	}
 }
 

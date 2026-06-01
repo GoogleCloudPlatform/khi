@@ -384,7 +384,7 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 			klogParser := logutil.NewKLogTextParser(false)
 			paths := reader.readResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
 			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.ResourceIdentity) int {
-				return strings.Compare(a.ResourcePathString(), b.ResourcePathString())
+				return strings.Compare(a.String(), b.String())
 			})); diff != "" {
 				t.Errorf("readResourceAssociationFromControllerSpecificField() mismatch (-want +got):\n%s", diff)
 			}

@@ -89,7 +89,7 @@ var OSSK8sEventLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 		if err != nil {
 			return "unknown"
 		}
-		return event.ResourceIdentity().ResourcePathString()
+		return event.ResourceIdentity().String()
 	},
 )
 

@@ -18,7 +18,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -104,14 +105,14 @@ func TestGCPAuditLogFieldSet_GuessRevisionVerb(t *testing.T) {
 	tests := []struct {
 		name       string
 		methodName string
-		want       enum.RevisionVerb
+		want       *pb.Verb
 	}{
-		{"Create", "google.compute.v1.Instances.Create", enum.RevisionVerbCreate},
-		{"Insert", "google.compute.v1.BackendService.Insert", enum.RevisionVerbCreate},
-		{"Update", "google.compute.v1.Instances.Update", enum.RevisionVerbUpdate},
-		{"Patch", "google.compute.v1.Instances.Patch", enum.RevisionVerbUpdate},
-		{"Delete", "google.compute.v1.Instances.Delete", enum.RevisionVerbDelete},
-		{"Unknown", "google.compute.v1.Instances.Get", enum.RevisionVerbUpdate},
+		{"Create", "google.compute.v1.Instances.Create", commonlogk8saudit_contract.VerbCreate},
+		{"Insert", "google.compute.v1.BackendService.Insert", commonlogk8saudit_contract.VerbCreate},
+		{"Update", "google.compute.v1.Instances.Update", commonlogk8saudit_contract.VerbUpdate},
+		{"Patch", "google.compute.v1.Instances.Patch", commonlogk8saudit_contract.VerbUpdate},
+		{"Delete", "google.compute.v1.Instances.Delete", commonlogk8saudit_contract.VerbDelete},
+		{"Unknown", "google.compute.v1.Instances.Get", commonlogk8saudit_contract.VerbUpdate},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -16,11 +16,9 @@ package gcpqueryutil
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -39,9 +37,7 @@ func (c *GCPCommonFieldSetReader) FieldSetKind() string {
 
 func (c *GCPCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	result := &log.CommonFieldSet{}
-	result.DisplayID = reader.ReadStringOrDefault("insertId", "unknown")
 	result.Timestamp = reader.ReadTimestampOrDefault("timestamp", time.Time{})
-	result.Severity = gcpSeverityToKHISeverity(reader.ReadStringOrDefault("severity", "unknown"))
 	return result, nil
 }
 
@@ -91,31 +87,3 @@ func (g *GCPMainMessageFieldSetReader) Read(reader *structured.NodeReader) (log.
 }
 
 var _ log.FieldSetReader = (*GCPMainMessageFieldSetReader)(nil)
-
-// gcpSeverityToKHISeverity convert the `severity` field in Cloud Logging log to the enum.Severity used in KHI.
-func gcpSeverityToKHISeverity(severity string) enum.Severity {
-	// https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
-	severity = strings.ToUpper(severity)
-	switch severity {
-	case "DEFAULT":
-		return enum.SeverityInfo
-	case "DEBUG":
-		return enum.SeverityInfo
-	case "INFO":
-		return enum.SeverityInfo
-	case "NOTICE":
-		return enum.SeverityInfo
-	case "WARNING":
-		return enum.SeverityWarning
-	case "ERROR":
-		return enum.SeverityError
-	case "CRITICAL":
-		return enum.SeverityFatal
-	case "ALERT":
-		return enum.SeverityFatal
-	case "EMERGENCY":
-		return enum.SeverityFatal
-	default:
-		return enum.SeverityUnknown
-	}
-}

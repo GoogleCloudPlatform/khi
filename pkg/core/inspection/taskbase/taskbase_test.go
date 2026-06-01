@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package grouper
+package inspectiontaskbase
 
 import (
-	common_grouper "github.com/GoogleCloudPlatform/khi/pkg/common/grouper"
+	"testing"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
-type LogGrouper = common_grouper.Grouper[*log.Log, string]
+func mustNewLogFromYAML(t *testing.T, yaml string) *log.Log {
+	t.Helper()
+	l, err := log.NewLogFromYAMLString(yaml)
+	if err != nil {
+		t.Fatalf("failed to create log from YAML: %v", err)
+	}
+	return l
+}

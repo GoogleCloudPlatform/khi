@@ -18,23 +18,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 func TestGCPCommonFieldSet(t *testing.T) {
 	testCase := []struct {
 		Name              string
-		ExpectedSeverity  enum.Severity
 		ExpectedTimestamp time.Time
-		ExpectedDisplayID string
 		InputYAML         string
 	}{
 		{
 			Name:              "from a standard GCP log",
-			ExpectedSeverity:  enum.SeverityInfo,
 			ExpectedTimestamp: time.Date(2025, time.January, 2, 1, 2, 3, 0, time.UTC),
-			ExpectedDisplayID: "foo",
 			InputYAML: `insertId: foo
 severity: INFO
 timestamp: 2025-01-02T01:02:03.000Z`,
@@ -51,14 +46,8 @@ timestamp: 2025-01-02T01:02:03.000Z`,
 			if err != nil {
 				t.Fatalf("failed to extract gcp common fields: %v", err)
 			}
-			if gcpCommonField.Severity != tc.ExpectedSeverity {
-				t.Errorf("expected severity: %v, got: %v", tc.ExpectedSeverity, gcpCommonField.Severity)
-			}
 			if gcpCommonField.Timestamp != tc.ExpectedTimestamp {
 				t.Errorf("expected timestamp: %v, got: %v", tc.ExpectedTimestamp, gcpCommonField.Timestamp)
-			}
-			if gcpCommonField.DisplayID != tc.ExpectedDisplayID {
-				t.Errorf("expected displayID: %v, got: %v", tc.ExpectedDisplayID, gcpCommonField.DisplayID)
 			}
 		})
 	}

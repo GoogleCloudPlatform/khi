@@ -19,11 +19,10 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 func TestQueryTaskLabelOpt(t *testing.T) {
-	labelOpt := NewQueryTaskLabelOpt(enum.LogTypeComputeApi, "sample query")
+	labelOpt := NewQueryTaskLabelOpt("sample query")
 	label := coretask.NewLabelSet(labelOpt)
 
 	anyQueryTask, exists := typedmap.Get(label, TaskLabelKeyIsQueryTask)
@@ -33,15 +32,6 @@ func TestQueryTaskLabelOpt(t *testing.T) {
 	if anyQueryTask != true {
 		t.Errorf("TaskLabel %s is expected to be true, but it is %v", TaskLabelKeyIsQueryTask.Key(), anyQueryTask)
 	}
-
-	targetLogType, exists := typedmap.Get(label, TaskLabelKeyQueryTaskTargetLogType)
-	if !exists {
-		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyQueryTaskTargetLogType.Key())
-	}
-	if targetLogType != enum.LogTypeComputeApi {
-		t.Errorf("TaskLabel %s is expected to be %v, but it is %v", TaskLabelKeyQueryTaskTargetLogType.Key(), enum.LogTypeComputeApi, targetLogType)
-	}
-
 	sampleQuery, exists := typedmap.Get(label, TaskLabelKeyQueryTaskSampleQuery)
 	if !exists {
 		t.Errorf("TaskLabel %s is expected to be set, but it is not", TaskLabelKeyQueryTaskSampleQuery.Key())

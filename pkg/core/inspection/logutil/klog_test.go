@@ -17,9 +17,10 @@ package logutil
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestKLogTextParser(t *testing.T) {
@@ -28,7 +29,7 @@ func TestKLogTextParser(t *testing.T) {
 	input := `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`
 	want := &ParseStructuredLogResult{
 		Fields: map[string]any{
-			SeverityStructuredFieldKey:       enum.SeverityInfo,
+			SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 			OriginalMessageFieldKey:          input,
 			KLogHeaderDateFieldKey:           "0930",
 			KLogHeaderTimeFieldKey:           "00:01:02.500000",
@@ -51,7 +52,7 @@ func TestKLogTextParser(t *testing.T) {
 	errgrp.Wait()
 	close(result)
 	for got := range result {
-		if diff := cmp.Diff(want, got); diff != "" {
+		if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 			t.Errorf("parse() mismatch (-want +got):\n%s", diff)
 		}
 	}
@@ -76,7 +77,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			input: `I0930 00:01:02.500000    1992 prober.go:116] "Main message" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 					KLogHeaderDateFieldKey:           "0930",
 					KLogHeaderTimeFieldKey:           "00:01:02.500000",
 					KLogHeaderThreadIDFieldKey:       "1992",
@@ -93,7 +94,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			input: `I0930 00:01:02.500000    1992 prober.go:116] "Main \"message\"" fieldWithQuotes="foo" fieldWithEscape="bar \"qux\"" fieldWithoutQuotes=3.1415`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 					KLogHeaderDateFieldKey:           "0930",
 					KLogHeaderTimeFieldKey:           "00:01:02.500000",
 					KLogHeaderThreadIDFieldKey:       "1992",
@@ -110,7 +111,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			input: `I0930 00:01:02.500000    1992 prober.go:116] "SyncLoop (PLEG): event for pod" pod="kube-system/fluentbit-gke-bfkqc" event=&{ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 					KLogHeaderDateFieldKey:           "0930",
 					KLogHeaderTimeFieldKey:           "00:01:02.500000",
 					KLogHeaderThreadIDFieldKey:       "1992",
@@ -126,7 +127,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			input: `I0930 00:01:02.500000    1992 prober.go:116] "SyncLoop (PLEG): event for pod" pod="kube-system/fluentbit-gke-bfkqc" event={ID:0043b37a-0001-48de-a6ed-60f8ea3151f2 Type:ContainerStarted Data:cbfd68440fe523435bdf9f68d0a0f45ab20af1f421dd8a060a10f4e106992c87}`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 					KLogHeaderDateFieldKey:           "0930",
 					KLogHeaderTimeFieldKey:           "00:01:02.500000",
 					KLogHeaderThreadIDFieldKey:       "1992",
@@ -142,7 +143,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			input: `I0929 08:30:44.541804    1949 kubelet.go:2458] "SyncLoop DELETE" source="api" pods=["foo/bar","baz/qux"]`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 					KLogHeaderDateFieldKey:           "0929",
 					KLogHeaderTimeFieldKey:           "08:30:44.541804",
 					KLogHeaderThreadIDFieldKey:       "1949",
@@ -158,7 +159,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			input: `I0929 08:30:44.541804    1949 kubelet.go:2458] Some plain text message`,
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
-					SeverityStructuredFieldKey:       enum.SeverityInfo,
+					SeverityStructuredFieldKey:       inspectioncore_contract.SeverityInfo,
 					KLogHeaderDateFieldKey:           "0929",
 					KLogHeaderTimeFieldKey:           "08:30:44.541804",
 					KLogHeaderThreadIDFieldKey:       "1949",
@@ -173,7 +174,7 @@ func TestKlogTextParserWorker_Parse(t *testing.T) {
 			tc.want.Fields[OriginalMessageFieldKey] = tc.input
 			worker := newKLogTextParserWorker(true)
 			got := worker.parse(tc.input)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
 			}
 		})
