@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -29,13 +30,18 @@ import (
 func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 
+	gkeClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+		Name: "test-cluster",
+		Type: googlecloudcommon_contract.TimelineTypeGKE,
+	})
+	wantCompTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+		Name: "scheduler",
+		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
+	})
+
 	clusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-cluster",
 		Type: inspectioncore_contract.TimelineTypeK8sCluster,
-	})
-	wantCompTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
-		Name: "scheduler",
-		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
 
 	apiVersionTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{

@@ -25,6 +25,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -33,19 +34,23 @@ import (
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 
-	clusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+	gkeClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-cluster",
-		Type: inspectioncore_contract.TimelineTypeK8sCluster,
+		Type: googlecloudcommon_contract.TimelineTypeGKE,
 	})
-	wantCompTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+	wantCompTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
 		Name: "deployment-controller(controller-manager)",
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
-	wantControlManagerTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+	wantControlManagerTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
 		Name: "controller-manager",
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
 
+	clusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+		Name: "test-cluster",
+		Type: inspectioncore_contract.TimelineTypeK8sCluster,
+	})
 	corev1Timeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
 		Name: "core/v1",
 		Type: inspectioncore_contract.TimelineTypeAPIVersion,
@@ -67,7 +72,11 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 		Name: "node",
 		Type: inspectioncore_contract.TimelineTypeKind,
 	})
-	wantNodeTimeline := builder.TimelineAccumulator.GetPath(nodeKindTimeline, khifilev6.PathSegment{
+	nodeNamespaceTimeline := builder.TimelineAccumulator.GetPath(nodeKindTimeline, khifilev6.PathSegment{
+		Name: "cluster-scope",
+		Type: inspectioncore_contract.TimelineTypeNamespace,
+	})
+	wantNodeTimeline := builder.TimelineAccumulator.GetPath(nodeNamespaceTimeline, khifilev6.PathSegment{
 		Name: "node-1",
 		Type: inspectioncore_contract.TimelineTypeResource,
 	})
