@@ -20,6 +20,7 @@ import {
   ChunkDefinition,
   IDataAssembler,
 } from 'src/app/parser/core/interfaces';
+import { ProgressReporter } from 'src/app/services/progress/progress-interface';
 
 describe('KHIFileParser', () => {
   /**
@@ -61,6 +62,7 @@ describe('KHIFileParser', () => {
         1,
         {
           typeId: 1,
+          label: 'string-chunk',
           decode: (bytes) => new TextDecoder().decode(bytes),
           createAssembler: () => mockAssembler1,
           priority: 10,
@@ -70,6 +72,7 @@ describe('KHIFileParser', () => {
         2,
         {
           typeId: 2,
+          label: 'number-chunk',
           decode: (bytes) => bytes[0],
           createAssembler: () => mockAssembler2,
           priority: 5,
@@ -127,9 +130,81 @@ describe('KHIFileParser', () => {
 
     const result = await parser.parse(buffer);
 
-    expect(result).toBeNull(); // Because assembly logic is deferred to the builder
+    expect(result).toBeDefined();
+    expect(result.internPool).toBeDefined();
+    expect(result.styleStore).toBeDefined();
+    expect(result.logStore).toBeDefined();
+    expect(result.timelineStore).toBeDefined();
 
     expect(mockAssembler1.ingest).toHaveBeenCalledWith('hello');
     expect(mockAssembler2.ingest).toHaveBeenCalledWith(42);
+
+    expect(mockAssembler1.assembleInto).toHaveBeenCalled();
+    expect(mockAssembler2.assembleInto).toHaveBeenCalled();
+    expect(mockAssembler2.assembleInto).toHaveBeenCalledBefore(
+      mockAssembler1.assembleInto,
+    );
+  });
+
+  it('should throw KHIDataAssemblyError if assembler fails during assembly', async () => {
+    mockAssembler1.assembleInto.and.throwError('Assembly failed');
+    const parser = new KHIFileParser(registry);
+
+    const data1 = new TextEncoder().encode('hello');
+    const compressed1 = await compressData(data1);
+
+    const buffer = new ArrayBuffer(4 + 8 + compressed1.length);
+    const dv = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    uint8View.set([75, 72, 73, 6], 0);
+    dv.setUint32(4, compressed1.length, true);
+    dv.setUint32(8, 1, true);
+    uint8View.set(compressed1, 12);
+
+    await expectAsync(parser.parse(buffer)).toBeRejectedWithError(
+      /Failed to assemble data for chunk type 1 in version 6/,
+    );
+  });
+
+  it('should accept progressReporter and parse chunks successfully', async () => {
+    const parser = new KHIFileParser(registry);
+
+    const data1 = new TextEncoder().encode('hello');
+    const compressed1 = await compressData(data1);
+
+    const data2 = new Uint8Array([42]);
+    const compressed2 = await compressData(data2);
+
+    const bufferSize = 4 + 8 + compressed1.length + 8 + compressed2.length;
+    const buffer = new ArrayBuffer(bufferSize);
+    const dv = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    uint8View.set([75, 72, 73, 6], 0);
+
+    dv.setUint32(4, compressed1.length, true);
+    dv.setUint32(8, 1, true);
+    uint8View.set(compressed1, 12);
+
+    const offset2 = 12 + compressed1.length;
+    dv.setUint32(offset2, compressed2.length, true);
+    dv.setUint32(offset2 + 4, 2, true);
+    uint8View.set(compressed2, offset2 + 8);
+
+    const mockProgressReporter: jasmine.SpyObj<ProgressReporter> =
+      jasmine.createSpyObj('ProgressReporter', [
+        'reportMessage',
+        'reportProgress',
+        'complete',
+      ]);
+
+    const result = await parser.parse(buffer, mockProgressReporter);
+
+    expect(result).toBeDefined();
+    expect(mockProgressReporter.reportMessage).toHaveBeenCalled();
+    expect(mockProgressReporter.reportProgress).toHaveBeenCalledWith(0);
+    expect(mockProgressReporter.reportProgress).toHaveBeenCalledWith(100);
+    expect(mockProgressReporter.complete).toHaveBeenCalled();
   });
 });
