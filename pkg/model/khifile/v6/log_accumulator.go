@@ -16,6 +16,7 @@ package khifilev6
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -117,7 +118,7 @@ func (a *LogAccumulator) GetLog(id uint32) *pb.Log {
 }
 
 // Accumulate returns the accumulated list of Log proto messages.
-// The returned list is naturally sorted by log ID.
+// The returned list is sorted chronologically by their timestamp.
 func (a *LogAccumulator) Accumulate() []*pb.Log {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -127,5 +128,8 @@ func (a *LogAccumulator) Accumulate() []*pb.Log {
 			result = append(result, l)
 		}
 	}
+	slices.SortStableFunc(result, func(a, b *pb.Log) int {
+		return a.GetTs().AsTime().Compare(b.GetTs().AsTime())
+	})
 	return result
 }

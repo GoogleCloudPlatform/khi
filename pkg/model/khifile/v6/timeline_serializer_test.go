@@ -27,8 +27,10 @@ import (
 func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 	id1 := uint32(1)
 	id2 := uint32(2)
-	typeA := &pb.TimelineType{Id: &id1}
-	typeB := &pb.TimelineType{Id: &id2}
+	priorityA := int32(100)
+	priorityB := int32(200)
+	typeA := &pb.TimelineType{Id: &id1, SortPriority: &priorityA}
+	typeB := &pb.TimelineType{Id: &id2, SortPriority: &priorityB}
 
 	type timelineDef struct {
 		id        string
@@ -196,6 +198,13 @@ func TestExtractTimelinesAndItemsChunkSource(t *testing.T) {
 			})
 
 			gotTimelines, gotItems := ExtractTimelinesAndItemsChunkSource(pathPool, registry)
+
+			slices.SortFunc(gotTimelines, func(a, b *pb.Timeline) int {
+				return cmp.Compare(a.GetId(), b.GetId())
+			})
+			slices.SortFunc(gotItems, func(a, b *pb.TimelineItems) int {
+				return cmp.Compare(a.GetId(), b.GetId())
+			})
 
 			if diff := googlecmp.Diff(wantTimelines, gotTimelines, protocmp.Transform()); diff != "" {
 				t.Errorf("Timelines mismatch (-want +got):\n%s", diff)
