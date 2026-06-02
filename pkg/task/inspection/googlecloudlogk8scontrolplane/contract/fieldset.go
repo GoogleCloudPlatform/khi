@@ -15,13 +15,15 @@
 package googlecloudlogk8scontrolplane_contract
 
 import (
+	"context"
 	"regexp"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 type ControlplaneComponentParserType string
@@ -55,10 +57,6 @@ func (k *K8sControlplaneComponentFieldSet) ComponentParserType() ControlplaneCom
 		return parserType
 	}
 	return ComponentParserTypeOther
-}
-
-func (k *K8sControlplaneComponentFieldSet) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.ControlplaneComponent(k.ClusterName, k.ComponentName)
 }
 
 var _ log.FieldSet = (*K8sControlplaneComponentFieldSet)(nil)
@@ -123,10 +121,6 @@ func (k *K8sSchedulerComponentFieldSet) HasPodField() bool {
 	return k.PodName != "" && k.PodNamespace != ""
 }
 
-func (k *K8sSchedulerComponentFieldSet) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.Pod(k.PodNamespace, k.PodName)
-}
-
 var _ log.FieldSet = (*K8sSchedulerComponentFieldSet)(nil)
 
 type K8sSchedulerComponentFieldSetReader struct {
@@ -161,19 +155,21 @@ var _ log.FieldSetReader = (*K8sSchedulerComponentFieldSetReader)(nil)
 
 type K8sControllerManagerComponentFieldSet struct {
 	Controller          string
-	AssociatedResources []resourcepath.ResourcePath
-}
-
-func (k *K8sControllerManagerComponentFieldSet) ControlPlaneResourcePath(clusterName string) resourcepath.ResourcePath {
-	if k.Controller == "" {
-		return resourcepath.ControlplaneComponent(clusterName, "controller-manager")
-	}
-	return resourcepath.ControllerManagerControlplaneComponent(clusterName, k.Controller)
+	AssociatedResources []*commonlogk8saudit_contract.ResourceIdentity
 }
 
 // Kind implements log.FieldSet.
 func (k *K8sControllerManagerComponentFieldSet) Kind() string {
 	return "k8s_controller_manager_component"
+}
+
+// AssociatedResourceTimelines resolves and returns the timeline paths for all associated resources in the fieldset.
+func (k *K8sControllerManagerComponentFieldSet) AssociatedResourceTimelines(ctx context.Context, clusterName string) []*khifilev6.TimelinePath {
+	var result []*khifilev6.TimelinePath
+	for _, resource := range k.AssociatedResources {
+		result = append(result, commonlogk8saudit_contract.MustResourceTimeline(ctx, clusterName, resource))
+	}
+	return result
 }
 
 var _ log.FieldSet = (*K8sControllerManagerComponentFieldSet)(nil)
@@ -227,8 +223,8 @@ func (k *K8sControllerManagerComponentFieldSetReader) readController(structured 
 	return "", nil
 }
 
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(structured *logutil.ParseStructuredLogResult) []resourcepath.ResourcePath {
-	var result []resourcepath.ResourcePath
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(structured *logutil.ParseStructuredLogResult) []*commonlogk8saudit_contract.ResourceIdentity {
+	var result []*commonlogk8saudit_contract.ResourceIdentity
 	fromKindField := k.readResourceAssociationFromKindField(structured)
 	result = append(result, fromKindField...)
 
@@ -236,7 +232,7 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(s
 	result = append(result, fromControllerSpecificField...)
 
 	fromItems := k.readResourceAssociationFromItems(structured)
-	if fromItems.Path != "" {
+	if fromItems != nil {
 		result = append(result, fromItems)
 	}
 
@@ -245,8 +241,8 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociations(s
 
 // readResourceAssociationFromKindField reads the kind klog field to associate resource with this log.
 // Example log: '"Finished syncing" kind="ReplicaSet" key="1-4-basic-ingresses/ready-repeat-app-554f6b9d95" duration="32.336593ms"'
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromKindField(structured *logutil.ParseStructuredLogResult) []resourcepath.ResourcePath {
-	var result []resourcepath.ResourcePath
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromKindField(structured *logutil.ParseStructuredLogResult) []*commonlogk8saudit_contract.ResourceIdentity {
+	var result []*commonlogk8saudit_contract.ResourceIdentity
 	kind, err := structured.StringField("kind")
 	if err == nil && kind != "" {
 		kind = strings.ToLower(kind)
@@ -259,9 +255,19 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 						if len(splittedKey) != 2 {
 							continue
 						}
-						result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, splittedKey[0], splittedKey[1]))
+						result = append(result, &commonlogk8saudit_contract.ResourceIdentity{
+							APIVersion: pair.APIVersion,
+							Kind:       pair.KindName,
+							Namespace:  splittedKey[0],
+							Name:       splittedKey[1],
+						})
 					} else {
-						result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, "cluster-scope", key))
+						result = append(result, &commonlogk8saudit_contract.ResourceIdentity{
+							APIVersion: pair.APIVersion,
+							Kind:       pair.KindName,
+							Namespace:  "cluster-scope",
+							Name:       key,
+						})
 					}
 				}
 			}
@@ -272,8 +278,8 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 
 // readResourceAssociationFromControllerSpecificField reads the associated resource of this log from controller specific key name.
 // Example log: '"Error syncing deployment" deployment="1-4-basic-ingresses/ig-ready-repeat-app" err="Operation cannot be fulfilled on deployments.apps \"ig-ready-repeat-app\": the object has been modified; please apply your changes to the latest version and try again"'
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromControllerSpecificField(structured *logutil.ParseStructuredLogResult) []resourcepath.ResourcePath {
-	var result []resourcepath.ResourcePath
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromControllerSpecificField(structured *logutil.ParseStructuredLogResult) []*commonlogk8saudit_contract.ResourceIdentity {
+	var result []*commonlogk8saudit_contract.ResourceIdentity
 	for _, pair := range k.WellKnownKindToKLogFieldPairs {
 		field, err := structured.StringField(pair.KLogField)
 		if err != nil || field == "" {
@@ -284,7 +290,12 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 			if len(splittedField) != 2 {
 				continue
 			}
-			result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, splittedField[0], splittedField[1]))
+			result = append(result, &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: pair.APIVersion,
+				Kind:       pair.KindName,
+				Namespace:  splittedField[0],
+				Name:       splittedField[1],
+			})
 		} else {
 			resourceName := field
 
@@ -294,15 +305,20 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 				resourceName = field[lastSlashIndex+1:]
 			}
 
-			result = append(result, resourcepath.NameLayerGeneralItem(pair.APIVersion, pair.KindName, "cluster-scope", resourceName))
+			result = append(result, &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: pair.APIVersion,
+				Kind:       pair.KindName,
+				Namespace:  "cluster-scope",
+				Name:       resourceName,
+			})
 		}
 	}
 	return result
 }
 
 // Example log: "Deleting item" logger="garbage-collector-controller" item="[coordination.k8s.io/v1/Lease, namespace: kube-node-lease, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"'
-func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromItems(structured *logutil.ParseStructuredLogResult) resourcepath.ResourcePath {
-	var result resourcepath.ResourcePath
+func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFromItems(structured *logutil.ParseStructuredLogResult) *commonlogk8saudit_contract.ResourceIdentity {
+	var result *commonlogk8saudit_contract.ResourceIdentity
 	item, err := structured.StringField("item")
 	if item != "" && err == nil {
 		matches := itemsCaptureRegex.FindStringSubmatch(item)
@@ -321,9 +337,19 @@ func (k *K8sControllerManagerComponentFieldSetReader) readResourceAssociationFro
 			}
 			kind = strings.ToLower(kind)
 			if namespace == "" {
-				result = resourcepath.NameLayerGeneralItem(apiVersion, kind, "cluster-scope", name)
+				result = &commonlogk8saudit_contract.ResourceIdentity{
+					APIVersion: apiVersion,
+					Kind:       kind,
+					Namespace:  "cluster-scope",
+					Name:       name,
+				}
 			} else {
-				result = resourcepath.NameLayerGeneralItem(apiVersion, kind, namespace, name)
+				result = &commonlogk8saudit_contract.ResourceIdentity{
+					APIVersion: apiVersion,
+					Kind:       kind,
+					Namespace:  namespace,
+					Name:       name,
+				}
 			}
 		}
 	}

@@ -21,7 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -99,9 +98,19 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			},
 			inputControllerManagerFieldSet: googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{
 				Controller: "deployment-controller",
-				AssociatedResources: []resourcepath.ResourcePath{
-					resourcepath.Pod("default", "pod-foo"),
-					resourcepath.Node("node-1"),
+				AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+					{
+						APIVersion: "core/v1",
+						Kind:       "pod",
+						Namespace:  "default",
+						Name:       "pod-foo",
+					},
+					{
+						APIVersion: "core/v1",
+						Kind:       "node",
+						Namespace:  "cluster-scope",
+						Name:       "node-1",
+					},
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
@@ -122,9 +131,19 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			},
 			inputControllerManagerFieldSet: googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{
 				Controller: "",
-				AssociatedResources: []resourcepath.ResourcePath{
-					resourcepath.Pod("default", "pod-foo"),
-					resourcepath.Node("node-1"),
+				AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+					{
+						APIVersion: "core/v1",
+						Kind:       "pod",
+						Namespace:  "default",
+						Name:       "pod-foo",
+					},
+					{
+						APIVersion: "core/v1",
+						Kind:       "node",
+						Namespace:  "cluster-scope",
+						Name:       "node-1",
+					},
 				},
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {

@@ -17,16 +17,13 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"context"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
-	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
-	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 var SchedulerLogFilterTask = inspectiontaskbase.NewLogFilterTask(
@@ -92,7 +89,7 @@ func (m *SchedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	compTimeline := MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
+	compTimeline := googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
 	cs.AddEvent(compTimeline)
 
 	if schedulerMessageFieldSet.HasPodField() {
@@ -110,13 +107,3 @@ func (m *SchedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
 var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*SchedulerTimelineMapper)(nil)
 
 var SchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(googlecloudlogk8scontrolplane_contract.SchedulerLogToTimelineMapperTaskID, &SchedulerTimelineMapper{})
-
-// MustControlPlaneComponentTimeline returns the timeline path for a Kubernetes control plane component.
-func MustControlPlaneComponentTimeline(ctx context.Context, clusterName string, componentName string) *khifilev6.TimelinePath {
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, clusterName)
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
-		Name: componentName,
-		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
-	})
-}

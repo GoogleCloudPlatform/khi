@@ -83,7 +83,7 @@ func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
-	compTimeline := MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
+	compTimeline := googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
 	cs.AddEvent(compTimeline)
 
 	return cs, struct{}{}, nil

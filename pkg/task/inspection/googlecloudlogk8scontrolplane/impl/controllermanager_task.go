@@ -17,7 +17,6 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
@@ -139,22 +138,18 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	compTimeline := resolveControllerManagerTimelinePath(ctx, componentFieldSet.ClusterName, controllerManagerFieldSet.Controller)
 	cs.AddEvent(compTimeline)
 
-	for _, resourcePath := range controllerManagerFieldSet.AssociatedResources {
-		if tPath, err := resolveTimelinePathFromRawString(ctx, componentFieldSet.ClusterName, resourcePath.Path); err == nil {
-			cs.AddEvent(tPath)
-			writtenResourcePaths[tPath.ID] = struct{}{}
-		}
+	for _, tPath := range controllerManagerFieldSet.AssociatedResourceTimelines(ctx, componentFieldSet.ClusterName) {
+		cs.AddEvent(tPath)
+		writtenResourcePaths[tPath.ID] = struct{}{}
 	}
 
 	for _, resource := range resources {
-		path := resource.Value.ResourcePathString()
-		if tPath, err := resolveTimelinePathFromRawString(ctx, componentFieldSet.ClusterName, path); err == nil {
-			if _, ok := writtenResourcePaths[tPath.ID]; ok {
-				continue
-			}
-			cs.AddEvent(tPath)
-			writtenResourcePaths[tPath.ID] = struct{}{}
+		tPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, componentFieldSet.ClusterName, resource.Value)
+		if _, ok := writtenResourcePaths[tPath.ID]; ok {
+			continue
 		}
+		cs.AddEvent(tPath)
+		writtenResourcePaths[tPath.ID] = struct{}{}
 	}
 
 	return cs, struct{}{}, nil
@@ -162,48 +157,10 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 
 var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*ControllerManagerTimelineMapper)(nil)
 
-// resolveTimelinePathFromRawString converts a resource path string formatted as APIVersion#Kind#Namespace#Name into a *TimelinePath.
-func resolveTimelinePathFromRawString(ctx context.Context, clusterName string, pathStr string) (*khifilev6.TimelinePath, error) {
-	parts := strings.Split(pathStr, "#")
-	if len(parts) < 4 {
-		return nil, fmt.Errorf("invalid resource path string: %s", pathStr)
-	}
-	apiVersion := parts[0]
-	if !strings.Contains(apiVersion, "/") {
-		if apiVersion == "v1" {
-			apiVersion = "core/v1"
-		} else {
-			apiVersion = "core/" + apiVersion
-		}
-	}
-	kind := strings.ToLower(parts[1])
-	namespace := parts[2]
-	name := parts[3]
-
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, apiVersion)
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, kind)
-
-	var resourceTimeline *khifilev6.TimelinePath
-	if namespace == "cluster-scope" {
-		resourceTimeline = commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, name)
-	} else {
-		namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, namespace)
-		resourceTimeline = commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, name)
-	}
-
-	if len(parts) >= 5 {
-		subresource := parts[4]
-		return commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, resourceTimeline, subresource), nil
-	}
-
-	return resourceTimeline, nil
-}
-
 // resolveControllerManagerTimelinePath resolves a controller manager component timeline path.
 func resolveControllerManagerTimelinePath(ctx context.Context, clusterName string, controllerName string) *khifilev6.TimelinePath {
 	if controllerName == "" {
-		return MustControlPlaneComponentTimeline(ctx, clusterName, "controller-manager")
+		return googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, clusterName, "controller-manager")
 	}
-	return MustControlPlaneComponentTimeline(ctx, clusterName, fmt.Sprintf("%s(controller-manager)", controllerName))
+	return googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, clusterName, fmt.Sprintf("%s(controller-manager)", controllerName))
 }
