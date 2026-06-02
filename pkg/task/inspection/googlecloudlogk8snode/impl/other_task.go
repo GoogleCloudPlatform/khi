@@ -18,17 +18,72 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
+// OtherLogFilterTask filters only the components logs that do not match kubelet or containerd.
 var OtherLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.OtherLogFilterTaskID, googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref(), googlecloudlogk8snode_contract.Other)
 
+// OtherLogGroupTask groups other logs by node and component.
 var OtherLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.OtherLogGroupTaskID, googlecloudlogk8snode_contract.OtherLogFilterTaskID.Ref())
 
-var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID, &otherNodeLogLogToTimelineMapperSetting{
+type otherNodeLogLogToTimelineMapperSetting struct {
+	inspectiontaskbase.StatelessMapperBase
+	StartingMessagesByComponent    map[string]string
+	TerminatingMessagesByComponent map[string]string
+}
+
+// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+	}
+}
+
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *otherNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudlogk8snode_contract.OtherLogGroupTaskID.Ref()
+}
+
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *otherNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
+}
+
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+
+	cs := khifilev6.NewTimelineChangeSet(l)
+
+	nodeTimelinePath := MustK8sNodeTimeline(ctx, clusterName, componentFieldSet.NodeName)
+	componentTimelinePath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, nodeTimelinePath, componentFieldSet.Component)
+
+	var startingMessage string
+	var terminatingMessage string
+	if msg, found := o.StartingMessagesByComponent[componentFieldSet.Component]; found {
+		startingMessage = msg
+	}
+	if msg, found := o.TerminatingMessagesByComponent[componentFieldSet.Component]; found {
+		terminatingMessage = msg
+	}
+	checkStartingAndTerminationLog(ctx, cs, l, startingMessage, terminatingMessage, componentTimelinePath)
+
+	cs.AddEvent(componentTimelinePath)
+
+	return cs, struct{}{}, nil
+}
+
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*otherNodeLogLogToTimelineMapperSetting)(nil)
+
+// OtherLogLogToTimelineMapperTask registers the mapper for other node component logs.
+var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID, &otherNodeLogLogToTimelineMapperSetting{
 	StartingMessagesByComponent: map[string]string{
 		"dockerd":             "Starting up",
 		"configure.sh":        "Start to install kubernetes files",
@@ -40,54 +95,3 @@ var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperT
 		"configure-helper.sh": "Done for the configuration for kubernetes",
 	},
 })
-
-type otherNodeLogLogToTimelineMapperSetting struct {
-	StartingMessagesByComponent    map[string]string
-	TerminatingMessagesByComponent map[string]string
-}
-
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
-}
-
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return googlecloudlogk8snode_contract.OtherLogGroupTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
-
-	var startingMessage string
-	var terminatingMessage string
-	if msg, found := o.StartingMessagesByComponent[componentFieldSet.Component]; found {
-		startingMessage = msg
-	}
-	if msg, found := o.TerminatingMessagesByComponent[componentFieldSet.Component]; found {
-		terminatingMessage = msg
-	}
-	checkStartingAndTerminationLog(cs, l, startingMessage, terminatingMessage)
-
-	cs.AddEvent(componentFieldSet.ResourcePath())
-
-	severity, err := componentFieldSet.Message.Severity()
-	if err == nil {
-		cs.SetLogSeverity(severity)
-	}
-
-	summary, err := parseDefaultSummary(componentFieldSet.Message)
-	if summary == "" || err != nil {
-		summary, _ = componentFieldSet.Message.MainMessage()
-	}
-	cs.SetLogSummary(summary)
-	return struct{}{}, nil
-}
-
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*otherNodeLogLogToTimelineMapperSetting)(nil)

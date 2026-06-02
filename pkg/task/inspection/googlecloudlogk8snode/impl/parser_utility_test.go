@@ -15,14 +15,17 @@
 package googlecloudlogk8snode_impl
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 )
@@ -176,54 +179,48 @@ func TestToReadableResourceName(t *testing.T) {
 
 func TestCheckStartingAndTerminationLog(t *testing.T) {
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	builder := khifilev6.NewBuilder()
+
 	testCases := []struct {
 		desc           string
 		logMessage     string
 		startingLog    string
 		terminationLog string
-		asserters      []testchangeset.ChangeSetAsserter
+		assert         func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			desc:        "starting log match",
 			logMessage:  "component is starting",
 			startingLog: "component is starting",
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#test-node#test-component",
-					WantRevision: history.StagingResourceRevision{
-						Verb:       enum.RevisionVerbCreate,
-						State:      enum.RevisionStateExisting,
-						Requestor:  "test-component",
-						ChangeTime: testTime,
-					},
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "test-node")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
+						Principal:   "test-component",
+						ChangedTime: testTime,
+					})
 			},
 		},
 		{
 			desc:           "termination log match",
 			logMessage:     "component is stopping",
 			terminationLog: "component is stopping",
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#test-node#test-component",
-					WantRevision: history.StagingResourceRevision{
-						Verb:       enum.RevisionVerbDelete,
-						State:      enum.RevisionStateDeleted,
-						Requestor:  "test-component",
-						ChangeTime: testTime,
-					},
-				},
-			},
-		},
-		{
-			desc:           "no match",
-			logMessage:     "some other message",
-			startingLog:    "starting",
-			terminationLog: "stopping",
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.MatchResourcePathSet{
-					WantResourcePaths: []string{},
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "test-node")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
+						Principal:   "test-component",
+						ChangedTime: testTime,
+					})
 			},
 		},
 	}
@@ -242,12 +239,16 @@ func TestCheckStartingAndTerminationLog(t *testing.T) {
 					NodeName:  "test-node",
 				},
 			)
-			cs := history.NewChangeSet(l)
-			checkStartingAndTerminationLog(cs, l, tc.startingLog, tc.terminationLog)
 
-			for _, asserter := range tc.asserters {
-				asserter.Assert(t, cs)
-			}
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+			cs := khifilev6.NewTimelineChangeSet(l)
+			wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "test-node")
+			wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "test-component")
+
+			checkStartingAndTerminationLog(ctx, cs, l, tc.startingLog, tc.terminationLog, wantComponentPath)
+
+			tc.assert(t, ctx, cs)
 		})
 	}
 }
