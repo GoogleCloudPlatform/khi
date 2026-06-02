@@ -28,7 +28,7 @@ var (
 		"conditions",
 		0.6,
 		style.ColorWhite,
-		style.ColorWhite,
+		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#4c29e8"),
 		true,
 		2000,
@@ -39,7 +39,7 @@ var (
 		"line_end_diamond",
 		0.6,
 		style.ColorWhite,
-		style.ColorWhite,
+		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#008000"),
 		true,
 		20000,
@@ -47,7 +47,7 @@ var (
 	TimelineTypeOwnerReference = style.MustRegisterTimelineType(
 		"owns",
 		"Child resource from .metadata.ownerReferences",
-		"link_2",
+		"link",
 		0.6,
 		style.ColorWhite,
 		style.ColorBlack,
@@ -61,9 +61,21 @@ var (
 		"token",
 		0.6,
 		style.ColorWhite,
-		style.ColorWhite,
+		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#FF8855"),
 		true,
 		8000,
+	)
+	// TimelineTypeContainer is the timeline type style for Kubernetes containers.
+	TimelineTypeContainer = style.MustRegisterTimelineType(
+		"container",
+		"Container status and logs",
+		"activity_zone",
+		0.6,
+		style.ColorWhite,
+		style.ColorBlack,
+		style.MustForceConvertSRGBHex("#fe9bab"),
+		true,
+		5000,
 	)
 )
