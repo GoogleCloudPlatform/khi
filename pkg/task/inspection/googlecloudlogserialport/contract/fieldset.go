@@ -19,7 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -45,11 +44,6 @@ type GCESerialPortLogFieldSet struct {
 // Kind implements log.FieldSet.
 func (g *GCESerialPortLogFieldSet) Kind() string {
 	return "gce-serialport"
-}
-
-// GetResorucePath returns the ResourcePath representing the serialport timeline.
-func (g *GCESerialPortLogFieldSet) GetResourcePath() resourcepath.ResourcePath {
-	return resourcepath.NodeSerialport(g.NodeName, g.Port)
 }
 
 var _ log.FieldSet = (*GCESerialPortLogFieldSet)(nil)
