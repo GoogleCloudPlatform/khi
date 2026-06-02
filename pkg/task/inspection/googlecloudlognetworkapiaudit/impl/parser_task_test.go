@@ -320,6 +320,9 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						t.Errorf("want LastNegAttachRequest to be %v, but got nil", tc.wantGroupData.LastNegAttachRequest)
 					} else {
 						// check network endpoints
+						if len(gotGroupData.LastNegAttachRequest.NetworkEndpoints) != len(tc.wantGroupData.LastNegAttachRequest.NetworkEndpoints) {
+							t.Fatalf("network endpoints length mismatch: want %d, got %d", len(tc.wantGroupData.LastNegAttachRequest.NetworkEndpoints), len(gotGroupData.LastNegAttachRequest.NetworkEndpoints))
+						}
 						for i, wantEndpoint := range tc.wantGroupData.LastNegAttachRequest.NetworkEndpoints {
 							gotEndpoint := gotGroupData.LastNegAttachRequest.NetworkEndpoints[i]
 							if gotEndpoint.Instance != wantEndpoint.Instance || gotEndpoint.IpAddress != wantEndpoint.IpAddress || gotEndpoint.Port != wantEndpoint.Port {
