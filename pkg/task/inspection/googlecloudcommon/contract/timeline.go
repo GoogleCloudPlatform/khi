@@ -17,6 +17,7 @@ package googlecloudcommon_contract
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -26,7 +27,8 @@ import (
 // MustGKEClusterTimeline returns the timeline path for a GKE Cluster.
 func MustGKEClusterTimeline(ctx context.Context, clusterName string) *khifilev6.TimelinePath {
 	if clusterName == "" {
-		panic("cluster name must not be empty")
+		clusterName = "unknown"
+		slog.WarnContext(ctx, "clusterName is empty, using unknown instead")
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -42,7 +44,8 @@ func MustGKENodePoolTimeline(ctx context.Context, gkeClusterTimeline *khifilev6.
 		panic("parent timeline path must be GKE type")
 	}
 	if nodePoolName == "" {
-		panic("node pool name must not be empty")
+		nodePoolName = "unknown"
+		slog.WarnContext(ctx, "nodePoolName is empty, using unknown instead")
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -58,8 +61,13 @@ func MustGCPOperationTimeline(ctx context.Context, parentTimeline *khifilev6.Tim
 	if parentTimeline == nil {
 		panic("parent timeline path must not be nil")
 	}
-	if shortMethodName == "" || operationID == "" {
-		panic("shortMethodName and operationID must not be empty")
+	if shortMethodName == "" {
+		shortMethodName = "unknown"
+		slog.WarnContext(ctx, "shortMethodName is empty, using unknown instead")
+	}
+	if operationID == "" {
+		operationID = "unknown"
+		slog.WarnContext(ctx, "operationID is empty, using unknown instead")
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -72,7 +80,8 @@ func MustGCPOperationTimeline(ctx context.Context, parentTimeline *khifilev6.Tim
 // MustGCPProjectTimeline returns the timeline path for a Google Cloud Project root timeline.
 func MustGCPProjectTimeline(ctx context.Context, projectID string) *khifilev6.TimelinePath {
 	if projectID == "" {
-		panic("projectID must not be empty")
+		projectID = "unknown"
+		slog.WarnContext(ctx, "projectID is empty, using unknown instead")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
@@ -87,7 +96,8 @@ func MustGCPResourceTypeTimeline(ctx context.Context, projectPath *khifilev6.Tim
 		panic("parent timeline path must be GCPProject type")
 	}
 	if resourceType == "" {
-		panic("resourceType must not be empty")
+		resourceType = "unknown"
+		slog.WarnContext(ctx, "resourceType is empty, using unknown instead")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
@@ -102,7 +112,8 @@ func MustGCPResourceTimeline(ctx context.Context, resourceTypePath *khifilev6.Ti
 		panic("parent timeline path must be GCPResourceType type")
 	}
 	if resourceName == "" {
-		panic("resourceName must not be empty")
+		resourceName = "unknown"
+		slog.WarnContext(ctx, "resourceName is empty, using unknown instead")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(resourceTypePath, khifilev6.PathSegment{
