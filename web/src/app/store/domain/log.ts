@@ -25,10 +25,6 @@ import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
  * Evaluates fields on demand and ensures deep immutability.
  */
 export class Log {
-  private _body?: WeakRef<
-    ReadonlyDomainElement<Record<string, unknown>>
-  > | null;
-
   constructor(
     public readonly id: number,
     private readonly store: LogStore,
@@ -81,24 +77,7 @@ export class Log {
    * Gets the structured log attributes decoded from Intern pool data stores.
    */
   get body(): ReadonlyDomainElement<Record<string, unknown>> | null {
-    if (this._body === null) {
-      return null;
-    }
-    if (this._body !== undefined) {
-      const deref = this._body.deref();
-      if (deref !== undefined) {
-        return deref;
-      }
-    }
-    const decoded = this.store._decodeBody(this.id) as ReadonlyDomainElement<
-      Record<string, unknown>
-    > | null;
-    if (decoded === null) {
-      this._body = null;
-    } else {
-      this._body = new WeakRef(decoded);
-    }
-    return decoded;
+    return this.store._decodeBody(this.id);
   }
 
   /**

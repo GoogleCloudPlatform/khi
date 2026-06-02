@@ -85,6 +85,9 @@ export class TimelineStore {
   private revisionVerbTypeIds = new Uint32Array(0);
   private revisionStateTypeIds = new Uint32Array(0);
   private readonly revisionBodies: Uint8Array[] = [];
+  private readonly revisionDecodedBodyCache: WeakRef<
+    ReadonlyDomainElement<Record<string, unknown>>
+  >[] = [];
   private revisionIdToIndex: { [rid: number]: number } = {};
 
   // Event metadata
@@ -164,6 +167,7 @@ export class TimelineStore {
     this.revisionPrincipalStringIds = new Uint32Array(revisionCount);
     this.revisionVerbTypeIds = new Uint32Array(revisionCount);
     this.revisionStateTypeIds = new Uint32Array(revisionCount);
+    this.revisionDecodedBodyCache.length = revisionCount;
 
     // Load revisions
     let rIndex = 0;
@@ -372,10 +376,18 @@ export class TimelineStore {
   public _decodeRevisionBody(
     id: number,
   ): ReadonlyDomainElement<Record<string, unknown>> | null {
-    const body = this.revisionBodies[this.getRevisionIndex(id)];
+    const index = this.getRevisionIndex(id);
+    const cached = this.revisionDecodedBodyCache[index]?.deref();
+    if (cached) {
+      return cached;
+    }
+
+    const body = this.revisionBodies[index];
     if (!body) return null;
     const struct = fromBinary(InternedStructSchema, body);
-    return this.decoder.decode(struct);
+    const decoded = this.decoder.decode(struct);
+    this.revisionDecodedBodyCache[index] = new WeakRef(decoded);
+    return decoded;
   }
 
   private getRevisionIndex(id: number): number {

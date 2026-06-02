@@ -346,27 +346,43 @@ describe('TimelineStore', () => {
 
     const revision = store.getTimeline(10).revisions[0];
 
-    const spyDecode = spyOn(store, '_decodeRevisionBody').and.callThrough();
+    // Access the private decoder inside TimelineStore to spy on the actual decoding call.
+    // This lets us verify whether a cache hit bypasses the heavy decoding process.
+    const storeRecord = store as unknown as Record<string, unknown>;
+    const decoder = storeRecord['decoder'] as {
+      decode: (struct: unknown) => Record<string, unknown>;
+    };
+    const spyDecoderDecode = spyOn(decoder, 'decode').and.callThrough();
+
+    // First access decodes the raw binary body and populates the cache.
     const body1 = revision.body;
     expect(body1).toEqual({ user: 'alice' });
-    expect(spyDecode).toHaveBeenCalledTimes(1);
+    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
 
-    spyDecode.calls.reset();
+    // Reset the spy to track subsequent decode calls accurately.
+    spyDecoderDecode.calls.reset();
+
+    // Second access should hit the cache in TimelineStore, avoiding another decode invocation.
     const body2 = revision.body;
     expect(body2).toBe(body1);
-    expect(spyDecode).not.toHaveBeenCalled();
+    expect(spyDecoderDecode).not.toHaveBeenCalled();
 
-    const revRecord = revision as Record<string, unknown>;
-    const internalBodyRef = revRecord['_body'] as WeakRef<
-      Record<string, unknown>
-    >;
+    // Access the private revisionDecodedBodyCache array to simulate garbage collection.
+    const revisionDecodedBodyCache = storeRecord[
+      'revisionDecodedBodyCache'
+    ] as WeakRef<Record<string, unknown>>[];
+    const internalBodyRef = revisionDecodedBodyCache[0];
     expect(internalBodyRef).toBeInstanceOf(WeakRef);
+
+    // Mock deref() returning undefined to simulate that the WeakRef target has been garbage collected.
     spyOn(internalBodyRef, 'deref').and.returnValue(undefined);
 
-    spyDecode.calls.reset();
+    spyDecoderDecode.calls.reset();
+
+    // Third access fails the deref() check, triggering a re-decode of the binary body.
     const body3 = revision.body;
     expect(body3).toEqual({ user: 'alice' });
     expect(body3).not.toBe(body1);
-    expect(spyDecode).toHaveBeenCalledTimes(1);
+    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
   });
 });

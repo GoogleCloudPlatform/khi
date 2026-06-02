@@ -49,6 +49,9 @@ export class LogStore {
   private summaryStringIds = new Uint32Array(0);
 
   private bodies: Undefinable<Uint8Array>[] = [];
+  private decodedBodyCache: WeakRef<
+    ReadonlyDomainElement<Record<string, unknown>>
+  >[] = [];
   private idToIndex: Undefinable<number>[] = [];
   private readonly decoder: InternedStructDecoder;
 
@@ -73,6 +76,9 @@ export class LogStore {
     this.summaryStringIds = new Uint32Array(count);
 
     this.bodies = new Array<Undefinable<Uint8Array>>(count);
+    this.decodedBodyCache = new Array<
+      WeakRef<ReadonlyDomainElement<Record<string, unknown>>>
+    >(count);
     this.idToIndex = [];
 
     let index = 0;
@@ -168,10 +174,17 @@ export class LogStore {
     id: number,
   ): ReadonlyDomainElement<Record<string, unknown>> | null {
     const index = this.getIndex(id);
+    const cached = this.decodedBodyCache[index]?.deref();
+    if (cached) {
+      return cached;
+    }
+
     const body = this.bodies[index];
     if (!body) return null;
     const struct = fromBinary(InternedStructSchema, body);
-    return this.decoder.decode(struct);
+    const decoded = this.decoder.decode(struct);
+    this.decodedBodyCache[index] = new WeakRef(decoded);
+    return decoded;
   }
 
   /**
