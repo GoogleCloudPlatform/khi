@@ -31,6 +31,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { CelInputComponent } from 'src/app/timeline-toolbar/components/cel-input.component';
 import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/toolbar-settings.component';
+import {
+  CelGuidePopupComponent,
+  CelGuideTab,
+} from 'src/app/timeline-toolbar/components/cel-guide-popup.component';
 
 /**
  * Provides an advanced toolbar for the timeline view featuring two-row CEL expression text fields.
@@ -44,13 +48,38 @@ import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/to
     MatIconModule,
     CelInputComponent,
     ToolbarSettingsComponent,
+    CelGuidePopupComponent,
     MatButtonModule,
     OverlayModule,
     MatTooltipModule,
   ],
 })
 export class ToolbarAdvancedComponent {
+  protected readonly CelGuideTab = CelGuideTab;
+
+  /**
+   * Custom positions for the CDK overlay to align the popup top-center with the help button bottom-center.
+   */
+  protected readonly overlayPositions = [
+    {
+      originX: 'center' as const,
+      originY: 'bottom' as const,
+      overlayX: 'center' as const,
+      overlayY: 'top' as const,
+    },
+  ];
+
   private readonly snackbar = inject(MatSnackBar);
+
+  /**
+   * Signal managing the open/closed state of the help guide popover.
+   */
+  protected readonly helpPopupOpen = signal(false);
+
+  /**
+   * Signal managing the active tab of the help guide popover.
+   */
+  protected readonly helpActiveTab = signal<CelGuideTab>(CelGuideTab.Overview);
 
   /**
    * Signal managing the open/closed state of the settings popover.
@@ -120,6 +149,24 @@ export class ToolbarAdvancedComponent {
         'In-browser search may not work on KHI because elements outside the visible area are not rendered. Please use the search text field on the toolbar instead.',
         'OK',
       );
+    }
+  }
+
+  /**
+   * Switches the CEL guide popup active tab to Timeline CEL when focused if the guide popup is currently open.
+   */
+  public onTimelineCelFocus(): void {
+    if (this.helpPopupOpen()) {
+      this.helpActiveTab.set(CelGuideTab.TimelineCel);
+    }
+  }
+
+  /**
+   * Switches the CEL guide popup active tab to Log CEL when focused if the guide popup is currently open.
+   */
+  public onLogCelFocus(): void {
+    if (this.helpPopupOpen()) {
+      this.helpActiveTab.set(CelGuideTab.LogCel);
     }
   }
 }

@@ -1,0 +1,70 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ you may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="guide-content">
+  <p class="guide-desc">
+    KHI uses Common Expression Language (CEL) for advanced, multi-stage
+    filtering.
+  </p>
+
+  <div class="guide-illustration">
+    <img src="assets/guides/cel-guide-ui.png" alt="CEL Filter UI flow" />
+  </div>
+
+  <div class="concepts-section concept-section">
+    <div class="concept-grid">
+      <div class="concept-card">
+        <h4>1. Timeline Filter</h4>
+        <p>
+          Filters which resource timelines to display (e.g., by namespace, kind,
+          or name).
+        </p>
+      </div>
+      <div class="concept-card">
+        <h4>2. Log Filter</h4>
+        <p>
+          Filters individual logs (events/revisions) inside the active
+          timelines.
+        </p>
+      </div>
+    </div>
+    <div class="warning-note">
+      <p>
+        <strong>Tip:</strong> Timelines are filtered first, then KHI filters the
+        logs within them. Filtering logs without a timeline filter is extremely
+        slow because KHI must scan all logs. Always narrow down timelines first
+        for better performance.
+      </p>
+    </div>
+  </div>
+
+  <div class="advanced-section concept-section">
+    <p>
+      CEL allows complex filtering that the standard UI cannot configure, such
+      as:
+    </p>
+    <ul class="feature-list">
+      <li>
+        Matching logs by nested JSON fields (e.g., finding logs associated with
+        a specific <code>operation.id</code>).
+      </li>
+      <li>
+        Timelines where a specific manifest field has a specific value (e.g.,
+        pods scheduled on a specific node via <code>spec.nodeName</code>).
+      </li>
+    </ul>
+  </div>
+</div>

@@ -28,6 +28,7 @@
       [class.invalid]="value() && errorMessage()"
       [placeholder]="placeholder()"
       [(ngModel)]="value"
+      (focus)="focused.emit()"
     />
     @if (value()) {
       @if (errorMessage()) {

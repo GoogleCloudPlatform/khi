@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, ElementRef, input, model, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  input,
+  model,
+  output,
+  viewChild,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -61,6 +68,11 @@ export class CelInputComponent {
    * Holds the two-way bound CEL expression string.
    */
   readonly value = model('');
+
+  /**
+   * Emits when the input receives focus.
+   */
+  readonly focused = output<void>();
 
   private readonly inputElement =
     viewChild<ElementRef<HTMLInputElement>>('inputElement');
