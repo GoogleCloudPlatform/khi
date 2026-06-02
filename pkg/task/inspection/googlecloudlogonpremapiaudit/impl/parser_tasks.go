@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -148,10 +147,9 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		return nil, struct{}{}, err
 	}
 
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	projectPath := googlecloudlogonpremapiaudit_contract.MustOnPremProjectTimeline(ctx, resourceFieldSet.Project)
+	projectPath := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, resourceFieldSet.Project)
 	clusterPath := googlecloudlogonpremapiaudit_contract.MustOnPremClusterTimeline(ctx, projectPath, resourceFieldSet.ClusterName)
 
 	var targetPath *khifilev6.TimelinePath
@@ -231,10 +229,7 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		if len(methodNameSplitted) > 0 {
 			originalShortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
 		}
-		operationPath := builder.TimelineAccumulator.GetPath(targetPath, khifilev6.PathSegment{
-			Name: fmt.Sprintf("%s-%s", originalShortMethodName, auditFieldSet.OperationID),
-			Type: inspectioncore_contract.TimelineTypeSubresource,
-		})
+		operationPath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetPath, originalShortMethodName, auditFieldSet.OperationID)
 
 		cs.AddRevision(operationPath, &khifilev6.StagingRevision{
 			ChangedTime:  commonFieldSet.Timestamp,

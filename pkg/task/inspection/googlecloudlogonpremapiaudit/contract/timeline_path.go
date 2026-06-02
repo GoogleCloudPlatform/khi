@@ -19,26 +19,14 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// MustOnPremProjectTimeline returns the hierarchical timeline path for an On-Prem Project.
-func MustOnPremProjectTimeline(ctx context.Context, project string) *khifilev6.TimelinePath {
-	if project == "" {
-		project = "unknown"
-	}
-
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: project,
-		Type: TimelineTypeOnPremProject,
-	})
-}
-
 // MustOnPremClusterTimeline returns the hierarchical timeline path for an On-Prem Cluster under a Project.
 func MustOnPremClusterTimeline(ctx context.Context, projectPath *khifilev6.TimelinePath, clusterName string) *khifilev6.TimelinePath {
-	if projectPath == nil || projectPath.Type.GetId() != TimelineTypeOnPremProject.GetId() {
-		panic("parent timeline path must be On-Prem Project type")
+	if projectPath == nil || projectPath.Type.GetId() != googlecloudcommon_contract.TimelineTypeGCPProject.GetId() {
+		panic("parent timeline path must be GCP Project type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{

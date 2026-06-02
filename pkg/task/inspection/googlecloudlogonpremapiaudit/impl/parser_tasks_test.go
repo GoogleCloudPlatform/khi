@@ -118,7 +118,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	// 2. Construct expected timeline paths independently.
 	wantProjPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "test-project",
-		Type: googlecloudlogonpremapiaudit_contract.TimelineTypeOnPremProject,
+		Type: googlecloudcommon_contract.TimelineTypeGCPProject,
 	})
 	wantClusterPath := builder.TimelineAccumulator.GetPath(wantProjPath, khifilev6.PathSegment{
 		Name: "test-cluster",
@@ -131,35 +131,35 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 
 	wantClusterOpPath1 := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "CreateBaremetalAdminCluster-op-1",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantClusterOpPath2 := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "CreateBaremetalStandaloneCluster-op-1",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantClusterOpPath3 := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "EnrollBaremetalStandaloneCluster-op-1",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantClusterOpPath4 := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
 		Name: "UnknownLongRunningOperation-op-2",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantNodePoolOpPath1 := builder.TimelineAccumulator.GetPath(wantNodePoolPath, khifilev6.PathSegment{
 		Name: "CreateBaremetalNodePool-op-2",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantNodePoolOpPath2 := builder.TimelineAccumulator.GetPath(wantNodePoolPath, khifilev6.PathSegment{
 		Name: "CreateVmwareAdminNodePool-op-2",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantNodePoolOpPath3 := builder.TimelineAccumulator.GetPath(wantNodePoolPath, khifilev6.PathSegment{
 		Name: "DeleteVmwareNodePool-op-2",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 	wantNodePoolOpPath4 := builder.TimelineAccumulator.GetPath(wantNodePoolPath, khifilev6.PathSegment{
 		Name: "UnenrollVmwareNodePool-op-2",
-		Type: inspectioncore_contract.TimelineTypeSubresource,
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
 
 	testCases := []struct {
