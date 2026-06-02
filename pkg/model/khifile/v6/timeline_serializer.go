@@ -73,9 +73,9 @@ func extractTimelines(pool *TimelinePathPool, registry *TimelineRegistry) []*pb.
 	traverse = func(p *TimelinePath) {
 		sortedPaths = append(sortedPaths, p)
 		children := parentToChildren[p]
-		// Sort sibling timelines deterministically by ID
+		// Sort sibling timelines deterministically by its priority and name
 		slices.SortFunc(children, func(a, b *TimelinePath) int {
-			priorityDiff := int(*a.Type.SortPriority - *b.Type.SortPriority)
+			priorityDiff := int(a.Type.GetSortPriority() - b.Type.GetSortPriority())
 			if priorityDiff != 0 {
 				return priorityDiff
 			}
@@ -86,9 +86,9 @@ func extractTimelines(pool *TimelinePathPool, registry *TimelineRegistry) []*pb.
 		}
 	}
 
-	// Sort root timelines deterministically by ID
+	// Sort root timelines deterministically by its priority and name
 	slices.SortFunc(roots, func(a, b *TimelinePath) int {
-		priorityDiff := int(*a.Type.SortPriority - *b.Type.SortPriority)
+		priorityDiff := int(a.Type.GetSortPriority() - b.Type.GetSortPriority())
 		if priorityDiff != 0 {
 			return priorityDiff
 		}
