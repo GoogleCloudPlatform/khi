@@ -35,6 +35,7 @@ import {
   TimelineType,
   Verb,
 } from 'src/app/store/domain/style';
+import { MetadataStore } from 'src/app/store/domain/metadata-store';
 
 /**
  * Core InspectionDataBuilder for compiling raw store inputs.
@@ -45,6 +46,10 @@ export class InspectionDataBuilder {
   private readonly styleStore = new StyleStore();
   private readonly logStore: LogStore;
   private readonly timelineStore: TimelineStore;
+  private readonly metadataStore: MetadataStore = {
+    header: undefined,
+    queries: [],
+  };
 
   private readonly rawLogs: LogDTO[] = [];
   private readonly rawTimelines: TimelineDTO[] = [];
@@ -168,20 +173,6 @@ export class InspectionDataBuilder {
   }
 
   /**
-   * Retrieves the StyleStore instance managed by this builder.
-   */
-  public getStyleStore(): StyleStore {
-    return this.styleStore;
-  }
-
-  /**
-   * Retrieves the InternPoolStore instance managed by this builder.
-   */
-  public getInternPoolStore(): InternPoolStore {
-    return this.internPool;
-  }
-
-  /**
    * Instantiates data store contexts returning root inspection model.
    */
   public async build(): Promise<InspectionDataV2> {
@@ -204,6 +195,7 @@ export class InspectionDataBuilder {
       styleStore: this.styleStore,
       logStore: this.logStore,
       timelineStore: this.timelineStore,
+      metadata: this.metadataStore,
     };
   }
 }

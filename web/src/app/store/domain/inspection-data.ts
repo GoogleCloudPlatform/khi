@@ -18,6 +18,7 @@ import { LogStore } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { MetadataStore } from 'src/app/store/domain/metadata-store';
 
 /**
  * Represents the complete domain model for v6 file format or later.
@@ -48,4 +49,9 @@ export interface InspectionDataV2 {
    * Timeline store provides efficient access for timeline data.
    */
   readonly timelineStore: TimelineStore;
+
+  /**
+   * Accumulated arbitrary file metadata.
+   */
+  readonly metadata?: MetadataStore;
 }
