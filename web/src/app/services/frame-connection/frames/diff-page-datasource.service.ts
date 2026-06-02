@@ -56,10 +56,15 @@ export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> 
       )
       .pipe(
         map((message) => ({
-          timeline: message.data.timeline,
+          timelinePath: message.data.timelinePath,
+          previousContent: message.data.previousContent,
+          currentContent: message.data.currentContent,
           logIndex: message.data.logIndex,
         })),
-      );
+      )
+      .subscribe((data) => {
+        this.rawUpdateRequest$.next(data);
+      });
     this.data$.subscribe((data) => this.updatePath(data));
     this.connector.broadcast('DIFF_PAGE_OPEN', {});
   }
@@ -70,9 +75,12 @@ export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> 
 
   private updatePath(data: DiffPageViewModel) {
     const logIndex = data.logIndex;
+    const timelineId = data.timelinePath[data.timelinePath.length - 1]?.id;
 
-    this.navigationCandidate.next(
-      `diff?timeline=${data.timeline.timelineId}&logIndex=${logIndex}`,
-    );
+    if (timelineId !== undefined) {
+      this.navigationCandidate.next(
+        `diff?timeline=${timelineId}&logIndex=${logIndex}`,
+      );
+    }
   }
 }

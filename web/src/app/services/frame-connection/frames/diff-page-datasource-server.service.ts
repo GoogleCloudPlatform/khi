@@ -41,7 +41,9 @@ export class DiffPageDataSourceServer {
         this.connector.unicast<UpdateSelectedResourceMessage>(
           UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
           {
-            timeline,
+            timelinePath: timeline.path,
+            previousContent: revision.prev ? revision.prev.bodyYAML : '',
+            currentContent: revision.bodyYAML,
             logIndex: revision.logIndex,
           },
           message.sourceFrameId!,

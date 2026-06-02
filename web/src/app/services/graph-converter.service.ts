@@ -551,7 +551,7 @@ export class GraphDataConverterService {
     const deletionThreshold = 180;
     const revision = timeline.lookupRevisionAtNs(t, false);
     if (revision) {
-      const diff = Number((t - revision.changedTime)/1_000_000_000n);
+      const diff = Number((t - revision.changedTime) / 1_000_000_000n);
       if (
         revision.verb.label === 'Delete' ||
         revision.verb.label === 'DeleteCollection'
