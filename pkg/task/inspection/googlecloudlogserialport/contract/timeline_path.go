@@ -25,16 +25,6 @@ import (
 
 // MustSerialPortTimeline returns the hierarchical timeline path for a serial port of a GCE node.
 func MustSerialPortTimeline(ctx context.Context, clusterName, nodeName, port string) *khifilev6.TimelinePath {
-	if clusterName == "" {
-		panic("cluster name must not be empty")
-	}
-	if nodeName == "" {
-		panic("node name must not be empty")
-	}
-	if port == "" {
-		panic("port must not be empty")
-	}
-
 	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
 	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
 	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
