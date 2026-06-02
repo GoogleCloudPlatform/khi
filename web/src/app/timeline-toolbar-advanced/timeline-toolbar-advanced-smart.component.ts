@@ -24,7 +24,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { ViewStateService } from 'src/app/services/view-state.service';
 import { SelectionManagerService } from 'src/app/services/selection-manager.service';
-import { ToolbarAdvancedComponent } from './components/toolbar-advanced.component';
+import { ToolbarAdvancedComponent } from 'src/app/timeline-toolbar-advanced/components/toolbar-advanced.component';
 import {
   BehaviorSubject,
   combineLatest,
