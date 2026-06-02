@@ -15,7 +15,7 @@
 package style
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -26,14 +26,8 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
-//go:embed assets/zzz-icon-codepoints.json
-var iconCodepointsBytes []byte
-
-//go:embed assets/zzz-material-icons-msdf.json
-var materialIconsMSDFJSONBytes []byte
-
-//go:embed assets/zzz-material-icons-msdf.png
-var materialIconsMSDFPNGBytes []byte
+//go:embed assets
+var assetsFS embed.FS
 
 var (
 	iconAtlasOnce   sync.Once
@@ -43,6 +37,21 @@ var (
 // GetIconAtlas returns the embedded IconAtlas instance cached globally.
 func GetIconAtlas() *pb.IconAtlas {
 	iconAtlasOnce.Do(func() {
+		iconCodepointsBytes, err := assetsFS.ReadFile("assets/zzz-icon-codepoints.json")
+		if err != nil {
+			panic("failed to read embedded zzz-icon-codepoints.json: " + err.Error())
+		}
+
+		materialIconsMSDFJSONBytes, err := assetsFS.ReadFile("assets/zzz-material-icons-msdf.json")
+		if err != nil {
+			panic("failed to read embedded zzz-material-icons-msdf.json: " + err.Error())
+		}
+
+		materialIconsMSDFPNGBytes, err := assetsFS.ReadFile("assets/zzz-material-icons-msdf.png")
+		if err != nil {
+			panic("failed to read embedded zzz-material-icons-msdf.png: " + err.Error())
+		}
+
 		var codepoints map[string]string
 		if err := json.Unmarshal(iconCodepointsBytes, &codepoints); err != nil {
 			panic("failed to unmarshal embedded zzz-icon-codepoints.json: " + err.Error())
@@ -281,5 +290,21 @@ func GenerateChunk() *pb.TimelineStyleChunk {
 		RevisionStates: slices.Clone(revisionStates),
 		TimelineTypes:  slices.Clone(timelineTypes),
 		IconAtlas:      GetIconAtlas(),
+	}
+}
+
+// GenerateChunkWithoutIconAtlas generates a TimelineStyleChunk without the icon atlas.
+// This is only used in the icon generation step to gather available timeline types but not to depend on the icon atlas to cause the circular dependency.
+func GenerateChunkWithoutIconAtlas() *pb.TimelineStyleChunk {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	return &pb.TimelineStyleChunk{
+		Severities:     slices.Clone(severities),
+		Verbs:          slices.Clone(verbs),
+		LogTypes:       slices.Clone(logTypes),
+		RevisionStates: slices.Clone(revisionStates),
+		TimelineTypes:  slices.Clone(timelineTypes),
+		IconAtlas:      nil,
 	}
 }
