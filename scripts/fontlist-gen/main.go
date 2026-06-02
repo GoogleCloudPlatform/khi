@@ -43,8 +43,12 @@ func main() {
 	}
 
 	// Generate icons.json storing all the icons used in revision states to generate the icon font atlas.
-	var icons = map[string]struct{}{}
-	chunk := style.GenerateChunk()
+	var icons = map[string]struct{}{
+		// TODO: Remove fofllowing icons. These are registered temporary for the mock data.
+		"step_over": {},
+		"skull":     {},
+	}
+	chunk := style.GenerateChunkWithoutIconAtlas()
 	for _, revisionState := range chunk.RevisionStates {
 		icon := revisionState.GetIcon()
 		if icon != "" {

@@ -1,7 +1,19 @@
 # codegen.mk
 # This file contains make tasks for generating config or source code.
 
-$(GENERATE_FRONTEND_DUMMY): web/angular.json web/src/environments/version.*.ts $(FRONTEND_GENERATED_ASSETS_DUMMY)
+PROTO_SRCS := $(shell find proto -name "*.proto")
+PROTO_DEPS := $(PROTO_SRCS) buf.gen.yaml
+
+$(GENERATE_PROTO_DUMMY): $(PROTO_DEPS)
+	npx @bufbuild/buf generate
+	gofmt -s -w pkg/generated
+	cd web && npx prettier --write "src/app/generated/**/*.d.ts"
+	touch $(GENERATE_PROTO_DUMMY)
+
+.PHONY: build-proto
+build-proto: $(GENERATE_PROTO_DUMMY) ## Generate code from protobuf definitions
+
+$(GENERATE_FRONTEND_DUMMY): $(GENERATE_PROTO_DUMMY) web/angular.json web/src/environments/version.*.ts $(FRONTEND_GENERATED_ASSETS_DUMMY)
 	touch $(GENERATE_FRONTEND_DUMMY)
 .PHONY: generate-frontend
 generate-frontend: $(GENERATE_FRONTEND_DUMMY) ## Generate frontend source code
@@ -21,7 +33,7 @@ fontlist-gen: scripts/msdf-generator/zzz_generated_used_icons.json
 web/src/environments/version.*.ts: VERSION
 	./scripts/generate-version.sh
 
-$(GENERATE_BACKEND_DUMMY): ## Generate backend source code
+$(GENERATE_BACKEND_DUMMY): $(GENERATE_PROTO_DUMMY) ## Generate backend source code
 	go run ./scripts/backend-codegen/
 	touch $(GENERATE_BACKEND_DUMMY)
 .PHONY: generate-backend
@@ -46,7 +58,4 @@ $(MSDF_SETUP_DUMMY):
 add-licenses: ## Add license headers to all files
 	go tool addlicense  -c "Google LLC" -l apache .
 
-.PHONY: build-proto
-build-proto: ## Generate code from protobuf definitions
-	npx @bufbuild/buf generate
 
