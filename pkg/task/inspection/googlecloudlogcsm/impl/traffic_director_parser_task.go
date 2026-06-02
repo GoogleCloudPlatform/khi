@@ -155,8 +155,8 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 
 	verb := guessRevisionVerb(audit.MethodName)
 
-	projectID, resourceType, resourceName := parseGCPResource(audit.ResourceName)
-	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, projectID)
+	resourceType, resourceName := parseGCPResource(audit.ResourceName)
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, audit.ProjectID)
 	typeTimeline := googlecloudcommon_contract.MustGCPResourceTypeTimeline(ctx, projectTimeline, resourceType)
 	resourceTimelinePath := googlecloudcommon_contract.MustGCPResourceTimeline(ctx, typeTimeline, resourceName)
 
@@ -206,23 +206,12 @@ func (m *CSMTrafficDirectorLogToTimelineMapper) ProcessLogByGroup(ctx context.Co
 	return cs, tracker, nil
 }
 
-// parseGCPResource parses a GCP resource name string into project, type, and name.
-func parseGCPResource(resourceName string) (string, string, string) {
+// parseGCPResource parses a GCP resource name string into type and name.
+func parseGCPResource(resourceName string) (string, string) {
 	if resourceName == "" || resourceName == "unknown" {
-		return "unknown", "unknown", "unknown"
+		return "unknown", "unknown"
 	}
 	parts := strings.Split(resourceName, "/")
-	project := "unknown"
-	projectIdx := -1
-	for i, p := range parts {
-		if p == "projects" {
-			projectIdx = i
-			break
-		}
-	}
-	if projectIdx != -1 && projectIdx+1 < len(parts) {
-		project = parts[projectIdx+1]
-	}
 
 	var resourceType, name string
 	if len(parts) >= 2 {
@@ -232,7 +221,7 @@ func parseGCPResource(resourceName string) (string, string, string) {
 		resourceType = "unknown"
 		name = resourceName
 	}
-	return project, resourceType, name
+	return resourceType, name
 }
 
 var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationStateTracker] = (*CSMTrafficDirectorLogToTimelineMapper)(nil)

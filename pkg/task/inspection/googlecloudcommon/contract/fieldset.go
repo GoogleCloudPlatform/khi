@@ -28,6 +28,7 @@ import (
 )
 
 type GCPAuditLogFieldSet struct {
+	ProjectID      string
 	OperationID    string
 	OperationFirst bool
 	OperationLast  bool
@@ -130,6 +131,7 @@ func (g *GCPOperationAuditLogFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (g *GCPOperationAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result GCPAuditLogFieldSet
+	result.ProjectID = reader.ReadStringOrDefault("resource.labels.project_id", "unknown")
 	result.OperationID = reader.ReadStringOrDefault("operation.id", "")
 	result.OperationFirst = reader.ReadBoolOrDefault("operation.first", false)
 	result.OperationLast = reader.ReadBoolOrDefault("operation.last", false)

@@ -108,6 +108,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "Mesh creation log",
 			auditFieldSets: []*googlecloudcommon_contract.GCPAuditLogFieldSet{
 				{
+					ProjectID:      "test-project",
 					MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 					ResourceName:   "projects/test-project/locations/global/meshes/test-mesh",
 					PrincipalEmail: "user@example.com",
@@ -131,6 +132,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			name: "Long running operation sequence",
 			auditFieldSets: []*googlecloudcommon_contract.GCPAuditLogFieldSet{
 				{
+					ProjectID:      "p",
 					OperationID:    "op1",
 					MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 					ResourceName:   "projects/p/locations/global/meshes/m1",
@@ -140,6 +142,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Request:        createReader(t, map[string]any{"description": "init"}),
 				},
 				{
+					ProjectID:      "p",
 					OperationID:    "op1",
 					MethodName:     "google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 					ResourceName:   "projects/p/locations/global/meshes/m1",
@@ -219,6 +222,44 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			}
 
 			tc.assert(t, builder, results)
+		})
+	}
+}
+
+func TestParseGCPResource(t *testing.T) {
+	tests := []struct {
+		name             string
+		resourceName     string
+		wantResourceType string
+		wantResourceName string
+	}{
+		{
+			name:             "standard resource path",
+			resourceName:     "projects/12345678/locations/global/meshes/my-mesh",
+			wantResourceType: "meshes",
+			wantResourceName: "my-mesh",
+		},
+		{
+			name:             "empty input",
+			resourceName:     "",
+			wantResourceType: "unknown",
+			wantResourceName: "unknown",
+		},
+		{
+			name:             "unknown input",
+			resourceName:     "unknown",
+			wantResourceType: "unknown",
+			wantResourceName: "unknown",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gotType, gotName := parseGCPResource(tc.resourceName)
+			if gotType != tc.wantResourceType || gotName != tc.wantResourceName {
+				t.Errorf("parseGCPResource(%q) = (%q, %q), want (%q, %q)",
+					tc.resourceName, gotType, gotName, tc.wantResourceType, tc.wantResourceName)
+			}
 		})
 	}
 }
