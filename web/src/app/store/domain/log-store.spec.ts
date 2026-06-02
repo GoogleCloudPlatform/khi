@@ -17,7 +17,7 @@
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
-import { create } from '@bufbuild/protobuf';
+import { create, toBinary } from '@bufbuild/protobuf';
 import {
   InternedStructSchema,
   InternedValueSchema,
@@ -214,7 +214,7 @@ describe('LogStore', () => {
         logTypeId: 1,
         severityTypeId: 1,
         summaryStringId: 1,
-        body: struct,
+        body: toBinary(InternedStructSchema, struct),
       },
       { id: 2, ts: 20n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
     ];
@@ -229,6 +229,76 @@ describe('LogStore', () => {
     expect(store.getLog(2).body).toBeNull();
     expect(store.getLog(2).bodyYAML).toBe('');
     expect(() => store.getLog(99)).toThrowError('Log ID 99 not found');
+  });
+
+  it('should cache body in WeakRef and re-decode when GC collected', () => {
+    internPool.addStrings([
+      { id: 10, value: 'user' },
+      { id: 11, value: 'alice' },
+    ]);
+
+    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
+
+    const struct = create(InternedStructSchema, {
+      fieldPathSetId: 1,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 11 },
+        }),
+      ],
+    });
+
+    const logs: LogDTO[] = [
+      {
+        id: 1,
+        ts: 10n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+        body: toBinary(InternedStructSchema, struct),
+      },
+    ];
+
+    store.initialize(logs, 1);
+
+    const log = store.getLog(1);
+
+    const storeRecord = store as unknown as Record<string, unknown>;
+    const decoder = storeRecord['decoder'] as {
+      decode: (struct: unknown) => Record<string, unknown>;
+    };
+    const spyDecoderDecode = spyOn(decoder, 'decode').and.callThrough();
+
+    // First access decodes the raw binary body and populates the cache.
+    const body1 = log.body;
+    expect(body1).toEqual({ user: 'alice' });
+    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
+
+    // Reset the spy to track subsequent decode calls accurately.
+    spyDecoderDecode.calls.reset();
+
+    // Second access should hit the cache in LogStore, avoiding another decode invocation.
+    const body2 = log.body;
+    expect(body2).toBe(body1);
+    expect(spyDecoderDecode).not.toHaveBeenCalled();
+
+    // Access the private decodedBodyCache array to simulate garbage collection.
+    const decodedBodyCache = storeRecord['decodedBodyCache'] as WeakRef<
+      Record<string, unknown>
+    >[];
+    const internalBodyRef = decodedBodyCache[0];
+    expect(internalBodyRef).toBeInstanceOf(WeakRef);
+
+    // Mock deref() returning undefined to simulate that the WeakRef target has been garbage collected.
+    spyOn(internalBodyRef, 'deref').and.returnValue(undefined);
+
+    spyDecoderDecode.calls.reset();
+
+    // Third access fails the deref() check, triggering a re-decode of the binary body.
+    const body3 = log.body;
+    expect(body3).toEqual({ user: 'alice' });
+    expect(body3).not.toBe(body1);
+    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
   });
 
   it('should return count and iterator correctly', () => {

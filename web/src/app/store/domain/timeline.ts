@@ -36,7 +36,6 @@ export interface TimelinePathNode {
  * Lazy adapter for a resource revision.
  */
 export class Revision {
-  private _body?: ReadonlyDomainElement<Record<string, unknown>> | null;
   private _log?: ReadonlyDomainElement<Log>;
 
   constructor(
@@ -140,10 +139,7 @@ export class Revision {
    * Gets the optional structured resource manifest parameters at the snapshot moment.
    */
   get body(): ReadonlyDomainElement<Record<string, unknown>> | null {
-    if (this._body === undefined) {
-      this._body = this.timelineStore._decodeRevisionBody(this.id);
-    }
-    return this._body;
+    return this.timelineStore._decodeRevisionBody(this.id);
   }
 
   /**

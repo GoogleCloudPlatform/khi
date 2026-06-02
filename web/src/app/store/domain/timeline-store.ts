@@ -23,10 +23,11 @@ import {
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
-import { InternedStruct } from 'src/app/generated/khifile/shared_pb';
+import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import { RevisionState, TimelineType, Verb } from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { fromBinary } from '@bufbuild/protobuf';
 
 /**
  * Raw timeline object interface from the assembler.
@@ -50,7 +51,7 @@ export interface RevisionDTO {
   readonly principalStringId: number;
   readonly verbTypeId: number;
   readonly stateTypeId: number;
-  readonly body?: InternedStruct;
+  readonly body?: Uint8Array;
 }
 
 /**
@@ -83,7 +84,10 @@ export class TimelineStore {
   private revisionPrincipalStringIds = new Uint32Array(0);
   private revisionVerbTypeIds = new Uint32Array(0);
   private revisionStateTypeIds = new Uint32Array(0);
-  private readonly revisionBodies: InternedStruct[] = [];
+  private readonly revisionBodies: Uint8Array[] = [];
+  private readonly revisionDecodedBodyCache: WeakRef<
+    ReadonlyDomainElement<Record<string, unknown>>
+  >[] = [];
   private revisionIdToIndex: { [rid: number]: number } = {};
 
   // Event metadata
@@ -163,6 +167,7 @@ export class TimelineStore {
     this.revisionPrincipalStringIds = new Uint32Array(revisionCount);
     this.revisionVerbTypeIds = new Uint32Array(revisionCount);
     this.revisionStateTypeIds = new Uint32Array(revisionCount);
+    this.revisionDecodedBodyCache.length = revisionCount;
 
     // Load revisions
     let rIndex = 0;
@@ -371,9 +376,18 @@ export class TimelineStore {
   public _decodeRevisionBody(
     id: number,
   ): ReadonlyDomainElement<Record<string, unknown>> | null {
-    const struct = this.revisionBodies[this.getRevisionIndex(id)];
-    if (!struct) return null;
-    return this.decoder.decode(struct);
+    const index = this.getRevisionIndex(id);
+    const cached = this.revisionDecodedBodyCache[index]?.deref();
+    if (cached) {
+      return cached;
+    }
+
+    const body = this.revisionBodies[index];
+    if (!body) return null;
+    const struct = fromBinary(InternedStructSchema, body);
+    const decoded = this.decoder.decode(struct);
+    this.revisionDecodedBodyCache[index] = new WeakRef(decoded);
+    return decoded;
   }
 
   private getRevisionIndex(id: number): number {

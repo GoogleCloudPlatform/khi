@@ -18,9 +18,10 @@ import { Log } from 'src/app/store/domain/log';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
-import { InternedStruct } from 'src/app/generated/khifile/shared_pb';
+import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import { LogType, Severity } from 'src/app/store/domain/style';
 import { ReadonlyDomainElement, Undefinable } from 'src/app/store/domain/types';
+import { fromBinary } from '@bufbuild/protobuf';
 
 /**
  * Raw Log object interface from the assembler.
@@ -34,7 +35,7 @@ export interface LogDTO {
   readonly logTypeId: number;
   readonly severityTypeId: number;
   readonly summaryStringId: number;
-  readonly body?: InternedStruct;
+  readonly body?: Uint8Array;
 }
 
 /**
@@ -47,7 +48,10 @@ export class LogStore {
   private severityIds = new Uint32Array(0);
   private summaryStringIds = new Uint32Array(0);
 
-  private bodies: Undefinable<InternedStruct>[] = [];
+  private bodies: Undefinable<Uint8Array>[] = [];
+  private decodedBodyCache: WeakRef<
+    ReadonlyDomainElement<Record<string, unknown>>
+  >[] = [];
   private idToIndex: Undefinable<number>[] = [];
   private readonly decoder: InternedStructDecoder;
 
@@ -71,7 +75,10 @@ export class LogStore {
     this.severityIds = new Uint32Array(count);
     this.summaryStringIds = new Uint32Array(count);
 
-    this.bodies = new Array<Undefinable<InternedStruct>>(count);
+    this.bodies = new Array<Undefinable<Uint8Array>>(count);
+    this.decodedBodyCache = new Array<
+      WeakRef<ReadonlyDomainElement<Record<string, unknown>>>
+    >(count);
     this.idToIndex = [];
 
     let index = 0;
@@ -167,9 +174,17 @@ export class LogStore {
     id: number,
   ): ReadonlyDomainElement<Record<string, unknown>> | null {
     const index = this.getIndex(id);
-    const struct = this.bodies[index];
-    if (!struct) return null;
-    return this.decoder.decode(struct);
+    const cached = this.decodedBodyCache[index]?.deref();
+    if (cached) {
+      return cached;
+    }
+
+    const body = this.bodies[index];
+    if (!body) return null;
+    const struct = fromBinary(InternedStructSchema, body);
+    const decoded = this.decoder.decode(struct);
+    this.decodedBodyCache[index] = new WeakRef(decoded);
+    return decoded;
   }
 
   /**
