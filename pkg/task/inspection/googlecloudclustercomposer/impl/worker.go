@@ -123,7 +123,7 @@ func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 	workerTiField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{})
-	if err != nil {
+	if err != nil || workerTiField.TaskInstance == nil {
 		return cs, struct{}{}, nil
 	}
 	ti := workerTiField.TaskInstance

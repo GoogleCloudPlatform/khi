@@ -21,16 +21,20 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // MustComposerEnvironmentTimeline returns the timeline path for a Composer Environment.
 func MustComposerEnvironmentTimeline(ctx context.Context, projectID, environmentName string) *khifilev6.TimelinePath {
+	if projectID == "" {
+		projectID = "unknown"
+	}
+	if environmentName == "" {
+		environmentName = "unknown"
+	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	projectPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: projectID,
-		Type: TimelineTypeGCPProject,
-	})
+	projectPath := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, projectID)
 	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
 		Name: environmentName,
 		Type: TimelineTypeComposerEnvironment,
@@ -48,6 +52,9 @@ func MustAirflowDAGsRootTimeline(ctx context.Context, envPath *khifilev6.Timelin
 
 // MustAirflowDAGTimeline returns the timeline path for a specific Airflow DAG.
 func MustAirflowDAGTimeline(ctx context.Context, envPath *khifilev6.TimelinePath, dagID string) *khifilev6.TimelinePath {
+	if dagID == "" {
+		dagID = "unknown"
+	}
 	dagsRoot := MustAirflowDAGsRootTimeline(ctx, envPath)
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(dagsRoot, khifilev6.PathSegment{
@@ -58,6 +65,12 @@ func MustAirflowDAGTimeline(ctx context.Context, envPath *khifilev6.TimelinePath
 
 // MustAirflowDAGRunTimeline returns the timeline path for a specific Airflow DAG run.
 func MustAirflowDAGRunTimeline(ctx context.Context, envPath *khifilev6.TimelinePath, dagID, runID string) *khifilev6.TimelinePath {
+	if dagID == "" {
+		dagID = "unknown"
+	}
+	if runID == "" {
+		runID = "unknown"
+	}
 	dagPath := MustAirflowDAGTimeline(ctx, envPath, dagID)
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(dagPath, khifilev6.PathSegment{
@@ -68,6 +81,9 @@ func MustAirflowDAGRunTimeline(ctx context.Context, envPath *khifilev6.TimelineP
 
 // MustAirflowTaskInstanceTimeline returns the timeline path for a specific Airflow TaskInstance under the given runPath.
 func MustAirflowTaskInstanceTimeline(ctx context.Context, runPath *khifilev6.TimelinePath, taskName string) *khifilev6.TimelinePath {
+	if taskName == "" {
+		taskName = "unknown"
+	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(runPath, khifilev6.PathSegment{
 		Name: taskName,
@@ -86,6 +102,9 @@ func MustAirflowComponentsRootTimeline(ctx context.Context, envPath *khifilev6.T
 
 // MustAirflowComponentTimeline returns the timeline path for a specific Airflow component.
 func MustAirflowComponentTimeline(ctx context.Context, envPath *khifilev6.TimelinePath, componentType *pb.TimelineType, name string) *khifilev6.TimelinePath {
+	if name == "" {
+		name = "unknown"
+	}
 	compRoot := MustAirflowComponentsRootTimeline(ctx, envPath)
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(compRoot, khifilev6.PathSegment{
@@ -96,6 +115,9 @@ func MustAirflowComponentTimeline(ctx context.Context, envPath *khifilev6.Timeli
 
 // MustAirflowWorkerTimeline returns the timeline path for an Airflow worker.
 func MustAirflowWorkerTimeline(ctx context.Context, envPath *khifilev6.TimelinePath, workerHost string) *khifilev6.TimelinePath {
+	if workerHost == "" {
+		workerHost = "unknown"
+	}
 	return MustAirflowComponentTimeline(ctx, envPath, TimelineTypeAirflowWorker, workerHost)
 }
 
@@ -110,9 +132,15 @@ func MustAirflowDAGProcessorManagerRootTimeline(ctx context.Context, envPath *kh
 
 // MustAirflowDAGFileTimeline returns the timeline path for a parsed DAG file (with GCS prefix trimmed).
 func MustAirflowDAGFileTimeline(ctx context.Context, envPath *khifilev6.TimelinePath, filePath string) *khifilev6.TimelinePath {
+	if filePath == "" {
+		filePath = "unknown"
+	}
 	dpmRoot := MustAirflowDAGProcessorManagerRootTimeline(ctx, envPath)
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	trimmedPath := strings.TrimPrefix(filePath, "/home/airflow/gcs/dags/")
+	if trimmedPath == "" {
+		trimmedPath = "unknown"
+	}
 	return builder.TimelineAccumulator.GetPath(dpmRoot, khifilev6.PathSegment{
 		Name: trimmedPath,
 		Type: TimelineTypeDAGFile,
@@ -121,6 +149,12 @@ func MustAirflowDAGFileTimeline(ctx context.Context, envPath *khifilev6.Timeline
 
 // MustAirflowDAGProcessorManagerInstanceTimeline returns the timeline path for the manager instance that processed the file.
 func MustAirflowDAGProcessorManagerInstanceTimeline(ctx context.Context, envPath *khifilev6.TimelinePath, filePath, instanceID string) *khifilev6.TimelinePath {
+	if filePath == "" {
+		filePath = "unknown"
+	}
+	if instanceID == "" {
+		instanceID = "unknown"
+	}
 	fileRoot := MustAirflowDAGFileTimeline(ctx, envPath, filePath)
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(fileRoot, khifilev6.PathSegment{

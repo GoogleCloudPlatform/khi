@@ -134,7 +134,7 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 		return cs, prevGroupData, nil
 	}
 
-	if res.Values[dagProcessorManagerColumnNumErrors] != "0" {
+	if res.Values[dagProcessorManagerColumnNumErrors] != "" && res.Values[dagProcessorManagerColumnNumErrors] != "0" {
 		cs.SetSeverity(inspectioncore_contract.SeverityError)
 	}
 
@@ -223,7 +223,7 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	}
 
 	condition := commonlogk8saudit_contract.RevisionStateConditionTrue
-	if res.Values[dagProcessorManagerColumnNumErrors] != "0" {
+	if res.Values[dagProcessorManagerColumnNumErrors] != "" && res.Values[dagProcessorManagerColumnNumErrors] != "0" {
 		condition = commonlogk8saudit_contract.RevisionStateConditionFalse
 	}
 

@@ -22,6 +22,9 @@ import (
 
 // tiStatusToVerb converts Taskinstance status to (*pb.Verb, *pb.RevisionState).
 func tiStatusToVerb(ti *googlecloudclustercomposer_contract.AirflowTaskInstance) (*pb.Verb, *pb.RevisionState) {
+	if ti == nil {
+		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceUnimplemented, commonlogk8saudit_contract.RevisionStateConditionUnknown
+	}
 	switch ti.Status() {
 	case googlecloudclustercomposer_contract.TASKINSTANCE_SCHEDULED:
 		return googlecloudclustercomposer_contract.VerbComposerTaskInstanceScheduled, googlecloudclustercomposer_contract.RevisionStateComposerTiScheduled

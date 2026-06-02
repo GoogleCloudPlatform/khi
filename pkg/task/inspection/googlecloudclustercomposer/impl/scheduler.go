@@ -123,7 +123,7 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 	tiField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSet{})
-	if err != nil {
+	if err != nil || tiField.TaskInstance == nil {
 		return cs, struct{}{}, nil // Not an Airflow TaskInstance log
 	}
 	ti := tiField.TaskInstance
