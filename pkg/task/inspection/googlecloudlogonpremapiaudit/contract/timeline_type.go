@@ -19,19 +19,6 @@ import (
 )
 
 var (
-	// TimelineTypeOnPremProject is the timeline type style for On-Prem Projects.
-	TimelineTypeOnPremProject = style.MustRegisterTimelineType(
-		"onpremProject",
-		"On-Prem Project",
-		"cloud",
-		0.6,
-		style.ColorWhite,
-		style.ColorBlack,
-		style.MustForceConvertSRGBHex("#4285F4"),
-		true,
-		10000,
-	)
-
 	// TimelineTypeOnPremCluster is the timeline type style for On-Prem Clusters.
 	TimelineTypeOnPremCluster = style.MustRegisterTimelineType(
 		"onpremCluster",
