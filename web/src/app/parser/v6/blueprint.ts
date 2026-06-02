@@ -316,6 +316,9 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
   ingest(proto: TimelineChunk): void {
     // 1. Process timelineItems
     for (const items of proto.timelineItems) {
+      if (this.itemsMap.has(items.id)) {
+        throw new Error(`Duplicate timelineItems id: ${items.id}`);
+      }
       const revisionIds: number[] = [];
       for (const r of items.revisions) {
         const id = this.nextRevisionId++;
