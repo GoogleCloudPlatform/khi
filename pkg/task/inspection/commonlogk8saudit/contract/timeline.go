@@ -27,7 +27,7 @@ import (
 // MustK8sClusterTimeline returns the timeline path for the Kubernetes Cluster layer.
 func MustK8sClusterTimeline(ctx context.Context, clusterName string) *khifilev6.TimelinePath {
 	if clusterName == "" {
-		panic("cluster name must not be empty")
+		clusterName = "unknown"
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -122,6 +122,7 @@ func MustK8sSubresourceTimeline(ctx context.Context, resourceTimeline *khifilev6
 	})
 }
 
+// MustOwnedResourceTimeline returns the timeline path for the owned resource by another resource.
 func MustOwnedResourceTimeline(ctx context.Context, resourceTimeline *khifilev6.TimelinePath, ownedResourceName string) *khifilev6.TimelinePath {
 	if resourceTimeline == nil || resourceTimeline.Type.GetId() != inspectioncore_contract.TimelineTypeResource.GetId() {
 		panic("parent timeline path must be Resource type")
@@ -148,7 +149,7 @@ func MustK8sContainerTimeline(ctx context.Context, podTimeline *khifilev6.Timeli
 // MustResourceTimeline returns the timeline path for a given ResourceIdentity.
 func MustResourceTimeline(ctx context.Context, clusterName string, res *ResourceIdentity) *khifilev6.TimelinePath {
 	if clusterName == "" {
-		panic("cluster name must not be empty")
+		clusterName = "unknown"
 	}
 	if res == nil {
 		panic("resource identity must not be nil")

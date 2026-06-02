@@ -27,6 +27,10 @@ func MustNodeComponentTimeline(ctx context.Context, nodeTimeline *khifilev6.Time
 	if nodeTimeline == nil || nodeTimeline.Type.GetId() != inspectioncore_contract.TimelineTypeResource.GetId() {
 		panic("parent timeline path must be Resource type")
 	}
+	if componentName == "" {
+		componentName = "unknown"
+	}
+
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(nodeTimeline, khifilev6.PathSegment{
 		Name: componentName,

@@ -30,6 +30,12 @@ import (
 // MustNEGTimeline returns the hierarchical timeline path for GKE NEGs under the cluster.
 // The NEG is an API resource with apiVersion "networking.gke.io/v1beta1", kind "servicenetworkendpointgroup".
 func MustNEGTimeline(ctx context.Context, clusterName string, namespace string, negName string) *khifilev6.TimelinePath {
+	if namespace == "" {
+		namespace = "unknown"
+	}
+	if negName == "" {
+		negName = "unknown"
+	}
 	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
 	apiPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "networking.gke.io/v1beta1")
 	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiPath, "servicenetworkendpointgroup")
@@ -43,9 +49,9 @@ func MustNEGOperationTimeline(ctx context.Context, negPath *khifilev6.TimelinePa
 		panic("negPath must not be nil")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	methodNameSplitted := strings.Split(methodName, ".")
 	shortMethodName := "unknown"
-	if len(methodNameSplitted) > 0 {
+	if methodName != "" {
+		methodNameSplitted := strings.Split(methodName, ".")
 		shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
 	}
 	return builder.TimelineAccumulator.GetPath(negPath, khifilev6.PathSegment{

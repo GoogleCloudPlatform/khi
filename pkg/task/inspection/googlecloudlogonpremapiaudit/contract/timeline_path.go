@@ -24,6 +24,10 @@ import (
 
 // MustOnPremProjectTimeline returns the hierarchical timeline path for an On-Prem Project.
 func MustOnPremProjectTimeline(ctx context.Context, project string) *khifilev6.TimelinePath {
+	if project == "" {
+		project = "unknown"
+	}
+
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: project,

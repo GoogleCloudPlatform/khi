@@ -32,46 +32,28 @@ func TestMustK8sClusterTimeline(t *testing.T) {
 	testCases := []struct {
 		name        string
 		clusterName string
-		wantPanic   bool
-		panicMsg    string
+		wantName    string
 	}{
 		{
 			name:        "valid cluster name",
 			clusterName: "my-cluster",
-			wantPanic:   false,
+			wantName:    "my-cluster",
 		},
 		{
 			name:        "empty cluster name",
 			clusterName: "",
-			wantPanic:   true,
-			panicMsg:    "cluster name must not be empty",
+			wantName:    "unknown",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.wantPanic {
-				defer func() {
-					r := recover()
-					if r == nil {
-						t.Error("expected panic but did not panic")
-					} else {
-						errStr := fmt.Sprintf("%v", r)
-						if !strings.Contains(errStr, tc.panicMsg) {
-							t.Errorf("expected panic message to contain %q, got %q", tc.panicMsg, errStr)
-						}
-					}
-				}()
-			}
-
 			got := MustK8sClusterTimeline(ctx, tc.clusterName)
-			if !tc.wantPanic {
-				if got == nil {
-					t.Fatal("expected timeline path to be not nil")
-				}
-				if diff := cmp.Diff(tc.clusterName, got.Name.Resolve()); diff != "" {
-					t.Errorf("MustK8sClusterTimeline() mismatch (-want +got):\n%s", diff)
-				}
+			if got == nil {
+				t.Fatal("expected timeline path to be not nil")
+			}
+			if diff := cmp.Diff(tc.wantName, got.Name.Resolve()); diff != "" {
+				t.Errorf("MustK8sClusterTimeline() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
