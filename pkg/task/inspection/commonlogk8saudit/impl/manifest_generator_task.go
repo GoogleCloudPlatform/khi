@@ -31,7 +31,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -150,7 +149,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		}, nil
 	}
 
-	if fieldSet.K8sOperation.Verb == enum.RevisionVerbDeleteCollection {
+	if fieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection {
 		items, err := currentBodyReader.GetReader("items")
 		if err != nil {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
@@ -206,9 +205,8 @@ kind: %s
 	currentRevisionBody := string(currentRevisionBodyRaw)
 	currentRevisionBody = removeAtType(currentRevisionBody)
 
-	if fieldSet.K8sOperation.Verb == enum.RevisionVerbPatch && partial {
-		op := fieldSet.K8sOperation
-		mergeConfigResolver := g.mergeConfigRegistry.Get(op.APIVersion, op.GetSingularKindName())
+	if fieldSet.Verb == commonlogk8saudit_contract.VerbPatch && partial {
+		mergeConfigResolver := g.mergeConfigRegistry.Get(fieldSet.APIVersion, commonlogk8saudit_contract.GetSingularKindName(fieldSet.PluralKind))
 		mergedNode, err := structured.MergeNode(g.prevRevisionReader.Node, currentBodyReader.Node, structured.MergeConfiguration{
 			MergeMapOrderStrategy:    &structured.DefaultMergeMapOrderStrategy{},
 			ArrayMergeConfigResolver: mergeConfigResolver,

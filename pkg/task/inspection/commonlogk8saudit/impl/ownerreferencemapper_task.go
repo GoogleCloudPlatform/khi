@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,35 +20,81 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// ResourceOwnerReferenceTimelineMapperTask is the task to map logs into resource owner reference.
-var ResourceOwnerReferenceTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[struct{}](&resourceOwnerReferenceTimelineMapperTaskSetting{
+// ResourceOwnerReferenceTimelineMapperTask is the V2 task to map logs into resource owner reference aliases.
+var ResourceOwnerReferenceTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[struct{}](&resourceOwnerReferenceTimelineMapperTaskSettingV2{
 	nonNamespacedOwnerTypes: map[string]struct{}{
 		"core/v1#node": {},
 	},
 })
 
-type resourceOwnerReferenceTimelineMapperTaskSetting struct {
+// resourceOwnerReferenceTimelineMapperTaskSettingV2 maps resource owner references to timeline aliases under the V2 model.
+type resourceOwnerReferenceTimelineMapperTaskSettingV2 struct {
+	commonlogk8saudit_contract.ManifestStatelessMapperBaseV2
+
 	// nonNamespacedOwnerTypes is the set of owner types that are not namespaced.
 	nonNamespacedOwnerTypes map[string]struct{}
 }
 
-// Process implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8saudit_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	if event.EventTargetBodyReader == nil {
-		return struct{}{}, nil
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
+}
+
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
+}
+
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
+}
+
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[struct{}] {
+	return commonlogk8saudit_contract.ResourceOwnerReferenceTimelineMapperTaskID
+}
+
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+	result := []commonlogk8saudit_contract.RelatedGroupSet{}
+	for _, group := range groupedLogs {
+		if group.Resource.Type() == commonlogk8saudit_contract.Namespace {
+			continue
+		}
+		result = append(result, commonlogk8saudit_contract.RelatedGroupSet{
+			Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+				"target": group,
+			},
+		})
 	}
-	ownerReferencesReaders, err := event.EventTargetBodyReader.GetReader("metadata.ownerReferences")
+	return result, nil
+}
+
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	cs := khifilev6.NewTimelineChangeSet(event.Log)
+
+	bodyReader, ok := event.GetLastBodyReader("target")
+	if !ok || bodyReader == nil {
+		return cs, struct{}{}, nil
+	}
+	ownerReferencesReaders, err := bodyReader.GetReader("metadata.ownerReferences")
 	if err != nil {
-		return struct{}{}, nil
+		return cs, struct{}{}, nil
 	}
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	k8sFieldSet, err := log.GetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if err != nil {
+		return cs, struct{}{}, err
+	}
+
+	aliasPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
+
 	for _, ownerReferenceReader := range ownerReferencesReaders.Children() {
 		kind, err := ownerReferenceReader.ReadString("kind")
 		if err != nil {
@@ -66,58 +112,26 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) Process(ctx context.Co
 		if !strings.Contains(apiVersion, "/") {
 			apiVersion = "core/" + apiVersion
 		}
-		namespace := k8sFieldSet.K8sOperation.Namespace
+		namespace := k8sFieldSet.Namespace
 		if _, ok := r.nonNamespacedOwnerTypes[fmt.Sprintf("%s#%s", apiVersion, kind)]; ok {
 			namespace = "cluster-scope"
 		}
-		path := resourcepath.ResourcePath{
-			Path:               event.EventTargetResource.ResourcePathString(),
-			ParentRelationship: enum.RelationshipChild,
+
+		ownerIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+			APIVersion: apiVersion,
+			Kind:       kind,
+			Namespace:  namespace,
+			Name:       name,
 		}
-		ownerResource := resourcepath.NameLayerGeneralItem(apiVersion, kind, namespace, name)
-		ownerSubresource := resourcepath.OwnerSubresource(ownerResource, k8sFieldSet.K8sOperation.Name, k8sFieldSet.K8sOperation.GetSingularKindName())
-		cs.AddResourceAlias(path, ownerSubresource)
+		ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, ownerIdentity)
+
+		ownLabel := fmt.Sprintf("%s[kind:%s]", event.ResourceIdentity.Name, event.ResourceIdentity.Kind)
+		targetPath := commonlogk8saudit_contract.MustOwnedResourceTimeline(ctx, ownerPath, ownLabel)
+
+		cs.AddAlias(targetPath, aliasPath)
 	}
-	return struct{}{}, nil
+	return cs, struct{}{}, nil
 }
 
-// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
-	return commonlogk8saudit_contract.ResourceOwnerReferenceTimelineMapperTaskID
-}
-
-// ResourcePairs implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.ResourcePair, error) {
-	result := make([]commonlogk8saudit_contract.ResourcePair, 0, len(groupedLogs))
-	for _, group := range groupedLogs {
-		if group.Resource.Type() == commonlogk8saudit_contract.Namespace {
-			continue
-		}
-		result = append(result, commonlogk8saudit_contract.ResourcePair{
-			TargetGroup: group.Resource,
-		})
-	}
-	return result, nil
-}
-
-// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
-}
-
-// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) PassCount() int {
-	return 1
-}
-
-// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
-	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
-}
-
-// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting.
-func (r *resourceOwnerReferenceTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
-}
-
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting[struct{}] = (*resourceOwnerReferenceTimelineMapperTaskSetting)(nil)
+// Explicit interface compliance assertion.
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[struct{}] = (*resourceOwnerReferenceTimelineMapperTaskSettingV2)(nil)

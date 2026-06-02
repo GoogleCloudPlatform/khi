@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -51,14 +51,13 @@ func (o *OSSK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 		name = reader.ReadStringOrDefault("responseObject.metadata.name", "unknown")
 	}
 
-	result.K8sOperation = &model.KubernetesObjectOperation{
-		APIVersion:      fmt.Sprintf("%s/%s", apiGroup, apiVersion),
-		PluralKind:      kind,
-		Namespace:       namespace,
-		Name:            name,
-		SubResourceName: subresource,
-		Verb:            verbStringToEnum(verb),
-	}
+	result.APIVersion = fmt.Sprintf("%s/%s", apiGroup, apiVersion)
+	result.PluralKind = kind
+	result.Namespace = namespace
+	result.ResourceName = name
+	result.SubresourceName = subresource
+	result.ClusterName = "cluster"
+	result.Verb = verbStringToVerb(verb)
 
 	result.RequestURI = reader.ReadStringOrDefault("requestURI", "")
 	result.Principal = reader.ReadStringOrDefault("user.username", "unknown")
@@ -87,7 +86,7 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structured.NodeReader)
 	result.DisplayID = reader.ReadStringOrDefault("auditID", "unknown")
 	result.Timestamp, err = reader.ReadTimestamp("stageTimestamp")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read timestmap from given log")
+		return nil, fmt.Errorf("failed to read timestamp from given log")
 	}
 	result.Severity = enum.SeverityUnknown // TODO: handle OSS k8s audit log severity properly
 	return result, nil
@@ -95,20 +94,19 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structured.NodeReader)
 
 var _ log.FieldSetReader = (*OSSK8sAuditLogCommonFieldSetReader)(nil)
 
-func verbStringToEnum(verbStr string) enum.RevisionVerb {
+func verbStringToVerb(verbStr string) *pb.Verb {
 	switch verbStr {
 	case "create":
-		return enum.RevisionVerbCreate
+		return commonlogk8saudit_contract.VerbCreate
 	case "update":
-		return enum.RevisionVerbUpdate
+		return commonlogk8saudit_contract.VerbUpdate
 	case "patch":
-		return enum.RevisionVerbPatch
+		return commonlogk8saudit_contract.VerbPatch
 	case "delete":
-		return enum.RevisionVerbDelete
+		return commonlogk8saudit_contract.VerbDelete
 	case "deletecollection":
-		return enum.RevisionVerbDeleteCollection
+		return commonlogk8saudit_contract.VerbDeleteCollection
 	default:
-		// Add verbs for get/list/watch
-		return enum.RevisionVerbUnknown
+		return commonlogk8saudit_contract.VerbUnknown
 	}
 }

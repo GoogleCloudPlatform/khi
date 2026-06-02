@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -25,6 +26,23 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+func resolveVerb(v enum.RevisionVerb) *pb.Verb {
+	switch v {
+	case enum.RevisionVerbCreate:
+		return commonlogk8saudit_contract.VerbCreate
+	case enum.RevisionVerbDelete:
+		return commonlogk8saudit_contract.VerbDelete
+	case enum.RevisionVerbUpdate:
+		return commonlogk8saudit_contract.VerbUpdate
+	case enum.RevisionVerbPatch:
+		return commonlogk8saudit_contract.VerbPatch
+	case enum.RevisionVerbDeleteCollection:
+		return commonlogk8saudit_contract.VerbDeleteCollection
+	default:
+		return commonlogk8saudit_contract.VerbUnknown
+	}
+}
 
 type testScanTargetResourceInput struct {
 	op           *model.KubernetesObjectOperation
@@ -318,9 +336,15 @@ kind: Binding`,
 					response = structured.NewNodeReader(node)
 				}
 				logs = append(logs, log.NewLogWithFieldSetsForTest(&commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					K8sOperation: input.op,
-					Request:      request,
-					Response:     response,
+					APIVersion:      input.op.APIVersion,
+					PluralKind:      input.op.PluralKind,
+					Namespace:       input.op.Namespace,
+					ResourceName:    input.op.Name,
+					SubresourceName: input.op.SubResourceName,
+					ClusterName:     "k8s",
+					Verb:            resolveVerb(input.op.Verb),
+					Request:         request,
+					Response:        response,
 				}))
 			}
 			var subresourceDefaultBehaviorOverrides map[string]subresourceDefaultBehavior

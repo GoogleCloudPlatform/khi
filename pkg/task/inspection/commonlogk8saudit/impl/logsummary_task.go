@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,71 +20,58 @@ import (
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// LogIngesterTask is the task to serialize k8s audit logs.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// K8sAuditLogIngesterTask is the V2 task to serialize and ingest k8s audit logs.
+var K8sAuditLogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
 	commonlogk8saudit_contract.K8sAuditLogIngesterTaskID,
-	commonlogk8saudit_contract.K8sAuditLogProviderRef,
+	&k8sAuditLogIngesterV2{},
 )
 
-// LogSummaryGrouperTask is the task to group logs for summary generation.
-var LogSummaryGrouperTask = inspectiontaskbase.NewLogGrouperTask(
-	commonlogk8saudit_contract.LogSummaryGrouperTaskID,
-	commonlogk8saudit_contract.K8sAuditLogProviderRef,
-	func(ctx context.Context, l *log.Log) string {
-		commonFieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-		return commonFieldSet.K8sOperation.ResourcePath()
-	},
-)
+type k8sAuditLogIngesterV2 struct{}
 
-// LogSummaryLogToTimelineMapperTask is the task to generate log summary from given k8s audit log.
-var LogSummaryLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
-	commonlogk8saudit_contract.LogSummaryLogToTimelineMapperTaskID,
-	&logSummaryLogToTimelineMapperSetting{},
-)
+// RawLogTask implements inspectiontaskbase.LogIngesterV2.
+func (i *k8sAuditLogIngesterV2) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return commonlogk8saudit_contract.K8sAuditLogProviderRef
+}
 
-type logSummaryLogToTimelineMapperSetting struct{}
-
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (s *logSummaryLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogIngesterV2.
+func (i *k8sAuditLogIngesterV2) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (s *logSummaryLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return commonlogk8saudit_contract.LogSummaryGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (s *logSummaryLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (s *logSummaryLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	commonFieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-
-	if commonFieldSet.IsError {
-		cs.SetLogSeverity(enum.SeverityError)
+// ProcessLog parses raw log entry and populates the LogChangeSet.
+func (i *k8sAuditLogIngesterV2) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
 	}
 
-	cs.SetLogSummary(s.logSummary(commonFieldSet))
+	commonFs, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	if err != nil {
+		return nil, err
+	}
+	cs.SetTimestamp(commonFs.Timestamp)
+	cs.SetLogType(commonlogk8saudit_contract.LogTypeAudit)
 
-	return struct{}{}, nil
-}
+	k8sFieldSet, err := log.GetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if err != nil {
+		return nil, err
+	}
 
-// logSummary generates the summary string from given log field set.
-func (s *logSummaryLogToTimelineMapperSetting) logSummary(fieldSet *commonlogk8saudit_contract.K8sAuditLogFieldSet) string {
-	if fieldSet.IsError {
-		return fmt.Sprintf("【%s(%d)】%s %s", fieldSet.StatusMessage, fieldSet.StatusCode, fieldSet.VerbString(), fieldSet.RequestURI)
+	if k8sFieldSet.IsError {
+		cs.SetSeverity(inspectioncore_contract.SeverityError)
+		cs.SetSummary(fmt.Sprintf("【%s(%d)】%s %s", k8sFieldSet.StatusMessage, k8sFieldSet.StatusCode, k8sFieldSet.VerbString(), k8sFieldSet.RequestURI))
 	} else {
-		return fmt.Sprintf("%s %s", fieldSet.VerbString(), fieldSet.RequestURI)
+		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
+		cs.SetSummary(fmt.Sprintf("%s %s", k8sFieldSet.VerbString(), k8sFieldSet.RequestURI))
 	}
+
+	return cs, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*logSummaryLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogIngesterV2 = (*k8sAuditLogIngesterV2)(nil)

@@ -512,6 +512,103 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*CustomAppTimelineMapper)(nil)
 ```
 
+### C. Specialized Pattern: `ManifestLogToTimelineMapperV2` (Multi-Group Merge Mapper)
+
+For advanced scenarios requiring the tracking and synchronization of **multiple related resource logs** chronologically (such as a parent `Pod` and its subresources like `Status` or `Binding`), KHI provides `NewManifestLogToTimelineMapperV2`.
+
+This mapper automatically merges logs from multiple roles into a single stream sorted strictly by timestamp, and passes the state `T` across all events.
+
+#### Key Interfaces and Structures
+
+- **`RelatedGroupSet`**: Groups related logs by role name (e.g., `"source" -> PodGroup`, `"target" -> BindingGroup`).
+- **`MultiGroupLogEvent`**: Contains the currently yielding `Log`, the role (`GroupRole`), and the helper methods:
+  - `GetLastBodyReader(role string) (*structured.NodeReader, bool)`: Retrieves the latest manifest body of the specified role as a `NodeReader` at the time of the event using highly optimized `O(log N)` binary search.
+  - `GetLastBodyYAML(role string) (string, bool)`: Retrieves the latest manifest body as a YAML string.
+
+#### Code Sample: Single-Pass Stateful Manifest Mapper
+
+```go
+package myapp_impl
+
+import (
+ "context"
+ "time"
+
+ "github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+ pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+ khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+ "github.com/GoogleCloudPlatform/khi/pkg/model/log"
+ commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+)
+
+type MyState struct {
+ WasDeleted bool
+}
+
+type MyManifestMapper struct {
+ // Embeds single pass helper.
+ commonlogk8saudit_contract.ManifestSinglePassMapperBaseV2[*MyState]
+}
+
+func (m *MyManifestMapper) TaskID() taskid.TaskImplementationID[struct{}] {
+ return mycontract.MyManifestMapperTaskID
+}
+
+func (m *MyManifestMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+ return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
+}
+
+func (m *MyManifestMapper) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+ return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
+}
+
+func (m *MyManifestMapper) Dependencies() []taskid.UntypedTaskReference {
+ return []taskid.UntypedTaskReference{}
+}
+
+// ResolveRelatedGroupSets groups a parent resource (source) and its subresource (target) together.
+func (m *MyManifestMapper) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+ result := []commonlogk8saudit_contract.RelatedGroupSet{}
+ for _, group := range groupedLogs {
+  if group.Resource.Type() == commonlogk8saudit_contract.Subresource {
+   parentGroup := groupedLogs[group.Resource.ParentIdentity().ResourcePathString()]
+   result = append(result, commonlogk8saudit_contract.RelatedGroupSet{
+    Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+     "source": parentGroup,
+     "target": group,
+    },
+   })
+  }
+ }
+ return result, nil
+}
+
+// ProcessLog processes chronologically merged events.
+func (m *MyManifestMapper) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *MyState) (*khifilev6.TimelineChangeSet, *MyState, error) {
+ if state == nil {
+  state = &MyState{}
+ }
+
+ cs := khifilev6.NewTimelineChangeSet(event.Log)
+
+ // Handle parent deletion event to propagate deletion to the subresource.
+ if event.GroupRole == "source" && event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+  targetGroup := event.GroupSet.Roles["target"]
+  targetPath := MustResolveTimelinePath(ctx, targetGroup.Resource)
+
+  cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+   ChangedTime: time.Now(),
+   StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+  })
+  state.WasDeleted = true
+ }
+
+ return cs, state, nil
+}
+
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*MyState] = (*MyManifestMapper)(nil)
+```
+
 #### `registration.go`
 
 Registers the tasks with the central registry.
@@ -542,6 +639,188 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 ## 4. Testing Log Parsers
 
-Tests must follow the standard Table-Driven pattern and make use of fluent `testchangeset` assertion helpers for verification.
-
 Refer to [log-timeline-mapper-v2](skill://log-timeline-mapper-v2) for detailed unit testing strategies of `LogIngesterV2` and `LogToTimelineMapperV2`.
+
+### Testing `ManifestLogToTimelineMapperV2`
+
+Since `ManifestLogToTimelineMapperV2` coordinates chronologically merged streams and tracks previous states, testing it requires:
+
+1. **Chronological Merge Validation**: Testing that events from different roles are merged correctly.
+2. **Historical Snapshot Validation**: Testing that `GetLastBodyReader` or `GetLastBodyYAML` accurately yields the snapshot of other roles at the event's timestamp.
+
+Use a **Table-Driven Test** pattern to verify these behaviors comprehensively.
+
+#### Test Example: Table-Driven Snapshot Verification
+
+```go
+func TestGetLastBody(t *testing.T) {
+ t1 := time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)
+ t2 := t1.Add(time.Minute)
+
+ nodeA1, _ := structured.FromGoValue(map[string]any{"value": "A1"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
+ nodeB1, _ := structured.FromGoValue(map[string]any{"value": "B1"}, &structured.AlphabeticalGoMapKeyOrderProvider{})
+
+ logA1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t1})
+ logB1 := log.NewLogWithFieldSetsForTest(&log.CommonFieldSet{Timestamp: t2})
+
+ groupSet := RelatedGroupSet{
+  Roles: map[string]*ResourceManifestLogGroup{
+   "roleA": {
+    Logs: []*ResourceManifestLog{
+     {Log: logA1, ResourceBodyYAML: "value: A1", ResourceBodyReader: structured.NewNodeReader(nodeA1)},
+    },
+   },
+   "roleB": {
+    Logs: []*ResourceManifestLog{
+     {Log: logB1, ResourceBodyYAML: "value: B1", ResourceBodyReader: structured.NewNodeReader(nodeB1)},
+    },
+   },
+  },
+ }
+
+ events := make([]MultiGroupLogEvent, 0)
+ for event := range iterateMultiGroupLog(groupSet) {
+  events = append(events, event)
+ }
+
+ testCases := []struct {
+  name         string
+  eventIndex   int
+  expectedRole string
+  roleToCheck  string
+  wantFound    bool
+  wantYAML     string
+ }{
+  {
+   name:         "event 0: check roleA body",
+   eventIndex:   0,
+   expectedRole: "roleA",
+   roleToCheck:  "roleA",
+   wantFound:    true,
+   wantYAML:     "value: A1",
+  },
+  {
+   name:         "event 0: check roleB body (not exist yet)",
+   eventIndex:   0,
+   expectedRole: "roleA",
+   roleToCheck:  "roleB",
+   wantFound:    false,
+  },
+  {
+   name:         "event 1: check roleA body from roleB event",
+   eventIndex:   1,
+   expectedRole: "roleB",
+   roleToCheck:  "roleA",
+   wantFound:    true,
+   wantYAML:     "value: A1",
+  },
+ }
+
+ for _, tc := range testCases {
+  t.Run(tc.name, func(t *testing.T) {
+   e := events[tc.eventIndex]
+
+   if e.GroupRole != tc.expectedRole {
+    t.Errorf("expected group role %q, got %q", tc.expectedRole, e.GroupRole)
+   }
+
+   yaml, ok := e.GetLastBodyYAML(tc.roleToCheck)
+   if ok != tc.wantFound {
+    t.Errorf("GetLastBodyYAML(%q) ok = %t, want %t", tc.roleToCheck, ok, tc.wantFound)
+   }
+   if ok && yaml != tc.wantYAML {
+    t.Errorf("GetLastBodyYAML(%q) = %q, want %q", tc.roleToCheck, yaml, tc.wantYAML)
+   }
+  })
+ }
+}
+```
+
+### Testing Tasks Implemented with `ManifestLogToTimelineMapperV2`
+
+To unit test a concrete mapper task implementing `ManifestLogToTimelineMapperV2[T]`, you should isolate and test its `ProcessLog` (and `PreProcessLog`) method using table-driven tests.
+
+The test setup requires:
+
+1. **v6 Builder Initialization**: Instantiate a `khifilev6.Builder` and construct the expected `TimelinePath` instances.
+2. **Context Injection**: Inject the builder into the test context utilizing `khictx.WithValue` and the key `inspectioncore_contract.Builder`.
+3. **Mock Event Construction**: Manually instantiate a `MultiGroupLogEvent` with mock logs and roles, and supply a mock `RelatedGroupSet` if testing body-reference lookups.
+4. **Fluent ChangeSet Assertions**: Verify the generated timelines using the fluent asserter utility `testchangeset.AssertTimeline`.
+
+#### Task Unit Test Example
+
+This example isolates and tests the `MyManifestMapper` defined in Section 3.C.
+
+```go
+func TestMyManifestMapper_ProcessLog(t *testing.T) {
+ // 1. Set up the mock Builder and construct comparison paths hierarchically.
+ builder := khifilev6.NewBuilder()
+ cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+ api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+ kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+ ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+ pod := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "my-pod", Type: inspectioncore_contract.TimelineTypeResource})
+ targetPath := builder.TimelineAccumulator.GetPath(pod, khifilev6.PathSegment{Name: "binding", Type: TimelineTypeSubresource})
+
+ testCases := []struct {
+  name      string
+  event     MultiGroupLogEvent
+  prevState *MyState
+  assert    func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet, state *MyState)
+ }{
+  {
+   name: "parent pod deletion propagates delete revision to subresource binding",
+   event: MultiGroupLogEvent{
+    Log: log.NewLogWithFieldSetsForTest(
+     &log.CommonFieldSet{Timestamp: time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)},
+    ),
+    GroupRole: "source", // Parent resource
+    EventType: ChangeEventTypeV2Deletion,
+    GroupSet: RelatedGroupSet{
+     Roles: map[string]*ResourceManifestLogGroup{
+      "target": {
+       Resource: &ResourceIdentity{
+        APIVersion:      "core/v1",
+        Kind:            "pod",
+        Name:            "my-pod",
+        Namespace:       "default",
+        SubresourceName: "binding",
+       },
+      },
+     },
+    },
+   },
+   prevState: &MyState{WasDeleted: false},
+   assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet, state *MyState) {
+    // Verify the generated staged revisions using fluent assertions.
+    testchangeset.AssertTimeline(t, cs).
+     HasRevision(targetPath, &khifilev6.StagingRevision{
+      StateType: commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+     })
+
+    // Verify that state changes are correctly tracked.
+    if !state.WasDeleted {
+     t.Errorf("state.WasDeleted = false, want true")
+    }
+   },
+  },
+ }
+
+ mapper := &MyManifestMapper{}
+ for _, tc := range testCases {
+  t.Run(tc.name, func(t *testing.T) {
+   // 2. Inject the SAME Builder instance into context.
+   ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+   // 3. Call ProcessLog directly.
+   cs, nextState, err := mapper.ProcessLog(ctx, tc.event, tc.prevState)
+   if err != nil {
+    t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+   }
+
+   // 4. Assert outcomes.
+   tc.assert(t, ctx, cs, nextState)
+  })
+ }
+}
+```
