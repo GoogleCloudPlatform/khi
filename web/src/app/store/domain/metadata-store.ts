@@ -43,10 +43,10 @@ export interface MetadataStore {
   /**
    * The primary inspection header details.
    */
-  readonly header?: InspectionHeader;
+  header?: InspectionHeader;
 
   /**
    * List of saved inspection queries.
    */
-  readonly queries: readonly InspectionQuery[];
+  queries: InspectionQuery[];
 }
