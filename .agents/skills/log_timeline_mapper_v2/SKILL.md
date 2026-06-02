@@ -75,8 +75,8 @@ var _ inspectiontaskbase.LogIngesterV2 = (*MyLogIngester)(nil)
 > [!IMPORTANT]
 > **Package Boundaries:**
 >
-> * **TaskID** definitions (e.g., `LogIngesterTaskIDV2`) MUST be defined in the `contract` package.
-> * **Task Implementation** instantiations (e.g., `NewLogIngesterTaskV2`) MUST be placed in the `impl` package.
+> - **TaskID** definitions (e.g., `LogIngesterTaskIDV2`) MUST be defined in the `contract` package.
+> - **Task Implementation** instantiations (e.g., `NewLogIngesterTaskV2`) MUST be placed in the `impl` package.
 
 ```go
 // Defined in 'contract' package:
@@ -97,7 +97,7 @@ task := NewLogIngesterTaskV2(mycontract.MyLogIngesterTaskID, &MyLogIngester{})
 
 Used for complex scenarios where you need to pre-collect information across all logs in a group before applying timeline changes (e.g., matching asynchronous request/response cycles).
 
-* **How to implement:** Implement the full `LogToTimelineMapperV2[T]` interface manually.
+- **How to implement:** Implement the full `LogToTimelineMapperV2[T]` interface manually.
 
 ```go
 type ComplexMapper struct {}
@@ -120,7 +120,7 @@ func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevG
  }
 
  // 2. Retrieve the Builder from context.
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentV6Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
  // 3. Resolve target path dynamically using the accumulator facade.
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
@@ -153,7 +153,7 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[MyState] = (*ComplexMapper)(nil)
 
 Used when you need to maintain and propagate state sequentially through the logs in a group, but do not require a pre-processing pass.
 
-* **How to implement:** Embed `SinglePassMapperBase[T]` into your mapper structure. This automatically implements `PassCount() int` (returning 0) and `PreProcessLogByGroup` (returning state as-is).
+- **How to implement:** Embed `SinglePassMapperBase[T]` into your mapper structure. This automatically implements `PassCount() int` (returning 0) and `PreProcessLogByGroup` (returning state as-is).
 
 ```go
 type StateTrackingMapper struct {
@@ -169,9 +169,9 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 
  // 2. Maintain state.
  nextState := updateState(prevGroupData, customSet)
- 
+
  // 3. Retrieve the Builder from context.
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentV6Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
  // 4. Resolve target path dynamically using the accumulator facade.
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
@@ -180,7 +180,7 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
  })
 
  cs := khifilev6.NewTimelineChangeSet(l)
- 
+
  // Append resource revision history sequentially to the timeline.
  cs.AddRevision(targetPath, &khifilev6.StagingRevision{
   ChangedTime:  customSet.Timestamp,
@@ -188,7 +188,7 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
   Principal:    customSet.Principal,
   VerbType:     mycontract.VerbUpdate,
  })
- 
+
  return cs, nextState, nil
 }
 
@@ -202,7 +202,7 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[MyState] = (*StateTrackingMapper)
 
 Used when timeline mapping for each log is completely independent and does not rely on other logs in the same group.
 
-* **How to implement:** Embed `StatelessMapperBase` into your mapper structure. This binds the state type `T` to `struct{}` and implements the pre-processing methods as no-ops.
+- **How to implement:** Embed `StatelessMapperBase` into your mapper structure. This binds the state type `T` to `struct{}` and implements the pre-processing methods as no-ops.
 
 ```go
 type SimpleEventMapper struct {
@@ -211,7 +211,7 @@ type SimpleEventMapper struct {
 
 func (m *SimpleEventMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
  // 1. Retrieve the Builder from context.
- builder := khictx.MustGetValue(ctx, inspectioncore_contract.CurrentV6Builder)
+ builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 
  // 2. Resolve target path dynamically.
  targetPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
@@ -220,10 +220,10 @@ func (m *SimpleEventMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _
  })
 
  cs := khifilev6.NewTimelineChangeSet(l)
- 
+
  // Add a simple timeline event.
  cs.AddEvent(targetPath)
- 
+
  return cs, struct{}{}, nil
 }
 
@@ -236,8 +236,8 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*SimpleEventMapper)(
 > [!IMPORTANT]
 > **Package Boundaries:**
 >
-> * **TaskID** definitions (e.g., `LogToTimelineMapperTaskIDV2`) MUST be defined in the `contract` package.
-> * **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTaskV2`) MUST be placed in the `impl` package.
+> - **TaskID** definitions (e.g., `LogToTimelineMapperTaskIDV2`) MUST be defined in the `contract` package.
+> - **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTaskV2`) MUST be placed in the `impl` package.
 
 ```go
 // Defined in 'contract' package:
@@ -362,7 +362,7 @@ func TestMyTimelineMapper_ProcessLogByGroup(t *testing.T) {
  for _, tc := range testCases {
   t.Run(tc.name, func(t *testing.T) {
    // 3. Set up the context using t.Context() and SAME builder instance.
-   ctx := khictx.WithValue(t.Context(), inspectioncore_contract.CurrentV6Builder, builder)
+   ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
    cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, tc.prevState)
    if err != nil {
