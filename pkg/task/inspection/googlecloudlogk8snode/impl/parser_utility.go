@@ -69,7 +69,7 @@ func checkStartingAndTerminationLog(ctx context.Context, cs *khifilev6.TimelineC
 		return
 	}
 	nodeLogFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
-	if err != nil {
+	if err != nil || nodeLogFieldSet.Message == nil {
 		return
 	}
 	mainMessage, _ := nodeLogFieldSet.Message.MainMessage()

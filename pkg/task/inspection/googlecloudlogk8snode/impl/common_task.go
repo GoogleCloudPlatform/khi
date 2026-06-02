@@ -79,7 +79,7 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	}
 
 	nodeLogFS, err := log.GetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
-	if err != nil {
+	if err != nil || nodeLogFS.Message == nil {
 		return nil, err
 	}
 

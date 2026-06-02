@@ -23,12 +23,6 @@ import (
 
 // MustK8sNodeTimeline returns the timeline path for the Kubernetes Node resource layer.
 func MustK8sNodeTimeline(ctx context.Context, clusterName string, nodeName string) *khifilev6.TimelinePath {
-	if clusterName == "" {
-		panic("cluster name must not be empty")
-	}
-	if nodeName == "" {
-		panic("node name must not be empty")
-	}
 	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
 	apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
 	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "node")
@@ -37,15 +31,6 @@ func MustK8sNodeTimeline(ctx context.Context, clusterName string, nodeName strin
 
 // MustK8sPodTimeline returns the timeline path for a Kubernetes Pod resource layer.
 func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
-	if clusterName == "" {
-		panic("cluster name must not be empty")
-	}
-	if namespace == "" {
-		panic("namespace must not be empty")
-	}
-	if podName == "" {
-		panic("pod name must not be empty")
-	}
 	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
 	apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
 	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
