@@ -20,14 +20,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -148,7 +146,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	}
 
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref())
-	nodeTimelinePath := ResolveNodeTimelinePath(ctx, clusterIdentity.ClusterName, getInstanceNameFromResourceName(audit.ResourceName))
+	nodeTimelinePath := googlecloudlogcomputeapiaudit_contract.MustNodeTimelinePath(ctx, clusterIdentity.ClusterName, getInstanceNameFromResourceName(audit.ResourceName))
 
 	var targetPath *khifilev6.TimelinePath
 	if audit.ImmediateOperation() {
@@ -159,7 +157,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 		if len(methodNameSplitted) > 0 {
 			shortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
 		}
-		targetPath = ResolveOperationTimelinePath(ctx, nodeTimelinePath, shortMethodName, audit.OperationID)
+		targetPath = googlecloudcommon_contract.MustGCPOperationTimeline(ctx, nodeTimelinePath, shortMethodName, audit.OperationID)
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
@@ -191,24 +189,6 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 
 // Explicit interface compliance assertion.
 var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*gcpComputeAuditLogLogToTimelineMapperSetting)(nil)
-
-// ResolveNodeTimelinePath returns the hierarchical TimelinePath for a Kubernetes Node resource under V6 format.
-func ResolveNodeTimelinePath(ctx context.Context, clusterName string, nodeName string) *khifilev6.TimelinePath {
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
-	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "node")
-	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
-	return commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, nodeName)
-}
-
-// ResolveOperationTimelinePath returns the Operation timeline nested under the parent Resource timeline path.
-func ResolveOperationTimelinePath(ctx context.Context, parentPath *khifilev6.TimelinePath, shortMethodName string, operationID string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{
-		Name: fmt.Sprintf("%s-%s", shortMethodName, operationID),
-		Type: googlecloudcommon_contract.TimelineTypeOperation,
-	})
-}
 
 func getInstanceNameFromResourceName(resourceName string) string {
 	resourceNameSplitted := strings.Split(resourceName, "/")
