@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,67 +18,135 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// FieldSetReaderTask reads fields in parallel.
 var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8scontainer_contract.FieldSetReaderTaskID, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
 	&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSetReader{},
+	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
 })
 
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogk8scontainer_contract.LogIngesterTaskID, googlecloudlogk8scontainer_contract.ListLogEntriesTaskID.Ref())
+// containerLogIngester implements inspectiontaskbase.LogIngesterV2.
+type containerLogIngester struct{}
 
+// RawLogTask returns the task reference that provides the raw logs to ingest.
+func (i *containerLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8scontainer_contract.FieldSetReaderTaskID.Ref()
+}
+
+// Dependencies returns additional task dependencies of the ingester.
+func (i *containerLogIngester) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
+}
+
+// ProcessLog is called for each log entry to customize log metadata.
+func (i *containerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
+	}
+
+	cs.SetLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
+
+	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
+		cs.SetTimestamp(commonFS.Timestamp)
+	}
+
+	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
+		cs.SetSeverity(severityFS.Severity)
+	}
+
+	if containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{}); err == nil {
+		cs.SetSummary(containerFields.Message)
+	}
+
+	return cs, nil
+}
+
+var _ inspectiontaskbase.LogIngesterV2 = (*containerLogIngester)(nil)
+
+// LogIngesterTask is the task that ingests log metadata into KHI v6 builder.
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+	googlecloudlogk8scontainer_contract.LogIngesterTaskID,
+	&containerLogIngester{},
+)
+
+// LogGrouperTask groups logs by associated Pod path.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogk8scontainer_contract.LogGrouperTaskID, googlecloudlogk8scontainer_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		// container log parser is stateless and it doesn't require grouping to work, but grouping them by its associated instance resource name for better performance to process them in parallel.
 		containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
 		if err != nil {
 			return "unknown"
 		}
-		return containerFields.ResourcePath().Path
+		return containerFields.GroupKey()
 	})
 
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID, &containerLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabel(`Kubernetes container logs`,
-		`Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.`,
-		enum.LogTypeContainer,
+// containerLogLogToTimelineMapper maps container logs to resource timelines.
+type containerLogLogToTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+}
+
+// LogIngesterTask returns the task reference of LogIngester.
+func (m *containerLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
+}
+
+// Dependencies returns task dependencies of this mapper.
+func (m *containerLogLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(),
+	}
+}
+
+// GroupedLogTask returns a reference to the task that provides grouped logs.
+func (m *containerLogLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudlogk8scontainer_contract.LogGrouperTaskID.Ref()
+}
+
+// ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
+func (m *containerLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
+	if err != nil {
+		return nil, struct{}{}, nil
+	}
+
+	clusterName := containerFields.ClusterName
+	if clusterName == "" || clusterName == "unknown" {
+		clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref())
+		clusterName = clusterIdentity.ClusterName
+	}
+
+	containerPath := googlecloudlogk8scontainer_contract.MustK8sContainerTimeline(
+		ctx,
+		clusterName,
+		containerFields.Namespace,
+		containerFields.PodName,
+		containerFields.ContainerName,
+	)
+
+	cs := khifilev6.NewTimelineChangeSet(l)
+	cs.AddEvent(containerPath)
+
+	return cs, struct{}{}, nil
+}
+
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*containerLogLogToTimelineMapper)(nil)
+
+// LogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry.
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](
+	googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID,
+	&containerLogLogToTimelineMapper{},
+	inspectioncore_contract.FeatureTaskLabelV2(
+		"Kubernetes container logs",
+		"Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.",
 		4000,
 		false,
 	),
 )
-
-type containerLogLogToTimelineMapperSetting struct {
-}
-
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
-}
-
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return googlecloudlogk8scontainer_contract.LogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogk8scontainer_contract.LogIngesterTaskID.Ref()
-}
-
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
-	if err != nil {
-		return struct{}{}, nil
-	}
-
-	cs.AddEvent(containerFields.ResourcePath())
-	cs.SetLogSummary(containerFields.Message)
-	return struct{}{}, nil
-}
-
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*containerLogLogToTimelineMapperSetting)(nil)
