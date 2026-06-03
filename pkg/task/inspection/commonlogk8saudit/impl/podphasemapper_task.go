@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,22 +16,25 @@ package commonlogk8saudit_impl
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var phaseToState = map[string]enum.RevisionState{
-	"Pending":   enum.RevisionStatePodPhasePending,
-	"Running":   enum.RevisionStatePodPhaseRunning,
-	"Succeeded": enum.RevisionStatePodPhaseSucceeded,
-	"Failed":    enum.RevisionStatePodPhaseFailed,
-	"Unknown":   enum.RevisionStatePodPhaseUnknown,
+var phaseToState = map[string]*pb.RevisionState{
+	"Pending":   commonlogk8saudit_contract.RevisionStatePodPhasePending,
+	"Running":   commonlogk8saudit_contract.RevisionStatePodPhaseRunning,
+	"Succeeded": commonlogk8saudit_contract.RevisionStatePodPhaseSucceeded,
+	"Failed":    commonlogk8saudit_contract.RevisionStatePodPhaseFailed,
+	"Unknown":   commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
 }
 
 type podPhaseTaskState struct {
@@ -43,139 +46,184 @@ type podPhaseTaskState struct {
 	uidToNodeNameMap map[string]string
 }
 
-type podPhaseLogToTimelineMapperTaskSetting struct {
+type podPhaseLogToTimelineMapperTaskSettingV2 struct {
+	// minimumDeltaTimeToCreateInferredCreationRevision is a threshold of a duration that controls if KHI should create an inferred creation revision from creationTimestamp.
 	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 }
 
-// Process processes the log to generate pod phase history.
-func (c *podPhaseLogToTimelineMapperTaskSetting) Process(ctx context.Context, passIndex int, event commonlogk8saudit_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
-	if state == nil {
-		state = &podPhaseTaskState{
-			uidToNodeNameMap: map[string]string{},
-		}
-	}
-	if event.EventTargetBodyReader == nil {
-		return state, nil
-	}
-
-	switch passIndex {
-	case 0:
-		return c.firstPass(ctx, event, cs, builder, state)
-	case 1:
-		return c.secondPass(ctx, event, cs, builder, state)
-	default:
-		return state, nil
-	}
-}
-
-// firstPass collects the node name of the pod.
-func (c *podPhaseLogToTimelineMapperTaskSetting) firstPass(ctx context.Context, event commonlogk8saudit_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
-	nodeName, found := GetNodeNameOfPod(event.EventTargetBodyReader)
-	if !found {
-		return state, nil
-	}
-	uid, _ := GetUID(event.EventTargetBodyReader)
-
-	if nodeName != "" && uid != "" {
-		state.uidToNodeNameMap[uid] = nodeName
-	}
-	return state, nil
-}
-
-// secondPass generates revisions for pod phase.
-func (c *podPhaseLogToTimelineMapperTaskSetting) secondPass(ctx context.Context, event commonlogk8saudit_contract.ResourceChangeEvent, cs *history.ChangeSet, builder *history.Builder, state *podPhaseTaskState) (*podPhaseTaskState, error) {
-	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
-	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-	uid, found := GetUID(event.EventTargetBodyReader)
-	if !found {
-		return state, nil
-	}
-	nodeName, found := state.uidToNodeNameMap[uid]
-	if !found {
-		return state, nil
-	}
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeTargetCreation {
-		creationTime, found := GetCreationTimestamp(event.EventTargetBodyReader)
-		if found && commonLogFieldSet.Timestamp.Sub(creationTime) > c.minimumDeltaTimeToCreateInferredCreationRevision {
-			cs.AddRevision(resourcepath.PodPhase(nodeName, event.EventTargetResource.Namespace, event.EventTargetResource.Name, uid), &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbUnknown,
-				Body:       "# Pod exists during this period but no body information available",
-				Partial:    false,
-				Requestor:  "N/A",
-				ChangeTime: creationTime,
-				State:      enum.RevisionStatePodPhaseUnknown,
-			})
-		}
-	}
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeSourceCreation {
-		cs.AddRevision(resourcepath.PodPhase(nodeName, event.EventTargetResource.Namespace, event.EventTargetResource.Name, uid), &history.StagingResourceRevision{
-			Verb:       k8sFieldSet.K8sOperation.Verb,
-			Body:       event.EventTargetBodyYAML,
-			Partial:    false,
-			Requestor:  k8sFieldSet.Principal,
-			ChangeTime: commonLogFieldSet.Timestamp,
-			State:      enum.RevisionStatePodPhaseScheduled,
-		})
-		return state, nil
-	}
-
-	phase, found := GetPodPhase(event.EventTargetBodyReader)
-	if !found {
-		return state, nil
-	}
-	if state.lastPhase != phase || state.lastNode != nodeName {
-		cs.AddRevision(resourcepath.PodPhase(nodeName, event.EventTargetResource.Namespace, event.EventTargetResource.Name, uid), &history.StagingResourceRevision{
-			Verb:       k8sFieldSet.K8sOperation.Verb,
-			Body:       event.EventTargetBodyYAML,
-			Partial:    false,
-			Requestor:  k8sFieldSet.Principal,
-			ChangeTime: commonLogFieldSet.Timestamp,
-			State:      phaseToState[phase],
-		})
-	}
-	state.lastPhase = phase
-	state.lastNode = nodeName
-	return state, nil
-}
-
-func (c *podPhaseLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (c *podPhaseLogToTimelineMapperTaskSetting) PassCount() int {
-	return 2
+// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) PassCount() int {
+	return 1
 }
 
-func (c *podPhaseLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-func (c *podPhaseLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-func (c *podPhaseLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[struct{}] {
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[struct{}] {
 	return commonlogk8saudit_contract.PodPhaseLogToTimelineMapperTaskID
 }
 
-func (c *podPhaseLogToTimelineMapperTaskSetting) ResourcePairs(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.ResourcePair, error) {
-	result := []commonlogk8saudit_contract.ResourcePair{}
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	for _, group := range groupedLogs {
-		// core/v1#pod#namespace#podnanme
-		if group.Resource.Type() != commonlogk8saudit_contract.Resource || group.Resource.APIVersion != "core/v1" || group.Resource.Kind != "pod" {
-			continue
+		if group.Resource.Type() == commonlogk8saudit_contract.Resource && group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod" {
+			bindingGroup := groupedLogs[group.Resource.SubresourceIdentity("binding").ResourcePathString()]
+			result = append(result, commonlogk8saudit_contract.RelatedGroupSet{
+				Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+					"pod":     group,
+					"binding": bindingGroup,
+				},
+			})
 		}
-		result = append(result, commonlogk8saudit_contract.ResourcePair{
-			TargetGroup: group.Resource,
-			SourceGroup: group.Resource.SubresourceIdentity("binding"),
-		})
 	}
 	return result, nil
 }
 
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperTaskSetting[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
+// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*podPhaseTaskState, error) {
+	if prevGroupData == nil {
+		prevGroupData = &podPhaseTaskState{
+			uidToNodeNameMap: map[string]string{},
+		}
+	}
+	if event.GroupRole != "pod" {
+		return prevGroupData, nil
+	}
+	bodyReader, ok := event.GetLastBodyReader("pod")
+	if !ok || bodyReader == nil {
+		return prevGroupData, nil
+	}
+	nodeName, found := GetNodeNameOfPod(bodyReader)
+	if !found {
+		return prevGroupData, nil
+	}
+	uid, _ := GetUID(bodyReader)
 
-// PodPhaseLogToTimelineMapperTask is the task to generate pod phase history.
-var PodPhaseLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSetting{
+	if nodeName != "" && uid != "" {
+		prevGroupData.uidToNodeNameMap[uid] = nodeName
+	}
+	return prevGroupData, nil
+}
+
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (c *podPhaseLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*khifilev6.TimelineChangeSet, *podPhaseTaskState, error) {
+	if prevGroupData == nil {
+		prevGroupData = &podPhaseTaskState{
+			uidToNodeNameMap: map[string]string{},
+		}
+	}
+
+	cs := khifilev6.NewTimelineChangeSet(event.Log)
+
+	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
+	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+
+	var targetBodyReader *structured.NodeReader
+	if reader, ok := event.GetLastBodyReader("pod"); ok {
+		targetBodyReader = reader
+	}
+
+	uid, found := GetUID(targetBodyReader)
+	if !found {
+		return cs, prevGroupData, nil
+	}
+
+	nodeName, found := prevGroupData.uidToNodeNameMap[uid]
+	if !found {
+		return cs, prevGroupData, nil
+	}
+
+	if event.GroupRole == "binding" {
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation {
+			targetPath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, event.GroupSet.Roles["pod"].Resource.Namespace, event.GroupSet.Roles["pod"].Resource.Name, uid)
+			var bodyNode structured.Node
+			if targetBodyReader != nil {
+				bodyNode = targetBodyReader.Node
+			}
+			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+				ChangedTime:  commonLogFieldSet.Timestamp,
+				ResourceBody: bodyNode,
+				Principal:    k8sFieldSet.Principal,
+				VerbType:     k8sFieldSet.Verb,
+				StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseScheduled,
+			})
+		}
+		return cs, prevGroupData, nil
+	}
+
+	if event.GroupRole == "pod" {
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation {
+			creationTime, found := GetCreationTimestamp(targetBodyReader)
+			if found && commonLogFieldSet.Timestamp.Sub(creationTime) > c.minimumDeltaTimeToCreateInferredCreationRevision {
+				targetPath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, uid)
+				cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+					ChangedTime:  creationTime,
+					ResourceBody: nil,
+					Principal:    "N/A",
+					VerbType:     commonlogk8saudit_contract.VerbCreate,
+					StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+				})
+			}
+		}
+
+		phase, found := GetPodPhase(targetBodyReader)
+		if !found {
+			return cs, prevGroupData, nil
+		}
+
+		if prevGroupData.lastPhase != phase || prevGroupData.lastNode != nodeName {
+			targetPath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, uid)
+			var bodyNode structured.Node
+			if targetBodyReader != nil {
+				bodyNode = targetBodyReader.Node
+			}
+			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+				ChangedTime:  commonLogFieldSet.Timestamp,
+				ResourceBody: bodyNode,
+				Principal:    k8sFieldSet.Principal,
+				VerbType:     k8sFieldSet.Verb,
+				StateType:    phaseToState[phase],
+			})
+		}
+		prevGroupData.lastPhase = phase
+		prevGroupData.lastNode = nodeName
+	}
+
+	return cs, prevGroupData, nil
+}
+
+// MustPodPhaseTimelinePath resolves TimelinePath for PodPhase under Node timeline.
+func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namespace, podName, uid string) *khifilev6.TimelinePath {
+	cluster := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
+	api := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, cluster, "core/v1")
+	kind := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, api, "node")
+	nodePath := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kind, nodeName)
+
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	return builder.TimelineAccumulator.GetPath(nodePath, khifilev6.PathSegment{
+		Name: fmt.Sprintf("%s/%s[%s]", namespace, podName, uid),
+		Type: commonlogk8saudit_contract.TimelineTypePodPhase,
+	})
+}
+
+// Explicit interface compliance assertion.
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSettingV2)(nil)
+
+// PodPhaseLogToTimelineMapperTask is the V2 task to generate pod phase history.
+var PodPhaseLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSettingV2{
 	minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 })

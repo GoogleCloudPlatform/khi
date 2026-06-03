@@ -29,9 +29,7 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		}),
 	)
 	return coretask.RegisterTasks(scoped,
-		LogIngesterTask,
-		LogSummaryGrouperTask,
-		LogSummaryLogToTimelineMapperTask,
+		K8sAuditLogIngesterTask,
 		SuccessLogFilterTask,
 		NonSuccessLogFilterTask,
 		LogSorterTask,

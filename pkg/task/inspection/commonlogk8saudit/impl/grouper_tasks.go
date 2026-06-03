@@ -23,12 +23,33 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
+
+func mapPBVerbToRevisionVerb(verb *pb.Verb) enum.RevisionVerb {
+	if verb == nil {
+		return enum.RevisionVerbUnknown
+	}
+	switch verb.GetLabel() {
+	case "Create":
+		return enum.RevisionVerbCreate
+	case "Delete":
+		return enum.RevisionVerbDelete
+	case "Update":
+		return enum.RevisionVerbUpdate
+	case "Patch":
+		return enum.RevisionVerbPatch
+	case "DeleteCollection":
+		return enum.RevisionVerbDeleteCollection
+	default:
+		return enum.RevisionVerbUnknown
+	}
+}
 
 // NonSuccessLogGrouperTask groups logs by resource path.
 // K8s audit error logs are simply associated with timelines as events. They don't require any special grouping, so they use the resource associated with the original resource name modified by the request.
@@ -37,7 +58,7 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-		return fieldSet.K8sOperation.ResourcePath()
+		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
 	},
 )
 
@@ -120,8 +141,15 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 
 func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.KubernetesObjectOperation {
 	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-	op := fieldSet.K8sOperation
-	if fieldSet.K8sOperation.Verb == enum.RevisionVerbDeleteCollection {
+	op := &model.KubernetesObjectOperation{
+		APIVersion:      fieldSet.APIVersion,
+		PluralKind:      fieldSet.PluralKind,
+		Namespace:       fieldSet.Namespace,
+		Name:            fieldSet.ResourceName,
+		SubResourceName: fieldSet.SubresourceName,
+		Verb:            mapPBVerbToRevisionVerb(fieldSet.Verb),
+	}
+	if fieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection {
 		removedResourceNames := []*model.KubernetesObjectOperation{}
 		foundItemSource := false
 		if fieldSet.Response != nil {
