@@ -16,6 +16,7 @@ package ossclusterk8s_contract
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
@@ -110,3 +111,65 @@ func verbStringToVerb(verbStr string) *pb.Verb {
 		return commonlogk8saudit_contract.VerbUnknown
 	}
 }
+
+// OSSK8sEventFieldSet holds the structured data from a Kubernetes Event log.
+type OSSK8sEventFieldSet struct {
+	// APIVersion is the API version of the involved object.
+	APIVersion string
+	// ResourceKind is the kind of the involved object.
+	ResourceKind string
+	// Namespace is the namespace of the involved object.
+	Namespace string
+	// Resource is the name of the involved object.
+	Resource string
+	// Subresource is the subresource of the involved object.
+	Subresource string
+	// Reason is the short, machine-understandable string explaining why the event was triggered.
+	Reason string
+	// Message is the human-readable description of the status of this operation.
+	Message string
+}
+
+// Kind returns the kind of this FieldSet.
+func (o *OSSK8sEventFieldSet) Kind() string {
+	return "ossclusterk8s.khi.google.com/EventFieldSet"
+}
+
+// ResourceIdentity returns the ResourceIdentity representation of the involved object.
+func (o *OSSK8sEventFieldSet) ResourceIdentity() *commonlogk8saudit_contract.ResourceIdentity {
+	return &commonlogk8saudit_contract.ResourceIdentity{
+		APIVersion:      o.APIVersion,
+		Kind:            o.ResourceKind,
+		Name:            o.Resource,
+		Namespace:       o.Namespace,
+		SubresourceName: o.Subresource,
+	}
+}
+
+var _ log.FieldSet = (*OSSK8sEventFieldSet)(nil)
+
+// OSSK8sEventFieldSetReader extracts OSSK8sEventFieldSet from a raw log.
+type OSSK8sEventFieldSetReader struct{}
+
+// FieldSetKind returns the Kind of the field set this reader constructs.
+func (o *OSSK8sEventFieldSetReader) FieldSetKind() string {
+	return (&OSSK8sEventFieldSet{}).Kind()
+}
+
+// Read extracts event fields from `responseObject` of the Event log.
+func (o *OSSK8sEventFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	var result OSSK8sEventFieldSet
+	result.APIVersion = reader.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "core/v1")
+	if !strings.Contains(result.APIVersion, "/") {
+		result.APIVersion = "core/" + result.APIVersion
+	}
+	result.ResourceKind = strings.ToLower(reader.ReadStringOrDefault("responseObject.involvedObject.kind", "unknown"))
+	result.Namespace = reader.ReadStringOrDefault("responseObject.involvedObject.namespace", "cluster-scope")
+	result.Resource = reader.ReadStringOrDefault("responseObject.involvedObject.name", "unknown")
+	result.Subresource = reader.ReadStringOrDefault("responseObject.involvedObject.subresource", "")
+	result.Reason = reader.ReadStringOrDefault("responseObject.reason", "???")
+	result.Message = reader.ReadStringOrDefault("responseObject.message", "")
+	return &result, nil
+}
+
+var _ log.FieldSetReader = (*OSSK8sEventFieldSetReader)(nil)

@@ -15,6 +15,7 @@
 package ossclusterk8s_contract
 
 import (
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
@@ -28,7 +29,10 @@ var InputAuditLogFilesFormTaskID = taskid.NewDefaultImplementationID[upload.Uplo
 var AuditLogFileReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-reader")
 var NonEventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-non-event-audit")
 var EventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "audit-log-filter-event-audit")
-var OSSK8sEventLogParserTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-parser")
+var OSSK8sEventFieldSetReadTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "event-fieldset-read")
+var OSSK8sEventLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "event-log-ingester")
+var OSSK8sEventLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](OSSTaskPrefix + "event-log-grouper")
+var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-timeline-mapper")
 
 var OSSK8sAuditLogProviderTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "oss")
 var OSSK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogParserTailRef, "oss")
