@@ -30,9 +30,10 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
@@ -41,10 +42,13 @@ import (
 const ContainerdStartingMsg = "starting containerd"
 const ContainerdTerminationMsg = "Stop CRI service"
 
+// ContainerdLogFilterTask filters only containerd logs.
 var ContainerdLogFilterTask = newParserTypeFilterTask(googlecloudlogk8snode_contract.ContainerdLogFilterTaskID, googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID.Ref(), googlecloudlogk8snode_contract.Containerd)
 
+// ContainerdLogGroupTask groups containerd logs by node and component.
 var ContainerdLogGroupTask = newNodeAndComponentNameGrouperTask(googlecloudlogk8snode_contract.ContainerdLogGroupTaskID, googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref())
 
+// ContainerIDDiscoveryTask discovers mappings between container IDs and GKE pod containers.
 var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBuilder.DiscoveryTask(googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
@@ -120,6 +124,7 @@ var ContainerIDDiscoveryTask = commonlogk8saudit_contract.ContainerIDInventoryBu
 	},
 )
 
+// PodSandboxIDDiscoveryTask discovers mappings between pod sandbox IDs and GKE pods.
 var PodSandboxIDDiscoveryTask = inspectiontaskbase.NewProgressReportableInspectionTask(googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudlogk8snode_contract.ContainerdLogFilterTaskID.Ref(),
@@ -181,7 +186,6 @@ func processPodSandboxIDDiscoveryForLog(ctx context.Context, l *log.Log, finder 
 }
 
 func findPodSandboxIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (*googlecloudlogk8snode_contract.PodSandboxIDInfo, error) {
-	// RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id \"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1\"
 	msg, err := jsonPayloadMessage.MainMessage()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract main message: %w", err)
@@ -248,47 +252,51 @@ func findContainerIDInfo(jsonPayloadMessage *logutil.ParseStructuredLogResult) (
 	return nil, fmt.Errorf("container index information not found:%w", khierrors.ErrNotFound)
 }
 
-var ContainerdNodeLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8snode_contract.ContainerdLogLogToTimelineMapperTaskID, &containerdNodeLogLogToTimelineMapperSetting{})
+type containerdNodeLogLogToTimelineMapperSetting struct {
+	inspectiontaskbase.StatelessMapperBase
+}
 
-type containerdNodeLogLogToTimelineMapperSetting struct{}
-
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
 func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
 func (c *containerdNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8snode_contract.ContainerdLogGroupTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
 func (c *containerdNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	podSandboxIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
 	nodeLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 
-	checkStartingAndTerminationLog(cs, l, ContainerdStartingMsg, ContainerdTerminationMsg)
-	cs.AddEvent(nodeLogFieldSet.ResourcePath())
-	msg, err := nodeLogFieldSet.Message.MainMessage()
-	if err != nil {
-		return struct{}{}, err
-	}
+	cs := khifilev6.NewTimelineChangeSet(l)
+
+	nodeTimelinePath := MustK8sNodeTimeline(ctx, clusterName, nodeLogFieldSet.NodeName)
+	componentTimelinePath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, nodeTimelinePath, nodeLogFieldSet.Component)
+
+	checkStartingAndTerminationLog(ctx, cs, l, ContainerdStartingMsg, ContainerdTerminationMsg, componentTimelinePath)
+
+	cs.AddEvent(componentTimelinePath)
+
 	raw := nodeLogFieldSet.Message.Raw()
-	summaryReplaceMap := map[string]string{}
 	podFindResults := patternfinder.FindAllWithStarterRunes(raw, podSandboxIDFinder, false, '"', '=')
 
 	for _, result := range podFindResults {
-		cs.AddEvent(result.Value.ResourcePath())
-		summaryReplaceMap[result.Value.PodSandboxID] = toReadablePodSandboxName(result.Value.PodNamespace, result.Value.PodName)
+		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, result.Value.PodNamespace, result.Value.PodName)
+		cs.AddEvent(podTimelinePath)
 	}
 
 	containerFindResults := patternfinder.FindAllWithStarterRunes(raw, containerIDPatternFinder, false, '"', '=')
@@ -299,29 +307,18 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx cont
 			continue
 		}
 		pod := foundPod[0].Value
-		cs.AddEvent(result.Value.ResourcePath(pod.PodNamespace, pod.PodName))
-		summaryReplaceMap[result.Value.ContainerID] = toReadableContainerName(pod.PodNamespace, pod.PodName, result.Value.ContainerName)
+		podTimelinePath := MustK8sPodTimeline(ctx, clusterName, pod.PodNamespace, pod.PodName)
+		containerTimelinePath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, podTimelinePath, result.Value.ContainerName)
+		cs.AddEvent(containerTimelinePath)
 	}
 
-	severity, err := nodeLogFieldSet.Message.Severity()
-	if err == nil {
-		cs.SetLogSeverity(severity)
-	}
-	summary, err := parseDefaultSummary(nodeLogFieldSet.Message)
-	if summary == "" || err != nil {
-		summary = msg
-	}
-	for k, v := range summaryReplaceMap {
-		i := strings.Index(summary, k)
-		if i == -1 {
-			summary = fmt.Sprintf("%s %s", summary, v)
-		} else {
-			summary = strings.ReplaceAll(summary, k, v)
-		}
-	}
-	cs.SetLogSummary(summary)
-
-	return struct{}{}, nil
+	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*containerdNodeLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*containerdNodeLogLogToTimelineMapperSetting)(nil)
+
+// ContainerdNodeLogLogToTimelineMapperTask registers the mapper for containerd node component logs.
+var ContainerdNodeLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+	googlecloudlogk8snode_contract.ContainerdLogLogToTimelineMapperTaskID,
+	&containerdNodeLogLogToTimelineMapperSetting{},
+)

@@ -19,14 +19,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -288,18 +289,21 @@ func TestContainerdIDDiscoveryTask(t *testing.T) {
 			}
 		})
 	}
-
 }
 
-func TestContainerdLogToTimelineMapperTask(t *testing.T) {
+func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+	mapper := &containerdNodeLogLogToTimelineMapperSetting{}
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	builder := khifilev6.NewBuilder()
+
 	testCases := []struct {
 		desc                 string
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*commonlogk8saudit_contract.ContainerIdentity
-		asserter             []testchangeset.ChangeSetAsserter
+		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			desc:         "starting log for containerd",
@@ -308,22 +312,18 @@ func TestContainerdLogToTimelineMapperTask(t *testing.T) {
 				Component: "containerd",
 				NodeName:  "node-1",
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#containerd",
-					WantRevision: history.StagingResourceRevision{
-						Verb:       enum.RevisionVerbCreate,
-						State:      enum.RevisionStateExisting,
-						Requestor:  "containerd",
-						ChangeTime: testTime,
-					},
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#containerd",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: "starting containerd",
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
+						Principal:   "containerd",
+						ChangedTime: testTime,
+					})
 			},
 		},
 		{
@@ -333,22 +333,18 @@ func TestContainerdLogToTimelineMapperTask(t *testing.T) {
 				Component: "containerd",
 				NodeName:  "node-1",
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#containerd",
-					WantRevision: history.StagingResourceRevision{
-						Verb:       enum.RevisionVerbDelete,
-						State:      enum.RevisionStateDeleted,
-						Requestor:  "containerd",
-						ChangeTime: testTime,
-					},
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#containerd",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: "Stop CRI service",
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasRevision(wantComponentPath, &khifilev6.StagingRevision{
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
+						Principal:   "containerd",
+						ChangedTime: testTime,
+					})
 			},
 		},
 		{
@@ -365,16 +361,14 @@ func TestContainerdLogToTimelineMapperTask(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#containerd",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `RunPodSandbox for &PodSandboxMetadata{Name:podname,Uid:b86b49f2431d244c613996c6472eb864,Namespace:kube-system,Attempt:0,} returns sandbox id "【podname (Namespace: kube-system)】"`,
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath)
 			},
 		},
 		{
@@ -398,30 +392,26 @@ func TestContainerdLogToTimelineMapperTask(t *testing.T) {
 					ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
 				},
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#containerd",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname#fluentbit-gke-init",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `CreateContainer within sandbox "【podname (Namespace: kube-system)】" for &ContainerMetadata{Name:fluentbit-gke-init,Attempt:0,} returns container id "【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】"`,
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantContainerPath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath).
+					HasEvent(wantContainerPath)
 			},
 		},
 	}
+
 	for _, tc := range testCases {
-		logfmtParser := logutil.NewLogfmtTextParser()
 		t.Run(tc.desc, func(t *testing.T) {
-			// Mock the task results for dependencies
-			finder := patternfinder.NewNaivePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
+			podIDFinder := patternfinder.NewNaivePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
 			if tc.inputPodIDInfo != nil {
 				for k, v := range tc.inputPodIDInfo {
-					finder.AddPattern(k, v)
+					podIDFinder.AddPattern(k, v)
 				}
 			}
 			containerIDFinder := patternfinder.NewNaivePatternFinder[*commonlogk8saudit_contract.ContainerIdentity]()
@@ -431,25 +421,26 @@ func TestContainerdLogToTimelineMapperTask(t *testing.T) {
 				}
 			}
 
-			ctx := context.Background()
-			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), finder)
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster")
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
+
+			logfmtParser := logutil.NewLogfmtTextParser()
 			message := logfmtParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message
+
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: testTime},
 				tc.inputNodeLogFieldSet,
 			)
-			cs := history.NewChangeSet(l)
-			modifier := &containerdNodeLogLogToTimelineMapperSetting{}
-			_, err := modifier.ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
-			if err != nil {
-				t.Fatalf("ProcessLogByGroup() error = %v", err)
-			}
-			for _, asserter := range tc.asserter {
-				asserter.Assert(t, cs)
-			}
-		})
 
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			if err != nil {
+				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+			}
+
+			tc.assert(t, ctx, cs)
+		})
 	}
 }
