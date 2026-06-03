@@ -18,6 +18,7 @@ import { Environment } from '@marcbachmann/cel-js';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
+import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import {
   CELLog,
   CELTimeline,
@@ -46,6 +47,8 @@ export class CELTimelineFilterEnvironment {
   private readonly environment: Environment;
   private evaluator?: (ctx: CELTimeline) => boolean;
   private currentTimeline?: CELTimeline;
+  private currentTimelineStore?: TimelineStore;
+  private currentRawTimeline?: ReadonlyDomainElement<Timeline>;
 
   /**
    * Initializes the CEL Environment with unlistedVariablesAreDyn disabled to enforce strict variable registration.
@@ -150,6 +153,9 @@ export class CELTimelineFilterEnvironment {
       )
       .registerFunction('RB(list): bool', (v) =>
         matchTimelineRevisionBodyField(this.currentTimeline, '*', v),
+      )
+      .registerFunction('minSeverity(int): bool', (minOrder) =>
+        this.evaluateMinSeverity(Number(minOrder)),
       );
   }
 
@@ -189,21 +195,39 @@ export class CELTimelineFilterEnvironment {
   /**
    * Evaluates a raw Timeline element against the compiled CEL expression.
    *
-   * @param timeline - Raw Timeline element
-   * @returns True if the timeline passes the filter
+   * @param timeline - Raw Timeline element.
+   * @param timelineStore - The store managing timelines and severities.
+   * @returns True if the timeline passes the filter.
    */
-  public evaluate(timeline: ReadonlyDomainElement<Timeline>): boolean {
+  public evaluate(
+    timeline: ReadonlyDomainElement<Timeline>,
+    timelineStore: TimelineStore,
+  ): boolean {
     if (!this.evaluator) {
       return true; // Pass-through if no active expression
     }
 
     const celTimeline = toCelTimeline(timeline);
     this.currentTimeline = celTimeline;
+    this.currentTimelineStore = timelineStore;
+    this.currentRawTimeline = timeline;
     try {
       return this.evaluator(celTimeline);
     } finally {
       this.currentTimeline = undefined;
+      this.currentTimelineStore = undefined;
+      this.currentRawTimeline = undefined;
     }
+  }
+
+  private evaluateMinSeverity(minOrder: number): boolean {
+    if (!this.currentRawTimeline || !this.currentTimelineStore) {
+      return false;
+    }
+    const severities = this.currentTimelineStore.styleStore.severities.filter(
+      (s) => s.order >= minOrder,
+    );
+    return this.currentRawTimeline.hasSeverity(...severities);
   }
 }
 
