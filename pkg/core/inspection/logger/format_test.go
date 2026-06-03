@@ -124,6 +124,26 @@ func TestKHILogFormatHandler_WithAttrsAppends(t *testing.T) {
 	}
 }
 
+func TestKHILogFormatHandler_IgnoresControlAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	handler := NewKHIFormatLogger(&buf, false)
+
+	record := slog.NewRecord(time.Now(), slog.LevelInfo, "message", 0)
+	record.AddAttrs(
+		slog.String(LogKindAttrKey, "progress"),
+		slog.String("component", "parser"),
+	)
+
+	if err := handler.Handle(context.Background(), record); err != nil {
+		t.Fatalf("Handle() failed: %v", err)
+	}
+
+	expectedOutput := "global > INFO message component=parser\n"
+	if got := buf.String(); got != expectedOutput {
+		t.Errorf("mismatched log output:\ngot:  %q\nwant: %q", got, expectedOutput)
+	}
+}
+
 func TestKHILogFormatHandler_WithGroup(t *testing.T) {
 	handler1 := NewKHIFormatLogger(new(bytes.Buffer), false)
 	handler2 := handler1.WithGroup("my-group")

@@ -42,9 +42,10 @@ var colors = []string{
 }
 
 type KHILogFormatHandler struct {
-	out       io.Writer
-	withColor bool
-	attrs     []slog.Attr
+	out             io.Writer
+	withColor       bool
+	attrs           []slog.Attr
+	ignoredAttrKeys map[string]struct{}
 }
 
 // Enabled implements slog.Handler.
@@ -68,16 +69,11 @@ func (lh *KHILogFormatHandler) Handle(ctx context.Context, r slog.Record) error 
 
 // WithAttrs implements slog.Handler.
 func (lh *KHILogFormatHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	if len(attrs) == 0 {
-		return lh
-	}
-	newAttrs := make([]slog.Attr, 0, len(lh.attrs)+len(attrs))
-	newAttrs = append(newAttrs, lh.attrs...)
-	newAttrs = append(newAttrs, attrs...)
 	return &KHILogFormatHandler{
-		out:       lh.out,
-		attrs:     newAttrs,
-		withColor: lh.withColor,
+		out:             lh.out,
+		attrs:           append(append([]slog.Attr{}, lh.attrs...), attrs...),
+		withColor:       lh.withColor,
+		ignoredAttrKeys: lh.ignoredAttrKeys,
 	}
 }
 
@@ -96,12 +92,12 @@ func (lh *KHILogFormatHandler) formatMessage(r slog.Record) string {
 		attrs = append(attrs, attr)
 		return true
 	})
-	if len(attrs) == 0 {
-		return r.Message
-	}
 	formattedAttrs := make([]string, 0, len(attrs))
 	for _, attr := range attrs {
 		if attr.Key == "" {
+			continue
+		}
+		if lh.isIgnoredAttrKey(attr.Key) {
 			continue
 		}
 		value := attr.Value.Resolve()
@@ -111,6 +107,11 @@ func (lh *KHILogFormatHandler) formatMessage(r slog.Record) string {
 		return r.Message
 	}
 	return fmt.Sprintf("%s %s", r.Message, strings.Join(formattedAttrs, " "))
+}
+
+func (lh *KHILogFormatHandler) isIgnoredAttrKey(key string) bool {
+	_, found := lh.ignoredAttrKeys[key]
+	return found
 }
 
 func (lh *KHILogFormatHandler) taskIdToColor(tid string) string {
@@ -158,5 +159,8 @@ func NewKHIFormatLogger(out io.Writer, withColor bool) *KHILogFormatHandler {
 	return &KHILogFormatHandler{
 		out:       out,
 		withColor: withColor,
+		ignoredAttrKeys: map[string]struct{}{
+			LogKindAttrKey: {},
+		},
 	}
 }
