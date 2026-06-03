@@ -32,6 +32,11 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 		{
 			name: "full audit log",
 			input: map[string]any{
+				"resource": map[string]any{
+					"labels": map[string]any{
+						"project_id": "p1",
+					},
+				},
 				"operation": map[string]any{
 					"id":    "op-1",
 					"first": true,
@@ -55,6 +60,7 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 				},
 			},
 			want: &GCPAuditLogFieldSet{
+				ProjectID:      "p1",
 				OperationID:    "op-1",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -80,7 +86,8 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 			gotAudit := got.(*GCPAuditLogFieldSet)
 
 			// Compare fields except NodeReaders
-			if gotAudit.OperationID != tc.want.OperationID ||
+			if gotAudit.ProjectID != tc.want.ProjectID ||
+				gotAudit.OperationID != tc.want.OperationID ||
 				gotAudit.OperationFirst != tc.want.OperationFirst ||
 				gotAudit.OperationLast != tc.want.OperationLast ||
 				gotAudit.MethodName != tc.want.MethodName ||
