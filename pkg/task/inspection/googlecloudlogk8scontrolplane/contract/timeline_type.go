@@ -28,7 +28,7 @@ var (
 		"crown",
 		0.6,
 		style.ColorWhite,
-		style.ColorWhite,
+		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#FF5555"),
 		true,
 		11000,
