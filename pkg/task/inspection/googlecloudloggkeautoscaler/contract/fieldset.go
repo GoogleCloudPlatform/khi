@@ -22,6 +22,7 @@ import (
 )
 
 type AutoscalerLogFieldSet struct {
+	ClusterName   string
 	DecisionLog   *DecisionLog
 	NoDecisionLog *NoDecisionStatusLog
 	ResultInfoLog *ResultInfoLog
@@ -44,6 +45,7 @@ func (a *AutoscalerLogFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (a *AutoscalerLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result AutoscalerLogFieldSet
+	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "")
 	switch {
 	case reader.Has("jsonPayload.decision"):
 		decisionLog, err := parseDecisionFromReader(reader)
