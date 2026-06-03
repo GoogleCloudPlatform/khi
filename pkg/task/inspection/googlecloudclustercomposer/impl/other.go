@@ -18,14 +18,15 @@ import (
 	"context"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// AirflowOtherLogGrouperTask groups other Airflow logs.
 var AirflowOtherLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudclustercomposer_contract.AirflowOtherLogGrouperTaskID,
 	googlecloudclustercomposer_contract.AirflowOtherLogFilterTaskID.Ref(),
@@ -34,48 +35,93 @@ var AirflowOtherLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-var AirflowOtherLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
-	googlecloudclustercomposer_contract.AirflowOtherLogIngesterTaskID,
-	googlecloudclustercomposer_contract.AirflowOtherLogFilterTaskID.Ref(),
-)
+type otherLogIngester struct{}
 
-var AirflowOtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
-	googlecloudclustercomposer_contract.AirflowOtherLogToTimelineMapperTaskID,
-	&airflowOtherLogToTimelineMapperSetting{},
-)
+// RawLogTask returns the task reference that provides the raw logs to ingest.
+func (i *otherLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudclustercomposer_contract.AirflowOtherLogFilterTaskID.Ref()
+}
 
-type airflowOtherLogToTimelineMapperSetting struct{}
-
-func (c *airflowOtherLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies returns additional task dependencies of the ingester.
+func (i *otherLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (c *airflowOtherLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return googlecloudclustercomposer_contract.AirflowOtherLogGrouperTaskID.Ref()
-}
-
-func (c *airflowOtherLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudclustercomposer_contract.AirflowOtherLogIngesterTaskID.Ref()
-}
-
-func (c *airflowOtherLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	composerFieldSet, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+// ProcessLog is called for each log entry to customize log metadata (summary, severity, timestamp, etc.).
+func (i *otherLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
-		return struct{}{}, nil
+		return nil, err
+	}
+	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeComposerEnvironment)
+
+	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
+		cs.SetTimestamp(commonFS.Timestamp)
 	}
 
-	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
-	if err == nil {
-		cs.SetLogSummary(mainMessage.MainMessage)
-	}
-
-	commonField, err := log.GetFieldSet(l, &log.CommonFieldSet{})
-	if err == nil {
-		if commonField.Severity == enum.SeverityError || commonField.Severity == enum.SeverityWarning {
-			cs.SetLogSeverity(commonField.Severity)
+	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
+		if severityFS.Severity != nil && severityFS.Severity.Id != nil {
+			if severityFS.Severity.GetId() == inspectioncore_contract.SeverityError.GetId() ||
+				severityFS.Severity.GetId() == inspectioncore_contract.SeverityWarning.GetId() {
+				cs.SetSeverity(severityFS.Severity)
+			}
 		}
 	}
 
+	// Ensure severity is at least SeverityUnknown if not set.
+	if cs.Severity == nil {
+		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
+	}
+
+	if messageFS, err := log.GetFieldSet(l, &log.MainMessageFieldSet{}); err == nil {
+		cs.SetSummary(messageFS.MainMessage)
+	}
+
+	return cs, nil
+}
+
+var _ inspectiontaskbase.LogIngesterV2 = (*otherLogIngester)(nil)
+
+// AirflowOtherLogIngesterTask is the task that ingests other Airflow logs.
+var AirflowOtherLogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+	googlecloudclustercomposer_contract.AirflowOtherLogIngesterTaskID,
+	&otherLogIngester{},
+)
+
+type otherLogToTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
+}
+
+// LogIngesterTask returns a reference to the ingester task.
+func (m *otherLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudclustercomposer_contract.AirflowOtherLogIngesterTaskID.Ref()
+}
+
+// Dependencies returns additional task dependencies of the mapper.
+func (m *otherLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{
+		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
+		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
+	}
+}
+
+// GroupedLogTask returns a reference to the task that provides the grouped logs.
+func (m *otherLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudclustercomposer_contract.AirflowOtherLogGrouperTaskID.Ref()
+}
+
+// ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
+func (m *otherLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
+	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
+	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
+
+	composerFieldSet, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
+	if err != nil {
+		return nil, struct{}{}, nil
+	}
+
+	cs := khifilev6.NewTimelineChangeSet(l)
 	componentName := composerFieldSet.Component
 	if componentName == "" {
 		componentName = "unknown-component"
@@ -83,27 +129,27 @@ func (c *airflowOtherLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.C
 
 	mappedToTimeline := false
 	if composerFieldSet.WorkerID != "" {
-		cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowWorker", "cluster-scope", composerFieldSet.WorkerID, composerFieldSet.Component))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowWorker, composerFieldSet.WorkerID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.SchedulerID != "" {
-		cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowScheduler", "cluster-scope", composerFieldSet.SchedulerID, composerFieldSet.Component))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, composerFieldSet.SchedulerID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.DagProcessorManagerID != "" {
-		cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowDagProcessorManager", "cluster-scope", composerFieldSet.DagProcessorManagerID, composerFieldSet.Component))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowDagProcessorManager, composerFieldSet.DagProcessorManagerID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.TriggererID != "" {
-		cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowTriggerer", "cluster-scope", composerFieldSet.TriggererID, composerFieldSet.Component))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowTriggerer, composerFieldSet.TriggererID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.WebserverID != "" {
-		cs.AddEvent(resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "AirflowWebserver", "cluster-scope", composerFieldSet.WebserverID, composerFieldSet.Component))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowWebserver, composerFieldSet.WebserverID))
 		mappedToTimeline = true
 	}
 
@@ -111,9 +157,22 @@ func (c *airflowOtherLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.C
 		if composerFieldSet.Subservice != "" {
 			componentName = composerFieldSet.Subservice
 		}
-		rp := resourcepath.NameLayerGeneralItem("Apache Airflow", "Airflow components", "cluster-scope", componentName)
-		cs.AddEvent(rp)
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowComponent, componentName))
 	}
 
-	return struct{}{}, nil
+	return cs, struct{}{}, nil
 }
+
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*otherLogToTimelineMapper)(nil)
+
+// AirflowOtherLogToTimelineMapperTask is the task that maps other Airflow logs to timeline events.
+var AirflowOtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+	googlecloudclustercomposer_contract.AirflowOtherLogToTimelineMapperTaskID,
+	&otherLogToTimelineMapper{},
+	inspectioncore_contract.FeatureTaskLabelV2(
+		"Airflow Other Components Logs",
+		"Timeline mapping for other components' logs under Apache Airflow.",
+		1505,
+		false,
+	),
+)
