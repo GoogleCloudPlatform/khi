@@ -196,3 +196,74 @@ stageTimestamp: "2023-10-26T10:00:00Z"
 		})
 	}
 }
+
+func TestOSSK8sEventFieldSetReader(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		want  *OSSK8sEventFieldSet
+	}{
+		{
+			desc: "standard event log",
+			input: `
+responseObject:
+  involvedObject:
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    namespace: "default"
+    name: "test-deployment"
+    subresource: "status"
+  reason: "ScalingReplicaSet"
+  message: "Scaled up replica set test-deployment-123 to 3"
+`,
+			want: &OSSK8sEventFieldSet{
+				APIVersion:   "apps/v1",
+				ResourceKind: "deployment",
+				Namespace:    "default",
+				Resource:     "test-deployment",
+				Subresource:  "status",
+				Reason:       "ScalingReplicaSet",
+				Message:      "Scaled up replica set test-deployment-123 to 3",
+			},
+		},
+		{
+			desc: "default core apiVersion",
+			input: `
+responseObject:
+  involvedObject:
+    apiVersion: "v1"
+    kind: "Pod"
+    namespace: "default"
+    name: "test-pod"
+  reason: "Scheduled"
+  message: "Successfully assigned default/test-pod to node-1"
+`,
+			want: &OSSK8sEventFieldSet{
+				APIVersion:   "core/v1",
+				ResourceKind: "pod",
+				Namespace:    "default",
+				Resource:     "test-pod",
+				Subresource:  "",
+				Reason:       "Scheduled",
+				Message:      "Successfully assigned default/test-pod to node-1",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l, err := log.NewLogFromYAMLString(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse YAML test input to log: %v", err)
+			}
+			err = l.SetFieldSetReader(&OSSK8sEventFieldSetReader{})
+			if err != nil {
+				t.Errorf("failed to run OSSK8sEventFieldSetReader.Read(): %v", err)
+			}
+			got := log.MustGetFieldSet(l, &OSSK8sEventFieldSet{})
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("OSSK8sEventFieldSet mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
