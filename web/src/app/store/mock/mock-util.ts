@@ -141,7 +141,12 @@ function flattenObject(
   const result: { path: string; value: unknown }[] = [];
   for (const [key, val] of Object.entries(obj)) {
     const newPath = prefix ? `${prefix}\0${key}` : key;
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
+    if (
+      val &&
+      typeof val === 'object' &&
+      !Array.isArray(val) &&
+      Object.keys(val).length > 0
+    ) {
       result.push(...flattenObject(val as Record<string, unknown>, newPath));
     } else {
       result.push({ path: newPath, value: val });
