@@ -212,3 +212,67 @@ func (g *GCPDefaultSeverityFieldSetReader) Read(reader *structured.NodeReader) (
 }
 
 var _ log.FieldSetReader = (*GCPDefaultSeverityFieldSetReader)(nil)
+
+type GCPMainMessageFieldSet struct {
+	MainMessage string
+}
+
+// Kind implements FieldSet.
+func (d *GCPMainMessageFieldSet) Kind() string {
+	return "main_message"
+}
+
+var _ log.FieldSet = (*GCPMainMessageFieldSet)(nil)
+
+// jsonPayloadMessageFieldNames is the field names to look for the main message in jsonPayload, in order of priority.
+var jsonPayloadMessageFieldNames = []string{
+	"MESSAGE",
+	"message",
+	"msg",
+	"log",
+}
+
+// GCPMainMessageFieldSetReader read its main message from the content of log stored on Cloud Logging.
+// It treats fields as its main message in the order: `textPayload` > `jsonPayload.****` (**** would be `message`, `msg`...etc) > jsonPayload > labels
+type GCPMainMessageFieldSetReader struct{}
+
+func (g *GCPMainMessageFieldSetReader) FieldSetKind() string {
+	return (&GCPMainMessageFieldSet{}).Kind()
+}
+
+func (g *GCPMainMessageFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	result := &GCPMainMessageFieldSet{}
+	switch {
+	case reader.Has("protoPayload"):
+		return result, nil
+	case reader.Has("textPayload"):
+		result.MainMessage = reader.ReadStringOrDefault("textPayload", "")
+	case reader.Has("jsonPayload"):
+		foundMessageField := false
+		for _, fieldName := range jsonPayloadMessageFieldNames {
+			jsonPayloadMessage, err := reader.ReadString(fmt.Sprintf("jsonPayload.%s", fieldName))
+			if err == nil {
+				result.MainMessage = jsonPayloadMessage
+				foundMessageField = true
+				break
+			}
+		}
+		if !foundMessageField {
+			serialized, err := reader.Serialize("jsonPayload", &structured.JSONNodeSerializer{})
+			if err != nil {
+				return nil, err
+			}
+			result.MainMessage = string(serialized)
+		}
+	case reader.Has("labels"):
+		serialized, err := reader.Serialize("labels", &structured.JSONNodeSerializer{})
+		if err != nil {
+			return nil, err
+		}
+		result.MainMessage = string(serialized)
+	}
+
+	return result, nil
+}
+
+var _ log.FieldSetReader = (*GCPMainMessageFieldSetReader)(nil)
