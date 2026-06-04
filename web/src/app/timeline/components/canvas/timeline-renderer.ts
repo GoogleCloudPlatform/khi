@@ -268,6 +268,13 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
   }
 
   /**
+   * Invalidates cached styles, forcing UBOs to rebuild on next frame.
+   */
+  public invalidateStyles() {
+    this.revisionSharedResource.invalidateStyles();
+  }
+
+  /**
    * Requests a hit test at the specified coordinates.
    *
    * @param x The x-coordinate for the hit test.

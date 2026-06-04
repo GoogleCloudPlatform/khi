@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import {
-  LogType,
-  RevisionState,
-  RevisionVerb,
-  Severity,
-} from 'src/app/zzz-generated';
+type LogType = number;
+type RevisionState = number;
+type RevisionVerb = number;
+type Severity = number;
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
@@ -82,7 +80,7 @@ export class DemoViewModelBuilder {
     // Setup standard severities
     this.styleStore.addSeverities([
       {
-        id: Severity.SeverityUnknown,
+        id: 0, // SeverityUnknown
         label: 'Unknown',
         shortLabel: 'U',
         backgroundColor: { r: 0.502, g: 0.502, b: 0.502, a: 1 },
@@ -90,7 +88,7 @@ export class DemoViewModelBuilder {
         order: 0,
       },
       {
-        id: Severity.SeverityInfo,
+        id: 1, // SeverityInfo
         label: 'Info',
         shortLabel: 'I',
         backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
@@ -98,7 +96,7 @@ export class DemoViewModelBuilder {
         order: 1,
       },
       {
-        id: Severity.SeverityWarning,
+        id: 2, // SeverityWarning
         label: 'Warning',
         shortLabel: 'W',
         backgroundColor: { r: 1, g: 0.667, b: 0.267, a: 1 },
@@ -106,7 +104,7 @@ export class DemoViewModelBuilder {
         order: 2,
       },
       {
-        id: Severity.SeverityError,
+        id: 3, // SeverityError
         label: 'Error',
         shortLabel: 'E',
         backgroundColor: { r: 1, g: 0.224, b: 0.208, a: 1 },
@@ -114,7 +112,7 @@ export class DemoViewModelBuilder {
         order: 3,
       },
       {
-        id: Severity.SeverityFatal,
+        id: 4, // SeverityFatal
         label: 'Fatal',
         shortLabel: 'F',
         backgroundColor: { r: 0.667, g: 0.4, b: 0.667, a: 1 },
@@ -126,21 +124,21 @@ export class DemoViewModelBuilder {
     // Setup standard log types
     this.styleStore.addLogTypes([
       {
-        id: LogType.LogTypeUnknown,
+        id: 0, // LogTypeUnknown
         label: 'Unknown',
         description: 'Unknown log type',
         backgroundColor: { r: 0.502, g: 0.502, b: 0.502, a: 1 },
         foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
       },
       {
-        id: LogType.LogTypeAudit,
+        id: 1, // LogTypeAudit
         label: 'Audit',
         description: 'Audit log entry',
         backgroundColor: { r: 0, g: 0.502, b: 0, a: 1 },
         foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
       },
       {
-        id: LogType.LogTypeEvent,
+        id: 2, // LogTypeEvent
         label: 'Event',
         description: 'Kubernetes Event',
         backgroundColor: { r: 1, g: 0.647, b: 0, a: 1 },
@@ -174,6 +172,7 @@ export class DemoViewModelBuilder {
           backgroundColor: { r: 33, g: 150, b: 243, a: 255 },
           foregroundColor: { r: 255, g: 255, b: 255, a: 255 },
           typeChipBackgroundColor: { r: 33, g: 150, b: 243, a: 255 },
+          typeChipForegroundColor: { r: 255, g: 255, b: 255, a: 255 },
           visible: true,
           sortPriority: id,
           height: 20,
@@ -219,8 +218,8 @@ export class DemoViewModelBuilder {
     this.logDTOs.push({
       id: logId,
       ts: BigInt(Math.floor(logTime)) * 1000000n,
-      logTypeId: LogType.LogTypeAudit,
-      severityTypeId: Severity.SeverityInfo,
+      logTypeId: 1, // LogTypeAudit
+      severityTypeId: 1, // SeverityInfo
       summaryStringId: this.getStringId(''),
       body: undefined,
     });

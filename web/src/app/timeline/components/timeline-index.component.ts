@@ -24,6 +24,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
 import { TimelineHighlight, TimelineHighlightType } from './interaction-model';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model-v2';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 export interface TreeGuideViewModel {
   readonly level: number;
@@ -85,8 +86,12 @@ export class TimelineIndexComponent {
   /** Current highlight state for timelines, keyed by timeline ID. */
   highlights = input<TimelineHighlight>({});
 
+  /** The StyleStore containing all color and layout styling definitions. */
+  styleStore = input<StyleStoreLike>();
+
   /** Computed view models for rendering the timeline index rows. */
   timelineVMs = computed<TimelineIndexViewModel[]>(() => {
+    this.styleStore()?.stylesUpdated?.();
     return this.toViewModelType(this.timelines());
   });
 
@@ -165,6 +170,12 @@ export class TimelineIndexComponent {
           chipBg.g,
           chipBg.b,
           chipBg.a,
+        ]),
+        '--timeline-chip-fg-color': RendererConvertUtil.hdrColorToCSSColor([
+          timeline.type.typeChipForegroundColor.r,
+          timeline.type.typeChipForegroundColor.g,
+          timeline.type.typeChipForegroundColor.b,
+          timeline.type.typeChipForegroundColor.a,
         ]),
         '--timeline-height': `${height}px`,
         '--timeline-layer': `${timeline.layer}`,

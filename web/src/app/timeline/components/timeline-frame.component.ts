@@ -66,7 +66,7 @@ import {
   TimelineHighlightType,
   TimelineChartItemHighlightType,
 } from './interaction-model';
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import {
   BASE_ROW_HEIGHT,
   TimelineChartStyle,
@@ -172,7 +172,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * The StyleStore containing all color and layout styling definitions.
    */
-  readonly styleStore = input.required<StyleStore>();
+  readonly styleStore = input.required<StyleStoreLike>();
 
   /**
    * The minimum time in milliseconds for the query range.

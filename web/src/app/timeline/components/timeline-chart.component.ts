@@ -174,6 +174,12 @@ export class TimelineChartComponent implements AfterViewInit {
 
   constructor() {
     effect(() => {
+      const chartViewModel = this.chartViewModel();
+      if (chartViewModel) {
+        chartViewModel.styleStore.stylesUpdated?.();
+        this.timelineRenderer.invalidateStyles();
+      }
+      this.invalidate.set(true);
       this.updateRendererParams();
     });
   }

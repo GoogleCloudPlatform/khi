@@ -24,7 +24,7 @@ import {
   TimelineHighlightType,
 } from 'src/app/timeline/components/interaction-model';
 import { RevisionStateStyle, Severity } from 'src/app/store/domain/style';
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 /**
  * Baseline height of a timeline row in pixels.
@@ -357,7 +357,7 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
  * Generates the default style configuration for the timeline ruler.
  */
 export function generateDefaultRulerStyle(
-  styleStore: StyleStore,
+  styleStore: StyleStoreLike,
 ): TimelineRulerStyle {
   const severities = styleStore.severities;
   const severityColors: { [severityId: number]: HDRColor4 } = {};

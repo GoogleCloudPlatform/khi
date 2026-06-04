@@ -21,6 +21,7 @@ import {
   signal,
   ViewContainerRef,
 } from '@angular/core';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   GoldenLayout,
   ComponentContainer,
@@ -31,6 +32,7 @@ import { TimelineSmartComponent } from '../../timeline/timeline-smart.component'
 import { LogSmartComponent } from '../../log/log-smart.component';
 import { DiffSmartComponent } from '../../diff/diff-smart.component';
 import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
+import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 
 /**
  * LayoutService manages the GoldenLayout instance and component registration.
@@ -38,6 +40,9 @@ import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
 @Injectable()
 export class LayoutService implements OnDestroy {
   private readonly menuManager = inject(MenuManager);
+  private readonly dialog = inject(MatDialog);
+  private styleOverrideDialogRef: MatDialogRef<StyleOverrideSmartComponent> | null =
+    null;
   /** The GoldenLayout instance. */
   private goldenLayout!: GoldenLayout;
 
@@ -221,6 +226,38 @@ export class LayoutService implements OnDestroy {
       action: () => {
         this.loadDefaultLayout();
       },
+    });
+    this.menuManager.addItem('view', {
+      id: 'style-override',
+      label: 'Style override Settings',
+      type: MenuItemType.Button,
+      icon: 'palette',
+      priority: 6,
+      action: () => {
+        this.openStyleOverrideDialog();
+      },
+    });
+  }
+
+  private openStyleOverrideDialog() {
+    if (this.styleOverrideDialogRef) {
+      return;
+    }
+    this.styleOverrideDialogRef = this.dialog.open(
+      StyleOverrideSmartComponent,
+      {
+        width: '400px',
+        height: '100vh',
+        maxHeight: '100vh',
+        position: {
+          right: '0px',
+          top: '0px',
+        },
+        hasBackdrop: false,
+      },
+    );
+    this.styleOverrideDialogRef.afterClosed().subscribe(() => {
+      this.styleOverrideDialogRef = null;
     });
   }
 
