@@ -65,7 +65,7 @@ describe('mock-util', () => {
 
   describe('objectToInternedStruct', () => {
     it('should successfully convert plain object to InternedStruct and decode back', () => {
-      const internPool = new InternPoolStore();
+      const internPool = InternPoolStore.create();
       const idState = { nextStringId: 1, nextFieldSetId: 1 };
 
       const original = {

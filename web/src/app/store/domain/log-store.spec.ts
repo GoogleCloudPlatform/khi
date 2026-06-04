@@ -31,7 +31,7 @@ describe('LogStore', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = new InternPoolStore();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
     store = new LogStore(internPool, styleStore);
 

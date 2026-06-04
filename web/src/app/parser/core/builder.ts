@@ -46,7 +46,7 @@ import {
  * Collects components in a version-decoupled form.
  */
 export class InspectionDataBuilder {
-  private readonly internPool = new InternPoolStore();
+  private readonly internPool = InternPoolStore.create();
   private readonly styleStore = new StyleStore();
   private readonly logStore: LogStore;
   private readonly timelineStore: TimelineStore;

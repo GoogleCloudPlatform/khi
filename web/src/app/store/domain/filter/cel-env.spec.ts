@@ -35,7 +35,7 @@ describe('CELTimelineFilterEnvironment', () => {
 
   beforeEach(() => {
     env = new CELTimelineFilterEnvironment();
-    internPool = new InternPoolStore();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
     logStore = new LogStore(internPool, styleStore);
     timelineStore = new TimelineStore(internPool, styleStore, logStore);

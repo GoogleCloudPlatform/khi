@@ -38,7 +38,7 @@ describe('TimelineStore', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = new InternPoolStore();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
     logStore = new LogStore(internPool, styleStore);
     store = new TimelineStore(internPool, styleStore, logStore);

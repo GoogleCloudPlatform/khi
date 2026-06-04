@@ -37,7 +37,7 @@ export default meta;
 type Story = StoryObj<TimelineLegendComponent>;
 
 function createMockTimeline(isKind: boolean): Timeline {
-  const internPool = new InternPoolStore();
+  const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
   const logStore = new LogStore(internPool, styleStore);
   const timelineStore = new TimelineStore(internPool, styleStore, logStore);
