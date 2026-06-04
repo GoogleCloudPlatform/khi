@@ -144,7 +144,7 @@ function generateMockLogs(
   severityRatio: { [severity in Severity]?: number },
 ): Log[] {
   const internPool = InternPoolStore.create();
-  const logStore = new LogStore(internPool, sharedStyleStore);
+  const logStore = LogStore.create(internPool, sharedStyleStore);
 
   const culmativeRatios: number[] = [];
   const severitiesList = [

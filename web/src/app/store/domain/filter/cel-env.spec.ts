@@ -37,8 +37,8 @@ describe('CELTimelineFilterEnvironment', () => {
     env = new CELTimelineFilterEnvironment();
     internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    logStore = new LogStore(internPool, styleStore);
-    timelineStore = new TimelineStore(internPool, styleStore, logStore);
+    logStore = LogStore.create(internPool, styleStore);
+    timelineStore = TimelineStore.create(internPool, styleStore, logStore);
   });
 
   it('should successfully compile a valid CEL expression', () => {

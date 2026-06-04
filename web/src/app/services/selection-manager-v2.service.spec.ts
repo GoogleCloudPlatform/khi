@@ -39,8 +39,8 @@ describe('SelectionManagerV2', () => {
 
     const internPool = InternPoolStore.create();
     const styleStore = new StyleStore();
-    logStore = new LogStore(internPool, styleStore);
-    timelineStore = new TimelineStore(internPool, styleStore, logStore);
+    logStore = LogStore.create(internPool, styleStore);
+    timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
     styleStore.addSeverities([
       {

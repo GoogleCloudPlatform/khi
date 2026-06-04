@@ -28,6 +28,8 @@ export interface StringEntryDTO {
   readonly value: string;
 }
 
+import { allocateBuffer, isSharedBuffer } from 'src/app/store/domain/types';
+
 /**
  * Represents an entry defining a set of field path names.
  */
@@ -47,8 +49,8 @@ export interface FieldPathSetEntryDTO {
  * This can be transferred to a WebWorker via postMessage.
  */
 export interface InternPoolSharedData {
-  readonly bufferSabs: readonly SharedArrayBuffer[];
-  readonly metadataSab: SharedArrayBuffer;
+  readonly bufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
+  readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
   readonly capacity: number;
   readonly fieldPathSets: readonly (readonly number[])[];
 }
@@ -65,7 +67,7 @@ export class InternPoolStore {
   /**
    * The SharedArrayBuffers backing the encoded string buffers.
    */
-  private readonly bufferSabs: SharedArrayBuffer[] = [];
+  private readonly bufferSabs: (SharedArrayBuffer | ArrayBuffer)[] = [];
 
   /**
    * Tracks the buffer index for each string ID (1-based index, 0 represents uninitialized).
@@ -85,7 +87,7 @@ export class InternPoolStore {
   /**
    * The single SharedArrayBuffer holding all metadata arrays.
    */
-  private metadataSab: SharedArrayBuffer;
+  private metadataSab: SharedArrayBuffer | ArrayBuffer;
 
   /**
    * Whether this store is read-only (for worker-side decoding).
@@ -121,7 +123,7 @@ export class InternPoolStore {
     this.readOnly = readOnly;
     if (typeof initialCapacityOrSharedData === 'number') {
       const initialCapacity = initialCapacityOrSharedData;
-      this.metadataSab = new SharedArrayBuffer(initialCapacity * 10);
+      this.metadataSab = allocateBuffer(initialCapacity * 10);
       this.bufferIndices = new Uint16Array(
         this.metadataSab,
         0,
@@ -208,7 +210,7 @@ export class InternPoolStore {
         this.maxBufferSize - this.currentOffset < encoded.length
       ) {
         const newSize = Math.max(this.maxBufferSize, encoded.length);
-        const sab = new SharedArrayBuffer(newSize);
+        const sab = allocateBuffer(newSize);
         this.bufferSabs.push(sab);
         this.buffers.push(new Uint8Array(sab));
         this.currentBufferIndex = this.buffers.length - 1;
@@ -261,9 +263,12 @@ export class InternPoolStore {
 
     const buffer = this.buffers[bufferIndex];
     const bytes = buffer.subarray(offset, offset + length);
-    const nonSharedBytes = new Uint8Array(length);
-    nonSharedBytes.set(bytes);
-    return this.decoder.decode(nonSharedBytes);
+    if (isSharedBuffer(bytes.buffer)) {
+      const nonSharedBytes = new Uint8Array(length);
+      nonSharedBytes.set(bytes);
+      return this.decoder.decode(nonSharedBytes);
+    }
+    return this.decoder.decode(bytes);
   }
 
   /**
@@ -310,7 +315,7 @@ export class InternPoolStore {
       newCapacity *= 2;
     }
 
-    const newMetadataSab = new SharedArrayBuffer(newCapacity * 10);
+    const newMetadataSab = allocateBuffer(newCapacity * 10);
     const newBufferIndices = new Uint16Array(newMetadataSab, 0, newCapacity);
     const newOffsets = new Uint32Array(
       newMetadataSab,

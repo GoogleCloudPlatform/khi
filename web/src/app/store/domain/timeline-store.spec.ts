@@ -22,7 +22,7 @@ import {
 } from 'src/app/store/domain/timeline-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
-import { LogStore } from 'src/app/store/domain/log-store';
+import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 import { create, toBinary } from '@bufbuild/protobuf';
 import {
   InternedStructSchema,
@@ -40,8 +40,8 @@ describe('TimelineStore', () => {
   beforeEach(() => {
     internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    logStore = new LogStore(internPool, styleStore);
-    store = new TimelineStore(internPool, styleStore, logStore);
+    logStore = LogStore.create(internPool, styleStore);
+    store = TimelineStore.create(internPool, styleStore, logStore);
 
     styleStore.addTimelineTypes([
       {
@@ -610,5 +610,132 @@ describe('TimelineStore', () => {
     expect(body3).toEqual({ user: 'alice' });
     expect(body3).not.toBe(body1);
     expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
+  });
+
+  it('should restore from shared memory using fromSharedData and enforce readOnly guard', () => {
+    internPool.addStrings([
+      { id: 20, value: 'user' },
+      { id: 21, value: 'alice' },
+    ]);
+    internPool.addFieldPathSets([{ id: 2, fieldPathStringIds: [20] }]);
+    const struct = create(InternedStructSchema, {
+      fieldPathSetId: 2,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 21 },
+        }),
+      ],
+    });
+    const rawBody = toBinary(InternedStructSchema, struct);
+
+    const timelines: TimelineDTO[] = [
+      {
+        id: 1,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [1],
+        eventIds: [],
+      },
+    ];
+
+    const revisions: RevisionDTO[] = [
+      {
+        id: 1,
+        logId: 1,
+        changedTime: 1000n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+        body: rawBody,
+      },
+    ];
+
+    // Mock logs initialization needed by severity indexing
+    const logs: LogDTO[] = [
+      { id: 1, ts: 1000n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
+    ];
+    logStore.initialize(logs, 1);
+
+    store.initialize(timelines, 1, revisions, 1, [], 0);
+
+    const sharedData = store.getSharedData();
+    const restoredStore = TimelineStore.fromSharedData(
+      internPool,
+      styleStore,
+      logStore,
+      sharedData,
+    );
+
+    expect(restoredStore.timelines.length).toBe(1);
+    const restoredTimeline = restoredStore.getTimeline(1);
+    expect(restoredTimeline.id).toBe(1);
+
+    const restoredRevisions = restoredTimeline.revisions;
+    expect(restoredRevisions.length).toBe(1);
+    expect(restoredRevisions[0].id).toBe(1);
+    expect(restoredRevisions[0].body).toEqual({ user: 'alice' });
+
+    expect(() => {
+      restoredStore.initialize(timelines, 1, revisions, 1, [], 0);
+    }).toThrowError('Cannot write to a shared read-only TimelineStore');
+  });
+
+  describe('ArrayBuffer fallback when SharedArrayBuffer is unsupported', () => {
+    let originalSharedArrayBuffer: typeof SharedArrayBuffer | undefined;
+
+    beforeEach(() => {
+      originalSharedArrayBuffer = SharedArrayBuffer;
+      (
+        globalThis as unknown as Record<
+          string,
+          typeof SharedArrayBuffer | undefined
+        >
+      )['SharedArrayBuffer'] = undefined;
+    });
+
+    afterEach(() => {
+      (
+        globalThis as unknown as Record<
+          string,
+          typeof SharedArrayBuffer | undefined
+        >
+      )['SharedArrayBuffer'] = originalSharedArrayBuffer;
+    });
+
+    it('should allocate ArrayBuffer instead of SharedArrayBuffer and perform operations successfully', () => {
+      const fallbackStore = TimelineStore.create(
+        internPool,
+        styleStore,
+        logStore,
+      );
+      const timelines: TimelineDTO[] = [
+        {
+          id: 1,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
+      ];
+      fallbackStore.initialize(timelines, 1, [], 0, [], 0);
+
+      expect(fallbackStore.timelines.length).toBe(1);
+      const timeline = fallbackStore.getTimeline(1);
+      expect(timeline.id).toBe(1);
+
+      const sharedData = fallbackStore.getSharedData();
+      expect(sharedData.metadataSab instanceof ArrayBuffer).toBeTrue();
+
+      const restoredStore = TimelineStore.fromSharedData(
+        internPool,
+        styleStore,
+        logStore,
+        sharedData,
+      );
+      expect(restoredStore.timelines.length).toBe(1);
+      expect(restoredStore.getTimeline(1).id).toBe(1);
+    });
   });
 });

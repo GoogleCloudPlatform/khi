@@ -63,8 +63,8 @@ export class InspectionDataBuilder {
   private iconAtlasPromise?: Promise<void>;
 
   constructor() {
-    this.logStore = new LogStore(this.internPool, this.styleStore);
-    this.timelineStore = new TimelineStore(
+    this.logStore = LogStore.create(this.internPool, this.styleStore);
+    this.timelineStore = TimelineStore.create(
       this.internPool,
       this.styleStore,
       this.logStore,

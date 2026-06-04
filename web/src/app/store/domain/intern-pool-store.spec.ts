@@ -209,4 +209,45 @@ describe('InternPoolStore', () => {
       sharedStore.addFieldPathSets([{ id: 200, fieldPathStringIds: [10] }]);
     }).toThrowError('Cannot write to a shared read-only InternPoolStore');
   });
+
+  describe('ArrayBuffer fallback when SharedArrayBuffer is unsupported', () => {
+    let originalSharedArrayBuffer: typeof SharedArrayBuffer | undefined;
+
+    beforeEach(() => {
+      originalSharedArrayBuffer = SharedArrayBuffer;
+      (
+        globalThis as unknown as Record<
+          string,
+          typeof SharedArrayBuffer | undefined
+        >
+      )['SharedArrayBuffer'] = undefined;
+    });
+
+    afterEach(() => {
+      (
+        globalThis as unknown as Record<
+          string,
+          typeof SharedArrayBuffer | undefined
+        >
+      )['SharedArrayBuffer'] = originalSharedArrayBuffer;
+    });
+
+    it('should allocate ArrayBuffer instead of SharedArrayBuffer and perform operations successfully', () => {
+      const fallbackStore = InternPoolStore.create();
+      fallbackStore.addStrings([
+        { id: 10, value: 'fallback-string-1' },
+        { id: 20, value: 'fallback-string-2' },
+      ]);
+
+      expect(fallbackStore.getString(10)).toBe('fallback-string-1');
+      expect(fallbackStore.getString(20)).toBe('fallback-string-2');
+
+      const sharedData = fallbackStore.getSharedData();
+      expect(sharedData.metadataSab instanceof ArrayBuffer).toBeTrue();
+      expect(sharedData.bufferSabs[0] instanceof ArrayBuffer).toBeTrue();
+
+      const reconstructedStore = InternPoolStore.fromSharedData(sharedData);
+      expect(reconstructedStore.getString(10)).toBe('fallback-string-1');
+    });
+  });
 });

@@ -45,8 +45,8 @@ import { getMinTimeSpanForHistogram } from '../calculator/human-friendly-tick';
 export class DemoViewModelBuilder {
   private readonly internPool = InternPoolStore.create();
   private readonly styleStore = new StyleStore();
-  private readonly logStore = new LogStore(this.internPool, this.styleStore);
-  private readonly timelineStore = new TimelineStore(
+  private readonly logStore = LogStore.create(this.internPool, this.styleStore);
+  private readonly timelineStore = TimelineStore.create(
     this.internPool,
     this.styleStore,
     this.logStore,

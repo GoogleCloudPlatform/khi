@@ -33,7 +33,7 @@ describe('LogStore', () => {
   beforeEach(() => {
     internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    store = new LogStore(internPool, styleStore);
+    store = LogStore.create(internPool, styleStore);
 
     // Avoid errors of missing keys in basic tests
     styleStore.addSeverities([
@@ -315,5 +315,104 @@ describe('LogStore', () => {
     expect(iteratedLogs.length).toBe(2);
     expect(iteratedLogs[0].id).toBe(1);
     expect(iteratedLogs[1].id).toBe(2);
+  });
+
+  it('should restore from shared memory using fromSharedData and enforce readOnly guard', () => {
+    internPool.addStrings([
+      { id: 20, value: 'user' },
+      { id: 21, value: 'alice' },
+    ]);
+    internPool.addFieldPathSets([{ id: 2, fieldPathStringIds: [20] }]);
+    const struct = create(InternedStructSchema, {
+      fieldPathSetId: 2,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 21 },
+        }),
+      ],
+    });
+    const rawBody = toBinary(InternedStructSchema, struct);
+
+    const logs: LogDTO[] = [
+      {
+        id: 1,
+        ts: 1000n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+        body: rawBody,
+      },
+    ];
+
+    store.initialize(logs, 1);
+
+    const sharedData = store.getSharedData();
+    const restoredStore = LogStore.fromSharedData(
+      internPool,
+      styleStore,
+      sharedData,
+    );
+
+    expect(restoredStore.count).toBe(1);
+    const restoredLog = restoredStore.getLog(1);
+    expect(restoredLog.id).toBe(1);
+    expect(restoredLog.timestamp).toBe(1000n);
+    expect(restoredLog.body).toEqual({ user: 'alice' });
+
+    expect(() => {
+      restoredStore.initialize(logs, 1);
+    }).toThrowError('Cannot write to a shared read-only LogStore');
+  });
+
+  describe('ArrayBuffer fallback when SharedArrayBuffer is unsupported', () => {
+    let originalSharedArrayBuffer: typeof SharedArrayBuffer | undefined;
+
+    beforeEach(() => {
+      originalSharedArrayBuffer = SharedArrayBuffer;
+      (
+        globalThis as unknown as Record<
+          string,
+          typeof SharedArrayBuffer | undefined
+        >
+      )['SharedArrayBuffer'] = undefined;
+    });
+
+    afterEach(() => {
+      (
+        globalThis as unknown as Record<
+          string,
+          typeof SharedArrayBuffer | undefined
+        >
+      )['SharedArrayBuffer'] = originalSharedArrayBuffer;
+    });
+
+    it('should allocate ArrayBuffer instead of SharedArrayBuffer and perform operations successfully', () => {
+      const fallbackStore = LogStore.create(internPool, styleStore);
+      const logs: LogDTO[] = [
+        {
+          id: 1,
+          ts: 1000n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 1,
+        },
+      ];
+      fallbackStore.initialize(logs, 1);
+
+      expect(fallbackStore.count).toBe(1);
+      const log = fallbackStore.getLog(1);
+      expect(log.id).toBe(1);
+
+      const sharedData = fallbackStore.getSharedData();
+      expect(sharedData.metadataSab instanceof ArrayBuffer).toBeTrue();
+
+      const restoredStore = LogStore.fromSharedData(
+        internPool,
+        styleStore,
+        sharedData,
+      );
+      expect(restoredStore.count).toBe(1);
+      expect(restoredStore.getLog(1).id).toBe(1);
+    });
   });
 });
