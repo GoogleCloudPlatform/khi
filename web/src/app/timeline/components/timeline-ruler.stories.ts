@@ -50,14 +50,6 @@ class RenderingLoopStarter implements OnInit {
   }
 }
 
-enum Severity {
-  SeverityUnknown = 0,
-  SeverityInfo = 1,
-  SeverityWarning = 2,
-  SeverityError = 3,
-  SeverityFatal = 4,
-}
-
 const sharedStyleStore = new StyleStore();
 sharedStyleStore.addSeverities([
   {
@@ -200,12 +192,14 @@ function generateViewModel(
 ): TimelineRulerViewModel {
   const calculator = new RulerViewModelBuilder();
   const allLogsCache = new HistogramCache(
+    sharedStyleStore.severities,
     logs,
     1000,
     START_TIME,
     START_TIME + DURATION,
   ); // 1s bucket
   const filteredLogsCache = new HistogramCache(
+    sharedStyleStore.severities,
     filteredLogs,
     1000,
     START_TIME,
