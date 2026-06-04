@@ -25,7 +25,7 @@ import {
   IncludeAncestorsFilter,
   ExcludeNoLogsFilter,
   IncludeDescendantsFilter,
-} from '../store/domain/filter/other-filter';
+} from 'src/app/store/domain/filter/other-filter';
 
 /**
  * Service to store and manage the active InspectionDataV2 domain model.

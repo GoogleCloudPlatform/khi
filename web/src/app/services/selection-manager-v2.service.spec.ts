@@ -15,7 +15,7 @@
  */
 
 import { TestBed } from '@angular/core/testing';
-import { SelectionManagerV2 } from './selection-manager-v2.service';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
@@ -68,41 +68,49 @@ describe('SelectionManagerV2', () => {
         id: 1,
         label: 'APIVersion',
         description: 'Kubernetes API Version',
+        icon: 'settings',
         backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
         foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
         typeChipBackgroundColor: { r: 0, g: 0, b: 1, a: 1 },
         visible: true,
         sortPriority: 1,
+        height: 1,
       },
       {
         id: 2,
         label: 'Kind',
         description: 'Kubernetes Resource Kind',
+        icon: 'workspaces',
         backgroundColor: { r: 0, g: 1, b: 0, a: 1 },
         foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
         typeChipBackgroundColor: { r: 0, g: 1, b: 0, a: 1 },
         visible: true,
         sortPriority: 2,
+        height: 1,
       },
       {
         id: 3,
         label: 'Namespace',
         description: 'Kubernetes Namespace',
+        icon: 'folder',
         backgroundColor: { r: 0.5, g: 0, b: 0.5, a: 1 },
         foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
         typeChipBackgroundColor: { r: 0.5, g: 0, b: 0.5, a: 1 },
         visible: true,
         sortPriority: 3,
+        height: 1,
       },
       {
         id: 4,
         label: 'Resource',
         description: 'Kubernetes Resource Instance',
+        icon: 'description',
         backgroundColor: { r: 1, g: 0.5, b: 0, a: 1 },
         foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
         typeChipBackgroundColor: { r: 1, g: 0.5, b: 0, a: 1 },
         visible: true,
         sortPriority: 4,
+        height: 1,
       },
     ]);
 
@@ -223,7 +231,7 @@ describe('SelectionManagerV2', () => {
   });
 
   it('should handle timeline selection', () => {
-    const timelines = timelineStore.getAllTimelines();
+    const timelines = timelineStore.timelines;
     const targetTimeline = timelines.find((t) => t.id === 4)!;
 
     service.onSelectTimeline(targetTimeline);
@@ -231,7 +239,7 @@ describe('SelectionManagerV2', () => {
   });
 
   it('should include descendants in selectedTimelinesWithChildren when timelineSelectionShouldIncludeChildren is true', () => {
-    const timelines = timelineStore.getAllTimelines();
+    const timelines = timelineStore.timelines;
     // Timeline 3 is 'Namespace: default', which parent of Timeline 4 ('Resource: mock-pod-1')
     const timeline3 = timelines.find((t) => t.id === 3)!;
     const timeline4 = timelines.find((t) => t.id === 4)!;
@@ -245,7 +253,7 @@ describe('SelectionManagerV2', () => {
   });
 
   it('should NOT include descendants in selectedTimelinesWithChildren when timelineSelectionShouldIncludeChildren is false', () => {
-    const timelines = timelineStore.getAllTimelines();
+    const timelines = timelineStore.timelines;
     const timeline3 = timelines.find((t) => t.id === 3)!;
     const timeline4 = timelines.find((t) => t.id === 4)!;
 
@@ -273,7 +281,7 @@ describe('SelectionManagerV2', () => {
   it('should automatically clear log/revision selection if newly selected timeline does not contain them (sync effect)', () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0];
-    const timelines = timelineStore.getAllTimelines();
+    const timelines = timelineStore.timelines;
     const unrelatedTimeline = timelines.find((t) => t.id === 1)!;
 
     // Select log (will select Log 1, Timeline 4, Revision 1)

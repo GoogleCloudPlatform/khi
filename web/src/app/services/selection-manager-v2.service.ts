@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Injectable, inject, signal, computed, effect } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 import { Log } from 'src/app/store/domain/log';
 import { Timeline, Revision, Event } from 'src/app/store/domain/timeline';
@@ -188,36 +188,13 @@ export class SelectionManagerV2 {
     return new Set();
   });
 
-  constructor() {
-    // Synchronize selection status when selected timeline changes.
-    effect(() => {
-      const timeline = this.selectedTimeline();
-      if (!timeline) return;
-
-      const log = this.selectedLog();
-      const revision = this.selectedRevision();
-
-      if (
-        log &&
-        timeline.lookupEventFromLog(log) === null &&
-        timeline.lookupRevisionFromLog(log) === null
-      ) {
-        // Clear log selection if it's not part of the newly selected timeline.
-        this.onSelectLog(null);
-      }
-
-      if (revision && timeline.lookupRevisionFromLog(revision.log) === null) {
-        this.selectedRevision.set(null);
-      }
-    });
-  }
-
   /**
    * Handles selection of a timeline.
    * If the timeline is missing or null, the selection is cleared.
    */
   public onSelectTimeline(timeline?: ReadonlyDomainElement<Timeline> | null) {
     this.selectedTimeline.set(timeline ?? null);
+    this.synchronizeSelection();
   }
 
   /**
@@ -242,6 +219,7 @@ export class SelectionManagerV2 {
    */
   public onSelectLog(log: ReadonlyDomainElement<Log> | null) {
     this.changeSelectionByLogInternal(log, false);
+    this.synchronizeSelection();
   }
 
   /**
@@ -250,6 +228,7 @@ export class SelectionManagerV2 {
   public onSelectEvent(event: ReadonlyDomainElement<Event>) {
     this.selectedTimeline.set(event.timeline);
     this.changeSelectionByLogInternal(event.log, true);
+    this.synchronizeSelection();
   }
 
   /**
@@ -258,11 +237,39 @@ export class SelectionManagerV2 {
   public onSelectRevision(revision: ReadonlyDomainElement<Revision> | null) {
     if (revision === null) {
       this.selectedRevision.set(null);
+      this.synchronizeSelection();
       return;
     }
     this.selectedRevision.set(revision);
     this.selectedTimeline.set(revision.timeline);
     this.changeSelectionByLogInternal(revision.log, true);
+    this.synchronizeSelection();
+  }
+
+  /**
+   * Synchronizes and validates selection status when any dependent signals change.
+   *
+   * Clears the log or revision selection if they are not part of the currently selected timeline.
+   */
+  private synchronizeSelection() {
+    const timeline = this.selectedTimeline();
+    if (!timeline) return;
+
+    const log = this.selectedLog();
+    const revision = this.selectedRevision();
+
+    if (
+      log &&
+      timeline.lookupEventFromLog(log) === null &&
+      timeline.lookupRevisionFromLog(log) === null
+    ) {
+      // Clear log selection if it is not part of the newly selected timeline.
+      this.onSelectLog(null);
+    }
+
+    if (revision && timeline.lookupRevisionFromLog(revision.log) === null) {
+      this.selectedRevision.set(null);
+    }
   }
 
   private changeSelectionByLogInternal(
@@ -270,10 +277,7 @@ export class SelectionManagerV2 {
     ignoreResourceSelect: boolean,
   ) {
     this.selectedLogId.set(log ? log.id : null);
-    if (ignoreResourceSelect) return;
-
-    const selectedLog = this.selectedLog();
-    if (!selectedLog) return;
+    if (ignoreResourceSelect || !log) return;
 
     const timelines = this.filteredTimelines();
 
@@ -282,12 +286,12 @@ export class SelectionManagerV2 {
     let relatedEvent: ReadonlyDomainElement<Event> | null = null;
     let targetTimeline: ReadonlyDomainElement<Timeline> | null = null;
     for (const timeline of timelines) {
-      relatedRevision = timeline.lookupRevisionFromLog(selectedLog);
+      relatedRevision = timeline.lookupRevisionFromLog(log);
       if (relatedRevision !== null) {
         targetTimeline = timeline;
         break;
       }
-      relatedEvent = timeline.lookupEventFromLog(selectedLog);
+      relatedEvent = timeline.lookupEventFromLog(log);
       if (relatedEvent !== null) {
         targetTimeline = timeline;
         break;
