@@ -146,6 +146,8 @@ message TimelineType {
   float height = 9;
   // type_chip_background_color is used for styling the type badge background in the timeline index or legend.
   HDRColor4 type_chip_background_color = 10;
+  // type_chip_foreground_color is used for styling the type badge foreground/text in the timeline index or legend.
+  HDRColor4 type_chip_foreground_color = 13;
 
   oneof sort_policy_config {
     // alphabetical_policy is the configuration for alphabetical sorting.

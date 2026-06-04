@@ -403,6 +403,13 @@ export declare type TimelineType = Message<'khifile.v6.TimelineType'> & {
   typeChipBackgroundColor?: HDRColor4;
 
   /**
+   * type_chip_foreground_color is used for styling the type badge foreground/text in the timeline index or legend.
+   *
+   * @generated from field: khifile.v6.HDRColor4 type_chip_foreground_color = 13;
+   */
+  typeChipForegroundColor?: HDRColor4;
+
+  /**
    * @generated from oneof khifile.v6.TimelineType.sort_policy_config
    */
   sortPolicyConfig:

@@ -28,6 +28,7 @@ var (
 		style.ColorWhite,
 		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#4285F4"),
+		style.ColorWhite,
 		true,
 		1100,
 		style.AlphabeticalSortPolicy(),

@@ -36,6 +36,7 @@ const createMockType = (
     b: color[2],
     a: color[3],
   },
+  typeChipForegroundColor: { r: 1, g: 1, b: 1, a: 1 },
   visible: true,
   sortPriority: 0,
   height: 24,

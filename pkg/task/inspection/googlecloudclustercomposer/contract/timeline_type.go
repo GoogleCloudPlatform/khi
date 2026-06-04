@@ -31,6 +31,7 @@ var (
 		style.ColorBlack,
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#4285F4"),
+		style.ColorWhite,
 		true,
 		10,
 		style.AlphabeticalSortPolicy(),
@@ -46,6 +47,7 @@ var (
 		style.MustForceConvertSRGBHex("#377e22"),
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#377e22"),
+		style.ColorWhite,
 		true,
 		20,
 		style.AlphabeticalSortPolicy(),
@@ -61,6 +63,7 @@ var (
 		style.MustForceConvertSRGBHex("#5cb239"),
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#5cb239"),
+		style.ColorWhite,
 		true,
 		30,
 		style.AlphabeticalSortPolicy(),
@@ -76,6 +79,7 @@ var (
 		style.MustForceConvertSRGBHex("#89ca6a"),
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#89ca6a"),
+		style.ColorWhite,
 		true,
 		40,
 		style.AlphabeticalSortPolicy(),
@@ -91,6 +95,7 @@ var (
 		style.MustForceConvertSRGBHex("#bce3a5"),
 		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#bce3a5"),
+		style.ColorBlack,
 		true,
 		50,
 		style.ChronologicalSortPolicy(1),
@@ -106,6 +111,7 @@ var (
 		style.ColorWhite,
 		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#377e22"),
+		style.ColorWhite,
 		true,
 		1501,
 		style.AlphabeticalSortPolicy(),
@@ -121,6 +127,7 @@ var (
 		style.MustForceConvertSRGBHex("#5cb239"),
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#5cb239"),
+		style.ColorWhite,
 		true,
 		60,
 		style.AlphabeticalSortPolicy(),
@@ -136,6 +143,7 @@ var (
 		style.MustForceConvertSRGBHex("#5cb239"),
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#5cb239"),
+		style.ColorWhite,
 		true,
 		70,
 		style.AlphabeticalSortPolicy(),
@@ -151,6 +159,7 @@ var (
 		style.MustForceConvertSRGBHex("#89ca6a"),
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#89ca6a"),
+		style.ColorWhite,
 		true,
 		80,
 		style.AlphabeticalSortPolicy(),
@@ -166,16 +175,17 @@ var (
 		style.ColorWhite,
 		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#A51915"),
+		style.ColorWhite,
 		true,
 		90,
 		style.AlphabeticalSortPolicy(),
 	)
 
 	// Components specific timelines (Actual log/event containers: White background)
-	TimelineTypeAirflowScheduler           = style.MustRegisterTimelineType("airflow_scheduler", "Airflow Scheduler", "schedule", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#4285F4"), true, 100, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowWorker              = style.MustRegisterTimelineType("airflow_worker", "Airflow Worker", "directions_run", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#0F9D58"), true, 110, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowDagProcessorManager = style.MustRegisterTimelineType("airflow_dag_processor_manager", "Airflow DAG Processor Manager", "summarize", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), true, 115, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowTriggerer           = style.MustRegisterTimelineType("airflow_triggerer", "Airflow Triggerer", "bolt", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#FFBB00"), true, 120, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowWebserver           = style.MustRegisterTimelineType("airflow_webserver", "Airflow Webserver", "web", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#9470DC"), true, 130, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowComponent           = style.MustRegisterTimelineType("airflow_component", "Airflow Component", "extension", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), true, 140, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowScheduler           = style.MustRegisterTimelineType("airflow_scheduler", "Airflow Scheduler", "schedule", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#4285F4"), style.ColorWhite, true, 100, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowWorker              = style.MustRegisterTimelineType("airflow_worker", "Airflow Worker", "directions_run", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#0F9D58"), style.ColorWhite, true, 110, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowDagProcessorManager = style.MustRegisterTimelineType("airflow_dag_processor_manager", "Airflow DAG Processor Manager", "summarize", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), style.ColorWhite, true, 115, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowTriggerer           = style.MustRegisterTimelineType("airflow_triggerer", "Airflow Triggerer", "bolt", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#FFBB00"), style.ColorBlack, true, 120, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowWebserver           = style.MustRegisterTimelineType("airflow_webserver", "Airflow Webserver", "web", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#9470DC"), style.ColorWhite, true, 130, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowComponent           = style.MustRegisterTimelineType("airflow_component", "Airflow Component", "extension", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), style.ColorWhite, true, 140, style.AlphabeticalSortPolicy())
 )
