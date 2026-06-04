@@ -33,14 +33,6 @@ import {
 } from 'src/app/store/domain/filter/cel-functions';
 import { Severity } from 'src/app/store/domain/style';
 
-const SEVERITY_LEVELS = {
-  UNKNOWN: 0n,
-  INFO: 1n,
-  WARNING: 2n,
-  ERROR: 3n,
-  FATAL: 4n,
-};
-
 /**
  * Manages the CEL Environment, compiles expressions, and evaluates raw Timelines.
  */
@@ -188,8 +180,7 @@ export class CELTimelineFilterEnvironment {
 
     try {
       const parsed = this.environment.parse(celExpr);
-      this.evaluator = (ctx) =>
-        Boolean(parsed({ t: ctx, ...ctx, ...SEVERITY_LEVELS }));
+      this.evaluator = (ctx) => Boolean(parsed(ctx));
       return { success: true };
     } catch (err) {
       this.evaluator = undefined;
@@ -325,8 +316,7 @@ export class CELLogFilterEnvironment {
 
     try {
       const parsed = this.environment.parse(celExpr);
-      this.evaluator = (ctx) =>
-        Boolean(parsed({ l: ctx, ...ctx, ...SEVERITY_LEVELS }));
+      this.evaluator = (ctx) => Boolean(parsed(ctx));
       return { success: true };
     } catch (err) {
       this.evaluator = undefined;

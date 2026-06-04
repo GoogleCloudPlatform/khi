@@ -23,6 +23,8 @@ import {
   Severity,
   TimelineType,
   Verb,
+  StyleProvider,
+  StyleStoreSharedData,
 } from 'src/app/store/domain/style';
 import { ReadonlyDomainElement } from './types';
 
@@ -70,18 +72,13 @@ export interface IconAtlasDTO {
  * Interface representing a provider of style configurations (severities, log types, etc.).
  * Structurally matches StyleStore and StyleOverrideService.
  */
-export interface StyleStoreLike {
-  readonly severities: ReadonlyDomainElement<Severity[]>;
-  readonly logTypes: ReadonlyDomainElement<LogType[]>;
-  readonly verbs: ReadonlyDomainElement<Verb[]>;
-  readonly revisionStates: ReadonlyDomainElement<RevisionState[]>;
-  readonly timelineTypes: ReadonlyDomainElement<TimelineType[]>;
+export interface StyleStoreLike extends StyleProvider {
+  /** Signal that emits when styles are updated. */
   readonly stylesUpdated?: Signal<number>;
-  getSeverity(id: number): ReadonlyDomainElement<Severity>;
-  getLogType(id: number): ReadonlyDomainElement<LogType>;
-  getVerb(id: number): ReadonlyDomainElement<Verb>;
-  getRevisionState(id: number): ReadonlyDomainElement<RevisionState>;
-  getTimelineType(id: number): ReadonlyDomainElement<TimelineType>;
+
+  /**
+   * Retrieves the parsed and initialized icon atlas.
+   */
   getIconAtlas(): IconAtlas | undefined;
 }
 
@@ -291,5 +288,31 @@ export class StyleStore implements StyleStoreLike {
    */
   public getIconAtlas(): IconAtlas | undefined {
     return this.iconAtlas;
+  }
+
+  /**
+   * Returns a shared representation of the style store data.
+   */
+  public getSharedData(): StyleStoreSharedData {
+    return {
+      severities: this.severities,
+      logTypes: this.logTypes,
+      verbs: this.verbs,
+      revisionStates: this.revisionStates,
+      timelineTypes: this.timelineTypes,
+    };
+  }
+
+  /**
+   * Reconstructs StyleStore from shared data.
+   */
+  public static fromSharedData(sharedData: StyleStoreSharedData): StyleStore {
+    const store = new StyleStore();
+    store.addSeverities(sharedData.severities);
+    store.addLogTypes(sharedData.logTypes);
+    store.addVerbs(sharedData.verbs);
+    store.addRevisionStates(sharedData.revisionStates);
+    store.addTimelineTypes(sharedData.timelineTypes);
+    return store;
   }
 }

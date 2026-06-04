@@ -60,7 +60,7 @@ describe('cel-functions', () => {
   });
 
   describe('matchTimelinePath', () => {
-    const mockTimeline: CELTimeline = {
+    const mockTimeline = {
       name: 'test-timeline',
       timelineType: 'pod',
       path: {
@@ -70,7 +70,7 @@ describe('cel-functions', () => {
       },
       events: [],
       revisions: [],
-    };
+    } as unknown as CELTimeline;
 
     it('should return false if timeline is undefined', () => {
       expect(matchTimelinePath(undefined, 'namespace', 'kube-system')).toBe(
@@ -130,7 +130,7 @@ describe('cel-functions', () => {
   });
 
   describe('matchLogField', () => {
-    const mockLog: CELLog = {
+    const mockLog = {
       logType: 'k8s',
       severity: 1n,
       summary: 'test-log',
@@ -149,7 +149,7 @@ describe('cel-functions', () => {
         },
       },
       bodyYAML: 'verb: CREATE\nobject:\n  metadata:\n    name: test-pod\n',
-    };
+    } as unknown as CELLog;
 
     it('should return false if log is undefined', () => {
       expect(matchLogField(undefined, 'verb', 'CREATE')).toBe(false);
@@ -222,7 +222,7 @@ describe('cel-functions', () => {
           summary: 'rev-1',
           body: {},
           bodyYAML: '',
-        },
+        } as unknown as CELLog,
         changedTime: 1000n,
         principal: 'user-1',
         verb: 'CREATE',
@@ -241,7 +241,7 @@ describe('cel-functions', () => {
           summary: 'rev-2',
           body: {},
           bodyYAML: '',
-        },
+        } as unknown as CELLog,
         changedTime: 2000n,
         principal: 'user-2',
         verb: 'UPDATE',
@@ -255,13 +255,13 @@ describe('cel-functions', () => {
       },
     ];
 
-    const mockTimeline: CELTimeline = {
+    const mockTimeline = {
       name: 'test-timeline',
       timelineType: 'pod',
       path: {},
       events: [],
       revisions: mockRevisions,
-    };
+    } as unknown as CELTimeline;
 
     it('should return false if timeline is undefined', () => {
       expect(

@@ -16,10 +16,9 @@
 
 import { Log } from 'src/app/store/domain/log';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
-import { StyleStore } from 'src/app/store/domain/style-store';
 import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
 import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
-import { LogType, Severity } from 'src/app/store/domain/style';
+import { LogType, Severity, StyleProvider } from 'src/app/store/domain/style';
 import {
   ReadonlyDomainElement,
   allocateBuffer,
@@ -91,7 +90,7 @@ export class LogStore {
 
   private constructor(
     private readonly internPool: InternPoolStore,
-    private readonly styleStore: StyleStore,
+    private readonly styleStore: StyleProvider,
     private readonly maxBufferSize: number,
     readOnly: boolean,
     initialData: number | LogStoreSharedData,
@@ -117,7 +116,7 @@ export class LogStore {
    */
   public static create(
     internPool: InternPoolStore,
-    styleStore: StyleStore,
+    styleStore: StyleProvider,
     maxBufferSize: number = 100 * 1024 * 1024,
   ): LogStore {
     return new LogStore(internPool, styleStore, maxBufferSize, false, 1024);
@@ -128,7 +127,7 @@ export class LogStore {
    */
   public static fromSharedData(
     internPool: InternPoolStore,
-    styleStore: StyleStore,
+    styleStore: StyleProvider,
     sharedData: LogStoreSharedData,
     maxBufferSize: number = 100 * 1024 * 1024,
   ): LogStore {

@@ -28,6 +28,11 @@ export interface CELLog {
   readonly summary: string;
   readonly body: Record<string, unknown>;
   readonly bodyYAML: string;
+  readonly UNKNOWN: bigint;
+  readonly INFO: bigint;
+  readonly WARNING: bigint;
+  readonly ERROR: bigint;
+  readonly FATAL: bigint;
 }
 
 /**
@@ -59,6 +64,11 @@ export interface CELTimeline {
   readonly path: Record<string, string>;
   readonly events: readonly CELEvent[];
   readonly revisions: readonly CELRevision[];
+  readonly UNKNOWN: bigint;
+  readonly INFO: bigint;
+  readonly WARNING: bigint;
+  readonly ERROR: bigint;
+  readonly FATAL: bigint;
 }
 
 /**
@@ -99,6 +109,11 @@ export function toCelLog(log: ReadonlyDomainElement<Log>): CELLog {
     get bodyYAML(): string {
       return log.bodyYAML ?? '';
     },
+    UNKNOWN: 0n,
+    INFO: 1n,
+    WARNING: 2n,
+    ERROR: 3n,
+    FATAL: 4n,
   };
 }
 
@@ -172,5 +187,10 @@ export function toCelTimeline(
     get revisions(): readonly CELRevision[] {
       return timeline.revisions.map((r) => toCelRevision(r));
     },
+    UNKNOWN: 0n,
+    INFO: 1n,
+    WARNING: 2n,
+    ERROR: 3n,
+    FATAL: 4n,
   };
 }
