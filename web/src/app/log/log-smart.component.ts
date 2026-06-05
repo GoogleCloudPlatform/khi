@@ -15,20 +15,20 @@
  */
 
 import { Component, computed, inject, signal } from '@angular/core';
-import { InspectionDataStoreV2 } from '../services/inspection-data-store-v2.service';
-import { SelectionManagerV2 } from '../services/selection-manager-v2.service';
-import { Log } from '../store/domain/log';
-import { ReadonlyDomainElement } from '../store/domain/types';
+import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { CommonModule } from '@angular/common';
 import { AngularSplitModule } from 'angular-split';
 import {
   LogContentComponent,
   LogContentViewModel,
-} from './components/log-content.component';
-import { ResourceRefAnnotationViewModel } from './components/resource-reference-list.component';
-import { LogListComponent } from './components/log-list.component';
+} from 'src/app/log/components/log-content.component';
+import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-reference-list.component';
+import { LogListComponent } from 'src/app/log/components/log-list.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ViewStateService } from '../services/view-state.service';
+import { ViewStateService } from 'src/app/services/view-state.service';
 import jsyaml from 'js-yaml';
 
 /**
@@ -148,7 +148,9 @@ export class LogSmartComponent {
         }
       }
 
-      const logBodyText = jsyaml.dump(log.body, { lineWidth: -1 });
+      const logBodyText = log.body
+        ? jsyaml.dump(log.body, { lineWidth: -1 })
+        : '';
       return {
         logEntry: log,
         logBody: logBodyText,

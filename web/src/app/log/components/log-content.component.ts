@@ -16,7 +16,7 @@
 
 import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LogContentHeaderComponent } from './log-content-header.component';
+import { LogContentHeaderComponent } from 'src/app/log/components/log-content-header.component';
 import { HighlightModule } from 'ngx-highlightjs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -28,7 +28,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 
-import { ResourceRefAnnotationViewModel } from './resource-reference-list.component';
+import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-reference-list.component';
 
 /**
  * View model aggregating the full detailed data required to render the log content and header.

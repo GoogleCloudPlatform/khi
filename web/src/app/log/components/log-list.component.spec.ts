@@ -15,10 +15,10 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LogListComponent } from './log-list.component';
-import { Log } from '../../store/domain/log';
-import { Timeline } from '../../store/domain/timeline';
-import { ReadonlyDomainElement } from '../../store/domain/types';
+import { LogListComponent } from 'src/app/log/components/log-list.component';
+import { Log } from 'src/app/store/domain/log';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
