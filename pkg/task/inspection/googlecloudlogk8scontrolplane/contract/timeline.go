@@ -24,20 +24,26 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// MustControlPlaneComponentTimeline returns the timeline path for a Kubernetes control plane component.
-func MustControlPlaneComponentTimeline(ctx context.Context, clusterName string, componentName string) *khifilev6.TimelinePath {
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, clusterName)
+// MustControlPlaneComponentTimeline returns the timeline path for a Kubernetes control plane component under a GKE cluster.
+func MustControlPlaneComponentTimeline(ctx context.Context, gkeTimeline *khifilev6.TimelinePath, componentName string) *khifilev6.TimelinePath {
+	if gkeTimeline == nil || gkeTimeline.Type.GetId() != googlecloudcommon_contract.TimelineTypeGKE.GetId() {
+		panic("parent timeline path must be GKE type")
+	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+	controlPlanesTimeline := builder.TimelineAccumulator.GetPath(gkeTimeline, khifilev6.PathSegment{
+		Name: "controlplanes",
+		Type: googlecloudcommon_contract.TimelineTypeGKEControlPlanes,
+	})
+	return builder.TimelineAccumulator.GetPath(controlPlanesTimeline, khifilev6.PathSegment{
 		Name: componentName,
 		Type: TimelineTypeControlPlaneComponent,
 	})
 }
 
 // MustControllerManagerControlPlaneTimeline returns the timeline path for a Kubernetes controller manager control plane component.
-func MustControllerManagerControlPlaneTimeline(ctx context.Context, clusterName string, controllerName string) *khifilev6.TimelinePath {
+func MustControllerManagerControlPlaneTimeline(ctx context.Context, gkeTimeline *khifilev6.TimelinePath, controllerName string) *khifilev6.TimelinePath {
 	if controllerName == "" {
-		return MustControlPlaneComponentTimeline(ctx, clusterName, "controller-manager")
+		return MustControlPlaneComponentTimeline(ctx, gkeTimeline, "controller-manager")
 	}
-	return MustControlPlaneComponentTimeline(ctx, clusterName, fmt.Sprintf("%s(controller-manager)", controllerName))
+	return MustControlPlaneComponentTimeline(ctx, gkeTimeline, fmt.Sprintf("%s(controller-manager)", controllerName))
 }

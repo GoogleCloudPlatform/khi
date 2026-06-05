@@ -24,15 +24,18 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// MustGKEClusterTimeline returns the timeline path for a GKE Cluster.
-func MustGKEClusterTimeline(ctx context.Context, clusterName string) *khifilev6.TimelinePath {
+// MustGKEClusterTimeline returns the timeline path for a GKE Cluster under a GCP Project.
+func MustGKEClusterTimeline(ctx context.Context, projectPath *khifilev6.TimelinePath, clusterName string) *khifilev6.TimelinePath {
+	if projectPath == nil || projectPath.Type.GetId() != TimelineTypeGCPProject.GetId() {
+		panic("parent timeline path must be GCP Project type")
+	}
 	if clusterName == "" {
 		clusterName = "unknown"
 		slog.WarnContext(ctx, "clusterName is empty, using unknown instead")
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
 		Name: clusterName,
 		Type: TimelineTypeGKE,
 	})
@@ -49,7 +52,11 @@ func MustGKENodePoolTimeline(ctx context.Context, gkeClusterTimeline *khifilev6.
 	}
 
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+	nodePoolsTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+		Name: "nodepools",
+		Type: TimelineTypeGKENodePools,
+	})
+	return builder.TimelineAccumulator.GetPath(nodePoolsTimeline, khifilev6.PathSegment{
 		Name: nodePoolName,
 		Type: TimelineTypeGKENodePool,
 	})

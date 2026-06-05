@@ -122,24 +122,25 @@ func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	if err != nil {
 		return nil, struct{}{}, err
 	}
+	projectID := autoscalerFieldSet.ProjectID
 	clusterName := autoscalerFieldSet.ClusterName
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
 	if autoscalerFieldSet.DecisionLog != nil {
-		err := mapDecision(ctx, clusterName, autoscalerFieldSet.DecisionLog, cs)
+		err := mapDecision(ctx, projectID, clusterName, autoscalerFieldSet.DecisionLog, cs)
 		if err != nil {
 			return nil, struct{}{}, err
 		}
 	}
 	if autoscalerFieldSet.NoDecisionLog != nil {
-		err := mapNoDecision(ctx, clusterName, autoscalerFieldSet.NoDecisionLog, cs)
+		err := mapNoDecision(ctx, projectID, clusterName, autoscalerFieldSet.NoDecisionLog, cs)
 		if err != nil {
 			return nil, struct{}{}, err
 		}
 	}
 	if autoscalerFieldSet.ResultInfoLog != nil {
-		err := mapResultInfo(ctx, clusterName, autoscalerFieldSet.ResultInfoLog, cs)
+		err := mapResultInfo(ctx, projectID, clusterName, autoscalerFieldSet.ResultInfoLog, cs)
 		if err != nil {
 			return nil, struct{}{}, err
 		}
@@ -227,18 +228,20 @@ func getResultInfoSummary(resultInfo *googlecloudloggkeautoscaler_contract.Resul
 	return fmt.Sprintf("autoscaler finished events: %s", strings.Join(statuses, ","))
 }
 
-func getAutoscalerTimeline(ctx context.Context, clusterName string) *khifilev6.TimelinePath {
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, clusterName)
+func getAutoscalerTimeline(ctx context.Context, projectID string, clusterName string) *khifilev6.TimelinePath {
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, projectID)
+	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterName)
 	return googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, clusterTimeline)
 }
 
-func getNodepoolTimeline(ctx context.Context, clusterName string, nodepoolName string) *khifilev6.TimelinePath {
-	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, clusterName)
+func getNodepoolTimeline(ctx context.Context, projectID string, clusterName string, nodepoolName string) *khifilev6.TimelinePath {
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, projectID)
+	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, clusterName)
 	return googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, nodepoolName)
 }
 
-func getMigTimeline(ctx context.Context, clusterName string, nodepoolName string, migName string) *khifilev6.TimelinePath {
-	nodepoolTimeline := getNodepoolTimeline(ctx, clusterName, nodepoolName)
+func getMigTimeline(ctx context.Context, projectID string, clusterName string, nodepoolName string, migName string) *khifilev6.TimelinePath {
+	nodepoolTimeline := getNodepoolTimeline(ctx, projectID, clusterName, nodepoolName)
 	return googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, migName)
 }
 
@@ -257,11 +260,11 @@ func getNodeTimeline(ctx context.Context, clusterName string, nodeName string) *
 	return commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, kindTimeline, nodeName)
 }
 
-func mapDecision(ctx context.Context, clusterName string, decision *googlecloudloggkeautoscaler_contract.DecisionLog, cs *khifilev6.TimelineChangeSet) error {
+func mapDecision(ctx context.Context, projectID string, clusterName string, decision *googlecloudloggkeautoscaler_contract.DecisionLog, cs *khifilev6.TimelineChangeSet) error {
 	if decision.ScaleUp != nil {
 		scaleUp := decision.ScaleUp
 		for _, mig := range scaleUp.IncreasedMigs {
-			migPath := getMigTimeline(ctx, clusterName, mig.Mig.Nodepool, mig.Mig.Name)
+			migPath := getMigTimeline(ctx, projectID, clusterName, mig.Mig.Nodepool, mig.Mig.Name)
 			cs.AddEvent(migPath)
 		}
 		for _, pod := range scaleUp.TriggeringPods {
@@ -274,7 +277,7 @@ func mapDecision(ctx context.Context, clusterName string, decision *googlecloudl
 		for _, nodeToBeRemoved := range scaleDown.NodesToBeRemoved {
 			nodePath := getNodeTimeline(ctx, clusterName, nodeToBeRemoved.Node.Name)
 			cs.AddEvent(nodePath)
-			migPath := getMigTimeline(ctx, clusterName, nodeToBeRemoved.Node.Mig.Nodepool, nodeToBeRemoved.Node.Mig.Name)
+			migPath := getMigTimeline(ctx, projectID, clusterName, nodeToBeRemoved.Node.Mig.Nodepool, nodeToBeRemoved.Node.Mig.Name)
 			cs.AddEvent(migPath)
 			for _, pod := range nodeToBeRemoved.EvictedPods {
 				podPath := getPodTimeline(ctx, clusterName, pod.Namespace, pod.Name)
@@ -285,10 +288,10 @@ func mapDecision(ctx context.Context, clusterName string, decision *googlecloudl
 	if decision.NodePoolCreated != nil {
 		nodePoolCreated := decision.NodePoolCreated
 		for _, nodepool := range nodePoolCreated.NodePools {
-			nodepoolPath := getNodepoolTimeline(ctx, clusterName, nodepool.Name)
+			nodepoolPath := getNodepoolTimeline(ctx, projectID, clusterName, nodepool.Name)
 			cs.AddEvent(nodepoolPath)
 			for _, mig := range nodepool.Migs {
-				migPath := getMigTimeline(ctx, clusterName, mig.Nodepool, mig.Name)
+				migPath := getMigTimeline(ctx, projectID, clusterName, mig.Nodepool, mig.Name)
 				cs.AddEvent(migPath)
 			}
 		}
@@ -296,27 +299,27 @@ func mapDecision(ctx context.Context, clusterName string, decision *googlecloudl
 	if decision.NodePoolDeleted != nil {
 		nodepoolDeleted := decision.NodePoolDeleted
 		for _, nodepool := range nodepoolDeleted.NodePoolNames {
-			nodepoolPath := getNodepoolTimeline(ctx, clusterName, nodepool)
+			nodepoolPath := getNodepoolTimeline(ctx, projectID, clusterName, nodepool)
 			cs.AddEvent(nodepoolPath)
 		}
 	}
-	autoscalerPath := getAutoscalerTimeline(ctx, clusterName)
+	autoscalerPath := getAutoscalerTimeline(ctx, projectID, clusterName)
 	cs.AddEvent(autoscalerPath)
 	return nil
 }
 
-func mapNoDecision(ctx context.Context, clusterName string, noDecision *googlecloudloggkeautoscaler_contract.NoDecisionStatusLog, cs *khifilev6.TimelineChangeSet) error {
+func mapNoDecision(ctx context.Context, projectID string, clusterName string, noDecision *googlecloudloggkeautoscaler_contract.NoDecisionStatusLog, cs *khifilev6.TimelineChangeSet) error {
 	if noDecision.NoScaleUp != nil {
 		noScaleUp := noDecision.NoScaleUp
 		for _, mig := range noScaleUp.SkippedMigs {
-			migPath := getMigTimeline(ctx, clusterName, mig.Mig.Nodepool, mig.Mig.Name)
+			migPath := getMigTimeline(ctx, projectID, clusterName, mig.Mig.Nodepool, mig.Mig.Name)
 			cs.AddEvent(migPath)
 		}
 		for _, groupItem := range noScaleUp.UnhandledPodGroups {
 			podPath := getPodTimeline(ctx, clusterName, groupItem.PodGroup.SamplePod.Namespace, groupItem.PodGroup.SamplePod.Name)
 			cs.AddEvent(podPath)
 			for _, rejectedMig := range groupItem.RejectedMigs {
-				migPath := getMigTimeline(ctx, clusterName, rejectedMig.Mig.Nodepool, rejectedMig.Mig.Name)
+				migPath := getMigTimeline(ctx, projectID, clusterName, rejectedMig.Mig.Nodepool, rejectedMig.Mig.Name)
 				cs.AddEvent(migPath)
 			}
 		}
@@ -331,16 +334,16 @@ func mapNoDecision(ctx context.Context, clusterName string, noDecision *googlecl
 			migs[node.Node.Mig.Id()] = node.Node.Mig
 		}
 		for _, mig := range migs {
-			migPath := getMigTimeline(ctx, clusterName, mig.Nodepool, mig.Name)
+			migPath := getMigTimeline(ctx, projectID, clusterName, mig.Nodepool, mig.Name)
 			cs.AddEvent(migPath)
 		}
 	}
-	autoscalerPath := getAutoscalerTimeline(ctx, clusterName)
+	autoscalerPath := getAutoscalerTimeline(ctx, projectID, clusterName)
 	cs.AddEvent(autoscalerPath)
 	return nil
 }
 
-func mapResultInfo(ctx context.Context, clusterName string, resultInfo *googlecloudloggkeautoscaler_contract.ResultInfoLog, cs *khifilev6.TimelineChangeSet) error {
+func mapResultInfo(ctx context.Context, projectID string, clusterName string, resultInfo *googlecloudloggkeautoscaler_contract.ResultInfoLog, cs *khifilev6.TimelineChangeSet) error {
 	commonFieldSet, err := log.GetFieldSet(cs.Log, &log.CommonFieldSet{})
 	if err != nil {
 		return err
@@ -360,7 +363,7 @@ func mapResultInfo(ctx context.Context, clusterName string, resultInfo *googlecl
 		return err
 	}
 
-	autoscalerPath := getAutoscalerTimeline(ctx, clusterName)
+	autoscalerPath := getAutoscalerTimeline(ctx, projectID, clusterName)
 	cs.AddRevision(autoscalerPath, &khifilev6.StagingRevision{
 		ChangedTime:  commonFieldSet.Timestamp,
 		StateType:    revisionState,

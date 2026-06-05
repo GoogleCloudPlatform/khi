@@ -20,21 +20,6 @@ import (
 )
 
 var (
-	// TimelineTypeProject is the timeline type for a Google Cloud project.
-	TimelineTypeProject = style.MustRegisterTimelineType(
-		"project",
-		"Google Cloud Project",
-		"cloud",
-		0.6,
-		style.MustForceConvertSRGBHex("#111111"),
-		style.ColorWhite,
-		style.MustForceConvertSRGBHex("#F5F5F5"),
-		style.ColorBlack,
-		true,
-		50,
-		style.AlphabeticalSortPolicy(),
-	)
-
 	// TimelineTypeMultiCloudCluster is the timeline type style for MultiCloud Cluster resources.
 	TimelineTypeMultiCloudCluster = style.MustRegisterTimelineType(
 		"multicloudCluster",

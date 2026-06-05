@@ -145,7 +145,8 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 		return nil, struct{}{}, err
 	}
 
-	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, resourceFieldSet.ClusterName)
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, auditFieldSet.ProjectID)
+	clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, resourceFieldSet.ClusterName)
 
 	var targetTimeline *khifilev6.TimelinePath
 	if resourceFieldSet.IsCluster() {

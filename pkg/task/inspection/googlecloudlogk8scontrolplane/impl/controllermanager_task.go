@@ -16,7 +16,6 @@ package googlecloudlogk8scontrolplane_impl
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
@@ -26,6 +25,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
@@ -135,7 +135,9 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage.Message, finder, false, o.uidPrefixTokenCandidates...)
 	writtenResourcePaths := map[uint32]struct{}{}
 
-	compTimeline := resolveControllerManagerTimelinePath(ctx, componentFieldSet.ClusterName, controllerManagerFieldSet.Controller)
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, componentFieldSet.ProjectID)
+	gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, componentFieldSet.ClusterName)
+	compTimeline := googlecloudlogk8scontrolplane_contract.MustControllerManagerControlPlaneTimeline(ctx, gkeTimeline, controllerManagerFieldSet.Controller)
 	cs.AddEvent(compTimeline)
 
 	for _, tPath := range controllerManagerFieldSet.AssociatedResourceTimelines(ctx, componentFieldSet.ClusterName) {
@@ -156,11 +158,3 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 }
 
 var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*ControllerManagerTimelineMapper)(nil)
-
-// resolveControllerManagerTimelinePath resolves a controller manager component timeline path.
-func resolveControllerManagerTimelinePath(ctx context.Context, clusterName string, controllerName string) *khifilev6.TimelinePath {
-	if controllerName == "" {
-		return googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, clusterName, "controller-manager")
-	}
-	return googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, clusterName, fmt.Sprintf("%s(controller-manager)", controllerName))
-}

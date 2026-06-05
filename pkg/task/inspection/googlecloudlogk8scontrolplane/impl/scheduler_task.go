@@ -23,6 +23,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
@@ -89,7 +90,9 @@ func (m *SchedulerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	compTimeline := googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, componentFieldSet.ProjectID)
+	gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, componentFieldSet.ClusterName)
+	compTimeline := googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, gkeTimeline, componentFieldSet.ComponentName)
 	cs.AddEvent(compTimeline)
 
 	if schedulerMessageFieldSet.HasPodField() {

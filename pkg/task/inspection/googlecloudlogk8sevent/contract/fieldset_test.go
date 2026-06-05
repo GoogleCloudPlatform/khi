@@ -42,6 +42,7 @@ jsonPayload:
   reason: Scheduled
   message: Successfully assigned default/test-pod to node-1`,
 			want: &KubernetesEventFieldSet{
+				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "core/v1",
 				ResourceKind: "pod",
@@ -65,6 +66,7 @@ jsonPayload:
   reason: ScalingReplicaSet
   message: Scaled up replica set test-deployment-xyz to 3`,
 			want: &KubernetesEventFieldSet{
+				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "apps/v1",
 				ResourceKind: "deployment",
@@ -88,6 +90,7 @@ jsonPayload:
   reason: ScalingReplicaSet
   action: Scaled up replica set test-deployment-xyz to 3`,
 			want: &KubernetesEventFieldSet{
+				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "apps/v1",
 				ResourceKind: "deployment",
@@ -104,6 +107,7 @@ jsonPayload:
     cluster_name: test-cluster
 textPayload: Event exporter started watching. Some events may have been lost up to this point.`,
 			want: &KubernetesEventFieldSet{
+				ProjectID:    "unknown",
 				ClusterName:  "test-cluster",
 				APIVersion:   "",
 				ResourceKind: "",

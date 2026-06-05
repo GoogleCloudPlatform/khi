@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
@@ -83,7 +84,9 @@ func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
-	compTimeline := googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, componentFieldSet.ClusterName, componentFieldSet.ComponentName)
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, componentFieldSet.ProjectID)
+	gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, componentFieldSet.ClusterName)
+	compTimeline := googlecloudlogk8scontrolplane_contract.MustControlPlaneComponentTimeline(ctx, gkeTimeline, componentFieldSet.ComponentName)
 	cs.AddEvent(compTimeline)
 
 	return cs, struct{}{}, nil

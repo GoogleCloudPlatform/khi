@@ -34,12 +34,17 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, "test-cluster")
-	wantCompTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
+	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
+	wantControlPlanesTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+		Name: "controlplanes",
+		Type: googlecloudcommon_contract.TimelineTypeGKEControlPlanes,
+	})
+	wantCompTimeline := builder.TimelineAccumulator.GetPath(wantControlPlanesTimeline, khifilev6.PathSegment{
 		Name: "deployment-controller(controller-manager)",
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
-	wantControlManagerTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+	wantControlManagerTimeline := builder.TimelineAccumulator.GetPath(wantControlPlanesTimeline, khifilev6.PathSegment{
 		Name: "controller-manager",
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
@@ -63,6 +68,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 		{
 			desc: "with standard input",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "controller-manager",
 			},
@@ -96,6 +102,7 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 		{
 			desc: "with unknown controller input",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "controller-manager",
 			},
