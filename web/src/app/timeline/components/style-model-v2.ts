@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-import { HDRColor4 } from 'src/app/timeline/components/canvas/convertutil';
+import {
+  HDRColor4,
+  RendererConvertUtil,
+} from 'src/app/timeline/components/canvas/convertutil';
 import { TickImportance } from 'src/app/timeline/components/timeline-ruler.viewmodel';
 import {
   TimelineChartItemHighlightType,
   TimelineHighlightType,
 } from 'src/app/timeline/components/interaction-model';
-import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { RevisionStateStyle, Severity } from 'src/app/store/domain/style';
 import { StyleStore } from 'src/app/store/domain/style-store';
 

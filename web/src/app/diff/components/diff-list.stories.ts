@@ -16,9 +16,9 @@
 
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { DiffListComponent } from './diff-list.component';
-import { Timeline } from '../../store/domain/timeline';
-import { Log } from '../../store/domain/log';
-import { ReadonlyDomainElement } from '../../store/domain/types';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 const mockLogs = [

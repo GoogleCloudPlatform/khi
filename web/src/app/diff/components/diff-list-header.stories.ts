@@ -16,8 +16,8 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { DiffListHeaderComponent } from './diff-list-header.component';
-import { Timeline } from '../../store/domain/timeline';
-import { ReadonlyDomainElement } from '../../store/domain/types';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 const mockTimeline = {
   id: 1,

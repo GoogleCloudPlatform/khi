@@ -16,8 +16,8 @@
 
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { DiffContentComponent } from './diff-content.component';
-import { Revision } from '../../store/domain/timeline';
-import { ReadonlyDomainElement } from '../../store/domain/types';
+import { Revision } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 const mockCurrentRevision = {} as ReadonlyDomainElement<Revision>;

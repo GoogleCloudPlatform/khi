@@ -176,6 +176,10 @@ export class TimelineRendererSharedResource {
     }
     this.lastIconAtlas = iconAtlas;
 
+    if (iconAtlas.msdfIconImage.length === 0) {
+      return;
+    }
+
     if (iconAtlas.msdfIconImage.length > 1) {
       // TODO: support multiple msdf icon atlas textures to support large number of icon varieties support.
       throw new Error('Multiple msdf icon images are not yet supported');

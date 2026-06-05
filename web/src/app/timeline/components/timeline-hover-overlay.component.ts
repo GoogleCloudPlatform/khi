@@ -231,7 +231,9 @@ export class TimelineHoverOverlayComponent {
         showSeverity: log.severity.id !== 0,
         severityLabel:
           log.severity.shortLabel ||
-          (log.severity.label ? log.severity.label[0].toUpperCase() : ''),
+          (log.severity.label
+            ? log.severity.label.charAt(0).toUpperCase()
+            : ''),
         statusContinous: StatusContinousMode.StartAndEnd,
         highlightType: highlightType,
         lastRevisionLog: log,
@@ -273,9 +275,7 @@ export class TimelineHoverOverlayComponent {
           log.severity.backgroundColor.b,
           log.severity.backgroundColor.a,
         ]),
-        severityLabel:
-          log.severity.shortLabel ||
-          (log.severity.label ? log.severity.label[0].toUpperCase() : ''),
+        severityLabel: log.severity.shortLabel,
         showSeverity: log.severity.id !== 0,
         statusContinous: StatusContinousMode.Middle,
         highlightType: highlightType,
