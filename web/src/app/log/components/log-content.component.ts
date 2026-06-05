@@ -16,25 +16,28 @@
 
 import { Component, computed, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LogContentHeaderComponent } from './log-content-header.component';
+import { LogContentHeaderComponent } from 'src/app/log/components/log-content-header.component';
 import { HighlightModule } from 'ngx-highlightjs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
-import { LogEntry } from 'src/app/store/log';
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { Log } from 'src/app/store/domain/log';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 
+import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-reference-list.component';
+
 /**
  * View model aggregating the full detailed data required to render the log content and header.
  */
 export interface LogContentViewModel {
-  logEntry: LogEntry | null;
+  logEntry: ReadonlyDomainElement<Log> | null;
   logBody: string;
   parsedLogBody: unknown;
-  referencedResourcePaths: string[];
+  resourceRefs: ResourceRefAnnotationViewModel[];
 }
 
 /**
@@ -75,18 +78,18 @@ export class LogContentComponent {
   /**
    * Output emitted when a resource timeline is clicked from the reference list.
    */
-  public resourceSelected = output<string>();
+  public timelineSelected = output<number>();
 
   /**
    * Output emitted when a resource timeline is hovered from the reference list.
    */
-  public resourceHighlighted = output<string>();
+  public timelineHighlighted = output<number>();
 
   /**
    * Input tracking the currently selected timeline to visually indicate selection state
    * in the resource reference list.
    */
-  public selectedTimeline = input<ResourceTimeline | null>(null);
+  public selectedTimeline = input<ReadonlyDomainElement<Timeline> | null>(null);
 
   private readonly timestampString = computed(() => {
     const parsed = this.vm()?.parsedLogBody as
@@ -98,12 +101,21 @@ export class LogContentComponent {
     return null;
   });
 
+  private readonly insertId = computed(() => {
+    const log = this.vm()?.logEntry;
+    if (!log) {
+      return null;
+    }
+    const id = log.body?.['insertId'];
+    return typeof id === 'string' && id.trim() !== '' ? id : null;
+  });
+
   /**
    * Determines if the "Copy Query" button should be visible.
-   * True only if a valid timestamp can be extracted from the loaded log body.
+   * True only if both a valid timestamp and insertId can be extracted from the loaded log body.
    */
   protected readonly showCopyQueryButton = computed(() => {
-    return this.timestampString() !== null;
+    return this.timestampString() !== null && this.insertId() !== null;
   });
 
   /**
@@ -124,13 +136,14 @@ export class LogContentComponent {
   copyLogQuery() {
     const log = this.vm()?.logEntry;
     const timestampString = this.timestampString();
-    if (!log || !timestampString) {
+    const insertId = this.insertId();
+    if (!log || !timestampString || !insertId) {
       return;
     }
     this.showCopySnackbarMessage(
       this.clipboard.copy(`(
 -- Log query for "${log.summary}"
-insertId="${log.insertId}"
+insertId="${insertId}"
 timestamp="${timestampString}"
 )`),
     );

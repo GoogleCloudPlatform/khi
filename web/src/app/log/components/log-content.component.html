@@ -21,10 +21,10 @@ limitations under the License.
     <khi-log-content-header
       [log]="l"
       [timezoneShift]="timezoneShift()"
-      [referencedResourcePaths]="viewModel.referencedResourcePaths"
+      [resourceRefs]="viewModel.resourceRefs"
       [selectedTimeline]="selectedTimeline()"
-      (resourceSelected)="resourceSelected.emit($event)"
-      (resourceHighlighted)="resourceHighlighted.emit($event)"
+      (timelineSelected)="timelineSelected.emit($event)"
+      (timelineHighlighted)="timelineHighlighted.emit($event)"
     ></khi-log-content-header>
     <div class="toolbar">
       <button

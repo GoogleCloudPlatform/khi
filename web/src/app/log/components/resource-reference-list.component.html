@@ -21,14 +21,18 @@ limitations under the License.
       <mat-icon>link</mat-icon>Related resources ({{ resolvedRefs.length }})
     </p>
     <div class="path-container">
-      @for (resource of resolvedRefs; track resource.path; let i = $index) {
+      @for (
+        resource of resolvedRefs;
+        track resource.timelineId;
+        let i = $index
+      ) {
         <p
           class="path"
           [ngClass]="{
-            current: currentSelectedTimelinePath() === resource.path,
+            current: selectedTimeline()?.id === resource.timelineId,
           }"
-          (mouseover)="highlightResource(resource.path)"
-          (click)="selectResource(resource.path)"
+          (mouseover)="highlightResource(resource.timelineId)"
+          (click)="selectResource(resource.timelineId)"
         >
           <span
             ><span class="index">{{ i }}</span

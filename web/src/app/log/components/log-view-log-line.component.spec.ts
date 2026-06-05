@@ -16,29 +16,22 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LogViewLogLineComponent } from './log-view-log-line.component';
-import { LogEntry } from 'src/app/store/log';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
 import { By } from '@angular/platform-browser';
-import { LogType, Severity } from 'src/app/zzz-generated';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
 
 describe('LogViewLogLineComponent', () => {
   let component: LogViewLogLineComponent;
   let fixture: ComponentFixture<LogViewLogLineComponent>;
-
-  const mockLog = new LogEntry(
-    1,
-    'mock-insert-id',
-    LogType.LogTypeUnknown,
-    Severity.SeverityUnknown,
-    1700000000000,
-    'Test summary',
-    ToTextReferenceFromKHIFileBinary({ offset: 0, len: 0, buffer: 0 }),
-    [],
-  );
+  let mockLog: ReadonlyDomainElement<Log>;
 
   beforeEach(async () => {
+    const mockData = await createMockInspectionDataV2();
+    mockLog = Array.from(mockData.logStore.logs())[0];
+
     await TestBed.configureTestingModule({
       imports: [LogViewLogLineComponent, MatTooltipModule, TimestampFormatPipe],
     }).compileComponents();
@@ -58,7 +51,7 @@ describe('LogViewLogLineComponent', () => {
 
   it('should display log message', () => {
     const messageEl = fixture.debugElement.query(By.css('.message'));
-    expect(messageEl.nativeElement.textContent).toContain('Test summary'); // The template uses logEntry.summary in the message div based on the diff we saw earlier
+    expect(messageEl.nativeElement.textContent).toContain(mockLog.summary);
   });
 
   it('should emit lineClick event on click', () => {
