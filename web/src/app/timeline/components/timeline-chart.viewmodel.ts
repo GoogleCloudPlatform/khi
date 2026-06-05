@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { StyleStore } from 'src/app/store/domain/style-store';
 
 export interface TimelineChartViewModel {
   inspectionDataUniqueID: string;
-  timelinesInDrawArea: ResourceTimeline[];
+  timelinesInDrawArea: ReadonlyDomainElement<Timeline>[];
   logBeginTime: number;
   logEndTime: number;
+  styleStore: StyleStore;
 }

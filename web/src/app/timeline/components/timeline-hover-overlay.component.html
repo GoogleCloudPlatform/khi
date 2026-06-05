@@ -41,13 +41,13 @@
                 [matTooltip]="prevLog.revisionStateLabel"
                 [style.--revision-state-color]="prevLog.revisionStateColor"
                 [class.style-normal]="
-                  prevLog.revisionStateStyle === RevisionStateStyle.Normal
+                  prevLog.revisionStateStyle === RevisionStateStyle.NORMAL
                 "
                 [class.style-partial-info]="
-                  prevLog.revisionStateStyle === RevisionStateStyle.PartialInfo
+                  prevLog.revisionStateStyle === RevisionStateStyle.PARTIAL_INFO
                 "
                 [class.style-deleted]="
-                  prevLog.revisionStateStyle === RevisionStateStyle.Deleted
+                  prevLog.revisionStateStyle === RevisionStateStyle.DELETED
                 "
                 [class.status-end]="
                   prevLog.statusContinous === StatusContinousMode.End ||
@@ -74,15 +74,15 @@
                   "
                   [class.style-normal]="
                     initialRevisionState.revisionStateStyle ===
-                    RevisionStateStyle.Normal
+                    RevisionStateStyle.NORMAL
                   "
                   [class.style-partial-info]="
                     initialRevisionState.revisionStateStyle ===
-                    RevisionStateStyle.PartialInfo
+                    RevisionStateStyle.PARTIAL_INFO
                   "
                   [class.style-deleted]="
                     initialRevisionState.revisionStateStyle ===
-                    RevisionStateStyle.Deleted
+                    RevisionStateStyle.DELETED
                   "
                   [class.status-end]="
                     initialRevisionState.statusContinous ===
@@ -117,13 +117,13 @@
               [matTooltip]="nextLog.revisionStateLabel"
               [style.--revision-state-color]="nextLog.revisionStateColor"
               [class.style-normal]="
-                nextLog.revisionStateStyle === RevisionStateStyle.Normal
+                nextLog.revisionStateStyle === RevisionStateStyle.NORMAL
               "
               [class.style-partial-info]="
-                nextLog.revisionStateStyle === RevisionStateStyle.PartialInfo
+                nextLog.revisionStateStyle === RevisionStateStyle.PARTIAL_INFO
               "
               [class.style-deleted]="
-                nextLog.revisionStateStyle === RevisionStateStyle.Deleted
+                nextLog.revisionStateStyle === RevisionStateStyle.DELETED
               "
               [class.status-start]="
                 nextLog.statusContinous === StatusContinousMode.Start ||

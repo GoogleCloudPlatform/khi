@@ -16,16 +16,84 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { DiffListHeaderComponent } from './diff-list-header.component';
-import { ResourceTimeline } from '../../store/timeline';
-import { ParentRelationship } from '../../zzz-generated';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
-const mockTimeline = new ResourceTimeline(
-  'timeline-id-1',
-  'api/v1#pods#default#nginx-deployment-6fbb6b7d-xyz#status',
-  [],
-  [],
-  ParentRelationship.RelationshipOwnerReference,
-);
+const mockTimeline = {
+  id: 1,
+  path: [
+    {
+      id: 1,
+      type: {
+        id: 1,
+        label: 'APIVersion',
+        description: '',
+        icon: 'settings',
+        backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        visible: true,
+        sortPriority: 1,
+      },
+      label: 'v1',
+    },
+    {
+      id: 2,
+      type: {
+        id: 2,
+        label: 'Kind',
+        description: '',
+        icon: 'workspaces',
+        backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        visible: true,
+        sortPriority: 2,
+      },
+      label: 'Pod',
+    },
+    {
+      id: 3,
+      type: {
+        id: 3,
+        label: 'Namespace',
+        description: '',
+        icon: 'folder',
+        backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        visible: true,
+        sortPriority: 3,
+      },
+      label: 'default',
+    },
+    {
+      id: 4,
+      type: {
+        id: 4,
+        label: 'Resource',
+        description: '',
+        icon: 'description',
+        backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        visible: true,
+        sortPriority: 4,
+      },
+      label: 'nginx-deployment-6fbb6b7d-xyz',
+    },
+    {
+      id: 5,
+      type: {
+        id: 5,
+        label: 'Subresource',
+        description: '',
+        icon: 'page_info',
+        backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+        visible: true,
+        sortPriority: 5,
+      },
+      label: 'status',
+    },
+  ],
+} as unknown as ReadonlyDomainElement<Timeline>;
 
 const meta: Meta<DiffListHeaderComponent> = {
   title: 'Diff/DiffListHeader',
@@ -43,13 +111,53 @@ export const Default: Story = {};
 
 export const RootResource: Story = {
   args: {
-    timeline: new ResourceTimeline(
-      'timeline-id-2',
-      'api/v1#namespaces#default',
-      [],
-      [],
-      ParentRelationship.RelationshipOwnerReference,
-    ),
+    timeline: {
+      id: 2,
+      path: [
+        {
+          id: 1,
+          type: {
+            id: 1,
+            label: 'APIVersion',
+            description: '',
+            icon: 'settings',
+            backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+            foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+            visible: true,
+            sortPriority: 1,
+          },
+          label: 'v1',
+        },
+        {
+          id: 2,
+          type: {
+            id: 2,
+            label: 'Kind',
+            description: '',
+            icon: 'workspaces',
+            backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+            foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+            visible: true,
+            sortPriority: 2,
+          },
+          label: 'Namespace',
+        },
+        {
+          id: 3,
+          type: {
+            id: 3,
+            label: 'Namespace',
+            description: '',
+            icon: 'folder',
+            backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+            foregroundColor: { r: 0, g: 0, b: 0, a: 0 },
+            visible: true,
+            sortPriority: 3,
+          },
+          label: 'default',
+        },
+      ],
+    } as unknown as ReadonlyDomainElement<Timeline>,
   },
 };
 

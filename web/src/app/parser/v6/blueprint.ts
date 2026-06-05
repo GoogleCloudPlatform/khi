@@ -216,12 +216,12 @@ export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
         id: t.id,
         label: t.label,
         description: t.description,
+        icon: t.icon,
         backgroundColor: mapColor(t.backgroundColor),
         foregroundColor: mapColor(t.foregroundColor),
         typeChipBackgroundColor: mapColor(t.typeChipBackgroundColor),
         visible: t.visible,
         sortPriority: t.sortPriority,
-        icon: t.icon,
         height: t.height,
       });
     }

@@ -61,8 +61,7 @@ export class TimelineView {
     ReadonlyDomainElement<Timeline>[]
   >(() => {
     const ctx = this.context();
-    const allTimelines = this.store.timelines;
-    return allTimelines.filter((t) => ctx.timelineIds.has(t.id));
+    return this.store.timelines.filter((t) => ctx.timelineIds.has(t.id));
   });
 
   /**

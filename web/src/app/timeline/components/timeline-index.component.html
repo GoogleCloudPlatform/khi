@@ -19,32 +19,35 @@
     <div
       class="index-container"
       [ngClass]="t.containerClasses"
+      [class.is-last-child]="t.isLastChild"
+      [style]="t.style"
       [style.z-index]="timelines.length - i"
       (mouseover)="mouseOverTimeline(t.timeline)"
       (click)="clickTimeline(t.timeline)"
     >
+      @for (level of t.levels; track level.level) {
+        <div
+          class="tree-guide"
+          [class.is-ancestor]="!level.isParent"
+          [class.is-parent]="level.isParent"
+          [class.is-last-child]="level.isLastChild"
+          [style.--guide-level]="level.level"
+        ></div>
+      }
+      @if (t.legendVisible && t.legendIcon) {
+        <mat-icon class="icon" [matTooltip]="t.layerName">{{
+          t.legendIcon
+        }}</mat-icon>
+      }
       <div class="index">
-        @if (t.relationshipMetadata.visible) {
-          <p
-            [ngClass]="['relationship-label', t.relationshipMetadata.label]"
-            [matTooltip]="t.relationshipMetadata.hint"
-          >
-            {{ t.relationshipMetadata.label }}
-          </p>
-        }
         <p class="main-name" [matTooltip]="t.name">{{ t.name }}</p>
         @if (t.subLabel !== "") {
           <p class="sub-label">{{ t.subLabel }}</p>
         }
+        @if (t.layerName) {
+          <span class="layer-name">{{ t.layerName }}</span>
+        }
       </div>
-      @if (t.legendVisible) {
-        <div class="legend">
-          @if (t.legendIcon) {
-            <mat-icon>{{ t.legendIcon }}</mat-icon>
-          }
-          <p class="legend-text">{{ t.layerName }}</p>
-        </div>
-      }
     </div>
   }
 </div>

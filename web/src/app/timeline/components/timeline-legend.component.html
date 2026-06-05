@@ -24,10 +24,6 @@
     @let t = timeline();
     @if (t === null) {
       <ng-container *ngTemplateOutlet="noTimelineSelected"></ng-container>
-    } @else if (t.layer <= TimelineLayer.Namespace) {
-      <ng-container
-        *ngTemplateOutlet="noResourceOrSubresourceSelected"
-      ></ng-container>
     } @else {
       @let tt = timelineTypeLegend();
       @if (tt !== null) {
@@ -69,10 +65,10 @@
                 class="revision-rect"
                 [style.--revision-color]="legend.color"
                 [ngClass]="{
-                  'style-normal': legend.style === RevisionStateStyle.Normal,
+                  'style-normal': legend.style === RevisionStateStyle.NORMAL,
                   'style-partial-info':
-                    legend.style === RevisionStateStyle.PartialInfo,
-                  'style-deleted': legend.style === RevisionStateStyle.Deleted,
+                    legend.style === RevisionStateStyle.PARTIAL_INFO,
+                  'style-deleted': legend.style === RevisionStateStyle.DELETED,
                 }"
               >
                 <mat-icon class="material-icons-outlined">{{

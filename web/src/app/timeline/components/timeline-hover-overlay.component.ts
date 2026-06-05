@@ -22,24 +22,11 @@ import {
   OutputEmitterRef,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import {
-  logTypeColors,
-  LogTypeMetadata,
-  logTypes,
-  revisionStatecolors,
-  RevisionStateMetadata,
-  revisionStates,
-  RevisionStateStyle,
-  RevisionVerbMetadata,
-  severities,
-  Severity,
-  severityColors,
-  SeverityMetadata,
-} from 'src/app/zzz-generated';
+import { RevisionStateStyle } from 'src/app/store/domain/style';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
-import { ResourceEvent } from 'src/app/store/event';
-import { LogEntry } from 'src/app/store/log';
-import { ResourceRevision } from 'src/app/store/revision';
+import { Revision, Event, Timeline } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { MatTooltip } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
 import {
@@ -48,13 +35,12 @@ import {
 } from './interaction-model';
 import { RendererConvertUtil } from './canvas/convertutil';
 import { TimelineChartMouseEvent } from './timeline-chart.component';
-import { ResourceTimeline } from 'src/app/store/timeline';
 
 export interface TimelineHoverOverlay {
-  timeline: ResourceTimeline;
-  revisions: ResourceRevision[];
-  events: ResourceEvent[];
-  initialRevision: ResourceRevision | null;
+  timeline: ReadonlyDomainElement<Timeline>;
+  revisions: ReadonlyDomainElement<Revision>[];
+  events: ReadonlyDomainElement<Event>[];
+  initialRevision: ReadonlyDomainElement<Revision> | null;
 }
 
 enum StatusContinousMode {
@@ -66,16 +52,16 @@ enum StatusContinousMode {
 
 interface TimelineHoverOverlayLogItem {
   uniqueID: string;
-  log: LogEntry;
-  revision?: ResourceRevision;
-  event?: ResourceEvent;
+  log: ReadonlyDomainElement<Log>;
+  revision?: ReadonlyDomainElement<Revision>;
+  event?: ReadonlyDomainElement<Event>;
   logIndex: number;
   isRevision: boolean;
   revisionStateColor: string;
   revisionStateLabel: string;
   revisionStateIcon: string;
   revisionStateStyle: RevisionStateStyle;
-  lastRevisionLog: LogEntry | null;
+  lastRevisionLog: ReadonlyDomainElement<Log> | null;
   logTypeColor: string;
   logTypeLabel: string;
   verbTypeColor: string;
@@ -97,14 +83,8 @@ interface InitialRevisionStateItem {
   statusContinous: StatusContinousMode;
 }
 
-interface InitialRevisionStateItem {
-  revisionStateStyle: RevisionStateStyle;
-  revisionStateColor: string;
-  statusContinous: StatusContinousMode;
-}
-
 interface TimelineHoverOverlayViewModel {
-  timeline: ResourceTimeline | null;
+  timeline: ReadonlyDomainElement<Timeline> | null;
   logs: TimelineHoverOverlayLogItem[];
   initialRevisionState: InitialRevisionStateItem | null;
 }
@@ -121,18 +101,15 @@ interface TimelineHoverOverlayViewModel {
   imports: [MatIconModule, KHIIconRegistrationModule, MatTooltip, CommonModule],
 })
 export class TimelineHoverOverlayComponent {
-  StatusContinousMode = StatusContinousMode;
-  RevisionStateStyle = RevisionStateStyle;
-  TimelineChartItemHighlightType = TimelineChartItemHighlightType;
+  protected readonly StatusContinousMode = StatusContinousMode;
+  protected readonly RevisionStateStyle = RevisionStateStyle;
+  protected readonly TimelineChartItemHighlightType =
+    TimelineChartItemHighlightType;
+
   /**
    * The data for the overlay, including the focused timeline and associated revisions/events.
    */
   timelineHoverOverlay = input<TimelineHoverOverlay | null>(null);
-
-  /**
-   * Complete list of log entries to look up details.
-   */
-  logs = input<LogEntry[]>([]);
 
   /**
    * Timezone shift in hours to adjust the displayed timestamps.
@@ -156,7 +133,7 @@ export class TimelineHoverOverlayComponent {
 
   handleMouse(
     e: MouseEvent,
-    timeline: ResourceTimeline,
+    timeline: ReadonlyDomainElement<Timeline>,
     log: TimelineHoverOverlayLogItem,
     o: OutputEmitterRef<TimelineChartMouseEvent>,
   ) {
@@ -198,7 +175,6 @@ export class TimelineHoverOverlayComponent {
         initialRevisionState: null,
       };
     }
-    const logs = this.logs();
     const highlights = this.highlights();
     const revisions = timelineHoverOverlay.revisions;
     const events = timelineHoverOverlay.events;
@@ -211,44 +187,53 @@ export class TimelineHoverOverlayComponent {
     // 1. Convert Revisions to LogItems
     for (let i = 0; i < revisions.length; i++) {
       const revision = revisions[i];
-      const revisionStateColor =
-        revisionStatecolors[revisionStates[revision.stateRaw]];
-      const log = logs[revision.logIndex];
-      const logColor = logTypeColors[logTypes[log.logType]];
-      const logTypeLabel = LogTypeMetadata[log.logType].label;
-      const revisionStateMetadata = RevisionStateMetadata[revision.stateRaw];
-      const revisionStateLabel = revisionStateMetadata.label;
-      const revisionStateIcon = revisionStateMetadata.icon;
-      const severityColor = severityColors[severities[log.severity]];
-      const severityLabel =
-        SeverityMetadata[log.severity].label[0].toUpperCase();
-      const verbTypeColor =
-        RevisionVerbMetadata[revision.lastMutationVerb].color;
-      const verbTypeLabel =
-        RevisionVerbMetadata[revision.lastMutationVerb].label;
+      const log = revision.log;
       const highlightType =
-        highlights[revision.logIndex] ?? TimelineChartItemHighlightType.None;
+        highlights[log.logIndex] ?? TimelineChartItemHighlightType.None;
       viewModel.logs.push({
         uniqueID: `revision-${i}`,
-        logIndex: revision.logIndex,
+        logIndex: log.logIndex,
         log: log,
         revision: revision,
         isRevision: true,
-        revisionStateColor:
-          RendererConvertUtil.hdrColorToCSSColor(revisionStateColor),
-        revisionStateLabel: revisionStateLabel,
-        revisionStateIcon: revisionStateIcon,
-        revisionStateStyle: revisionStateMetadata.style,
-        logTypeColor: RendererConvertUtil.hdrColorToCSSColor(logColor),
-        logTypeLabel: logTypeLabel,
-        verbTypeColor: RendererConvertUtil.hdrColorToCSSColor(verbTypeColor),
-        verbTypeLabel: verbTypeLabel,
-        timeMs: revision.startAt,
-        timeLabel: this.formatTimeLabel(revision.startAt),
+        revisionStateColor: RendererConvertUtil.hdrColorToCSSColor([
+          revision.state.backgroundColor.r,
+          revision.state.backgroundColor.g,
+          revision.state.backgroundColor.b,
+          revision.state.backgroundColor.a,
+        ]),
+        revisionStateLabel: revision.state.label,
+        revisionStateIcon: revision.state.icon,
+        revisionStateStyle: revision.state.style,
+        logTypeColor: RendererConvertUtil.hdrColorToCSSColor([
+          log.logType.backgroundColor.r,
+          log.logType.backgroundColor.g,
+          log.logType.backgroundColor.b,
+          log.logType.backgroundColor.a,
+        ]),
+        logTypeLabel: log.logType.label,
+        verbTypeColor: RendererConvertUtil.hdrColorToCSSColor([
+          revision.verb.backgroundColor.r,
+          revision.verb.backgroundColor.g,
+          revision.verb.backgroundColor.b,
+          revision.verb.backgroundColor.a,
+        ]),
+        verbTypeLabel: revision.verb.label,
+        timeMs: revision.legacyChangedTimeMs,
+        timeLabel: this.formatTimeLabel(revision.legacyChangedTimeMs),
         summary: log.summary,
-        severityColor: RendererConvertUtil.hdrColorToCSSColor(severityColor),
-        showSeverity: log.severity !== Severity.SeverityUnknown,
-        severityLabel: severityLabel,
+        severityColor: RendererConvertUtil.hdrColorToCSSColor([
+          log.severity.backgroundColor.r,
+          log.severity.backgroundColor.g,
+          log.severity.backgroundColor.b,
+          log.severity.backgroundColor.a,
+        ]),
+        showSeverity: log.severity.id !== 0,
+        severityLabel:
+          log.severity.shortLabel ||
+          (log.severity.label
+            ? log.severity.label.charAt(0).toUpperCase()
+            : ''),
         statusContinous: StatusContinousMode.StartAndEnd,
         highlightType: highlightType,
         lastRevisionLog: log,
@@ -259,34 +244,39 @@ export class TimelineHoverOverlayComponent {
     // 2. Convert Events to LogItems
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
-      const log = logs[event.logIndex];
-      const logColor = logTypeColors[logTypes[log.logType]];
-      const logTypeLabel = LogTypeMetadata[log.logType].label;
-      const severityColor = severityColors[severities[log.severity]];
-      const severityLabel =
-        SeverityMetadata[log.severity].label[0].toUpperCase();
+      const log = event.log;
       const highlightType =
-        highlights[event.logIndex] ?? TimelineChartItemHighlightType.None;
+        highlights[log.logIndex] ?? TimelineChartItemHighlightType.None;
       viewModel.logs.push({
         uniqueID: `event-${i}`,
         log: log,
         event: event,
-        logIndex: event.logIndex,
+        logIndex: log.logIndex,
         isRevision: false,
         revisionStateColor: '',
         revisionStateLabel: '',
         revisionStateIcon: '',
-        revisionStateStyle: RevisionStateStyle.Normal,
-        logTypeColor: RendererConvertUtil.hdrColorToCSSColor(logColor),
-        logTypeLabel: logTypeLabel,
+        revisionStateStyle: RevisionStateStyle.NORMAL,
+        logTypeColor: RendererConvertUtil.hdrColorToCSSColor([
+          log.logType.backgroundColor.r,
+          log.logType.backgroundColor.g,
+          log.logType.backgroundColor.b,
+          log.logType.backgroundColor.a,
+        ]),
+        logTypeLabel: log.logType.label,
         verbTypeColor: '',
         verbTypeLabel: '',
-        timeMs: event.ts,
-        timeLabel: this.formatTimeLabel(event.ts),
+        timeMs: event.legacyTimestamp,
+        timeLabel: this.formatTimeLabel(event.legacyTimestamp),
         summary: log.summary,
-        severityColor: RendererConvertUtil.hdrColorToCSSColor(severityColor),
-        severityLabel: severityLabel,
-        showSeverity: log.severity !== Severity.SeverityUnknown,
+        severityColor: RendererConvertUtil.hdrColorToCSSColor([
+          log.severity.backgroundColor.r,
+          log.severity.backgroundColor.g,
+          log.severity.backgroundColor.b,
+          log.severity.backgroundColor.a,
+        ]),
+        severityLabel: log.severity.shortLabel,
+        showSeverity: log.severity.id !== 0,
         statusContinous: StatusContinousMode.Middle,
         highlightType: highlightType,
         lastRevisionLog: null,
@@ -304,19 +294,21 @@ export class TimelineHoverOverlayComponent {
     let lastRevisionStateColor = 'transparent';
     let lastRevisionStateLabel = "status doesn't exist";
     let lastRevisionStateIcon = '';
-    let lastRevisionStateStyle = RevisionStateStyle.Normal;
+    let lastRevisionStateStyle = RevisionStateStyle.NORMAL;
     let lastRevisionLog = null;
     let lastRevisionHightlightType = TimelineChartItemHighlightType.None;
 
     if (timelineHoverOverlay.initialRevision) {
       const rev = timelineHoverOverlay.initialRevision;
-      lastRevisionStateColor = RendererConvertUtil.hdrColorToCSSColor(
-        revisionStatecolors[revisionStates[rev.stateRaw]],
-      );
-      const revMeta = RevisionStateMetadata[rev.stateRaw];
-      lastRevisionStateLabel = revMeta.label;
-      lastRevisionStateIcon = revMeta.icon;
-      lastRevisionStateStyle = revMeta.style;
+      lastRevisionStateColor = RendererConvertUtil.hdrColorToCSSColor([
+        rev.state.backgroundColor.r,
+        rev.state.backgroundColor.g,
+        rev.state.backgroundColor.b,
+        rev.state.backgroundColor.a,
+      ]);
+      lastRevisionStateLabel = rev.state.label;
+      lastRevisionStateIcon = rev.state.icon;
+      lastRevisionStateStyle = rev.state.style;
       let continousMode = StatusContinousMode.Middle;
       if (viewModel.logs.length > 0 && viewModel.logs[0].isRevision) {
         continousMode = StatusContinousMode.End;

@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { GLRenderer } from './glcontextmanager';
 import {
   TimelineRevisionsRenderer,
@@ -32,7 +33,7 @@ import {
 } from './timeline-events-renderer';
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
 import { TimelineChartItemHighlight } from '../interaction-model';
-import { TimelineChartStyle } from '../style-model';
+import { TimelineChartStyle, BASE_ROW_HEIGHT } from '../style-model-v2';
 import { SharedTmpBuffer } from './glutil';
 
 /**
@@ -150,7 +151,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
   async setup(gl: WebGL2RenderingContext): Promise<void> {
     await this.timelineSharedResource.setup(gl, this.tmpBuffer);
     await this.revisionSharedResource.setup(gl);
-    await this.eventSharedResource.setup(gl, this.tmpBuffer);
+    await this.eventSharedResource.setup(gl);
     this.hittestSharedResource.setup(gl);
     this.revisionRenderers = new LRUCache(
       this.MAX_RENDERER_ROW_COUNT,
@@ -171,6 +172,10 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   render(gl: WebGL2RenderingContext, args: TimelineRendererRenderArgs): void {
     if (!this.chartViewModel || !this.chartStyle) return;
+    this.timelineSharedResource.updateIconAtlas(
+      gl,
+      this.chartViewModel.styleStore,
+    );
     if (
       this.chartViewModel.inspectionDataUniqueID !==
       this.cachedInspectionDataUniqueID
@@ -190,8 +195,16 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       pixelsPerMs: args.pixelsPerMs,
       leftEdgeTime: args.leftEdgeTime,
     });
-    this.revisionSharedResource.beforeRender(gl, this.tmpBuffer);
-    this.eventSharedResource.beforeRender(gl);
+    this.revisionSharedResource.beforeRender(
+      gl,
+      this.tmpBuffer,
+      this.chartViewModel.styleStore,
+    );
+    this.eventSharedResource.beforeRender(
+      gl,
+      this.tmpBuffer,
+      this.chartViewModel.styleStore,
+    );
     if (this.highlightUpdated) {
       this.iterateRevisionRenderers(gl, (r) =>
         r.updateDynamicBuffer(
@@ -295,7 +308,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       let hit = false;
       for (let i = 0; i < this.chartViewModel.timelinesInDrawArea.length; i++) {
         const tl = this.chartViewModel.timelinesInDrawArea[i];
-        const height = this.chartStyle.heightsByLayer[tl.layer];
+        const height = tl.type.height * BASE_ROW_HEIGHT;
         if (request.y < offsetY + height) {
           const result = this.hittestSharedResource.hittest(
             gl,
@@ -327,7 +340,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    * @param onRender Callback to execute for each visible timeline.
    */
   private renderItems(
-    onRender: (t: ResourceTimeline, rect: TimelineRect) => void,
+    onRender: (t: ReadonlyDomainElement<Timeline>, rect: TimelineRect) => void,
   ) {
     if (!this.chartViewModel || !this.chartStyle) return;
     const drawRect: TimelineRect = {
@@ -337,7 +350,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       height: 0,
     };
     for (const t of this.chartViewModel.timelinesInDrawArea) {
-      drawRect.height = this.chartStyle.heightsByLayer[t.layer];
+      drawRect.height = t.type.height * BASE_ROW_HEIGHT;
       drawRect.offsetY -= drawRect.height;
       onRender(t, drawRect);
     }
@@ -354,6 +367,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     render: (r: TimelineRevisionsRenderer, rect: TimelineRect) => void,
   ) {
     this.renderItems((t, rect) => {
+      if (t.revisions.length === 0) return;
       const revisionRenderer = this.ensureRevisionRenderer(gl, t);
       render(revisionRenderer, rect);
     });
@@ -370,6 +384,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
     render: (r: TimelineEventsRenderer, rect: TimelineRect) => void,
   ) {
     this.renderItems((t, rect) => {
+      if (t.events.length === 0) return;
       const eventRenderer = this.ensureEventRenderer(gl, t);
       render(eventRenderer, rect);
     });
@@ -384,9 +399,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   private ensureRevisionRenderer(
     gl: WebGL2RenderingContext,
-    t: ResourceTimeline,
+    t: ReadonlyDomainElement<Timeline>,
   ): TimelineRevisionsRenderer {
-    let renderer = this.revisionRenderers.get(t.resourcePath);
+    let renderer = this.revisionRenderers.get(t.id.toString());
     if (renderer) {
       return renderer;
     }
@@ -395,8 +410,12 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.revisionSharedResource,
       this.timelineSharedResource,
     );
-    renderer.setup(gl, this.tmpBuffer);
-    this.revisionRenderers.put(t.resourcePath, renderer);
+    renderer.setup(
+      gl,
+      this.tmpBuffer,
+      BigInt(Math.round(this.chartViewModel!.logEndTime)) * 1_000_000n,
+    );
+    this.revisionRenderers.put(t.id.toString(), renderer);
     return renderer;
   }
 
@@ -409,9 +428,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   private ensureEventRenderer(
     gl: WebGL2RenderingContext,
-    t: ResourceTimeline,
+    t: ReadonlyDomainElement<Timeline>,
   ): TimelineEventsRenderer {
-    let renderer = this.eventRenderers.get(t.resourcePath);
+    let renderer = this.eventRenderers.get(t.id.toString());
     if (renderer) {
       return renderer;
     }
@@ -421,7 +440,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       this.timelineSharedResource,
     );
     renderer.setup(gl, this.tmpBuffer);
-    this.eventRenderers.put(t.resourcePath, renderer);
+    this.eventRenderers.put(t.id.toString(), renderer);
     return renderer;
   }
 }
