@@ -44,6 +44,7 @@ export type SearchWorkerRequest =
       readonly type: 'SEARCH_LOGS';
       readonly requestId: string;
       readonly workerIndex: number;
+      readonly numWorkers: number;
       readonly celExpr: string;
       readonly timelineIds: readonly number[]; // timelines target for evaluating events & revisions
       readonly progressSab: SharedArrayBuffer | ArrayBuffer;
