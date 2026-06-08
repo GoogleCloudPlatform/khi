@@ -333,6 +333,9 @@ export class InspectionDataLoaderService {
         return;
       }
 
+      if (rawInspectionData.byteLength < 4) {
+        throw new Error('Invalid or truncated KHI file.');
+      }
       const dv = new DataView(rawInspectionData);
       const version = dv.getUint8(3);
 
