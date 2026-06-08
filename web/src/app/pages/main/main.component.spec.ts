@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
 import { AppComponent } from './main.component';
-import { signal } from '@angular/core';
+import { signal, Injector } from '@angular/core';
 import { InspectionDataLoaderService } from '../../services/data-loader.service';
 import {
   WINDOW_CONNECTION_PROVIDER,
@@ -43,14 +43,31 @@ import { of } from 'rxjs';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
 import { BACKEND_SYNC } from '../../services/api/backend-sync.service';
 import { MenuManager } from '../../services/menu/menu-manager.service';
+import { By } from '@angular/platform-browser';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
+import { BackendConnectionStatus } from 'src/app/services/api/backend-sync-interface';
 
 describe('AppComponent', () => {
+  let extensionStore: ExtensionStore;
+
   beforeEach(async () => {
+    extensionStore = new ExtensionStore();
+
     await TestBed.configureTestingModule({
+      imports: [NoopAnimationsModule],
       providers: [
         {
           provide: EXTENSION_STORE,
-          useValue: new ExtensionStore(),
+          useValue: extensionStore,
+        },
+        {
+          provide: PROGRESS_DIALOG_STATUS_UPDATOR,
+          useValue: {
+            show: () => {},
+            dismiss: () => {},
+            updateProgress: () => {},
+          },
         },
         InspectionDataLoaderService,
         WindowConnectorService,
@@ -82,9 +99,11 @@ describe('AppComponent', () => {
         {
           provide: BACKEND_SYNC,
           useValue: {
+            connectionStatus: signal(BackendConnectionStatus.Connected),
             tasks: {
               value: signal({
                 serverStat: { currentMemoryUsage: 0, totalMemory: 0 },
+                inspections: {},
               }),
             },
           },
@@ -95,11 +114,61 @@ describe('AppComponent', () => {
         MenuManager,
       ],
     }).compileComponents();
+    extensionStore.injector = TestBed.inject(Injector);
   });
 
-  it('should create the app', () => {
+  it('should create the app', fakeAsync(() => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app).toBeTruthy();
-  });
+    fixture.destroy();
+    flush();
+  }));
+
+  it('should switch between standard and advanced toolbars when events are emitted', fakeAsync(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+
+    // By default, standard toolbar is displayed
+    let standardToolbar = fixture.debugElement.query(
+      By.css('khi-timeline-toolbar-smart'),
+    );
+    let advancedToolbar = fixture.debugElement.query(
+      By.css('khi-timeline-toolbar-advanced-smart'),
+    );
+    expect(standardToolbar).toBeTruthy();
+    expect(advancedToolbar).toBeFalsy();
+
+    // Switch to advanced mode by emitting switchToAdvanced event
+    standardToolbar.componentInstance.switchToAdvanced.emit();
+    fixture.detectChanges();
+    tick(200);
+
+    standardToolbar = fixture.debugElement.query(
+      By.css('khi-timeline-toolbar-smart'),
+    );
+    advancedToolbar = fixture.debugElement.query(
+      By.css('khi-timeline-toolbar-advanced-smart'),
+    );
+    expect(standardToolbar).toBeFalsy();
+    expect(advancedToolbar).toBeTruthy();
+
+    // Switch back to standard mode by emitting switchToStandard event
+    advancedToolbar.componentInstance.switchToStandard.emit();
+    fixture.detectChanges();
+    tick(200);
+
+    standardToolbar = fixture.debugElement.query(
+      By.css('khi-timeline-toolbar-smart'),
+    );
+    advancedToolbar = fixture.debugElement.query(
+      By.css('khi-timeline-toolbar-advanced-smart'),
+    );
+    expect(standardToolbar).toBeTruthy();
+    expect(advancedToolbar).toBeFalsy();
+
+    // Destroy fixture to clean up running subscriptions/timers inside components
+    fixture.destroy();
+    flush();
+  }));
 });

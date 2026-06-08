@@ -16,15 +16,9 @@
 
 <div class="settings-popover-card">
   <mat-checkbox
-    [checked]="hideSubresourcesWithoutMatchingLogs()"
-    (change)="hideSubresourcesWithoutMatchingLogs.set($event.checked)"
+    [checked]="hideTimelinesWithoutMatchingLogs()"
+    (change)="hideTimelinesWithoutMatchingLogs.set($event.checked)"
   >
-    Hide subresource timelines without matching logs
-  </mat-checkbox>
-  <mat-checkbox
-    [checked]="hideResourcesWithoutMatchingLogs()"
-    (change)="hideResourcesWithoutMatchingLogs.set($event.checked)"
-  >
-    Hide resource timelines without matching logs
+    Hide timelines without matching logs
   </mat-checkbox>
 </div>

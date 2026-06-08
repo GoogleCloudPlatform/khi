@@ -14,28 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, inject } from '@angular/core';
+import { Component, OnDestroy, computed, inject, output } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
 import { ViewStateService } from '../services/view-state.service';
-import { SelectionManagerService } from '../services/selection-manager.service';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from '../services/timeline-filter.service';
-import { InspectionDataStoreService } from '../services/inspection-data-store.service';
 import { ToolbarComponent } from './components/toolbar.component';
-import * as generated from '../zzz-generated';
-import { nonEmptyOrDefaultString } from '../utils/state-util';
-import {
-  BehaviorSubject,
-  combineLatest,
-  debounceTime,
-  distinctUntilChanged,
-  Subject,
-  takeUntil,
-} from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
+import { SelectionManagerV2 } from '../services/selection-manager-v2.service';
 
 @Component({
   selector: 'khi-timeline-toolbar-smart',
@@ -44,11 +30,12 @@ import {
 })
 export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly viewStateService = inject(ViewStateService);
-  private readonly selectionManager = inject(SelectionManagerService);
-  private readonly timelineFilter = inject<TimelineFilter>(
-    DEFAULT_TIMELINE_FILTER,
-  );
-  private readonly inspectionDataStore = inject(InspectionDataStoreService);
+
+  /**
+   * Emits an event to switch to advanced mode.
+   */
+  readonly switchToAdvanced = output<void>();
+  private readonly selectionManager = inject(SelectionManagerV2);
   private readonly breakpointObserver = inject(BreakpointObserver);
 
   /**
@@ -66,66 +53,6 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   );
 
   /**
-   * Signal containing all available resource kinds.
-   */
-  protected readonly kinds = toSignal(this.inspectionDataStore.availableKinds);
-
-  /**
-   * Signal containing the set of included resource kinds for filtering.
-   */
-  protected readonly includedKinds = toSignal(
-    this.timelineFilter.kindTimelineFilter,
-  );
-
-  /**
-   * Signal containing all available namespaces.
-   */
-  protected readonly namespaces = toSignal(
-    this.inspectionDataStore.availableNamespaces,
-  );
-
-  /**
-   * Signal containing the set of included namespaces for filtering.
-   */
-  protected readonly includedNamespaces = toSignal(
-    this.timelineFilter.namespaceTimelineFilter,
-  );
-
-  /**
-   * Signal containing all available subresource parent relationships as labels.
-   */
-  protected readonly subresourceRelationships = toSignal(
-    this.inspectionDataStore.availableSubresourceParentRelationships.pipe(
-      map((rels) => {
-        const relationshipLabels = new Set<string>();
-        for (const relationship of rels) {
-          relationshipLabels.add(
-            generated.ParentRelationshipToLabel(relationship),
-          );
-        }
-        return relationshipLabels;
-      }),
-    ),
-  );
-
-  /**
-   * Signal containing the set of included subresource parent relationships as labels for filtering.
-   */
-  protected readonly includedSubresourceRelationships = toSignal(
-    this.timelineFilter.subresourceParentRelationshipFilter.pipe(
-      map((rels) => {
-        const relationshipLabels = new Set<string>();
-        for (const relationship of rels) {
-          relationshipLabels.add(
-            generated.ParentRelationshipToLabel(relationship),
-          );
-        }
-        return relationshipLabels;
-      }),
-    ),
-  );
-
-  /**
    * Signal containing the current timezone shift in hours.
    */
   protected readonly timezoneShift = toSignal(
@@ -135,42 +62,23 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   /**
    * Signal indicating if no log or timeline is selected.
    */
-  protected readonly logOrTimelineNotSelected = toSignal(
-    combineLatest([
-      this.selectionManager.selectedLog,
-      this.selectionManager.selectedTimeline,
-    ]).pipe(map(([l, t]) => l == null || t == null)),
-  );
+  protected readonly logOrTimelineNotSelected = computed(() => {
+    const selectedTimeline = this.selectionManager.selectedTimeline();
+    const selectedLog = this.selectionManager.selectedLog();
+    return selectedTimeline == null || selectedLog == null;
+  });
 
   /**
-   * Signal indicating whether to hide subresources without matching logs.
+   * Signal indicating whether to hide timelines without matching logs.
    */
-  protected readonly hideSubresourcesWithoutMatchingLogs = toSignal(
-    this.viewStateService.hideSubresourcesWithoutMatchingLogs,
-  );
-
-  /**
-   * Signal indicating whether to hide resources without matching logs.
-   */
-  protected readonly hideResourcesWithoutMatchingLogs = toSignal(
-    this.viewStateService.hideResourcesWithoutMatchingLogs,
+  protected readonly hideTimelinesWithoutMatchingLogs = toSignal(
+    this.viewStateService.hideTimelinesWithoutMatchingLogs,
   );
 
   private readonly logFilter$ = new BehaviorSubject<string>('');
   private readonly destroyed = new Subject<void>();
 
-  constructor() {
-    this.logFilter$
-      .pipe(
-        map((a) => nonEmptyOrDefaultString(a, '.*')),
-        debounceTime(200),
-        distinctUntilChanged(),
-        takeUntil(this.destroyed),
-      )
-      .subscribe((filter) => {
-        this.inspectionDataStore.setLogRegexFilter(filter);
-      });
-  }
+  constructor() {}
 
   ngOnDestroy() {
     this.destroyed.next();
@@ -185,44 +93,6 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   }
 
   /**
-   * Handles the commit of a new set of included resource kinds.
-   */
-  protected onKindFilterCommit(kinds: Set<string>) {
-    this.timelineFilter.setKindFilter(kinds);
-  }
-
-  /**
-   * Handles the commit of a new set of included namespaces.
-   */
-  protected onNamespaceFilterCommit(namespaces: Set<string>) {
-    this.timelineFilter.setNamespaceFilter(namespaces);
-  }
-
-  /**
-   * Handles the commit of a new set of included subresource parent relationships.
-   */
-  protected onSubresourceRelationshipFilterCommit(
-    subresourceRelationshipLabels: Set<string>,
-  ) {
-    const relationships = [];
-    for (const relationshipLabel of subresourceRelationshipLabels) {
-      relationships.push(
-        generated.ParseParentRelationshipLabel(relationshipLabel),
-      );
-    }
-    this.timelineFilter.setSubresourceParentRelationshipFilter(
-      new Set(relationships),
-    );
-  }
-
-  /**
-   * Handles the change of the resource name filter.
-   */
-  protected onNameFilterChange(filter: string) {
-    this.timelineFilter.setResourceNameRegexFilter(filter);
-  }
-
-  /**
    * Handles the change of the log filter.
    */
   protected onLogFilterChange(filter: string) {
@@ -230,17 +100,10 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   }
 
   /**
-   * Toggles the visibility of subresources without matching logs.
+   * Toggles the visibility of timelines without matching logs.
    */
-  protected onToggleHideSubresourcesWithoutMatchingLogs(value: boolean) {
-    this.viewStateService.setHideSubresourcesWithoutMatchingLogs(value);
-  }
-
-  /**
-   * Toggles the visibility of resources without matching logs.
-   */
-  protected onToggleHideResourcesWithoutMatchingLogs(value: boolean) {
-    this.viewStateService.setHideResourcesWithoutMatchingLogs(value);
+  protected onToggleHideTimelinesWithoutMatchingLogs(value: boolean) {
+    this.viewStateService.setHideTimelinesWithoutMatchingLogs(value);
   }
 
   /**

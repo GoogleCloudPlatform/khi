@@ -35,14 +35,12 @@ type Story = StoryObj<ToolbarSettingsComponent>;
 
 export const Default: Story = {
   args: {
-    hideSubresourcesWithoutMatchingLogs: false,
-    hideResourcesWithoutMatchingLogs: false,
+    hideTimelinesWithoutMatchingLogs: false,
   },
 };
 
 export const AllChecked: Story = {
   args: {
-    hideSubresourcesWithoutMatchingLogs: true,
-    hideResourcesWithoutMatchingLogs: true,
+    hideTimelinesWithoutMatchingLogs: true,
   },
 };

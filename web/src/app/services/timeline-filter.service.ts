@@ -33,9 +33,7 @@ import {
 import { TimelineLayer } from '../store/timeline';
 import {
   FilterNamepaceOrKindWithoutResource,
-  FilterSubresourceTimelinesOnlyWithFilteredLogs,
   FilterSubresourceWithoutParent,
-  FilterTimelinesOnlyWithFilteredLogs,
 } from './filter/timeline-filter-chain';
 import { ViewStateService } from './view-state.service';
 
@@ -87,19 +85,6 @@ export class TimelineFilter {
         (t) => t.layer >= TimelineLayer.Name,
       ),
     );
-    this.timelineFilterChain.addFilterElement(
-      new FilterTimelinesOnlyWithFilteredLogs(
-        dataStore.filteredOutLogIndicesSet,
-        viewStateStore.hideResourcesWithoutMatchingLogs,
-      ),
-    );
-    this.timelineFilterChain.addFilterElement(
-      new FilterSubresourceTimelinesOnlyWithFilteredLogs(
-        dataStore.filteredOutLogIndicesSet,
-        viewStateStore.hideSubresourcesWithoutMatchingLogs,
-      ),
-    );
-
     this.timelineFilterChainPostprocess.addFilterElement(
       new FilterNamepaceOrKindWithoutResource(),
     );

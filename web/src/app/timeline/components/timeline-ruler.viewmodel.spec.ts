@@ -16,7 +16,15 @@
 
 import { RulerViewModelBuilder } from './timeline-ruler.viewmodel';
 import { HistogramCache, HistogramInfo } from './misc/histogram-cache';
-import { Severity } from 'src/app/zzz-generated';
+import { Severity as StyleSeverity } from 'src/app/store/domain/style';
+
+enum Severity {
+  SeverityUnknown = 0,
+  SeverityInfo = 1,
+  SeverityWarning = 2,
+  SeverityError = 3,
+  SeverityFatal = 4,
+}
 
 describe('RulerViewModelBuilder', () => {
   let builder: RulerViewModelBuilder;
@@ -32,15 +40,33 @@ describe('RulerViewModelBuilder', () => {
       'getHistogramData',
     ]);
 
-    const severities = Object.values(Severity).filter(
+    const severitiesList = Object.values(Severity).filter(
       (s) => !isNaN(Number(s)),
     ) as Severity[];
+
+    const mockSeverities: readonly StyleSeverity[] = severitiesList.map(
+      (s) => ({
+        id: s,
+        label: 'MockSeverity',
+        shortLabel: 'S',
+        backgroundColor: { r: 0, g: 0, b: 0, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: s,
+      }),
+    );
+
+    Object.defineProperty(mockAllLogsHistogramCache, 'severities', {
+      value: mockSeverities,
+    });
+    Object.defineProperty(mockFilteredLogsHistogramCache, 'severities', {
+      value: mockSeverities,
+    });
 
     // Setup default mock returns
     const logRatios: { [key in Severity]: Float32Array } = {} as {
       [key in Severity]: Float32Array;
     };
-    for (const s of severities) {
+    for (const s of severitiesList) {
       logRatios[s] = new Float32Array(10).fill(0);
     }
 

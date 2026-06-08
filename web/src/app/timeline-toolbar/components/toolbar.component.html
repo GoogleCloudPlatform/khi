@@ -19,182 +19,61 @@ limitations under the License.
     <div class="toolbar-grid">
       <div class="smaller-input left-control">
         <div class="button-group">
-          <!--Kind filter-->
+          <!-- Switch to advanced mode button -->
           <button
-            mat-stroked-button
+            mat-icon-button
             color="primary"
-            cdkOverlayOrigin
-            #openKindFilter="cdkOverlayOrigin"
-            (click)="setPopupState(ToolbarPopupStatus.KindFilter)"
-            matTooltip="Kinds"
+            (click)="switchToAdvanced.emit()"
+            matTooltip="Switch to advanced filter mode"
           >
-            <mat-icon class="filter-button-icon">workspaces</mat-icon>
-            @if (showButtonLabel()) {
-              <span
-                >Kinds<span class="count-indicator"
-                  >{{ includedKinds().size }}<span class="divisor">/</span
-                  >{{ kinds().size }}</span
-                ></span
-              >
-            }
+            <mat-icon>search_gear</mat-icon>
           </button>
-          <ng-template
-            cdkConnectedOverlay
-            [cdkConnectedOverlayOrigin]="openKindFilter"
-            [cdkConnectedOverlayOpen]="
-              popupStatus === ToolbarPopupStatus.KindFilter
-            "
-            [cdkConnectedOverlayHasBackdrop]="true"
-            (backdropClick)="setPopupState(ToolbarPopupStatus.None)"
-          >
-            <khi-timeline-set-input-popup
-              label="Kinds"
-              [choices]="kinds()"
-              [selectedItems]="includedKinds()"
-              (selectedItemsChange)="includedKinds.set($event)"
-              (closeButtonClicked)="setPopupState(ToolbarPopupStatus.None)"
-            >
-            </khi-timeline-set-input-popup>
-          </ng-template>
-          <!--Namespace filter-->
-          <button
-            mat-stroked-button
-            color="primary"
-            cdkOverlayOrigin
-            #openNamespaceFilter="cdkOverlayOrigin"
-            (click)="setPopupState(ToolbarPopupStatus.NamespaceFilter)"
-            matTooltip="Namespaces"
-          >
-            <mat-icon class="filter-button-icon">folder</mat-icon>
-            @if (showButtonLabel()) {
-              <span>
-                Namespaces<span class="count-indicator"
-                  >{{ includedNamespaces().size }}<span class="divisor">/</span
-                  >{{ namespaces().size }}</span
-                ></span
-              >
-            }
-          </button>
-          <ng-template
-            cdkConnectedOverlay
-            [cdkConnectedOverlayOrigin]="openNamespaceFilter"
-            [cdkConnectedOverlayOpen]="
-              popupStatus === ToolbarPopupStatus.NamespaceFilter
-            "
-            [cdkConnectedOverlayHasBackdrop]="true"
-            (backdropClick)="setPopupState(ToolbarPopupStatus.None)"
-          >
-            <khi-timeline-set-input-popup
-              label="Namespaces"
-              [choices]="namespaces()"
-              [selectedItems]="includedNamespaces()"
-              (selectedItemsChange)="includedNamespaces.set($event)"
-              (closeButtonClicked)="setPopupState(ToolbarPopupStatus.None)"
-            ></khi-timeline-set-input-popup>
-          </ng-template>
-          <!--Subresource relationship filter-->
-          <button
-            mat-stroked-button
-            color="primary"
-            cdkOverlayOrigin
-            #openSubresourceRelationshipFilter="cdkOverlayOrigin"
-            (click)="setPopupState(ToolbarPopupStatus.SubresourceFilter)"
-            matTooltip="Subresources"
-          >
-            <mat-icon class="filter-button-icon">page_info</mat-icon>
-            @if (showButtonLabel()) {
-              <span>
-                Subresources<span class="count-indicator"
-                  >{{ includedSubresourceRelationships().size
-                  }}<span class="divisor">/</span
-                  >{{ subresourceRelationships().size }}</span
-                ></span
-              >
-            }
-          </button>
-          <ng-template
-            cdkConnectedOverlay
-            [cdkConnectedOverlayOrigin]="openSubresourceRelationshipFilter"
-            [cdkConnectedOverlayOpen]="
-              popupStatus === ToolbarPopupStatus.SubresourceFilter
-            "
-            [cdkConnectedOverlayHasBackdrop]="true"
-            (backdropClick)="setPopupState(ToolbarPopupStatus.None)"
-          >
-            <khi-timeline-set-input-popup
-              label="Subresources"
-              [choices]="subresourceRelationships()"
-              [selectedItems]="includedSubresourceRelationships()"
-              (selectedItemsChange)="
-                includedSubresourceRelationships.set($event)
+        </div>
+        <div class="center-control"></div>
+        <div class="right-control">
+          <mat-button-toggle-group multiple>
+            <mat-button-toggle
+              value="filter_resource"
+              matTooltip="hide timelines without any logs matched by the log filter on it or its children"
+              [checked]="hideTimelinesWithoutMatchingLogs()"
+              (change)="
+                hideTimelinesWithoutMatchingLogs.set(
+                  !hideTimelinesWithoutMatchingLogs()
+                )
               "
-              (closeButtonClicked)="setPopupState(ToolbarPopupStatus.None)"
-            ></khi-timeline-set-input-popup>
-          </ng-template>
+            >
+              <mat-icon color="primary">description</mat-icon>
+              <mat-icon color="primary">search_off</mat-icon>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
           <khi-timeline-regex-input
-            class="resource-name-filter"
-            label="Resource name(regex)"
-            [(value)]="nameFilter"
+            #logFilterInput
+            class="log-filter"
+            label="Log body(regex)"
+            [(value)]="logFilter"
           ></khi-timeline-regex-input>
+          <div class="timezone-control">
+            <p>UTC+</p>
+            <input
+              class="timezone-input"
+              type="number"
+              value="0"
+              name="timezone-shift"
+              [value]="timezoneShift()"
+              (change)="onTimezoneshiftCommit($event)"
+            />
+            <p>hours</p>
+          </div>
+          <button
+            mat-raised-button
+            color="primary"
+            [disabled]="logOrTimelineNotSelected()"
+            (click)="drawDiagram.emit()"
+            matTooltip="Draw diagram at the point of the timeline"
+          >
+            <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
+          </button>
         </div>
-      </div>
-      <div class="center-control"></div>
-      <div class="right-control">
-        <mat-button-toggle-group multiple>
-          <mat-button-toggle
-            value="filter_subresource"
-            [checked]="hideSubresourcesWithoutMatchingLogs()"
-            matTooltip="hide subresource timelines without any logs matched by the log filter"
-            (change)="
-              hideSubresourcesWithoutMatchingLogs.set(
-                !hideSubresourcesWithoutMatchingLogs()
-              )
-            "
-          >
-            <mat-icon color="primary">page_info</mat-icon>
-            <mat-icon color="primary">search_off</mat-icon></mat-button-toggle
-          >
-          <mat-button-toggle
-            value="filter_resource"
-            matTooltip="hide resource timelines without any logs matched by the log filter on it or its children"
-            [checked]="hideResourcesWithoutMatchingLogs()"
-            (change)="
-              hideResourcesWithoutMatchingLogs.set(
-                !hideResourcesWithoutMatchingLogs()
-              )
-            "
-          >
-            <mat-icon color="primary">description</mat-icon>
-            <mat-icon color="primary">search_off</mat-icon>
-          </mat-button-toggle>
-        </mat-button-toggle-group>
-        <khi-timeline-regex-input
-          #logFilterInput
-          class="log-filter"
-          label="Log body(regex)"
-          [(value)]="logFilter"
-        ></khi-timeline-regex-input>
-        <div class="timezone-control">
-          <p>UTC+</p>
-          <input
-            class="timezone-input"
-            type="number"
-            value="0"
-            name="timezone-shift"
-            [value]="timezoneShift()"
-            (change)="onTimezoneshiftCommit($event)"
-          />
-          <p>hours</p>
-        </div>
-        <button
-          mat-raised-button
-          color="primary"
-          [disabled]="logOrTimelineNotSelected()"
-          (click)="drawDiagram.emit()"
-          matTooltip="Draw diagram at the point of the timeline"
-        >
-          <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
-        </button>
       </div>
     </div>
   </div>

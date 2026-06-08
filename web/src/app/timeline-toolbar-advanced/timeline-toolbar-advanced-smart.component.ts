@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, inject, output } from '@angular/core';
+import { Component, OnDestroy, computed, inject, output } from '@angular/core';
 import {
   CelTimelineFilter,
   CelLogFilter,
@@ -23,16 +23,15 @@ import { ExcludeNoLogsFilter } from 'src/app/store/domain/filter/other-filter';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { ViewStateService } from 'src/app/services/view-state.service';
-import { SelectionManagerService } from 'src/app/services/selection-manager.service';
 import { ToolbarAdvancedComponent } from 'src/app/timeline-toolbar-advanced/components/toolbar-advanced.component';
 import {
   BehaviorSubject,
-  combineLatest,
   debounceTime,
   distinctUntilChanged,
   Subject,
   takeUntil,
 } from 'rxjs';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 
 /**
  * Acts as a smart container logic layer for the advanced timeline toolbar component.
@@ -45,7 +44,7 @@ import {
 })
 export class TimelineToolbarAdvancedSmartComponent implements OnDestroy {
   private readonly viewStateService = inject(ViewStateService);
-  private readonly selectionManager = inject(SelectionManagerService);
+  private readonly selectionManager = inject(SelectionManagerV2);
   private readonly celTimelineFilter = inject(CelTimelineFilter);
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
@@ -75,25 +74,17 @@ export class TimelineToolbarAdvancedSmartComponent implements OnDestroy {
   /**
    * Signal indicating if neither log nor timeline elements are actively selected.
    */
-  protected readonly logOrTimelineNotSelected = toSignal(
-    combineLatest([
-      this.selectionManager.selectedLog,
-      this.selectionManager.selectedTimeline,
-    ]).pipe(map(([l, t]) => l == null || t == null)),
-  );
+  protected readonly logOrTimelineNotSelected = computed(() => {
+    const selectedTimeline = this.selectionManager.selectedTimeline();
+    const selectedLog = this.selectionManager.selectedLog();
+    return selectedTimeline == null || selectedLog == null;
+  });
 
   /**
-   * Signal holding the flag to hide subresource timelines lacking matching logs.
+   * Signal holding the flag to hide timelines lacking matching logs.
    */
-  protected readonly hideSubresourcesWithoutMatchingLogs = toSignal(
-    this.viewStateService.hideSubresourcesWithoutMatchingLogs,
-  );
-
-  /**
-   * Signal holding the flag to hide resource timelines lacking matching logs.
-   */
-  protected readonly hideResourcesWithoutMatchingLogs = toSignal(
-    this.viewStateService.hideResourcesWithoutMatchingLogs,
+  protected readonly hideTimelinesWithoutMatchingLogs = toSignal(
+    this.viewStateService.hideTimelinesWithoutMatchingLogs,
   );
 
   private readonly timelineCelFilter$ = new BehaviorSubject<string>('');
@@ -154,7 +145,7 @@ export class TimelineToolbarAdvancedSmartComponent implements OnDestroy {
         this.logCelFilterChange.emit(filter);
       });
 
-    this.viewStateService.hideResourcesWithoutMatchingLogs
+    this.viewStateService.hideTimelinesWithoutMatchingLogs
       .pipe(takeUntil(this.destroyed))
       .subscribe((hide) => {
         this.excludeNoLogsFilter.enabled.set(hide);
@@ -188,17 +179,10 @@ export class TimelineToolbarAdvancedSmartComponent implements OnDestroy {
   }
 
   /**
-   * Updates the state visibility for subresources missing log hits.
+   * Updates the state visibility for timelines missing log hits.
    */
-  protected onToggleHideSubresourcesWithoutMatchingLogs(value: boolean): void {
-    this.viewStateService.setHideSubresourcesWithoutMatchingLogs(value);
-  }
-
-  /**
-   * Updates the state visibility for primary resources missing log hits.
-   */
-  protected onToggleHideResourcesWithoutMatchingLogs(value: boolean): void {
-    this.viewStateService.setHideResourcesWithoutMatchingLogs(value);
+  protected onToggleHideTimelinesWithoutMatchingLogs(value: boolean): void {
+    this.viewStateService.setHideTimelinesWithoutMatchingLogs(value);
   }
 
   /**

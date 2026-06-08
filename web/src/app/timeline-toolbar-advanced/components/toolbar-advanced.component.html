@@ -34,14 +34,14 @@
             [errorMessage]="timelineCelError()"
             tooltip="Timeline CEL"
             icon="view_timeline"
-            placeholder="e.g. timeline.name == 'pod-a'"
+            placeholder="e.g. t.name == 'pod-a', t.name.matches('pod-.*')"
             [(value)]="timelineCelFilter"
           ></khi-timeline-cel-input>
           <khi-timeline-cel-input
             [errorMessage]="logCelError()"
             tooltip="Log CEL"
             icon="notes"
-            placeholder="e.g. log.severity == ERROR"
+            placeholder="e.g. l.severity == ERROR, l.summary.contains('error')"
             [(value)]="logCelFilter"
           ></khi-timeline-cel-input>
         </div>
@@ -68,11 +68,8 @@
           (backdropClick)="settingsPopupOpen.set(false)"
         >
           <khi-timeline-toolbar-settings
-            [(hideSubresourcesWithoutMatchingLogs)]="
-              hideSubresourcesWithoutMatchingLogs
-            "
-            [(hideResourcesWithoutMatchingLogs)]="
-              hideResourcesWithoutMatchingLogs
+            [(hideTimelinesWithoutMatchingLogs)]="
+              hideTimelinesWithoutMatchingLogs
             "
           ></khi-timeline-toolbar-settings>
         </ng-template>

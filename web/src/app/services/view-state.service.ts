@@ -69,14 +69,9 @@ export class ViewStateService {
   );
 
   /**
-   * Whether KHI hides a subresource layer timeline without any matching with the log filter.
-   */
-  public hideSubresourcesWithoutMatchingLogs = new BehaviorSubject(false);
-
-  /**
    * Whether KHI hides a resource layer timeline without any matching with the log filter.
    */
-  public hideResourcesWithoutMatchingLogs = new BehaviorSubject(true);
+  public hideTimelinesWithoutMatchingLogs = new BehaviorSubject(true);
 
   public devicePixelRatio = animationFrames().pipe(
     map(
@@ -118,19 +113,11 @@ export class ViewStateService {
     return this.visibleWidthSubject.value;
   }
 
-  public setHideSubresourcesWithoutMatchingLogs(
-    hideSubresourcesWithoutMatchingLogs: boolean,
+  public setHideTimelinesWithoutMatchingLogs(
+    hideTimelinesWithoutMatchingLogs: boolean,
   ): void {
-    this.hideSubresourcesWithoutMatchingLogs.next(
-      hideSubresourcesWithoutMatchingLogs,
-    );
-  }
-
-  public setHideResourcesWithoutMatchingLogs(
-    hideREsourcesWithoutMatchingLogs: boolean,
-  ): void {
-    this.hideResourcesWithoutMatchingLogs.next(
-      hideREsourcesWithoutMatchingLogs,
+    this.hideTimelinesWithoutMatchingLogs.next(
+      hideTimelinesWithoutMatchingLogs,
     );
   }
 

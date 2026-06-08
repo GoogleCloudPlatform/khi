@@ -16,35 +16,16 @@ limitations under the License.
 
 <khi-timeline-toolbar
   [showButtonLabel]="showButtonLabel() || false"
-  [kinds]="kinds() || emptySet"
-  [includedKinds]="includedKinds() || emptySet"
-  [namespaces]="namespaces() || emptySet"
-  [includedNamespaces]="includedNamespaces() || emptySet"
-  [subresourceRelationships]="subresourceRelationships() || emptySet"
-  [includedSubresourceRelationships]="
-    includedSubresourceRelationships() || emptySet
-  "
   [timezoneShift]="timezoneShift() || 0"
   [logOrTimelineNotSelected]="logOrTimelineNotSelected() || false"
-  [hideSubresourcesWithoutMatchingLogs]="
-    hideSubresourcesWithoutMatchingLogs() || false
-  "
-  [hideResourcesWithoutMatchingLogs]="
-    hideResourcesWithoutMatchingLogs() || false
+  [hideTimelinesWithoutMatchingLogs]="
+    hideTimelinesWithoutMatchingLogs() || false
   "
   (timezoneShiftChange)="onTimezoneshiftCommit($event)"
-  (includedKindsChange)="onKindFilterCommit($event)"
-  (includedNamespacesChange)="onNamespaceFilterCommit($event)"
-  (includedSubresourceRelationshipsChange)="
-    onSubresourceRelationshipFilterCommit($event)
-  "
-  (nameFilterChange)="onNameFilterChange($event)"
   (logFilterChange)="onLogFilterChange($event)"
-  (hideSubresourcesWithoutMatchingLogsChange)="
-    onToggleHideSubresourcesWithoutMatchingLogs($event)
-  "
-  (hideResourcesWithoutMatchingLogsChange)="
-    onToggleHideResourcesWithoutMatchingLogs($event)
+  (hideTimelinesWithoutMatchingLogsChange)="
+    onToggleHideTimelinesWithoutMatchingLogs($event)
   "
   (drawDiagram)="onDrawDiagram()"
+  (switchToAdvanced)="switchToAdvanced.emit()"
 ></khi-timeline-toolbar>
