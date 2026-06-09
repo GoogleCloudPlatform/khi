@@ -281,6 +281,51 @@ export declare type RevisionState = Message<'khifile.v6.RevisionState'> & {
 export declare const RevisionStateSchema: GenMessage<RevisionState>;
 
 /**
+ * AlphabeticalSortPolicy defines the configuration parameters for alphabetical sorting.
+ *
+ * @generated from message khifile.v6.AlphabeticalSortPolicy
+ */
+export declare type AlphabeticalSortPolicy =
+  Message<'khifile.v6.AlphabeticalSortPolicy'> & {
+    /**
+     * prioritized_names is a list of timeline names that should appear first in the specified order.
+     * Remaining names are sorted alphabetically.
+     *
+     * @generated from field: repeated string prioritized_names = 1;
+     */
+    prioritizedNames: string[];
+  };
+
+/**
+ * Describes the message khifile.v6.AlphabeticalSortPolicy.
+ * Use `create(AlphabeticalSortPolicySchema)` to create a new message.
+ */
+export declare const AlphabeticalSortPolicySchema: GenMessage<AlphabeticalSortPolicy>;
+
+/**
+ * ChronologicalSortPolicy defines the configuration parameters for chronological sorting.
+ *
+ * @generated from message khifile.v6.ChronologicalSortPolicy
+ */
+export declare type ChronologicalSortPolicy =
+  Message<'khifile.v6.ChronologicalSortPolicy'> & {
+    /**
+     * chronological_search_depth defines the maximum recursion depth for searching child timelines
+     * to find the oldest log entry when sorting chronologically.
+     * A value of 0 or less indicates unlimited recursion depth (traverses all descendants).
+     *
+     * @generated from field: int32 chronological_search_depth = 1;
+     */
+    chronologicalSearchDepth: number;
+  };
+
+/**
+ * Describes the message khifile.v6.ChronologicalSortPolicy.
+ * Use `create(ChronologicalSortPolicySchema)` to create a new message.
+ */
+export declare const ChronologicalSortPolicySchema: GenMessage<ChronologicalSortPolicy>;
+
+/**
  * TimelineType defines the presentation style for a specific type of timeline line
  * (e.g., a specific object's events, or a summarized view).
  *
@@ -356,6 +401,30 @@ export declare type TimelineType = Message<'khifile.v6.TimelineType'> & {
    * @generated from field: khifile.v6.HDRColor4 type_chip_background_color = 10;
    */
   typeChipBackgroundColor?: HDRColor4;
+
+  /**
+   * @generated from oneof khifile.v6.TimelineType.sort_policy_config
+   */
+  sortPolicyConfig:
+    | {
+        /**
+         * alphabetical_policy is the configuration for alphabetical sorting.
+         *
+         * @generated from field: khifile.v6.AlphabeticalSortPolicy alphabetical_policy = 11;
+         */
+        value: AlphabeticalSortPolicy;
+        case: 'alphabeticalPolicy';
+      }
+    | {
+        /**
+         * chronological_policy is the configuration for chronological sorting.
+         *
+         * @generated from field: khifile.v6.ChronologicalSortPolicy chronological_policy = 12;
+         */
+        value: ChronologicalSortPolicy;
+        case: 'chronologicalPolicy';
+      }
+    | { case: undefined; value?: undefined };
 };
 
 /**

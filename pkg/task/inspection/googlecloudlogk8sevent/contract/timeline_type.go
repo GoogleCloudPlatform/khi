@@ -30,5 +30,6 @@ var (
 		style.MustForceConvertSRGBHex("#4285F4"),
 		true,
 		1100,
+		style.AlphabeticalSortPolicy(),
 	)
 )

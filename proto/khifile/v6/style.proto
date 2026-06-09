@@ -108,6 +108,21 @@ message RevisionState {
   RevisionStateStyle style = 6;
 }
 
+// AlphabeticalSortPolicy defines the configuration parameters for alphabetical sorting.
+message AlphabeticalSortPolicy {
+  // prioritized_names is a list of timeline names that should appear first in the specified order.
+  // Remaining names are sorted alphabetically.
+  repeated string prioritized_names = 1;
+}
+
+// ChronologicalSortPolicy defines the configuration parameters for chronological sorting.
+message ChronologicalSortPolicy {
+  // chronological_search_depth defines the maximum recursion depth for searching child timelines
+  // to find the oldest log entry when sorting chronologically.
+  // A value of 0 or less indicates unlimited recursion depth (traverses all descendants).
+  int32 chronological_search_depth = 1;
+}
+
 // TimelineType defines the presentation style for a specific type of timeline line
 // (e.g., a specific object's events, or a summarized view).
 message TimelineType {
@@ -131,6 +146,13 @@ message TimelineType {
   float height = 9;
   // type_chip_background_color is used for styling the type badge background in the timeline index or legend.
   HDRColor4 type_chip_background_color = 10;
+
+  oneof sort_policy_config {
+    // alphabetical_policy is the configuration for alphabetical sorting.
+    AlphabeticalSortPolicy alphabetical_policy = 11;
+    // chronological_policy is the configuration for chronological sorting.
+    ChronologicalSortPolicy chronological_policy = 12;
+  }
 }
 
 // IconAtlas is a collection of icons used in the UI.

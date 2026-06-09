@@ -20,13 +20,16 @@ import (
 	"testing"
 
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestRegisterTimelineType(t *testing.T) {
 	reset()
 
-	res1 := MustRegisterTimelineType("Type 1", "Desc 1", "icon-1", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1)
-	res2 := MustRegisterTimelineType("Type 2", "Desc 2", "icon-2", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 2)
+	res1 := MustRegisterTimelineType("Type 1", "Desc 1", "icon-1", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1, nil)
+	res2 := MustRegisterTimelineType("Type 2", "Desc 2", "icon-2", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 2, nil)
 
 	// Verify IDs were assigned starting from 1
 	if res1.Id == nil || *res1.Id != 1 {
@@ -90,7 +93,7 @@ func TestGenerateChunkHasAllSlices(t *testing.T) {
 	MustRegisterVerb("Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
 	MustRegisterLogType("Log", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
 	MustRegisterRevisionState("RevState", "icon", "Desc", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
-	MustRegisterTimelineType("Timeline", "Desc", "icon", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1)
+	MustRegisterTimelineType("Timeline", "Desc", "icon", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1, nil)
 
 	chunk := GenerateChunk()
 
@@ -207,7 +210,7 @@ func TestLockRegistry(t *testing.T) {
 			label:      "T",
 			styleClass: "timeline type",
 			fn: func() {
-				MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10)
+				MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10, nil)
 			},
 		},
 		{
@@ -267,6 +270,51 @@ func TestLockRegistry(t *testing.T) {
 			}()
 
 			tc.fn()
+		})
+	}
+}
+
+func TestRegisterTimelineTypeWithSortPolicy(t *testing.T) {
+	testCases := []struct {
+		name     string
+		sortOpt  TimelineSortOpt
+		wantType *pb.TimelineType
+	}{
+		{
+			name:    "alphabetical sort policy",
+			sortOpt: AlphabeticalSortPolicy("a", "b"),
+			wantType: &pb.TimelineType{
+				SortPolicyConfig: &pb.TimelineType_AlphabeticalPolicy{
+					AlphabeticalPolicy: &pb.AlphabeticalSortPolicy{
+						PrioritizedNames: []string{"a", "b"},
+					},
+				},
+			},
+		},
+		{
+			name:    "chronological sort policy",
+			sortOpt: ChronologicalSortPolicy(5),
+			wantType: &pb.TimelineType{
+				SortPolicyConfig: &pb.TimelineType_ChronologicalPolicy{
+					ChronologicalPolicy: &pb.ChronologicalSortPolicy{
+						ChronologicalSearchDepth: proto.Int32(5),
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			reset()
+			registered := MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10, tc.sortOpt)
+
+			// We only compare the SortPolicyConfig portion
+			got := registered.SortPolicyConfig
+			want := tc.wantType.SortPolicyConfig
+			if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+				t.Errorf("MustRegisterTimelineType() sort policy config mismatch (-want +got):\n%s", diff)
+			}
 		})
 	}
 }

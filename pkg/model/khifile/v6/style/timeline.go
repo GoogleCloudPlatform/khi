@@ -129,9 +129,61 @@ func (c Color) toProto() *pb.HDRColor4 {
 	}
 }
 
+// TimelineSortOpt is an interface to configure the sorting policy of a timeline type.
+type TimelineSortOpt interface {
+	// ApplyToTimelineType applies the sort policy configuration to the given TimelineType.
+	ApplyToTimelineType(t *pb.TimelineType)
+}
+
+type alphabeticalSortOpt struct {
+	prioritizedNames []string
+}
+
+// ApplyToTimelineType applies the alphabetical sort policy configuration to the given TimelineType.
+func (o *alphabeticalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
+	t.SortPolicyConfig = &pb.TimelineType_AlphabeticalPolicy{
+		AlphabeticalPolicy: &pb.AlphabeticalSortPolicy{
+			PrioritizedNames: o.prioritizedNames,
+		},
+	}
+}
+
+var _ TimelineSortOpt = (*alphabeticalSortOpt)(nil)
+
+// AlphabeticalSortPolicy returns a TimelineSortOpt that configures a timeline type to sort its child timelines alphabetically.
+// prioritizedNames is a list of timeline names that should appear first in the specified order.
+func AlphabeticalSortPolicy(prioritizedNames ...string) TimelineSortOpt {
+	return &alphabeticalSortOpt{
+		prioritizedNames: prioritizedNames,
+	}
+}
+
+type chronologicalSortOpt struct {
+	chronologicalSearchDepth int32
+}
+
+// ApplyToTimelineType applies the chronological sort policy configuration to the given TimelineType.
+func (o *chronologicalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
+	t.SortPolicyConfig = &pb.TimelineType_ChronologicalPolicy{
+		ChronologicalPolicy: &pb.ChronologicalSortPolicy{
+			ChronologicalSearchDepth: proto.Int32(o.chronologicalSearchDepth),
+		},
+	}
+}
+
+var _ TimelineSortOpt = (*chronologicalSortOpt)(nil)
+
+// ChronologicalSortPolicy returns a TimelineSortOpt that configures a timeline type to sort its child timelines chronologically.
+// chronologicalSearchDepth defines the maximum recursion depth for searching child timelines to find the oldest log entry.
+func ChronologicalSortPolicy(chronologicalSearchDepth int32) TimelineSortOpt {
+	return &chronologicalSortOpt{
+		chronologicalSearchDepth: chronologicalSearchDepth,
+	}
+}
+
 // MustRegisterTimelineType registers a TimelineType, assigns a unique ID to it,
 // and returns the generated pointer. This allows for global inline initialization in plugins.
-func MustRegisterTimelineType(label string, description string, icon string, height float32, backgroundColor Color, foregroundColor Color, typeChipBackgroundColor Color, visible bool, sortPriority int32) *pb.TimelineType {
+func MustRegisterTimelineType(label string, description string, icon string, height float32, backgroundColor Color, foregroundColor Color, typeChipBackgroundColor Color, visible bool, sortPriority int32, sortOpt TimelineSortOpt) *pb.TimelineType {
 	if err := backgroundColor.Verify(); err != nil {
 		panic(fmt.Sprintf("invalid background color for timeline type %q: %v", label, err))
 	}
@@ -160,6 +212,9 @@ func MustRegisterTimelineType(label string, description string, icon string, hei
 		TypeChipBackgroundColor: typeChipBackgroundColor.toProto(),
 		Visible:                 proto.Bool(visible),
 		SortPriority:            proto.Int32(sortPriority),
+	}
+	if sortOpt != nil {
+		sortOpt.ApplyToTimelineType(t)
 	}
 	timelineTypes = append(timelineTypes, t)
 	return t

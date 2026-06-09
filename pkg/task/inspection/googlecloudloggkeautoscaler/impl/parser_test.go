@@ -228,14 +228,12 @@ func TestAutoscalerTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, "test-cluster")
+	k8sClusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
 	autoscalerPath := googlecloudloggkeautoscaler_contract.MustAutoscalerTimeline(ctx, gkeClusterTimeline)
-
-	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
-
 	nodepoolTimeline := googlecloudcommon_contract.MustGKENodePoolTimeline(ctx, gkeClusterTimeline, "default-pool")
 	migPath := googlecloudloggkeautoscaler_contract.MustMigTimeline(ctx, nodepoolTimeline, "test-cluster-default-pool-a0c72690-grp")
 
-	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
 	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
 	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "default")
 	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-85958b848b-ptc7n")

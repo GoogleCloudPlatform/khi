@@ -32,5 +32,6 @@ var (
 		style.MustForceConvertSRGBHex("#A52A2A"),
 		true,
 		20500,
+		style.AlphabeticalSortPolicy(),
 	)
 )

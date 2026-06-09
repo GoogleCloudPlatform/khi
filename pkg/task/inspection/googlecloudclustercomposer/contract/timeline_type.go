@@ -33,6 +33,7 @@ var (
 		style.MustForceConvertSRGBHex("#4285F4"),
 		true,
 		10,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeComposerEnvironment is the style for a Cloud Composer environment.
@@ -47,6 +48,7 @@ var (
 		style.MustForceConvertSRGBHex("#377e22"),
 		true,
 		20,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeDAGs is the root style for DAGs hierarchy.
@@ -61,6 +63,7 @@ var (
 		style.MustForceConvertSRGBHex("#5cb239"),
 		true,
 		30,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeAirflowDAG is the style for a single DAG.
@@ -75,6 +78,7 @@ var (
 		style.MustForceConvertSRGBHex("#89ca6a"),
 		true,
 		40,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeAirflowDAGRun is the style for a DAG run.
@@ -89,6 +93,7 @@ var (
 		style.MustForceConvertSRGBHex("#bce3a5"),
 		true,
 		50,
+		style.ChronologicalSortPolicy(1),
 	)
 
 	// TimelineTypeAirflowTaskInstance is the style for a TaskInstance.
@@ -103,6 +108,7 @@ var (
 		style.MustForceConvertSRGBHex("#377e22"),
 		true,
 		1501,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeComponents is the category style for components.
@@ -117,6 +123,7 @@ var (
 		style.MustForceConvertSRGBHex("#5cb239"),
 		true,
 		60,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeDAGProcessorManager is the category style for DAG Processor Manager stats.
@@ -131,6 +138,7 @@ var (
 		style.MustForceConvertSRGBHex("#5cb239"),
 		true,
 		70,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeDAGFile is the style for a parsed DAG file.
@@ -145,6 +153,7 @@ var (
 		style.MustForceConvertSRGBHex("#89ca6a"),
 		true,
 		80,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// TimelineTypeDAGProcessorManagerInstance is the style for the manager instance that processed the file.
@@ -159,13 +168,14 @@ var (
 		style.MustForceConvertSRGBHex("#A51915"),
 		true,
 		90,
+		style.AlphabeticalSortPolicy(),
 	)
 
 	// Components specific timelines (Actual log/event containers: White background)
-	TimelineTypeAirflowScheduler           = style.MustRegisterTimelineType("airflow_scheduler", "Airflow Scheduler", "schedule", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#4285F4"), true, 100)
-	TimelineTypeAirflowWorker              = style.MustRegisterTimelineType("airflow_worker", "Airflow Worker", "directions_run", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#0F9D58"), true, 110)
-	TimelineTypeAirflowDagProcessorManager = style.MustRegisterTimelineType("airflow_dag_processor_manager", "Airflow DAG Processor Manager", "summarize", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), true, 115)
-	TimelineTypeAirflowTriggerer           = style.MustRegisterTimelineType("airflow_triggerer", "Airflow Triggerer", "bolt", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#FFBB00"), true, 120)
-	TimelineTypeAirflowWebserver           = style.MustRegisterTimelineType("airflow_webserver", "Airflow Webserver", "web", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#9470DC"), true, 130)
-	TimelineTypeAirflowComponent           = style.MustRegisterTimelineType("airflow_component", "Airflow Component", "extension", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), true, 140)
+	TimelineTypeAirflowScheduler           = style.MustRegisterTimelineType("airflow_scheduler", "Airflow Scheduler", "schedule", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#4285F4"), true, 100, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowWorker              = style.MustRegisterTimelineType("airflow_worker", "Airflow Worker", "directions_run", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#0F9D58"), true, 110, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowDagProcessorManager = style.MustRegisterTimelineType("airflow_dag_processor_manager", "Airflow DAG Processor Manager", "summarize", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), true, 115, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowTriggerer           = style.MustRegisterTimelineType("airflow_triggerer", "Airflow Triggerer", "bolt", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#FFBB00"), true, 120, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowWebserver           = style.MustRegisterTimelineType("airflow_webserver", "Airflow Webserver", "web", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#9470DC"), true, 130, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowComponent           = style.MustRegisterTimelineType("airflow_component", "Airflow Component", "extension", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), true, 140, style.AlphabeticalSortPolicy())
 )

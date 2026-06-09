@@ -22,5 +22,5 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	VerbUnknown = style.MustRegisterVerb("Unknown", style.MustForceConvertSRGBHex("#CC33CC"), style.ColorWhite, true)
+	VerbUnknown = style.MustRegisterVerb("Unknown", style.MustForceConvertSRGBHex("#CC33CC"), style.ColorWhite, false)
 )
