@@ -32,11 +32,6 @@ import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from 'src/app/services/timeline-filter.service';
-import { InspectionDataStoreService } from 'src/app/services/inspection-data-store.service';
 import { ViewStateService } from 'src/app/services/view-state.service';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { of } from 'rxjs';
@@ -88,13 +83,6 @@ describe('AppComponent', () => {
               });
             },
           },
-        },
-        {
-          provide: DEFAULT_TIMELINE_FILTER,
-          useValue: new TimelineFilter(
-            new InspectionDataStoreService(),
-            new ViewStateService(),
-          ),
         },
         {
           provide: BACKEND_SYNC,
