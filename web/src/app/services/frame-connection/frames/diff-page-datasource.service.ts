@@ -15,9 +15,9 @@
  */
 
 import { Injectable, inject } from '@angular/core';
-import { InterframeDatasource } from '../inter-frame-datasource.service';
+import { InterframeDatasource } from 'src/app/services/frame-connection/inter-frame-datasource.service';
 import { distinctUntilChanged, map, Subject } from 'rxjs';
-import { WindowConnectorService } from '../window-connector.service';
+import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import { Router } from '@angular/router';
 import {
   DiffPageViewModel,

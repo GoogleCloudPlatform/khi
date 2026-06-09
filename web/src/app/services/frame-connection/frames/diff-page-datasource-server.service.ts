@@ -15,13 +15,13 @@
  */
 
 import { Injectable, inject } from '@angular/core';
-import { WindowConnectorService } from '../window-connector.service';
+import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import {
   DIFF_PAGE_OPEN,
   UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
   UpdateSelectedResourceMessage,
 } from 'src/app/common/schema/inter-window-messages';
-import { SelectionManagerV2 } from '../../selection-manager-v2.service';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 
 /**
  * DiffPageDataSourceServer sends data needed to show the diff page in the other tab.

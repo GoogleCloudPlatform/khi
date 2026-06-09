@@ -31,8 +31,8 @@ import * as k8s from '../store/k8s-types';
 import { isConditionPositive } from '../store/condition-positive-map';
 import { LongTimestampFormatPipe } from '../common/timestamp-format.pipe';
 import { ViewStateService } from '../services/view-state.service';
-import { Timeline } from '../store/domain/timeline';
-import { ReadonlyDomainElement } from '../store/domain/types';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 interface PodGraphDataGroupedByNode {
@@ -551,7 +551,7 @@ export class GraphDataConverterService {
     const deletionThreshold = 180;
     const revision = timeline.lookupRevisionAtNs(t, false);
     if (revision) {
-      const diff = Number((t - revision.changedTime) / 1_000_000_000n);
+      const diff = Number((t - revision.changedTime) / 1_000_000n) / 1000;
       if (
         revision.verb.label === 'Delete' ||
         revision.verb.label === 'DeleteCollection'

@@ -18,14 +18,14 @@ import {
   GRAPH_PAGE_OPEN,
   UPDATE_GRAPH_DATA,
 } from 'src/app/common/schema/inter-window-messages';
-import { GraphDataConverterService } from '../../graph-converter.service';
-import { WindowConnectorService } from '../window-connector.service';
+import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
+import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import { Injectable, inject } from '@angular/core';
-import { UpdateGraphMessage } from './graph-page-datasource.service';
+import { UpdateGraphMessage } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
 
-import { InspectionDataStoreV2 } from '../../inspection-data-store-v2.service';
+import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 
-import { SelectionManagerV2 } from '../../selection-manager-v2.service';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 
 @Injectable()
 export class GraphPageDataSourceServer {
