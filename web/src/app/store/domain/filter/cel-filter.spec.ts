@@ -20,10 +20,8 @@ import {
 } from 'src/app/store/domain/filter/cel-filter';
 import { LogTimelineFilterContext } from 'src/app/store/domain/filter/types';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
-import { LogStore } from 'src/app/store/domain/log-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { Timeline } from 'src/app/store/domain/timeline';
-import { Log } from 'src/app/store/domain/log';
 
 describe('CelTimelineFilter', () => {
   it('should filter timelines based on configured CEL expression', () => {
