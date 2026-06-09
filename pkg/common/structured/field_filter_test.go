@@ -111,27 +111,17 @@ func TestFieldFilterNode(t *testing.T) {
 			},
 		},
 		{
-			name:          "sequence node - ignored key is ignored on sequences",
-			originalVal:   []any{"x", "y"},
-			ignoredKeys:   []string{"x"},
-			wantType:      SequenceNodeType,
-			wantScalar:    nil,
-			wantScalarErr: true,
-			wantLen:       2,
-			wantChildren: []childItem{
-				{Index: 0, Key: "", Value: "x"},
-				{Index: 1, Key: "", Value: "y"},
-			},
-		},
-		{
 			name:          "sequence node - filter with empty key",
 			originalVal:   []any{"x", "y"},
 			ignoredKeys:   []string{""},
 			wantType:      SequenceNodeType,
 			wantScalar:    nil,
 			wantScalarErr: true,
-			wantLen:       0,
-			wantChildren:  nil,
+			wantLen:       2,
+			wantChildren: []childItem{
+				{Index: 0, Value: "x"},
+				{Index: 1, Value: "y"},
+			},
 		},
 	}
 

@@ -25,6 +25,12 @@ var _ Node = (*fieldFilterNode)(nil)
 // NewFieldFilterNode returns a filtered Node that wraps the original Node.
 // It filters out any map children whose keys are present in the ignored keys list.
 func NewFieldFilterNode(original Node, keys []string) Node {
+	if original == nil {
+		return nil
+	}
+	if original.Type() != MapNodeType {
+		return original
+	}
 	ignored := make(map[string]struct{})
 	for _, key := range keys {
 		ignored[key] = struct{}{}

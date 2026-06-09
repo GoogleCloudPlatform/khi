@@ -138,7 +138,7 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		}
 	}
 	// request or response may contain its proto type as @type. Removing it because its not a k8s field.
-	if currentBodyReader != nil{
+	if currentBodyReader != nil {
 		currentBodyReader = structured.NewNodeReader(structured.NewFieldFilterNode(currentBodyReader.Node, []string{"@type"}))
 	}
 	if currentBodyReader == nil {
