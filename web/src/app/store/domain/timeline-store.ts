@@ -47,6 +47,8 @@ function align(offset: number, alignment: number): number {
 
 /**
  * Represents the shared memory structure of the timeline store.
+ * This is used to pass data to the worker threads.
+ * To prevent the main thread from OOM killing, the main contents are shared via SharedArrayBuffer.
  */
 export interface TimelineStoreSharedData {
   readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
@@ -54,9 +56,8 @@ export interface TimelineStoreSharedData {
   readonly timelineCount: number;
   readonly revisionCount: number;
   readonly eventCount: number;
-  readonly timelineRevisionIds: readonly (readonly number[])[];
-  readonly timelineEventIds: readonly (readonly number[])[];
-  readonly timelineChildrenIds: readonly (readonly number[])[];
+  readonly timelineRevisionIds: Uint32Array[];
+  readonly timelineEventIds: Uint32Array[];
   readonly timelineIdToIndex: { readonly [tid: number]: number };
   readonly revisionIdToIndex: { readonly [rid: number]: number };
   readonly eventIdToIndex: { readonly [eid: number]: number };
@@ -169,25 +170,33 @@ export class TimelineStore {
         (sab) => new Uint8Array(sab),
       );
 
-      this.timelineRevisionIds = sharedData.timelineRevisionIds.map(
-        (arr) => new Uint32Array(arr),
-      );
-      this.timelineEventIds = sharedData.timelineEventIds.map(
-        (arr) => new Uint32Array(arr),
-      );
-      this.timelineChildrenIds = sharedData.timelineChildrenIds.map((arr) =>
-        Array.from(arr),
-      );
+      this.timelineRevisionIds = sharedData.timelineRevisionIds;
+      this.timelineEventIds = sharedData.timelineEventIds;
 
-      this.timelineIdToIndex = { ...sharedData.timelineIdToIndex };
-      this.revisionIdToIndex = { ...sharedData.revisionIdToIndex };
-      this.eventIdToIndex = { ...sharedData.eventIdToIndex };
+      this.timelineIdToIndex = sharedData.timelineIdToIndex;
+      this.revisionIdToIndex = sharedData.revisionIdToIndex;
+      this.eventIdToIndex = sharedData.eventIdToIndex;
 
       this.mapMetadataViews(
         sharedData.timelineCount,
         sharedData.revisionCount,
         sharedData.eventCount,
       );
+
+      this.timelineChildrenIds = [];
+      for (let i = 0; i < sharedData.timelineCount; i++) {
+        this.timelineChildrenIds[i] = [];
+      }
+
+      for (let i = 0; i < sharedData.timelineCount; i++) {
+        const parentId = this.timelineParentIds[i];
+        if (parentId !== 0) {
+          const parentIndex = this.timelineIdToIndex[parentId];
+          if (parentIndex !== undefined) {
+            this.timelineChildrenIds[parentIndex].push(this.timelineIds[i]);
+          }
+        }
+      }
 
       for (let i = 0; i < sharedData.timelineCount; i++) {
         this.timelinesList.push(new Timeline(this.timelineIds[i], this));
@@ -812,16 +821,11 @@ export class TimelineStore {
       timelineCount: this.timelineIds.length,
       revisionCount: this.revisionIds.length,
       eventCount: this.eventIds.length,
-      timelineRevisionIds: this.timelineRevisionIds.map((arr) =>
-        Array.from(arr),
-      ),
-      timelineEventIds: this.timelineEventIds.map((arr) => Array.from(arr)),
-      timelineChildrenIds: this.timelineChildrenIds.map((arr) =>
-        Array.from(arr),
-      ),
-      timelineIdToIndex: { ...this.timelineIdToIndex },
-      revisionIdToIndex: { ...this.revisionIdToIndex },
-      eventIdToIndex: { ...this.eventIdToIndex },
+      timelineRevisionIds: this.timelineRevisionIds,
+      timelineEventIds: this.timelineEventIds,
+      timelineIdToIndex: this.timelineIdToIndex,
+      revisionIdToIndex: this.revisionIdToIndex,
+      eventIdToIndex: this.eventIdToIndex,
     };
   }
 }

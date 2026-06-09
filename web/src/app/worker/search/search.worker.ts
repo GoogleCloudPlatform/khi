@@ -32,20 +32,20 @@ addEventListener('message', (event: MessageEvent<SearchWorkerRequest>) => {
         handleSyncData(request, searchWorkerState);
         break;
       case 'SEARCH_TIMELINES': {
-        const matchedIds = handleSearchTimelines(request, searchWorkerState);
+        handleSearchTimelines(request, searchWorkerState);
         postMessage({
           type: 'SEARCH_COMPLETE',
           requestId: request.requestId,
-          matchedIds,
+          workerIndex: request.workerIndex,
         } as SearchWorkerResponse);
         break;
       }
       case 'SEARCH_LOGS': {
-        const matchedIds = handleSearchLogs(request, searchWorkerState);
+        handleSearchLogs(request, searchWorkerState);
         postMessage({
           type: 'SEARCH_COMPLETE',
           requestId: request.requestId,
-          matchedIds,
+          workerIndex: request.workerIndex,
         } as SearchWorkerResponse);
         break;
       }

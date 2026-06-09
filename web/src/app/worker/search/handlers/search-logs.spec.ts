@@ -81,20 +81,35 @@ describe('handleSearchLogs', () => {
     });
 
     const progressSab = new SharedArrayBuffer(1024);
+    const requestBuf = new SharedArrayBuffer(1024);
+    const resultBuf = new SharedArrayBuffer(1024);
+
+    const reqView = new Int32Array(requestBuf);
+    reqView[0] = 2;
+    reqView[1] = 0;
+    reqView[2] = 1;
 
     // Matching ERROR logs: log 11 and log 13
-    const matchedIds = handleSearchLogs(
+    handleSearchLogs(
       {
         type: 'SEARCH_LOGS',
         requestId: 'req-log-1',
         celExpr: 'severity == ERROR',
         workerIndex: 0,
         numWorkers: 1,
-        timelineIds: [0, 1],
+        requestBuf,
+        resultBuf,
         progressSab,
       },
       state,
     );
+
+    const resView = new Int32Array(resultBuf);
+    const matchedCount = resView[0];
+    const matchedIds = [];
+    for (let i = 1; i <= matchedCount; i++) {
+      matchedIds.push(resView[i]);
+    }
 
     expect(matchedIds.sort((a, b) => a - b)).toEqual([11, 13]);
   });
