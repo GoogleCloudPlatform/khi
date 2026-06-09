@@ -19,7 +19,6 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -35,10 +34,9 @@ var ComposerLogsTailTask = coretask.NewTask(
 	func(ctx context.Context) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabel(
+	inspectioncore_contract.FeatureTaskLabelV2(
 		"Composer Logs",
 		"Cloud Composer related logs like airflow-worker, airflow-scheduler, airflow-dag-processor-manager, and others.",
-		enum.LogTypeComposerEnvironment,
 		101000,
 		true,
 	),

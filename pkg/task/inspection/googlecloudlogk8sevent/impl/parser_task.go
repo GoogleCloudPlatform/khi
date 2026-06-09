@@ -94,7 +94,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 		if err != nil {
 			return "unknown"
 		}
-		return event.ResourcePath().Path
+		return fmt.Sprintf("cluster=%s,kind=%s,namespace=%s,name=%s", event.ClusterName, event.ResourceKind, event.Namespace, event.Resource)
 	},
 )
 

@@ -24,29 +24,12 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
-
-func convertSeverity(sev enum.Severity) *pb.Severity {
-	switch sev {
-	case enum.SeverityInfo:
-		return inspectioncore_contract.SeverityInfo
-	case enum.SeverityWarning:
-		return inspectioncore_contract.SeverityWarning
-	case enum.SeverityError:
-		return inspectioncore_contract.SeverityError
-	case enum.SeverityFatal:
-		return inspectioncore_contract.SeverityFatal
-	default:
-		return inspectioncore_contract.SeverityUnknown
-	}
-}
 
 // K8sNodeLogIngester implements LogIngesterV2 for GKE Node component logs.
 type K8sNodeLogIngester struct{}
@@ -85,7 +68,7 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 
 	severity, err := nodeLogFS.Message.Severity()
 	if err == nil {
-		cs.SetSeverity(convertSeverity(severity))
+		cs.SetSeverity(severity)
 	} else {
 		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
 	}

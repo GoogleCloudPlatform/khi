@@ -37,7 +37,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"go.opentelemetry.io/otel/attribute"
@@ -49,9 +48,8 @@ var maxResourceNameCountPerRequest = 100
 
 // ListLogEntriesTaskDescription holds descriptive information for a task to list log entries from CloudLogging.
 type ListLogEntriesTaskDescription struct {
-	DefaultLogType enum.LogType
-	QueryName      string
-	ExampleQuery   string
+	QueryName    string
+	ExampleQuery string
 }
 
 // ListLogEntriesTaskSetting defines the settings for a Cloud Logging list log entries task.
@@ -108,7 +106,7 @@ func monitorProgress(ctx context.Context, wg *sync.WaitGroup, source <-chan LogF
 	}()
 }
 
-func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log, logType enum.LogType) {
+func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *loggingpb.LogEntry, dest *[]*log.Log) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -126,7 +124,6 @@ func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *lo
 					continue
 				}
 				khiLog := log.NewLog(structured.NewNodeReader(node))
-				khiLog.LogType = logType
 				*dest = append(*dest, khiLog)
 			}
 		}
@@ -195,7 +192,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 					listCallIndex := filterIndex*len(groups) + groupIndex
 					allListCalls := len(filters) * len(groups)
 					monitorProgress(ctx, &wg, progressChan, progress, listCallIndex, allListCalls)
-					convertLogsArray(ctx, &wg, logChan, &allLogs, description.DefaultLogType)
+					convertLogsArray(ctx, &wg, logChan, &allLogs)
 					err = progressReportableLogFetcher.FetchLogsWithProgress(logChan, progressChan, ctx, startTime, endTime, filter, group.container, group.resourceNames)
 					wg.Wait()
 
@@ -219,7 +216,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 			}
 
 			return allLogs, nil
-		}, inspectioncore_contract.NewQueryTaskLabelOpt(description.DefaultLogType, description.ExampleQuery),
+		}, inspectioncore_contract.NewQueryTaskLabelOpt(description.ExampleQuery),
 		coretask.WithLabelValue(RequestOptionalInputResourceNameTaskLabel, taskID.ReferenceIDString()),
 	)
 }

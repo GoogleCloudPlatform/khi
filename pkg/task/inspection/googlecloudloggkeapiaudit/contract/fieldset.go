@@ -16,7 +16,6 @@ package googlecloudloggkeapiaudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -34,13 +33,6 @@ func (g *GKEAuditLogResourceFieldSet) IsCluster() bool {
 // IsNodepool returns true if the log entry is related to a GKE nodepool operation (i.e., a nodepool name is present).
 func (g *GKEAuditLogResourceFieldSet) IsNodepool() bool {
 	return g.NodepoolName != ""
-}
-
-func (g *GKEAuditLogResourceFieldSet) ResourcePath() resourcepath.ResourcePath {
-	if g.IsCluster() {
-		return resourcepath.Cluster(g.ClusterName)
-	}
-	return resourcepath.Nodepool(g.ClusterName, g.NodepoolName)
 }
 
 // Kind implements log.FieldSet.

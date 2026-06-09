@@ -32,7 +32,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logger"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/gin-gonic/gin"
 
@@ -108,29 +107,29 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 			case <-ctx.Done():
 				return nil, nil
 			}
-		}, inspectioncore_contract.InspectionTypeLabel("foo", "bar", "qux")),
+		}, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"test-env": "true"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("errorend"), []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return nil, fmt.Errorf("test error")
-		}, inspectioncore_contract.InspectionTypeLabel("foo", "bar", "qux")),
+		}, inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"test-env": "true"})),
 		formtask.NewTextFormTaskBuilder(debugTaskImplID("foo-input"), 0, "A input field for foo").WithValidator(func(ctx context.Context, value string) (string, error) {
 			if value == "foo-input-invalid-value" {
 				return "invalid value", nil
 			}
 			return "", nil
-		}).Build(inspectioncore_contract.InspectionTypeLabel("foo")),
-		formtask.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspectioncore_contract.InspectionTypeLabel("bar")),
+		}).Build(inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
+		formtask.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "bar"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("foo feature1", "test-feature", enum.LogTypeAudit, 10, false, "foo"), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())),
+		}, inspectioncore_contract.FeatureTaskLabelV2("foo feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo2-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("foo feature2", "test-feature", enum.LogTypeAudit, 10, false, "foo"), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())),
+		}, inspectioncore_contract.FeatureTaskLabelV2("foo feature2", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("bar feature1", "test-feature", enum.LogTypeAudit, 10, false, "bar"), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())),
+		}, inspectioncore_contract.FeatureTaskLabelV2("bar feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "bar"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabel("qux feature1", "test-feature", enum.LogTypeAudit, 10, false, "qux"), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref())),
+		}, inspectioncore_contract.FeatureTaskLabelV2("qux feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "qux"})),
 	}
 
 	for _, task := range tasks {
@@ -146,6 +145,10 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 			Description: "foo-description",
 			Icon:        "foo-icon",
 			Priority:    1,
+			Labels: map[string]string{
+				"test-env": "true",
+				"name":     "foo",
+			},
 		},
 		{
 			Id:          "bar",
@@ -153,6 +156,10 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 			Description: "bar-description",
 			Icon:        "bar-icon",
 			Priority:    2,
+			Labels: map[string]string{
+				"test-env": "true",
+				"name":     "bar",
+			},
 		},
 		{
 			Id:          "qux",
@@ -160,6 +167,10 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 			Description: "qux-description",
 			Icon:        "qux-icon",
 			Priority:    3,
+			Labels: map[string]string{
+				"test-env": "true",
+				"name":     "qux",
+			},
 		},
 	}
 	for _, t := range inspectionTypes {
@@ -258,7 +269,7 @@ func TestApiResponses(t *testing.T) {
 			ExpectedCode:  200,
 			RequestMethod: "GET",
 			RequestPath:   "/foo/api/v3/inspection/types",
-			BodyValidator: bodyCompareWithStringExpectedValue(`{"types":[{"id":"qux","name":"qux-name","description":"qux-description","icon":"qux-icon"},{"id":"bar","name":"bar-name","description":"bar-description","icon":"bar-icon"},{"id":"foo","name":"foo-name","description":"foo-description","icon":"foo-icon"}]}`),
+			BodyValidator: bodyCompareWithStringExpectedValue(`{"types":[{"id":"qux","name":"qux-name","description":"qux-description","icon":"qux-icon","labels":{"name":"qux","test-env":"true"}},{"id":"bar","name":"bar-name","description":"bar-description","icon":"bar-icon","labels":{"name":"bar","test-env":"true"}},{"id":"foo","name":"foo-name","description":"foo-description","icon":"foo-icon","labels":{"name":"foo","test-env":"true"}}]}`),
 		},
 		{
 			// 001

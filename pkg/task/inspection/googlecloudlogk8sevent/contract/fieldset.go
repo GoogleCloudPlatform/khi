@@ -20,7 +20,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -32,13 +31,6 @@ type KubernetesEventFieldSet struct {
 	Resource     string
 	Reason       string
 	Message      string
-}
-
-func (k *KubernetesEventFieldSet) ResourcePath() resourcepath.ResourcePath {
-	if k.Resource == "" {
-		return resourcepath.Cluster(k.ClusterName)
-	}
-	return resourcepath.NameLayerGeneralItem(k.APIVersion, k.ResourceKind, k.Namespace, k.Resource)
 }
 
 // Kind implements log.FieldSet.

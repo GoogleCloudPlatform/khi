@@ -21,7 +21,8 @@ import (
 	"sync"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // KLogTextParser parses given klog formatted string.
@@ -104,18 +105,18 @@ func (w *klogTextParserWorker) parse(message string) *ParseStructuredLogResult {
 	return result
 }
 
-func (w *klogTextParserWorker) parseSeverity(severityStr string) (enum.Severity, error) {
+func (w *klogTextParserWorker) parseSeverity(severityStr string) (*pb.Severity, error) {
 	switch severityStr {
 	case "I":
-		return enum.SeverityInfo, nil
+		return inspectioncore_contract.SeverityInfo, nil
 	case "W":
-		return enum.SeverityWarning, nil
+		return inspectioncore_contract.SeverityWarning, nil
 	case "E":
-		return enum.SeverityError, nil
+		return inspectioncore_contract.SeverityError, nil
 	case "F":
-		return enum.SeverityFatal, nil
+		return inspectioncore_contract.SeverityFatal, nil
 	default:
-		return enum.SeverityUnknown, khierrors.ErrInvalidInput
+		return inspectioncore_contract.SeverityUnknown, khierrors.ErrInvalidInput
 	}
 }
 

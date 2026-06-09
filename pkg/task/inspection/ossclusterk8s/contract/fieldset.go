@@ -20,7 +20,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
@@ -84,12 +83,10 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) FieldSetKind() string {
 func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var err error
 	result := &log.CommonFieldSet{}
-	result.DisplayID = reader.ReadStringOrDefault("auditID", "unknown")
 	result.Timestamp, err = reader.ReadTimestamp("stageTimestamp")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read timestamp from given log")
 	}
-	result.Severity = enum.SeverityUnknown // TODO: handle OSS k8s audit log severity properly
 	return result, nil
 }
 

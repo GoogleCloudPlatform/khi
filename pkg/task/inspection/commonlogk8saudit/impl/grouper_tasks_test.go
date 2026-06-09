@@ -18,31 +18,12 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
-
-func resolveVerb(v enum.RevisionVerb) *pb.Verb {
-	switch v {
-	case enum.RevisionVerbCreate:
-		return commonlogk8saudit_contract.VerbCreate
-	case enum.RevisionVerbDelete:
-		return commonlogk8saudit_contract.VerbDelete
-	case enum.RevisionVerbUpdate:
-		return commonlogk8saudit_contract.VerbUpdate
-	case enum.RevisionVerbPatch:
-		return commonlogk8saudit_contract.VerbPatch
-	case enum.RevisionVerbDeleteCollection:
-		return commonlogk8saudit_contract.VerbDeleteCollection
-	default:
-		return commonlogk8saudit_contract.VerbUnknown
-	}
-}
 
 type testScanTargetResourceInput struct {
 	op           *model.KubernetesObjectOperation
@@ -66,7 +47,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind: "pods",
 						Namespace:  "default",
 						Name:       "pod1",
-						Verb:       enum.RevisionVerbCreate,
+						Verb:       commonlogk8saudit_contract.VerbCreate,
 					},
 					requestYAML:  "",
 					responseYAML: "",
@@ -87,7 +68,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind: "pods",
 						Namespace:  "default",
 						Name:       "",
-						Verb:       enum.RevisionVerbDeleteCollection,
+						Verb:       commonlogk8saudit_contract.VerbDeleteCollection,
 					},
 					requestYAML: "",
 					responseYAML: `items:
@@ -113,7 +94,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind: "pods",
 						Namespace:  "other",
 						Name:       "pod-other",
-						Verb:       enum.RevisionVerbCreate,
+						Verb:       commonlogk8saudit_contract.VerbCreate,
 					},
 				},
 				{
@@ -122,7 +103,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind: "pods",
 						Namespace:  "default",
 						Name:       "pod1",
-						Verb:       enum.RevisionVerbCreate,
+						Verb:       commonlogk8saudit_contract.VerbCreate,
 					},
 				},
 				{
@@ -131,7 +112,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind: "pods",
 						Namespace:  "default",
 						Name:       "pod2",
-						Verb:       enum.RevisionVerbCreate,
+						Verb:       commonlogk8saudit_contract.VerbCreate,
 					},
 				},
 				{
@@ -140,7 +121,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind: "pods",
 						Namespace:  "default",
 						Name:       "",
-						Verb:       enum.RevisionVerbDeleteCollection,
+						Verb:       commonlogk8saudit_contract.VerbDeleteCollection,
 					},
 					responseYAML: ``,
 				},
@@ -165,7 +146,7 @@ func TestScanTargetResource(t *testing.T) {
 						PluralKind:      "deployments",
 						Namespace:       "default",
 						Name:            "deployment1",
-						Verb:            enum.RevisionVerbUpdate,
+						Verb:            commonlogk8saudit_contract.VerbUpdate,
 						SubResourceName: "scale",
 					},
 					responseYAML: `apiVersion: apps/v1
@@ -185,7 +166,7 @@ kind: Deployment`,
 						PluralKind:      "pods",
 						Namespace:       "default",
 						Name:            "pod1",
-						Verb:            enum.RevisionVerbUpdate,
+						Verb:            commonlogk8saudit_contract.VerbUpdate,
 						SubResourceName: "binding",
 					},
 					responseYAML: `apiVersion: v1
@@ -205,7 +186,7 @@ kind: Binding`,
 						PluralKind:      "pods",
 						Namespace:       "default",
 						Name:            "pod1",
-						Verb:            enum.RevisionVerbPatch,
+						Verb:            commonlogk8saudit_contract.VerbPatch,
 						SubResourceName: "binding",
 					},
 					requestYAML: `apiVersion: v1
@@ -225,7 +206,7 @@ kind: Binding`,
 						PluralKind:      "pods",
 						Namespace:       "default",
 						Name:            "pod1",
-						Verb:            enum.RevisionVerbPatch,
+						Verb:            commonlogk8saudit_contract.VerbPatch,
 						SubResourceName: "binding",
 					},
 					responseYAML: `apiVersion: v1
@@ -247,7 +228,7 @@ kind: Binding`,
 						PluralKind: "nodes",
 						Name:       "node-1",
 						Namespace:  "cluster-scope",
-						Verb:       enum.RevisionVerbDelete,
+						Verb:       commonlogk8saudit_contract.VerbDelete,
 					},
 				},
 			},
@@ -265,7 +246,7 @@ kind: Binding`,
 						Namespace:       "default",
 						Name:            "pod1",
 						SubResourceName: "status",
-						Verb:            enum.RevisionVerbDelete,
+						Verb:            commonlogk8saudit_contract.VerbDelete,
 					},
 				},
 			},
@@ -286,7 +267,7 @@ kind: Binding`,
 						Namespace:       "default",
 						Name:            "pod1",
 						SubResourceName: "binding",
-						Verb:            enum.RevisionVerbDelete,
+						Verb:            commonlogk8saudit_contract.VerbDelete,
 					},
 				},
 			},
@@ -307,7 +288,7 @@ kind: Binding`,
 						Namespace:       "default",
 						Name:            "pod1",
 						SubResourceName: "binding",
-						Verb:            enum.RevisionVerbDelete,
+						Verb:            commonlogk8saudit_contract.VerbDelete,
 					},
 				},
 			},
@@ -342,7 +323,7 @@ kind: Binding`,
 					ResourceName:    input.op.Name,
 					SubresourceName: input.op.SubResourceName,
 					ClusterName:     "k8s",
-					Verb:            resolveVerb(input.op.Verb),
+					Verb:            input.op.Verb,
 					Request:         request,
 					Response:        response,
 				}))

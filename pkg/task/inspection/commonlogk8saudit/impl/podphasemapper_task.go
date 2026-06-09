@@ -81,7 +81,7 @@ func (c *podPhaseLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx c
 	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	for _, group := range groupedLogs {
 		if group.Resource.Type() == commonlogk8saudit_contract.Resource && group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod" {
-			bindingGroup := groupedLogs[group.Resource.SubresourceIdentity("binding").ResourcePathString()]
+			bindingGroup := groupedLogs[group.Resource.SubresourceIdentity("binding").String()]
 			result = append(result, commonlogk8saudit_contract.RelatedGroupSet{
 				Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
 					"pod":     group,
