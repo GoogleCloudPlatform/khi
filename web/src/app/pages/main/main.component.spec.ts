@@ -15,9 +15,9 @@
  */
 
 import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
-import { AppComponent } from './main.component';
+import { AppComponent } from 'src/app/pages/main/main.component';
 import { signal, Injector } from '@angular/core';
-import { InspectionDataLoaderService } from '../../services/data-loader.service';
+import { InspectionDataLoaderService } from 'src/app/services/data-loader.service';
 import {
   WINDOW_CONNECTION_PROVIDER,
   WindowConnectorService,
@@ -32,17 +32,11 @@ import {
   EXTENSION_STORE,
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from 'src/app/services/timeline-filter.service';
-import { InspectionDataStoreService } from 'src/app/services/inspection-data-store.service';
-import { ViewStateService } from 'src/app/services/view-state.service';
 import { BACKEND_API } from 'src/app/services/api/backend-api-interface';
 import { of } from 'rxjs';
 import { GetConfigResponse } from 'src/app/common/schema/api-types';
-import { BACKEND_SYNC } from '../../services/api/backend-sync.service';
-import { MenuManager } from '../../services/menu/menu-manager.service';
+import { BACKEND_SYNC } from 'src/app/services/api/backend-sync.service';
+import { MenuManager } from 'src/app/services/menu/menu-manager.service';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PROGRESS_DIALOG_STATUS_UPDATOR } from 'src/app/services/progress/progress-interface';
@@ -88,13 +82,6 @@ describe('AppComponent', () => {
               });
             },
           },
-        },
-        {
-          provide: DEFAULT_TIMELINE_FILTER,
-          useValue: new TimelineFilter(
-            new InspectionDataStoreService(),
-            new ViewStateService(),
-          ),
         },
         {
           provide: BACKEND_SYNC,

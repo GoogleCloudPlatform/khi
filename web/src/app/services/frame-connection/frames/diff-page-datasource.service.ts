@@ -15,16 +15,15 @@
  */
 
 import { Injectable, inject } from '@angular/core';
-import { InterframeDatasource } from '../inter-frame-datasource.service';
+import { InterframeDatasource } from 'src/app/services/frame-connection/inter-frame-datasource.service';
 import { distinctUntilChanged, map, Subject } from 'rxjs';
-import { WindowConnectorService } from '../window-connector.service';
+import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import { Router } from '@angular/router';
 import {
   DiffPageViewModel,
   UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
   UpdateSelectedResourceMessage,
 } from 'src/app/common/schema/inter-window-messages';
-import { ResourceTimeline } from 'src/app/store/timeline';
 
 @Injectable()
 export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> {
@@ -57,11 +56,15 @@ export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> 
       )
       .pipe(
         map((message) => ({
-          timeline: ResourceTimeline.clone(message.data.timeline),
+          timelinePath: message.data.timelinePath,
+          previousContent: message.data.previousContent,
+          currentContent: message.data.currentContent,
           logIndex: message.data.logIndex,
         })),
       )
-      .subscribe(this.rawUpdateRequest$);
+      .subscribe((data) => {
+        this.rawUpdateRequest$.next(data);
+      });
     this.data$.subscribe((data) => this.updatePath(data));
     this.connector.broadcast('DIFF_PAGE_OPEN', {});
   }
@@ -72,9 +75,12 @@ export class DiffPageDataSource extends InterframeDatasource<DiffPageViewModel> 
 
   private updatePath(data: DiffPageViewModel) {
     const logIndex = data.logIndex;
+    const timelineId = data.timelinePath[data.timelinePath.length - 1]?.id;
 
-    this.navigationCandidate.next(
-      `diff?timeline=${data.timeline.timelineId}&logIndex=${logIndex}`,
-    );
+    if (timelineId !== undefined) {
+      this.navigationCandidate.next(
+        `diff?timeline=${timelineId}&logIndex=${logIndex}`,
+      );
+    }
   }
 }

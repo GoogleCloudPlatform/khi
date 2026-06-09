@@ -25,8 +25,7 @@ import {
   LifecycleHookExtension,
   PageType,
 } from './extension-types/lifecycle-hook';
-import { InspectionData } from 'src/app/store/inspection-data';
-import { ReferenceResolverStore } from 'src/app/common/loader/reference-resolver';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 
 /**
  * An injectio toke to get the instnce of ExtensionStore.
@@ -111,16 +110,13 @@ export class ExtensionStore {
    * Call the lifecycle hooks onInspectionDataOpen.
    */
   public notifyLifecycleOnInspectionDataOpen(
-    inspectionData: InspectionData,
-    textBufferSource: ReferenceResolverStore,
+    inspectionData: InspectionDataV2,
     rawData: ArrayBuffer,
   ): void {
     return runInInjectionContext(this.injector, () => {
       this.lifecycleHookExtensions
         .filter((e) => e.onInspectionDataOpen)
-        .forEach((e) =>
-          e.onInspectionDataOpen!(inspectionData, textBufferSource, rawData),
-        );
+        .forEach((e) => e.onInspectionDataOpen!(inspectionData, rawData));
     });
   }
 }
