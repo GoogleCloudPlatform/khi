@@ -159,8 +159,10 @@ export function toCelTimeline(
     },
     get path(): Record<string, string> {
       const pathMap: Record<string, string> = {};
-      for (const node of timeline.path) {
-        pathMap[node.type.label.toLowerCase()] = node.label;
+      if (timeline.path) {
+        for (const node of timeline.path) {
+          pathMap[node.type.label.toLowerCase()] = node.label;
+        }
       }
       return pathMap;
     },

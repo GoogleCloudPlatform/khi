@@ -81,6 +81,17 @@ export class CELTimelineFilterEnvironment {
           body: 'map',
         },
       })
+      .registerType({
+        name: 'Timeline',
+        schema: {
+          name: 'string',
+          timelineType: 'string',
+          path: 'map',
+          events: 'list<Event>',
+          revisions: 'list<Revision>',
+        },
+      })
+      .registerVariable('t', 'Timeline')
       .registerVariable('name', 'string')
       .registerVariable('timelineType', 'string')
       .registerVariable('path', 'map')
@@ -166,7 +177,8 @@ export class CELTimelineFilterEnvironment {
 
     try {
       const parsed = this.environment.parse(celExpr);
-      this.evaluator = (ctx) => Boolean(parsed({ ...ctx, ...SEVERITY_LEVELS }));
+      this.evaluator = (ctx) =>
+        Boolean(parsed({ t: ctx, ...ctx, ...SEVERITY_LEVELS }));
       return { success: true };
     } catch (err) {
       this.evaluator = undefined;
@@ -210,6 +222,17 @@ export class CELLogFilterEnvironment {
     this.environment = new Environment({
       unlistedVariablesAreDyn: false,
     })
+      .registerType({
+        name: 'Log',
+        schema: {
+          logType: 'string',
+          severity: 'int',
+          summary: 'string',
+          body: 'map',
+          bodyYAML: 'string',
+        },
+      })
+      .registerVariable('l', 'Log')
       .registerVariable('logType', 'string')
       .registerVariable('severity', 'int')
       .registerVariable('summary', 'string')
@@ -269,7 +292,8 @@ export class CELLogFilterEnvironment {
 
     try {
       const parsed = this.environment.parse(celExpr);
-      this.evaluator = (ctx) => Boolean(parsed({ ...ctx, ...SEVERITY_LEVELS }));
+      this.evaluator = (ctx) =>
+        Boolean(parsed({ l: ctx, ...ctx, ...SEVERITY_LEVELS }));
       return { success: true };
     } catch (err) {
       this.evaluator = undefined;

@@ -108,7 +108,8 @@ export function matchLogField(
       if (
         current === null ||
         current === undefined ||
-        typeof current !== 'object'
+        typeof current !== 'object' ||
+        Array.isArray(current)
       ) {
         return false;
       }
