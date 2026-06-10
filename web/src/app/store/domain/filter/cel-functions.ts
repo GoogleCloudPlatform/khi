@@ -119,7 +119,11 @@ export function matchLogField(
     if (current === undefined || current === null) {
       return false;
     }
-    actualVal = String(current);
+    if (typeof current === 'object') {
+      return false;
+    } else {
+      actualVal = String(current);
+    }
   }
   const patterns = Array.isArray(val) ? val : [val];
 
@@ -172,7 +176,11 @@ export function matchTimelineRevisionBodyField(
       if (current === undefined || current === null) {
         return false;
       }
-      actualVal = String(current);
+      if (typeof current === 'object') {
+        return false;
+      } else {
+        actualVal = String(current);
+      }
     }
 
     const patterns = Array.isArray(val) ? val : [val];

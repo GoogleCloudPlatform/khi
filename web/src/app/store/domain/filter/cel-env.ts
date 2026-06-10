@@ -48,7 +48,7 @@ export class CELTimelineFilterEnvironment {
   private currentTimeline?: CELTimeline;
 
   /**
-   * Initializes the CEL Environment with unlistedVariablesAreDyn enabled to support top-level property resolution dynamically.
+   * Initializes the CEL Environment with unlistedVariablesAreDyn disabled to enforce strict variable registration.
    */
   constructor() {
     this.environment = new Environment({
@@ -216,7 +216,7 @@ export class CELLogFilterEnvironment {
   private currentLog?: CELLog;
 
   /**
-   * Initializes the CEL Environment with unlistedVariablesAreDyn enabled to support top-level property resolution dynamically.
+   * Initializes the CEL Environment with unlistedVariablesAreDyn disabled to enforce strict variable registration.
    */
   constructor() {
     this.environment = new Environment({
