@@ -17,19 +17,39 @@
 import {
   Component,
   HostListener,
+  viewChild,
+  ElementRef,
   input,
   model,
   output,
-  inject,
+  signal,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { RegexInputComponent } from './regex-input.component';
-import { SetInputPopupComponent } from './set-input-popup.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { TimelineFilterBuilderComponent } from './timeline-filter-builder.component';
+import { SearchScope } from 'src/app/services/view-state.service';
+import { TimelineFilterConfig } from '../types/filter-config';
+import { TimelineType } from 'src/app/store/domain/style';
+import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
+
+/**
+ * Visual theme representation for a timeline type chip and row.
+ */
+export interface TimelineTypeColor {
+  readonly chipBackgroundColor: string;
+  readonly chipForegroundColor: string;
+  readonly rowBackgroundColor: string;
+  readonly rowForegroundColor: string;
+}
 
 export enum ToolbarPopupStatus {
   None = 'NONE_OPEN',
@@ -44,16 +64,24 @@ export enum ToolbarPopupStatus {
   styleUrls: ['./toolbar.component.scss'],
   imports: [
     CommonModule,
-    SetInputPopupComponent,
     MatIconModule,
+    KHIIconRegistrationModule,
     OverlayModule,
-    RegexInputComponent,
     MatButtonModule,
     MatButtonToggleModule,
+    MatTooltipModule,
+    TimelineFilterBuilderComponent,
+    MatSelectModule,
+    MatInputModule,
+    MatFormFieldModule,
   ],
 })
 export class ToolbarComponent {
-  private readonly snackbar = inject(MatSnackBar);
+  /**
+   * Reference to the Log Search input element for search focus management.
+   */
+  public readonly logSearchInput =
+    viewChild<ElementRef<HTMLInputElement>>('logSearchInput');
 
   // Inputs (Signals)
   readonly showButtonLabel = input(false);
@@ -65,17 +93,129 @@ export class ToolbarComponent {
   readonly includedSubresourceRelationships = model<Set<string>>(new Set());
   readonly timezoneShift = model(0);
   readonly logOrTimelineNotSelected = input(true);
-  readonly hideSubresourcesWithoutMatchingLogs = model(false);
-  readonly hideResourcesWithoutMatchingLogs = model(false);
   readonly nameFilter = model('');
-  readonly logFilter = model('');
+  readonly selectedSeverity = model<string>('ANY');
+  readonly logSearchQuery = model<string>('');
+
+  /**
+   * Holds the current active search scope.
+   */
+  readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
+
+  // Timeline Filters (Dumb state)
+  readonly timelineFilters = model<TimelineFilterConfig[]>([]);
+  readonly timelineTypes = input<TimelineType[]>([]);
+  readonly candidates = input<string[]>([]);
+  readonly selectedTimelineTypeForBuilder = model<string>('*');
+  readonly typeCandidateCounts = input<Record<string, number>>({});
+
+  /** Map matching timeline type labels to standard icons. */
+  protected readonly typeIcons = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const type of this.timelineTypes()) {
+      map[type.label.toLowerCase()] = type.icon;
+    }
+    return map;
+  });
+
+  /** Theme colors mapped per timeline type. */
+  protected readonly typeColors = computed<Record<string, TimelineTypeColor>>(
+    () => {
+      const map: Record<string, TimelineTypeColor> = {};
+      for (const type of this.timelineTypes()) {
+        map[type.label.toLowerCase()] = {
+          chipBackgroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.typeChipBackgroundColor.r,
+            type.typeChipBackgroundColor.g,
+            type.typeChipBackgroundColor.b,
+            type.typeChipBackgroundColor.a,
+          ]),
+          chipForegroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.typeChipForegroundColor.r,
+            type.typeChipForegroundColor.g,
+            type.typeChipForegroundColor.b,
+            type.typeChipForegroundColor.a,
+          ]),
+          rowBackgroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.backgroundColor.r,
+            type.backgroundColor.g,
+            type.backgroundColor.b,
+            type.backgroundColor.a,
+          ]),
+          rowForegroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.foregroundColor.r,
+            type.foregroundColor.g,
+            type.foregroundColor.b,
+            type.foregroundColor.a,
+          ]),
+        };
+      }
+      return map;
+    },
+  );
 
   // Outputs (Outputs)
   readonly drawDiagram = output<void>();
+  readonly switchToAdvanced = output<void>();
+
+  protected getTypeChipColor(typeLabel: string): string {
+    const colors = this.typeColors()[typeLabel.toLowerCase()];
+    return colors ? colors.chipForegroundColor : '';
+  }
+
+  protected getTypeChipBgColor(typeLabel: string): string {
+    const colors = this.typeColors()[typeLabel.toLowerCase()];
+    return colors ? colors.chipBackgroundColor : '';
+  }
+
+  protected getTypeRowColor(typeLabel: string): string {
+    const colors = this.typeColors()[typeLabel.toLowerCase()];
+    return colors ? colors.rowForegroundColor : '';
+  }
+
+  protected getTypeRowBgColor(typeLabel: string): string {
+    const colors = this.typeColors()[typeLabel.toLowerCase()];
+    return colors ? colors.rowBackgroundColor : '';
+  }
+
+  /**
+   * Returns the formatted display string for the filter value.
+   * Show the raw pattern for regex mode, and "selectedCount/totalCount" for selection mode.
+   */
+  protected getFilterValueDisplay(filter: TimelineFilterConfig): string {
+    if (filter.mode === 'regex') {
+      return filter.value;
+    }
+    const selectedCount = filter.value ? filter.value.split('|').length : 0;
+    const totalCount =
+      this.typeCandidateCounts()[filter.timelineType.toLowerCase()] || 0;
+    return `${selectedCount}/${totalCount}`;
+  }
+
+  /**
+   * Returns the formatted tooltip string for the filter.
+   * For selection mode, replaces '|' with ', ' for cleaner list presentation.
+   */
+  protected getFilterTooltip(filter: TimelineFilterConfig): string {
+    if (filter.mode === 'regex') {
+      return `${filter.timelineType}: ${filter.value}`;
+    }
+    const formattedValue = filter.value.split('|').join(', ');
+    return `${filter.timelineType}: ${formattedValue}`;
+  }
 
   protected readonly ToolbarPopupStatus = ToolbarPopupStatus;
 
   protected popupStatus: ToolbarPopupStatus = ToolbarPopupStatus.None;
+
+  // Popup and Editing States
+  protected readonly isFilterBuilderOpen = signal<boolean>(false);
+  protected readonly editingFilter = signal<TimelineFilterConfig | null>(null);
+  protected readonly builderFilterMode = signal<'regex' | 'selection'>(
+    'selection',
+  );
+  protected readonly builderRegexValue = signal<string>('');
+  protected readonly builderSelectedCandidates = signal<string[]>([]);
 
   protected setPopupState(state: ToolbarPopupStatus) {
     this.popupStatus =
@@ -87,13 +227,114 @@ export class ToolbarComponent {
     this.timezoneShift.set(value);
   }
 
+  /**
+   * Toggles the interactive timeline filter builder popover open state.
+   */
+  protected toggleFilterBuilder(): void {
+    this.isFilterBuilderOpen.set(!this.isFilterBuilderOpen());
+    if (!this.isFilterBuilderOpen()) {
+      this.editingFilter.set(null);
+      this.selectedTimelineTypeForBuilder.set('*');
+      this.builderFilterMode.set('selection');
+      this.builderRegexValue.set('');
+      this.builderSelectedCandidates.set([]);
+    }
+  }
+
+  /**
+   * Triggers when the filter builder emits a confirmation event.
+   */
+  protected onFilterAddConfirm(event: {
+    timelineType: string;
+    mode: 'regex' | 'selection';
+    value: string;
+  }): void {
+    const currentFilters = this.timelineFilters();
+    const editFilter = this.editingFilter();
+
+    if (editFilter != null) {
+      // Update existing filter
+      const updated = currentFilters.map((f) => {
+        if (f.id === editFilter.id) {
+          return {
+            ...f,
+            timelineType: event.timelineType,
+            mode: event.mode,
+            value: event.value,
+          };
+        }
+        return f;
+      });
+      this.timelineFilters.set(updated);
+    } else {
+      // Add new filter with random ID
+      const newFilter: TimelineFilterConfig = {
+        id: Math.random().toString(36).substring(2, 9),
+        timelineType: event.timelineType,
+        mode: event.mode,
+        value: event.value,
+      };
+      this.timelineFilters.set([...currentFilters, newFilter]);
+    }
+
+    // Close popup and reset states
+    this.isFilterBuilderOpen.set(false);
+    this.editingFilter.set(null);
+    this.selectedTimelineTypeForBuilder.set('*');
+    this.builderFilterMode.set('selection');
+    this.builderRegexValue.set('');
+    this.builderSelectedCandidates.set([]);
+  }
+
+  /**
+   * Opens the popover in edit mode for an existing filter.
+   */
+  protected openEditFilterPopup(filter: TimelineFilterConfig): void {
+    this.editingFilter.set(filter);
+    this.selectedTimelineTypeForBuilder.set(filter.timelineType);
+    this.builderFilterMode.set(filter.mode);
+    if (filter.mode === 'regex') {
+      this.builderRegexValue.set(filter.value);
+      this.builderSelectedCandidates.set([]);
+    } else {
+      this.builderRegexValue.set('');
+      this.builderSelectedCandidates.set(filter.value.split('|'));
+    }
+    this.isFilterBuilderOpen.set(true);
+  }
+
+  /**
+   * Deletes an existing filter from the active list.
+   */
+  protected deleteFilter(id: string): void {
+    const updated = this.timelineFilters().filter((f) => f.id !== id);
+    this.timelineFilters.set(updated);
+
+    // If we were editing the deleted filter, close the popover and reset states
+    if (this.editingFilter()?.id === id) {
+      this.isFilterBuilderOpen.set(false);
+      this.editingFilter.set(null);
+      this.selectedTimelineTypeForBuilder.set('*');
+      this.builderFilterMode.set('selection');
+      this.builderRegexValue.set('');
+      this.builderSelectedCandidates.set([]);
+    }
+  }
+
+  /**
+   * Intercepts Ctrl+F or Cmd+F to focus the Log Search input when KHI log or diff search is not active.
+   * @param event The keyboard event.
+   */
   @HostListener('window:keydown', ['$event'])
-  protected interceptBrowserSearch(event: KeyboardEvent) {
-    if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
-      this.snackbar.open(
-        'In-browser search may not work on KHI because elements outside the visible area are not rendered. Please use the search text field on the toolbar instead.',
-        'OK',
-      );
+  public onKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (this.activeSearchScope() === SearchScope.Global) {
+        event.preventDefault();
+        this.logSearchInput()?.nativeElement.focus();
+      }
     }
   }
 }

@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { LogType, Severity } from 'src/app/store/domain/style';
+import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 
 /**
  * `TypeSeverityComponent` displays a visual badge representing the severity and type of a log entry.
- * It uses predefined CSS rules to apply semantic colors based on the severity level
- * (e.g., info, warning, error, fatal).
+ * It applies dynamic styles using background and foreground colors loaded from the session.
  */
 @Component({
   selector: 'khi-type-severity',
@@ -33,14 +34,54 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 })
 export class TypeSeverityComponent {
   /**
-   * The type of the log entry (e.g., 'k8s_audit', 'k8s_container').
-   * Displayed distinctly alongside the severity.
+   * The log type configuration containing visual styles and label.
    */
-  logType = input('N/A');
+  logType = input<LogType | null>(null);
 
   /**
-   * The severity level of the log entry (e.g., 'INFO', 'WARNING', 'ERROR').
-   * Determines the semantic color of the displayed badge.
+   * The severity configuration containing visual styles and label.
    */
-  severity = input('N/A');
+  severity = input<Severity | null>(null);
+
+  /**
+   * Dynamically computed background and color style mapping for the log type badge.
+   */
+  protected readonly typeStyle = computed(() => {
+    const t = this.logType();
+    if (!t) return {};
+    const bg = RendererConvertUtil.hdrColorToCSSColor([
+      t.backgroundColor.r,
+      t.backgroundColor.g,
+      t.backgroundColor.b,
+      t.backgroundColor.a,
+    ]);
+    const fg = RendererConvertUtil.hdrColorToCSSColor([
+      t.foregroundColor.r,
+      t.foregroundColor.g,
+      t.foregroundColor.b,
+      t.foregroundColor.a,
+    ]);
+    return { 'background-color': bg, color: fg };
+  });
+
+  /**
+   * Dynamically computed background and color style mapping for the severity badge.
+   */
+  protected readonly severityStyle = computed(() => {
+    const s = this.severity();
+    if (!s) return {};
+    const bg = RendererConvertUtil.hdrColorToCSSColor([
+      s.backgroundColor.r,
+      s.backgroundColor.g,
+      s.backgroundColor.b,
+      s.backgroundColor.a,
+    ]);
+    const fg = RendererConvertUtil.hdrColorToCSSColor([
+      s.foregroundColor.r,
+      s.foregroundColor.g,
+      s.foregroundColor.b,
+      s.foregroundColor.a,
+    ]);
+    return { 'background-color': bg, color: fg };
+  });
 }

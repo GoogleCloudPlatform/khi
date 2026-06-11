@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -49,14 +48,6 @@ func (g *MulticloudAPIAuditResourceFieldSet) IsCluster() bool {
 // IsNodepool returns true if the log entry is related to a nodepool operation (i.e., a nodepool name is present).
 func (g *MulticloudAPIAuditResourceFieldSet) IsNodepool() bool {
 	return g.NodepoolName != ""
-}
-
-func (g *MulticloudAPIAuditResourceFieldSet) ResourcePath() resourcepath.ResourcePath {
-	if g.IsCluster() {
-		return resourcepath.Cluster(g.ClusterName)
-	} else {
-		return resourcepath.Nodepool(g.ClusterName, g.NodepoolName)
-	}
 }
 
 var _ log.FieldSet = (*MulticloudAPIAuditResourceFieldSet)(nil)

@@ -16,81 +16,149 @@ package googlecloudlogserialport_impl
 
 import (
 	"context"
+	"fmt"
 
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // FieldSetReadTask is the task to run GCESerialPortLogFieldSetReader on logs to parse serial port logs.
-var FieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogserialport_contract.FieldSetReadTaskID, googlecloudlogserialport_contract.LogQueryTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudlogserialport_contract.GCESerialPortLogFieldSetReader{},
-})
+var FieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
+	googlecloudlogserialport_contract.FieldSetReadTaskID,
+	googlecloudlogserialport_contract.LogQueryTaskID.Ref(),
+	[]log.FieldSetReader{
+		&googlecloudlogserialport_contract.GCESerialPortLogFieldSetReader{},
+		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
+	},
+)
 
 // LogFilterTask removes logs with empty message.
 // This message is mostly just contained escape sequences and stripped by ANSIEscapeSequenceStripper.
-var LogFilterTask = inspectiontaskbase.NewLogFilterTask(googlecloudlogserialport_contract.LogFilterTaskID, googlecloudlogserialport_contract.FieldSetReadTaskID.Ref(),
+var LogFilterTask = inspectiontaskbase.NewLogFilterTask(
+	googlecloudlogserialport_contract.LogFilterTaskID,
+	googlecloudlogserialport_contract.FieldSetReadTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) bool {
 		return log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{}).Message != ""
 	},
 )
 
-// LogIngesterTask is the log serializer task for GCE serial port logs.
-// It includes all logs gathered from log list.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
+// serialPortLogIngester implements the LogIngesterV2 interface.
+type serialPortLogIngester struct{}
+
+// RawLogTask returns the task reference that provides the raw logs to ingest.
+func (i *serialPortLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return googlecloudlogserialport_contract.LogFilterTaskID.Ref()
+}
+
+// Dependencies returns additional task dependencies of the ingester.
+func (i *serialPortLogIngester) Dependencies() []taskid.UntypedTaskReference {
+	return []taskid.UntypedTaskReference{}
+}
+
+// ProcessLog parses raw log entry and manually populates the LogChangeSet.
+func (i *serialPortLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+	cs, err := khifilev6.NewLogChangeSet(l)
+	if err != nil {
+		return nil, err
+	}
+
+	cs.SetLogType(googlecloudlogserialport_contract.LogTypeSerialPort)
+
+	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
+		cs.SetTimestamp(commonFS.Timestamp)
+	}
+
+	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
+		cs.SetSeverity(severityFS.Severity)
+	}
+
+	if serialFS, err := log.GetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{}); err == nil {
+		cs.SetSummary(serialFS.Message)
+	}
+
+	return cs, nil
+}
+
+var _ inspectiontaskbase.LogIngesterV2 = (*serialPortLogIngester)(nil)
+
+// LogIngesterTask is the V2 log ingester task.
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
 	googlecloudlogserialport_contract.LogIngesterTaskID,
-	googlecloudlogserialport_contract.LogFilterTaskID.Ref(),
+	&serialPortLogIngester{},
 )
 
 // LogGrouperTask is the grouper task for GCE serial port logs.
-// It groups logs by the node name and port name
+// It groups logs by the node name and port name.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	googlecloudlogserialport_contract.LogGrouperTaskID,
 	googlecloudlogserialport_contract.LogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
-		return log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{}).GetResourcePath().Path
+		serialFS := log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{})
+		return fmt.Sprintf("%s#%s", serialFS.NodeName, serialFS.Port)
 	},
 )
 
-// LogToTimelineMapperTask is the task to map logs into events on serial port logs.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
-	googlecloudlogserialport_contract.LogToTimelineMapperTaskID,
-	&serialportLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabel(
-		"GCE Node Serialport log",
-		`Serialport logs from GCE instances. This helps detailed investigation on VM bootstrapping issue on GCE instance.`,
-		enum.LogTypeSerialPort,
-		10000, false,
-	),
-)
-
+// serialportLogToTimelineMapper maps logs to hierarchical node serial port timelines.
 type serialportLogToTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (s *serialportLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
-	return googlecloudlogserialport_contract.LogGrouperTaskID.Ref()
-}
-
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+// LogIngesterTask implements the LogToTimelineMapperV2 interface.
 func (s *serialportLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogserialport_contract.LogIngesterTaskID.Ref()
 }
 
+// GroupedLogTask implements the LogToTimelineMapperV2 interface.
+func (s *serialportLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+	return googlecloudlogserialport_contract.LogGrouperTaskID.Ref()
+}
+
+// Dependencies implements the LogToTimelineMapperV2 interface.
 func (s *serialportLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
+	return []taskid.UntypedTaskReference{
+		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
+	}
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
-	serialportFieldSet := log.MustGetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{})
-	cs.AddEvent(serialportFieldSet.GetResourcePath())
-	cs.SetLogSummary(serialportFieldSet.Message)
-	return struct{}{}, nil
+// ProcessLogByGroup processes each log inside the group and stages the event on the timeline.
+func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+	serialportFieldSet, err := log.GetFieldSet(l, &googlecloudlogserialport_contract.GCESerialPortLogFieldSet{})
+	if err != nil {
+		return nil, struct{}{}, err
+	}
+
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
+
+	targetPath := googlecloudlogserialport_contract.MustSerialPortTimeline(
+		ctx,
+		clusterIdentity.ClusterName,
+		serialportFieldSet.NodeName,
+		serialportFieldSet.Port,
+	)
+
+	cs := khifilev6.NewTimelineChangeSet(l)
+	cs.AddEvent(targetPath)
+
+	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*serialportLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*serialportLogToTimelineMapper)(nil)
+
+// LogToTimelineMapperTask is the V2 timeline mapper task.
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+	googlecloudlogserialport_contract.LogToTimelineMapperTaskID,
+	&serialportLogToTimelineMapper{},
+	inspectioncore_contract.FeatureTaskLabelV2(
+		"GCE Node Serial Port Logs",
+		`Gather serial port logs from GCE instances to troubleshoot VM bootstrapping and OS initialization issues.`,
+		10000,
+		false,
+	),
+)

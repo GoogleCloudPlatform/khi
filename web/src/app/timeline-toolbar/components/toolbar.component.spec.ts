@@ -48,20 +48,6 @@ describe('ToolbarComponent', () => {
     expect(component.timezoneShift()).toBe(0);
   });
 
-  it('should display the count of included kinds when showButtonLabel is true', () => {
-    // Set inputs
-    fixture.componentRef.setInput('showButtonLabel', true);
-    fixture.componentRef.setInput('kinds', new Set(['pod', 'service', 'node']));
-    component.includedKinds.set(new Set(['pod', 'service']));
-
-    fixture.detectChanges();
-
-    const element = fixture.debugElement.nativeElement;
-    // The template renders something like "Kinds2/3" (without spacing in the indicator span)
-    expect(element.textContent).toContain('Kinds');
-    expect(element.textContent).toContain('2/3');
-  });
-
   it('should emit drawDiagram when draw button is clicked', () => {
     let emitted = false;
     component.drawDiagram.subscribe(() => (emitted = true));
@@ -80,15 +66,62 @@ describe('ToolbarComponent', () => {
     expect(emitted).toBeTrue();
   });
 
-  it('should toggle hideSubresourcesWithoutMatchingLogs model when toggle in template is clicked', () => {
-    const toggles = fixture.debugElement.queryAll(By.css('mat-button-toggle'));
-    expect(toggles.length).toBe(2);
+  it('should emit switchToAdvanced when advanced button is clicked', () => {
+    let emitted = false;
+    component.switchToAdvanced.subscribe(() => (emitted = true));
 
-    const subresourceToggle = toggles[0];
-    subresourceToggle.nativeElement.querySelector('button').click();
+    const buttons = fixture.debugElement.queryAll(
+      By.css('button[mat-icon-button]'),
+    );
+    const advancedButton = buttons.find(
+      (btn) =>
+        btn.nativeElement.getAttribute('matTooltip') ===
+        'Switch to advanced filter mode',
+    );
+    expect(advancedButton).toBeTruthy();
+
+    advancedButton!.nativeElement.click();
+    expect(emitted).toBeTrue();
+  });
+
+  it('should render the filter badges for provided filters', () => {
+    fixture.componentRef.setInput('timelineFilters', [
+      { id: '1', timelineType: 'K8sResource', mode: 'regex', value: 'Pod' },
+      { id: '2', timelineType: '*', mode: 'regex', value: 'test-pattern' },
+    ]);
     fixture.detectChanges();
 
-    // The state should be toggled
-    expect(component.hideSubresourcesWithoutMatchingLogs()).toBeTrue();
+    const badges = fixture.debugElement.queryAll(By.css('.filter-badge'));
+    expect(badges.length).toBe(2);
+    expect(badges[0].nativeElement.textContent).toContain('K8sResource: Pod');
+    expect(badges[1].nativeElement.textContent).toContain('*: test-pattern');
+  });
+
+  it('should toggle filter builder popover when add button is clicked', () => {
+    const addButton = fixture.debugElement.query(By.css('.add-filter-btn'));
+    expect(addButton).toBeTruthy();
+    expect(component['isFilterBuilderOpen']()).toBeFalse();
+
+    addButton.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component['isFilterBuilderOpen']()).toBeTrue();
+  });
+
+  it('should delete the filter when delete icon in a badge is clicked', () => {
+    fixture.componentRef.setInput('timelineFilters', [
+      { id: '1', timelineType: 'K8sResource', mode: 'selection', value: 'Pod' },
+    ]);
+    fixture.detectChanges();
+
+    const deleteIcon = fixture.debugElement.query(
+      By.css('.filter-badge .delete-icon'),
+    );
+    expect(deleteIcon).toBeTruthy();
+
+    deleteIcon.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.timelineFilters().length).toBe(0);
   });
 });

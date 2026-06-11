@@ -39,7 +39,7 @@ import {
   ExtensionStore,
 } from 'src/app/extensions/extension-common/extension-store';
 import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
+
 import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
 import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
@@ -48,7 +48,7 @@ import {
   RequestUserActionPopupRequest,
 } from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
 import { NilPopupFormRequest } from 'src/app/services/popup/popup-manager-impl';
-import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+
 import {
   MenuManager,
   MenuItemType,
@@ -61,13 +61,7 @@ import {
 @Component({
   templateUrl: './main.component.html',
   styleUrls: ['./main.component.scss'],
-  imports: [
-    CommonModule,
-    HeaderSmartComponent,
-    TimelineToolbarSmartComponent,
-    MatIconModule,
-    KHIIconRegistrationModule,
-  ],
+  imports: [CommonModule, HeaderSmartComponent, TimelineToolbarSmartComponent],
   providers: [LayoutService, MenuManager],
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {

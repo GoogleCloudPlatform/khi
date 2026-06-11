@@ -307,6 +307,13 @@ func NewStandardMap(keys []string, values []Node) Node {
 	return result
 }
 
+// NewStandardSequenceNode returns a sequence node from given values.
+func NewStandardSequenceNode(values []Node) Node {
+	return &StandardSequenceNode{
+		value: values,
+	}
+}
+
 // getYAMLMarshaler returns the yaml.Marshaller from Node interface.
 func getYAMLMarshaler(node Node) (yaml.Marshaler, error) {
 	standardRootNode, err := cloneStandardNodeFromNode(node)

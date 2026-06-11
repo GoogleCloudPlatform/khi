@@ -42,7 +42,7 @@ format-go: ## Format backend source code
 
 .PHONY: format-web
 format-web: $(GENERATE_FRONTEND_DUMMY) ## Format frontend source code
-	cd web && npx prettier --ignore-path .gitignore --write "./**/*.+(ts|json|html|scss)"
+	cd web && npx prettier --ignore-path .gitignore --write "./**/*.+(ts|json|html|scss|mjs)"
 	cd web && npx stylelint "src/**/*.scss" --fix
 
 .PHONY: check-format-go
@@ -51,7 +51,7 @@ check-format-go: ## Check backend source code format
 
 .PHONY: check-format-web
 check-format-web: $(GENERATE_FRONTEND_DUMMY) ## Check frontend source code format
-	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html|scss)"
+	cd web && npx prettier --ignore-path .gitignore --check "./**/*.+(ts|json|html|scss|mjs)"
 
 .PHONY: lint-md
 lint-md: ## Run markdown linter
@@ -60,3 +60,15 @@ lint-md: ## Run markdown linter
 .PHONY: format-md
 format-md: ## Fix markdown linter errors
 	npx markdownlint-cli2 --fix
+
+.PHONY: lint-proto
+lint-proto: ## Run proto linter
+	npx @bufbuild/buf lint
+
+.PHONY: format-proto
+format-proto: ## Format proto source code
+	npx @bufbuild/buf format -w
+
+.PHONY: breaking-proto
+breaking-proto: ## Check for breaking changes against main branch
+	npx @bufbuild/buf breaking --against .git#branch=main

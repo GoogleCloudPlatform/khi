@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,8 @@
 
 package googlecloudlogk8snode_contract
 
-import (
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-)
-
 type PodSandboxIDInfo struct {
 	PodName      string
 	PodNamespace string
 	PodSandboxID string
-}
-
-func (p *PodSandboxIDInfo) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.Pod(p.PodNamespace, p.PodName)
 }

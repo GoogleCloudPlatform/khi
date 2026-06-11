@@ -15,29 +15,38 @@
  */
 
 import { Component, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   TimelineFrameComponent,
   TimelineHoverOverlayRequest,
-} from './components/timeline-frame.component';
-import { DEFAULT_TIMELINE_FILTER } from '../services/timeline-filter.service';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { ViewStateService } from '../services/view-state.service';
-import { InspectionDataStoreService } from '../services/inspection-data-store.service';
-import { ResourceTimeline } from '../store/timeline';
-import { TimelineChartMouseEvent } from './components/timeline-chart.component';
-import { SelectionManagerService } from '../services/selection-manager.service';
+} from 'src/app/timeline/components/timeline-frame.component';
+import { ViewStateService } from 'src/app/services/view-state.service';
+import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 import {
   TimelineChartItemHighlight,
   TimelineChartItemHighlightType,
   TimelineHighlight,
   TimelineHighlightType,
-} from './components/interaction-model';
+} from 'src/app/timeline/components/interaction-model';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
+import { StyleOverrideService } from 'src/app/services/style-override.service';
+import {
+  TimelineChartStyle,
+  TimelineRulerStyle,
+  generateDefaultChartStyle,
+  generateDefaultRulerStyle,
+} from 'src/app/timeline/components/style-model-v2';
+import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
 
 /**
  * Smart component for the timeline view.
  *
  * It connects the presentational components (TimelineFrame, TimelineCornerIndicator, etc.)
- * with the application state (InspectionDataStoreService, SelectionManagerService, ViewStateService).
+ * with the V2 application state (InspectionDataStoreV2, SelectionManagerV2, ViewStateService).
  *
  * It is responsible for:
  * - Providing data to the timeline frame (logs, timelines, highlights).
@@ -52,45 +61,107 @@ import {
 export class TimelineSmartComponent {
   private readonly HOVER_VIEW_SELECTABLE_RANGE_IN_PX = 300;
   private readonly MAX_HOVER_VIEW_LOG_COUNT = 20;
-  private readonly timelineFilter = inject(DEFAULT_TIMELINE_FILTER);
 
   private readonly viewStateService = inject(ViewStateService);
 
-  private readonly inspectionDataService = inject(InspectionDataStoreService);
+  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
 
-  private readonly selectionManager = inject(SelectionManagerService);
+  private readonly selectionManager = inject(SelectionManagerV2);
 
-  private readonly inspectionData = toSignal(
-    this.inspectionDataService.inspectionData,
-    { initialValue: null },
-  );
+  private readonly styleOverrideService = inject(StyleOverrideService);
+
+  private readonly inspectionData = computed(() => {
+    return this.inspectionDataStore.inspectionData();
+  });
 
   /**
    * List of timelines to be displayed, filtered by the current filter settings.
    */
-  protected readonly filteredTimelines = toSignal(
-    this.timelineFilter.filteredTimeline,
-    { initialValue: [] },
-  );
+  protected readonly filteredTimelines = computed(() => {
+    return this.inspectionDataStore.timelineView()?.filteredTimelines() ?? [];
+  });
 
-  /**
-   * Current horizontal zoom level (pixels per millisecond).
-   */
   protected readonly pixelsPerMs = toSignal(
     this.viewStateService.pixelPerTime,
-    { initialValue: 0.0001 },
+    { initialValue: 0.01 },
   );
+
+  private readonly inspectionDataUniqueIDs = new WeakMap<
+    InspectionDataV2,
+    string
+  >();
+
+  /**
+   * The unique ID of the inspection data.
+   * This is used to detect when the inspection data has changed to refresh timeline renderer cache.
+   */
+  protected readonly inspectionDataUniqueID = computed(() => {
+    const data = this.inspectionData();
+    if (!data) {
+      return '';
+    }
+    let id = this.inspectionDataUniqueIDs.get(data);
+    if (!id) {
+      id = Math.random().toString(36).substring(2, 15);
+      this.inspectionDataUniqueIDs.set(data, id);
+    }
+    return id;
+  });
+
+  /**
+   * The StyleStore containing all color and layout styling definitions.
+   */
+  protected readonly styleStore = computed<StyleStoreLike>(() => {
+    return this.styleOverrideService;
+  });
+
+  /**
+   * Style configuration for the timeline chart area.
+   */
+  protected readonly chartStyle = computed<TimelineChartStyle>(() => {
+    return generateDefaultChartStyle();
+  });
+
+  /**
+   * Style configuration for the timeline ruler.
+   */
+  protected readonly rulerStyle = computed<TimelineRulerStyle>(() => {
+    return generateDefaultRulerStyle(this.styleStore());
+  });
+
+  /**
+   * List of all logs in the inspection data.
+   */
+  protected readonly allLogs = computed(() => {
+    const logStore = this.inspectionData()?.logStore;
+    if (!logStore) {
+      return [];
+    }
+    return Array.from(logStore.logs());
+  });
+
+  /**
+   * List of logs matching the current filter criteria.
+   * Used for the histogram and log distribution views.
+   */
+  protected readonly filteredLogs = computed(() => {
+    return this.inspectionDataStore.timelineView()?.filteredLogs() ?? [];
+  });
 
   /**
    * The start time of the inspection data range.
    * Used to determine the minimum scrollable/viewable time.
    */
   protected readonly minQueryLogTimeMS = computed(() => {
-    const store = this.inspectionData();
-    if (!store) {
+    const header = this.inspectionData()?.metadata?.header;
+    if (header) {
+      return header.startTimeUnixSeconds * 1000;
+    }
+    const logs = this.filteredLogs();
+    if (logs.length === 0) {
       return Date.now() - 60 * 60 * 1000;
     }
-    return store.range.begin; // Any value is fine but to draw empty timeline when no data is available
+    return logs[0].legacyTimestampMs;
   });
 
   /**
@@ -98,52 +169,38 @@ export class TimelineSmartComponent {
    * Used to determine the maximum scrollable/viewable time.
    */
   protected readonly maxQueryLogTimeMS = computed(() => {
-    const store = this.inspectionData();
-    if (!store) {
-      return Date.now(); // Any value is fine but to draw empty timeline when no data is available
+    const header = this.inspectionData()?.metadata?.header;
+    if (header) {
+      return header.endTimeUnixSeconds * 1000;
     }
-    return store.range.end;
+    const logs = this.filteredLogs();
+    if (logs.length === 0) {
+      return Date.now();
+    }
+    return logs[logs.length - 1].legacyTimestampMs;
   });
 
-  /**
-   * The unique ID of the inspection data.
-   * This is used to detect when the inspection data has changed to refresh timeline renderer cache.
-   */
-  protected readonly inspectionDataUniqueID = computed(() => {
-    const store = this.inspectionData();
-    if (!store) {
-      return '';
-    }
-    return store.uniqueID;
-  });
-
-  /**
-   * The current time at the left edge of the viewport.
-   */
   protected readonly viewportLeftTimeMs = toSignal(
     this.viewStateService.timeOffset,
     { initialValue: 0 },
   );
 
-  /**
-   * The timezone offset in hours to be applied to the displayed time.
-   */
   protected readonly timezoneShiftHours = toSignal(
     this.viewStateService.timezoneShift,
     { initialValue: 0 },
   );
 
-  private readonly highlightedTimeline = toSignal(
-    this.selectionManager.highlightedTimeline,
-  );
+  private readonly highlightedTimeline = computed(() => {
+    return this.selectionManager.highlightedTimeline();
+  });
 
-  private readonly selectedTimeline = toSignal(
-    this.selectionManager.selectedTimeline,
-  );
+  private readonly selectedTimeline = computed(() => {
+    return this.selectionManager.selectedTimeline();
+  });
 
-  private readonly highlightedRevisionsOnCurrentTimeline = toSignal(
-    this.selectionManager.highlightedChildrenOfSelectedTimeline,
-  );
+  private readonly highlightedRevisionsOnCurrentTimeline = computed(() => {
+    return this.selectionManager.highlightedChildrenOfSelectedTimeline();
+  });
 
   /**
    * Map of timeline IDs to their highlight state (Selected, Hovered, ChildrenOfSelected).
@@ -155,46 +212,27 @@ export class TimelineSmartComponent {
     if (childrenOfSelected) {
       childrenOfSelected.forEach(
         (timeline) =>
-          (result[timeline.timelineId] =
-            TimelineHighlightType.ChildrenOfSelected),
+          (result[timeline.id] = TimelineHighlightType.ChildrenOfSelected),
       );
     }
     const highlighted = this.highlightedTimeline();
     if (highlighted) {
-      result[highlighted.timelineId] = TimelineHighlightType.Hovered;
+      result[highlighted.id] = TimelineHighlightType.Hovered;
     }
     const timeline = this.selectedTimeline();
     if (timeline) {
-      result[timeline.timelineId] = TimelineHighlightType.Selected;
+      result[timeline.id] = TimelineHighlightType.Selected;
     }
     return result;
   });
 
-  /**
-   * List of all logs in the inspection data.
-   */
-  protected readonly allLogs = toSignal(this.inspectionDataService.allLogs, {
-    initialValue: [],
+  private readonly selectedLogIndex = computed(() => {
+    return this.selectionManager.selectedLogIndex();
   });
 
-  /**
-   * List of logs matching the current filter criteria.
-   * Used for the histogram and log distribution views.
-   */
-  protected readonly filteredLogs = toSignal(
-    this.inspectionDataService.filteredLogs,
-    {
-      initialValue: [],
-    },
-  );
-
-  private readonly selectedLogIndex = toSignal(
-    this.selectionManager.selectedLogIndex,
-  );
-
-  private readonly highlightedLogIndices = toSignal(
-    this.selectionManager.highlightLogIndices,
-  );
+  private readonly highlightedLogIndices = computed(() => {
+    return this.selectionManager.highlightLogIndices();
+  });
 
   /**
    * Map of log indices to their highlight state (Selected, Hovered) on the chart.
@@ -217,7 +255,10 @@ export class TimelineSmartComponent {
     return result;
   });
 
-  private readonly selectedLog = toSignal(this.selectionManager.selectedLog);
+  private readonly selectedLog = computed(() => {
+    return this.selectionManager.selectedLog();
+  });
+
   /**
    * The time of the currently selected log.
    * Used to display a vertical cursor line on the timeline.
@@ -227,10 +268,11 @@ export class TimelineSmartComponent {
     if (!log) {
       return 0;
     }
-    return log.time;
+    return log.legacyTimestampMs;
   });
 
-  private lastClickedTimeMs = signal(0);
+  private readonly lastClickedTimeMs = signal(0);
+
   /**
    * Data required to render the hover overlay (tooltip) when hovering over the timeline.
    * Calculates specific events or revisions near the hovered time.
@@ -252,21 +294,28 @@ export class TimelineSmartComponent {
         maxC,
       );
 
-      const beginTime = lastClickedTimeMs - optimalT;
-      const endTime = lastClickedTimeMs + optimalT;
-      const events = timeline.queryEventsInRange(beginTime, endTime);
-      const revisions = timeline.queryRevisionsInRange(beginTime, endTime);
-      let findRevisionStartTime = beginTime;
+      const beginTimeMs = lastClickedTimeMs - optimalT;
+      const endTimeMs = lastClickedTimeMs + optimalT;
+
+      const beginTimeNs = BigInt(Math.floor(beginTimeMs)) * 1000000n;
+      const endTimeNs = BigInt(Math.floor(endTimeMs)) * 1000000n;
+
+      const events = timeline.lookupEventsInRangeNs(beginTimeNs, endTimeNs);
+      const revisions = timeline.lookupRevisionsInRangeNs(
+        beginTimeNs,
+        endTimeNs,
+      );
+      let findRevisionStartTimeNs = beginTimeNs;
       if (revisions.length > 0) {
-        findRevisionStartTime = revisions[0].startAt;
+        findRevisionStartTimeNs = revisions[0].changedTime;
       }
-      const initialRevision = timeline.getLatestRevisionOfTime(
-        findRevisionStartTime,
+      const initialRevision = timeline.lookupRevisionAtNs(
+        findRevisionStartTimeNs,
         true,
       );
 
       return {
-        timelineId: timeline.timelineId,
+        timelineId: timeline.id,
         timeMs: lastClickedTimeMs,
         overlay: {
           timeline: timeline,
@@ -297,7 +346,9 @@ export class TimelineSmartComponent {
    * Handles hovering over a timeline ruler item.
    * Updates the selection manager to highlight the timeline.
    */
-  protected hoverOnTimeline(event: ResourceTimeline): void {
+  protected hoverOnTimeline(
+    event: ReadonlyDomainElement<Timeline> | null,
+  ): void {
     this.selectionManager.onHighlightTimeline(event);
   }
 
@@ -305,7 +356,7 @@ export class TimelineSmartComponent {
    * Handles clicking on a timeline ruler item.
    * Updates the selection manager to select the timeline.
    */
-  protected clickOnTimeline(event: ResourceTimeline): void {
+  protected clickOnTimeline(event: ReadonlyDomainElement<Timeline>): void {
     this.selectionManager.onSelectTimeline(event);
   }
 
@@ -316,20 +367,20 @@ export class TimelineSmartComponent {
   protected hoverOnTimelineItem(event: TimelineChartMouseEvent): void {
     this.selectionManager.onHighlightTimeline(event.timeline);
     if (event.timeline === null) {
-      this.selectionManager.onHighlightLog([]);
+      this.selectionManager.onHighlightLog();
     } else {
       if (event.revisionIndex !== undefined) {
-        this.selectionManager.onHighlightLog([
-          event.timeline.revisions[event.revisionIndex].logIndex,
-        ]);
+        this.selectionManager.onHighlightLog(
+          event.timeline.revisions[event.revisionIndex].log,
+        );
         this.lastClickedTimeMs.set(event.timeMS);
       } else if (event.eventIndex !== undefined) {
-        this.selectionManager.onHighlightLog([
-          event.timeline.events[event.eventIndex].logIndex,
-        ]);
+        this.selectionManager.onHighlightLog(
+          event.timeline.events[event.eventIndex].log,
+        );
         this.lastClickedTimeMs.set(event.timeMS);
       } else {
-        this.selectionManager.onHighlightLog([]);
+        this.selectionManager.onHighlightLog();
       }
     }
   }
@@ -342,13 +393,11 @@ export class TimelineSmartComponent {
     this.selectionManager.onSelectTimeline(event.timeline);
     if (event.timeline !== null) {
       if (event.revisionIndex !== undefined) {
-        this.selectionManager.changeSelectionByRevision(
-          event.timeline,
+        this.selectionManager.onSelectRevision(
           event.timeline.revisions[event.revisionIndex],
         );
       } else if (event.eventIndex !== undefined) {
-        this.selectionManager.changeSelectionByEvent(
-          event.timeline,
+        this.selectionManager.onSelectEvent(
           event.timeline.events[event.eventIndex],
         );
       }
@@ -364,7 +413,7 @@ export class TimelineSmartComponent {
    * @returns The optimal query period.
    */
   private calculateOptimalQueryPeriod(
-    timeline: ResourceTimeline,
+    timeline: ReadonlyDomainElement<Timeline>,
     centerTimeMs: number,
     maxT: number,
     maxC: number,
@@ -376,13 +425,13 @@ export class TimelineSmartComponent {
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
 
-      const events = timeline.queryEventsInRange(
-        centerTimeMs - mid,
-        centerTimeMs + mid,
-      );
-      const revisions = timeline.queryRevisionsInRange(
-        centerTimeMs - mid,
-        centerTimeMs + mid,
+      const beginTimeNs = BigInt(Math.floor(centerTimeMs - mid)) * 1000000n;
+      const endTimeNs = BigInt(Math.floor(centerTimeMs + mid)) * 1000000n;
+
+      const events = timeline.lookupEventsInRangeNs(beginTimeNs, endTimeNs);
+      const revisions = timeline.lookupRevisionsInRangeNs(
+        beginTimeNs,
+        endTimeNs,
       );
       const totalCount = events.length + revisions.length;
 

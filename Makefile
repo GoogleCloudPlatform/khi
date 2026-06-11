@@ -7,6 +7,7 @@ GIT_TAG_NAME := "release-"$(VERSION)
 DUMMY_DIR := scripts/make
 GENERATE_FRONTEND_DUMMY := $(DUMMY_DIR)/generate-frontend.done
 GENERATE_BACKEND_DUMMY := $(DUMMY_DIR)/generate-backend.done
+GENERATE_PROTO_DUMMY := $(DUMMY_DIR)/build-proto.done
 FRONTEND_GENERATED_ASSETS_DUMMY := $(DUMMY_DIR)/generate-font-atlas.done
 MSDF_SETUP_DUMMY := $(DUMMY_DIR)/msdf-setup.done
 
@@ -37,9 +38,9 @@ clean: ## Clean build artifacts and generated files
 	@echo "Cleaning test and coverage reports..."
 	rm -rf go-cover.html go-cover.output result.json
 	@echo "Cleaning intermediate generated files..."
-	find . -path "./web" -prune -o -path "./.git" -prune -o -type f -name "zzz_*.go" -exec rm -f {} + -o -type f -name "zzz_*.json" -exec rm -f {} +
+	find . -path "./scripts" -path "./web" -prune -o -path "./.git" -prune -o -type f -name "zzz_*.go" -exec rm -f {} + -o -type f -name "zzz_*.json" -exec rm -f {} +
 	rm -rf pkg/generated
-	rm -rf web/src/app/zzz-generated.scss web/src/app/zzz-generated.ts web/angular.json web/src/environments/version.*.ts
+	rm -rf web/angular.json web/src/environments/version.*.ts
 	@echo "Cleaning make dummy files..."
 	rm -rf scripts/make/*.done
 

@@ -43,12 +43,13 @@ import {
 } from './timeline-chart.component';
 import { CaptureShiftKeyDirective } from 'src/app/common/capture-shiftkey.directive';
 import { TimelineCornerIndicatorComponent } from './timeline-corner-indicator.component';
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { CommonModule } from '@angular/common';
 import { TimelineLegendComponent } from './timeline-legend.component';
-import { LogEntry } from 'src/app/store/log';
+import { Log } from 'src/app/store/domain/log';
 import { HistogramCache } from './misc/histogram-cache';
 import {
   TimelineHoverOverlay,
@@ -65,12 +66,12 @@ import {
   TimelineHighlightType,
   TimelineChartItemHighlightType,
 } from './interaction-model';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import {
+  BASE_ROW_HEIGHT,
   TimelineChartStyle,
-  generateDefaultChartStyle,
   TimelineRulerStyle,
-  generateDefaultRulerStyle,
-} from './style-model';
+} from './style-model-v2';
 import {
   getMinTimeSpanForHistogram,
   getTickTimeMS,
@@ -83,7 +84,7 @@ export interface TimeScaleEvent {
 
 export interface TimelineHoverOverlayRequest {
   timeMs: number;
-  timelineId: string;
+  timelineId: number;
   overlay: TimelineHoverOverlay;
 }
 
@@ -142,11 +143,11 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * Style configuration for the timeline chart area.
    */
-  readonly chartStyle = input<TimelineChartStyle>(generateDefaultChartStyle());
+  readonly chartStyle = input.required<TimelineChartStyle>();
   /**
    * Style configuration for the timeline ruler.
    */
-  readonly rulerStyle = input<TimelineRulerStyle>(generateDefaultRulerStyle());
+  readonly rulerStyle = input.required<TimelineRulerStyle>();
   /**
    * The number of pixels to overdraw horizontally outside the viewport.
    * Increasing this value reduces blank areas during fast scrolling but increases rendering cost.
@@ -161,13 +162,18 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * The list of timelines to display.
    */
-  readonly timelines = input<ResourceTimeline[]>([]);
+  readonly timelines = input<ReadonlyDomainElement<Timeline>[]>([]);
 
   /**
    * The unique ID of the inspection data.
    * This is used to detect when the inspection data has changed to refresh timeline renderer cache.
    */
   readonly inspectionDataUniqueID = input<string>('');
+  /**
+   * The StyleStore containing all color and layout styling definitions.
+   */
+  readonly styleStore = input.required<StyleStoreLike>();
+
   /**
    * The minimum time in milliseconds for the query range.
    * This is used as the start time for the timeline view.
@@ -182,12 +188,12 @@ export class TimelineFrameComponent implements AfterViewInit {
    * The list of all logs without filtering.
    * Used for calculating the background histogram.
    */
-  readonly allLogsWithoutFilter = input<LogEntry[]>([]);
+  readonly allLogsWithoutFilter = input<ReadonlyDomainElement<Log>[]>([]);
   /**
    * The list of filtered logs.
    * Used for displaying logs on the timeline.
    */
-  readonly filteredLogs = input<LogEntry[]>([]);
+  readonly filteredLogs = input<ReadonlyDomainElement<Log>[]>([]);
 
   /**
    * The set of indices of non-filtered active logs.
@@ -222,7 +228,11 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly allLogsWithoutFilterHistogramCache = computed(() => {
     const minTimeSpanForHistogram = this.minTimeSpanForHistogram();
     const allLogsWithoutFilter = this.allLogsWithoutFilter();
-    return new HistogramCache(allLogsWithoutFilter, minTimeSpanForHistogram);
+    return new HistogramCache(
+      this.styleStore().severities,
+      allLogsWithoutFilter,
+      minTimeSpanForHistogram,
+    );
   });
 
   /**
@@ -234,6 +244,7 @@ export class TimelineFrameComponent implements AfterViewInit {
     const allLogsHistogramCache = this.allLogsWithoutFilterHistogramCache();
     const filteredLogs = this.filteredLogs();
     return new HistogramCache(
+      this.styleStore().severities,
       filteredLogs,
       minTimeSpanForHistogram,
       allLogsHistogramCache.logMinTimeMS,
@@ -323,11 +334,12 @@ export class TimelineFrameComponent implements AfterViewInit {
     const selectedHighlight = Object.entries(highlights).find(
       ([, type]) => type === TimelineHighlightType.Selected,
     );
-    const selectedTimelineID = selectedHighlight ? selectedHighlight[0] : null;
+    const selectedTimelineID = selectedHighlight
+      ? Number(selectedHighlight[0])
+      : null;
     return selectedHighlight
-      ? (timelines.find(
-          (timeline) => timeline.timelineId === selectedTimelineID,
-        ) ?? null)
+      ? (timelines.find((timeline) => timeline.id === selectedTimelineID) ??
+          null)
       : null;
   });
 
@@ -340,14 +352,21 @@ export class TimelineFrameComponent implements AfterViewInit {
       return null;
     }
     const logIndex = Number(logIndexStr);
+    const allLogs = this.allLogsWithoutFilter();
+    const log = allLogs[logIndex];
+    if (!log) {
+      return null;
+    }
     const timelines = this.timelines();
-    return (
-      timelines.find(
-        (timeline) =>
-          timeline.events.some((e) => e.logIndex === logIndex) ||
-          timeline.revisions.some((r) => r.logIndex === logIndex),
-      ) ?? null
-    );
+
+    // If the currently selected timeline already contains the selected log,
+    // we should prioritize it to prevent jumping to another timeline that shares the log.
+    const currentSelected = this.selectedTimeline();
+    if (currentSelected?.hasLog(log)) {
+      return currentSelected;
+    }
+
+    return timelines.find((timeline) => timeline.hasLog(log)) ?? null;
   });
 
   /**
@@ -382,11 +401,11 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * Emitted when the user hovers over a timeline (row).
    */
-  readonly hoverOnTimeline = output<ResourceTimeline>();
+  readonly hoverOnTimeline = output<Timeline>();
   /**
    * Emitted when the user clicks on a timeline (row).
    */
-  readonly clickOnTimeline = output<ResourceTimeline>();
+  readonly clickOnTimeline = output<Timeline>();
 
   /**
    * Emitted when the user hovers over an item (event or revision) in the chart.
@@ -428,6 +447,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       timelinesInDrawArea: this.visibleTimelines(),
       logBeginTime: this.minQueryLogTimeMS(),
       logEndTime: this.maxQueryLogTimeMS(),
+      styleStore: this.styleStore(),
     };
   });
 
@@ -441,6 +461,7 @@ export class TimelineFrameComponent implements AfterViewInit {
         timelinesInDrawArea: this.stickyTimelines(),
         logBeginTime: this.minQueryLogTimeMS(),
         logEndTime: this.maxQueryLogTimeMS(),
+        styleStore: this.styleStore(),
       };
     },
   );
@@ -472,7 +493,6 @@ export class TimelineFrameComponent implements AfterViewInit {
   protected readonly verticalScrollCalculator = computed(() => {
     return new VerticalScrollCalculator(
       this.timelines(),
-      this.chartStyle(),
       this.verticalOverdrawTimelineCount(),
     );
   });
@@ -560,10 +580,9 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly stickyHeaderHeight = computed(() => {
     const stickyTimelines = this.stickyTimelines();
-    const style = this.chartStyle();
     let height = 0;
     for (const t of stickyTimelines) {
-      height += style.heightsByLayer[t.layer] ?? 0;
+      height += t.type.height * BASE_ROW_HEIGHT;
     }
     return height;
   });
@@ -571,14 +590,7 @@ export class TimelineFrameComponent implements AfterViewInit {
   /**
    * The maximum possible height of the sticky header in pixels.
    */
-  protected readonly maxStickyHeaderHeight = computed(() => {
-    const style = this.chartStyle();
-    let height = 0;
-    for (let l = TimelineLayer.Kind; l <= TimelineLayer.Name; l++) {
-      height += style.heightsByLayer[l] ?? 0;
-    }
-    return height;
-  });
+  protected readonly maxStickyHeaderHeight = signal(500); // TODO: calculate the maximum possible value based on the actual style included in the data.
 
   /**
    * The total height of all timelines content in pixels.
@@ -780,9 +792,7 @@ export class TimelineFrameComponent implements AfterViewInit {
       }
       const verticalCalculator = untracked(this.verticalScrollCalculator);
       const timelineTopOffset =
-        verticalCalculator.timelineIDToTimelineTopOffset(
-          selectedTimeline.timelineId,
-        );
+        verticalCalculator.timelineIDToTimelineTopOffset(selectedTimeline.id);
       const viewportHeight = untracked(this.viewportHeight);
       const minScrollTop =
         timelineTopOffset -
@@ -822,8 +832,8 @@ export class TimelineFrameComponent implements AfterViewInit {
   }
 
   handleTimelineEventForIndex(
-    e: ResourceTimeline,
-    outputRef: OutputEmitterRef<ResourceTimeline>,
+    e: Timeline,
+    outputRef: OutputEmitterRef<Timeline>,
   ) {
     outputRef.emit(e);
   }

@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -113,8 +112,8 @@ func (c *containerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTask
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *containerListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeContainer,
-		QueryName:      "K8s container logs",
+
+		QueryName: "K8s container logs",
 		ExampleQuery: GenerateK8sContainerQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			ProjectID:   "test-project",
 			Location:    "test-location",

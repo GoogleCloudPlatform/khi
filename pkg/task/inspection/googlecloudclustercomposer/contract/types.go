@@ -15,8 +15,6 @@
 package googlecloudclustercomposer_contract
 
 import (
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -97,16 +95,6 @@ func (a *AirflowTaskInstance) ToYaml() string {
 	return string(b)
 }
 
-func (a *AirflowTaskInstance) ResourcePath() resourcepath.ResourcePath {
-	var detail = a.TaskId()
-	if a.MapIndex() != "-1" {
-		detail += "+" + a.MapIndex()
-	}
-	rp := resourcepath.SubresourceLayerGeneralItem("Apache Airflow", "TaskInstance", a.DagId(), a.RunId(), detail)
-	rp.ParentRelationship = enum.RelationshipAirflowTaskInstance
-	return rp
-}
-
 type AirflowWorker struct {
 	host string
 }
@@ -127,8 +115,4 @@ func (a *AirflowWorker) ToYaml() string {
 		return ""
 	}
 	return string(b)
-}
-
-func (a *AirflowWorker) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.NameLayerGeneralItem("Apache Airflow", "AirflowWorker", "cluster-scope", a.Host())
 }

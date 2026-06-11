@@ -35,7 +35,7 @@
     </div>
     <p class="spacer">{{ shownLogsCount() }}/{{ allLogsCount() }} logs</p>
   </div>
-  <div class="log-list-container" tabindex="0">
+  <div class="log-list-container" tabindex="0" (keydown)="onKeyDown($event)">
     <cdk-virtual-scroll-viewport class="virtual-viewport">
       <div class="log-list">
         <ng-container *cdkVirtualFor="let log of shownLogs()">

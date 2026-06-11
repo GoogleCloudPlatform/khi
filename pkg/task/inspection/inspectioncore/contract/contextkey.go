@@ -19,7 +19,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
 // InspectionTaskMode is the context key to access the execution mode of the inspection task.
@@ -59,9 +59,9 @@ var InspectionRunMetadata = typedmap.NewTypedKey[*typedmap.ReadonlyTypedMap]("kh
 // for file operations during inspection task execution.
 var CurrentIOConfig = typedmap.NewTypedKey[*IOConfig]("khi.google.com/inspection/current-io-config")
 
-// CurrentHistoryBuilder is the context key to access the history builder instance
-// used for constructing timeline data during inspection execution.
-var CurrentHistoryBuilder = typedmap.NewTypedKey[*history.Builder]("khi.google.com/inspection/current-history-builder")
+// Builder is the context key to access the builder instance
+// used for constructing KhiFile during inspection execution.
+var Builder = typedmap.NewTypedKey[*khifilev6.Builder]("khi.google.com/inspection/builder")
 
 // TaskRunner is the context key to access the task runner instance
 // used for executing tasks during inspection execution.

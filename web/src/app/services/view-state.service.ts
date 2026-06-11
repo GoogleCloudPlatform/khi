@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import {
   BehaviorSubject,
   Observable,
@@ -24,6 +24,16 @@ import {
   map,
   shareReplay,
 } from 'rxjs';
+import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
+
+/**
+ * Represents the current active search scope for keyboard shortcut navigation.
+ */
+export enum SearchScope {
+  Global = 'GLOBAL',
+  Log = 'LOG',
+  Diff = 'DIFF',
+}
 
 /**
  * A service to manage statuses used for view in application wide.
@@ -36,6 +46,31 @@ export class ViewStateService {
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/canvas#maximum_canvas_size
    */
   public static DEVICE_PIXEL_RATIO_SCALE = 1;
+
+  /**
+   * The currently active search scope for handling search keyboard shortcuts.
+   */
+  public readonly activeSearchScope = signal<SearchScope>(SearchScope.Global);
+
+  /**
+   * Whether the timeline toolbar is in advanced (CEL) mode.
+   */
+  public readonly isAdvancedMode = signal<boolean>(false);
+
+  /**
+   * The persistent standard mode timeline filters.
+   */
+  public readonly standardTimelineFilters = signal<TimelineFilterConfig[]>([]);
+
+  /**
+   * The persistent standard mode selected severity.
+   */
+  public readonly standardSelectedSeverity = signal<string>('ANY');
+
+  /**
+   * The persistent standard mode log search query.
+   */
+  public readonly standardLogSearchQuery = signal<string>('');
 
   private timezoneShiftSubject: BehaviorSubject<number> = new BehaviorSubject(
     -new Date().getTimezoneOffset() / 60,
@@ -69,14 +104,9 @@ export class ViewStateService {
   );
 
   /**
-   * Whether KHI hides a subresource layer timeline without any matching with the log filter.
-   */
-  public hideSubresourcesWithoutMatchingLogs = new BehaviorSubject(false);
-
-  /**
    * Whether KHI hides a resource layer timeline without any matching with the log filter.
    */
-  public hideResourcesWithoutMatchingLogs = new BehaviorSubject(true);
+  public hideTimelinesWithoutMatchingLogs = new BehaviorSubject(true);
 
   public devicePixelRatio = animationFrames().pipe(
     map(
@@ -118,19 +148,11 @@ export class ViewStateService {
     return this.visibleWidthSubject.value;
   }
 
-  public setHideSubresourcesWithoutMatchingLogs(
-    hideSubresourcesWithoutMatchingLogs: boolean,
+  public setHideTimelinesWithoutMatchingLogs(
+    hideTimelinesWithoutMatchingLogs: boolean,
   ): void {
-    this.hideSubresourcesWithoutMatchingLogs.next(
-      hideSubresourcesWithoutMatchingLogs,
-    );
-  }
-
-  public setHideResourcesWithoutMatchingLogs(
-    hideREsourcesWithoutMatchingLogs: boolean,
-  ): void {
-    this.hideResourcesWithoutMatchingLogs.next(
-      hideREsourcesWithoutMatchingLogs,
+    this.hideTimelinesWithoutMatchingLogs.next(
+      hideTimelinesWithoutMatchingLogs,
     );
   }
 

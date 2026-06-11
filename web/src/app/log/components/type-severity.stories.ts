@@ -16,38 +16,103 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { TypeSeverityComponent } from './type-severity.component';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 
-export default {
-  title: 'log/TypeSeverityComponent',
+const meta: Meta<TypeSeverityComponent> = {
+  title: 'Log/TypeSeverityComponent',
   component: TypeSeverityComponent,
-} as Meta<TypeSeverityComponent>;
+  tags: ['autodocs'],
+  args: {},
+};
 
+export default meta;
 type Story = StoryObj<TypeSeverityComponent>;
 
 export const Info: Story = {
-  args: {
-    logType: 'k8s_audit',
-    severity: 'INFO',
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log =
+      Array.from(data.logStore.logs()).find(
+        (l) => l.severity.label === 'INFO',
+      ) ?? Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        logType: log.logType,
+        severity: log.severity,
+      },
+    };
   },
 };
 
 export const Warning: Story = {
-  args: {
-    logType: 'k8s_audit',
-    severity: 'WARNING',
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log =
+      Array.from(data.logStore.logs()).find(
+        (l) => l.severity.label === 'WARNING',
+      ) ?? Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        logType: log.logType,
+        severity: log.severity,
+      },
+    };
   },
 };
 
 export const ErrorSeverity: Story = {
-  args: {
-    logType: 'k8s_node',
-    severity: 'ERROR',
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log =
+      Array.from(data.logStore.logs()).find(
+        (l) => l.severity.label === 'ERROR',
+      ) ?? Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        logType: log.logType,
+        severity: log.severity,
+      },
+    };
   },
 };
 
 export const Unknown: Story = {
-  args: {
-    logType: 'k8s_container',
-    severity: 'UNKNOWN',
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log =
+      Array.from(data.logStore.logs()).find(
+        (l) => l.severity.label === 'UNKNOWN',
+      ) ?? Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        logType: log.logType,
+        severity: log.severity,
+      },
+    };
   },
 };

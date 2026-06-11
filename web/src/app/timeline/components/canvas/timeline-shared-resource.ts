@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { RendererConvertUtil } from './convertutil';
 import { WebGLContextLostException } from './glcontextmanager';
-import { BMFontChar, BMFontConfig, SharedTmpBuffer, WebGLUtil } from './glutil';
+import { SharedTmpBuffer, WebGLUtil } from './glutil';
+import {
+  BMFontChar,
+  BMFontConfig,
+  IconAtlas,
+} from 'src/app/store/domain/style';
 
 /**
  * Represents the state required by shared timeline rendering resources.
@@ -33,13 +39,6 @@ export interface TimelineRendererSharedResourceState {
   pixelsPerMs: number;
   /** The time (in unix milliseconds) at the left edge of the viewport. */
   leftEdgeTime: number;
-}
-
-/**
- * Map of icon names (ligatures) to their corresponding usage in the application.
- */
-interface IconCodepointMap {
-  [iconName: string]: string;
 }
 
 /**
@@ -69,7 +68,9 @@ export class TimelineRendererSharedResource {
   /** Configuration for the icon MSDF font. */
   bmfontConfigIcons!: BMFontConfig;
   /** Map of icon names to their Unicode codepoints. */
-  iconCodepointMap!: IconCodepointMap;
+  iconCodepointMap!: Map<string, string>;
+
+  private lastIconAtlas?: IconAtlas;
 
   /**
    * Initializes the shared resources.
@@ -99,10 +100,6 @@ export class TimelineRendererSharedResource {
     this.numberMSDFTexture = await WebGLUtil.loadTexture(
       gl,
       'assets/zzz-roboto-number-msdf.png',
-    );
-    this.iconsMSDFTexture = await WebGLUtil.loadTexture(
-      gl,
-      'assets/zzz-material-icons-msdf.png',
     );
 
     const bmfontConfigNumbers = await WebGLUtil.loadBMFontConfig(
@@ -158,12 +155,46 @@ export class TimelineRendererSharedResource {
     gl.bindBuffer(gl.UNIFORM_BUFFER, this.uboNumberMSDFParamBuffer);
     gl.bufferData(gl.UNIFORM_BUFFER, dv, gl.STATIC_DRAW);
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-    this.iconCodepointMap = await fetch('assets/zzz-icon-codepoints.json').then(
-      (res) => res.json(),
+  }
+
+  /**
+   * Dynamically updates the icon atlas from the style store if it has changed.
+   * Re-allocates/uploads the icons texture when the icon atlas is updated.
+   *
+   * @param gl The WebGL2 rendering context.
+   * @param styleStore The style store containing the icon atlas.
+   */
+  updateIconAtlas(gl: WebGL2RenderingContext, styleStore: StyleStoreLike) {
+    const iconAtlas = styleStore.getIconAtlas();
+    if (!iconAtlas) {
+      // If no inspection data has been loaded yet, there will be no icon atlas.
+      return;
+    }
+
+    if (this.lastIconAtlas === iconAtlas) {
+      return;
+    }
+    this.lastIconAtlas = iconAtlas;
+
+    if (iconAtlas.msdfIconImage.length === 0) {
+      return;
+    }
+
+    if (iconAtlas.msdfIconImage.length > 1) {
+      // TODO: support multiple msdf icon atlas textures to support large number of icon varieties support.
+      throw new Error('Multiple msdf icon images are not yet supported');
+    }
+
+    if (this.iconsMSDFTexture) {
+      gl.deleteTexture(this.iconsMSDFTexture);
+    }
+
+    this.iconsMSDFTexture = WebGLUtil.loadTextureDirect(
+      gl,
+      iconAtlas.msdfIconImage[0],
     );
-    this.bmfontConfigIcons = await WebGLUtil.loadBMFontConfig(
-      'assets/zzz-material-icons-msdf.json',
-    );
+    this.iconCodepointMap = iconAtlas.nameToCodepoints;
+    this.bmfontConfigIcons = iconAtlas.bmfontJson;
   }
 
   /**
@@ -176,7 +207,7 @@ export class TimelineRendererSharedResource {
   getIconUVSizes(iconName: string): [number, number, number, number] {
     if (this.bmfontConfigIcons === undefined)
       throw new Error('icon bmfont config file is not yet loaded');
-    const iconCodePoint = this.iconCodepointMap[iconName];
+    const iconCodePoint = this.iconCodepointMap.get(iconName);
     if (!iconCodePoint) {
       throw new Error(`icon code ${iconName} is not found`);
     }

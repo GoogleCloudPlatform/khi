@@ -15,20 +15,26 @@
  */
 
 import { Component, computed, input, output } from '@angular/core';
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
 import { CommonModule } from '@angular/common';
-import {
-  ParentRelationshipMetadata,
-  ParentRelationshipMetadataType,
-} from 'src/app/zzz-generated';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { TimelineHighlight, TimelineHighlightType } from './interaction-model';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model-v2';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
+
+export interface TreeGuideViewModel {
+  readonly level: number;
+  readonly isParent: boolean;
+  readonly isLastChild: boolean;
+}
 
 interface TimelineIndexViewModel {
   /** The resource timeline data associated with this row. */
-  timeline: ResourceTimeline;
+  timeline: Timeline;
   /** The display name of the resource. */
   name: string;
   /** Optional icon name to display in the legend for specific layers (e.g., 'workspaces', 'folder'). */
@@ -41,8 +47,12 @@ interface TimelineIndexViewModel {
   subLabel: string;
   /** The name of the layer this row belongs to (e.g., 'cluster', 'node', 'pod'). */
   layerName: string;
-  /** Metadata describing the parent relationship (e.g., OwnerReference, Label). */
-  relationshipMetadata: ParentRelationshipMetadataType;
+  /** The depth level of the layer (0-indexed or 1-indexed, e.g., Kind=1, Namespace=2). */
+  layer: number;
+  /** Sibling level guide configurations. */
+  levels: TreeGuideViewModel[];
+  /** Whether this row is the last child of its parent (nesting level decreases next). */
+  isLastChild: boolean;
   /**
    * isNextChildren is true when the next element is a child of this resource.
    * This is used to render a drop shadow or visual grouping indicator.
@@ -50,6 +60,8 @@ interface TimelineIndexViewModel {
   isNextChildren: boolean;
   /** CSS classes to apply to the row container. */
   containerClasses: string[];
+  /** Custom style values mapped to CSS custom properties (variables) for inline styling. */
+  style: Record<string, string>;
 }
 
 /**
@@ -68,34 +80,32 @@ interface TimelineIndexViewModel {
   ],
 })
 export class TimelineIndexComponent {
-  /** Map of TimelineLayer values to their corresponding Material Symbol icon names. */
-  readonly LayerIcons: { [key in TimelineLayer]?: string } = {
-    [TimelineLayer.Kind]: 'workspaces',
-    [TimelineLayer.Namespace]: 'folder',
-  };
-
   /** The list of resource timelines to display in the index. */
-  timelines = input<ResourceTimeline[]>([]);
+  timelines = input<ReadonlyDomainElement<Timeline[]>>([]);
 
   /** Current highlight state for timelines, keyed by timeline ID. */
   highlights = input<TimelineHighlight>({});
 
+  /** The StyleStore containing all color and layout styling definitions. */
+  styleStore = input<StyleStoreLike>();
+
   /** Computed view models for rendering the timeline index rows. */
   timelineVMs = computed<TimelineIndexViewModel[]>(() => {
+    this.styleStore()?.stylesUpdated?.();
     return this.toViewModelType(this.timelines());
   });
 
   /** Emits the timeline when the user hovers over a row. */
-  hoverOnTimeline = output<ResourceTimeline>();
+  hoverOnTimeline = output<Timeline>();
 
   /** Emits the timeline when the user clicks on a row. */
-  clickOnTimeline = output<ResourceTimeline>();
+  clickOnTimeline = output<Timeline>();
 
   /**
    * Handles mouse over events on a timeline row.
    * @param timeline - The timeline that is being hovered.
    */
-  mouseOverTimeline(timeline: ResourceTimeline) {
+  mouseOverTimeline(timeline: Timeline) {
     this.hoverOnTimeline.emit(timeline);
   }
 
@@ -103,28 +113,30 @@ export class TimelineIndexComponent {
    * Handles click events on a timeline row.
    * @param timeline - The timeline that was clicked.
    */
-  clickTimeline(timeline: ResourceTimeline) {
+  clickTimeline(timeline: Timeline) {
     this.clickOnTimeline.emit(timeline);
   }
 
   /**
-   * Converts raw ResourceTimeline objects into ViewModel objects for rendering.
+   * Converts raw Timeline objects into ViewModel objects for rendering.
    * Calculates styles, classes, and display properties based on the current state.
    *
-   * @param timelines - The list of ResourceTimeline objects to convert.
+   * @param timelines - The list of Timeline objects to convert.
    * @returns An array of TimelineIndexViewModel objects.
    */
-  toViewModelType(timelines: ResourceTimeline[]): TimelineIndexViewModel[] {
+  toViewModelType(
+    timelines: ReadonlyDomainElement<Timeline[]>,
+  ): TimelineIndexViewModel[] {
     const highlights = this.highlights();
     return timelines.map((timeline, i, arr) => {
       const nextTimeline = arr[i + 1];
       const isNextChildren =
         nextTimeline && nextTimeline.layer > timeline.layer;
-      const containerClasses = [timeline.layerName];
+      const containerClasses = [timeline.type.label];
       if (isNextChildren) {
         containerClasses.push('is-next-children');
       }
-      const highlight = highlights[timeline.timelineId];
+      const highlight = highlights[timeline.id];
       switch (highlight) {
         case TimelineHighlightType.Selected:
           containerClasses.push('selected');
@@ -136,24 +148,76 @@ export class TimelineIndexComponent {
           containerClasses.push('children-of-selected');
           break;
       }
+      const bg = timeline.type.backgroundColor;
+      const fg = timeline.type.foregroundColor;
+      const chipBg = timeline.type.typeChipBackgroundColor;
+      const height = timeline.type.height * BASE_ROW_HEIGHT;
+      const style: Record<string, string> = {
+        '--timeline-bg-color': RendererConvertUtil.hdrColorToCSSColor([
+          bg.r,
+          bg.g,
+          bg.b,
+          bg.a,
+        ]),
+        '--timeline-fg-color': RendererConvertUtil.hdrColorToCSSColor([
+          fg.r,
+          fg.g,
+          fg.b,
+          fg.a,
+        ]),
+        '--timeline-chip-bg-color': RendererConvertUtil.hdrColorToCSSColor([
+          chipBg.r,
+          chipBg.g,
+          chipBg.b,
+          chipBg.a,
+        ]),
+        '--timeline-chip-fg-color': RendererConvertUtil.hdrColorToCSSColor([
+          timeline.type.typeChipForegroundColor.r,
+          timeline.type.typeChipForegroundColor.g,
+          timeline.type.typeChipForegroundColor.b,
+          timeline.type.typeChipForegroundColor.a,
+        ]),
+        '--timeline-height': `${height}px`,
+        '--timeline-layer': `${timeline.layer}`,
+      };
+      const isLastChild = !nextTimeline || nextTimeline.layer < timeline.layer;
+      const levels: TreeGuideViewModel[] = [];
+      for (let d = 0; d < timeline.layer; d++) {
+        const isParent = d === timeline.layer - 1;
+        let hasFutureSibling = false;
+        for (let j = i + 1; j < timelines.length; j++) {
+          const next = timelines[j];
+          if (next.layer === d + 1) {
+            hasFutureSibling = true;
+            break;
+          }
+          if (next.layer < d + 1) {
+            break;
+          }
+        }
+        if (isParent || hasFutureSibling) {
+          levels.push({
+            level: d,
+            isParent: isParent,
+            isLastChild: isParent ? !hasFutureSibling : false,
+          });
+        }
+      }
       return {
         timeline: timeline,
-        resourcePath: timeline.resourcePath,
+        resourcePath: timeline.id.toString(),
         name: timeline.name,
-        legendIcon: this.LayerIcons[timeline.layer],
-        legendVisible:
-          timeline.layer === TimelineLayer.Kind ||
-          timeline.layer === TimelineLayer.Namespace,
-        subLabel:
-          timeline.layer === TimelineLayer.Kind
-            ? timeline.resourcePath.split('#')[0]
-            : '',
-        layerName: timeline.layerName,
-        relationshipMetadata:
-          ParentRelationshipMetadata[timeline.parentRelationship],
+        legendIcon: timeline.type.icon || undefined,
+        legendVisible: !!timeline.type.icon,
+        subLabel: '',
+        layerName: timeline.type.label,
+        layer: timeline.layer,
+        levels: levels,
+        isLastChild: isLastChild,
         isNextChildren: isNextChildren,
         containerClasses: containerClasses,
-      };
+        style: style,
+      } as TimelineIndexViewModel;
     });
   }
 }

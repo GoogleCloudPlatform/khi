@@ -14,6 +14,25 @@
  * limitations under the License.
  */
 
+@use '@angular/material' as mat;
+
+$gray-palette: mat.$m2-gray-palette;
+$indigo-palette: mat.$m2-indigo-palette;
+
+// Design system tokens for filter badges and buttons
+$badge-border-color: mat.m2-get-color-from-palette($gray-palette, 300);
+$badge-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+$badge-hover-bg-color: mat.m2-get-color-from-palette($gray-palette, 100);
+
+$icon-color: mat.m2-get-color-from-palette($indigo-palette, 500);
+$type-color: mat.m2-get-color-from-palette($indigo-palette, 700);
+$colon-color: mat.m2-get-color-from-palette($gray-palette, 500);
+$value-color: mat.m2-get-color-from-palette($gray-palette, 800);
+$value-bg-color: mat.m2-get-color-from-palette($gray-palette, 100);
+
+$delete-icon-color: mat.m2-get-color-from-palette($gray-palette, 500);
+$delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
+
 .draw-diagram-button-icon {
   margin-left: 0;
   margin-right: 0;
@@ -30,24 +49,30 @@
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template:
+    'left center right' auto
+    / auto 1fr auto;
   width: 100%;
   height: 100%;
-  align-items: center;
 }
 
 .left-control {
-  grid-column: 1;
+  grid-area: left;
   display: flex;
   align-items: center;
 }
 
 .center-control {
-  grid-column: 2;
+  grid-area: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 .right-control {
-  grid-column: 3;
+  grid-area: right;
   justify-content: center;
   align-items: center;
   display: flex;
@@ -112,5 +137,193 @@
       appearance: none;
       margin: 0;
     }
+  }
+}
+
+.filter-list {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.filter-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 12px !important;
+  border-radius: 18px !important;
+  border: 1px solid var(--badge-border, #{$badge-border-color}) !important;
+  background-color: var(--badge-bg, #{$badge-bg-color}) !important;
+  color: var(--badge-fg, inherit) !important;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  max-width: 600px;
+
+  // Adjust the inner Material button label container to allow flexbox shrinking.
+  /* stylelint-disable selector-class-pattern */
+  ::ng-deep .mdc-button__label {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+  /* stylelint-enable selector-class-pattern */
+
+  &:hover {
+    background-color: var(--badge-bg, #{$badge-hover-bg-color}) !important;
+    opacity: 0.9;
+  }
+}
+
+.filter-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--badge-fg, #{$icon-color});
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.filter-type {
+  color: var(--badge-type-fg, #{$type-color});
+  background-color: var(--badge-type-bg, transparent);
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.filter-colon {
+  color: var(--badge-fg, #{$colon-color});
+}
+
+.filter-value {
+  color: $value-color;
+  font-family: monospace;
+  font-size: 12px;
+  background-color: $value-bg-color;
+  padding: 2px 4px;
+  border-radius: 4px;
+  max-width: 120px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.delete-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  color: var(--badge-fg, #{$delete-icon-color});
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--badge-fg, #{$delete-icon-hover-color});
+    opacity: 0.7;
+  }
+}
+
+.add-filter-btn {
+  height: 36px;
+  border-radius: 18px !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.log-filters {
+  --mat-form-field-container-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 16px;
+  height: 100%;
+
+  ::ng-deep {
+    .mat-mdc-form-field-wrapper {
+      padding-bottom: 0 !important;
+    }
+
+    .mat-mdc-text-field-wrapper {
+      height: 36px !important;
+      padding: 0 8px !important;
+      display: flex;
+      align-items: center;
+      background-color: white !important;
+    }
+
+    .mat-mdc-form-field-flex {
+      height: 100% !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-form-field-infix {
+      padding-top: 6px !important;
+      padding-bottom: 6px !important;
+      min-height: unset !important;
+    }
+
+    .mat-mdc-form-field-label-wrapper {
+      top: -6px !important;
+      padding-top: 0 !important;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+
+    .mat-mdc-select-trigger {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+  }
+}
+
+.severity-select {
+  width: 150px;
+}
+
+.search-input {
+  width: 200px;
+}
+
+.search-prefix-icon {
+  color: mat.m2-get-color-from-palette($gray-palette, 600);
+  margin-right: 4px;
+}
+
+.clear-search-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  mat-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
   }
 }

@@ -19,16 +19,20 @@ import {
   moduleMetadata,
   StoryObj,
   componentWrapperDecorator,
+  StoryContext,
 } from '@storybook/angular';
-import {
-  ParentRelationship,
-  RevisionState,
-  RevisionVerb,
-} from 'src/app/zzz-generated';
 import { TimelineChartComponent } from './timeline-chart.component';
 import { Component, DestroyRef, inject, NgZone, OnInit } from '@angular/core';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
-import { DemoViewModelBuilder } from './misc/demo-builder';
+import {
+  generateDefaultChartStyle,
+  generateDefaultRulerStyle,
+} from './style-model-v2';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { HistogramCache } from 'src/app/timeline/components/misc/histogram-cache';
+import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculator/human-friendly-tick';
+import { RulerViewModelBuilder } from './timeline-ruler.viewmodel';
 
 @Component({
   selector: 'khi-rendering-loop-starter',
@@ -45,171 +49,70 @@ class RenderingLoopStarter implements OnInit {
   }
 }
 
-const START_TIME = new Date(2025, 0, 1, 0, 0, 0).getTime();
-const DURATION = 60 * 60 * 1000; // 1 hour
+// Dynamic renderer that consumes mockData from Storybook's loaded context
+function renderTimelineChart(
+  args: Record<string, unknown>,
+  context: StoryContext,
+) {
+  const mockData = context.loaded['mockData'] as InspectionDataV2;
+  const startTimeMs = mockData.metadata!.header!.startTimeUnixSeconds * 1000;
+  const endTimeMs = mockData.metadata!.header!.endTimeUnixSeconds * 1000;
+  const durationMs = endTimeMs - startTimeMs;
 
-function generateMockTimelineChartViewModel(): DemoViewModelBuilder {
-  const builder = new DemoViewModelBuilder(START_TIME, START_TIME + DURATION);
-  builder.createTimeline('core/v1#pod', ParentRelationship.RelationshipChild);
-  builder.createTimeline(
-    'core/v1#pod#default',
-    ParentRelationship.RelationshipChild,
+  const timelines = mockData.timelineStore.timelines;
+  const logsList = Array.from(mockData.logStore.logs());
+
+  const chartViewModel = {
+    inspectionDataUniqueID: 'mock-unique-id',
+    timelinesInDrawArea: timelines,
+    logBeginTime: startTimeMs,
+    logEndTime: endTimeMs,
+    styleStore: mockData.styleStore,
+  };
+
+  const allLogsCache = new HistogramCache(
+    mockData.styleStore.severities,
+    logsList,
+    getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
+    startTimeMs,
+    endTimeMs,
   );
-  builder.createTimeline(
-    'core/v1#pod#default#pod-1',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      START_TIME + DURATION * 0.1,
-      START_TIME + DURATION * 0.2,
-      RevisionState.RevisionStateProvisioning,
-      RevisionVerb.RevisionVerbCreate,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.2,
-      START_TIME + DURATION * 0.3,
-      RevisionState.RevisionStateExisting,
-      RevisionVerb.RevisionVerbUpdate,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.3,
-      START_TIME + DURATION * 0.4,
-      RevisionState.RevisionStateDeleting,
-      RevisionVerb.RevisionVerbDelete,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.4,
-      START_TIME + DURATION * 0.5,
-      RevisionState.RevisionStateDeleted,
-      RevisionVerb.RevisionVerbDelete,
-    ),
+  const filteredLogsCache = new HistogramCache(
+    mockData.styleStore.severities,
+    logsList,
+    getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
+    startTimeMs,
+    endTimeMs,
   );
-  builder.createTimeline(
-    'core/v1#pod#default#pod-2',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      START_TIME + DURATION * 0.1,
-      START_TIME + DURATION * 0.2,
-      RevisionState.RevisionStateInferred,
-      RevisionVerb.RevisionVerbCreate,
-    ),
+
+  const rulerViewModelBuilder = new RulerViewModelBuilder();
+  const rulerViewModel = rulerViewModelBuilder.generateRulerViewModel(
+    startTimeMs,
+    window.innerWidth / durationMs,
+    window.innerWidth,
+    0,
+    allLogsCache,
+    filteredLogsCache,
   );
-  builder.createTimeline(
-    'core/v1#pod#default#pod-2#ready-status',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      START_TIME + DURATION * 0.1,
-      START_TIME + DURATION * 0.2,
-      RevisionState.RevisionStateConditionNotGiven,
-      RevisionVerb.RevisionVerbCreate,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.2,
-      START_TIME + DURATION * 0.3,
-      RevisionState.RevisionStateConditionNoAvailableInfo,
-      RevisionVerb.RevisionVerbCreate,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.3,
-      START_TIME + DURATION * 0.4,
-      RevisionState.RevisionStateConditionUnknown,
-      RevisionVerb.RevisionVerbCreate,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.4,
-      START_TIME + DURATION * 0.5,
-      RevisionState.RevisionStateConditionTrue,
-      RevisionVerb.RevisionVerbCreate,
-    ),
-    builder.createRevision(
-      START_TIME + DURATION * 0.5,
-      START_TIME + DURATION * 0.6,
-      RevisionState.RevisionStateConditionFalse,
-      RevisionVerb.RevisionVerbCreate,
-    ),
-  );
-  builder.createTimeline(
-    'core/v1#pod#default#moire',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      new Date(0).getTime(),
-      START_TIME + DURATION,
-      RevisionState.RevisionStateDeleted,
-      RevisionVerb.RevisionVerbCreate,
-      START_TIME,
-    ),
-  );
-  builder.createTimeline(
-    'core/v1#pod#default#moire2',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      START_TIME,
-      START_TIME + DURATION,
-      RevisionState.RevisionStateDeleted,
-      RevisionVerb.RevisionVerbCreate,
-      START_TIME,
-    ),
-  );
-  builder.createTimeline(
-    'core/v1#pod#default#moire3',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      new Date(0).getTime(),
-      START_TIME + DURATION,
-      RevisionState.RevisionStateInferred,
-      RevisionVerb.RevisionVerbCreate,
-      START_TIME,
-    ),
-  );
-  builder.createTimeline(
-    'core/v1#pod#default#moire4',
-    ParentRelationship.RelationshipChild,
-    builder.createRevision(
-      START_TIME,
-      START_TIME + DURATION,
-      RevisionState.RevisionStateInferred,
-      RevisionVerb.RevisionVerbCreate,
-      START_TIME,
-    ),
-  );
-  return builder;
+
+  const activeLogsIndices = new Set<number>();
+  for (const log of logsList) {
+    activeLogsIndices.add(log.logIndex);
+  }
+
+  return {
+    props: {
+      ...args,
+      chartViewModel,
+      rulerViewModel,
+      activeLogsIndices,
+      leftEdgeTime: startTimeMs - 5000,
+      pixelsPerMs: window.innerWidth / (durationMs + 10000),
+      rulerStyle: generateDefaultRulerStyle(mockData.styleStore),
+      chartStyle: generateDefaultChartStyle(),
+    },
+  };
 }
-
-function generateMockComposerTimelineChartViewModel(): DemoViewModelBuilder {
-  const builder = new DemoViewModelBuilder(START_TIME, START_TIME + DURATION);
-
-  const composerStates: [state: RevisionState, name: string][] = [
-    [RevisionState.RevisionStateComposerTiScheduled, 'Scheduled'],
-    [RevisionState.RevisionStateComposerTiQueued, 'Queued'],
-    [RevisionState.RevisionStateComposerTiRunning, 'Running'],
-    [RevisionState.RevisionStateComposerTiDeferred, 'Deferred'],
-    [RevisionState.RevisionStateComposerTiSuccess, 'Success'],
-    [RevisionState.RevisionStateComposerTiFailed, 'Failed'],
-    [RevisionState.RevisionStateComposerTiUpForRetry, 'UpForRetry'],
-    [RevisionState.RevisionStateComposerTiRestarting, 'Restarting'],
-    [RevisionState.RevisionStateComposerTiRemoved, 'Removed'],
-    [RevisionState.RevisionStateComposerTiUpstreamFailed, 'UpstreamFailed'],
-    [RevisionState.RevisionStateComposerTiZombie, 'Zombie'],
-    [RevisionState.RevisionStateComposerTiUpForReschedule, 'UpForReschedule'],
-    [RevisionState.RevisionStateComposerTiSkipped, 'Skipped'],
-  ];
-
-  composerStates.forEach(([state, name], i) => {
-    builder.createTimeline(
-      `airflow#composer/task#composer#composer#${name}`,
-      ParentRelationship.RelationshipChild,
-      builder.createRevision(
-        START_TIME + (DURATION / 24) * i,
-        START_TIME + (DURATION / 24) * i + DURATION / 2,
-        state,
-        RevisionVerb.RevisionVerbCreate,
-      ),
-    );
-  });
-
-  return builder;
-}
-
-const builder = generateMockTimelineChartViewModel();
 
 const meta: Meta<TimelineChartComponent> = {
   title: 'Timeline/TimelineChart',
@@ -222,23 +125,19 @@ const meta: Meta<TimelineChartComponent> = {
     componentWrapperDecorator(
       (story) => `
       <khi-rendering-loop-starter style="height: 100vh; display: grid;">
-         ${story}
+          ${story}
       </khi-rendering-loop-starter>`,
     ),
   ],
   parameters: {
     layout: 'fullscreen',
   },
-  args: {
-    chartViewModel: builder.getChartViewModel(),
-    rulerViewModel: builder.getRulerViewModel(window.innerWidth),
-    activeLogsIndices: builder.getAllActiveLogIndices(),
-    leftEdgeTime: START_TIME,
-    pixelsPerMs: window.innerWidth / DURATION,
-    timelineHighlights: {},
-    timelineChartItemHighlights: {},
-    forceNotReadyToRender: false,
-  },
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: renderTimelineChart,
 };
 
 export default meta;
@@ -251,54 +150,5 @@ export const Default: Story = {
 export const NotReady: Story = {
   args: {
     forceNotReadyToRender: true,
-  },
-};
-
-const composerBuilder = generateMockComposerTimelineChartViewModel();
-export const Composer: Story = {
-  args: {
-    chartViewModel: composerBuilder.getChartViewModel(),
-    rulerViewModel: composerBuilder.getRulerViewModel(window.innerWidth),
-    activeLogsIndices: composerBuilder.getAllActiveLogIndices(),
-  },
-};
-
-function generateMockDenseRevisionsViewModel(): DemoViewModelBuilder {
-  const testDuration = 200 * 10; // 2 seconds (10 revisions * 200ms)
-  const builder = new DemoViewModelBuilder(
-    START_TIME,
-    START_TIME + testDuration,
-  );
-
-  const revisions = [];
-  for (let i = 0; i < 10; i++) {
-    revisions.push(
-      builder.createRevision(
-        START_TIME + i * 200,
-        START_TIME + (i + 1) * 200,
-        i % 2 === 0
-          ? RevisionState.RevisionStateExisting
-          : RevisionState.RevisionStateInferred,
-        RevisionVerb.RevisionVerbUpdate,
-      ),
-    );
-  }
-
-  builder.createTimeline(
-    'core/v1#pod#default#dense-revisions',
-    ParentRelationship.RelationshipChild,
-    ...revisions,
-  );
-
-  return builder;
-}
-
-const denseBuilder = generateMockDenseRevisionsViewModel();
-export const DenseRevisions: Story = {
-  args: {
-    chartViewModel: denseBuilder.getChartViewModel(),
-    rulerViewModel: denseBuilder.getRulerViewModel(window.innerWidth),
-    activeLogsIndices: denseBuilder.getAllActiveLogIndices(),
-    pixelsPerMs: window.innerWidth / (200 * 10),
   },
 };

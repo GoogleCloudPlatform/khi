@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,40 @@
 package commonlogk8saudit_contract
 
 import (
+	"strings"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
+
+var irregularPluralToSingularSuffixMap = map[string]string{
+	"classes":      "class",
+	"ingresses":    "ingress",
+	"leases":       "lease",
+	"dnses":        "dns",
+	"identities":   "identity",
+	"policies":     "policy",
+	"topologies":   "topology",
+	"statuses":     "status",
+	"capabilities": "capability",
+}
+
+// GetSingularKindName converts a plural Kubernetes resource kind to its singular form.
+func GetSingularKindName(pluralKind string) string {
+	if strings.HasSuffix(pluralKind, "ses") || strings.HasSuffix(pluralKind, "ies") {
+		for pluralSuffix, singularSuffix := range irregularPluralToSingularSuffixMap {
+			if strings.HasSuffix(pluralKind, pluralSuffix) {
+				return strings.TrimSuffix(pluralKind, pluralSuffix) + singularSuffix
+			}
+		}
+		return pluralKind
+	}
+	if strings.HasSuffix(pluralKind, "s") {
+		return strings.TrimSuffix(pluralKind, "s")
+	}
+	return pluralKind
+}
 
 // K8sAuditLogFieldSet is the field set for k8s audit log.
 type K8sAuditLogFieldSet struct {
@@ -29,8 +58,22 @@ type K8sAuditLogFieldSet struct {
 	IsFirst bool
 	// IsLast is true if the log is the last log of the operation.
 	IsLast bool
-	// K8sOperation is the k8s operation associated with the log.
-	K8sOperation *model.KubernetesObjectOperation
+
+	// APIVersion is the API version of the resource (e.g., "apps/v1").
+	APIVersion string
+	// PluralKind is the plural resource kind name (e.g., "pods", "services").
+	PluralKind string
+	// Namespace is the namespace of the resource.
+	Namespace string
+	// ResourceName is the name of the resource.
+	ResourceName string
+	// SubresourceName is the subresource name if applicable (e.g., "status", "binding").
+	SubresourceName string
+	// ClusterName is the name of the Kubernetes cluster.
+	ClusterName string
+	// Verb is the styled operation revision verb.
+	Verb *pb.Verb
+
 	// RequestURI is the request URI.
 	RequestURI string
 	// Principal is the principal who issued the request.
@@ -59,10 +102,10 @@ func (k *K8sAuditLogFieldSet) LongRunning() bool {
 
 // VerbString returns the string representation of the verb.
 func (k *K8sAuditLogFieldSet) VerbString() string {
-	if k.K8sOperation == nil {
+	if k.Verb == nil {
 		return ""
 	}
-	return enum.RevisionVerbs[k.K8sOperation.Verb].Label
+	return k.Verb.GetLabel()
 }
 
 var _ log.FieldSet = (*K8sAuditLogFieldSet)(nil)

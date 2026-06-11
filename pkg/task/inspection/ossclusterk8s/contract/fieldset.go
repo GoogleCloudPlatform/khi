@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@ package ossclusterk8s_contract
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
@@ -51,14 +51,13 @@ func (o *OSSK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 		name = reader.ReadStringOrDefault("responseObject.metadata.name", "unknown")
 	}
 
-	result.K8sOperation = &model.KubernetesObjectOperation{
-		APIVersion:      fmt.Sprintf("%s/%s", apiGroup, apiVersion),
-		PluralKind:      kind,
-		Namespace:       namespace,
-		Name:            name,
-		SubResourceName: subresource,
-		Verb:            verbStringToEnum(verb),
-	}
+	result.APIVersion = fmt.Sprintf("%s/%s", apiGroup, apiVersion)
+	result.PluralKind = kind
+	result.Namespace = namespace
+	result.ResourceName = name
+	result.SubresourceName = subresource
+	result.ClusterName = "cluster"
+	result.Verb = verbStringToVerb(verb)
 
 	result.RequestURI = reader.ReadStringOrDefault("requestURI", "")
 	result.Principal = reader.ReadStringOrDefault("user.username", "unknown")
@@ -84,31 +83,90 @@ func (o *OSSK8sAuditLogCommonFieldSetReader) FieldSetKind() string {
 func (o *OSSK8sAuditLogCommonFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var err error
 	result := &log.CommonFieldSet{}
-	result.DisplayID = reader.ReadStringOrDefault("auditID", "unknown")
 	result.Timestamp, err = reader.ReadTimestamp("stageTimestamp")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read timestmap from given log")
+		return nil, fmt.Errorf("failed to read timestamp from given log")
 	}
-	result.Severity = enum.SeverityUnknown // TODO: handle OSS k8s audit log severity properly
 	return result, nil
 }
 
 var _ log.FieldSetReader = (*OSSK8sAuditLogCommonFieldSetReader)(nil)
 
-func verbStringToEnum(verbStr string) enum.RevisionVerb {
+func verbStringToVerb(verbStr string) *pb.Verb {
 	switch verbStr {
 	case "create":
-		return enum.RevisionVerbCreate
+		return commonlogk8saudit_contract.VerbCreate
 	case "update":
-		return enum.RevisionVerbUpdate
+		return commonlogk8saudit_contract.VerbUpdate
 	case "patch":
-		return enum.RevisionVerbPatch
+		return commonlogk8saudit_contract.VerbPatch
 	case "delete":
-		return enum.RevisionVerbDelete
+		return commonlogk8saudit_contract.VerbDelete
 	case "deletecollection":
-		return enum.RevisionVerbDeleteCollection
+		return commonlogk8saudit_contract.VerbDeleteCollection
 	default:
-		// Add verbs for get/list/watch
-		return enum.RevisionVerbUnknown
+		return commonlogk8saudit_contract.VerbUnknown
 	}
 }
+
+// OSSK8sEventFieldSet holds the structured data from a Kubernetes Event log.
+type OSSK8sEventFieldSet struct {
+	// APIVersion is the API version of the involved object.
+	APIVersion string
+	// ResourceKind is the kind of the involved object.
+	ResourceKind string
+	// Namespace is the namespace of the involved object.
+	Namespace string
+	// Resource is the name of the involved object.
+	Resource string
+	// Subresource is the subresource of the involved object.
+	Subresource string
+	// Reason is the short, machine-understandable string explaining why the event was triggered.
+	Reason string
+	// Message is the human-readable description of the status of this operation.
+	Message string
+}
+
+// Kind returns the kind of this FieldSet.
+func (o *OSSK8sEventFieldSet) Kind() string {
+	return "ossclusterk8s.khi.google.com/EventFieldSet"
+}
+
+// ResourceIdentity returns the ResourceIdentity representation of the involved object.
+func (o *OSSK8sEventFieldSet) ResourceIdentity() *commonlogk8saudit_contract.ResourceIdentity {
+	return &commonlogk8saudit_contract.ResourceIdentity{
+		APIVersion:      o.APIVersion,
+		Kind:            o.ResourceKind,
+		Name:            o.Resource,
+		Namespace:       o.Namespace,
+		SubresourceName: o.Subresource,
+	}
+}
+
+var _ log.FieldSet = (*OSSK8sEventFieldSet)(nil)
+
+// OSSK8sEventFieldSetReader extracts OSSK8sEventFieldSet from a raw log.
+type OSSK8sEventFieldSetReader struct{}
+
+// FieldSetKind returns the Kind of the field set this reader constructs.
+func (o *OSSK8sEventFieldSetReader) FieldSetKind() string {
+	return (&OSSK8sEventFieldSet{}).Kind()
+}
+
+// Read extracts event fields from `responseObject` of the Event log.
+func (o *OSSK8sEventFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	var result OSSK8sEventFieldSet
+	result.APIVersion = reader.ReadStringOrDefault("responseObject.involvedObject.apiVersion", "core/v1")
+	if !strings.Contains(result.APIVersion, "/") {
+		result.APIVersion = "core/" + result.APIVersion
+	}
+	result.ResourceKind = strings.ToLower(reader.ReadStringOrDefault("responseObject.involvedObject.kind", "unknown"))
+	result.Namespace = reader.ReadStringOrDefault("responseObject.involvedObject.namespace", "cluster-scope")
+	result.Resource = reader.ReadStringOrDefault("responseObject.involvedObject.name", "unknown")
+	result.Subresource = reader.ReadStringOrDefault("responseObject.involvedObject.subresource", "")
+	result.Reason = reader.ReadStringOrDefault("responseObject.reason", "???")
+	result.Message = reader.ReadStringOrDefault("responseObject.message", "")
+	return &result, nil
+}
+
+var _ log.FieldSetReader = (*OSSK8sEventFieldSetReader)(nil)

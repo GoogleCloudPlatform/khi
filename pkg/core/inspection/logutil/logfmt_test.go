@@ -17,9 +17,10 @@ package logutil
 import (
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestLogfmtTextParser(t *testing.T) {
@@ -73,7 +74,7 @@ func TestLogfmtTextParserWorker_Parse(t *testing.T) {
 			want: &ParseStructuredLogResult{
 				Fields: map[string]any{
 					MainMessageStructuredFieldKey: "Main message",
-					SeverityStructuredFieldKey:    enum.SeverityInfo,
+					SeverityStructuredFieldKey:    inspectioncore_contract.SeverityInfo,
 					"msg":                         "Main message",
 					"severity":                    "info",
 					"fieldWithQuotes":             "foo",
@@ -142,7 +143,7 @@ func TestLogfmtTextParserWorker_Parse(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse() unexpected error: %v", err)
 			}
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("parse() mismatch (-want +got):\n%s", diff)
 			}
 		})

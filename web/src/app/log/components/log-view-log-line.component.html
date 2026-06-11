@@ -26,18 +26,18 @@
 >
   <div
     class="type-indicator"
-    [ngClass]="logEntry.logTypeLabel"
-    [matTooltip]="'log type:' + logEntry.logTypeLabel"
+    [ngStyle]="typeStyle()"
+    [matTooltip]="'log type:' + logEntry.logType.label"
   ></div>
   <div class="severity-indicator-wrap">
     <div
       class="severity-indicator"
-      [ngClass]="logEntry.logSeverityLabel | lowercase"
-      [matTooltip]="'severity:' + logEntry.logSeverityLabel"
+      [ngStyle]="severityStyle()"
+      [matTooltip]="'severity:' + logEntry.severity.label"
     >
-      {{ (logEntry.logSeverityLabel | uppercase)[0] }}
+      {{ (logEntry.severity.label | uppercase)[0] }}
     </div>
   </div>
-  <div class="ts">{{ logEntry.time | tsf | async }}</div>
+  <div class="ts">{{ logEntry.legacyTimestampMs | tsf | async }}</div>
   <div class="message">{{ logEntry.summary }}</div>
 </div>

@@ -17,6 +17,7 @@ package googlecloudlogk8scontrolplane_impl
 import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
@@ -25,5 +26,7 @@ var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googleclou
 	googlecloudlogk8scontrolplane_contract.ListLogEntriesTaskID.Ref(),
 	[]log.FieldSetReader{
 		&googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSetReader{},
+		&googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSetReader{},
+		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
 	},
 )

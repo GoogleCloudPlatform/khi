@@ -33,18 +33,16 @@
       ></khi-log-list>
     </as-split-area>
     <as-split-area size="50">
-      @if (logContentViewModel.isLoading()) {
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-      } @else {
-        <khi-log-content
-          [vm]="logContentViewModel.value() ?? null"
-          [timezoneShift]="timezoneShift()"
-          [selectedTimeline]="selectedTimeline()"
-          (resourceSelected)="onResourceSelected($event)"
-          (resourceHighlighted)="onResourceHighlighted($event)"
-        >
-        </khi-log-content>
-      }
+      <khi-log-content
+        [vm]="logContentViewModel()"
+        [timezoneShift]="timezoneShift()"
+        [selectedTimeline]="selectedTimeline()"
+        (timelineSelected)="onTimelineSelected($event)"
+        (timelineHighlighted)="onTimelineHighlighted($event)"
+        (scopeActiveChange)="onScopeActiveChange($event)"
+        [activeSearchScope]="activeSearchScope()"
+      >
+      </khi-log-content>
     </as-split-area>
   </as-split>
 </div>

@@ -14,51 +14,8 @@
  * limitations under the License.
  */
 
+import { BMFontConfig } from 'src/app/store/domain/style';
 import { WebGLContextLostException } from './glcontextmanager';
-
-/**
- * BMFontConfig is the JSON representation of a BMFont config.
- * See https://github.com/Experience-Monks/load-bmfont/blob/master/json-spec.md
- */
-export interface BMFontConfig {
-  pages: string[];
-  chars: BMFontChar[];
-  common: BMFontCommon;
-}
-
-/**
- * Represents a single character in the BMFont configuration.
- */
-export interface BMFontChar {
-  id: number;
-  index: number;
-  char: string;
-  width: number;
-  height: number;
-  xoffset: number;
-  yoffset: number;
-  xadvance: number;
-  chnl: number;
-  x: number;
-  y: number;
-  page: number;
-}
-
-/**
- * Represents common properties in the BMFont configuration.
- */
-export interface BMFontCommon {
-  lineHeight: number;
-  base: number;
-  scaleW: number;
-  scaleH: number;
-  pages: number;
-  packed: number;
-  alphaChnl: number;
-  redChnl: number;
-  greenChnl: number;
-  blueChnl: number;
-}
 
 /**
  * Map of string tokens to be replaced in GLSL shader source code.
@@ -130,6 +87,27 @@ export class WebGLUtil {
     texturePath: string,
   ): Promise<WebGLTexture> {
     const image = await this.loadImage(texturePath);
+    const texture = gl.createTexture();
+    if (texture === null)
+      throw new WebGLContextLostException('Failed to create texture');
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+  }
+
+  /**
+   * Uploads an image source directly as a 2D WebGL texture.
+   *
+   * @param gl The WebGL2 rendering context.
+   * @param image The source image or canvas to bind and upload.
+   * @returns The successfully initialized WebGL texture.
+   * @throws WebGLContextLostException If the WebGL texture instance cannot be allocated.
+   */
+  public static loadTextureDirect(
+    gl: WebGL2RenderingContext,
+    image: TexImageSource,
+  ): WebGLTexture {
     const texture = gl.createTexture();
     if (texture === null)
       throw new WebGLContextLostException('Failed to create texture');

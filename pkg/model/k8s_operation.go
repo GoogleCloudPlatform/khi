@@ -19,7 +19,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 var irregularPluralToSingularSuffixMap = map[string]string{
@@ -40,7 +40,7 @@ type KubernetesObjectOperation struct {
 	Namespace       string
 	Name            string
 	SubResourceName string
-	Verb            enum.RevisionVerb
+	Verb            *pb.Verb
 }
 
 func (o *KubernetesObjectOperation) ResourcePath() string {

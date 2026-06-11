@@ -20,7 +20,6 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -58,8 +57,8 @@ func (o *onpremAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTask
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (o *onpremAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeOnPremAPI,
-		QueryName:      "OnPrem API Logs",
+
+		QueryName: "OnPrem API Logs",
 		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			ProjectID:   "example-project-id",
 			Location:    "example-location",

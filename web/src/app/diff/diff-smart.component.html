@@ -42,6 +42,8 @@ limitations under the License.
           [previousRevisionContent]="previousRevisionContent()"
           [(showManagedFields)]="showManagedFields"
           (openInNewTab)="openDiffInAnotherWindow()"
+          (scopeActiveChange)="onScopeActiveChange($event)"
+          [activeSearchScope]="activeSearchScope()"
         ></khi-diff-content>
       }
     </as-split-area>

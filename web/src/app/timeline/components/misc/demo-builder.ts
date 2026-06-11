@@ -14,18 +14,20 @@
  * limitations under the License.
  */
 
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
+type LogType = number;
+type RevisionState = number;
+type RevisionVerb = number;
+type Severity = number;
+import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { StyleStore } from 'src/app/store/domain/style-store';
+import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 import {
-  LogType,
-  ParentRelationship,
-  RevisionState,
-  RevisionVerb,
-  Severity,
-} from 'src/app/zzz-generated';
-import { ResourceEvent } from 'src/app/store/event';
-import { LogEntry } from 'src/app/store/log';
-import { ResourceRevision } from 'src/app/store/revision';
-import { ResourceTimeline } from 'src/app/store/timeline';
+  TimelineStore,
+  TimelineDTO,
+  RevisionDTO,
+  EventDTO,
+} from 'src/app/store/domain/timeline-store';
+import { Log } from 'src/app/store/domain/log';
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
 import {
   RulerViewModelBuilder,
@@ -36,20 +38,37 @@ import { getMinTimeSpanForHistogram } from '../calculator/human-friendly-tick';
 
 /**
  * DemoViewModelBuilder is a utility class for constructing `TimelineChartViewModel` and `TimelineRulerViewModel`
- * specifically for testing and Storybook demonstrations.
- *
- * It simplifies the creation of complex timeline data structures (Timelines, Revisions, Events, Logs)
- * and allows generating consistent view models for both the chart and the ruler.
+ * specifically for testing and Storybook demonstrations using the V2 domain stores.
  */
 export class DemoViewModelBuilder {
+  private readonly internPool = InternPoolStore.create();
+  private readonly styleStore = new StyleStore();
+  private readonly logStore = LogStore.create(this.internPool, this.styleStore);
+  private readonly timelineStore = TimelineStore.create(
+    this.internPool,
+    this.styleStore,
+    this.logStore,
+  );
+
   private logIndex = 0;
+  private nextStringId = 1;
+  private nextTimelineId = 1;
+  private nextRevisionId = 1;
+  private nextEventId = 1;
 
-  timelines: ResourceTimeline[] = [];
+  private readonly logDTOs: LogDTO[] = [];
+  private readonly timelineDTOs: TimelineDTO[] = [];
+  private readonly revisionDTOs: RevisionDTO[] = [];
+  private readonly eventDTOs: EventDTO[] = [];
 
-  logs: LogEntry[] = [];
+  private readonly stringsMap = new Map<string, number>();
+  private readonly timelineTypeIds = new Map<string, number>();
+
+  private isInitialized = false;
 
   /**
    * Initializes a new instance of DemoViewModelBuilder.
+   * Registers standard mock severity, log, and timeline style configurations.
    *
    * @param startTime The start timestamp of the timeline in milliseconds.
    * @param endTime The end timestamp of the timeline in milliseconds.
@@ -57,16 +76,132 @@ export class DemoViewModelBuilder {
   constructor(
     private readonly startTime: number,
     private readonly endTime: number,
-  ) {}
+  ) {
+    // Setup standard severities
+    this.styleStore.addSeverities([
+      {
+        id: 0, // SeverityUnknown
+        label: 'Unknown',
+        shortLabel: 'U',
+        backgroundColor: { r: 0.502, g: 0.502, b: 0.502, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: 0,
+      },
+      {
+        id: 1, // SeverityInfo
+        label: 'Info',
+        shortLabel: 'I',
+        backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: 1,
+      },
+      {
+        id: 2, // SeverityWarning
+        label: 'Warning',
+        shortLabel: 'W',
+        backgroundColor: { r: 1, g: 0.667, b: 0.267, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: 2,
+      },
+      {
+        id: 3, // SeverityError
+        label: 'Error',
+        shortLabel: 'E',
+        backgroundColor: { r: 1, g: 0.224, b: 0.208, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: 3,
+      },
+      {
+        id: 4, // SeverityFatal
+        label: 'Fatal',
+        shortLabel: 'F',
+        backgroundColor: { r: 0.667, g: 0.4, b: 0.667, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+        order: 4,
+      },
+    ]);
+
+    // Setup standard log types
+    this.styleStore.addLogTypes([
+      {
+        id: 0, // LogTypeUnknown
+        label: 'Unknown',
+        description: 'Unknown log type',
+        backgroundColor: { r: 0.502, g: 0.502, b: 0.502, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      },
+      {
+        id: 1, // LogTypeAudit
+        label: 'Audit',
+        description: 'Audit log entry',
+        backgroundColor: { r: 0, g: 0.502, b: 0, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      },
+      {
+        id: 2, // LogTypeEvent
+        label: 'Event',
+        description: 'Kubernetes Event',
+        backgroundColor: { r: 1, g: 0.647, b: 0, a: 1 },
+        foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+      },
+    ]);
+  }
+
+  private getStringId(val: string): number {
+    let id = this.stringsMap.get(val);
+    if (id === undefined) {
+      id = this.nextStringId++;
+      this.stringsMap.set(val, id);
+      this.internPool.addStrings([{ id, value: val }]);
+    }
+    return id;
+  }
+
+  private getTimelineTypeId(resourcePath: string): number {
+    const lastPart = resourcePath.split('#').pop() || resourcePath;
+    let id = this.timelineTypeIds.get(lastPart);
+    if (id === undefined) {
+      id = this.timelineTypeIds.size + 1;
+      this.timelineTypeIds.set(lastPart, id);
+      this.styleStore.addTimelineTypes([
+        {
+          id,
+          label: lastPart,
+          description: `Timeline type for ${lastPart}`,
+          icon: 'list',
+          backgroundColor: { r: 33, g: 150, b: 243, a: 255 },
+          foregroundColor: { r: 255, g: 255, b: 255, a: 255 },
+          typeChipBackgroundColor: { r: 33, g: 150, b: 243, a: 255 },
+          typeChipForegroundColor: { r: 255, g: 255, b: 255, a: 255 },
+          visible: true,
+          sortPriority: id,
+          height: 20,
+        },
+      ]);
+    }
+    return id;
+  }
+
+  private ensureInitialized() {
+    if (this.isInitialized) {
+      return;
+    }
+    this.logDTOs.sort((a, b) => Number(a.ts - b.ts));
+    this.logStore.initialize(this.logDTOs, this.logDTOs.length);
+
+    this.timelineStore.initialize(
+      this.timelineDTOs,
+      this.timelineDTOs.length,
+      this.revisionDTOs,
+      this.revisionDTOs.length,
+      this.eventDTOs,
+      this.eventDTOs.length,
+    );
+    this.isInitialized = true;
+  }
 
   /**
-   * Creates a `ResourceRevision` with the specified properties and registers a corresponding start log.
-   *
-   * @param startTime The start timestamp of the revision (ms).
-   * @param endTime The end timestamp of the revision (ms).
-   * @param revisionState The state of the revision (e.g., Active, Deleted).
-   * @param verb The verb describing the revision change (e.g., Created, Updated).
-   * @returns A new `ResourceRevision` instance.
+   * Creates a mock revision, registers a corresponding log, and returns the generated revision reference.
    */
   createRevision(
     startTime: number,
@@ -78,143 +213,156 @@ export class DemoViewModelBuilder {
     if (Number.isNaN(logTime)) {
       logTime = startTime;
     }
-    const logIndex = this.logIndex++;
-    this.logs.push(
-      new LogEntry(
-        logIndex,
-        '',
-        LogType.LogTypeAudit,
-        Severity.SeverityInfo,
-        logTime,
-        '',
-        ToTextReferenceFromKHIFileBinary(),
-        [],
-      ),
-    );
-    return new ResourceRevision(
-      startTime,
-      endTime,
-      revisionState,
-      verb,
-      '',
-      '',
-      false,
-      false,
-      logIndex,
-    );
+    const logId = this.logIndex++;
+
+    this.logDTOs.push({
+      id: logId,
+      ts: BigInt(Math.floor(logTime)) * 1000000n,
+      logTypeId: 1, // LogTypeAudit
+      severityTypeId: 1, // SeverityInfo
+      summaryStringId: this.getStringId(''),
+      body: undefined,
+    });
+
+    const revisionId = this.nextRevisionId++;
+    const revisionDto: RevisionDTO = {
+      id: revisionId,
+      logId,
+      changedTime: BigInt(Math.floor(startTime)) * 1000000n,
+      principalStringId: this.getStringId(''),
+      verbTypeId: verb,
+      stateTypeId: revisionState,
+      body: undefined,
+    };
+    this.revisionDTOs.push(revisionDto);
+    return { type: 'revision' as const, id: revisionId };
   }
 
   /**
-   * Creates a `ResourceTimeline` containing the provided revisions and events.
-   *
-   * @param resourcePath The name or path of the resource for this timeline.
-   * @param relationship The relationship of this timeline to its parent (default is Child).
-   * @param items A variable number of `ResourceRevision` or `ResourceEvent` items to include in the timeline.
+   * Creates a mock timeline and associates it with any specified child revisions or events.
    */
   createTimeline(
     resourcePath: string,
-    relationship: ParentRelationship = ParentRelationship.RelationshipChild,
-    ...items: (ResourceRevision | ResourceEvent)[]
+    ...items: (
+      | { type: 'revision'; id: number }
+      | { type: 'event'; id: number }
+    )[]
   ) {
-    const revisions: ResourceRevision[] = [];
-    const events: ResourceEvent[] = [];
+    const revisionIds: number[] = [];
+    const eventIds: number[] = [];
     for (const item of items) {
-      if (item instanceof ResourceRevision) {
-        revisions.push(item);
+      if (item.type === 'revision') {
+        revisionIds.push(item.id);
       } else {
-        events.push(item);
+        eventIds.push(item.id);
       }
     }
-    this.timelines.push(
-      new ResourceTimeline(
-        `${resourcePath}#${this.timelines.length}`,
-        resourcePath,
-        revisions,
-        events,
-        relationship,
-      ),
-    );
+
+    const parts = resourcePath.split('#');
+    const pathWithoutUniqueId = parts[0];
+    const parentPathParts = pathWithoutUniqueId.split('/');
+    parentPathParts.pop();
+    const parentPath = parentPathParts.join('/');
+
+    let parentTimelineId = 0;
+    if (parentPath) {
+      const parent = this.timelineDTOs.find((t) => {
+        const tName = this.internPool.getString(t.nameStringId);
+        return tName === parentPath || tName.startsWith(parentPath + '#');
+      });
+      if (parent) {
+        parentTimelineId = parent.id;
+      }
+    }
+
+    const timelineId = this.nextTimelineId++;
+    const timelineDto: TimelineDTO = {
+      id: timelineId,
+      timelineTypeId: this.getTimelineTypeId(resourcePath),
+      nameStringId: this.getStringId(resourcePath),
+      parentTimelineId,
+      revisionIds,
+      eventIds,
+    };
+    this.timelineDTOs.push(timelineDto);
   }
 
   /**
-   * Creates a `ResourceEvent` with the specified properties and registers a corresponding log.
-   *
-   * @param startTime The timestamp of the event (ms).
-   * @param logType The type of the log (e.g., Audit, K8sEvent).
-   * @param logSeverity The severity of the log (e.g., Info, Error).
-   * @returns A new `ResourceEvent` instance.
+   * Creates a mock event, registers a corresponding log, and returns the event reference.
    */
   createEvent(startTime: number, logType: LogType, logSeverity: Severity) {
-    const logIndex = this.logIndex++;
-    this.logs.push(
-      new LogEntry(
-        logIndex,
-        '',
-        logType,
-        logSeverity,
-        startTime,
-        '',
-        ToTextReferenceFromKHIFileBinary(),
-        [],
-      ),
-    );
-    return new ResourceEvent(logIndex, startTime, logType, logSeverity);
+    const logId = this.logIndex++;
+    this.logDTOs.push({
+      id: logId,
+      ts: BigInt(Math.floor(startTime)) * 1000000n,
+      logTypeId: logType,
+      severityTypeId: logSeverity,
+      summaryStringId: this.getStringId(''),
+      body: undefined,
+    });
+
+    const eventId = this.nextEventId++;
+    const eventDto: EventDTO = {
+      id: eventId,
+      logId,
+    };
+    this.eventDTOs.push(eventDto);
+    return { type: 'event' as const, id: eventId };
   }
 
   /**
    * Generates a `TimelineChartViewModel` based on the accumulated timelines.
-   *
-   * @returns The view model for the timeline chart.
    */
   getChartViewModel(): TimelineChartViewModel {
+    this.ensureInitialized();
     return {
-      timelinesInDrawArea: this.timelines,
+      timelinesInDrawArea: Array.from(this.timelineStore.timelines),
       logBeginTime: this.startTime,
       logEndTime: this.endTime,
       inspectionDataUniqueID: 'demo',
+      styleStore: this.styleStore,
     };
   }
 
   /**
-   * Generates a `TimelineRulerViewModel` based on the accumulated logs and the provided viewport width.
-   *
-   * It calculates the histogram and ruler marks appropriate for the current zoom level (implied by viewport width).
-   *
-   * @param viewportWidth The width of the viewport in pixels.
-   * @returns The view model for the timeline ruler.
+   * Generates a `TimelineRulerViewModel` based on the accumulated logs and viewport width.
    */
   getRulerViewModel(viewportWidth: number): TimelineRulerViewModel {
+    this.ensureInitialized();
     const rulerViewModelBuilder = new RulerViewModelBuilder();
+    const logsList = Array.from(this.logStore.logs()) as Log[];
+
     const allLogsCache = new HistogramCache(
-      this.logs,
+      this.styleStore.severities,
+      logsList,
       getMinTimeSpanForHistogram(10000, this.startTime, this.endTime),
       this.startTime,
       this.endTime,
     );
     const filteredLogsCache = new HistogramCache(
-      this.logs,
+      this.styleStore.severities,
+      logsList,
       getMinTimeSpanForHistogram(10000, this.startTime, this.endTime),
       this.startTime,
       this.endTime,
     );
     return rulerViewModelBuilder.generateRulerViewModel(
       this.startTime,
-      viewportWidth / (this.endTime - this.startTime), // pixelsPerMs
-      viewportWidth, // viewportWidth
-      0, // timezoneShiftHours
+      viewportWidth / (this.endTime - this.startTime),
+      viewportWidth,
+      0,
       allLogsCache,
       filteredLogsCache,
     );
   }
 
   /**
-   * Returns a Set of all log indices that have been generated by this builder.
-   *
-   * @returns A Set containing all unique log indices.
+   * Returns a Set of all log indices generated by this builder.
    */
   getAllActiveLogIndices(): Set<number> {
+    this.ensureInitialized();
     const result = new Set<number>();
-    for (const log of this.logs) {
+    for (const log of this.logStore.logs()) {
       result.add(log.logIndex);
     }
     return result;

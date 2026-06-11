@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,22 +13,3 @@
 // limitations under the License.
 
 package googlecloudlogk8snode_contract
-
-import (
-	"testing"
-
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
-	"github.com/google/go-cmp/cmp"
-)
-
-func TestPodSandboxIDInfo_ResourcePath(t *testing.T) {
-	info := &PodSandboxIDInfo{
-		PodNamespace: "test-namespace",
-		PodName:      "test-pod",
-	}
-	want := resourcepath.Pod("test-namespace", "test-pod")
-	got := info.ResourcePath()
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("ResourcePath() mismatch (-want +got):\n%s", diff)
-	}
-}

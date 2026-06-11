@@ -41,7 +41,10 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		AuditLogFileReaderTask,
 		EventAuditLogFilterTask,
 		NonEventAuditLogFilterTask,
-		OSSK8sEventLogParserTask,
+		OSSK8sEventFieldSetReadTask,
+		OSSK8sEventLogIngesterTask,
+		OSSK8sEventLogGrouperTask,
+		OSSK8sEventLogToTimelineMapperTask,
 		OSSK8sAuditLogFieldExtractorTask,
 		OSSK8sAuditLogParserTailTask,
 	)

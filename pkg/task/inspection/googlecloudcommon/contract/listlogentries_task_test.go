@@ -31,7 +31,6 @@ import (
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
@@ -86,9 +85,8 @@ func TestNewListLogEntriesTask(t *testing.T) {
 	endTime := time.Date(2025, time.January, 1, 1, 1, 0, 0, time.UTC)
 	testErr := fmt.Errorf("test error")
 	description := &ListLogEntriesTaskDescription{
-		QueryName:      "query-foo",
-		ExampleQuery:   "resource.type=gce_instance AND severity=ERROR",
-		DefaultLogType: enum.LogTypeContainer,
+		QueryName:    "query-foo",
+		ExampleQuery: "resource.type=gce_instance AND severity=ERROR",
 	}
 	testCase := []struct {
 		desc               string
@@ -246,13 +244,6 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 			if !gotIsQueryTask {
 				t.Errorf("isQueryTask label is not true")
 			}
-			gotTargetLogType, found := typedmap.Get(task.Labels(), inspectioncore_contract.TaskLabelKeyQueryTaskTargetLogType)
-			if !found {
-				t.Errorf("targetLogType label not found")
-			}
-			if gotTargetLogType != description.DefaultLogType {
-				t.Errorf("targetLogType label is not %v", description.DefaultLogType)
-			}
 			gotSampleQuery, found := typedmap.Get(task.Labels(), inspectioncore_contract.TaskLabelKeyQueryTaskSampleQuery)
 			if !found {
 				t.Errorf("sampleQuery label not found")
@@ -298,9 +289,6 @@ timestamp < "2025-01-01T01:01:00+0000"`, func(logSource chan<- *loggingpb.LogEnt
 					t.Fatalf("failed to serialize to yaml error=%v", err)
 				}
 				gotLogsString = append(gotLogsString, string(yaml))
-				if l.LogType != description.DefaultLogType {
-					t.Errorf("log type mismatch: got %v, want %v", l.LogType, description.DefaultLogType)
-				}
 				_, err = log.GetFieldSet(l, &log.CommonFieldSet{})
 				if err != nil {
 					t.Errorf("CommonFieldSet is not set for a log entry: %v", err)

@@ -14,10 +14,13 @@
  limitations under the License.
 -->
 
-<!--This is smart componnt injecting data from services into the dumb component-->
+<!--This is smart component injecting data from services into the dumb component-->
 <!--No other components or elements should be here except a single timeline-frame component-->
 <khi-timeline-frame
   [inspectionDataUniqueID]="inspectionDataUniqueID()"
+  [styleStore]="styleStore()"
+  [chartStyle]="chartStyle()"
+  [rulerStyle]="rulerStyle()"
   [timelines]="filteredTimelines()"
   [timezoneShiftHours]="timezoneShiftHours()"
   [pixelsPerMs]="pixelsPerMs()"

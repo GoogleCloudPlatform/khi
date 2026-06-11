@@ -23,19 +23,19 @@ import {
   model,
 } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
-import { InspectionDataStoreService } from '../services/inspection-data-store.service';
-import { SelectionManagerService } from '../services/selection-manager.service';
-import { ViewStateService } from '../services/view-state.service';
+import { InspectionDataStoreV2 } from '../services/inspection-data-store-v2.service';
+import { SelectionManagerV2 } from '../services/selection-manager-v2.service';
+import { SearchScope, ViewStateService } from '../services/view-state.service';
 import { DiffListHeaderComponent } from './components/diff-list-header.component';
 import { DiffListComponent } from './components/diff-list.component';
 import { DiffContentComponent } from './components/diff-content.component';
 import { CommonModule } from '@angular/common';
 import { AngularSplitModule } from 'angular-split';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { LogEntry } from '../store/log';
 import * as yaml from 'js-yaml';
-import { ResourceRevision } from '../store/revision';
-import { ResourceRevisionChangePair, TimelineLayer } from '../store/timeline';
+
+import { Revision } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 interface DiffSmartSelectionMoveCommand {
   direction: 'next' | 'prev';
@@ -58,68 +58,51 @@ interface DiffSmartSelectionMoveCommand {
   ],
 })
 export class DiffSmartComponent implements OnInit, OnDestroy {
-  private readonly _inspectionDataStore = inject(InspectionDataStoreService);
-  private readonly _selectionManager = inject(SelectionManagerService);
-  private readonly _viewState = inject(ViewStateService);
-  private destoroyed = new Subject<void>();
+  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
+  private readonly selectionManager = inject(SelectionManagerV2);
+  private readonly viewState = inject(ViewStateService);
+  private destroyed = new Subject<void>();
 
   ngOnDestroy(): void {
-    this.destoroyed.next();
+    this.destroyed.next();
   }
 
-  /**
-   * Computed pair of the previous and current revision selected for diffing.
-   */
-  changePair = computed(() => {
-    const prev = this.previousRevision();
-    const current = this.currentRevision();
-    return new ResourceRevisionChangePair(prev, current!);
-  });
+  /** Holds the active search scope. */
+  public readonly activeSearchScope = this.viewState.activeSearchScope;
 
   /**
    * Signal containing the timezone shift in hours from the view state.
    */
-  public readonly timezoneShift = toSignal(this._viewState.timezoneShift, {
+  public readonly timezoneShift = toSignal(this.viewState.timezoneShift, {
     initialValue: 0,
   });
 
   /**
-   * Signal containing the locally selected log index managed by SelectionManagerService.
+   * Signal containing the locally selected log index managed by SelectionManagerV2.
    */
-  protected readonly selectedLogIndex = toSignal(
-    this._selectionManager.selectedLogIndex,
-    { initialValue: -1 },
-  );
+  protected readonly selectedLogIndex = this.selectionManager.selectedLogIndex;
 
   /**
    * Signal containing the set of highlighted log indices.
    */
-  protected readonly highlightedLogIndices = toSignal(
-    this._selectionManager.highlightLogIndices,
-    { initialValue: new Set<number>() },
-  );
+  protected readonly highlightedLogIndices =
+    this.selectionManager.highlightLogIndices;
 
   /**
    * Signal containing the currently selected resource timeline.
    */
-  protected readonly selectedTimeline = toSignal(
-    this._selectionManager.selectedTimeline,
-    { initialValue: null },
-  );
+  protected readonly selectedTimeline = this.selectionManager.selectedTimeline;
 
   /**
    * Signal containing the currently selected resource revision.
    */
-  protected readonly currentRevision = toSignal(
-    this._selectionManager.selectedRevision,
-    { initialValue: null },
-  );
+  protected readonly currentRevision = this.selectionManager.selectedRevision;
 
   /**
    * Computed string of the current revision's content, formatted according to managed fields visibility.
    */
   protected readonly currentRevisionContent = computed(() => {
-    const content = this.currentRevision()?.resourceContent ?? '';
+    const content = this.currentRevision()?.bodyYAML ?? '';
     return this.showManagedFields()
       ? content
       : this.removeManagedField(content);
@@ -128,16 +111,14 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   /**
    * Signal containing the revision immediately preceding the currently selected one.
    */
-  protected readonly previousRevision = toSignal(
-    this._selectionManager.previousOfSelectedRevision,
-    { initialValue: null },
-  );
+  protected readonly previousRevision =
+    this.selectionManager.previousOfSelectedRevision;
 
   /**
    * Computed string of the previous revision's content, formatted according to managed fields visibility.
    */
   protected readonly previousRevisionContent = computed(() => {
-    const content = this.previousRevision()?.resourceContent ?? '';
+    const content = this.previousRevision()?.bodyYAML ?? '';
     return this.showManagedFields()
       ? content
       : this.removeManagedField(content);
@@ -151,8 +132,9 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   /**
    * Signal containing all log entries available in the inspection data store.
    */
-  public allLogs = toSignal(this._inspectionDataStore.allLogs, {
-    initialValue: [] as LogEntry[],
+  public readonly allLogs = computed(() => {
+    const data = this.inspectionDataStore.inspectionData();
+    return data ? Array.from(data.logStore.logs()) : [];
   });
 
   /**
@@ -164,7 +146,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.diffSmartSelectionMoveCommand
-      .pipe(takeUntil(this.destoroyed))
+      .pipe(takeUntil(this.destroyed))
       .subscribe((command) => {
         const revision = this.currentRevision();
         const timeline = this.selectedTimeline();
@@ -178,7 +160,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
         );
         const next = timeline.revisions[nextSelected];
         if (next.logIndex !== -1) {
-          this._selectionManager.changeSelectionByRevision(timeline, next);
+          this.selectionManager.onSelectRevision(next);
         }
       });
   }
@@ -187,19 +169,16 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
    * Handles explicitly selecting a revision from the list.
    * @param r The resource revision clicked by the user.
    */
-  _selectRevision(r: ResourceRevision) {
-    this._selectionManager.changeSelectionByRevision(
-      this.selectedTimeline()!,
-      r,
-    );
+  _selectRevision(r: ReadonlyDomainElement<Revision>) {
+    this.selectionManager.onSelectRevision(r);
   }
 
   /**
    * Triggers highlighting for a specific log index corresponding to the hovered revision.
    * @param r The resource revision hovered by the user.
    */
-  _highlightRevision(r: ResourceRevision) {
-    this._selectionManager.onHighlightLog(r.logIndex);
+  _highlightRevision(r: ReadonlyDomainElement<Revision>) {
+    this.selectionManager.onHighlightLog(r.log);
   }
 
   /**
@@ -218,15 +197,9 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     if (!currentTimeline) {
       return;
     }
-    const kind = currentTimeline.getNameOfLayer(TimelineLayer.Kind);
-    const namespace = currentTimeline.getNameOfLayer(TimelineLayer.Namespace);
-    const name = currentTimeline.getNameOfLayer(TimelineLayer.Name);
-    let subresource =
-      currentTimeline.getNameOfLayer(TimelineLayer.Subresource) ?? '-';
-    if (subresource == '') subresource = '-';
     window.open(
       window.location.pathname +
-        `/diff/${kind}/${namespace}/${name}/${subresource}?logIndex=${this.currentRevision()?.logIndex}`,
+        `/diff?timeline=${currentTimeline.id}&logIndex=${this.currentRevision()?.logIndex}`,
       '_blank',
     );
   }
@@ -251,6 +224,17 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     } catch (e) {
       console.warn(`failed to process frontend yaml: ${e}`);
       return content;
+    }
+  }
+
+  /**
+   * Sets the active search scope in the ViewStateService based on whether Diff Content is hovered or focused.
+   */
+  protected onScopeActiveChange(active: boolean): void {
+    if (active) {
+      this.viewState.activeSearchScope.set(SearchScope.Diff);
+    } else if (this.viewState.activeSearchScope() === SearchScope.Diff) {
+      this.viewState.activeSearchScope.set(SearchScope.Global);
     }
   }
 }

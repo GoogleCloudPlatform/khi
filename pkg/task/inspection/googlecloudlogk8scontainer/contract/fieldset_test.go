@@ -31,12 +31,14 @@ func TestK8sContainerLogFieldSetReader_ResourceLabels(t *testing.T) {
 		{
 			desc: "from resource labels",
 			want: &K8sContainerLogFieldSet{
+				ClusterName:   "test-cluster",
 				Namespace:     "test-namespace",
 				PodName:       "test-pod",
 				ContainerName: "test-container",
 			},
 			input: `resource:
   labels:
+    cluster_name: test-cluster
     namespace_name: test-namespace
     pod_name: test-pod
     container_name: test-container`,
@@ -44,6 +46,7 @@ func TestK8sContainerLogFieldSetReader_ResourceLabels(t *testing.T) {
 		{
 			desc: "missing resource labels",
 			want: &K8sContainerLogFieldSet{
+				ClusterName:   "unknown",
 				Namespace:     "unknown",
 				PodName:       "unknown",
 				ContainerName: "unknown",
@@ -166,4 +169,16 @@ labels:
 		})
 	}
 
+}
+
+func TestK8sContainerLogFieldSet_GroupKey(t *testing.T) {
+	fs := &K8sContainerLogFieldSet{
+		Namespace: "test-namespace",
+		PodName:   "test-pod",
+	}
+	want := "test-namespace/test-pod"
+	got := fs.GroupKey()
+	if got != want {
+		t.Errorf("GroupKey() = %q, want %q", got, want)
+	}
 }

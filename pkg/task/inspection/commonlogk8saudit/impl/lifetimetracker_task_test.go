@@ -18,22 +18,19 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/google/go-cmp/cmp"
 )
 
-func newTestK8sAuditLogFieldSet(verb enum.RevisionVerb, apiVersion string, pluralKind string) *commonlogk8saudit_contract.K8sAuditLogFieldSet {
+func newTestK8sAuditLogFieldSet(verb *pb.Verb, apiVersion string, pluralKind string) *commonlogk8saudit_contract.K8sAuditLogFieldSet {
 	return &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-		K8sOperation: &model.KubernetesObjectOperation{
-			Verb:       verb,
-			APIVersion: apiVersion,
-			PluralKind: pluralKind,
-			Namespace:  "default",
-			Name:       "test",
-		},
+		Verb:         verb,
+		APIVersion:   apiVersion,
+		PluralKind:   pluralKind,
+		Namespace:    "default",
+		ResourceName: "test",
 	}
 }
 
@@ -49,7 +46,7 @@ func TestLifeTimeTrackerTask(t *testing.T) {
 	}{
 		{
 			desc:                     "create",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbCreate, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbCreate, "core/v1", "pods"),
 			prevState:                nil,
 			wantState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: false, DeletionStarted: false},
 			wantResourceCreated:      true,
@@ -57,7 +54,7 @@ func TestLifeTimeTrackerTask(t *testing.T) {
 		},
 		{
 			desc:                     "delete without body",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbDelete, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbDelete, "core/v1", "pods"),
 			prevState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: false, DeletionStarted: false},
 			wantState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: false, DeletionStarted: true},
 			wantResourceCreated:      false,
@@ -65,7 +62,7 @@ func TestLifeTimeTrackerTask(t *testing.T) {
 		},
 		{
 			desc:                     "delete with body (graceful period > 0)",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbDelete, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbDelete, "core/v1", "pods"),
 			resourceBodyYAML: `
 metadata:
   deletionGracePeriodSeconds: 30
@@ -80,7 +77,7 @@ status:
 		},
 		{
 			desc:                     "delete with body (graceful period = 0)",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbDelete, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbDelete, "core/v1", "pods"),
 			resourceBodyYAML: `
 metadata:
   deletionGracePeriodSeconds: 0
@@ -95,7 +92,7 @@ status:
 		},
 		{
 			desc:                     "delete collection pod (Running)",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbDeleteCollection, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbDeleteCollection, "core/v1", "pods"),
 			resourceBodyYAML: `
 status:
   phase: Running
@@ -107,7 +104,7 @@ status:
 		},
 		{
 			desc:                     "delete collection pod (Succeeded)",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbDeleteCollection, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbDeleteCollection, "core/v1", "pods"),
 			resourceBodyYAML: `
 status:
   phase: Succeeded
@@ -119,7 +116,7 @@ status:
 		},
 		{
 			desc:                     "update with finalizers (deletion started)",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbUpdate, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbUpdate, "core/v1", "pods"),
 			resourceBodyYAML: `
 metadata:
   deletionTimestamp: "2023-10-26T10:00:00Z"
@@ -133,7 +130,7 @@ metadata:
 		},
 		{
 			desc:                     "patch on deleted resource",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbPatch, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbPatch, "core/v1", "pods"),
 			prevState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: true, DeletionStarted: false},
 			wantState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: true, DeletionStarted: false},
 			wantResourceCreated:      false,
@@ -141,7 +138,7 @@ metadata:
 		},
 		{
 			desc:                     "patch on deleting resource",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbPatch, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbPatch, "core/v1", "pods"),
 			prevState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: false, DeletionStarted: true},
 			wantState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: false, DeletionStarted: true},
 			wantResourceCreated:      false,
@@ -149,7 +146,7 @@ metadata:
 		},
 		{
 			desc:                     "re-create after deletion",
-			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(enum.RevisionVerbCreate, "core/v1", "pods"),
+			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbCreate, "core/v1", "pods"),
 			prevState:                &lifeTimeTrackerGroupState{WasCompletelyRemoved: true, DeletionStarted: false},
 			resourceBodyYAML: `
 metadata:
@@ -198,7 +195,7 @@ metadata:
 
 func TestLifeTimeTrackerTask_Scenarios(t *testing.T) {
 	type step struct {
-		verb                enum.RevisionVerb
+		verb                *pb.Verb
 		resourceBodyYAML    string
 		wantDeletionStarted bool
 		wantResourceDeleted bool
@@ -221,7 +218,7 @@ func TestLifeTimeTrackerTask_Scenarios(t *testing.T) {
 			},
 			steps: []step{
 				{
-					verb: enum.RevisionVerbCreate,
+					verb: commonlogk8saudit_contract.VerbCreate,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -231,7 +228,7 @@ metadata:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbUpdate,
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -241,7 +238,7 @@ metadata:
 				},
 				{
 					// DeleteCollection is not a deletion event, but it marks the resource as being deleted for Pods because the actual deletion should be reported from the node.
-					verb: enum.RevisionVerbDeleteCollection,
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -250,7 +247,7 @@ metadata:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbPatch,
+					verb: commonlogk8saudit_contract.VerbPatch,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -259,7 +256,7 @@ metadata:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbDelete,
+					verb: commonlogk8saudit_contract.VerbDelete,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -282,7 +279,7 @@ status:
 			},
 			steps: []step{
 				{
-					verb: enum.RevisionVerbCreate,
+					verb: commonlogk8saudit_contract.VerbCreate,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -294,7 +291,7 @@ status:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbUpdate,
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -305,7 +302,7 @@ status:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbDeleteCollection,
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					resourceBodyYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -326,7 +323,7 @@ status:
 			},
 			steps: []step{
 				{
-					verb: enum.RevisionVerbCreate,
+					verb: commonlogk8saudit_contract.VerbCreate,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"`,
 					wantResourceCreated: true,
@@ -334,21 +331,21 @@ status:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbUpdate,
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"`,
 					wantDeletionStarted: false,
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbDeleteCollection,
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"`,
 					wantDeletionStarted: true,
 					wantResourceDeleted: true,
 				},
 				{
-					verb: enum.RevisionVerbDeleteCollection,
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"`,
 					wantDeletionStarted: true,
@@ -363,7 +360,7 @@ status:
 			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{},
 			steps: []step{
 				{
-					verb: enum.RevisionVerbPatch,
+					verb: commonlogk8saudit_contract.VerbPatch,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"`,
 					wantResourceCreated: true,
@@ -371,14 +368,14 @@ status:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbPatch,
+					verb: commonlogk8saudit_contract.VerbPatch,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"`,
 					wantDeletionStarted: false,
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbUpdate,
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					resourceBodyYAML: `apiVersion: v1
 kind: Node
 metadata:
@@ -396,7 +393,7 @@ metadata:
 			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{},
 			steps: []step{
 				{
-					verb: enum.RevisionVerbPatch,
+					verb: commonlogk8saudit_contract.VerbPatch,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"
   finalizers:
@@ -406,7 +403,7 @@ metadata:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbDeleteCollection,
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					resourceBodyYAML: `metadata:
   uid: "test-uid"
   deletionGracePeriodSeconds: 0
@@ -416,7 +413,7 @@ metadata:
 					wantResourceDeleted: false,
 				},
 				{
-					verb: enum.RevisionVerbPatch,
+					verb: commonlogk8saudit_contract.VerbPatch,
 					resourceBodyYAML: `apiVersion: v1
 kind: Node
 metadata:

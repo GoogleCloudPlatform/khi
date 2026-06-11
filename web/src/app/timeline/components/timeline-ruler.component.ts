@@ -35,7 +35,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
-import { generateDefaultRulerStyle } from './style-model';
+import { TimelineRulerStyle } from './style-model-v2';
 import { calculateDateLabels } from './calculator/date-label-calculator';
 
 /**
@@ -78,7 +78,7 @@ export class TimelineRulerComponent implements AfterViewInit {
   /**
    * Configuration for the visual style of the ruler, such as colors and dimensions.
    */
-  rulerStyle = input(generateDefaultRulerStyle());
+  rulerStyle = input.required<TimelineRulerStyle>();
 
   /**
    * The timestamp (in milliseconds) corresponding to the visible left edge of the timeline.
@@ -156,6 +156,7 @@ export class TimelineRulerComponent implements AfterViewInit {
           this.viewModel(),
           this.leftEdgeTime(),
           this.pixelsPerMs(),
+          this.rulerStyle(),
         );
         this.invalidate.set(false);
       }

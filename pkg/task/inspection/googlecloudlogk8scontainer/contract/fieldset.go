@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -30,6 +29,7 @@ var jsonPayloadMessageFieldNames = []string{
 }
 
 type K8sContainerLogFieldSet struct {
+	ClusterName   string
 	Namespace     string
 	PodName       string
 	ContainerName string
@@ -41,8 +41,9 @@ func (k *K8sContainerLogFieldSet) Kind() string {
 	return "k8s_container"
 }
 
-func (k *K8sContainerLogFieldSet) ResourcePath() resourcepath.ResourcePath {
-	return resourcepath.Container(k.Namespace, k.PodName, k.ContainerName)
+// GroupKey returns the group key string for this container's Pod.
+func (k *K8sContainerLogFieldSet) GroupKey() string {
+	return fmt.Sprintf("%s/%s", k.Namespace, k.PodName)
 }
 
 var _ log.FieldSet = (*K8sContainerLogFieldSet)(nil)
@@ -58,6 +59,7 @@ func (k *K8sContainerLogFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (k *K8sContainerLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result K8sContainerLogFieldSet
+	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	result.Namespace = reader.ReadStringOrDefault("resource.labels.namespace_name", "unknown")
 	result.PodName = reader.ReadStringOrDefault("resource.labels.pod_name", "unknown")
 	result.ContainerName = reader.ReadStringOrDefault("resource.labels.container_name", "unknown")

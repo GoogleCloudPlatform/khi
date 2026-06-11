@@ -16,9 +16,7 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { LogContentComponent } from './log-content.component';
-import { LogEntry } from 'src/app/store/log';
-import { LogType, Severity } from 'src/app/zzz-generated';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
 const meta: Meta<LogContentComponent> = {
   title: 'Log/LogContent',
@@ -30,37 +28,38 @@ const meta: Meta<LogContentComponent> = {
 export default meta;
 type Story = StoryObj<LogContentComponent>;
 
-const TEST_LOG = new LogEntry(
-  0,
-  'foobar',
-  LogType.LogTypeAudit,
-  Severity.SeverityWarning,
-  1234567890,
-  'summary',
-  ToTextReferenceFromKHIFileBinary(null),
-  [],
-);
-
 export const Default: Story = {
-  args: {
-    vm: {
-      logEntry: TEST_LOG,
-      logBody: `apiVersioin: v1
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const logEntry = Array.from(mockData.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        vm: {
+          logEntry,
+          logBody: `apiVersion: v1
 kind: Pod
 metadata:
   name: test-pod`,
-      parsedLogBody: {
-        apiVersioin: 'v1',
-        kind: 'Pod',
-        metadata: {
-          name: 'test-pod',
+          parsedLogBody: {
+            apiVersion: 'v1',
+            kind: 'Pod',
+            metadata: {
+              name: 'test-pod',
+            },
+          },
+          referencedTimelineIds: [],
         },
+        timezoneShift: 0,
       },
-      referencedResourcePaths: [],
-    },
-    timezoneShift: 0,
+    };
   },
 };
+
 export const NoSelectedLog: Story = {
   args: {
     vm: null,

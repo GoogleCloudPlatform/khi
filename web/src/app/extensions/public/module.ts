@@ -16,17 +16,12 @@
 
 import { NgModule } from '@angular/core';
 import { KHIExtensionBundle } from '../extension-common/extension';
-import { NodeNameBindingWithPod } from './timeline-navigator-extensions';
 import { Reporter, ConsoleReporter } from 'src/app/common/reporter/reporter';
 
 @NgModule({
   providers: [
-    KHIExtensionBundle.forExtension(initExtension),
+    KHIExtensionBundle.forExtension(() => {}),
     { provide: Reporter, useClass: ConsoleReporter },
   ],
 })
 export class PublicKHIExtension {}
-
-function initExtension(extension: KHIExtensionBundle) {
-  extension.addTimelineNavigatorExtension(new NodeNameBindingWithPod());
-}

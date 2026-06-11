@@ -20,7 +20,6 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -59,8 +58,7 @@ func (g *multicloudAPIListLogEntriesTaskSetting) Dependencies() []taskid.Untyped
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *multicloudAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeMulticloudAPI,
-		QueryName:      "Multicloud API Logs",
+		QueryName: "Multicloud API Logs",
 		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			ProjectID:         "example-project-id",
 			Location:          "example-location",

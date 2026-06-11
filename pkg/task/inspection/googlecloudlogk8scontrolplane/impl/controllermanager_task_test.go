@@ -15,30 +15,60 @@
 package googlecloudlogk8scontrolplane_impl
 
 import (
+	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
 func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
+	builder := khifilev6.NewBuilder()
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
+	gkeClusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
+	wantControlPlanesTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+		Name: "controlplanes",
+		Type: googlecloudcommon_contract.TimelineTypeGKEControlPlanes,
+	})
+	wantCompTimeline := builder.TimelineAccumulator.GetPath(wantControlPlanesTimeline, khifilev6.PathSegment{
+		Name: "deployment-controller(controller-manager)",
+		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
+	})
+	wantControlManagerTimeline := builder.TimelineAccumulator.GetPath(wantControlPlanesTimeline, khifilev6.PathSegment{
+		Name: "controller-manager",
+		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
+	})
+
+	k8sClusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
+	corev1Timeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, k8sClusterTimeline, "core/v1")
+	podKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, corev1Timeline, "pod")
+	nsTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, podKindTimeline, "default")
+	wantPodTimeline := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "pod-foo")
+
+	nodeKindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, corev1Timeline, "node")
+	wantNodeTimeline := commonlogk8saudit_contract.MustK8sClusterScopeResourceTimeline(ctx, nodeKindTimeline, "node-1")
+
 	testCases := []struct {
 		desc                           string
 		inputComponentField            googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet
 		inputMessageField              googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet
 		inputControllerManagerFieldSet googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet
-		asserters                      []testchangeset.ChangeSetAsserter
+		assert                         func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			desc: "with standard input",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "controller-manager",
 			},
@@ -47,26 +77,32 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			},
 			inputControllerManagerFieldSet: googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{
 				Controller: "deployment-controller",
-				AssociatedResources: []resourcepath.ResourcePath{
-					resourcepath.Pod("default", "pod-foo"),
-					resourcepath.Node("node-1"),
+				AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+					{
+						APIVersion: "core/v1",
+						Kind:       "pod",
+						Namespace:  "default",
+						Name:       "pod-foo",
+					},
+					{
+						APIVersion: "core/v1",
+						Kind:       "node",
+						Namespace:  "cluster-scope",
+						Name:       "node-1",
+					},
 				},
 			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "@Cluster#controlplane#cluster-scope#test-cluster#deployment-controller(controller-manager)",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#default#pod-foo",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1",
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantCompTimeline).
+					HasEvent(wantPodTimeline).
+					HasEvent(wantNodeTimeline)
 			},
 		},
 		{
 			desc: "with unknown controller input",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "controller-manager",
 			},
@@ -75,40 +111,42 @@ func TestControllerManagerLogToTimelineMapperTask(t *testing.T) {
 			},
 			inputControllerManagerFieldSet: googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{
 				Controller: "",
-				AssociatedResources: []resourcepath.ResourcePath{
-					resourcepath.Pod("default", "pod-foo"),
-					resourcepath.Node("node-1"),
+				AssociatedResources: []*commonlogk8saudit_contract.ResourceIdentity{
+					{
+						APIVersion: "core/v1",
+						Kind:       "pod",
+						Namespace:  "default",
+						Name:       "pod-foo",
+					},
+					{
+						APIVersion: "core/v1",
+						Kind:       "node",
+						Namespace:  "cluster-scope",
+						Name:       "node-1",
+					},
 				},
 			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "@Cluster#controlplane#cluster-scope#test-cluster#controller-manager",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#default#pod-foo",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1",
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantControlManagerTimeline).
+					HasEvent(wantPodTimeline).
+					HasEvent(wantNodeTimeline)
 			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputControllerManagerFieldSet, &tc.inputMessageField)
-			modifier := controllerManagerLogToTimelineMapperTaskSetting{}
-			cs := history.NewChangeSet(l)
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			finder := patternfinder.NewTriePatternFinder[*commonlogk8saudit_contract.ResourceIdentity]()
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
-			_, err := modifier.ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
+
+			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputControllerManagerFieldSet, &tc.inputMessageField)
+			mapper := &ControllerManagerTimelineMapper{}
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {
-				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
+				t.Fatalf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
 			}
-			for _, asserter := range tc.asserters {
-				asserter.Assert(t, cs)
-			}
+			tc.assert(t, ctx, cs)
 		})
 	}
-
 }

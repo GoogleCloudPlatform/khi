@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@use '../../zzz-generated' as gen;
 @use '../../common.scss' as common;
 
 @use '@angular/material' as mat;
@@ -87,8 +86,6 @@ $ts-bg-color: rgba($ts-color, 0.05);
     min-width: 5px;
     max-width: 5px;
     width: 5px;
-
-    @include gen.log-type-shape-colors-for-all;
   }
 
   .severity-indicator-wrap {
@@ -96,8 +93,6 @@ $ts-bg-color: rgba($ts-color, 0.05);
       width: 14px;
       color: $text-white;
       text-align: center;
-
-      @include gen.log-severity-colors-for-all;
     }
 
     .unknown {

@@ -15,145 +15,238 @@
 package googlecloudlogcomputeapiaudit_impl
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudlogcomputeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcomputeapiaudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
+
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 )
 
-func TestLogToTimelineMapperTask(t *testing.T) {
-	testCommonFieldSet := &log.CommonFieldSet{
-		Timestamp: time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC),
-	}
+func TestLogIngester_ProcessLog(t *testing.T) {
+	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 	testCases := []struct {
-		desc      string
-		input     googlecloudcommon_contract.GCPAuditLogFieldSet
-		asserters []testchangeset.ChangeSetAsserter
+		name   string
+		input  *log.Log
+		assert func(t *testing.T, cs *khifilev6.LogChangeSet)
 	}{
 		{
-			desc: "operation started",
-			input: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			name: "ingest compute API audit log - start",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "compute.instances.insert",
+					OperationFirst: true,
+					OperationLast:  false,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("compute.instances.insert Started").
+					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
+					HasTimestamp(testTime)
+			},
+		},
+		{
+			name: "ingest compute API audit log - finish",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityError,
+				},
+				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "compute.instances.insert",
+					OperationFirst: false,
+					OperationLast:  true,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("compute.instances.insert Finished").
+					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
+					HasTimestamp(testTime)
+			},
+		},
+	}
+
+	ingester := &gcpComputeAuditLogLogIngester{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cs, err := ingester.ProcessLog(t.Context(), tc.input)
+			if err != nil {
+				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
+			}
+			tc.assert(t, cs)
+		})
+	}
+}
+
+func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+	builder := khifilev6.NewBuilder()
+
+	// Setup context with task result mapping containing ClusterIdentity
+	taskResults := typedmap.NewTypedMap()
+	typedmap.Set(taskResults, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudlogcomputeapiaudit_contract.ClusterIdentityTaskID.Ref().ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+		ClusterName: "test-cluster",
+	})
+
+	baseCtx := khictx.WithValue(t.Context(), core_contract.TaskResultMapContextKey, taskResults)
+	ctx := khictx.WithValue(baseCtx, inspectioncore_contract.Builder, builder)
+
+	// Independently build the expected paths segment-by-segment
+	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiTimeline, "node")
+	nsTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "cluster-scope")
+
+	wantNodeAbcPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "abc")
+	wantOp1Path := builder.TimelineAccumulator.GetPath(wantNodeAbcPath, khifilev6.PathSegment{
+		Name: "insert-op-1",
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
+	})
+
+	wantNodeDefPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "def")
+
+	wantNodeGhiPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, nsTimeline, "ghi")
+	wantOp3Path := builder.TimelineAccumulator.GetPath(wantNodeGhiPath, khifilev6.PathSegment{
+		Name: "delete-op-3",
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
+	})
+
+	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
+	testCommonFieldSet := &log.CommonFieldSet{
+		Timestamp: testTime,
+	}
+
+	testCases := []struct {
+		name     string
+		inputLog *log.Log
+		assert   func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
+	}{
+		{
+			name: "operation started",
+			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: true,
 				OperationLast:  false,
 				MethodName:     "compute.instances.insert",
 				ResourceName:   "projects/123/resources/abc",
 				PrincipalEmail: "foobar@qux.test",
-			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#abc#insert-op-1",
-					WantRevision: history.StagingResourceRevision{
-						ChangeTime: testCommonFieldSet.Timestamp,
-						State:      enum.RevisionStateOperationStarted,
-						Verb:       enum.RevisionVerbOperationStart,
-						Requestor:  "foobar@qux.test",
-					},
-				},
+			}),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOp1Path, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    googlecloudcommon_contract.VerbOperationStart,
+						Principal:   "foobar@qux.test",
+					})
 			},
 		},
 		{
-			desc: "operation finished",
-			input: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			name: "operation finished",
+			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: false,
 				OperationLast:  true,
 				MethodName:     "compute.instances.insert",
 				ResourceName:   "projects/123/resources/abc",
 				PrincipalEmail: "foobar@qux.test",
-			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#abc#insert-op-1",
-					WantRevision: history.StagingResourceRevision{
-						ChangeTime: testCommonFieldSet.Timestamp,
-						State:      enum.RevisionStateOperationFinished,
-						Verb:       enum.RevisionVerbOperationFinish,
-						Requestor:  "foobar@qux.test",
-					},
-				},
+			}),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOp1Path, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						Principal:   "foobar@qux.test",
+					})
 			},
 		},
 		{
-			desc: "immediate operation",
-			input: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			name: "immediate operation",
+			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-2",
 				OperationFirst: true,
 				OperationLast:  true,
 				MethodName:     "compute.instances.delete",
 				ResourceName:   "projects/123/resources/def",
 				PrincipalEmail: "foobar@qux.test",
-			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.MatchResourcePathSet{
-					WantResourcePaths: []string{"core/v1#node#cluster-scope#def"},
-				},
+			}),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantNodeDefPath)
 			},
 		},
 		{
-			desc: "deletion operation started",
-			input: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			name: "deletion operation started",
+			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: true,
 				OperationLast:  false,
 				MethodName:     "compute.instances.delete",
 				ResourceName:   "projects/123/resources/ghi",
 				PrincipalEmail: "foobar@qux.test",
-			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#ghi#delete-op-3",
-					WantRevision: history.StagingResourceRevision{
-						ChangeTime: testCommonFieldSet.Timestamp,
-						State:      enum.RevisionStateOperationStarted,
-						Verb:       enum.RevisionVerbOperationStart,
-						Requestor:  "foobar@qux.test",
-					},
-				},
+			}),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOp3Path, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationStarted,
+						VerbType:    googlecloudcommon_contract.VerbOperationStart,
+						Principal:   "foobar@qux.test",
+					})
 			},
 		},
 		{
-			desc: "deletion operation finished",
-			input: googlecloudcommon_contract.GCPAuditLogFieldSet{
+			name: "deletion operation finished",
+			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: false,
 				OperationLast:  true,
 				MethodName:     "compute.instances.delete",
 				ResourceName:   "projects/123/resources/ghi",
 				PrincipalEmail: "foobar@qux.test",
-			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasRevision{
-					ResourcePath: "core/v1#node#cluster-scope#ghi#delete-op-3",
-					WantRevision: history.StagingResourceRevision{
-						ChangeTime: testCommonFieldSet.Timestamp,
-						State:      enum.RevisionStateOperationFinished,
-						Verb:       enum.RevisionVerbOperationFinish,
-						Requestor:  "foobar@qux.test",
-					},
-				},
+			}),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOp3Path, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						Principal:   "foobar@qux.test",
+					})
 			},
 		},
 	}
 
+	mapper := &gcpComputeAuditLogLogToTimelineMapperSetting{}
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.input)
-			mapperSetting := &gcpComputeAuditLogLogToTimelineMapperSetting{}
-			cs := history.NewChangeSet(l)
-
-			_, err := mapperSetting.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
+		t.Run(tc.name, func(t *testing.T) {
+			testCtx := khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
+			cs, _, err := mapper.ProcessLogByGroup(testCtx, tc.inputLog, struct{}{})
 			if err != nil {
-				t.Errorf("got error %v, want nil", err)
+				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}
 
-			for _, asserter := range tc.asserters {
-				asserter.Assert(t, cs)
-			}
+			tc.assert(t, testCtx, cs)
 		})
 	}
 }

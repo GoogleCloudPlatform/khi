@@ -15,22 +15,29 @@
 package googlecloudlogk8snode_impl
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestKubeletLogLogToTimelineMapper(t *testing.T) {
+func TestKubeletLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+	mapper := &kubeletNodeLogLogToTimelineMapperSetting{}
 	testTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	builder := khifilev6.NewBuilder()
+
 	testCases := []struct {
 		desc                 string
 		inputMessage         string
@@ -38,11 +45,11 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*commonlogk8saudit_contract.ContainerIdentity
 		inputResourceUIDInfo map[string]*commonlogk8saudit_contract.ResourceIdentity
-		asserter             []testchangeset.ChangeSetAsserter
+		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
-			desc:         "log with pod sandbox id",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Generic (PLEG): container finished" podID="4cba26fb-f074-44fe-9afa-5195e903c337" podID="6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"`,
+			desc:         "adds pod sandbox timeline event and node component event",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Generic (PLEG): container finished" podID="6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 				Component: "kubelet",
 				NodeName:  "node-1",
@@ -54,21 +61,19 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
 				},
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `Generic (PLEG): container finished 【podname (Namespace: kube-system)】`,
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
+				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantPodPath)
 			},
 		},
 		{
-			desc:         "log with container id",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "ContainerStart: Start container \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\"" podID="4cba26fb-f074-44fe-9afa-5195e903c337"`,
+			desc:         "adds container timeline event",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "ContainerStart: Start container \"fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256\""`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 				Component: "kubelet",
 				NodeName:  "node-1",
@@ -87,162 +92,53 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 					ContainerID:   "fc3e6702e38e918ec02567358c4c889b38fc628838645222d9a08b0b68c90256",
 				},
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname#fluentbit-gke-init",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `ContainerStart: Start container "【fluentbit-gke-init (Pod: podname, Namespace: kube-system)】"`,
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
+				wantPodPath := MustK8sPodTimeline(ctx, "test-cluster", "kube-system", "podname")
+				wantContainerPath := commonlogk8saudit_contract.MustK8sContainerTimeline(ctx, wantPodPath, "fluentbit-gke-init")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantContainerPath)
 			},
 		},
 		{
-			desc:         "log with pod from klog fields",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Syncing pod" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pod="kube-system/podname"`,
-			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-				NodeName:  "node-1",
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `Syncing pod 【podname (Namespace: kube-system)】`,
-				},
-			},
-		},
-		{
-			desc:         "log with pod and container name from klog fields",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Killing container" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pod="kube-system/podname" containerName="containername"`,
-			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-				NodeName:  "node-1",
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname#containername",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `Killing container 【containername (Pod: podname, Namespace: kube-system)】`,
-				},
-			},
-		},
-		{
-			desc:         "log with pod and container name from klog fields and exitCode",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "Killing container" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pod="kube-system/podname" containerName="containername" exitCode=137`,
-			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-				NodeName:  "node-1",
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname#containername",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `Killing container(exitCode=137) 【containername (Pod: podname, Namespace: kube-system)】`,
-				},
-			},
-		},
-		{
-			desc:         "log with pods klog field",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "log with multiple pods" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" pods=["kube-system/podname1","kube-system/podname2"]`,
-			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-				NodeName:  "node-1",
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname1",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname2",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `log with multiple pods 【podname1 (Namespace: kube-system)】 【podname2 (Namespace: kube-system)】`,
-				},
-			},
-		},
-		{
-			desc:         "log with pods uid field",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "log with multiple pods" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod"]`,
+			desc:         "adds custom resource UID event",
+			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "log with custom resource" podID="4cba26fb-f074-44fe-9afa-5195e903c337"`,
 			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
 				Component: "kubelet",
 				NodeName:  "node-1",
 			},
 			inputResourceUIDInfo: map[string]*commonlogk8saudit_contract.ResourceIdentity{
 				"4cba26fb-f074-44fe-9afa-5195e903c337": {
-					Name:       "podname1",
-					Namespace:  "kube-system",
-					Kind:       "pod",
-					APIVersion: "core/v1",
+					Name:       "my-custom-res",
+					Namespace:  "default",
+					Kind:       "mykind",
+					APIVersion: "custom.api/v1",
 				},
 			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname1",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `log with multiple pods 【podname1 (Namespace: kube-system, APIVersion: core/v1, Kind: pod)】`,
-				},
-			},
-		},
-		{
-			desc:         "log with pods uid field and pod sandbox ID",
-			inputMessage: `I0929 08:30:43.794472    1949 generic.go:334] "log with multiple pods" podID="4cba26fb-f074-44fe-9afa-5195e903c337" msg="Syncing pod" podSandboxID="6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1"]`,
-			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
-				Component: "kubelet",
-				NodeName:  "node-1",
-			},
-			inputPodIDInfo: map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo{
-				"6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1": {
-					PodName:      "podname",
-					PodNamespace: "kube-system",
-					PodSandboxID: "6123c6aacf0c78dc38ec4f0ff72edd3cf04eb82ca0e3e7dddd3950ea9753bdf1",
-				},
-			},
-			inputResourceUIDInfo: map[string]*commonlogk8saudit_contract.ResourceIdentity{
-				"4cba26fb-f074-44fe-9afa-5195e903c337": {
-					Name:       "podname",
-					Namespace:  "kube-system",
-					Kind:       "pod",
-					APIVersion: "core/v1",
-				},
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-1#kubelet",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#kube-system#podname",
-				},
-				&testchangeset.HasLogSummary{
-					WantLogSummary: `log with multiple pods 【podname (Namespace: kube-system)】`,
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "kubelet")
+
+				wantResourceIdent := &commonlogk8saudit_contract.ResourceIdentity{
+					Name:       "my-custom-res",
+					Namespace:  "default",
+					Kind:       "mykind",
+					APIVersion: "custom.api/v1",
+				}
+				wantResourcePath := commonlogk8saudit_contract.MustResourceTimeline(ctx, "test-cluster", wantResourceIdent)
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath).
+					HasEvent(wantResourcePath)
 			},
 		},
 	}
+
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			// Mock the task results for dependencies
 			podIDFinder := patternfinder.NewNaivePatternFinder[*googlecloudlogk8snode_contract.PodSandboxIDInfo]()
 			if tc.inputPodIDInfo != nil {
 				for k, v := range tc.inputPodIDInfo {
@@ -262,29 +158,27 @@ func TestKubeletLogLogToTimelineMapper(t *testing.T) {
 				}
 			}
 
-			ctx := inspectiontest.WithDefaultTestInspectionTaskContext(t.Context())
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster")
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
-
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(), finder)
+
 			klogParser := logutil.NewKLogTextParser(true)
 			message := klogParser.TryParse(tc.inputMessage)
 			tc.inputNodeLogFieldSet.Message = message
+
 			l := log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: testTime},
 				tc.inputNodeLogFieldSet,
 			)
-			cs := history.NewChangeSet(l)
-			modifier := &kubeletNodeLogLogToTimelineMapperSetting{}
-			_, err := modifier.ProcessLogByGroup(ctx, l, cs, nil, struct{}{})
+
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {
-				t.Fatalf("ProcessLogByGroup() error = %v", err)
+				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}
-			for _, asserter := range tc.asserter {
-				asserter.Assert(t, cs)
-			}
+
+			tc.assert(t, ctx, cs)
 		})
-
 	}
-
 }

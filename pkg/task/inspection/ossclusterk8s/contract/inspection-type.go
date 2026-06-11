@@ -28,7 +28,7 @@ const InspectionTypeID = "oss-kubernetes-from-files"
 var OSSKubernetesLogFilesInspectionType = coreinspection.InspectionType{
 	Id:          InspectionTypeID,
 	Name:        "OSS Kubernetes Log Files",
-	Description: "Visualize OSS Kubernetes logs through the uploaded files",
+	Description: "Parse uploaded OSS Kubernetes log files to visualize cluster operations on timelines.",
 	Icon:        "assets/icons/k8s.png",
 	Priority:    math.MaxInt - 1000,
 	Labels: map[string]string{

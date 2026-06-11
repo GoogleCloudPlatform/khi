@@ -55,7 +55,7 @@ export const defaultNumberComparator = (
  * to maintain the sorted order.
  */
 export function bisectLeft<T, U>(
-  arr: T[],
+  arr: readonly T[],
   target: U,
   comparator: (item: T, target: U) => number,
   lo = 0,
@@ -78,7 +78,7 @@ export function bisectLeft<T, U>(
  * to maintain the sorted order.
  */
 export function bisectRight<T, U>(
-  arr: T[],
+  arr: readonly T[],
   target: U,
   comparator: (item: T, target: U) => number,
   lo = 0,
@@ -93,4 +93,14 @@ export function bisectRight<T, U>(
     }
   }
   return lo;
+}
+
+/**
+ * Asserts that the specified browser API is available in the current environment.
+ * @param apiName The name of the API on globalThis.
+ */
+export function assertNecessaryAPI(apiName: string): void {
+  if (!(apiName in globalThis)) {
+    throw new Error(`${apiName} API is not supported in this environment.`);
+  }
 }

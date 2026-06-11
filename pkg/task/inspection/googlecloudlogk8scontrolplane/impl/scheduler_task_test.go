@@ -15,25 +15,71 @@
 package googlecloudlogk8scontrolplane_impl
 
 import (
+	"context"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
 func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
+	builder := khifilev6.NewBuilder()
+
+	projectTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+		Name: "test-project",
+		Type: googlecloudcommon_contract.TimelineTypeGCPProject,
+	})
+	gkeClusterTimeline := builder.TimelineAccumulator.GetPath(projectTimeline, khifilev6.PathSegment{
+		Name: "test-cluster",
+		Type: googlecloudcommon_contract.TimelineTypeGKE,
+	})
+	wantControlPlanesTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+		Name: "controlplanes",
+		Type: googlecloudcommon_contract.TimelineTypeGKEControlPlanes,
+	})
+	wantCompTimeline := builder.TimelineAccumulator.GetPath(wantControlPlanesTimeline, khifilev6.PathSegment{
+		Name: "scheduler",
+		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
+	})
+
+	k8sClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+		Name: "test-cluster",
+		Type: inspectioncore_contract.TimelineTypeK8sCluster,
+	})
+
+	apiVersionTimeline := builder.TimelineAccumulator.GetPath(k8sClusterTimeline, khifilev6.PathSegment{
+		Name: "core/v1",
+		Type: inspectioncore_contract.TimelineTypeAPIVersion,
+	})
+	kindTimeline := builder.TimelineAccumulator.GetPath(apiVersionTimeline, khifilev6.PathSegment{
+		Name: "pod",
+		Type: inspectioncore_contract.TimelineTypeKind,
+	})
+	namespaceTimeline := builder.TimelineAccumulator.GetPath(kindTimeline, khifilev6.PathSegment{
+		Name: "test-namespace",
+		Type: inspectioncore_contract.TimelineTypeNamespace,
+	})
+	wantPodTimeline := builder.TimelineAccumulator.GetPath(namespaceTimeline, khifilev6.PathSegment{
+		Name: "test-pod",
+		Type: inspectioncore_contract.TimelineTypeResource,
+	})
+
 	testCases := []struct {
 		desc                   string
 		inputComponentField    googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet
 		inputMessageField      googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet
 		inputSchedulerFieldSet googlecloudlogk8scontrolplane_contract.K8sSchedulerComponentFieldSet
-		asserters              []testchangeset.ChangeSetAsserter
+		assert                 func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			desc: "with pod name and namespace given",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "scheduler",
 			},
@@ -44,18 +90,16 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 				PodName:      "test-pod",
 				PodNamespace: "test-namespace",
 			},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "@Cluster#controlplane#cluster-scope#test-cluster#scheduler",
-				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#pod#test-namespace#test-pod",
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantCompTimeline).
+					HasEvent(wantPodTimeline)
 			},
 		},
 		{
 			desc: "without pod name and namespace",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "scheduler",
 			},
@@ -63,25 +107,23 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 				Message: "foo",
 			},
 			inputSchedulerFieldSet: googlecloudlogk8scontrolplane_contract.K8sSchedulerComponentFieldSet{},
-			asserters: []testchangeset.ChangeSetAsserter{
-				&testchangeset.HasEvent{
-					ResourcePath: "@Cluster#controlplane#cluster-scope#test-cluster#scheduler",
-				},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantCompTimeline).
+					HasNoEvent(wantPodTimeline)
 			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 			l := log.NewLogWithFieldSetsForTest(&tc.inputComponentField, &tc.inputSchedulerFieldSet, &tc.inputMessageField)
-			modifier := schedulerLogToTimelineMapperTaskSetting{}
-			cs := history.NewChangeSet(l)
-			_, err := modifier.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
+			mapper := &SchedulerTimelineMapper{}
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {
-				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
+				t.Fatalf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
 			}
-			for _, asserter := range tc.asserters {
-				asserter.Assert(t, cs)
-			}
+			tc.assert(t, ctx, cs)
 		})
 	}
 }

@@ -18,7 +18,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 )
@@ -145,40 +144,6 @@ func TestK8sNodeLogCommonFieldSet_ParserType(t *testing.T) {
 			got := tc.fieldSet.ParserType()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ParserType() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestK8sNodeLogCommonFieldSet_ResourcePath(t *testing.T) {
-	testCases := []struct {
-		desc     string
-		fieldSet *K8sNodeLogCommonFieldSet
-		want     resourcepath.ResourcePath
-	}{
-		{
-			desc: "kube-proxy resource path",
-			fieldSet: &K8sNodeLogCommonFieldSet{
-				Component: "kube-proxy",
-				NodeName:  "node-foo",
-			},
-			want: resourcepath.Pod("kube-system", "kube-proxy-node-foo"),
-		},
-		{
-			desc: "other component resource path",
-			fieldSet: &K8sNodeLogCommonFieldSet{
-				Component: "other-component",
-				NodeName:  "node-bar",
-			},
-			want: resourcepath.NodeComponent("node-bar", "other-component"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			got := tc.fieldSet.ResourcePath()
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("ResourcePath() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
