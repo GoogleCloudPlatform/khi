@@ -16,9 +16,6 @@
 
 import { Component, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { CelGuideOverviewComponent } from 'src/app/timeline-toolbar/components/cel-guide-overview.component';
 import { CelGuideTimelineCelComponent } from 'src/app/timeline-toolbar/components/cel-guide-timeline-cel.component';
 import { CelGuideLogCelComponent } from 'src/app/timeline-toolbar/components/cel-guide-log-cel.component';
@@ -41,9 +38,6 @@ export enum CelGuideTab {
   styleUrls: ['./cel-guide-popup.component.scss'],
   imports: [
     CommonModule,
-    MatButtonModule,
-    MatIconModule,
-    KHIIconRegistrationModule,
     CelGuideOverviewComponent,
     CelGuideTimelineCelComponent,
     CelGuideLogCelComponent,

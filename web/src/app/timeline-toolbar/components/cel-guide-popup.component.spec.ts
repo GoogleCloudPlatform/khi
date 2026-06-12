@@ -19,7 +19,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import {
   CelGuidePopupComponent,
   CelGuideTab,
-} from './cel-guide-popup.component';
+} from 'src/app/timeline-toolbar/components/cel-guide-popup.component';
 
 describe('CelGuidePopupComponent', () => {
   let component: CelGuidePopupComponent;
