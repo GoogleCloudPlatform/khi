@@ -31,7 +31,7 @@ Available inspection type IDs include:
 ./khi \
   --job-mode \
   --job-inspection-type gcp-gke \
-  --job-inspection-features ALL \
+  --job-inspection-features <feature-id>,<feature-id> \
   --job-inspection-values '{"<form-field-id>":"<value>"}' \
   --job-export-destination ./inspection.khi
 ```
@@ -43,6 +43,7 @@ If you use a released binary or run KHI from another directory, replace `./khi` 
 ## **Inspection values**
 
 `--job-inspection-values` must be a JSON object. Each key is a KHI form field ID and each value is the value that would be submitted from the web UI for the same field.
+Text fields use JSON strings. Set fields use JSON arrays of strings.
 
 For example, a Google Cloud inspection usually includes common fields such as project, location, query end time, and duration, plus inspection-specific fields:
 
@@ -52,7 +53,8 @@ For example, a Google Cloud inspection usually includes common fields such as pr
   "cloud.google.com/common/input-location": "us-central1",
   "cloud.google.com/common/input-end-time": "2026-01-15T10:00:00Z",
   "cloud.google.com/common/input-duration": "2h",
-  "<inspection-specific-field-id>": "<value>"
+  "<inspection-specific-text-field-id>": "<value>",
+  "<inspection-specific-set-field-id>": ["<value>"]
 }
 ```
 
@@ -67,8 +69,19 @@ For a GKE inspection, the commonly required field IDs are:
 | `cloud.google.com/common/input-end-time` | Query end time in RFC3339 format. |
 | `cloud.google.com/common/input-duration` | Query duration, such as `2h`. |
 | `cloud.google.com/k8s/input-cluster-name` | GKE cluster name. |
-| `cloud.google.com/k8s/input-namespaces` | Namespace filter. Use `*` to include all namespaces. |
-| `cloud.google.com/k8s/input-kinds` | Kubernetes kind filter. Use `*` to include all kinds. |
+| `cloud.google.com/k8s/input-namespaces` | Namespace filter array. Use `["@all_cluster_scoped", "@all_namespaced"]` to include all scopes. |
+| `cloud.google.com/k8s/input-kinds` | Kubernetes kind filter array. Use `["@default"]` for common kinds or `["@any"]` for every kind. |
+
+Some optional GKE features add their own fields. Include these fields when the selected feature list needs them:
+
+| Feature area | Field ID | Example value |
+| --- | --- | --- |
+| Node and serial port logs | `cloud.google.com/k8s/input/node-name-filter` | `[]` |
+| Container logs | `cloud.google.com/log/k8s-container/input/query-namespaces` | `["@managed"]` |
+| Container logs | `cloud.google.com/log/k8s-container/input/query-podnames` | `["@any"]` |
+| Control plane component logs | `cloud.google.com/log/k8s-control-plane/input/component-names` | `["@any", "-apiserver"]` |
+| CSM access logs | `cloud.google.com/log/csm-accesslog/input/response-flags` | `["@any", "-OK"]` |
+| CSM resource audit logs | `cloud.google.com/log/csm-accesslog/input/fleet-project-id` | `"my-project"` |
 
 ## **Selecting features**
 
@@ -77,6 +90,8 @@ Use `ALL` when the job should include every feature supported by the selected in
 ```bash
 --job-inspection-features ALL
 ```
+
+`ALL` enables optional features that are disabled by default in the web UI. For GKE, this includes node logs, container logs, control plane component logs, CSM logs, and serial port logs, so the extra fields listed above may also be required.
 
 To enable only specific features, pass their IDs as a comma-separated list:
 
@@ -96,21 +111,21 @@ Use the `inspectionID` returned by the `POST` request in the final URL.
 
 ## **Example**
 
-The following example runs a GKE inspection and writes the result to `./gke-inspection.khi`:
+The following example runs the default GKE feature set and writes the result to `./gke-inspection.khi`:
 
 ```bash
 ./khi \
   --job-mode \
   --job-inspection-type gcp-gke \
-  --job-inspection-features ALL \
+  --job-inspection-features khi.google.com/k8s-common-auditlog/k8s-auditlog-parser-tail#gcp,cloud.google.com/log/k8s-event/timeline-mapper#default,cloud.google.com/log/gke-api/timeline-mapper#default,cloud.google.com/log/compute-api/timeline-mapper#default,cloud.google.com/log/network-api/timeline-mapper#default,cloud.google.com/gke/log/autoscaler/timeline-mapper#default \
   --job-inspection-values '{
     "cloud.google.com/common/input-project-id": "my-project",
     "cloud.google.com/common/input-location": "us-central1",
     "cloud.google.com/common/input-end-time": "2026-01-15T10:00:00Z",
     "cloud.google.com/common/input-duration": "2h",
     "cloud.google.com/k8s/input-cluster-name": "my-cluster",
-    "cloud.google.com/k8s/input-namespaces": "*",
-    "cloud.google.com/k8s/input-kinds": "*"
+    "cloud.google.com/k8s/input-namespaces": ["@all_cluster_scoped", "@all_namespaced"],
+    "cloud.google.com/k8s/input-kinds": ["@default"]
   }' \
   --job-export-destination ./gke-inspection.khi
 ```
