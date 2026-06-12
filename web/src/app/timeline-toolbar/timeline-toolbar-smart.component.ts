@@ -246,6 +246,7 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
 
     const hypotheticalTimelineCel = compileFiltersToCel(
       viewState.standardTimelineFilters(),
+      viewState.standardSelectedSeverity(),
     );
     const hypotheticalLogCel = compileLogFiltersToCel(
       viewState.standardSelectedSeverity(),
@@ -267,7 +268,8 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     effect(() => {
       if (!this.isAdvancedMode()) {
         const filters = this.timelineFilters();
-        const celExpr = compileFiltersToCel(filters);
+        const severity = this.selectedSeverity();
+        const celExpr = compileFiltersToCel(filters, severity);
         this.celTimelineFilter.updateFilter(celExpr);
       }
     });
@@ -405,29 +407,37 @@ export function compileLogFiltersToCel(
 }
 
 /**
- * Compiles a list of standard timeline filters into a CEL expression.
+ * Compiles a list of standard timeline filters and a severity level into a CEL expression.
  */
-export function compileFiltersToCel(filters: TimelineFilterConfig[]): string {
-  if (filters.length === 0) {
-    return '';
+export function compileFiltersToCel(
+  filters: TimelineFilterConfig[],
+  severity: string = 'ANY',
+): string {
+  const parts: string[] = [];
+  if (severity && severity !== 'ANY') {
+    parts.push(`minSeverity(${severity})`);
   }
-  return filters
-    .map((f) => {
-      let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      if (f.mode === 'selection') {
-        const escapedParts = f.value.split('|').map((val) =>
-          val
-            .replace(/\\/g, '\\\\')
-            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-            .replace(/"/g, '\\"'),
-        );
-        celValue = `^(?:${escapedParts.join('|')})$`;
-      }
-      if (f.timelineType === '*') {
-        return `match("${celValue}")`;
-      } else {
-        return `match("${f.timelineType}", "${celValue}")`;
-      }
-    })
-    .join(' && ');
+  if (filters.length > 0) {
+    const filtersCel = filters
+      .map((f) => {
+        let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        if (f.mode === 'selection') {
+          const escapedParts = f.value.split('|').map((val) =>
+            val
+              .replace(/\\/g, '\\\\')
+              .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+              .replace(/"/g, '\\"'),
+          );
+          celValue = `^(?:${escapedParts.join('|')})$`;
+        }
+        if (f.timelineType === '*') {
+          return `match("${celValue}")`;
+        } else {
+          return `match("${f.timelineType}", "${celValue}")`;
+        }
+      })
+      .join(' && ');
+    parts.push(filtersCel);
+  }
+  return parts.join(' && ');
 }

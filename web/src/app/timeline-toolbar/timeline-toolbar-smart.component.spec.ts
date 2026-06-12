@@ -144,5 +144,23 @@ describe('TimelineToolbarSmart compilation helpers', () => {
         'match("K8sResource", "pod-.*") && match("^(?:ns-1|ns-2)$")',
       );
     });
+
+    it('should prepend minSeverity when severity is not ANY', () => {
+      const filters: TimelineFilterConfig[] = [
+        {
+          id: '1',
+          timelineType: '*',
+          mode: 'regex',
+          value: 'pod-.*',
+        },
+      ];
+      expect(compileFiltersToCel(filters, 'ERROR')).toBe(
+        'minSeverity(ERROR) && match("pod-.*")',
+      );
+    });
+
+    it('should return minSeverity only when filters is empty and severity is not ANY', () => {
+      expect(compileFiltersToCel([], 'ERROR')).toBe('minSeverity(ERROR)');
+    });
   });
 });

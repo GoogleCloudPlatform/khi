@@ -92,7 +92,7 @@ export class CelTimelineFilter implements LogTimelineFilter {
         throw new CancellationError();
       }
       const t = timelineStore.getTimeline(id);
-      if (this.celEnv.evaluate(t)) {
+      if (this.celEnv.evaluate(t, timelineStore)) {
         passedTimelineIds.add(id);
       }
       count++;

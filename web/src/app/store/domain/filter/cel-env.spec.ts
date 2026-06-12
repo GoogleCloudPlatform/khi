@@ -21,12 +21,24 @@ import {
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
+import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { StyleStore } from 'src/app/store/domain/style-store';
+import { LogStore } from 'src/app/store/domain/log-store';
 
 describe('CELTimelineFilterEnvironment', () => {
   let env: CELTimelineFilterEnvironment;
+  let internPool: InternPoolStore;
+  let styleStore: StyleStore;
+  let logStore: LogStore;
+  let timelineStore: TimelineStore;
 
   beforeEach(() => {
     env = new CELTimelineFilterEnvironment();
+    internPool = new InternPoolStore();
+    styleStore = new StyleStore();
+    logStore = new LogStore(internPool, styleStore);
+    timelineStore = new TimelineStore(internPool, styleStore, logStore);
   });
 
   it('should successfully compile a valid CEL expression', () => {
@@ -51,7 +63,7 @@ describe('CELTimelineFilterEnvironment', () => {
       revisions: [],
     } as unknown as ReadonlyDomainElement<Timeline>;
 
-    expect(env.evaluate(mockTimeline)).toBe(true);
+    expect(env.evaluate(mockTimeline, timelineStore)).toBe(true);
   });
 
   it('should return failure for syntactically invalid CEL expression', () => {
@@ -79,8 +91,8 @@ describe('CELTimelineFilterEnvironment', () => {
 
     env.compile("name == 'T1' && timelineType == 'pod'");
 
-    expect(env.evaluate(timeline1)).toBe(true);
-    expect(env.evaluate(timeline2)).toBe(false);
+    expect(env.evaluate(timeline1, timelineStore)).toBe(true);
+    expect(env.evaluate(timeline2, timelineStore)).toBe(false);
   });
 
   it('should resolve timeline path map correctly', () => {
@@ -96,10 +108,10 @@ describe('CELTimelineFilterEnvironment', () => {
     } as unknown as ReadonlyDomainElement<Timeline>;
 
     env.compile("path['namespace'] == 'default' && path['name'] == 'pod-a'");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("path['namespace'] == 'kube-system'");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
   });
 
   it('should support severity constants during evaluation', () => {
@@ -114,7 +126,7 @@ describe('CELTimelineFilterEnvironment', () => {
       revisions: [],
     } as unknown as ReadonlyDomainElement<Timeline>;
 
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
   });
 
   it('should support match() and M() functions with a single pattern', () => {
@@ -131,17 +143,17 @@ describe('CELTimelineFilterEnvironment', () => {
 
     // Match with key and pattern
     env.compile("match('Namespace', 'kube-.*')");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("M('Namespace', 'default')");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
 
     // Wildcard match
     env.compile("match('apiserver')");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("M('default')");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
   });
 
   it('should support match() and M() functions with a list of patterns', () => {
@@ -154,16 +166,16 @@ describe('CELTimelineFilterEnvironment', () => {
     } as unknown as ReadonlyDomainElement<Timeline>;
 
     env.compile("match('Namespace', ['default', 'kube-.*'])");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("M('Namespace', ['default', 'non-matching'])");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
 
     env.compile("match(['default', 'system'])");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("M(['default', 'non-matching'])");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
   });
 
   it('should support revision_body() and RB() functions with a single pattern', () => {
@@ -194,17 +206,17 @@ describe('CELTimelineFilterEnvironment', () => {
     } as unknown as ReadonlyDomainElement<Timeline>;
 
     env.compile("revision_body('spec.replicas', '3')");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("RB('spec.replicas', '5')");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
 
     // Wildcard match
     env.compile("revision_body('replicas')");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("RB('non-existent')");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
   });
 
   it('should support revision_body() and RB() functions with a list of patterns', () => {
@@ -235,17 +247,103 @@ describe('CELTimelineFilterEnvironment', () => {
     } as unknown as ReadonlyDomainElement<Timeline>;
 
     env.compile("revision_body('spec.replicas', ['1', '3'])");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("RB('spec.replicas', ['1', '5'])");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
 
     // Wildcard list match
     env.compile("revision_body(['replicas', 'other'])");
-    expect(env.evaluate(timeline)).toBe(true);
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
 
     env.compile("RB(['other', 'non-matching'])");
-    expect(env.evaluate(timeline)).toBe(false);
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
+  });
+
+  it('should support minSeverity() function correctly', () => {
+    internPool.addStrings([{ id: 1, value: 'timeline-name' }]);
+
+    const mockColor = { r: 0, g: 0, b: 0, a: 1 };
+    styleStore.addTimelineTypes([
+      {
+        id: 1,
+        label: 'type-a',
+        description: 'desc',
+        icon: '',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        typeChipBackgroundColor: mockColor,
+        visible: true,
+        sortPriority: 0,
+        height: 1,
+      },
+    ]);
+
+    styleStore.addSeverities([
+      {
+        id: 1,
+        label: 'INFO',
+        shortLabel: 'I',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        order: 1,
+      },
+      {
+        id: 2,
+        label: 'WARNING',
+        shortLabel: 'W',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        order: 2,
+      },
+      {
+        id: 3,
+        label: 'ERROR',
+        shortLabel: 'E',
+        backgroundColor: mockColor,
+        foregroundColor: mockColor,
+        order: 3,
+      },
+    ]);
+
+    const logs = [
+      { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 2, summaryStringId: 1 },
+    ];
+    logStore.initialize(logs, 1);
+
+    const rawTimelines = [
+      {
+        id: 10,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [100],
+        eventIds: [],
+      },
+    ];
+    const rawRevisions = [
+      {
+        id: 100,
+        logId: 1,
+        changedTime: 10n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+      },
+    ];
+
+    timelineStore.initialize(rawTimelines, 1, rawRevisions, 1, [], 0);
+
+    const timeline = timelineStore.getTimeline(10);
+
+    env.compile('minSeverity(WARNING)');
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
+
+    env.compile('minSeverity(ERROR)');
+    expect(env.evaluate(timeline, timelineStore)).toBe(false);
+
+    env.compile('minSeverity(INFO)');
+    expect(env.evaluate(timeline, timelineStore)).toBe(true);
   });
 });
 

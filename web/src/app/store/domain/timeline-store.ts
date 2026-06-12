@@ -24,7 +24,12 @@ import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
 import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
-import { RevisionState, TimelineType, Verb } from 'src/app/store/domain/style';
+import {
+  RevisionState,
+  Severity,
+  TimelineType,
+  Verb,
+} from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { fromBinary } from '@bufbuild/protobuf';
@@ -71,6 +76,7 @@ export class TimelineStore {
   private timelineTypeIds = new Uint32Array(0);
   private timelineNameStringIds = new Uint32Array(0);
   private timelineParentIds = new Uint32Array(0);
+  private timelineSeverities = new Uint8Array(0);
   private readonly timelineRevisionIds: Uint32Array[] = [];
   private readonly timelineEventIds: Uint32Array[] = [];
   private readonly timelineChildrenIds: number[][] = [];
@@ -99,7 +105,7 @@ export class TimelineStore {
 
   constructor(
     private readonly internPool: InternPoolStore,
-    private readonly styleStore: StyleStore,
+    public readonly styleStore: StyleStore,
     public readonly logStore: LogStore,
   ) {
     this.decoder = new InternedStructDecoder(this.internPool);
@@ -126,6 +132,7 @@ export class TimelineStore {
     this.timelineTypeIds = new Uint32Array(timelineCount);
     this.timelineNameStringIds = new Uint32Array(timelineCount);
     this.timelineParentIds = new Uint32Array(timelineCount);
+    this.timelineSeverities = new Uint8Array(timelineCount);
 
     this.timelineRevisionIds.length = 0;
     this.timelineEventIds.length = 0;
@@ -195,6 +202,34 @@ export class TimelineStore {
       this.eventLogIds[eIndex] = e.logId;
       this.eventIdToIndex[e.id] = eIndex;
       eIndex++;
+    }
+
+    // Build severity index for timelines
+    for (let i = 0; i < timelineCount; i++) {
+      let mask = 0;
+      const revIds = this.timelineRevisionIds[i];
+      for (let j = 0; j < revIds.length; j++) {
+        const rIndex = this.revisionIdToIndex[revIds[j]];
+        if (rIndex !== undefined) {
+          const logId = this.revisionLogIds[rIndex];
+          const severityId = this.logStore._getSeverity(logId).id;
+          if (severityId >= 0 && severityId < 8) {
+            mask |= 1 << severityId;
+          }
+        }
+      }
+      const eventIds = this.timelineEventIds[i];
+      for (let j = 0; j < eventIds.length; j++) {
+        const eIndex = this.eventIdToIndex[eventIds[j]];
+        if (eIndex !== undefined) {
+          const logId = this.eventLogIds[eIndex];
+          const severityId = this.logStore._getSeverity(logId).id;
+          if (severityId >= 0 && severityId < 8) {
+            mask |= 1 << severityId;
+          }
+        }
+      }
+      this.timelineSeverities[i] = mask;
     }
   }
 
@@ -311,6 +346,25 @@ export class TimelineStore {
    */
   public _getChildIdsForTimeline(id: number): readonly number[] {
     return this.timelineChildrenIds[this.getTimelineIndex(id)] ?? [];
+  }
+
+  /**
+   * Checks if the timeline with the specified ID has any logs with any of the specified severities.
+   *
+   * @note Intended solely for internal retrieval inside the {@link Timeline} domain adapter.
+   */
+  public _hasSeverities(
+    id: number,
+    severities: readonly ReadonlyDomainElement<Severity>[],
+  ): boolean {
+    const index = this.getTimelineIndex(id);
+    let severityMask = 0;
+    for (const s of severities) {
+      if (s.id >= 0 && s.id < 8) {
+        severityMask |= 1 << s.id;
+      }
+    }
+    return (this.timelineSeverities[index] & severityMask) !== 0;
   }
 
   private getTimelineIndex(id: number): number {
