@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
@@ -41,9 +42,10 @@ var colors = []string{
 }
 
 type KHILogFormatHandler struct {
-	out       io.Writer
-	withColor bool
-	attrs     []slog.Attr
+	out             io.Writer
+	withColor       bool
+	attrs           []slog.Attr
+	ignoredAttrKeys map[string]struct{}
 }
 
 // Enabled implements slog.Handler.
@@ -54,11 +56,12 @@ func (*KHILogFormatHandler) Enabled(context.Context, slog.Level) bool {
 // Handle implements slog.Handler.
 func (lh *KHILogFormatHandler) Handle(ctx context.Context, r slog.Record) error {
 	tid, found := khictx.GetValue(ctx, core_contract.TaskImplementationIDContextKey)
+	message := lh.formatMessage(r)
 	var logLine string
 	if found == nil {
-		logLine = fmt.Sprintf("%s%s >%s %s %s\n", lh.taskIdToColor(tid.String()), tid, lh.resetColor(), lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, r.Message))
+		logLine = fmt.Sprintf("%s%s >%s %s %s\n", lh.taskIdToColor(tid.String()), tid, lh.resetColor(), lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, message))
 	} else {
-		logLine = fmt.Sprintf("global > %s %s\n", lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, r.Message))
+		logLine = fmt.Sprintf("global > %s %s\n", lh.wrapColorByLevel(r.Level, r.Level.String()), lh.wrapColorByLevel(r.Level, message))
 	}
 	lh.out.Write([]byte(logLine))
 	return nil
@@ -67,15 +70,48 @@ func (lh *KHILogFormatHandler) Handle(ctx context.Context, r slog.Record) error 
 // WithAttrs implements slog.Handler.
 func (lh *KHILogFormatHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &KHILogFormatHandler{
-		out:       lh.out,
-		attrs:     attrs,
-		withColor: lh.withColor,
+		out:             lh.out,
+		attrs:           append(append([]slog.Attr{}, lh.attrs...), attrs...),
+		withColor:       lh.withColor,
+		ignoredAttrKeys: lh.ignoredAttrKeys,
 	}
 }
 
 // WithGroup implements slog.Handler.
 func (lh *KHILogFormatHandler) WithGroup(name string) slog.Handler {
 	return lh // this is not supporting group
+}
+
+func (lh *KHILogFormatHandler) formatMessage(r slog.Record) string {
+	if len(lh.attrs) == 0 && r.NumAttrs() == 0 {
+		return r.Message
+	}
+	attrs := make([]slog.Attr, 0, len(lh.attrs)+r.NumAttrs())
+	attrs = append(attrs, lh.attrs...)
+	r.Attrs(func(attr slog.Attr) bool {
+		attrs = append(attrs, attr)
+		return true
+	})
+	formattedAttrs := make([]string, 0, len(attrs))
+	for _, attr := range attrs {
+		if attr.Key == "" {
+			continue
+		}
+		if lh.isIgnoredAttrKey(attr.Key) {
+			continue
+		}
+		value := attr.Value.Resolve()
+		formattedAttrs = append(formattedAttrs, fmt.Sprintf("%s=%s", attr.Key, value.String()))
+	}
+	if len(formattedAttrs) == 0 {
+		return r.Message
+	}
+	return fmt.Sprintf("%s %s", r.Message, strings.Join(formattedAttrs, " "))
+}
+
+func (lh *KHILogFormatHandler) isIgnoredAttrKey(key string) bool {
+	_, found := lh.ignoredAttrKeys[key]
+	return found
 }
 
 func (lh *KHILogFormatHandler) taskIdToColor(tid string) string {
@@ -123,5 +159,8 @@ func NewKHIFormatLogger(out io.Writer, withColor bool) *KHILogFormatHandler {
 	return &KHILogFormatHandler{
 		out:       out,
 		withColor: withColor,
+		ignoredAttrKeys: map[string]struct{}{
+			LogKindAttrKey: {},
+		},
 	}
 }
