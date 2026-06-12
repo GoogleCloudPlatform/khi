@@ -81,7 +81,7 @@ export class TimelineFilterBuilderComponent {
   readonly selectedCandidates = model<string[]>([]);
 
   /** Holds the current text input query for autocomplete filtering. */
-  protected readonly typeInputQuery = signal<string>('');
+  protected readonly typeInputQuery = signal<string>('*');
 
   /** Filters the timeline types case-insensitively based on the current text input query. */
   protected readonly filteredTimelineTypes = computed<TimelineType[]>(() => {
@@ -119,14 +119,8 @@ export class TimelineFilterBuilderComponent {
     effect(() => {
       const currentType = this.selectedTimelineType();
       if (currentType === '*') {
-        this.typeInputQuery.set('');
         this.filterMode.set('regex');
         this.selectedCandidates.set([]);
-      } else {
-        this.typeInputQuery.set(currentType);
-        if (!this.showDeleteButton()) {
-          this.filterMode.set('selection');
-        }
       }
     });
   }

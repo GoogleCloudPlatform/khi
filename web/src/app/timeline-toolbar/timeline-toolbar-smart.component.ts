@@ -239,10 +239,10 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     const currentTimelineCel = this.celTimelineFilter.celExpr();
     const currentLogCel = this.celLogFilter.celExpr();
 
-    const hypotheticalTimelineCel = this.compileFiltersToCel(
+    const hypotheticalTimelineCel = compileFiltersToCel(
       viewState.standardTimelineFilters(),
     );
-    const hypotheticalLogCel = this.compileLogFiltersToCel(
+    const hypotheticalLogCel = compileLogFiltersToCel(
       viewState.standardSelectedSeverity(),
       viewState.standardLogSearchQuery(),
     );
@@ -260,55 +260,17 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
 
     effect(() => {
       const filters = this.timelineFilters();
-      const celExpr = this.compileFiltersToCel(filters);
+      const celExpr = compileFiltersToCel(filters);
       this.celTimelineFilter.updateFilter(celExpr);
     });
 
     effect(() => {
       const severity = this.selectedSeverity();
       const searchQuery = this.logSearchQuery();
-      const celExpr = this.compileLogFiltersToCel(severity, searchQuery);
+      const celExpr = compileLogFiltersToCel(severity, searchQuery);
       this.celLogFilter.updateFilter(celExpr);
     });
     this.excludeNoLogsFilter.enabled.set(true);
-  }
-
-  private compileLogFiltersToCel(
-    severity: string,
-    searchQuery: string,
-  ): string {
-    const parts: string[] = [];
-    if (severity && severity !== 'ANY') {
-      parts.push(`severity >= ${severity}`);
-    }
-    if (searchQuery && searchQuery.trim() !== '') {
-      const escaped = searchQuery.replace(/"/g, '\\"');
-      parts.push(`body("${escaped}")`);
-    }
-    return parts.join(' && ');
-  }
-
-  private compileFiltersToCel(filters: TimelineFilterConfig[]): string {
-    if (filters.length === 0) {
-      return '';
-    }
-    return filters
-      .map((f) => {
-        let celValue = f.value.replace(/"/g, '\\"');
-        if (f.mode === 'selection') {
-          const escapedParts = f.value
-            .split('|')
-            .map((val) => val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-            .map((val) => val.replace(/"/g, '\\"'));
-          celValue = `^(?:${escapedParts.join('|')})$`;
-        }
-        if (f.timelineType === '*') {
-          return `match("${celValue}")`;
-        } else {
-          return `match("${f.timelineType}", "${celValue}")`;
-        }
-      })
-      .join(' && ');
   }
 
   ngOnDestroy() {
@@ -329,4 +291,50 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   protected onDrawDiagram() {
     window.open(window.location.pathname + '/graph', '_blank');
   }
+}
+
+/**
+ * Compiles log search query and severity into a CEL expression.
+ */
+export function compileLogFiltersToCel(
+  severity: string,
+  searchQuery: string,
+): string {
+  const parts: string[] = [];
+  if (severity && severity !== 'ANY') {
+    parts.push(`severity >= ${severity}`);
+  }
+  if (searchQuery && searchQuery.trim() !== '') {
+    const escaped = searchQuery.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    parts.push(`body("${escaped}")`);
+  }
+  return parts.join(' && ');
+}
+
+/**
+ * Compiles a list of standard timeline filters into a CEL expression.
+ */
+export function compileFiltersToCel(filters: TimelineFilterConfig[]): string {
+  if (filters.length === 0) {
+    return '';
+  }
+  return filters
+    .map((f) => {
+      let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      if (f.mode === 'selection') {
+        const escapedParts = f.value.split('|').map((val) =>
+          val
+            .replace(/\\/g, '\\\\')
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/"/g, '\\"'),
+        );
+        celValue = `^(?:${escapedParts.join('|')})$`;
+      }
+      if (f.timelineType === '*') {
+        return `match("${celValue}")`;
+      } else {
+        return `match("${f.timelineType}", "${celValue}")`;
+      }
+    })
+    .join(' && ');
 }
