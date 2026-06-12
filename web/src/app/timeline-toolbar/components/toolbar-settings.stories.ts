@@ -17,7 +17,7 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { CommonModule } from '@angular/common';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar-advanced/components/toolbar-settings.component';
+import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/toolbar-settings.component';
 
 const meta: Meta<ToolbarSettingsComponent> = {
   title: 'Timeline/Components/ToolbarSettings',

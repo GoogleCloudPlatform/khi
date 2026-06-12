@@ -16,7 +16,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar-advanced/components/toolbar-settings.component';
+import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/toolbar-settings.component';
 
 describe('ToolbarSettingsComponent', () => {
   let component: ToolbarSettingsComponent;

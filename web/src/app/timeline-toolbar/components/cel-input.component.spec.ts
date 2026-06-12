@@ -17,7 +17,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import { CelInputComponent } from 'src/app/timeline-toolbar-advanced/components/cel-input.component';
+import { CelInputComponent } from 'src/app/timeline-toolbar/components/cel-input.component';
 
 describe('CelInputComponent', () => {
   let component: CelInputComponent;

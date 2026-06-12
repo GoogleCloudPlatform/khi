@@ -16,14 +16,6 @@ limitations under the License.
 
 <div class="container">
   <khi-header-smart></khi-header-smart>
-  @if (isAdvancedMode()) {
-    <khi-timeline-toolbar-advanced-smart
-      (switchToStandard)="isAdvancedMode.set(false)"
-    ></khi-timeline-toolbar-advanced-smart>
-  } @else {
-    <khi-timeline-toolbar-smart
-      (switchToAdvanced)="isAdvancedMode.set(true)"
-    ></khi-timeline-toolbar-smart>
-  }
+  <khi-timeline-toolbar-smart></khi-timeline-toolbar-smart>
   <div class="layout-container" #layoutContainer></div>
 </div>

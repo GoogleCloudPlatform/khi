@@ -15,7 +15,9 @@
  */
 
 import { Injectable, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import {
+  CancellationError,
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
@@ -31,8 +33,20 @@ import {
  */
 @Injectable({ providedIn: 'root' })
 export class CelTimelineFilter implements LogTimelineFilter {
+  readonly displayName = 'Timeline CEL filter';
+  readonly priority = 10;
   private readonly celEnv = new CELTimelineFilterEnvironment();
   private readonly _celExpr = signal<string>('');
+  private readonly _onChanged = new Subject<void>();
+
+  /**
+   * Emits whenever the filter's internal configurations or state changes.
+   */
+  public readonly onChanged = this._onChanged.asObservable();
+
+  /**
+   * The currently active CEL timeline filter expression as a read-only signal.
+   */
   public readonly celExpr = this._celExpr.asReadonly();
 
   /**
@@ -50,34 +64,41 @@ export class CelTimelineFilter implements LogTimelineFilter {
     const compileRes = this.celEnv.compile(celExpr);
     if (!compileRes.success) {
       this._celExpr.set('');
+
       return compileRes;
     }
     this._celExpr.set(celExpr);
+    this._onChanged.next();
     return { success: true };
-  }
-
-  /**
-   * Returns the priority value determining the execution order of this filter.
-   */
-  priority(): number {
-    return 10;
   }
 
   /**
    * Evaluates each timeline in the context against the CEL expression and retains only matching timeline IDs.
    */
-  process(
+  public async process(
     context: LogTimelineFilterContext,
     timelineStore: TimelineStore,
-  ): LogTimelineFilterContext {
+    signal?: AbortSignal,
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<LogTimelineFilterContext> {
     if (this.celExpr() === '') {
       return context;
     }
     const passedTimelineIds = new Set<number>();
+    let count = 0;
+    const total = context.timelineIds.size;
     for (const id of context.timelineIds) {
+      if (signal?.aborted) {
+        throw new CancellationError();
+      }
       const t = timelineStore.getTimeline(id);
       if (this.celEnv.evaluate(t)) {
         passedTimelineIds.add(id);
+      }
+      count++;
+      if (count % 500 === 0 || count === total) {
+        onProgress?.(count, total);
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
     return {
@@ -92,8 +113,20 @@ export class CelTimelineFilter implements LogTimelineFilter {
  */
 @Injectable({ providedIn: 'root' })
 export class CelLogFilter implements LogTimelineFilter {
+  readonly displayName = 'Log CEL Filter';
+  readonly priority = 30;
   private readonly celEnv = new CELLogFilterEnvironment();
   private readonly _celExpr = signal<string>('');
+  private readonly _onChanged = new Subject<void>();
+
+  /**
+   * Emits whenever the filter's internal configurations or state changes.
+   */
+  public readonly onChanged = this._onChanged.asObservable();
+
+  /**
+   * The currently active CEL log filter expression as a read-only signal.
+   */
   public readonly celExpr = this._celExpr.asReadonly();
 
   /**
@@ -111,42 +144,64 @@ export class CelLogFilter implements LogTimelineFilter {
     const compileRes = this.celEnv.compile(celExpr);
     if (!compileRes.success) {
       this._celExpr.set('');
+      this._onChanged.next();
       return compileRes;
     }
     this._celExpr.set(celExpr);
+    this._onChanged.next();
     return { success: true };
-  }
-
-  /**
-   * Returns the priority value determining the execution order of this filter.
-   */
-  priority(): number {
-    return 30;
   }
 
   /**
    * Evaluates each log in the context against the CEL expression and retains only matching log IDs.
    */
-  process(
+  public async process(
     context: LogTimelineFilterContext,
     timelineStore: TimelineStore,
-  ): LogTimelineFilterContext {
+    signal?: AbortSignal,
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<LogTimelineFilterContext> {
     if (this.celExpr() === '') {
       return context;
     }
     const passedLogIds = new Set<number>();
+    let count = 0;
+    let total = 0;
     for (const tId of context.timelineIds) {
       const timeline = timelineStore.getTimeline(tId);
+      total += timeline.events.length + timeline.revisions.length;
+    }
+    for (const tId of context.timelineIds) {
+      if (signal?.aborted) {
+        throw new CancellationError();
+      }
+      const timeline = timelineStore.getTimeline(tId);
       for (const e of timeline.events) {
+        if (signal?.aborted) {
+          throw new CancellationError();
+        }
         const l = timelineStore.logStore.getLog(e.log.id);
         if (!passedLogIds.has(e.log.id) && this.celEnv.evaluate(l)) {
           passedLogIds.add(e.log.id);
         }
+        count++;
+        if (count % 1000 === 0 || count === total) {
+          onProgress?.(count, total);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
       }
       for (const r of timeline.revisions) {
+        if (signal?.aborted) {
+          throw new CancellationError();
+        }
         const l = timelineStore.logStore.getLog(r.log.id);
         if (!passedLogIds.has(r.log.id) && this.celEnv.evaluate(l)) {
           passedLogIds.add(r.log.id);
+        }
+        count++;
+        if (count % 1000 === 0 || count === total) {
+          onProgress?.(count, total);
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
     }

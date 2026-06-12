@@ -15,10 +15,12 @@
  */
 
 import { Injectable, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import {
+  CancellationError,
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
@@ -27,20 +29,16 @@ import {
  * Recursively includes all descendant timelines for any matching ancestor and extracts their base log stream.
  */
 export class IncludeDescendantsFilter implements LogTimelineFilter {
-  /**
-   * Returns the priority value determining the execution order of this filter.
-   */
-  priority(): number {
-    return 20;
-  }
+  readonly displayName = 'Include descendants';
+  readonly priority = 20;
 
   /**
    * Processes the context by expanding matching timeline IDs to include their descendants and extracts their related log IDs.
    */
-  process(
+  public async process(
     context: LogTimelineFilterContext,
     timelineStore: TimelineStore,
-  ): LogTimelineFilterContext {
+  ): Promise<LogTimelineFilterContext> {
     const includedSet = new Set<number>();
 
     const markDescendants = (t: ReadonlyDomainElement<Timeline>) => {
@@ -80,20 +78,16 @@ export class IncludeDescendantsFilter implements LogTimelineFilter {
  * Recursively includes all ancestor timelines for any matching descendant to ensure context paths remain visible.
  */
 export class IncludeAncestorsFilter implements LogTimelineFilter {
-  /**
-   * Returns the priority value determining the execution order of this filter.
-   */
-  priority(): number {
-    return Number.MAX_VALUE; // Ancestors must be included at the last to generate meaningful result.
-  }
+  readonly displayName = 'Include ancestors';
+  readonly priority = Number.MAX_VALUE; // Ancestors must be included at the last to generate meaningful result.
 
   /**
    * Processes the context by expanding matching timeline IDs to include their ancestors and extracts their related log IDs.
    */
-  process(
+  public async process(
     context: LogTimelineFilterContext,
     timelineStore: TimelineStore,
-  ): LogTimelineFilterContext {
+  ): Promise<LogTimelineFilterContext> {
     const includedSet = new Set<number>();
 
     const markAncestors = (t: ReadonlyDomainElement<Timeline>) => {
@@ -123,32 +117,49 @@ export class IncludeAncestorsFilter implements LogTimelineFilter {
  */
 @Injectable({ providedIn: 'root' })
 export class ExcludeNoLogsFilter implements LogTimelineFilter {
-  /**
-   * Holds whether this filter is actively enabled.
-   */
-  public readonly enabled = signal(false);
+  readonly displayName = 'Exclude no logs';
+  readonly priority = 40;
+
+  private readonly _onChanged = new Subject<void>();
 
   /**
-   * Returns the priority value determining the execution order of this filter.
+   * Emits whenever the filter's internal configurations or state changes.
    */
-  priority(): number {
-    return 40;
+  public readonly onChanged = this._onChanged.asObservable();
+
+  private readonly _enabled = signal(false);
+
+  /**
+   * Holds whether this filter is actively enabled as a read-only signal.
+   */
+  public readonly enabled = this._enabled.asReadonly();
+
+  /**
+   * Updates the enabled state of this filter and notifies any active subscribers.
+   */
+  public setEnabled(value: boolean): void {
+    this._enabled.set(value);
+    this._onChanged.next();
   }
 
   /**
    * Processes the context by retaining only timeline IDs that possess at least one log present in the current context.
    * If disabled, returns the context as-is.
    */
-  process(
+  public async process(
     context: LogTimelineFilterContext,
     timelineStore: TimelineStore,
-  ): LogTimelineFilterContext {
+    signal?: AbortSignal,
+  ): Promise<LogTimelineFilterContext> {
     if (!this.enabled()) {
       return context;
     }
     const passedTimelineIds = new Set<number>();
 
     for (const id of context.timelineIds) {
+      if (signal?.aborted) {
+        throw new CancellationError();
+      }
       const t = timelineStore.getTimeline(id);
       let hasLogs = false;
       for (const rev of t.revisions) {

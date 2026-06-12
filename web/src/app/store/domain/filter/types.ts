@@ -15,6 +15,17 @@
  */
 
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { Observable } from 'rxjs';
+
+/**
+ * Error thrown when a filter operation is cancelled or aborted.
+ */
+export class CancellationError extends Error {
+  constructor(message: string = 'Operation cancelled') {
+    super(message);
+    this.name = 'CancellationError';
+  }
+}
 
 /**
  * Represents the evaluation state passed through the timeline and log filtering pipeline.
@@ -36,15 +47,25 @@ export interface LogTimelineFilterContext {
  */
 export interface LogTimelineFilter {
   /**
-   * Returns the priority value determining the execution order of this filter.
+   * The display name of the filter.
+   */
+  readonly displayName: string;
+  /**
+   * The priority value determining the execution order of this filter.
    * Lower numerical values execute earlier in the processing pipeline.
    */
-  priority(): number;
+  readonly priority: number;
   /**
-   * Processes the input filter context and returns an updated context with filtered timeline and log IDs.
+   * Emits whenever the filter's internal configurations or state changes.
+   */
+  readonly onChanged?: Observable<void>;
+  /**
+   * Processes the input filter context and returns an updated context with filtered timeline and log IDs asynchronously.
    */
   process(
     context: LogTimelineFilterContext,
     timelineStore: TimelineStore,
-  ): LogTimelineFilterContext;
+    signal?: AbortSignal,
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<LogTimelineFilterContext>;
 }

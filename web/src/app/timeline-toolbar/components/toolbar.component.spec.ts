@@ -86,14 +86,14 @@ describe('ToolbarComponent', () => {
 
   it('should render the filter badges for provided filters', () => {
     fixture.componentRef.setInput('timelineFilters', [
-      { id: '1', timelineType: 'K8sResource', mode: 'selection', value: 'Pod' },
+      { id: '1', timelineType: 'K8sResource', mode: 'regex', value: 'Pod' },
       { id: '2', timelineType: '*', mode: 'regex', value: 'test-pattern' },
     ]);
     fixture.detectChanges();
 
     const badges = fixture.debugElement.queryAll(By.css('.filter-badge'));
     expect(badges.length).toBe(2);
-    expect(badges[0].nativeElement.textContent).toContain('K8sResource: 1/0');
+    expect(badges[0].nativeElement.textContent).toContain('K8sResource: Pod');
     expect(badges[1].nativeElement.textContent).toContain('*: test-pattern');
   });
 

@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ToolbarAdvancedComponent } from 'src/app/timeline-toolbar-advanced/components/toolbar-advanced.component';
+import { ToolbarAdvancedComponent } from 'src/app/timeline-toolbar/components/toolbar-advanced.component';
 
 describe('ToolbarAdvancedComponent', () => {
   let component: ToolbarAdvancedComponent;
