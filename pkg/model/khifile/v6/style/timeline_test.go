@@ -28,8 +28,8 @@ import (
 func TestRegisterTimelineType(t *testing.T) {
 	reset()
 
-	res1 := MustRegisterTimelineType("Type 1", "Desc 1", "icon-1", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1, nil)
-	res2 := MustRegisterTimelineType("Type 2", "Desc 2", "icon-2", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 2, nil)
+	res1 := MustRegisterTimelineType("Type 1", "Desc 1", "icon-1", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, Color{0, 0, 0, 1}, true, 1, nil)
+	res2 := MustRegisterTimelineType("Type 2", "Desc 2", "icon-2", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, Color{0, 0, 0, 1}, true, 2, nil)
 
 	// Verify IDs were assigned starting from 1
 	if res1.Id == nil || *res1.Id != 1 {
@@ -93,7 +93,7 @@ func TestGenerateChunkHasAllSlices(t *testing.T) {
 	MustRegisterVerb("Verb", Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, true)
 	MustRegisterLogType("Log", "Desc", Color{1, 1, 1, 1}, Color{0, 0, 0, 1})
 	MustRegisterRevisionState("RevState", "icon", "Desc", Color{1, 1, 1, 1}, pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL)
-	MustRegisterTimelineType("Timeline", "Desc", "icon", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, true, 1, nil)
+	MustRegisterTimelineType("Timeline", "Desc", "icon", 1.0, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0.5, 0.5, 0.5, 1}, Color{0, 0, 0, 1}, true, 1, nil)
 
 	chunk := GenerateChunk()
 
@@ -210,7 +210,7 @@ func TestLockRegistry(t *testing.T) {
 			label:      "T",
 			styleClass: "timeline type",
 			fn: func() {
-				MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10, nil)
+				MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10, nil)
 			},
 		},
 		{
@@ -307,7 +307,7 @@ func TestRegisterTimelineTypeWithSortPolicy(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			reset()
-			registered := MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10, tc.sortOpt)
+			registered := MustRegisterTimelineType("T", "D", "icon", 1, Color{1, 1, 1, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, Color{0, 0, 0, 1}, true, 10, tc.sortOpt)
 
 			// We only compare the SortPolicyConfig portion
 			got := registered.SortPolicyConfig

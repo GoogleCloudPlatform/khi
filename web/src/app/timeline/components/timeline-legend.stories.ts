@@ -56,6 +56,7 @@ function createMockTimeline(isKind: boolean): Timeline {
       backgroundColor: { r: 0.129, g: 0.588, b: 0.953, a: 1 },
       foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
       typeChipBackgroundColor: { r: 0.129, g: 0.588, b: 0.953, a: 1 },
+      typeChipForegroundColor: { r: 1, g: 1, b: 1, a: 1 },
       visible: true,
       sortPriority: 1,
       height: 20,

@@ -183,7 +183,7 @@ func ChronologicalSortPolicy(chronologicalSearchDepth int32) TimelineSortOpt {
 
 // MustRegisterTimelineType registers a TimelineType, assigns a unique ID to it,
 // and returns the generated pointer. This allows for global inline initialization in plugins.
-func MustRegisterTimelineType(label string, description string, icon string, height float32, backgroundColor Color, foregroundColor Color, typeChipBackgroundColor Color, visible bool, sortPriority int32, sortOpt TimelineSortOpt) *pb.TimelineType {
+func MustRegisterTimelineType(label string, description string, icon string, height float32, backgroundColor Color, foregroundColor Color, typeChipBackgroundColor Color, typeChipForegroundColor Color, visible bool, sortPriority int32, sortOpt TimelineSortOpt) *pb.TimelineType {
 	if err := backgroundColor.Verify(); err != nil {
 		panic(fmt.Sprintf("invalid background color for timeline type %q: %v", label, err))
 	}
@@ -192,6 +192,9 @@ func MustRegisterTimelineType(label string, description string, icon string, hei
 	}
 	if err := typeChipBackgroundColor.Verify(); err != nil {
 		panic(fmt.Sprintf("invalid type chip background color for timeline type %q: %v", label, err))
+	}
+	if err := typeChipForegroundColor.Verify(); err != nil {
+		panic(fmt.Sprintf("invalid type chip foreground color for timeline type %q: %v", label, err))
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -210,6 +213,7 @@ func MustRegisterTimelineType(label string, description string, icon string, hei
 		BackgroundColor:         backgroundColor.toProto(),
 		ForegroundColor:         foregroundColor.toProto(),
 		TypeChipBackgroundColor: typeChipBackgroundColor.toProto(),
+		TypeChipForegroundColor: typeChipForegroundColor.toProto(),
 		Visible:                 proto.Bool(visible),
 		SortPriority:            proto.Int32(sortPriority),
 	}

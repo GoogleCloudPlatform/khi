@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Signal } from '@angular/core';
 import {
   BMFontConfig,
   IconAtlas,
@@ -66,9 +67,28 @@ export interface IconAtlasDTO {
 }
 
 /**
+ * Interface representing a provider of style configurations (severities, log types, etc.).
+ * Structurally matches StyleStore and StyleOverrideService.
+ */
+export interface StyleStoreLike {
+  readonly severities: ReadonlyDomainElement<Severity[]>;
+  readonly logTypes: ReadonlyDomainElement<LogType[]>;
+  readonly verbs: ReadonlyDomainElement<Verb[]>;
+  readonly revisionStates: ReadonlyDomainElement<RevisionState[]>;
+  readonly timelineTypes: ReadonlyDomainElement<TimelineType[]>;
+  readonly stylesUpdated?: Signal<number>;
+  getSeverity(id: number): ReadonlyDomainElement<Severity>;
+  getLogType(id: number): ReadonlyDomainElement<LogType>;
+  getVerb(id: number): ReadonlyDomainElement<Verb>;
+  getRevisionState(id: number): ReadonlyDomainElement<RevisionState>;
+  getTimelineType(id: number): ReadonlyDomainElement<TimelineType>;
+  getIconAtlas(): IconAtlas | undefined;
+}
+
+/**
  * Manages the style-related definitions for the UI.
  */
-export class StyleStore {
+export class StyleStore implements StyleStoreLike {
   private readonly _severities: Severity[] = [];
   private readonly _logTypes: LogType[] = [];
   private readonly _verbs: Verb[] = [];

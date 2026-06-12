@@ -121,6 +121,7 @@ describe('InspectionDataBuilder (Core)', () => {
       backgroundColor: mockColor,
       foregroundColor: mockColor,
       typeChipBackgroundColor: mockColor,
+      typeChipForegroundColor: mockColor,
       visible: true,
       sortPriority: 0,
       height: 1,

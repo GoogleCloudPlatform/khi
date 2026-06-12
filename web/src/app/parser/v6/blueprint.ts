@@ -220,6 +220,7 @@ export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
         backgroundColor: mapColor(t.backgroundColor),
         foregroundColor: mapColor(t.foregroundColor),
         typeChipBackgroundColor: mapColor(t.typeChipBackgroundColor),
+        typeChipForegroundColor: mapColor(t.typeChipForegroundColor),
         visible: t.visible,
         sortPriority: t.sortPriority,
         height: t.height,

@@ -30,6 +30,7 @@ var (
 		style.ColorWhite,
 		style.ColorWhite,
 		style.MustForceConvertSRGBHex("#FF8500"),
+		style.ColorWhite,
 		true,
 		5001,
 		style.AlphabeticalSortPolicy(),
