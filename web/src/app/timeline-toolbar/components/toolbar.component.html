@@ -17,64 +17,148 @@ limitations under the License.
 <div class="container">
   <div class="toolbar">
     <div class="toolbar-grid">
-      <div class="smaller-input left-control">
-        <div class="button-group">
-          <!-- Switch to advanced mode button -->
-          <button
-            mat-icon-button
-            color="primary"
-            (click)="switchToAdvanced.emit()"
-            matTooltip="Switch to advanced filter mode"
-          >
-            <mat-icon>search_gear</mat-icon>
-          </button>
-        </div>
-        <div class="center-control"></div>
-        <div class="right-control">
-          <mat-button-toggle-group multiple>
-            <mat-button-toggle
-              value="filter_resource"
-              matTooltip="hide timelines without any logs matched by the log filter on it or its children"
-              [checked]="hideTimelinesWithoutMatchingLogs()"
-              (change)="
-                hideTimelinesWithoutMatchingLogs.set(
-                  !hideTimelinesWithoutMatchingLogs()
-                )
-              "
+      <div class="button-group">
+        <!-- Switch to advanced mode button -->
+        <button
+          mat-icon-button
+          color="primary"
+          (click)="switchToAdvanced.emit()"
+          matTooltip="Switch to advanced filter mode"
+        >
+          <mat-icon>search_gear</mat-icon>
+        </button>
+      </div>
+      <div class="center-control">
+        <div class="filter-list">
+          @for (filter of timelineFilters(); track filter.id) {
+            <button
+              mat-stroked-button
+              class="filter-badge"
+              [matTooltip]="getFilterTooltip(filter)"
+              (click)="openEditFilterPopup(filter)"
             >
-              <mat-icon color="primary">description</mat-icon>
-              <mat-icon color="primary">search_off</mat-icon>
-            </mat-button-toggle>
-          </mat-button-toggle-group>
-          <khi-timeline-regex-input
-            #logFilterInput
-            class="log-filter"
-            label="Log body(regex)"
-            [(value)]="logFilter"
-          ></khi-timeline-regex-input>
-          <div class="timezone-control">
-            <p>UTC+</p>
-            <input
-              class="timezone-input"
-              type="number"
-              value="0"
-              name="timezone-shift"
-              [value]="timezoneShift()"
-              (change)="onTimezoneshiftCommit($event)"
-            />
-            <p>hours</p>
-          </div>
+              <mat-icon class="filter-icon">
+                {{
+                  typeIcons()[filter.timelineType.toLowerCase()] || "filter_alt"
+                }}
+              </mat-icon>
+              <span class="filter-label">
+                <span
+                  class="filter-type"
+                  [style.color]="getTypeColor(filter.timelineType)"
+                  [style.background-color]="getTypeBgColor(filter.timelineType)"
+                  >{{ filter.timelineType }}</span
+                ><span class="filter-colon">: </span
+                ><span class="filter-value">{{
+                  getFilterValueDisplay(filter)
+                }}</span>
+              </span>
+              <mat-icon
+                class="delete-icon"
+                (click)="$event.stopPropagation(); deleteFilter(filter.id)"
+              >
+                close
+              </mat-icon>
+            </button>
+          }
+
           <button
-            mat-raised-button
+            mat-stroked-button
             color="primary"
-            [disabled]="logOrTimelineNotSelected()"
-            (click)="drawDiagram.emit()"
-            matTooltip="Draw diagram at the point of the timeline"
+            class="add-filter-btn"
+            (click)="toggleFilterBuilder()"
+            #builderTrigger="cdkOverlayOrigin"
+            cdkOverlayOrigin
+            matTooltip="Add timeline filter"
           >
-            <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
+            <mat-icon>add</mat-icon>
+            <span>Add filter</span>
           </button>
         </div>
+
+        <div class="log-filters">
+          <mat-form-field appearance="outline" class="severity-select">
+            <mat-label>Min Severity</mat-label>
+            <mat-select
+              [value]="selectedSeverity()"
+              (selectionChange)="selectedSeverity.set($event.value)"
+            >
+              <mat-option value="ANY">Any Severity</mat-option>
+              <mat-option value="INFO">INFO</mat-option>
+              <mat-option value="WARNING">WARNING</mat-option>
+              <mat-option value="ERROR">ERROR</mat-option>
+              <mat-option value="FATAL">FATAL</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="search-input">
+            <mat-icon matPrefix class="search-prefix-icon">search</mat-icon>
+            <mat-label>Search Logs</mat-label>
+            <input
+              matInput
+              placeholder="Search in log body..."
+              [value]="logSearchQuery()"
+              (input)="logSearchQuery.set($any($event.target).value)"
+            />
+            @if (logSearchQuery()) {
+              <button
+                matSuffix
+                mat-icon-button
+                aria-label="Clear"
+                (click)="logSearchQuery.set('')"
+                class="clear-search-btn"
+              >
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+          </mat-form-field>
+        </div>
+      </div>
+      <div class="right-control">
+        <div class="timezone-control">
+          <p>UTC+</p>
+          <input
+            class="timezone-input"
+            type="number"
+            value="0"
+            name="timezone-shift"
+            [value]="timezoneShift()"
+            (change)="onTimezoneshiftCommit($event)"
+          />
+          <p>hours</p>
+        </div>
+        <button
+          mat-raised-button
+          color="primary"
+          [disabled]="logOrTimelineNotSelected()"
+          (click)="drawDiagram.emit()"
+          matTooltip="Draw diagram at the point of the timeline"
+        >
+          <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
+        </button>
       </div>
     </div>
   </div>
 </div>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="builderTrigger"
+  [cdkConnectedOverlayOpen]="isFilterBuilderOpen()"
+  [cdkConnectedOverlayHasBackdrop]="true"
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  (backdropClick)="toggleFilterBuilder()"
+>
+  <khi-timeline-filter-builder
+    [timelineTypes]="timelineTypes()"
+    [candidates]="candidates()"
+    [showDeleteButton]="editingFilter() !== null"
+    [(selectedTimelineType)]="selectedTimelineTypeForBuilder"
+    [(filterMode)]="builderFilterMode"
+    [(regexValue)]="builderRegexValue"
+    [(selectedCandidates)]="builderSelectedCandidates"
+    (closeButtonClicked)="toggleFilterBuilder()"
+    (deleteButtonClicked)="deleteFilter(editingFilter()!.id)"
+    (confirm)="onFilterAddConfirm($event)"
+  ></khi-timeline-filter-builder>
+</ng-template>

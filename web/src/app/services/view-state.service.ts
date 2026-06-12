@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import {
   BehaviorSubject,
   Observable,
@@ -24,6 +24,7 @@ import {
   map,
   shareReplay,
 } from 'rxjs';
+import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 
 /**
  * A service to manage statuses used for view in application wide.
@@ -36,6 +37,21 @@ export class ViewStateService {
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/canvas#maximum_canvas_size
    */
   public static DEVICE_PIXEL_RATIO_SCALE = 1;
+
+  /**
+   * The persistent standard mode timeline filters.
+   */
+  public readonly standardTimelineFilters = signal<TimelineFilterConfig[]>([]);
+
+  /**
+   * The persistent standard mode selected severity.
+   */
+  public readonly standardSelectedSeverity = signal<string>('ANY');
+
+  /**
+   * The persistent standard mode log search query.
+   */
+  public readonly standardLogSearchQuery = signal<string>('');
 
   private timezoneShiftSubject: BehaviorSubject<number> = new BehaviorSubject(
     -new Date().getTimezoneOffset() / 60,

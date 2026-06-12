@@ -18,14 +18,16 @@ limitations under the License.
   [showButtonLabel]="showButtonLabel() || false"
   [timezoneShift]="timezoneShift() || 0"
   [logOrTimelineNotSelected]="logOrTimelineNotSelected() || false"
-  [hideTimelinesWithoutMatchingLogs]="
-    hideTimelinesWithoutMatchingLogs() || false
-  "
+  [(timelineFilters)]="timelineFilters"
+  [timelineTypes]="timelineTypes()"
+  [candidates]="candidates()"
+  [(selectedTimelineTypeForBuilder)]="selectedTimelineTypeForBuilder"
+  [typeIcons]="typeIcons()"
+  [typeColors]="typeColors()"
+  [typeCandidateCounts]="typeCandidateCounts()"
+  [(selectedSeverity)]="selectedSeverity"
+  [(logSearchQuery)]="logSearchQuery"
   (timezoneShiftChange)="onTimezoneshiftCommit($event)"
-  (logFilterChange)="onLogFilterChange($event)"
-  (hideTimelinesWithoutMatchingLogsChange)="
-    onToggleHideTimelinesWithoutMatchingLogs($event)
-  "
   (drawDiagram)="onDrawDiagram()"
   (switchToAdvanced)="switchToAdvanced.emit()"
 ></khi-timeline-toolbar>

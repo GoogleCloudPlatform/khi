@@ -66,18 +66,6 @@ describe('ToolbarComponent', () => {
     expect(emitted).toBeTrue();
   });
 
-  it('should toggle hideTimelinesWithoutMatchingLogs model when toggle in template is clicked', () => {
-    const toggles = fixture.debugElement.queryAll(By.css('mat-button-toggle'));
-    expect(toggles.length).toBe(1);
-
-    const toggle = toggles[0];
-    toggle.nativeElement.querySelector('button').click();
-    fixture.detectChanges();
-
-    // The state should be toggled
-    expect(component.hideTimelinesWithoutMatchingLogs()).toBeTrue();
-  });
-
   it('should emit switchToAdvanced when advanced button is clicked', () => {
     let emitted = false;
     component.switchToAdvanced.subscribe(() => (emitted = true));
@@ -94,5 +82,46 @@ describe('ToolbarComponent', () => {
 
     advancedButton!.nativeElement.click();
     expect(emitted).toBeTrue();
+  });
+
+  it('should render the filter badges for provided filters', () => {
+    fixture.componentRef.setInput('timelineFilters', [
+      { id: '1', timelineType: 'K8sResource', mode: 'selection', value: 'Pod' },
+      { id: '2', timelineType: '*', mode: 'regex', value: 'test-pattern' },
+    ]);
+    fixture.detectChanges();
+
+    const badges = fixture.debugElement.queryAll(By.css('.filter-badge'));
+    expect(badges.length).toBe(2);
+    expect(badges[0].nativeElement.textContent).toContain('K8sResource: 1/0');
+    expect(badges[1].nativeElement.textContent).toContain('*: test-pattern');
+  });
+
+  it('should toggle filter builder popover when add button is clicked', () => {
+    const addButton = fixture.debugElement.query(By.css('.add-filter-btn'));
+    expect(addButton).toBeTruthy();
+    expect(component['isFilterBuilderOpen']()).toBeFalse();
+
+    addButton.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component['isFilterBuilderOpen']()).toBeTrue();
+  });
+
+  it('should delete the filter when delete icon in a badge is clicked', () => {
+    fixture.componentRef.setInput('timelineFilters', [
+      { id: '1', timelineType: 'K8sResource', mode: 'selection', value: 'Pod' },
+    ]);
+    fixture.detectChanges();
+
+    const deleteIcon = fixture.debugElement.query(
+      By.css('.filter-badge .delete-icon'),
+    );
+    expect(deleteIcon).toBeTruthy();
+
+    deleteIcon.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(component.timelineFilters().length).toBe(0);
   });
 });

@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, computed, inject, output } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  computed,
+  inject,
+  output,
+  effect,
+} from '@angular/core';
 import {
   CelTimelineFilter,
   CelLogFilter,
@@ -91,6 +98,20 @@ export class TimelineToolbarAdvancedSmartComponent implements OnDestroy {
   private readonly logCelFilter$ = new BehaviorSubject<string>('');
 
   /**
+   * Signal holding the current timeline CEL filter string.
+   */
+  protected readonly timelineCelFilter = toSignal(this.timelineCelFilter$, {
+    initialValue: '',
+  });
+
+  /**
+   * Signal holding the current log CEL filter string.
+   */
+  protected readonly logCelFilter = toSignal(this.logCelFilter$, {
+    initialValue: '',
+  });
+
+  /**
    * Signal containing the validation error message for the timeline CEL filter.
    */
   protected readonly timelineCelError = toSignal(
@@ -123,6 +144,20 @@ export class TimelineToolbarAdvancedSmartComponent implements OnDestroy {
   private readonly destroyed = new Subject<void>();
 
   constructor() {
+    effect(() => {
+      const currentTimelineExpr = this.celTimelineFilter.celExpr();
+      if (this.timelineCelFilter$.value !== currentTimelineExpr) {
+        this.timelineCelFilter$.next(currentTimelineExpr);
+      }
+    });
+
+    effect(() => {
+      const currentLogExpr = this.celLogFilter.celExpr();
+      if (this.logCelFilter$.value !== currentLogExpr) {
+        this.logCelFilter$.next(currentLogExpr);
+      }
+    });
+
     this.timelineCelFilter$
       .pipe(
         debounceTime(200),
