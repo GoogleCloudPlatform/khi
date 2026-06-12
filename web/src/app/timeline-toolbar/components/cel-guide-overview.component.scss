@@ -1,0 +1,182 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$gray-palette: mat.$m2-gray-palette;
+$blue-palette: mat.$m2-blue-palette;
+$orange-palette: mat.$m2-orange-palette;
+
+$text-primary-color: mat.m2-get-color-from-palette($gray-palette, 900);
+$text-secondary-color: mat.m2-get-color-from-palette($gray-palette, 700);
+$card-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+$card-border-color: mat.m2-get-color-from-palette($gray-palette, 200);
+$code-bg-color: mat.m2-get-color-from-palette($gray-palette, 100);
+$code-text-color: mat.m2-get-color-from-palette($blue-palette, 800);
+$info-bg-color: mat.m2-get-color-from-palette($blue-palette, 50);
+$info-border-color: mat.m2-get-color-from-palette($blue-palette, 100);
+$info-text-color: mat.m2-get-color-from-palette($blue-palette, 800);
+$warn-bg-color: mat.m2-get-color-from-palette($orange-palette, 50);
+$warn-border-color: mat.m2-get-color-from-palette($orange-palette, 200);
+$warn-text-color: mat.m2-get-color-from-palette($orange-palette, 900);
+
+.guide-content {
+  display: grid;
+  grid-template:
+    'desc' auto
+    'illustration' auto
+    'concepts' auto
+    'advanced' auto
+    / auto;
+  gap: 16px;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  color: $text-primary-color;
+
+  .guide-desc {
+    grid-area: desc;
+    font-size: 13px;
+    line-height: 1.5;
+    color: $text-secondary-color;
+    margin: 0;
+  }
+
+  .guide-illustration {
+    grid-area: illustration;
+    display: grid;
+    grid-template:
+      'img' auto
+      / auto;
+    justify-content: center;
+    margin: 4px 0;
+
+    img {
+      grid-area: img;
+      max-width: 100%;
+      height: auto;
+    }
+  }
+
+  .concepts-section {
+    grid-area: concepts;
+    display: grid;
+    grid-template:
+      'section-grid' auto
+      'section-warning' auto
+      / auto;
+    gap: 12px;
+
+    .concept-grid {
+      grid-area: section-grid;
+    }
+
+    .warning-note {
+      grid-area: section-warning;
+    }
+  }
+
+  .advanced-section {
+    grid-area: advanced;
+  }
+
+  p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: $text-secondary-color;
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 14px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  ol,
+  ul {
+    margin: 0;
+    padding-left: 20px;
+
+    li {
+      font-size: 13px;
+      line-height: 1.5;
+      color: $text-secondary-color;
+      margin-bottom: 6px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  code {
+    background-color: $code-bg-color;
+    color: $code-text-color;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+  }
+
+  .concept-section {
+    display: grid;
+    gap: 12px;
+  }
+
+  .concept-grid {
+    display: grid;
+    grid-template:
+      'left right' auto
+      / 1fr 1fr;
+    gap: 12px;
+  }
+
+  .concept-card {
+    background-color: $card-bg-color;
+    border: 1px solid $card-border-color;
+    border-radius: 6px;
+    padding: 12px;
+    display: grid;
+    grid-template:
+      'card-title' auto
+      'card-desc' auto
+      / auto;
+    gap: 6px;
+
+    h4 {
+      font-size: 13px;
+      font-weight: 500;
+      margin: 0;
+      color: $text-primary-color;
+    }
+
+    p {
+      font-size: 12px;
+      margin: 0;
+    }
+  }
+
+  .warning-note {
+    background-color: $warn-bg-color;
+    border: 1px solid $warn-border-color;
+    border-radius: 6px;
+    padding: 12px;
+
+    p {
+      font-size: 12px;
+      color: $warn-text-color;
+    }
+  }
+}

@@ -1,0 +1,122 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$gray-palette: mat.$m2-gray-palette;
+$blue-palette: mat.$m2-blue-palette;
+
+$popover-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+$popover-border-color: mat.m2-get-color-from-palette($gray-palette, 200);
+$popover-shadow-color: rgba(0, 0, 0, 0.12);
+
+$tab-text-color: mat.m2-get-color-from-palette($gray-palette, 600);
+$tab-active-color: mat.m2-get-color-from-palette($blue-palette, 600);
+$tab-active-border: mat.m2-get-color-from-palette($blue-palette, 600);
+
+.popup-card {
+  position: relative;
+  margin-top: 8px;
+  width: 480px;
+  height: 420px;
+  background-color: $popover-bg-color;
+  border: 1px solid $popover-border-color;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px $popover-shadow-color;
+  padding: 12px 16px;
+  display: grid;
+  grid-template:
+    'header' 40px
+    'body' 1fr
+    / auto;
+  gap: 8px;
+  box-sizing: border-box;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    border: solid transparent;
+    height: 0;
+    width: 0;
+    pointer-events: none;
+  }
+
+  &::before {
+    border-color: transparent;
+    border-bottom-color: $popover-border-color;
+    border-width: 9px;
+    margin-left: -9px;
+  }
+
+  &::after {
+    border-color: transparent;
+    border-bottom-color: $popover-bg-color;
+    border-width: 8px;
+    margin-left: -8px;
+  }
+
+  .popup-header {
+    display: grid;
+    grid-template:
+      'tabs' auto
+      / 1fr;
+    align-items: center;
+    border-bottom: 1px solid $popover-border-color;
+
+    .tab-bar {
+      grid-area: tabs;
+      display: grid;
+      grid-template:
+        't1 t2 t3' auto
+        / auto auto auto;
+      gap: 16px;
+      height: 100%;
+
+      .tab-button {
+        background: none;
+        border: 0;
+        outline: 0;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        color: $tab-text-color;
+        cursor: pointer;
+        padding: 8px 4px;
+        border-bottom: 2px solid transparent;
+        transition:
+          border-color 0.2s,
+          color 0.2s;
+
+        &:hover {
+          color: $tab-active-color;
+        }
+
+        &.active {
+          color: $tab-active-color;
+          border-bottom-color: $tab-active-border;
+        }
+      }
+    }
+  }
+
+  .popup-body {
+    grid-area: body;
+    overflow-y: auto;
+  }
+}

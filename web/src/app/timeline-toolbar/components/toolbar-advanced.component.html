@@ -34,19 +34,46 @@
             [errorMessage]="timelineCelError()"
             tooltip="Timeline CEL"
             icon="view_timeline"
-            placeholder="e.g. t.name == 'pod-a', t.name.matches('pod-.*')"
+            placeholder='e.g. match("kind", "pod") && !match("namespace", "kube-system")'
             [(value)]="timelineCelFilter"
+            (focused)="onTimelineCelFocus()"
           ></khi-timeline-cel-input>
           <khi-timeline-cel-input
             [errorMessage]="logCelError()"
             tooltip="Log CEL"
             icon="notes"
-            placeholder="e.g. l.severity == ERROR, l.summary.contains('error')"
+            placeholder='e.g. body("jsonPayload.message","error") && severity == "ERROR"'
             [(value)]="logCelFilter"
+            (focused)="onLogCelFocus()"
           ></khi-timeline-cel-input>
         </div>
       </div>
       <div class="right-control">
+        <!-- Help button -->
+        <button
+          mat-icon-button
+          color="primary"
+          cdkOverlayOrigin
+          #helpOverlayOrigin="cdkOverlayOrigin"
+          (click)="helpPopupOpen.set(!helpPopupOpen())"
+          matTooltip="CEL expression guide"
+        >
+          <mat-icon>help_outline</mat-icon>
+        </button>
+
+        <!-- Help popover guide overlay template -->
+        <ng-template
+          cdkConnectedOverlay
+          [cdkConnectedOverlayOrigin]="helpOverlayOrigin"
+          [cdkConnectedOverlayOpen]="helpPopupOpen()"
+          [cdkConnectedOverlayHasBackdrop]="false"
+          [cdkConnectedOverlayPositions]="overlayPositions"
+        >
+          <khi-cel-guide-popup
+            [(activeTab)]="helpActiveTab"
+          ></khi-cel-guide-popup>
+        </ng-template>
+
         <!-- Settings button -->
         <button
           mat-icon-button
