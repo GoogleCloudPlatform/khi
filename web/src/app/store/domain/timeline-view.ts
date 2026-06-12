@@ -20,6 +20,7 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import {
+  CancellationError,
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
@@ -170,7 +171,7 @@ export class TimelineView {
         this._context.set(ctx);
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
+      if (err instanceof CancellationError) {
         return;
       }
       console.error('Error during async filtering pipeline:', err);

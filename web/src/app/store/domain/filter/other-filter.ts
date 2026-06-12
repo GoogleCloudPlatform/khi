@@ -20,6 +20,7 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import {
+  CancellationError,
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
@@ -157,7 +158,7 @@ export class ExcludeNoLogsFilter implements LogTimelineFilter {
 
     for (const id of context.timelineIds) {
       if (signal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
+        throw new CancellationError();
       }
       const t = timelineStore.getTimeline(id);
       let hasLogs = false;

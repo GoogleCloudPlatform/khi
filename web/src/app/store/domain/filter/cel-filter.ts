@@ -17,6 +17,7 @@
 import { Injectable, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
+  CancellationError,
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
@@ -88,7 +89,7 @@ export class CelTimelineFilter implements LogTimelineFilter {
     const total = context.timelineIds.size;
     for (const id of context.timelineIds) {
       if (signal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
+        throw new CancellationError();
       }
       const t = timelineStore.getTimeline(id);
       if (this.celEnv.evaluate(t)) {
@@ -170,15 +171,14 @@ export class CelLogFilter implements LogTimelineFilter {
       const timeline = timelineStore.getTimeline(tId);
       total += timeline.events.length + timeline.revisions.length;
     }
-
     for (const tId of context.timelineIds) {
       if (signal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
+        throw new CancellationError();
       }
       const timeline = timelineStore.getTimeline(tId);
       for (const e of timeline.events) {
         if (signal?.aborted) {
-          throw new DOMException('Aborted', 'AbortError');
+          throw new CancellationError();
         }
         const l = timelineStore.logStore.getLog(e.log.id);
         if (!passedLogIds.has(e.log.id) && this.celEnv.evaluate(l)) {
@@ -192,7 +192,7 @@ export class CelLogFilter implements LogTimelineFilter {
       }
       for (const r of timeline.revisions) {
         if (signal?.aborted) {
-          throw new DOMException('Aborted', 'AbortError');
+          throw new CancellationError();
         }
         const l = timelineStore.logStore.getLog(r.log.id);
         if (!passedLogIds.has(r.log.id) && this.celEnv.evaluate(l)) {

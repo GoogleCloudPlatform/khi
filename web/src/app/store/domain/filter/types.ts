@@ -18,6 +18,16 @@ import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { Observable } from 'rxjs';
 
 /**
+ * Error thrown when a filter operation is cancelled or aborted.
+ */
+export class CancellationError extends Error {
+  constructor(message: string = 'Operation cancelled') {
+    super(message);
+    this.name = 'CancellationError';
+  }
+}
+
+/**
  * Represents the evaluation state passed through the timeline and log filtering pipeline.
  * Contains the intermediate subsets of timeline and log IDs remaining after each filter step.
  */
