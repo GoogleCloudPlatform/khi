@@ -262,7 +262,7 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       viewState.standardLogSearchQuery.set('');
       this.celLogFilter.updateFilter('');
     }
-    this.excludeNoLogsFilter.setEnabled(true);
+
     // Effects executing standard compiler logic
     effect(() => {
       if (!this.isAdvancedMode()) {
