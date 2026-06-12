@@ -31,6 +31,7 @@ import {
   matchTimelinePath,
   matchTimelineRevisionBodyField,
 } from 'src/app/store/domain/filter/cel-functions';
+import { Severity } from 'src/app/store/domain/style';
 
 const SEVERITY_LEVELS = {
   UNKNOWN: 0n,
@@ -49,6 +50,10 @@ export class CELTimelineFilterEnvironment {
   private currentTimeline?: CELTimeline;
   private currentTimelineStore?: TimelineStore;
   private currentRawTimeline?: ReadonlyDomainElement<Timeline>;
+  private readonly minSeverityCache = new Map<
+    number,
+    readonly ReadonlyDomainElement<ReadonlyDomainElement<Severity>>[]
+  >();
 
   /**
    * Initializes the CEL Environment with unlistedVariablesAreDyn disabled to enforce strict variable registration.
@@ -224,9 +229,13 @@ export class CELTimelineFilterEnvironment {
     if (!this.currentRawTimeline || !this.currentTimelineStore) {
       return false;
     }
-    const severities = this.currentTimelineStore.styleStore.severities.filter(
-      (s) => s.order >= minOrder,
-    );
+    let severities = this.minSeverityCache.get(minOrder);
+    if (!severities) {
+      severities = this.currentTimelineStore.styleStore.severities.filter(
+        (s) => s.order >= minOrder,
+      );
+      this.minSeverityCache.set(minOrder, severities);
+    }
     return this.currentRawTimeline.hasSeverity(...severities);
   }
 }
