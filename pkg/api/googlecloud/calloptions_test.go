@@ -198,6 +198,11 @@ func TestDefaultRetryer(t *testing.T) {
 			nextError: status.Error(codes.InvalidArgument, "invalid argument"),
 			wantRetry: false,
 		},
+		{
+			name:      "do not retry on non-gRPC error",
+			nextError: fmt.Errorf("generic network error"),
+			wantRetry: false,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -63,14 +63,11 @@ var _ gax.Retryer = (*defaultRetryer)(nil)
 
 // Retry overrides the underlying gax.Retryer's Retry method to filter Unauthenticated errors.
 func (r *defaultRetryer) Retry(err error) (time.Duration, bool) {
-	s, ok := status.FromError(err)
-	if !ok {
-		return 0, false
-	}
 	// Temporal issue on Enterprise Certificate Proxy may result in Unauthenticated errors.
 	// We retry on these errors since the root cause is likely a transient issue with ECP.
-	if s.Code() == codes.Unauthenticated {
-		if !strings.Contains(s.Message(), `per-RPC creds failed due to error:`) {
+	if statusCode := status.Code(err); statusCode == codes.Unauthenticated {
+		s, ok := status.FromError(err)
+		if !ok || !strings.Contains(s.Message(), `per-RPC creds failed due to error:`) {
 			return 0, false
 		}
 	}
