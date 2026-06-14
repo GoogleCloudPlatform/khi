@@ -38,7 +38,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				ViewerMode:               testutil.P(false),
 				Port:                     testutil.P(8080),
-				Host:                     testutil.P("localhost"),
+				Host:                     testutil.P("127.0.0.1"),
 				BasePath:                 testutil.P("/"),
 				FrontendResourceBasePath: testutil.P("/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -54,7 +54,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				ViewerMode:               testutil.P(false),
 				Port:                     testutil.P(8080),
-				Host:                     testutil.P("localhost"),
+				Host:                     testutil.P("127.0.0.1"),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/bar/"),
 				FrontendAssetFolder:      testutil.P(""),
@@ -70,7 +70,7 @@ func TestServerParameters(t *testing.T) {
 			want: &ServerParameters{
 				ViewerMode:               testutil.P(false),
 				Port:                     testutil.P(8080),
-				Host:                     testutil.P("localhost"),
+				Host:                     testutil.P("127.0.0.1"),
 				BasePath:                 testutil.P("/foo/bar/"),
 				FrontendResourceBasePath: testutil.P("/foo/"),
 				FrontendAssetFolder:      testutil.P(""),
