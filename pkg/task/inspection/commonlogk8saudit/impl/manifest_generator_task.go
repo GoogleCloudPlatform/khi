@@ -40,6 +40,7 @@ import (
 )
 
 var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
+var bodyPlaceholderForTruncatedAuditLog = "# Resource data is unavailable because the audit log was truncated."
 
 // ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
 var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8saudit_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
@@ -128,6 +129,13 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		g.prevRevisionReader = structured.NewNodeReader(structured.NewEmptyMapNode())
 	}
 	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if fieldSet.Truncated {
+		return &commonlogk8saudit_contract.ResourceManifestLog{
+			Log:                l,
+			ResourceBodyYAML:   bodyPlaceholderForTruncatedAuditLog,
+			ResourceBodyReader: nil,
+		}, nil
+	}
 	currentBodyReader := fieldSet.Response
 	partial := false
 	if currentBodyReader == nil {

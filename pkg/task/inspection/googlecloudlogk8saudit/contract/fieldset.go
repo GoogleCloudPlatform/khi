@@ -45,6 +45,7 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	result.StatusCode = reader.ReadIntOrDefault("protoPayload.status.code", 0)
 	result.StatusMessage = reader.ReadStringOrDefault("protoPayload.status.message", "")
 	result.IsError = result.StatusCode != 0
+	result.Truncated = strings.EqualFold(reader.ReadStringOrDefault("labels.audit\\.k8s\\.io/truncated", ""), "true")
 	result.Request, _ = reader.GetReader("protoPayload.request")
 	result.Response, _ = reader.GetReader("protoPayload.response")
 	return &result, nil

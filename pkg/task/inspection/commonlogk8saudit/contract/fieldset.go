@@ -41,6 +41,8 @@ type K8sAuditLogFieldSet struct {
 	StatusMessage string
 	// IsError is true if the response is an error.
 	IsError bool
+	// Truncated is true if the log payload may omit part of the request or response.
+	Truncated bool
 	// Request is the request body.
 	Request *structured.NodeReader
 	// Response is the response body.
