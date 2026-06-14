@@ -29,7 +29,7 @@ describe('InternedStructDecoder', () => {
   let decoder: InternedStructDecoder;
 
   beforeEach(() => {
-    store = new InternPoolStore();
+    store = InternPoolStore.create();
     decoder = new InternedStructDecoder(store);
   });
 

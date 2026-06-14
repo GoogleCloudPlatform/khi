@@ -38,10 +38,10 @@ describe('Timeline', () => {
   const mockColor = { r: 0, g: 0, b: 0, a: 1 };
 
   beforeEach(() => {
-    internPool = new InternPoolStore();
+    internPool = InternPoolStore.create();
     styleStore = new StyleStore();
-    logStore = new LogStore(internPool, styleStore);
-    timelineStore = new TimelineStore(internPool, styleStore, logStore);
+    logStore = LogStore.create(internPool, styleStore);
+    timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
     styleStore.addTimelineTypes([
       {

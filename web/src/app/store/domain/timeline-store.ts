@@ -31,8 +31,36 @@ import {
   Verb,
 } from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
-import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import {
+  ReadonlyDomainElement,
+  allocateBuffer,
+  isSharedBuffer,
+} from 'src/app/store/domain/types';
 import { fromBinary } from '@bufbuild/protobuf';
+
+/**
+ * Align the offset to the specified byte alignment.
+ */
+function align(offset: number, alignment: number): number {
+  return Math.ceil(offset / alignment) * alignment;
+}
+
+/**
+ * Represents the shared memory structure of the timeline store.
+ */
+export interface TimelineStoreSharedData {
+  readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
+  readonly bodyBufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
+  readonly timelineCount: number;
+  readonly revisionCount: number;
+  readonly eventCount: number;
+  readonly timelineRevisionIds: readonly (readonly number[])[];
+  readonly timelineEventIds: readonly (readonly number[])[];
+  readonly timelineChildrenIds: readonly (readonly number[])[];
+  readonly timelineIdToIndex: { readonly [tid: number]: number };
+  readonly revisionIdToIndex: { readonly [rid: number]: number };
+  readonly eventIdToIndex: { readonly [eid: number]: number };
+}
 
 /**
  * Raw timeline object interface from the assembler.
@@ -71,44 +99,296 @@ export interface EventDTO {
  * Store for managing and retrieving timelines, revisions, and events efficiently.
  */
 export class TimelineStore {
-  // Timeline metadata
-  private timelineIds = new Uint32Array(0);
-  private timelineTypeIds = new Uint32Array(0);
-  private timelineNameStringIds = new Uint32Array(0);
-  private timelineParentIds = new Uint32Array(0);
-  private timelineSeverities = new Uint8Array(0);
+  private readonly readOnly: boolean;
+
+  private metadataSab!: SharedArrayBuffer | ArrayBuffer;
+
+  // Timeline views
+  private timelineIds!: Uint32Array;
+  private timelineTypeIds!: Uint32Array;
+  private timelineNameStringIds!: Uint32Array;
+  private timelineParentIds!: Uint32Array;
+  private timelineSeverities!: Uint8Array;
+
   private readonly timelineRevisionIds: Uint32Array[] = [];
   private readonly timelineEventIds: Uint32Array[] = [];
   private readonly timelineChildrenIds: number[][] = [];
   private readonly timelinesList: ReadonlyDomainElement<Timeline>[] = [];
   private timelineIdToIndex: { [tid: number]: number } = {};
 
-  // Revision metadata stored in packed arrays
-  private revisionIds = new Uint32Array(0);
-  private revisionLogIds = new Uint32Array(0);
-  private revisionChangedTimes = new BigUint64Array(0);
-  private revisionPrincipalStringIds = new Uint32Array(0);
-  private revisionVerbTypeIds = new Uint32Array(0);
-  private revisionStateTypeIds = new Uint32Array(0);
-  private readonly revisionBodies: Uint8Array[] = [];
+  // Revision views
+  private revisionIds!: Uint32Array;
+  private revisionLogIds!: Uint32Array;
+  private revisionChangedTimes!: BigUint64Array;
+  private revisionPrincipalStringIds!: Uint32Array;
+  private revisionVerbTypeIds!: Uint32Array;
+  private revisionStateTypeIds!: Uint32Array;
+
+  // Packed revision bodies
+  private revisionBodyBufferIndices!: Uint16Array;
+  private revisionBodyOffsets!: Uint32Array;
+  private revisionBodyLengths!: Uint32Array;
+
+  private readonly revisionBodyBufferSabs: (SharedArrayBuffer | ArrayBuffer)[] =
+    [];
+  private readonly revisionBodyBuffers: Uint8Array[] = [];
+
+  private currentBufferIndex = -1;
+  private currentOffset = 0;
+
   private readonly revisionDecodedBodyCache: WeakRef<
     ReadonlyDomainElement<Record<string, unknown>>
   >[] = [];
   private revisionIdToIndex: { [rid: number]: number } = {};
 
-  // Event metadata
-  private eventIds = new Uint32Array(0);
-  private eventLogIds = new Uint32Array(0);
+  // Event views
+  private eventIds!: Uint32Array;
+  private eventLogIds!: Uint32Array;
   private eventIdToIndex: { [eid: number]: number } = {};
 
   private readonly decoder: InternedStructDecoder;
 
-  constructor(
+  private constructor(
     private readonly internPool: InternPoolStore,
     public readonly styleStore: StyleStore,
     public readonly logStore: LogStore,
+    private readonly maxBufferSize: number,
+    readOnly: boolean,
+    initialData:
+      | { timelineCount: number; revisionCount: number; eventCount: number }
+      | TimelineStoreSharedData,
   ) {
+    this.readOnly = readOnly;
     this.decoder = new InternedStructDecoder(this.internPool);
+
+    if ('metadataSab' in initialData) {
+      const sharedData = initialData;
+      this.metadataSab = sharedData.metadataSab;
+      this.revisionBodyBufferSabs = Array.from(sharedData.bodyBufferSabs);
+      this.revisionBodyBuffers = this.revisionBodyBufferSabs.map(
+        (sab) => new Uint8Array(sab),
+      );
+
+      this.timelineRevisionIds = sharedData.timelineRevisionIds.map(
+        (arr) => new Uint32Array(arr),
+      );
+      this.timelineEventIds = sharedData.timelineEventIds.map(
+        (arr) => new Uint32Array(arr),
+      );
+      this.timelineChildrenIds = sharedData.timelineChildrenIds.map((arr) =>
+        Array.from(arr),
+      );
+
+      this.timelineIdToIndex = { ...sharedData.timelineIdToIndex };
+      this.revisionIdToIndex = { ...sharedData.revisionIdToIndex };
+      this.eventIdToIndex = { ...sharedData.eventIdToIndex };
+
+      this.mapMetadataViews(
+        sharedData.timelineCount,
+        sharedData.revisionCount,
+        sharedData.eventCount,
+      );
+
+      for (let i = 0; i < sharedData.timelineCount; i++) {
+        this.timelinesList.push(new Timeline(this.timelineIds[i], this));
+      }
+    } else {
+      const counts = initialData;
+      this.allocateMetadata(
+        counts.timelineCount,
+        counts.revisionCount,
+        counts.eventCount,
+      );
+    }
+  }
+
+  /**
+   * Creates a new writable TimelineStore instance.
+   */
+  public static create(
+    internPool: InternPoolStore,
+    styleStore: StyleStore,
+    logStore: LogStore,
+    maxBufferSize: number = 100 * 1024 * 1024,
+  ): TimelineStore {
+    return new TimelineStore(
+      internPool,
+      styleStore,
+      logStore,
+      maxBufferSize,
+      false,
+      { timelineCount: 1024, revisionCount: 1024, eventCount: 1024 },
+    );
+  }
+
+  /**
+   * Reconstructs a read-only TimelineStore instance from shared memory data.
+   */
+  public static fromSharedData(
+    internPool: InternPoolStore,
+    styleStore: StyleStore,
+    logStore: LogStore,
+    sharedData: TimelineStoreSharedData,
+    maxBufferSize: number = 100 * 1024 * 1024,
+  ): TimelineStore {
+    return new TimelineStore(
+      internPool,
+      styleStore,
+      logStore,
+      maxBufferSize,
+      true,
+      sharedData,
+    );
+  }
+
+  private allocateMetadata(tCap: number, rCap: number, eCap: number): void {
+    const layout = this.calculateOffsets(tCap, rCap, eCap);
+    this.metadataSab = allocateBuffer(layout.totalBytes);
+    this.applyViews(layout, tCap, rCap, eCap);
+  }
+
+  private mapMetadataViews(tCap: number, rCap: number, eCap: number): void {
+    const layout = this.calculateOffsets(tCap, rCap, eCap);
+    this.applyViews(layout, tCap, rCap, eCap);
+  }
+
+  private calculateOffsets(tCap: number, rCap: number, eCap: number) {
+    let offset = 0;
+
+    const timelineIds = offset;
+    offset += tCap * 4;
+
+    const timelineTypeIds = offset;
+    offset += tCap * 4;
+
+    const timelineNameStringIds = offset;
+    offset += tCap * 4;
+
+    const timelineParentIds = offset;
+    offset += tCap * 4;
+
+    const timelineSeverities = offset;
+    offset += tCap * 1;
+
+    const revisionIds = align(offset, 4);
+    offset = revisionIds + rCap * 4;
+
+    const revisionLogIds = offset;
+    offset += rCap * 4;
+
+    const revisionChangedTimes = align(offset, 8);
+    offset = revisionChangedTimes + rCap * 8;
+
+    const revisionPrincipalStringIds = offset;
+    offset += rCap * 4;
+
+    const revisionVerbTypeIds = offset;
+    offset += rCap * 4;
+
+    const revisionStateTypeIds = offset;
+    offset += rCap * 4;
+
+    const revisionBodyBufferIndices = align(offset, 2);
+    offset = revisionBodyBufferIndices + rCap * 2;
+
+    const revisionBodyOffsets = align(offset, 4);
+    offset = revisionBodyOffsets + rCap * 4;
+
+    const revisionBodyLengths = align(offset, 4);
+    offset = revisionBodyLengths + rCap * 4;
+
+    const eventIds = align(offset, 4);
+    offset = eventIds + eCap * 4;
+
+    const eventLogIds = offset;
+    offset += eCap * 4;
+
+    return {
+      timelineIds,
+      timelineTypeIds,
+      timelineNameStringIds,
+      timelineParentIds,
+      timelineSeverities,
+      revisionIds,
+      revisionLogIds,
+      revisionChangedTimes,
+      revisionPrincipalStringIds,
+      revisionVerbTypeIds,
+      revisionStateTypeIds,
+      revisionBodyBufferIndices,
+      revisionBodyOffsets,
+      revisionBodyLengths,
+      eventIds,
+      eventLogIds,
+      totalBytes: offset,
+    };
+  }
+
+  private applyViews(
+    layout: ReturnType<typeof TimelineStore.prototype.calculateOffsets>,
+    tCap: number,
+    rCap: number,
+    eCap: number,
+  ): void {
+    const sab = this.metadataSab;
+    this.timelineIds = new Uint32Array(sab, layout.timelineIds, tCap);
+    this.timelineTypeIds = new Uint32Array(sab, layout.timelineTypeIds, tCap);
+    this.timelineNameStringIds = new Uint32Array(
+      sab,
+      layout.timelineNameStringIds,
+      tCap,
+    );
+    this.timelineParentIds = new Uint32Array(
+      sab,
+      layout.timelineParentIds,
+      tCap,
+    );
+    this.timelineSeverities = new Uint8Array(
+      sab,
+      layout.timelineSeverities,
+      tCap,
+    );
+
+    this.revisionIds = new Uint32Array(sab, layout.revisionIds, rCap);
+    this.revisionLogIds = new Uint32Array(sab, layout.revisionLogIds, rCap);
+    this.revisionChangedTimes = new BigUint64Array(
+      sab,
+      layout.revisionChangedTimes,
+      rCap,
+    );
+    this.revisionPrincipalStringIds = new Uint32Array(
+      sab,
+      layout.revisionPrincipalStringIds,
+      rCap,
+    );
+    this.revisionVerbTypeIds = new Uint32Array(
+      sab,
+      layout.revisionVerbTypeIds,
+      rCap,
+    );
+    this.revisionStateTypeIds = new Uint32Array(
+      sab,
+      layout.revisionStateTypeIds,
+      rCap,
+    );
+    this.revisionBodyBufferIndices = new Uint16Array(
+      sab,
+      layout.revisionBodyBufferIndices,
+      rCap,
+    );
+    this.revisionBodyOffsets = new Uint32Array(
+      sab,
+      layout.revisionBodyOffsets,
+      rCap,
+    );
+    this.revisionBodyLengths = new Uint32Array(
+      sab,
+      layout.revisionBodyLengths,
+      rCap,
+    );
+
+    this.eventIds = new Uint32Array(sab, layout.eventIds, eCap);
+    this.eventLogIds = new Uint32Array(sab, layout.eventLogIds, eCap);
   }
 
   /**
@@ -128,20 +408,24 @@ export class TimelineStore {
     events: Iterable<EventDTO>,
     eventCount: number,
   ): void {
-    this.timelineIds = new Uint32Array(timelineCount);
-    this.timelineTypeIds = new Uint32Array(timelineCount);
-    this.timelineNameStringIds = new Uint32Array(timelineCount);
-    this.timelineParentIds = new Uint32Array(timelineCount);
-    this.timelineSeverities = new Uint8Array(timelineCount);
+    if (this.readOnly) {
+      throw new Error('Cannot write to a shared read-only TimelineStore');
+    }
+
+    this.allocateMetadata(timelineCount, revisionCount, eventCount);
 
     this.timelineRevisionIds.length = 0;
     this.timelineEventIds.length = 0;
-    this.revisionBodies.length = 0;
+    this.revisionBodyBufferSabs.length = 0;
+    this.revisionBodyBuffers.length = 0;
     this.timelinesList.length = 0;
     this.timelineChildrenIds.length = 0;
     this.timelineIdToIndex = {};
     this.revisionIdToIndex = {};
     this.eventIdToIndex = {};
+
+    this.currentBufferIndex = -1;
+    this.currentOffset = 0;
 
     // Load timelines
     let tIndex = 0;
@@ -168,12 +452,6 @@ export class TimelineStore {
       }
     }
 
-    this.revisionIds = new Uint32Array(revisionCount);
-    this.revisionLogIds = new Uint32Array(revisionCount);
-    this.revisionChangedTimes = new BigUint64Array(revisionCount);
-    this.revisionPrincipalStringIds = new Uint32Array(revisionCount);
-    this.revisionVerbTypeIds = new Uint32Array(revisionCount);
-    this.revisionStateTypeIds = new Uint32Array(revisionCount);
     this.revisionDecodedBodyCache.length = revisionCount;
 
     // Load revisions
@@ -186,16 +464,18 @@ export class TimelineStore {
       this.revisionVerbTypeIds[rIndex] = r.verbTypeId;
       this.revisionStateTypeIds[rIndex] = r.stateTypeId;
 
-      if (r.body !== undefined) {
-        this.revisionBodies[rIndex] = r.body;
+      if (r.body !== undefined && r.body.length > 0) {
+        this.addRevisionBody(rIndex, r.body);
+      } else {
+        this.revisionBodyBufferIndices[rIndex] = 0;
+        this.revisionBodyOffsets[rIndex] = 0;
+        this.revisionBodyLengths[rIndex] = 0;
       }
       this.revisionIdToIndex[r.id] = rIndex;
       rIndex++;
     }
 
     // load events
-    this.eventIds = new Uint32Array(eventCount);
-    this.eventLogIds = new Uint32Array(eventCount);
     let eIndex = 0;
     for (const e of events) {
       this.eventIds[eIndex] = e.id;
@@ -231,6 +511,45 @@ export class TimelineStore {
       }
       this.timelineSeverities[i] = mask;
     }
+  }
+
+  private addRevisionBody(index: number, bodyBytes: Uint8Array): void {
+    const length = bodyBytes.length;
+
+    if (length > this.maxBufferSize) {
+      const sab = allocateBuffer(length);
+      const buf = new Uint8Array(sab);
+      buf.set(bodyBytes);
+      this.revisionBodyBufferSabs.push(sab);
+      this.revisionBodyBuffers.push(buf);
+
+      const newBufIdx = this.revisionBodyBuffers.length - 1;
+      this.revisionBodyBufferIndices[index] = newBufIdx + 1;
+      this.revisionBodyOffsets[index] = 0;
+      this.revisionBodyLengths[index] = length;
+      return;
+    }
+
+    if (
+      this.currentBufferIndex === -1 ||
+      this.currentOffset + length > this.maxBufferSize
+    ) {
+      const sab = allocateBuffer(this.maxBufferSize);
+      const buf = new Uint8Array(sab);
+      this.revisionBodyBufferSabs.push(sab);
+      this.revisionBodyBuffers.push(buf);
+      this.currentBufferIndex = this.revisionBodyBuffers.length - 1;
+      this.currentOffset = 0;
+    }
+
+    const currentBuf = this.revisionBodyBuffers[this.currentBufferIndex];
+    currentBuf.set(bodyBytes, this.currentOffset);
+
+    this.revisionBodyBufferIndices[index] = this.currentBufferIndex + 1;
+    this.revisionBodyOffsets[index] = this.currentOffset;
+    this.revisionBodyLengths[index] = length;
+
+    this.currentOffset += length;
   }
 
   // --- Timeline Accessors ---
@@ -436,9 +755,22 @@ export class TimelineStore {
       return cached;
     }
 
-    const body = this.revisionBodies[index];
-    if (!body) return null;
-    const struct = fromBinary(InternedStructSchema, body);
+    const bufIdx = this.revisionBodyBufferIndices[index];
+    if (bufIdx === 0) return null;
+
+    const offset = this.revisionBodyOffsets[index];
+    const length = this.revisionBodyLengths[index];
+
+    const buffer = this.revisionBodyBuffers[bufIdx - 1];
+    const bytes = buffer.subarray(offset, offset + length);
+    let decodeTarget = bytes;
+    if (isSharedBuffer(bytes.buffer)) {
+      const nonSharedBytes = new Uint8Array(length);
+      nonSharedBytes.set(bytes);
+      decodeTarget = nonSharedBytes;
+    }
+
+    const struct = fromBinary(InternedStructSchema, decodeTarget);
     const decoded = this.decoder.decode(struct);
     this.revisionDecodedBodyCache[index] = new WeakRef(decoded);
     return decoded;
@@ -468,5 +800,28 @@ export class TimelineStore {
       throw new Error(`Event ID ${id} not found`);
     }
     return index;
+  }
+
+  /**
+   * Returns the shared memory representation of this TimelineStore.
+   */
+  public getSharedData(): TimelineStoreSharedData {
+    return {
+      metadataSab: this.metadataSab,
+      bodyBufferSabs: this.revisionBodyBufferSabs,
+      timelineCount: this.timelineIds.length,
+      revisionCount: this.revisionIds.length,
+      eventCount: this.eventIds.length,
+      timelineRevisionIds: this.timelineRevisionIds.map((arr) =>
+        Array.from(arr),
+      ),
+      timelineEventIds: this.timelineEventIds.map((arr) => Array.from(arr)),
+      timelineChildrenIds: this.timelineChildrenIds.map((arr) =>
+        Array.from(arr),
+      ),
+      timelineIdToIndex: { ...this.timelineIdToIndex },
+      revisionIdToIndex: { ...this.revisionIdToIndex },
+      eventIdToIndex: { ...this.eventIdToIndex },
+    };
   }
 }

@@ -20,8 +20,29 @@ import { StyleStore } from 'src/app/store/domain/style-store';
 import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
 import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import { LogType, Severity } from 'src/app/store/domain/style';
-import { ReadonlyDomainElement, Undefinable } from 'src/app/store/domain/types';
+import {
+  ReadonlyDomainElement,
+  allocateBuffer,
+  isSharedBuffer,
+} from 'src/app/store/domain/types';
 import { fromBinary } from '@bufbuild/protobuf';
+
+/**
+ * Align the offset to the specified byte alignment.
+ */
+function align(offset: number, alignment: number): number {
+  return Math.ceil(offset / alignment) * alignment;
+}
+
+/**
+ * Represents the shared memory structure of the log store.
+ */
+export interface LogStoreSharedData {
+  readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
+  readonly bodyBufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
+  readonly count: number;
+  readonly idToIndex: readonly (number | undefined)[];
+}
 
 /**
  * Raw Log object interface from the assembler.
@@ -42,24 +63,213 @@ export interface LogDTO {
  * Store for managing and retrieving logs efficiently.
  */
 export class LogStore {
-  private ids = new Uint32Array(0);
-  private timestamps = new BigUint64Array(0);
-  private logTypeIds = new Uint32Array(0);
-  private severityIds = new Uint32Array(0);
-  private summaryStringIds = new Uint32Array(0);
+  private readonly readOnly: boolean;
 
-  private bodies: Undefinable<Uint8Array>[] = [];
-  private decodedBodyCache: WeakRef<
+  private metadataSab!: SharedArrayBuffer | ArrayBuffer;
+  private ids!: Uint32Array;
+  private timestamps!: BigUint64Array;
+  private logTypeIds!: Uint32Array;
+  private severityIds!: Uint32Array;
+  private summaryStringIds!: Uint32Array;
+
+  // Packed body metadata
+  private bodyBufferIndices!: Uint16Array;
+  private bodyOffsets!: Uint32Array;
+  private bodyLengths!: Uint32Array;
+
+  private readonly bodyBufferSabs: (SharedArrayBuffer | ArrayBuffer)[] = [];
+  private readonly bodyBuffers: Uint8Array[] = [];
+
+  private currentBufferIndex = -1;
+  private currentOffset = 0;
+
+  private readonly decodedBodyCache: WeakRef<
     ReadonlyDomainElement<Record<string, unknown>>
   >[] = [];
-  private idToIndex: Undefinable<number>[] = [];
+  private idToIndex: (number | undefined)[] = [];
   private readonly decoder: InternedStructDecoder;
 
-  constructor(
+  private constructor(
     private readonly internPool: InternPoolStore,
     private readonly styleStore: StyleStore,
+    private readonly maxBufferSize: number,
+    readOnly: boolean,
+    initialData: number | LogStoreSharedData,
   ) {
+    this.readOnly = readOnly;
     this.decoder = new InternedStructDecoder(this.internPool);
+
+    if (typeof initialData === 'number') {
+      const initialCapacity = initialData;
+      this.allocateMetadata(initialCapacity);
+    } else {
+      const sharedData = initialData;
+      this.metadataSab = sharedData.metadataSab;
+      this.bodyBufferSabs = Array.from(sharedData.bodyBufferSabs);
+      this.bodyBuffers = this.bodyBufferSabs.map((sab) => new Uint8Array(sab));
+      this.idToIndex = Array.from(sharedData.idToIndex);
+      this.mapMetadataViews(sharedData.count);
+    }
+  }
+
+  /**
+   * Creates a new writable LogStore instance.
+   */
+  public static create(
+    internPool: InternPoolStore,
+    styleStore: StyleStore,
+    maxBufferSize: number = 100 * 1024 * 1024,
+  ): LogStore {
+    return new LogStore(internPool, styleStore, maxBufferSize, false, 1024);
+  }
+
+  /**
+   * Reconstructs a read-only LogStore instance from shared memory data.
+   */
+  public static fromSharedData(
+    internPool: InternPoolStore,
+    styleStore: StyleStore,
+    sharedData: LogStoreSharedData,
+    maxBufferSize: number = 100 * 1024 * 1024,
+  ): LogStore {
+    return new LogStore(
+      internPool,
+      styleStore,
+      maxBufferSize,
+      true,
+      sharedData,
+    );
+  }
+
+  private allocateMetadata(capacity: number): void {
+    let currentOffset = 0;
+    const idsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const logTypeIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const severityIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const summaryStringIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const timestampsOffset = align(currentOffset, 8);
+    currentOffset = timestampsOffset + capacity * 8;
+
+    const bodyBufferIndicesOffset = align(currentOffset, 2);
+    currentOffset = bodyBufferIndicesOffset + capacity * 2;
+
+    const bodyOffsetsOffset = align(currentOffset, 4);
+    currentOffset = bodyOffsetsOffset + capacity * 4;
+
+    const bodyLengthsOffset = align(currentOffset, 4);
+    currentOffset = bodyLengthsOffset + capacity * 4;
+
+    const totalBytes = currentOffset;
+    this.metadataSab = allocateBuffer(totalBytes);
+
+    this.ids = new Uint32Array(this.metadataSab, idsOffset, capacity);
+    this.logTypeIds = new Uint32Array(
+      this.metadataSab,
+      logTypeIdsOffset,
+      capacity,
+    );
+    this.severityIds = new Uint32Array(
+      this.metadataSab,
+      severityIdsOffset,
+      capacity,
+    );
+    this.summaryStringIds = new Uint32Array(
+      this.metadataSab,
+      summaryStringIdsOffset,
+      capacity,
+    );
+    this.timestamps = new BigUint64Array(
+      this.metadataSab,
+      timestampsOffset,
+      capacity,
+    );
+    this.bodyBufferIndices = new Uint16Array(
+      this.metadataSab,
+      bodyBufferIndicesOffset,
+      capacity,
+    );
+    this.bodyOffsets = new Uint32Array(
+      this.metadataSab,
+      bodyOffsetsOffset,
+      capacity,
+    );
+    this.bodyLengths = new Uint32Array(
+      this.metadataSab,
+      bodyLengthsOffset,
+      capacity,
+    );
+  }
+
+  private mapMetadataViews(capacity: number): void {
+    let currentOffset = 0;
+    const idsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const logTypeIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const severityIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const summaryStringIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
+    const timestampsOffset = align(currentOffset, 8);
+    currentOffset = timestampsOffset + capacity * 8;
+
+    const bodyBufferIndicesOffset = align(currentOffset, 2);
+    currentOffset = bodyBufferIndicesOffset + capacity * 2;
+
+    const bodyOffsetsOffset = align(currentOffset, 4);
+    currentOffset = bodyOffsetsOffset + capacity * 4;
+
+    const bodyLengthsOffset = align(currentOffset, 4);
+    currentOffset = bodyLengthsOffset + capacity * 4;
+
+    this.ids = new Uint32Array(this.metadataSab, idsOffset, capacity);
+    this.logTypeIds = new Uint32Array(
+      this.metadataSab,
+      logTypeIdsOffset,
+      capacity,
+    );
+    this.severityIds = new Uint32Array(
+      this.metadataSab,
+      severityIdsOffset,
+      capacity,
+    );
+    this.summaryStringIds = new Uint32Array(
+      this.metadataSab,
+      summaryStringIdsOffset,
+      capacity,
+    );
+    this.timestamps = new BigUint64Array(
+      this.metadataSab,
+      timestampsOffset,
+      capacity,
+    );
+    this.bodyBufferIndices = new Uint16Array(
+      this.metadataSab,
+      bodyBufferIndicesOffset,
+      capacity,
+    );
+    this.bodyOffsets = new Uint32Array(
+      this.metadataSab,
+      bodyOffsetsOffset,
+      capacity,
+    );
+    this.bodyLengths = new Uint32Array(
+      this.metadataSab,
+      bodyLengthsOffset,
+      capacity,
+    );
   }
 
   /**
@@ -69,16 +279,13 @@ export class LogStore {
    * @param count The total number of logs.
    */
   public initialize(logs: Iterable<LogDTO>, count: number): void {
-    this.ids = new Uint32Array(count);
-    this.timestamps = new BigUint64Array(count);
-    this.logTypeIds = new Uint32Array(count);
-    this.severityIds = new Uint32Array(count);
-    this.summaryStringIds = new Uint32Array(count);
+    if (this.readOnly) {
+      throw new Error('Cannot write to a shared read-only LogStore');
+    }
 
-    this.bodies = new Array<Undefinable<Uint8Array>>(count);
-    this.decodedBodyCache = new Array<
-      WeakRef<ReadonlyDomainElement<Record<string, unknown>>>
-    >(count);
+    this.allocateMetadata(count);
+
+    this.decodedBodyCache.length = count;
     this.idToIndex = [];
 
     let index = 0;
@@ -96,10 +303,57 @@ export class LogStore {
       this.logTypeIds[index] = log.logTypeId;
       this.severityIds[index] = log.severityTypeId;
       this.summaryStringIds[index] = log.summaryStringId;
-      this.bodies[index] = log.body;
+
+      if (log.body !== undefined && log.body.length > 0) {
+        this.addBody(index, log.body);
+      } else {
+        this.bodyBufferIndices[index] = 0;
+        this.bodyOffsets[index] = 0;
+        this.bodyLengths[index] = 0;
+      }
+
       this.idToIndex[log.id] = index;
       index++;
     }
+  }
+
+  private addBody(index: number, bodyBytes: Uint8Array): void {
+    const length = bodyBytes.length;
+
+    if (length > this.maxBufferSize) {
+      const sab = allocateBuffer(length);
+      const buf = new Uint8Array(sab);
+      buf.set(bodyBytes);
+      this.bodyBufferSabs.push(sab);
+      this.bodyBuffers.push(buf);
+
+      const newBufIdx = this.bodyBuffers.length - 1;
+      this.bodyBufferIndices[index] = newBufIdx + 1;
+      this.bodyOffsets[index] = 0;
+      this.bodyLengths[index] = length;
+      return;
+    }
+
+    if (
+      this.currentBufferIndex === -1 ||
+      this.currentOffset + length > this.maxBufferSize
+    ) {
+      const sab = allocateBuffer(this.maxBufferSize);
+      const buf = new Uint8Array(sab);
+      this.bodyBufferSabs.push(sab);
+      this.bodyBuffers.push(buf);
+      this.currentBufferIndex = this.bodyBuffers.length - 1;
+      this.currentOffset = 0;
+    }
+
+    const currentBuf = this.bodyBuffers[this.currentBufferIndex];
+    currentBuf.set(bodyBytes, this.currentOffset);
+
+    this.bodyBufferIndices[index] = this.currentBufferIndex + 1;
+    this.bodyOffsets[index] = this.currentOffset;
+    this.bodyLengths[index] = length;
+
+    this.currentOffset += length;
   }
 
   /**
@@ -179,9 +433,22 @@ export class LogStore {
       return cached;
     }
 
-    const body = this.bodies[index];
-    if (!body) return null;
-    const struct = fromBinary(InternedStructSchema, body);
+    const bufIdx = this.bodyBufferIndices[index];
+    if (bufIdx === 0) return null;
+
+    const offset = this.bodyOffsets[index];
+    const length = this.bodyLengths[index];
+
+    const buffer = this.bodyBuffers[bufIdx - 1];
+    const bytes = buffer.subarray(offset, offset + length);
+    let decodeTarget = bytes;
+    if (isSharedBuffer(bytes.buffer)) {
+      const nonSharedBytes = new Uint8Array(length);
+      nonSharedBytes.set(bytes);
+      decodeTarget = nonSharedBytes;
+    }
+
+    const struct = fromBinary(InternedStructSchema, decodeTarget);
     const decoded = this.decoder.decode(struct);
     this.decodedBodyCache[index] = new WeakRef(decoded);
     return decoded;
@@ -198,5 +465,17 @@ export class LogStore {
       throw new Error(`Log ID ${id} not found`);
     }
     return index;
+  }
+
+  /**
+   * Returns the shared memory representation of this LogStore.
+   */
+  public getSharedData(): LogStoreSharedData {
+    return {
+      metadataSab: this.metadataSab,
+      bodyBufferSabs: this.bodyBufferSabs,
+      count: this.ids.length,
+      idToIndex: this.idToIndex,
+    };
   }
 }

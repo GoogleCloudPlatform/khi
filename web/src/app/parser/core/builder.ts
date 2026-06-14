@@ -46,7 +46,7 @@ import {
  * Collects components in a version-decoupled form.
  */
 export class InspectionDataBuilder {
-  private readonly internPool = new InternPoolStore();
+  private readonly internPool = InternPoolStore.create();
   private readonly styleStore = new StyleStore();
   private readonly logStore: LogStore;
   private readonly timelineStore: TimelineStore;
@@ -63,8 +63,8 @@ export class InspectionDataBuilder {
   private iconAtlasPromise?: Promise<void>;
 
   constructor() {
-    this.logStore = new LogStore(this.internPool, this.styleStore);
-    this.timelineStore = new TimelineStore(
+    this.logStore = LogStore.create(this.internPool, this.styleStore);
+    this.timelineStore = TimelineStore.create(
       this.internPool,
       this.styleStore,
       this.logStore,

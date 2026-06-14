@@ -37,10 +37,10 @@ describe('SelectionManagerV2', () => {
     dataStore = TestBed.inject(InspectionDataStoreV2);
     service = TestBed.inject(SelectionManagerV2);
 
-    const internPool = new InternPoolStore();
+    const internPool = InternPoolStore.create();
     const styleStore = new StyleStore();
-    logStore = new LogStore(internPool, styleStore);
-    timelineStore = new TimelineStore(internPool, styleStore, logStore);
+    logStore = LogStore.create(internPool, styleStore);
+    timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
     styleStore.addSeverities([
       {

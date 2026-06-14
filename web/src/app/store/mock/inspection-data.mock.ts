@@ -46,10 +46,10 @@ import {
  * @returns A promise resolving to a populated mock inspection data instance.
  */
 export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
-  const internPool = new InternPoolStore();
+  const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
-  const logStore = new LogStore(internPool, styleStore);
-  const timelineStore = new TimelineStore(internPool, styleStore, logStore);
+  const logStore = LogStore.create(internPool, styleStore);
+  const timelineStore = TimelineStore.create(internPool, styleStore, logStore);
 
   const idState: MockInternIdState = {
     nextStringId: 1,
