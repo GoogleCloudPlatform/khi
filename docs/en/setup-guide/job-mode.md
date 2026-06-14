@@ -32,7 +32,7 @@ Available inspection type IDs include:
   --job-mode \
   --job-inspection-type gcp-gke \
   --job-inspection-features <feature-id>,<feature-id> \
-  --job-inspection-values '{"<form-field-id>":"<value>"}' \
+  --job-inspection-values '{"<text-field-id>":"<value>","<set-field-id>":["<value>"]}' \
   --job-export-destination ./inspection.khi
 ```
 
@@ -58,7 +58,7 @@ For example, a Google Cloud inspection usually includes common fields such as pr
 }
 ```
 
-The exact set of required fields depends on the inspection type and enabled features. The most reliable way to build the JSON is to run the same inspection once in the web UI, open the browser developer tools, and check the request payload sent to `POST /api/v3/inspection/<inspection-id>/run` or `POST /api/v3/inspection/<inspection-id>/dryrun`. The `parameters` object in that request uses the same field IDs and values that job mode expects.
+The exact set of required fields depends on the inspection type and enabled features. The most reliable way to build the JSON is to run the same inspection once in the web UI, open the browser developer tools, and check the request payload sent to `POST /api/v3/inspection/<inspection-id>/run` or `POST /api/v3/inspection/<inspection-id>/dryrun`. Copy the `parameters` object from that request as the `--job-inspection-values` JSON. It uses the same field IDs and values that job mode expects.
 
 For a GKE inspection, the commonly required field IDs are:
 
@@ -83,6 +83,26 @@ Some optional GKE features add their own fields. Include these fields when the s
 | CSM access logs | `cloud.google.com/log/csm-accesslog/input/response-flags` | `["@any", "-OK"]` |
 | CSM resource audit logs | `cloud.google.com/log/csm-accesslog/input/fleet-project-id` | `"my-project"` |
 
+When using `--job-inspection-features ALL` for GKE, start with a payload like this and adjust the values for the target cluster:
+
+```json
+{
+  "cloud.google.com/common/input-project-id": "my-project",
+  "cloud.google.com/common/input-location": "us-central1",
+  "cloud.google.com/common/input-end-time": "2026-01-15T10:00:00Z",
+  "cloud.google.com/common/input-duration": "2h",
+  "cloud.google.com/k8s/input-cluster-name": "my-cluster",
+  "cloud.google.com/k8s/input-namespaces": ["@all_cluster_scoped", "@all_namespaced"],
+  "cloud.google.com/k8s/input-kinds": ["@default"],
+  "cloud.google.com/k8s/input/node-name-filter": [],
+  "cloud.google.com/log/k8s-container/input/query-namespaces": ["@managed"],
+  "cloud.google.com/log/k8s-container/input/query-podnames": ["@any"],
+  "cloud.google.com/log/k8s-control-plane/input/component-names": ["@any", "-apiserver"],
+  "cloud.google.com/log/csm-accesslog/input/response-flags": ["@any", "-OK"],
+  "cloud.google.com/log/csm-accesslog/input/fleet-project-id": "my-project"
+}
+```
+
 ## **Selecting features**
 
 Use `ALL` when the job should include every feature supported by the selected inspection type:
@@ -91,7 +111,7 @@ Use `ALL` when the job should include every feature supported by the selected in
 --job-inspection-features ALL
 ```
 
-`ALL` enables optional features that are disabled by default in the web UI. For GKE, this includes node logs, container logs, control plane component logs, CSM logs, and serial port logs, so the extra fields listed above may also be required.
+`ALL` enables optional features that are disabled by default in the web UI. For GKE, this includes node logs, container logs, control plane component logs, CSM logs, and serial port logs, so include the extra fields listed above.
 
 To enable only specific features, pass their IDs as a comma-separated list:
 
