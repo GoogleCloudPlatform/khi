@@ -165,3 +165,53 @@ func TestRetryWithCountBudget(t *testing.T) {
 		})
 	}
 }
+
+// TestDefaultRetryer tests the custom default retry policy behavior.
+func TestDefaultRetryer(t *testing.T) {
+	testCases := []struct {
+		name      string
+		nextError error
+		wantRetry bool
+	}{
+		{
+			name:      "retry on unavailable",
+			nextError: status.Error(codes.Unavailable, "unavailable"),
+			wantRetry: true,
+		},
+		{
+			name:      "do not retry on standard unauthenticated",
+			nextError: status.Error(codes.Unauthenticated, "invalid credentials"),
+			wantRetry: false,
+		},
+		{
+			name:      "retry on specific mtls timeout unauthenticated error",
+			nextError: status.Error(codes.Unauthenticated, `transport: per-RPC creds failed due to error: Post "https://oauth2.mtls.googleapis.com/token": net/http: TLS handshake timeout`),
+			wantRetry: true,
+		},
+		{
+			name:      "retry on specific mtls pkcs11 sign failure error",
+			nextError: status.Error(codes.Unauthenticated, `transport: per-RPC creds failed due to error: Post "https://oauth2.mtls.googleapis.com/token": tls: failed to sign handshake: pkcs11: C_Sign() CKR_ARGUMENTS_BAD`),
+			wantRetry: true,
+		},
+		{
+			name:      "do not retry on other errors",
+			nextError: status.Error(codes.InvalidArgument, "invalid argument"),
+			wantRetry: false,
+		},
+		{
+			name:      "do not retry on non-gRPC error",
+			nextError: fmt.Errorf("generic network error"),
+			wantRetry: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			retrier := NewDefaultRetryer()
+			_, gotRetry := retrier.Retry(tc.nextError)
+			if gotRetry != tc.wantRetry {
+				t.Errorf("Retry() got retry flag %v, want %v", gotRetry, tc.wantRetry)
+			}
+		})
+	}
+}
