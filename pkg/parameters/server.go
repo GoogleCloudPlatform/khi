@@ -49,7 +49,7 @@ func (s *ServerParameters) PostProcess() error {
 func (s *ServerParameters) Prepare() error {
 	s.ViewerMode = flag.Bool("viewer-mode", false, "Limits the KHI feature to query logs with the backend. When it is true, KHI is only serve the frontend to open KHI files.", "KHI_VIEWER_MODE")
 	s.Port = flag.Int("port", 8080, "The port number where KHI server listens.", "PORT")
-	s.Host = flag.String("host", "localhost", "The host address where KHI server serves.", "HOST")
+	s.Host = flag.String("host", "127.0.0.1", "The host address where KHI server serves.", "HOST")
 	s.BasePath = flag.String("base-path", "/", "The base address of API endpoints.", "KHI_BASE_PATH")
 	s.FrontendResourceBasePath = flag.String("frontend-resource-base-path", "", "Another base address only for frontend assets. If this value is not set, this uses `--base-path` value by default.", "KHI_FRONTEND_RESOURCE_PATH")
 	s.FrontendAssetFolder = flag.String("frontend-asset-folder", "", "The root folder of the assets used in frontend including index.html. If this value is not set, the assets embedded into the executable are used.", "KHI_FRONTEND_ASSET_FOLDER")
