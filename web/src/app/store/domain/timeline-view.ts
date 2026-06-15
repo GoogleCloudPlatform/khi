@@ -174,7 +174,7 @@ export class TimelineView {
       if (err instanceof CancellationError) {
         return;
       }
-      console.warn('Error during async filtering pipeline:', err);
+      console.error('Error during async filtering pipeline:', err);
     } finally {
       if (this.activeAbortController === abortController) {
         this._isFiltering.set(false);

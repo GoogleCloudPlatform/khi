@@ -23,6 +23,7 @@ import {
   SearchWorkerRequest,
   SearchWorkerResponse,
 } from 'src/app/worker/search/search-types';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 interface SearchSession {
   readonly expectedResponses: number;
@@ -335,10 +336,10 @@ export class SearchWorkerManager implements OnDestroy {
       return;
     }
     const progressArray = new Int32Array(session.progressSab);
-    const cancellationIndex = this.numWorkers * 16;
+    const cancellationIndex = this.workers.length * 16;
     Atomics.store(progressArray, cancellationIndex, 1);
 
-    session.reject(new Error('Search cancelled'));
+    session.reject(new CancellationError('Search cancelled'));
     this.activeSessions.delete(requestId);
   }
 
