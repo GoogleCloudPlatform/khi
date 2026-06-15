@@ -27,12 +27,11 @@ const InspectionTypeID = "gcp-gke"
 
 // GKEInspectionType defines the inspection type for Google Kubernetes Engine.
 var GKEInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeID,
-	Name: "Google Kubernetes Engine",
-	Description: `Visualize logs generated from GKE cluster. 
-Supporting K8s audit log, K8s event log,K8s node log, K8s container log, GCE audit log, Networking audit log(NEG attach/detach) and autoscaler log.`,
-	Icon:     "assets/icons/gke.png",
-	Priority: math.MaxInt,
+	Id:          InspectionTypeID,
+	Name:        "Google Kubernetes Engine",
+	Description: `Gather and parse Google Kubernetes Engine (GKE) cluster logs (Kubernetes audit, event, node, container, GCE audit, Network, and Cluster Autoscaler logs) to visualize cluster operations on timelines.`,
+	Icon:        "assets/icons/gke.png",
+	Priority:    math.MaxInt,
 	Labels: map[string]string{
 		inspectioncore_contract.InspectionTypeLabelKeyLogSource:      "cloud_logging",
 		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:    "googlecloud",

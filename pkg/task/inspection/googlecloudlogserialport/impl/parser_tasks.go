@@ -156,8 +156,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudlogserialport_contract.LogToTimelineMapperTaskID,
 	&serialportLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"GCE Node Serialport log",
-		`Serialport logs from GCE instances. This helps detailed investigation on VM bootstrapping issue on GCE instance.`,
+		"GCE Node Serial Port Logs",
+		`Gather serial port logs from GCE instances to troubleshoot VM bootstrapping and OS initialization issues.`,
 		10000,
 		false,
 	),

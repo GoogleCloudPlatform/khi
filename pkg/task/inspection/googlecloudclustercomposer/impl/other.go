@@ -171,7 +171,7 @@ var AirflowOtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMap
 	&otherLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"Airflow Other Components Logs",
-		"Timeline mapping for other components' logs under Apache Airflow.",
+		"Gather logs from other Apache Airflow components to map and visualize their activities on timelines.",
 		1505,
 		false,
 	),

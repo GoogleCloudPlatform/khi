@@ -27,12 +27,11 @@ const InspectionTypeID = "gcp-gdcv-for-vmware"
 
 // GDCVForVMWareInspectionType defines the inspection type for GDCV for VMWare.
 var GDCVForVMWareInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeID,
-	Name: "GDCV for VMWare (GKE on VMWare, Anthos on VMWare)",
-	Description: `Visualize logs generated from GDCV for VMWare cluster (including admin cluster/user cluster).
-Supporting K8s audit log, K8s event log, K8s node log, K8s container log and OnPrem API audit log.`,
-	Icon:     "assets/icons/anthos.png",
-	Priority: math.MaxInt - 4,
+	Id:          InspectionTypeID,
+	Name:        "GDCV for VMware (GKE on VMware, Anthos on VMware)",
+	Description: `Gather and parse Google Distributed Cloud Virtual (GDCV) for VMware cluster logs (including admin and user clusters; Kubernetes audit, event, node, container, and On-Premises API audit logs) to visualize cluster operations on timelines.`,
+	Icon:        "assets/icons/anthos.png",
+	Priority:    math.MaxInt - 4,
 	Labels: map[string]string{
 		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
 		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",

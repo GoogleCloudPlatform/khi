@@ -36,7 +36,7 @@ var ComposerLogsTailTask = coretask.NewTask(
 	},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"Composer Logs",
-		"Cloud Composer related logs like airflow-worker, airflow-scheduler, airflow-dag-processor-manager, and others.",
+		"Gather Cloud Composer logs, including airflow-worker, airflow-scheduler, and airflow-dag-processor-manager, to visualize general environment operations on timelines.",
 		101000,
 		true,
 	),

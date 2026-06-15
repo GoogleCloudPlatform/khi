@@ -158,7 +158,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	&autoscalerTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		`GKE Autoscaler Logs`,
-		`Gather logs related to cluster autoscaler behavior to show them on the timelines of resources related to the autoscaler decision.`,
+		`Gather Cluster Autoscaler logs to visualize autoscaling decisions and actions on the timelines of the affected resources.`,
 		8000,
 		true,
 	),

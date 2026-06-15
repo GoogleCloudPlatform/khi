@@ -143,7 +143,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	&KubernetesEventTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"Kubernetes Event Logs",
-		"Gather kubernetes event logs and visualize these on the associated resource timeline.",
+		"Gather Kubernetes event logs to visualize cluster events on associated resource timelines.",
 		2000,
 		true,
 	),
