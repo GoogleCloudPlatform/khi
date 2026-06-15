@@ -26,14 +26,14 @@ var (
 	RevisionAutoscalerNoError = style.MustRegisterRevisionState(
 		"Autoscaler has no error",
 		"heart_check",
-		"Autoscaler has no error",
+		"The GKE Cluster Autoscaler is operating normally without any reported errors.",
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionAutoscalerHasErrors = style.MustRegisterRevisionState(
 		"Autoscaler has errors",
 		"heart_broken",
-		"Autoscaler has errors",
+		"The GKE Cluster Autoscaler has encountered errors preventing normal autoscaling operations.",
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)

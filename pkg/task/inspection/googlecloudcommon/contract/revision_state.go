@@ -26,14 +26,14 @@ var (
 	RevisionStateOperationStarted = style.MustRegisterRevisionState(
 		"Processing operation",
 		"change_circle",
-		"Processing operation",
+		"The GCP API long-running operation is currently in progress.",
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateOperationFinished = style.MustRegisterRevisionState(
 		"Operation is finished",
 		"check_circle",
-		"Operation is finished",
+		"The GCP API long-running operation has completed.",
 		style.MustForceConvertSRGBHex("#333333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)

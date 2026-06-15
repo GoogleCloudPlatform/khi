@@ -24,7 +24,7 @@ import (
 var (
 	TimelineTypeManagedInstanceGroup = style.MustRegisterTimelineType(
 		"mig",
-		"MIG logs for the parent node pool",
+		"Managed Instance Group (MIG) logs for the nodepool",
 		"host",
 		0.6,
 		style.ColorWhite,
@@ -37,7 +37,7 @@ var (
 	)
 	TimelineTypeAutoscaler = style.MustRegisterTimelineType(
 		"autoscaler",
-		"GKE Cluster Autoscaler",
+		"Logs of the GKE Cluster Autoscaler",
 		"smart_toy",
 		0.6,
 		style.ColorWhite,

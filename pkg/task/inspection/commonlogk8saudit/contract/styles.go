@@ -21,18 +21,20 @@ import (
 
 // RevisionStateK8sResourceExisting is the style for a resource that is existing.
 var RevisionStateK8sResourceExisting = style.MustRegisterRevisionState(
-	"Resource is existing",
+	"Resource exists",
 	"deployed_code",
-	"Resource is existing",
+	`The Kubernetes resource exists and is active.
+
+**Note**: This state indicates existence in the API server; it does not guarantee that the resource is healthy or fully reconciled.`,
 	style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 	pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 )
 
 // RevisionStateK8sResourceDeleting is the style for a resource that is under deletion with graceful termination period or finalizer.
 var RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
-	"Resource is under deletion with graceful termination period or finalizer",
+	"Resource is being deleted",
 	"auto_delete",
-	"Resource is under deletion with graceful termination period or finalizer",
+	"The Kubernetes resource is undergoing deletion (e.g., finalizers are running or in a graceful termination phase).",
 	style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 	pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 )
@@ -41,7 +43,7 @@ var RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
 var RevisionStateK8sResourceIsDeleted = style.MustRegisterRevisionState(
 	"Resource is deleted",
 	"delete_forever",
-	"Resource is deleted",
+	"The Kubernetes resource has been deleted.",
 	style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
 	pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 )

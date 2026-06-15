@@ -24,7 +24,7 @@ import (
 var (
 	TimelineTypeGKE = style.MustRegisterTimelineType(
 		"gke",
-		"GKE Control Plane and lifecycle logs",
+		"Control plane operations and lifecycle logs of the GKE cluster",
 		"cloud",
 		1.0,
 		style.Color{R: 0.780, G: 0.863, B: 1.000, A: 1.0},
@@ -80,7 +80,7 @@ var (
 	// TimelineTypeGKENodePool is the style for a GKE node pool.
 	TimelineTypeGKENodePool = style.MustRegisterTimelineType(
 		"nodepool",
-		"GKE Nodepool layer",
+		"Grouping timeline for GKE nodepools",
 		"dns",
 		0.8,
 		style.Color{R: 0.941, G: 0.965, B: 1.000, A: 1.0},
@@ -93,7 +93,7 @@ var (
 	)
 	TimelineTypeOperation = style.MustRegisterTimelineType(
 		"operation",
-		"GCP operations associated with this resource",
+		"Google Cloud operations associated with the resource",
 		"engineering",
 		0.6,
 		style.ColorWhite,
@@ -106,7 +106,7 @@ var (
 	)
 	TimelineTypeGCPProject = style.MustRegisterTimelineType(
 		"project",
-		"A Google Cloud Project.",
+		"Timeline representing a Google Cloud project",
 		"cloud",
 		1.0,
 		style.Color{R: 0.102, G: 0.451, B: 0.910, A: 1.0},
@@ -119,7 +119,7 @@ var (
 	)
 	TimelineTypeGCPResourceType = style.MustRegisterTimelineType(
 		"gcp_resource_type",
-		"GCP Resource Type",
+		"Grouping timeline for Google Cloud resource types",
 		"category",
 		0.6,
 		style.ColorWhite,
@@ -132,7 +132,7 @@ var (
 	)
 	TimelineTypeGCPResource = style.MustRegisterTimelineType(
 		"gcp_resource",
-		"GCP Resource",
+		"Timeline representing a Google Cloud resource",
 		"deployed_code",
 		0.6,
 		style.ColorWhite,

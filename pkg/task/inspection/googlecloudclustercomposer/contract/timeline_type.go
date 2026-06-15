@@ -27,7 +27,7 @@ var (
 	// Background is set to #377e22.
 	TimelineTypeComposerEnvironment = style.MustRegisterTimelineType(
 		"composer_environment",
-		"Composer Environment",
+		"Timeline representing a Cloud Composer environment",
 		"settings",
 		0.6,
 		style.MustForceConvertSRGBHex("#377e22"),
@@ -43,7 +43,7 @@ var (
 	// Progressive lighter green background #5cb239.
 	TimelineTypeDAGs = style.MustRegisterTimelineType(
 		"dags",
-		"DAGs",
+		"Grouping timeline for Airflow DAGs",
 		"folder",
 		0.6,
 		style.MustForceConvertSRGBHex("#5cb239"),
@@ -59,7 +59,7 @@ var (
 	// Progressive lighter green background #89ca6a.
 	TimelineTypeAirflowDAG = style.MustRegisterTimelineType(
 		"airflow_dag",
-		"Airflow DAG",
+		"Timeline representing an Airflow DAG",
 		"account_tree",
 		0.6,
 		style.MustForceConvertSRGBHex("#89ca6a"),
@@ -75,7 +75,7 @@ var (
 	// Progressive lighter green background #bce3a5.
 	TimelineTypeAirflowDAGRun = style.MustRegisterTimelineType(
 		"airflow_dag_run",
-		"Airflow DAG Run",
+		"Timeline representing an Airflow DAG run",
 		"play_circle",
 		0.6,
 		style.MustForceConvertSRGBHex("#bce3a5"),
@@ -91,7 +91,7 @@ var (
 	// As it contains raw log/revisions, its background is set to White.
 	TimelineTypeAirflowTaskInstance = style.MustRegisterTimelineType(
 		"task",
-		"Airflow Task Instance execution state",
+		"Execution states of the Airflow task instance",
 		"mode_fan",
 		0.6,
 		style.ColorWhite,
@@ -107,7 +107,7 @@ var (
 	// Progressive lighter green background #5cb239.
 	TimelineTypeComponents = style.MustRegisterTimelineType(
 		"airflow_components",
-		"Airflow Components",
+		"Grouping timeline for Airflow backend components",
 		"apps",
 		0.6,
 		style.MustForceConvertSRGBHex("#5cb239"),
@@ -123,7 +123,7 @@ var (
 	// Progressive lighter green background #5cb239.
 	TimelineTypeDAGProcessorManager = style.MustRegisterTimelineType(
 		"dag_processor_manager",
-		"DAG Processor Manager",
+		"Timeline representing the Airflow DAG Processor Manager",
 		"summarize",
 		0.6,
 		style.MustForceConvertSRGBHex("#5cb239"),
@@ -139,7 +139,7 @@ var (
 	// Progressive lighter green background #89ca6a.
 	TimelineTypeDAGFile = style.MustRegisterTimelineType(
 		"dag_file",
-		"DAG File",
+		"Timeline representing an Airflow DAG definition file",
 		"description",
 		0.6,
 		style.MustForceConvertSRGBHex("#89ca6a"),
@@ -155,7 +155,7 @@ var (
 	// As it contains revisions, its background is set to White.
 	TimelineTypeDAGProcessorManagerInstance = style.MustRegisterTimelineType(
 		"dag_processor_manager_instance",
-		"DAG Processor Manager Instance",
+		"Logs of the DAG Processor Manager instance",
 		"terminal",
 		0.6,
 		style.ColorWhite,
@@ -168,10 +168,10 @@ var (
 	)
 
 	// Components specific timelines (Actual log/event containers: White background)
-	TimelineTypeAirflowScheduler           = style.MustRegisterTimelineType("airflow_scheduler", "Airflow Scheduler", "schedule", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#4285F4"), style.ColorWhite, true, 100, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowWorker              = style.MustRegisterTimelineType("airflow_worker", "Airflow Worker", "directions_run", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#0F9D58"), style.ColorWhite, true, 110, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowDagProcessorManager = style.MustRegisterTimelineType("airflow_dag_processor_manager", "Airflow DAG Processor Manager", "summarize", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), style.ColorWhite, true, 115, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowTriggerer           = style.MustRegisterTimelineType("airflow_triggerer", "Airflow Triggerer", "bolt", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#FFBB00"), style.ColorBlack, true, 120, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowWebserver           = style.MustRegisterTimelineType("airflow_webserver", "Airflow Webserver", "web", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#9470DC"), style.ColorWhite, true, 130, style.AlphabeticalSortPolicy())
-	TimelineTypeAirflowComponent           = style.MustRegisterTimelineType("airflow_component", "Airflow Component", "extension", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), style.ColorWhite, true, 140, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowScheduler           = style.MustRegisterTimelineType("airflow_scheduler", "Logs of the Airflow Scheduler", "schedule", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#4285F4"), style.ColorWhite, true, 100, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowWorker              = style.MustRegisterTimelineType("airflow_worker", "Logs of the Airflow Worker", "directions_run", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#0F9D58"), style.ColorWhite, true, 110, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowDagProcessorManager = style.MustRegisterTimelineType("airflow_dag_processor_manager", "Logs of the Airflow DAG Processor Manager", "summarize", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), style.ColorWhite, true, 115, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowTriggerer           = style.MustRegisterTimelineType("airflow_triggerer", "Logs of the Airflow Triggerer", "bolt", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#FFBB00"), style.ColorBlack, true, 120, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowWebserver           = style.MustRegisterTimelineType("airflow_webserver", "Logs of the Airflow Webserver", "web", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#9470DC"), style.ColorWhite, true, 130, style.AlphabeticalSortPolicy())
+	TimelineTypeAirflowComponent           = style.MustRegisterTimelineType("airflow_component", "Logs of the generic Airflow component", "extension", 0.6, style.ColorWhite, style.ColorBlack, style.MustForceConvertSRGBHex("#808080"), style.ColorWhite, true, 140, style.AlphabeticalSortPolicy())
 )

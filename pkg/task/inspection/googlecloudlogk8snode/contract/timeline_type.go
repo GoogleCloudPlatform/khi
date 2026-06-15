@@ -24,7 +24,7 @@ import (
 var (
 	TimelineTypeNodeComponent = style.MustRegisterTimelineType(
 		"node-component",
-		"Non-containerized component on the node",
+		"Logs of non-containerized system components on the node",
 		"manufacturing",
 		0.6,
 		style.ColorWhite,

@@ -24,7 +24,7 @@ import (
 var (
 	TimelineTypeResourceCondition = style.MustRegisterTimelineType(
 		"condition",
-		"Resource conditions from .status.conditions",
+		"Status conditions of the resource (from .status.conditions)",
 		"conditions",
 		0.6,
 		style.ColorWhite,
@@ -37,7 +37,7 @@ var (
 	)
 	TimelineTypeEndpointSlice = style.MustRegisterTimelineType(
 		"endpoint",
-		"Pod serving status from EndpointSlice",
+		"Pod serving status (from EndpointSlice)",
 		"line_end_diamond",
 		0.6,
 		style.ColorWhite,
@@ -50,7 +50,7 @@ var (
 	)
 	TimelineTypeOwnerReference = style.MustRegisterTimelineType(
 		"owns",
-		"Child resource from .metadata.ownerReferences",
+		"Child resources owned by the resource (from .metadata.ownerReferences)",
 		"link",
 		0.6,
 		style.ColorWhite,
@@ -63,7 +63,7 @@ var (
 	)
 	TimelineTypePodPhase = style.MustRegisterTimelineType(
 		"pod",
-		"Pod status on the node from .status.phase",
+		"Phase transitions of the pod (from .status.phase)",
 		"token",
 		0.6,
 		style.ColorWhite,
@@ -77,7 +77,7 @@ var (
 	// TimelineTypeContainer is the timeline type style for Kubernetes containers.
 	TimelineTypeContainer = style.MustRegisterTimelineType(
 		"container",
-		"Container status and logs",
+		"Lifecycle states and logs of the container",
 		"activity_zone",
 		0.6,
 		style.ColorWhite,

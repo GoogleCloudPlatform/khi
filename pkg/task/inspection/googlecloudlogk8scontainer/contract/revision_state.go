@@ -24,51 +24,55 @@ import (
 // when this package is imported.
 var (
 	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
-		"Waiting for starting container",
+		"Container is waiting",
 		"deployed_code_history",
-		"Waiting for starting container",
+		"The container is waiting to start (e.g., image pull or init container execution is in progress).",
 		style.MustForceConvertSRGBHex("#4444ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateContainerRunningNonReady = style.MustRegisterRevisionState(
 		"Container is not ready",
 		"heart_broken",
-		"Container is not ready",
+		"The container is running but has not passed its readiness probe.",
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateContainerRunningReady = style.MustRegisterRevisionState(
 		"Container is ready",
 		"heart_check",
-		"Container is ready",
+		"The container is running and has successfully passed its readiness probe.",
 		style.MustForceConvertSRGBHex("#007700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateContainerTerminatedWithSuccess = style.MustRegisterRevisionState(
-		"Container exited with healthy exit code",
+		"Container exited successfully",
 		"check_circle",
-		"Container exited with healthy exit code",
+		"The container has terminated successfully with an exit code of `0`.",
 		style.MustForceConvertSRGBHex("#113333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateContainerTerminatedWithError = style.MustRegisterRevisionState(
-		"Container exited with erroneous exit code",
+		"Container exited with error",
 		"error",
-		"Container exited with erroneous exit code",
+		"The container has terminated in failure with a non-zero exit code.",
 		style.MustForceConvertSRGBHex("#551111"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateContainerStatusNotAvailable = style.MustRegisterRevisionState(
-		"Container status is not available",
+		"Container status is unavailable",
 		"unknown_document",
-		"Container status is not available",
+		`The container status is unknown or not yet reported in the log data.
+
+**Tip**: Consider expanding the query time range to capture complete container status events.`,
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateContainerStarted = style.MustRegisterRevisionState(
-		"Container is started but readiness info is not available",
+		"Container is started, readiness unknown",
 		"siren_question",
-		"Container is started but readiness info is not available",
+		`The container has started, but no readiness probe information has been recorded yet.
+
+**Tip**: Consider expanding the query time range to observe readiness probe events.`,
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)

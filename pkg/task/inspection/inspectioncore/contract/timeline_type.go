@@ -24,7 +24,7 @@ import (
 var (
 	TimelineTypeK8sCluster = style.MustRegisterTimelineType(
 		"k8sCluster",
-		"Kubernetes Cluster layer",
+		"Grouping timeline for Kubernetes clusters",
 		"cloud",
 		0.6,
 		style.MustForceConvertSRGBHex("#111111"),
@@ -37,7 +37,7 @@ var (
 	)
 	TimelineTypeAPIVersion = style.MustRegisterTimelineType(
 		"apiVersion",
-		"Kubernetes API Version layer",
+		"Grouping timeline for Kubernetes API versions",
 		"api",
 		0.6,
 		style.Color{R: 0.165, G: 0.208, B: 0.494, A: 1.0},
@@ -50,7 +50,7 @@ var (
 	)
 	TimelineTypeKind = style.MustRegisterTimelineType(
 		"kind",
-		"Kubernetes API Resource Kind layer",
+		"Grouping timeline for Kubernetes API resource kinds",
 		"workspaces",
 		0.6,
 		style.MustForceConvertSRGBHex("#3949ab"),
@@ -63,7 +63,7 @@ var (
 	)
 	TimelineTypeNamespace = style.MustRegisterTimelineType(
 		"namespace",
-		"Kubernetes Namespace layer",
+		"Grouping timeline for Kubernetes namespaces",
 		"folder",
 		0.6,
 		style.MustForceConvertSRGBHex("#444444"),
@@ -76,7 +76,7 @@ var (
 	)
 	TimelineTypeResource = style.MustRegisterTimelineType(
 		"resource",
-		"General resource lifecycle and logs",
+		"Lifecycle states and logs of the Kubernetes resource",
 		"description",
 		1.0,
 		style.MustForceConvertSRGBHex("#CCCCCC"),
@@ -89,7 +89,7 @@ var (
 	)
 	TimelineTypeSubresource = style.MustRegisterTimelineType(
 		"subresource",
-		"General subresource lifecycle and logs",
+		"Lifecycle states and logs of the Kubernetes subresource",
 		"page_info",
 		0.6,
 		style.ColorWhite,

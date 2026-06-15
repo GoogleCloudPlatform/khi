@@ -21,9 +21,11 @@ import (
 
 // RevisionStateInferred is the style for a resource where only incomplete information is available.
 var RevisionStateInferred = style.MustRegisterRevisionState(
-	"Resource may be existing",
+	"Resource may exist",
 	"unknown_document",
-	"Resource may be existing",
+	`The resource is inferred to exist from partial logs, though complete creation logs are not present in the log range.
+
+**Tip**: Consider expanding the query time range to capture complete creation events.`,
 	style.MustForceConvertSRGBHex("#999922"),
 	pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 )
