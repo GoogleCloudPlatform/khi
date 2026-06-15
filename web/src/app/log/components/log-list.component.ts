@@ -131,6 +131,45 @@ export class LogListComponent {
     this.logHovered.emit(logEntry);
   }
 
+  /**
+   * Handles keyboard navigation (ArrowUp/ArrowDown) on the log list container to allow
+   * selecting and scrolling through logs using keyboard controls.
+   */
+  protected onKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
+      return;
+    }
+    // Prevent the default browser scrolling behavior when navigating the log list.
+    event.preventDefault();
+
+    const logs = this.shownLogs();
+    if (logs.length === 0) return;
+
+    const selectedIndex = this.selectedLogIndex();
+    const arrayIndex = this.searchArrayIndexOfLog(logs, selectedIndex);
+
+    let nextArrayIndex = -1;
+    if (event.key === 'ArrowUp') {
+      if (arrayIndex === -1) {
+        nextArrayIndex = logs.length - 1;
+      } else if (arrayIndex > 0) {
+        nextArrayIndex = arrayIndex - 1;
+      }
+    } else if (event.key === 'ArrowDown') {
+      if (arrayIndex === -1) {
+        nextArrayIndex = 0;
+      } else if (arrayIndex < logs.length - 1) {
+        nextArrayIndex = arrayIndex + 1;
+      }
+    }
+
+    if (nextArrayIndex >= 0 && nextArrayIndex < logs.length) {
+      // Direct emission without setting disableScrollForNext ensures that the view
+      // automatically scrolls to the newly selected log.
+      this.logSelected.emit(logs[nextArrayIndex]);
+    }
+  }
+
   private filterLogsWithTimelines(
     logs: ReadonlyDomainElement<Log>[],
     timelines: ReadonlyDomainElement<Timeline>[],
