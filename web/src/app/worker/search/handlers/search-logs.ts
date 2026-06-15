@@ -33,9 +33,18 @@ export function handleSearchLogs(
   const workerIndex = request.workerIndex;
   const progressOffset = workerIndex * 16;
 
+  const numWorkers = request.numWorkers;
+  const cancellationIndex = numWorkers * 16;
+
   let count = 0;
   const matchedIdsSet = new Set<number>();
   for (const tId of request.timelineIds) {
+    if (Atomics.load(progressArray, cancellationIndex) !== 0) {
+      console.debug(
+        `[SearchWorker #${workerIndex}] SEARCH_LOGS aborted (cancelled).`,
+      );
+      return Array.from(matchedIdsSet);
+    }
     const timeline = state.timelineStore.getTimeline(tId);
     for (const e of timeline.events) {
       const logId = e.log.id;

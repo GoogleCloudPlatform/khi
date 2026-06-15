@@ -38,7 +38,15 @@ export function handleSearchTimelines(
   const progressArray = new Int32Array(request.progressSab);
   const progressOffset = workerIndex * 16;
 
+  const cancellationIndex = numWorkers * 16;
+
   for (let i = workerIndex; i < totalTimelines; i += numWorkers) {
+    if (Atomics.load(progressArray, cancellationIndex) !== 0) {
+      console.debug(
+        `[SearchWorker #${workerIndex}] SEARCH_TIMELINES aborted (cancelled).`,
+      );
+      return matchedIds;
+    }
     const t = timelines[i];
     if (state.timelineCelEnv.evaluate(t, state.timelineStore)) {
       matchedIds.push(t.id);

@@ -89,6 +89,7 @@ describe('handleSearchLogs', () => {
         requestId: 'req-log-1',
         celExpr: 'severity == ERROR',
         workerIndex: 0,
+        numWorkers: 1,
         timelineIds: [0, 1],
         progressSab,
       },
