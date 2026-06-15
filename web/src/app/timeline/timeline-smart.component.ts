@@ -32,7 +32,8 @@ import {
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
+import { StyleOverrideService } from 'src/app/services/style-override.service';
 import {
   TimelineChartStyle,
   TimelineRulerStyle,
@@ -66,6 +67,8 @@ export class TimelineSmartComponent {
   private readonly inspectionDataStore = inject(InspectionDataStoreV2);
 
   private readonly selectionManager = inject(SelectionManagerV2);
+
+  private readonly styleOverrideService = inject(StyleOverrideService);
 
   private readonly inspectionData = computed(() => {
     return this.inspectionDataStore.inspectionData();
@@ -108,8 +111,8 @@ export class TimelineSmartComponent {
   /**
    * The StyleStore containing all color and layout styling definitions.
    */
-  protected readonly styleStore = computed(() => {
-    return this.inspectionData()?.styleStore ?? new StyleStore();
+  protected readonly styleStore = computed<StyleStoreLike>(() => {
+    return this.styleOverrideService;
   });
 
   /**

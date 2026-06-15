@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { RendererConvertUtil } from './convertutil';
 import { WebGLContextLostException } from './glcontextmanager';
 import { SharedTmpBuffer, WebGLUtil } from './glutil';
@@ -164,7 +164,7 @@ export class TimelineRendererSharedResource {
    * @param gl The WebGL2 rendering context.
    * @param styleStore The style store containing the icon atlas.
    */
-  updateIconAtlas(gl: WebGL2RenderingContext, styleStore: StyleStore) {
+  updateIconAtlas(gl: WebGL2RenderingContext, styleStore: StyleStoreLike) {
     const iconAtlas = styleStore.getIconAtlas();
     if (!iconAtlas) {
       // If no inspection data has been loaded yet, there will be no icon atlas.

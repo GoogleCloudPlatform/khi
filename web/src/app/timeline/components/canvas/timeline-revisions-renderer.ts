@@ -29,7 +29,7 @@ import {
   getRevisionStyleForHeight,
 } from '../style-model-v2';
 import { RendererConvertUtil } from './convertutil';
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 /**
  * Renders timeline revisions (horizontal bars representing resource states) using WebGL.
@@ -438,7 +438,7 @@ export class TimelineRevisionsSharedResources {
   beforeRender(
     gl: WebGL2RenderingContext,
     tmpBuffer: SharedTmpBuffer,
-    styleStore: StyleStore,
+    styleStore: StyleStoreLike,
   ) {
     if (this.styleUpdated) {
       const revisionStates = styleStore.revisionStates;
@@ -594,6 +594,13 @@ export class TimelineRevisionsSharedResources {
    */
   updateChartStyle(style: TimelineChartStyle) {
     this.chartStyle = style;
+    this.styleUpdated = true;
+  }
+
+  /**
+   * Invalidates cached styles, forcing UBOs to rebuild on next frame.
+   */
+  invalidateStyles() {
     this.styleUpdated = true;
   }
 }

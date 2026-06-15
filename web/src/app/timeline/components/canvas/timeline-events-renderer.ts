@@ -26,7 +26,7 @@ import {
   getEventStyleForHeight,
 } from '../style-model-v2';
 import { RendererConvertUtil } from './convertutil';
-import { StyleStore } from 'src/app/store/domain/style-store';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 /**
  * Renders timeline events (points in time) using WebGL.
@@ -380,7 +380,7 @@ export class TimelineEventsSharedResources {
   beforeRender(
     gl: WebGL2RenderingContext,
     tmpBuffer: SharedTmpBuffer,
-    styleStore: StyleStore,
+    styleStore: StyleStoreLike,
   ) {
     if (this.styleUpdated) {
       const logTypes = styleStore.logTypes;
