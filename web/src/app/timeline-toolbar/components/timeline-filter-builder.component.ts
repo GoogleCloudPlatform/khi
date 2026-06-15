@@ -81,7 +81,9 @@ export class TimelineFilterBuilderComponent {
   readonly selectedCandidates = model<string[]>([]);
 
   /** Holds the current text input query for autocomplete filtering. */
-  protected readonly typeInputQuery = signal<string>('*');
+  protected readonly typeInputQuery = signal<string>('');
+
+  private lastSyncedType = '*';
 
   /** Filters the timeline types case-insensitively based on the current text input query. */
   protected readonly filteredTimelineTypes = computed<TimelineType[]>(() => {
@@ -122,6 +124,10 @@ export class TimelineFilterBuilderComponent {
         this.filterMode.set('regex');
         this.selectedCandidates.set([]);
       }
+      if (currentType !== this.lastSyncedType) {
+        this.lastSyncedType = currentType;
+        this.typeInputQuery.set(currentType === '*' ? '' : currentType);
+      }
     });
   }
 
@@ -157,19 +163,16 @@ export class TimelineFilterBuilderComponent {
     const match = this.timelineTypes().find(
       (t) => t.label.toLowerCase() === value.trim().toLowerCase(),
     );
-    if (match) {
-      this.selectedTimelineType.set(match.label);
-    } else if (value.trim() === '') {
-      this.selectedTimelineType.set('*');
-    } else {
-      this.selectedTimelineType.set('*');
-    }
+    const newType = match ? match.label : '*';
+    this.lastSyncedType = newType;
+    this.selectedTimelineType.set(newType);
   }
 
   /**
    * Handles selection of a timeline type from the autocomplete dropdown.
    */
   protected onTimelineTypeSelected(value: string): void {
+    this.lastSyncedType = value;
     this.selectedTimelineType.set(value);
     this.typeInputQuery.set(value === '*' ? '' : value);
   }
