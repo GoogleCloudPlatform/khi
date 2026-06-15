@@ -152,7 +152,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 // MustResolveK8sResourceTimelinePath resolves a KubernetesEventFieldSet to a V2 *khifilev6.TimelinePath.
 func MustResolveK8sResourceTimelinePath(ctx context.Context, event *googlecloudlogk8sevent_contract.KubernetesEventFieldSet) *khifilev6.TimelinePath {
 	if event.Resource == "" {
-		gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, event.ClusterName)
+		projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, event.ProjectID)
+		gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, event.ClusterName)
 		return googlecloudlogk8sevent_contract.MustEventExporterTimeline(ctx, gkeTimeline)
 	}
 

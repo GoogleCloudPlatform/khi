@@ -67,8 +67,8 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 	// Resolve comparative path instances independently using low-level accumulator.
 	wantProjPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: "projects/123456",
-		Type: googlecloudlogmulticloudapiaudit_contract.TimelineTypeProject,
+		Name: "project-foo",
+		Type: googlecloudcommon_contract.TimelineTypeGCPProject,
 	})
 	wantClusterPath := builder.TimelineAccumulator.GetPath(wantProjPath, khifilev6.PathSegment{
 		Name: "test-cluster",
@@ -126,6 +126,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Request: testReaderFromYAML(t, `cluster:
   initialNodeCount: 1
   name: test-cluster`),
+				ProjectID: "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
@@ -162,6 +163,7 @@ name: test-cluster`).Node,
 				MethodName:     "google.cloud.gkemulticloud.v1.AzureClusters.CreateAzureCluster",
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
+				ProjectID:      "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
@@ -197,6 +199,7 @@ name: test-cluster`).Node,
 				Request: testReaderFromYAML(t, `nodePool:
   initialNodeCount: 1
   name: test-nodepool`),
+				ProjectID: "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
@@ -233,6 +236,7 @@ name: test-nodepool`).Node,
 				MethodName:     "google.cloud.gkemulticloud.v1.AzureClusters.CreateAzureNodePool",
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
+				ProjectID:      "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
@@ -266,6 +270,7 @@ name: test-nodepool`).Node,
 				MethodName:     "google.cloud.gkemulticloud.v1.AwsClusters.DeleteAwsNodePool",
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
+				ProjectID:      "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
@@ -299,6 +304,7 @@ name: test-nodepool`).Node,
 				MethodName:     "google.cloud.gkemulticloud.v1.AzureClusters.UpdateAzureCluster",
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
+				ProjectID:      "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
@@ -319,6 +325,7 @@ name: test-nodepool`).Node,
 				MethodName:     "google.cloud.gkemulticloud.v1.FooClusters.UnknownLongRunningOperation",
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
+				ProjectID:      "project-foo",
 			},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).

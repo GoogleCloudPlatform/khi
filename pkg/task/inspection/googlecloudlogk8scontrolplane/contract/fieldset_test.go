@@ -40,6 +40,7 @@ resource:
     component_name: "kube-apiserver"
 `,
 			want: &K8sControlplaneComponentFieldSet{
+				ProjectID:     "unknown",
 				ClusterName:   "test-cluster",
 				ComponentName: "kube-apiserver",
 			},
@@ -52,6 +53,7 @@ resource:
     foo: bar
 `,
 			want: &K8sControlplaneComponentFieldSet{
+				ProjectID:     "unknown",
 				ClusterName:   "unknown",
 				ComponentName: "",
 			},

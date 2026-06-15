@@ -29,31 +29,63 @@ func TestMustGKEClusterTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
+	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
+
 	testCases := []struct {
 		name        string
+		parent      *khifilev6.TimelinePath
 		clusterName string
+		wantPanic   bool
+		panicMsg    string
 		wantName    string
 	}{
 		{
 			name:        "valid cluster name",
+			parent:      projectTimeline,
 			clusterName: "my-gke-cluster",
+			wantPanic:   false,
 			wantName:    "my-gke-cluster",
 		},
 		{
 			name:        "empty cluster name",
+			parent:      projectTimeline,
 			clusterName: "",
+			wantPanic:   false,
 			wantName:    "unknown",
+		},
+		{
+			name:        "nil project path",
+			parent:      nil,
+			clusterName: "my-gke-cluster",
+			wantPanic:   true,
+			panicMsg:    "parent timeline path must be GCP Project type",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := MustGKEClusterTimeline(ctx, tc.clusterName)
-			if got == nil {
-				t.Fatal("expected timeline path to be not nil")
+			if tc.wantPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Error("expected panic but did not panic")
+					} else {
+						errStr := fmt.Sprintf("%v", r)
+						if !strings.Contains(errStr, tc.panicMsg) {
+							t.Errorf("expected panic message to contain %q, got %q", tc.panicMsg, errStr)
+						}
+					}
+				}()
 			}
-			if diff := cmp.Diff(tc.wantName, got.Name.Resolve()); diff != "" {
-				t.Errorf("MustGKEClusterTimeline() mismatch (-want +got):\n%s", diff)
+
+			got := MustGKEClusterTimeline(ctx, tc.parent, tc.clusterName)
+			if !tc.wantPanic {
+				if got == nil {
+					t.Fatal("expected timeline path to be not nil")
+				}
+				if diff := cmp.Diff(tc.wantName, got.Name.Resolve()); diff != "" {
+					t.Errorf("MustGKEClusterTimeline() mismatch (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}
@@ -63,7 +95,8 @@ func TestMustGKENodePoolTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-	gkeClusterTimeline := MustGKEClusterTimeline(ctx, "test-gke-cluster")
+	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
+	gkeClusterTimeline := MustGKEClusterTimeline(ctx, projectTimeline, "test-gke-cluster")
 	invalidParentTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
 		Name: "invalid",
 		Type: TimelineTypeOperation,
@@ -124,6 +157,12 @@ func TestMustGKENodePoolTimeline(t *testing.T) {
 				if diff := cmp.Diff(tc.wantName, got.Name.Resolve()); diff != "" {
 					t.Errorf("MustGKENodePoolTimeline() mismatch (-want +got):\n%s", diff)
 				}
+				if got.Parent == nil || got.Parent.Type.GetId() != TimelineTypeGKENodePools.GetId() {
+					t.Errorf("expected parent of NodePool timeline to be NodePools category timeline, got %v", got.Parent)
+				}
+				if got.Parent.Parent != tc.parent {
+					t.Errorf("expected parent of NodePools category timeline to be the GKE cluster timeline, got %v", got.Parent.Parent)
+				}
 			}
 		})
 	}
@@ -133,7 +172,8 @@ func TestMustGCPOperationTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-	gkeClusterTimeline := MustGKEClusterTimeline(ctx, "test-gke-cluster")
+	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
+	gkeClusterTimeline := MustGKEClusterTimeline(ctx, projectTimeline, "test-gke-cluster")
 
 	testCases := []struct {
 		name            string

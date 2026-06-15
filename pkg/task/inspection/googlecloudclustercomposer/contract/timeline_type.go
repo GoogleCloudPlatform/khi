@@ -22,20 +22,6 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	// TimelineTypeGCPProject is the style for a GCP project.
-	TimelineTypeGCPProject = style.MustRegisterTimelineType(
-		"gcp_project",
-		"GCP Project",
-		"cloud",
-		0.6,
-		style.ColorBlack,
-		style.ColorWhite,
-		style.MustForceConvertSRGBHex("#4285F4"),
-		style.ColorWhite,
-		true,
-		10,
-		style.AlphabeticalSortPolicy(),
-	)
 
 	// TimelineTypeComposerEnvironment is the style for a Cloud Composer environment.
 	// Background is set to #377e22.
