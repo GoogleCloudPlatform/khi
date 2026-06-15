@@ -71,6 +71,7 @@ describe('TimelineFilterBuilderComponent', () => {
     expect(component.filterMode()).toBe('regex');
     expect(component.regexValue()).toBe('');
     expect(component.selectedCandidates()).toEqual([]);
+    expect(component['typeInputQuery']()).toBe('');
   });
 
   it('should disable Add Filter button when input is empty in regex mode', () => {
@@ -259,5 +260,15 @@ describe('TimelineFilterBuilderComponent', () => {
     fixture.detectChanges();
 
     expect(component.selectedTimelineType()).toBe('*');
+  });
+
+  it('should sync selectedTimelineType to typeInputQuery when changed from parent', () => {
+    fixture.componentRef.setInput('selectedTimelineType', 'K8sResource');
+    fixture.detectChanges();
+    expect(component['typeInputQuery']()).toBe('K8sResource');
+
+    fixture.componentRef.setInput('selectedTimelineType', '*');
+    fixture.detectChanges();
+    expect(component['typeInputQuery']()).toBe('');
   });
 });

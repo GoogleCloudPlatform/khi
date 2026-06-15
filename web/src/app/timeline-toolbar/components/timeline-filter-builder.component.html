@@ -36,7 +36,7 @@ limitations under the License.
       <mat-label>Timeline Type</mat-label>
       <input
         type="text"
-        placeholder="Any (*)"
+        placeholder="kind, namespace, etc. (leave empty to match all)"
         matInput
         [value]="typeInputQuery()"
         (input)="onTypeInputChange($any($event.target).value)"
