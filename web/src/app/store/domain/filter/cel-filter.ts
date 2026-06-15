@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
   CancellationError,
@@ -27,6 +27,7 @@ import {
   CELTimelineFilterEnvironment,
   CELLogFilterEnvironment,
 } from 'src/app/store/domain/filter/cel-env';
+import { SearchWorkerManager } from 'src/app/services/search-worker-manager.service';
 
 /**
  * Filters timelines based on the configured CEL expression.
@@ -35,6 +36,7 @@ import {
 export class CelTimelineFilter implements LogTimelineFilter {
   readonly displayName = 'Timeline CEL filter';
   readonly priority = 10;
+  private readonly searchWorkerManager = inject(SearchWorkerManager);
   private readonly celEnv = new CELTimelineFilterEnvironment();
   private readonly _celExpr = signal<string>('');
   private readonly _onChanged = new Subject<void>();
@@ -84,25 +86,30 @@ export class CelTimelineFilter implements LogTimelineFilter {
     if (this.celExpr() === '') {
       return context;
     }
-    const passedTimelineIds = new Set<number>();
-    let count = 0;
-    const total = context.timelineIds.size;
+    if (signal?.aborted) {
+      throw new CancellationError();
+    }
+
+    onProgress?.(0, context.timelineIds.size);
+
+    const passedTimelineIds = await this.searchWorkerManager.searchTimelines(
+      this.celExpr(),
+      onProgress,
+    );
+
+    if (signal?.aborted) {
+      throw new CancellationError();
+    }
+
+    const filteredIds = new Set<number>();
     for (const id of context.timelineIds) {
-      if (signal?.aborted) {
-        throw new CancellationError();
-      }
-      const t = timelineStore.getTimeline(id);
-      if (this.celEnv.evaluate(t, timelineStore)) {
-        passedTimelineIds.add(id);
-      }
-      count++;
-      if (count % 500 === 0 || count === total) {
-        onProgress?.(count, total);
-        await new Promise((resolve) => setTimeout(resolve, 0));
+      if (passedTimelineIds.has(id)) {
+        filteredIds.add(id);
       }
     }
+
     return {
-      timelineIds: passedTimelineIds,
+      timelineIds: filteredIds,
       logIds: context.logIds,
     };
   }
@@ -115,6 +122,7 @@ export class CelTimelineFilter implements LogTimelineFilter {
 export class CelLogFilter implements LogTimelineFilter {
   readonly displayName = 'Log CEL Filter';
   readonly priority = 30;
+  private readonly searchWorkerManager = inject(SearchWorkerManager);
   private readonly celEnv = new CELLogFilterEnvironment();
   private readonly _celExpr = signal<string>('');
   private readonly _onChanged = new Subject<void>();
@@ -164,47 +172,19 @@ export class CelLogFilter implements LogTimelineFilter {
     if (this.celExpr() === '') {
       return context;
     }
-    const passedLogIds = new Set<number>();
-    let count = 0;
-    let total = 0;
-    for (const tId of context.timelineIds) {
-      const timeline = timelineStore.getTimeline(tId);
-      total += timeline.events.length + timeline.revisions.length;
+    if (signal?.aborted) {
+      throw new CancellationError();
     }
-    for (const tId of context.timelineIds) {
-      if (signal?.aborted) {
-        throw new CancellationError();
-      }
-      const timeline = timelineStore.getTimeline(tId);
-      for (const e of timeline.events) {
-        if (signal?.aborted) {
-          throw new CancellationError();
-        }
-        const l = timelineStore.logStore.getLog(e.log.id);
-        if (!passedLogIds.has(e.log.id) && this.celEnv.evaluate(l)) {
-          passedLogIds.add(e.log.id);
-        }
-        count++;
-        if (count % 1000 === 0 || count === total) {
-          onProgress?.(count, total);
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      }
-      for (const r of timeline.revisions) {
-        if (signal?.aborted) {
-          throw new CancellationError();
-        }
-        const l = timelineStore.logStore.getLog(r.log.id);
-        if (!passedLogIds.has(r.log.id) && this.celEnv.evaluate(l)) {
-          passedLogIds.add(r.log.id);
-        }
-        count++;
-        if (count % 1000 === 0 || count === total) {
-          onProgress?.(count, total);
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        }
-      }
+    const passedLogIds = await this.searchWorkerManager.searchLogs(
+      this.celExpr(),
+      Array.from(context.timelineIds),
+      onProgress,
+    );
+
+    if (signal?.aborted) {
+      throw new CancellationError();
     }
+
     return {
       timelineIds: context.timelineIds,
       logIds: passedLogIds,

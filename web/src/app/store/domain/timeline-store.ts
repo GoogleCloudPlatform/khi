@@ -21,7 +21,6 @@ import {
   Timeline,
 } from 'src/app/store/domain/timeline';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
-import { StyleStore } from 'src/app/store/domain/style-store';
 import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
 import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import {
@@ -29,6 +28,7 @@ import {
   Severity,
   TimelineType,
   Verb,
+  StyleProvider,
 } from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
 import {
@@ -150,7 +150,7 @@ export class TimelineStore {
 
   private constructor(
     private readonly internPool: InternPoolStore,
-    public readonly styleStore: StyleStore,
+    public readonly styleStore: StyleProvider,
     public readonly logStore: LogStore,
     private readonly maxBufferSize: number,
     readOnly: boolean,
@@ -207,7 +207,7 @@ export class TimelineStore {
    */
   public static create(
     internPool: InternPoolStore,
-    styleStore: StyleStore,
+    styleStore: StyleProvider,
     logStore: LogStore,
     maxBufferSize: number = 100 * 1024 * 1024,
   ): TimelineStore {
@@ -226,7 +226,7 @@ export class TimelineStore {
    */
   public static fromSharedData(
     internPool: InternPoolStore,
-    styleStore: StyleStore,
+    styleStore: StyleProvider,
     logStore: LogStore,
     sharedData: TimelineStoreSharedData,
     maxBufferSize: number = 100 * 1024 * 1024,

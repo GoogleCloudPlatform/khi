@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 /**
  * Represents a high dynamic range color.
@@ -147,4 +148,67 @@ export interface IconAtlas {
   readonly msdfIconImage: TexImageSource[];
   readonly bmfontJson: BMFontConfig;
   readonly nameToCodepoints: Map<string, string>;
+}
+
+/**
+ * Interface representing a provider of style configurations (severities, log types, etc.).
+ * Structurally matches StyleStore and StyleOverrideService, but has no DOM/Angular dependencies.
+ */
+export interface StyleProvider {
+  /** The collection of severity level configurations. */
+  readonly severities: ReadonlyDomainElement<Severity[]>;
+  /** The collection of log category/source configurations. */
+  readonly logTypes: ReadonlyDomainElement<LogType[]>;
+  /** The collection of action verb configurations. */
+  readonly verbs: ReadonlyDomainElement<Verb[]>;
+  /** The collection of revision status configurations. */
+  readonly revisionStates: ReadonlyDomainElement<RevisionState[]>;
+  /** The collection of timeline presentation styles. */
+  readonly timelineTypes: ReadonlyDomainElement<TimelineType[]>;
+
+  /**
+   * Retrieves a severity configuration by its ID.
+   * @param id The severity level ID.
+   */
+  getSeverity(id: number): ReadonlyDomainElement<Severity>;
+
+  /**
+   * Retrieves a log type configuration by its ID.
+   * @param id The log category ID.
+   */
+  getLogType(id: number): ReadonlyDomainElement<LogType>;
+
+  /**
+   * Retrieves an action verb configuration by its ID.
+   * @param id The action verb ID.
+   */
+  getVerb(id: number): ReadonlyDomainElement<Verb>;
+
+  /**
+   * Retrieves a revision state configuration by its ID.
+   * @param id The revision status ID.
+   */
+  getRevisionState(id: number): ReadonlyDomainElement<RevisionState>;
+
+  /**
+   * Retrieves a timeline presentation style by its ID.
+   * @param id The timeline type ID.
+   */
+  getTimelineType(id: number): ReadonlyDomainElement<TimelineType>;
+}
+
+/**
+ * Interface representing shared StyleStore data.
+ */
+export interface StyleStoreSharedData {
+  /** List of all severity level configurations. */
+  readonly severities: readonly Severity[];
+  /** List of all log category/source configurations. */
+  readonly logTypes: readonly LogType[];
+  /** List of all action verb configurations. */
+  readonly verbs: readonly Verb[];
+  /** List of all revision status configurations. */
+  readonly revisionStates: readonly RevisionState[];
+  /** List of all timeline presentation styles. */
+  readonly timelineTypes: readonly TimelineType[];
 }

@@ -26,6 +26,7 @@ import {
   ExcludeNoLogsFilter,
   IncludeDescendantsFilter,
 } from 'src/app/store/domain/filter/other-filter';
+import { SearchWorkerManager } from 'src/app/services/search-worker-manager.service';
 
 /**
  * Service to store and manage the active InspectionDataV2 domain model.
@@ -38,6 +39,7 @@ export class InspectionDataStoreV2 {
   private readonly celTimelineFilter = inject(CelTimelineFilter);
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
+  private readonly searchWorkerManager = inject(SearchWorkerManager);
 
   /**
    * Holds the active inspection data. Emits null if no data has been loaded.
@@ -65,6 +67,14 @@ export class InspectionDataStoreV2 {
       this._timelineView.set(null);
       return;
     }
+
+    void this.searchWorkerManager.syncData(
+      data.internPool,
+      data.logStore,
+      data.timelineStore,
+      data.styleStore,
+    );
+
     const view = new TimelineView(data.timelineStore);
     view.addFilter(this.celTimelineFilter);
     view.addFilter(new IncludeDescendantsFilter());

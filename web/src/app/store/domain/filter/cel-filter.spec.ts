@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { TestBed } from '@angular/core/testing';
 import {
   CelTimelineFilter,
   CelLogFilter,
@@ -22,8 +23,28 @@ import { LogTimelineFilterContext } from 'src/app/store/domain/filter/types';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { Timeline } from 'src/app/store/domain/timeline';
+import { SearchWorkerManager } from 'src/app/services/search-worker-manager.service';
 
 describe('CelTimelineFilter', () => {
+  let filter: CelTimelineFilter;
+  let searchWorkerManagerSpy: jasmine.SpyObj<SearchWorkerManager>;
+
+  beforeEach(() => {
+    searchWorkerManagerSpy = jasmine.createSpyObj<SearchWorkerManager>(
+      'SearchWorkerManager',
+      ['searchTimelines', 'searchLogs'],
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        CelTimelineFilter,
+        { provide: SearchWorkerManager, useValue: searchWorkerManagerSpy },
+      ],
+    });
+
+    filter = TestBed.inject(CelTimelineFilter);
+  });
+
   it('should filter timelines based on configured CEL expression', async () => {
     const timelines = [
       {
@@ -53,7 +74,10 @@ describe('CelTimelineFilter', () => {
       return found as unknown as ReadonlyDomainElement<Timeline>;
     });
 
-    const filter = new CelTimelineFilter();
+    searchWorkerManagerSpy.searchTimelines.and.returnValue(
+      Promise.resolve(new Set([1])),
+    );
+
     const res = filter.updateFilter("t.name == 'T1'");
     expect(res.success).toBe(true);
 
@@ -65,10 +89,13 @@ describe('CelTimelineFilter', () => {
     const result = await filter.process(context, timelineStoreSpy);
     expect(result.timelineIds.size).toBe(1);
     expect(result.timelineIds.has(1)).toBe(true);
+    expect(searchWorkerManagerSpy.searchTimelines).toHaveBeenCalledWith(
+      "t.name == 'T1'",
+      undefined,
+    );
   });
 
   it('should return original context if filter is not updated with an expression', async () => {
-    const filter = new CelTimelineFilter();
     const context: LogTimelineFilterContext = {
       timelineIds: new Set([1, 2]),
       logIds: new Set(),
@@ -83,7 +110,6 @@ describe('CelTimelineFilter', () => {
   });
 
   it('should return error and not filter context when updateFilter is called with an invalid expression', async () => {
-    const filter = new CelTimelineFilter();
     const res = filter.updateFilter("t.name == 'T1");
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
@@ -102,7 +128,6 @@ describe('CelTimelineFilter', () => {
   });
 
   it('should reset evaluator and return original context if an invalid expression is provided after a valid one', async () => {
-    const filter = new CelTimelineFilter();
     filter.updateFilter("t.name == 'T1'");
 
     const res = filter.updateFilter("t.name == 'T1");
@@ -123,8 +148,26 @@ describe('CelTimelineFilter', () => {
 });
 
 describe('CelLogFilter', () => {
+  let filter: CelLogFilter;
+  let searchWorkerManagerSpy: jasmine.SpyObj<SearchWorkerManager>;
+
+  beforeEach(() => {
+    searchWorkerManagerSpy = jasmine.createSpyObj<SearchWorkerManager>(
+      'SearchWorkerManager',
+      ['searchTimelines', 'searchLogs'],
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        CelLogFilter,
+        { provide: SearchWorkerManager, useValue: searchWorkerManagerSpy },
+      ],
+    });
+
+    filter = TestBed.inject(CelLogFilter);
+  });
+
   it('should return original context if filter is not updated with an expression', async () => {
-    const filter = new CelLogFilter();
     const context: LogTimelineFilterContext = {
       timelineIds: new Set(),
       logIds: new Set([1, 2]),
@@ -139,7 +182,6 @@ describe('CelLogFilter', () => {
   });
 
   it('should return error and not filter context when updateFilter is called with an invalid expression', async () => {
-    const filter = new CelLogFilter();
     const res = filter.updateFilter("l.summary == 'L1");
     expect(res.success).toBe(false);
     expect(res.error).toBeDefined();
@@ -158,7 +200,6 @@ describe('CelLogFilter', () => {
   });
 
   it('should reset evaluator and return original context if an invalid expression is provided after a valid one', async () => {
-    const filter = new CelLogFilter();
     filter.updateFilter("l.summary == 'L1'");
 
     const res = filter.updateFilter("l.summary == 'L1");
