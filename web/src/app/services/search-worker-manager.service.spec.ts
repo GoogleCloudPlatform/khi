@@ -22,6 +22,7 @@ import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { TimelineDTO } from 'src/app/store/domain/timeline-store';
 import { LogDTO } from 'src/app/store/domain/log-store';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 describe('SearchWorkerManager', () => {
   let manager: SearchWorkerManager;
@@ -171,5 +172,45 @@ describe('SearchWorkerManager', () => {
       current: 2,
       total: 2,
     });
+  });
+
+  it('should cancel active searchTimelines when a new one is started', async () => {
+    await manager.syncData(
+      internPoolStore,
+      logStore,
+      timelineStore,
+      styleStore,
+    );
+
+    const p1 = manager.searchTimelines("name == 'pod-a'");
+    const p2 = manager.searchTimelines("name == 'pod-b'");
+
+    await expectAsync(p1).toBeRejectedWithError(
+      CancellationError,
+      'Search cancelled',
+    );
+    const matched = await p2;
+    expect(matched.has(200)).toBeTrue();
+    expect(matched.has(100)).toBeFalse();
+  });
+
+  it('should cancel active searchLogs when a new one is started', async () => {
+    await manager.syncData(
+      internPoolStore,
+      logStore,
+      timelineStore,
+      styleStore,
+    );
+
+    const p1 = manager.searchLogs("summary == 'pod-a'", [100, 200]);
+    const p2 = manager.searchLogs("summary == 'pod-b'", [100, 200]);
+
+    await expectAsync(p1).toBeRejectedWithError(
+      CancellationError,
+      'Search cancelled',
+    );
+    const matched = await p2;
+    expect(matched.has(20)).toBeTrue();
+    expect(matched.has(10)).toBeFalse();
   });
 });

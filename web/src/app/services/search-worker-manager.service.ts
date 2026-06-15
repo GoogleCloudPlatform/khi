@@ -23,6 +23,7 @@ import {
   SearchWorkerRequest,
   SearchWorkerResponse,
 } from 'src/app/worker/search/search-types';
+import { CancellationError } from 'src/app/store/domain/filter/types';
 
 interface SearchSession {
   readonly expectedResponses: number;
@@ -31,6 +32,7 @@ interface SearchSession {
   readonly workerProcessed: number[];
   readonly workerTotals: number[];
   readonly onProgress?: (current: number, total: number) => void;
+  readonly progressSab: SharedArrayBuffer;
   resolve(matchedIds: number[]): void;
   reject(error: Error): void;
 }
@@ -45,6 +47,8 @@ export class SearchWorkerManager implements OnDestroy {
   private readonly activeSessions = new Map<string, SearchSession>();
   private sessionCounter = 0;
   private activeTimelineStore: TimelineStore | null = null;
+  private activeTimelineSearchRequestId: string | null = null;
+  private activeLogSearchRequestId: string | null = null;
 
   constructor() {
     this.numWorkers = 8; //Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
@@ -120,10 +124,16 @@ export class SearchWorkerManager implements OnDestroy {
       return new Set(allIds);
     }
 
+    if (this.activeTimelineSearchRequestId) {
+      this.cancelSearch(this.activeTimelineSearchRequestId);
+    }
+
     const totalTimelines = this.activeTimelineStore?.timelines.length ?? 0;
     const startTime = performance.now();
     const requestId = `search-t-${this.sessionCounter++}`;
-    const progressSab = new SharedArrayBuffer(this.workers.length * 64);
+    this.activeTimelineSearchRequestId = requestId;
+
+    const progressSab = new SharedArrayBuffer((this.workers.length + 1) * 64);
     const progressArray = new Int32Array(progressSab);
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -145,6 +155,7 @@ export class SearchWorkerManager implements OnDestroy {
         workerProcessed: Array.from({ length: this.workers.length }, () => 0),
         workerTotals: Array.from({ length: this.workers.length }, () => 0),
         onProgress,
+        progressSab,
         resolve,
         reject,
       });
@@ -182,6 +193,9 @@ export class SearchWorkerManager implements OnDestroy {
       );
       return new Set(matchedList);
     } finally {
+      if (this.activeTimelineSearchRequestId === requestId) {
+        this.activeTimelineSearchRequestId = null;
+      }
       cleanup();
     }
   }
@@ -206,9 +220,15 @@ export class SearchWorkerManager implements OnDestroy {
       }
     }
 
+    if (this.activeLogSearchRequestId) {
+      this.cancelSearch(this.activeLogSearchRequestId);
+    }
+
     const startTime = performance.now();
     const requestId = `search-l-${this.sessionCounter++}`;
-    const progressSab = new SharedArrayBuffer(this.workers.length * 64);
+    this.activeLogSearchRequestId = requestId;
+
+    const progressSab = new SharedArrayBuffer((this.workers.length + 1) * 64);
     const progressArray = new Int32Array(progressSab);
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -230,6 +250,7 @@ export class SearchWorkerManager implements OnDestroy {
         workerProcessed: Array.from({ length: this.workers.length }, () => 0),
         workerTotals: Array.from({ length: this.workers.length }, () => 0),
         onProgress,
+        progressSab,
         resolve,
         reject,
       });
@@ -249,6 +270,7 @@ export class SearchWorkerManager implements OnDestroy {
         type: 'SEARCH_LOGS',
         requestId,
         workerIndex: i,
+        numWorkers: this.workers.length,
         celExpr,
         timelineIds: chunk,
         progressSab,
@@ -270,6 +292,9 @@ export class SearchWorkerManager implements OnDestroy {
       );
       return new Set(matchedList);
     } finally {
+      if (this.activeLogSearchRequestId === requestId) {
+        this.activeLogSearchRequestId = null;
+      }
       cleanup();
     }
   }
@@ -303,6 +328,19 @@ export class SearchWorkerManager implements OnDestroy {
         this.activeSessions.delete(response.requestId);
       }
     }
+  }
+
+  private cancelSearch(requestId: string): void {
+    const session = this.activeSessions.get(requestId);
+    if (!session) {
+      return;
+    }
+    const progressArray = new Int32Array(session.progressSab);
+    const cancellationIndex = this.workers.length * 16;
+    Atomics.store(progressArray, cancellationIndex, 1);
+
+    session.reject(new CancellationError('Search cancelled'));
+    this.activeSessions.delete(requestId);
   }
 
   private partition<T>(array: readonly T[], numParts: number): T[][] {
