@@ -85,6 +85,6 @@ export class LogTypeOverrideListComponent {
    * @param text The text to copy.
    */
   protected copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard?.writeText(text);
   }
 }

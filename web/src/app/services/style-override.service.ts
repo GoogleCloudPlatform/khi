@@ -50,11 +50,6 @@ export class StyleOverrideService implements StyleStoreLike {
   /** Map of overridden log types. Key is the log type ID. */
   private readonly _logTypeOverrides = signal<Map<number, LogType>>(new Map());
 
-  /** Caches of the original baseline configurations to support resetting. */
-  private readonly _originalRevisionStates = new Map<number, RevisionState>();
-  private readonly _originalTimelineTypes = new Map<number, TimelineType>();
-  private readonly _originalLogTypes = new Map<number, LogType>();
-
   /** Signal triggered/incremented whenever styles are updated. */
   public readonly stylesUpdated = signal(0);
 
@@ -68,14 +63,6 @@ export class StyleOverrideService implements StyleStoreLike {
    * @param s The new revision state config DTO to override with.
    */
   public overrideRevisionState(s: RevisionState): void {
-    const store = this.baseStyleStore();
-    if (store) {
-      if (!this._originalRevisionStates.has(s.id)) {
-        this._originalRevisionStates.set(s.id, store.getRevisionState(s.id));
-      }
-      store.addRevisionStates([s]);
-    }
-
     this._revisionStateOverrides.update((map) => {
       const newMap = new Map(map);
       newMap.set(s.id, s);
@@ -89,13 +76,6 @@ export class StyleOverrideService implements StyleStoreLike {
    * @param id The ID of the revision state.
    */
   public resetRevisionState(id: number): void {
-    const store = this.baseStyleStore();
-    const original = this._originalRevisionStates.get(id);
-    if (store && original) {
-      store.addRevisionStates([original]);
-      this._originalRevisionStates.delete(id);
-    }
-
     this._revisionStateOverrides.update((map) => {
       if (map.has(id)) {
         const newMap = new Map(map);
@@ -121,14 +101,6 @@ export class StyleOverrideService implements StyleStoreLike {
    * @param t The new timeline type config DTO to override with.
    */
   public overrideTimelineType(t: TimelineType): void {
-    const store = this.baseStyleStore();
-    if (store) {
-      if (!this._originalTimelineTypes.has(t.id)) {
-        this._originalTimelineTypes.set(t.id, store.getTimelineType(t.id));
-      }
-      store.addTimelineTypes([t]);
-    }
-
     this._timelineTypeOverrides.update((map) => {
       const newMap = new Map(map);
       newMap.set(t.id, t);
@@ -142,13 +114,6 @@ export class StyleOverrideService implements StyleStoreLike {
    * @param id The ID of the timeline type.
    */
   public resetTimelineType(id: number): void {
-    const store = this.baseStyleStore();
-    const original = this._originalTimelineTypes.get(id);
-    if (store && original) {
-      store.addTimelineTypes([original]);
-      this._originalTimelineTypes.delete(id);
-    }
-
     this._timelineTypeOverrides.update((map) => {
       if (map.has(id)) {
         const newMap = new Map(map);
@@ -174,14 +139,6 @@ export class StyleOverrideService implements StyleStoreLike {
    * @param l The new log type config DTO to override with.
    */
   public overrideLogType(l: LogType): void {
-    const store = this.baseStyleStore();
-    if (store) {
-      if (!this._originalLogTypes.has(l.id)) {
-        this._originalLogTypes.set(l.id, store.getLogType(l.id));
-      }
-      store.addLogTypes([l]);
-    }
-
     this._logTypeOverrides.update((map) => {
       const newMap = new Map(map);
       newMap.set(l.id, l);
@@ -195,13 +152,6 @@ export class StyleOverrideService implements StyleStoreLike {
    * @param id The ID of the log type.
    */
   public resetLogType(id: number): void {
-    const store = this.baseStyleStore();
-    const original = this._originalLogTypes.get(id);
-    if (store && original) {
-      store.addLogTypes([original]);
-      this._originalLogTypes.delete(id);
-    }
-
     this._logTypeOverrides.update((map) => {
       if (map.has(id)) {
         const newMap = new Map(map);
