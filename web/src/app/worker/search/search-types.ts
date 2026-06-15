@@ -25,6 +25,7 @@ import { StyleStoreSharedData } from 'src/app/store/domain/style';
 export type SearchWorkerRequest =
   | {
       readonly type: 'SYNC_DATA';
+      readonly requestId: string;
       readonly workerIndex: number;
       readonly internPoolSharedData: InternPoolSharedData;
       readonly logStoreSharedData: LogStoreSharedData;
@@ -54,6 +55,7 @@ export type SearchWorkerRequest =
 export type SearchWorkerResponse =
   | {
       readonly type: 'SYNC_COMPLETE';
+      readonly requestId: string;
     }
   | {
       readonly type: 'SEARCH_COMPLETE';

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/// <reference lib="webworker" />
 
 import {
   SearchWorkerRequest,
@@ -54,13 +53,9 @@ addEventListener('message', (event: MessageEvent<SearchWorkerRequest>) => {
         throw new Error(`Unknown request type`);
     }
   } catch (error) {
-    let requestId: string | undefined;
-    if (request.type !== 'SYNC_DATA') {
-      requestId = request.requestId;
-    }
     postMessage({
       type: 'ERROR',
-      requestId,
+      requestId: request.requestId,
       error: error instanceof Error ? error.message : String(error),
     } as SearchWorkerResponse);
   }

@@ -83,7 +83,7 @@ export class SearchWorkerManager implements OnDestroy {
         const tempSessionId = `sync-${this.sessionCounter++}`;
         const handleSync = (event: MessageEvent<SearchWorkerResponse>) => {
           const res = event.data;
-          if (res.type === 'SYNC_COMPLETE') {
+          if (res.type === 'SYNC_COMPLETE' && res.requestId === tempSessionId) {
             worker.removeEventListener('message', handleSync);
             resolve();
           } else if (res.type === 'ERROR' && res.requestId === tempSessionId) {
@@ -95,6 +95,7 @@ export class SearchWorkerManager implements OnDestroy {
 
         worker.postMessage({
           type: 'SYNC_DATA',
+          requestId: tempSessionId,
           workerIndex: index,
           internPoolSharedData,
           logStoreSharedData,

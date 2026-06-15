@@ -53,5 +53,6 @@ export function handleSyncData(
 
   postMessage({
     type: 'SYNC_COMPLETE',
+    requestId: request.requestId,
   } as SearchWorkerResponse);
 }
