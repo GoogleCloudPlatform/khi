@@ -42,6 +42,7 @@ var componentNameToComponentParserTypeMap = map[string]ControlplaneComponentPars
 var itemsCaptureRegex = regexp.MustCompile(`\[(?P<apiVersionKind>[^,]+), namespace: (?P<namespace>[^,]*), name: (?P<name>[^,]+)`)
 
 type K8sControlplaneComponentFieldSet struct {
+	ProjectID     string
 	ClusterName   string
 	ComponentName string
 }
@@ -67,6 +68,7 @@ type K8sControlplaneComponentFieldSetReader struct {
 // Read implements log.FieldSetReader.
 func (k *K8sControlplaneComponentFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result K8sControlplaneComponentFieldSet
+	result.ProjectID = reader.ReadStringOrDefault("resource.labels.project_id", "unknown")
 	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	result.ComponentName = reader.ReadStringOrDefault("resource.labels.component_name", "")
 	return &result, nil

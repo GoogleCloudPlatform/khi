@@ -84,6 +84,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		{
 			desc: "empty resource name event (EventExporter fallback)",
 			input: googlecloudlogk8sevent_contract.KubernetesEventFieldSet{
+				ProjectID:    "test-project",
 				ClusterName:  "test-cluster",
 				APIVersion:   "",
 				ResourceKind: "",
@@ -93,8 +94,13 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				Message:      "Event exporter started watching.",
 			},
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, "test-cluster")
-				expectedPath := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+				projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, "test-project")
+				clusterTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, "test-cluster")
+				otherTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+					Name: "other",
+					Type: googlecloudcommon_contract.TimelineTypeOtherGKEResources,
+				})
+				expectedPath := builder.TimelineAccumulator.GetPath(otherTimeline, khifilev6.PathSegment{
 					Name: "event-exporter",
 					Type: googlecloudlogk8sevent_contract.TimelineTypeEventExporter,
 				})

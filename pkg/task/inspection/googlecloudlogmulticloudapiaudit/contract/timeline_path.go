@@ -22,15 +22,6 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// MustProjectTimeline returns the hierarchical timeline path for a Google Cloud Project.
-func MustProjectTimeline(ctx context.Context, projectID string) *khifilev6.TimelinePath {
-	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
-		Name: "projects/" + projectID,
-		Type: TimelineTypeProject,
-	})
-}
-
 // MustMultiCloudClusterTimeline returns the hierarchical timeline path for a MultiCloud Cluster.
 func MustMultiCloudClusterTimeline(ctx context.Context, parent *khifilev6.TimelinePath, clusterName string) *khifilev6.TimelinePath {
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)

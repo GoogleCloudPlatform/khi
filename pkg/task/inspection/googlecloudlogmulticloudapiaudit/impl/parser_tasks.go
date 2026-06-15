@@ -149,18 +149,7 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 		return nil, struct{}{}, err
 	}
 
-	// Extract the project ID/number from the resourceName.
-	// Format: projects/<PROJECT_NUMBER>/locations/<LOCATION>/...
-	var projectID string
-	resourceName, _ := l.ReadString("protoPayload.resourceName")
-	splited := strings.Split(resourceName, "/")
-	if len(splited) > 1 && splited[0] == "projects" {
-		projectID = splited[1]
-	} else {
-		projectID = "unknown"
-	}
-
-	projectPath := googlecloudlogmulticloudapiaudit_contract.MustProjectTimeline(ctx, projectID)
+	projectPath := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, auditFieldSet.ProjectID)
 	clusterPath := googlecloudlogmulticloudapiaudit_contract.MustMultiCloudClusterTimeline(ctx, projectPath, resourceFieldSet.ClusterName)
 
 	var targetPath *khifilev6.TimelinePath

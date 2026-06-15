@@ -22,6 +22,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontainer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontainer/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -123,11 +124,14 @@ func (m *containerLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context,
 		clusterName = clusterIdentity.ClusterName
 	}
 
-	containerPath := googlecloudlogk8scontainer_contract.MustK8sContainerTimeline(
+	clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, clusterName)
+	apiVersionPath := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterPath, "core/v1")
+	kindPath := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionPath, "pod")
+	namespacePath := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindPath, containerFields.Namespace)
+	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespacePath, containerFields.PodName)
+	containerPath := commonlogk8saudit_contract.MustK8sContainerTimeline(
 		ctx,
-		clusterName,
-		containerFields.Namespace,
-		containerFields.PodName,
+		podPath,
 		containerFields.ContainerName,
 	)
 

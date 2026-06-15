@@ -27,22 +27,65 @@ var (
 		"GKE Control Plane and lifecycle logs",
 		"cloud",
 		1.0,
-		style.MustForceConvertSRGBHex("#4285F4"),
-		style.ColorWhite,
-		style.MustForceConvertSRGBHex("#4285F4"),
-		style.ColorWhite,
+		style.Color{R: 0.780, G: 0.863, B: 1.000, A: 1.0},
+		style.ColorBlack,
+		style.Color{R: 0.780, G: 0.863, B: 1.000, A: 1.0},
+		style.ColorBlack,
 		true,
 		40,
 		style.AlphabeticalSortPolicy(),
 	)
+	// TimelineTypeGKEControlPlanes is the timeline style for a GKE control planes folder.
+	TimelineTypeGKEControlPlanes = style.MustRegisterTimelineType(
+		"controlplanes",
+		"Control Plane",
+		"category",
+		0.6,
+		style.Color{R: 0.361, G: 0.604, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		style.Color{R: 0.361, G: 0.604, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		false,
+		3002,
+		style.AlphabeticalSortPolicy(),
+	)
+	// TimelineTypeGKENodePools is the timeline style for a GKE node pools folder.
+	TimelineTypeGKENodePools = style.MustRegisterTimelineType(
+		"nodepools",
+		"Node Pools",
+		"dns",
+		0.6,
+		style.Color{R: 0.361, G: 0.604, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		style.Color{R: 0.361, G: 0.604, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		false,
+		3001, // Must be higher than Operations
+		style.AlphabeticalSortPolicy(),
+	)
+	// TimelineTypeOtherGKEResources is the timeline style for other GKE resources.
+	TimelineTypeOtherGKEResources = style.MustRegisterTimelineType(
+		"other_gke_resources",
+		"Other GKE Resources",
+		"category",
+		0.6,
+		style.Color{R: 0.361, G: 0.604, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		style.Color{R: 0.361, G: 0.604, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		false,
+		3003,
+		style.AlphabeticalSortPolicy(),
+	)
+	// TimelineTypeGKENodePool is the style for a GKE node pool.
 	TimelineTypeGKENodePool = style.MustRegisterTimelineType(
 		"nodepool",
 		"GKE Nodepool layer",
 		"dns",
-		0.9,
-		style.MustForceConvertSRGBHex("#c5dbff"),
+		0.8,
+		style.Color{R: 0.941, G: 0.965, B: 1.000, A: 1.0},
 		style.ColorBlack,
-		style.MustForceConvertSRGBHex("#E0E0E0"),
+		style.Color{R: 0.941, G: 0.965, B: 1.000, A: 1.0},
 		style.ColorBlack,
 		true,
 		45,
@@ -63,12 +106,12 @@ var (
 	)
 	TimelineTypeGCPProject = style.MustRegisterTimelineType(
 		"project",
-		"Google Cloud Project",
+		"A Google Cloud Project.",
 		"cloud",
 		1.0,
+		style.Color{R: 0.102, G: 0.451, B: 0.910, A: 1.0},
 		style.ColorWhite,
-		style.ColorBlack,
-		style.MustForceConvertSRGBHex("#4285F4"),
+		style.Color{R: 0.102, G: 0.451, B: 0.910, A: 1.0},
 		style.ColorWhite,
 		true,
 		30,

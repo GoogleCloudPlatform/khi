@@ -24,6 +24,7 @@ import (
 )
 
 type KubernetesEventFieldSet struct {
+	ProjectID    string
 	ClusterName  string
 	APIVersion   string
 	ResourceKind string
@@ -51,6 +52,7 @@ func (g *GCPKubernetesEventFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (g *GCPKubernetesEventFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result KubernetesEventFieldSet
+	result.ProjectID = reader.ReadStringOrDefault("resource.labels.project_id", "unknown")
 	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	// Event exporter ingests cluster scoped logs without jsonPayload at the beginning
 	if reader.Has("textPayload") {

@@ -30,7 +30,11 @@ func MustEventExporterTimeline(ctx context.Context, clusterTimeline *khifilev6.T
 		panic("parent timeline path must be GKE type")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
-	return builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+	otherGKEResourcesTimeline := builder.TimelineAccumulator.GetPath(clusterTimeline, khifilev6.PathSegment{
+		Name: "other",
+		Type: googlecloudcommon_contract.TimelineTypeOtherGKEResources,
+	})
+	return builder.TimelineAccumulator.GetPath(otherGKEResourcesTimeline, khifilev6.PathSegment{
 		Name: "event-exporter",
 		Type: TimelineTypeEventExporter,
 	})

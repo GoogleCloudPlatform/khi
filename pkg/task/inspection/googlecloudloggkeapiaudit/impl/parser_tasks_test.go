@@ -56,11 +56,19 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 
 	// 2. Set up expected path references.
-	wantClusterPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+	wantProjectPath := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+		Name: "test-project",
+		Type: googlecloudcommon_contract.TimelineTypeGCPProject,
+	})
+	wantClusterPath := builder.TimelineAccumulator.GetPath(wantProjectPath, khifilev6.PathSegment{
 		Name: "test-cluster",
 		Type: googlecloudcommon_contract.TimelineTypeGKE,
 	})
-	wantNodepoolPath := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
+	wantNodepoolsPath := builder.TimelineAccumulator.GetPath(wantClusterPath, khifilev6.PathSegment{
+		Name: "nodepools",
+		Type: googlecloudcommon_contract.TimelineTypeGKENodePools,
+	})
+	wantNodepoolPath := builder.TimelineAccumulator.GetPath(wantNodepoolsPath, khifilev6.PathSegment{
 		Name: "test-nodepool",
 		Type: googlecloudcommon_contract.TimelineTypeGKENodePool,
 	})
@@ -95,6 +103,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				NodepoolName: "",
 			},
 			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				ProjectID:      "test-project",
 				OperationID:    "op-1",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -138,6 +147,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				NodepoolName: "",
 			},
 			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				ProjectID:      "test-project",
 				OperationID:    "op-1",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -168,6 +178,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				NodepoolName: "test-nodepool",
 			},
 			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: true,
 				OperationLast:  false,
@@ -211,6 +222,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				NodepoolName: "test-nodepool",
 			},
 			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -241,6 +253,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				NodepoolName: "test-nodepool",
 			},
 			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: false,
 				OperationLast:  true,
@@ -271,6 +284,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				NodepoolName: "test-nodepool",
 			},
 			inputAudit: googlecloudcommon_contract.GCPAuditLogFieldSet{
+				ProjectID:      "test-project",
 				OperationID:    "op-2",
 				OperationFirst: true,
 				OperationLast:  true,

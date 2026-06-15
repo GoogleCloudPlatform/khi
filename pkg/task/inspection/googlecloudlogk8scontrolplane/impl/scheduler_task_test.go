@@ -30,11 +30,19 @@ import (
 func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 
-	gkeClusterTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+	projectTimeline := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{
+		Name: "test-project",
+		Type: googlecloudcommon_contract.TimelineTypeGCPProject,
+	})
+	gkeClusterTimeline := builder.TimelineAccumulator.GetPath(projectTimeline, khifilev6.PathSegment{
 		Name: "test-cluster",
 		Type: googlecloudcommon_contract.TimelineTypeGKE,
 	})
-	wantCompTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+	wantControlPlanesTimeline := builder.TimelineAccumulator.GetPath(gkeClusterTimeline, khifilev6.PathSegment{
+		Name: "controlplanes",
+		Type: googlecloudcommon_contract.TimelineTypeGKEControlPlanes,
+	})
+	wantCompTimeline := builder.TimelineAccumulator.GetPath(wantControlPlanesTimeline, khifilev6.PathSegment{
 		Name: "scheduler",
 		Type: googlecloudlogk8scontrolplane_contract.TimelineTypeControlPlaneComponent,
 	})
@@ -71,6 +79,7 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 		{
 			desc: "with pod name and namespace given",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "scheduler",
 			},
@@ -90,6 +99,7 @@ func TestSchedulerLogToTimelineMapperTask(t *testing.T) {
 		{
 			desc: "without pod name and namespace",
 			inputComponentField: googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{
+				ProjectID:     "test-project",
 				ClusterName:   "test-cluster",
 				ComponentName: "scheduler",
 			},
