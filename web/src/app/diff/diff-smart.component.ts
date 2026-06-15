@@ -25,7 +25,7 @@ import {
 import { Subject, takeUntil } from 'rxjs';
 import { InspectionDataStoreV2 } from '../services/inspection-data-store-v2.service';
 import { SelectionManagerV2 } from '../services/selection-manager-v2.service';
-import { ViewStateService } from '../services/view-state.service';
+import { SearchScope, ViewStateService } from '../services/view-state.service';
 import { DiffListHeaderComponent } from './components/diff-list-header.component';
 import { DiffListComponent } from './components/diff-list.component';
 import { DiffContentComponent } from './components/diff-content.component';
@@ -66,6 +66,9 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroyed.next();
   }
+
+  /** Holds the active search scope. */
+  public readonly activeSearchScope = this.viewState.activeSearchScope;
 
   /**
    * Signal containing the timezone shift in hours from the view state.
@@ -221,6 +224,17 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     } catch (e) {
       console.warn(`failed to process frontend yaml: ${e}`);
       return content;
+    }
+  }
+
+  /**
+   * Sets the active search scope in the ViewStateService based on whether Diff Content is hovered or focused.
+   */
+  protected onScopeActiveChange(active: boolean): void {
+    if (active) {
+      this.viewState.activeSearchScope.set(SearchScope.Diff);
+    } else if (this.viewState.activeSearchScope() === SearchScope.Diff) {
+      this.viewState.activeSearchScope.set(SearchScope.Global);
     }
   }
 }

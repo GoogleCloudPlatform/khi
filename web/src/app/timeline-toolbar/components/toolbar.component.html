@@ -95,6 +95,7 @@ limitations under the License.
             <mat-icon matPrefix class="search-prefix-icon">search</mat-icon>
             <mat-label>Search Logs</mat-label>
             <input
+              #logSearchInput
               matInput
               placeholder="Search in log body..."
               [value]="logSearchQuery()"

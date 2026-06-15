@@ -20,17 +20,17 @@ import {
   input,
   model,
   output,
-  inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { CelInputComponent } from 'src/app/timeline-toolbar/components/cel-input.component';
 import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/toolbar-settings.component';
+import { SearchScope } from 'src/app/services/view-state.service';
 import {
   CelGuidePopupComponent,
   CelGuideTab,
@@ -58,6 +58,11 @@ export class ToolbarAdvancedComponent {
   protected readonly CelGuideTab = CelGuideTab;
 
   /**
+   * Reference to the Log CEL input component for search focus management.
+   */
+  public readonly logCelInput = viewChild<CelInputComponent>('logCelInput');
+
+  /**
    * Custom positions for the CDK overlay to align the popup top-center with the help button bottom-center.
    */
   protected readonly overlayPositions = [
@@ -68,8 +73,6 @@ export class ToolbarAdvancedComponent {
       overlayY: 'top' as const,
     },
   ];
-
-  private readonly snackbar = inject(MatSnackBar);
 
   /**
    * Signal managing the open/closed state of the help guide popover.
@@ -95,6 +98,11 @@ export class ToolbarAdvancedComponent {
    * Specifies whether a log or timeline is currently not selected.
    */
   readonly logOrTimelineNotSelected = input(true);
+
+  /**
+   * Holds the current active search scope.
+   */
+  readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
 
   /**
    * Validation error message for the timeline CEL filter.
@@ -140,19 +148,6 @@ export class ToolbarAdvancedComponent {
   }
 
   /**
-   * Intercepts standard browser search shortcut to notify users about virtual rendering limitations.
-   */
-  @HostListener('window:keydown', ['$event'])
-  protected interceptBrowserSearch(event: KeyboardEvent): void {
-    if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
-      this.snackbar.open(
-        'In-browser search may not work on KHI because elements outside the visible area are not rendered. Please use the search text field on the toolbar instead.',
-        'OK',
-      );
-    }
-  }
-
-  /**
    * Switches the CEL guide popup active tab to Timeline CEL when focused if the guide popup is currently open.
    */
   public onTimelineCelFocus(): void {
@@ -167,6 +162,23 @@ export class ToolbarAdvancedComponent {
   public onLogCelFocus(): void {
     if (this.helpPopupOpen()) {
       this.helpActiveTab.set(CelGuideTab.LogCel);
+    }
+  }
+
+  /**
+   * Intercepts Ctrl+F or Cmd+F to focus the Log CEL input when KHI log or diff search is not active.
+   * @param event The keyboard event.
+   */
+  @HostListener('window:keydown', ['$event'])
+  public onKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (this.activeSearchScope() === SearchScope.Global) {
+        event.preventDefault();
+        this.logCelInput()?.focus();
+      }
     }
   }
 }

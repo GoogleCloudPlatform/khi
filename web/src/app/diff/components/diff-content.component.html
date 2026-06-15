@@ -21,9 +21,23 @@ limitations under the License.
       [(showManagedFields)]="showManagedFields"
       (openInNewTab)="_openInNewTab()"
       (copyContent)="copyContent()"
+      (openSearch)="openSearch()"
     >
     </khi-diff-toolbar>
-    <div class="diff-inner">
+    @if (isSearchOpen()) {
+      <div class="search-bar-container">
+        <khi-search-bar
+          [query]="searchQuery()"
+          [matchCount]="matchCount()"
+          [currentMatchIndex]="currentMatchIndex()"
+          (queryChange)="updateSearchQuery($event)"
+          (nextMatch)="nextMatch()"
+          (prevMatch)="prevMatch()"
+          (closeSearch)="closeSearch()"
+        ></khi-search-bar>
+      </div>
+    }
+    <div #diffContainer class="diff-inner">
       @let currentContent = currentRevisionContent();
       @let previousContent = previousRevisionContent();
       @if (previousContent !== undefined && previousContent !== null) {
