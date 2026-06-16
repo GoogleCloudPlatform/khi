@@ -130,7 +130,7 @@ describe('CelTimelineFilter', () => {
   it('should reset evaluator and return original context if an invalid expression is provided after a valid one', async () => {
     filter.updateFilter("t.name == 'T1'");
 
-    const res = filter.updateFilter("t.name == 'T1");
+    const res = filter.updateFilter("name == 'T1");
     expect(res.success).toBe(false);
 
     const context: LogTimelineFilterContext = {
@@ -202,7 +202,7 @@ describe('CelLogFilter', () => {
   it('should reset evaluator and return original context if an invalid expression is provided after a valid one', async () => {
     filter.updateFilter("l.summary == 'L1'");
 
-    const res = filter.updateFilter("l.summary == 'L1");
+    const res = filter.updateFilter("summary == 'L1");
     expect(res.success).toBe(false);
 
     const context: LogTimelineFilterContext = {

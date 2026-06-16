@@ -21,6 +21,7 @@ import { StyleStoreSharedData } from 'src/app/store/domain/style';
 
 /**
  * Message request type sent from the manager (main thread) to SearchWorkers.
+ * To prvent OOMs by generating large request data, we reuse SharedArrayBuffers per worker.
  */
 export type SearchWorkerRequest =
   | {
@@ -38,6 +39,18 @@ export type SearchWorkerRequest =
       readonly workerIndex: number;
       readonly numWorkers: number;
       readonly celExpr: string;
+      /**
+       * Int32Array mapped over buffer.
+       * buffer[0] = count (N)
+       * buffer[1..N] = timeline IDs
+       */
+      readonly requestBuf: SharedArrayBuffer | ArrayBuffer;
+      /**
+       * Int32Array mapped over buffer.
+       * buffer[0] = count (M)
+       * buffer[1..M] = matched timeline IDs
+       */
+      readonly resultBuf: SharedArrayBuffer | ArrayBuffer;
       readonly progressSab: SharedArrayBuffer | ArrayBuffer;
     }
   | {
@@ -46,7 +59,18 @@ export type SearchWorkerRequest =
       readonly workerIndex: number;
       readonly numWorkers: number;
       readonly celExpr: string;
-      readonly timelineIds: readonly number[]; // timelines target for evaluating events & revisions
+      /**
+       * Int32Array mapped over buffer.
+       * buffer[0] = count (N)
+       * buffer[1..N] = timeline IDs to search logs in
+       */
+      readonly requestBuf: SharedArrayBuffer | ArrayBuffer;
+      /**
+       * Int32Array mapped over buffer.
+       * buffer[0] = count (M)
+       * buffer[1..M] = matched log IDs
+       */
+      readonly resultBuf: SharedArrayBuffer | ArrayBuffer;
       readonly progressSab: SharedArrayBuffer | ArrayBuffer;
     };
 
@@ -61,7 +85,7 @@ export type SearchWorkerResponse =
   | {
       readonly type: 'SEARCH_COMPLETE';
       readonly requestId: string;
-      readonly matchedIds: readonly number[];
+      readonly workerIndex: number;
     }
   | {
       readonly type: 'ERROR';

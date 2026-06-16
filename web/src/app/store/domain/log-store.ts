@@ -40,7 +40,7 @@ export interface LogStoreSharedData {
   readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
   readonly bodyBufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
   readonly count: number;
-  readonly idToIndex: readonly (number | undefined)[];
+  readonly idToIndex: (number | undefined)[];
 }
 
 /**
@@ -106,7 +106,7 @@ export class LogStore {
       this.metadataSab = sharedData.metadataSab;
       this.bodyBufferSabs = Array.from(sharedData.bodyBufferSabs);
       this.bodyBuffers = this.bodyBufferSabs.map((sab) => new Uint8Array(sab));
-      this.idToIndex = Array.from(sharedData.idToIndex);
+      this.idToIndex = sharedData.idToIndex;
       this.mapMetadataViews(sharedData.count);
     }
   }

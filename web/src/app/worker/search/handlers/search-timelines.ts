@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+import { isSharedBuffer } from 'src/app/store/domain/types';
 import { SearchWorkerRequest } from 'src/app/worker/search/search-types';
 import { SearchWorkerState } from 'src/app/worker/search/search-worker-state';
 
 export function handleSearchTimelines(
   request: Extract<SearchWorkerRequest, { type: 'SEARCH_TIMELINES' }>,
   state: SearchWorkerState,
-): number[] {
+): void {
   if (!state.timelineStore) {
     throw new Error('TimelineStore not initialized inside Worker');
   }
@@ -29,36 +30,56 @@ export function handleSearchTimelines(
     throw compileRes.error ?? new Error(`Compile failed: ${request.celExpr}`);
   }
 
-  const matchedIds: number[] = [];
-  let processedCount = 0;
-  const timelines = state.timelineStore.timelines;
-  const totalTimelines = timelines.length;
+  let matchCount = 0;
+  const requestView = new Int32Array(request.requestBuf);
+  const resultView = new Int32Array(request.resultBuf);
+  const requestCount = requestView[0];
   const workerIndex = request.workerIndex;
   const numWorkers = request.numWorkers;
   const progressArray = new Int32Array(request.progressSab);
-  const progressOffset = workerIndex * 16;
+  const progressOffset = workerIndex;
+  const cancellationIndex = numWorkers;
+  const isShared = isSharedBuffer(request.progressSab);
 
-  const cancellationIndex = numWorkers * 16;
+  let processedCount = isShared
+    ? Atomics.load(progressArray, progressOffset)
+    : progressArray[progressOffset];
 
-  for (let i = workerIndex; i < totalTimelines; i += numWorkers) {
-    if (Atomics.load(progressArray, cancellationIndex) !== 0) {
+  for (let i = 1; i <= requestCount; i++) {
+    const tId = requestView[i];
+    const isCancelled = isShared
+      ? Atomics.load(progressArray, cancellationIndex) !== 0
+      : progressArray[cancellationIndex] !== 0;
+
+    if (isCancelled) {
       console.debug(
         `[SearchWorker #${workerIndex}] SEARCH_TIMELINES aborted (cancelled).`,
       );
-      return matchedIds;
+      resultView[0] = matchCount;
+      return;
     }
-    const t = timelines[i];
+    const t = state.timelineStore.getTimeline(tId);
     if (state.timelineCelEnv.evaluate(t, state.timelineStore)) {
-      matchedIds.push(t.id);
+      if (matchCount >= resultView.length - 1) {
+        throw new Error(
+          `[SearchWorker #${workerIndex}] result buffer overflow.`,
+        );
+      }
+      matchCount++;
+      resultView[matchCount] = t.id;
     }
     processedCount++;
-    progressArray[progressOffset] = processedCount;
+    if (isShared) {
+      Atomics.store(progressArray, progressOffset, processedCount);
+    } else {
+      progressArray[progressOffset] = processedCount;
+    }
   }
 
   console.debug(
     `[SearchWorker #${workerIndex}] SEARCH_TIMELINES complete. ` +
-      `Processed: ${processedCount}, Matched: ${matchedIds.length}`,
+      `Processed: ${processedCount}, Matched: ${matchCount}`,
   );
 
-  return matchedIds;
+  resultView[0] = matchCount;
 }
