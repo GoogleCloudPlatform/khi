@@ -139,11 +139,15 @@ export class LogListComponent {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
       return;
     }
-    // Prevent the default browser scrolling behavior when navigating the log list.
-    event.preventDefault();
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
 
     const logs = this.shownLogs();
     if (logs.length === 0) return;
+
+    // Prevent the default browser scrolling behavior when navigating the log list.
+    event.preventDefault();
 
     const selectedIndex = this.selectedLogIndex();
     const arrayIndex = this.searchArrayIndexOfLog(logs, selectedIndex);
