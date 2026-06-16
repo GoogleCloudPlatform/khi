@@ -28,7 +28,10 @@ import {
 import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-reference-list.component';
 import { LogListComponent } from 'src/app/log/components/log-list.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ViewStateService } from 'src/app/services/view-state.service';
+import {
+  SearchScope,
+  ViewStateService,
+} from 'src/app/services/view-state.service';
 import jsyaml from 'js-yaml';
 
 /**
@@ -52,6 +55,9 @@ export class LogSmartComponent {
   private readonly selectionManager = inject(SelectionManagerV2);
   private readonly inspectionDataStore = inject(InspectionDataStoreV2);
   private readonly viewState = inject(ViewStateService);
+
+  /** Holds the active search scope. */
+  public readonly activeSearchScope = this.viewState.activeSearchScope;
 
   /**
    * The timezone shift to apply to the timestamp.
@@ -205,6 +211,17 @@ export class LogSmartComponent {
       ?.timelineStore.getTimeline(timelineId);
     if (timeline) {
       this.selectionManager.onHighlightTimeline(timeline);
+    }
+  }
+
+  /**
+   * Sets the active search scope in the ViewStateService based on whether Log Content is hovered or focused.
+   */
+  protected onScopeActiveChange(active: boolean): void {
+    if (active) {
+      this.viewState.activeSearchScope.set(SearchScope.Log);
+    } else if (this.viewState.activeSearchScope() === SearchScope.Log) {
+      this.viewState.activeSearchScope.set(SearchScope.Global);
     }
   }
 }

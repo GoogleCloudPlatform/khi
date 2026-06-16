@@ -30,6 +30,14 @@ limitations under the License.
       <button
         class="toolbar-button"
         matIconButton
+        matTooltip="Search in body (Ctrl+F)"
+        (click)="openSearch()"
+      >
+        <mat-icon>search</mat-icon>
+      </button>
+      <button
+        class="toolbar-button"
+        matIconButton
         matTooltip="Copy the log to clipboard"
         (click)="copyLog()"
       >
@@ -46,9 +54,22 @@ limitations under the License.
         </button>
       }
     </div>
+    @if (isSearchOpen()) {
+      <div class="search-bar-container">
+        <khi-search-bar
+          [query]="searchQuery()"
+          [matchCount]="matchCount()"
+          [currentMatchIndex]="currentMatchIndex()"
+          (queryChange)="updateSearchQuery($event)"
+          (nextMatch)="nextMatch()"
+          (prevMatch)="prevMatch()"
+          (closeSearch)="closeSearch()"
+        ></khi-search-bar>
+      </div>
+    }
     <div class="log-body-container">
       <div class="log-body">
-        <pre><code [highlight]="viewModel.logBody" language="yaml" lineNumbers></code></pre>
+        <pre><code #codeElement [highlight]="viewModel.logBody" language="yaml" lineNumbers></code></pre>
       </div>
     </div>
   } @else {

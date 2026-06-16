@@ -17,10 +17,11 @@
 import {
   Component,
   HostListener,
+  viewChild,
+  ElementRef,
   input,
   model,
   output,
-  inject,
   signal,
   computed,
 } from '@angular/core';
@@ -30,12 +31,12 @@ import { OverlayModule } from '@angular/cdk/overlay';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { TimelineFilterBuilderComponent } from './timeline-filter-builder.component';
+import { SearchScope } from 'src/app/services/view-state.service';
 import { TimelineFilterConfig } from '../types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
@@ -74,7 +75,11 @@ export enum ToolbarPopupStatus {
   ],
 })
 export class ToolbarComponent {
-  private readonly snackbar = inject(MatSnackBar);
+  /**
+   * Reference to the Log Search input element for search focus management.
+   */
+  public readonly logSearchInput =
+    viewChild<ElementRef<HTMLInputElement>>('logSearchInput');
 
   // Inputs (Signals)
   readonly showButtonLabel = input(false);
@@ -89,6 +94,11 @@ export class ToolbarComponent {
   readonly nameFilter = model('');
   readonly selectedSeverity = model<string>('ANY');
   readonly logSearchQuery = model<string>('');
+
+  /**
+   * Holds the current active search scope.
+   */
+  readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
 
   // Timeline Filters (Dumb state)
   readonly timelineFilters = model<TimelineFilterConfig[]>([]);
@@ -287,13 +297,20 @@ export class ToolbarComponent {
     }
   }
 
+  /**
+   * Intercepts Ctrl+F or Cmd+F to focus the Log Search input when KHI log or diff search is not active.
+   * @param event The keyboard event.
+   */
   @HostListener('window:keydown', ['$event'])
-  protected interceptBrowserSearch(event: KeyboardEvent) {
-    if (event.key === 'f' && (event.ctrlKey || event.metaKey)) {
-      this.snackbar.open(
-        'In-browser search may not work on KHI because elements outside the visible area are not rendered. Please use the search text field on the toolbar instead.',
-        'OK',
-      );
+  public onKeyDown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (this.activeSearchScope() === SearchScope.Global) {
+        event.preventDefault();
+        this.logSearchInput()?.nativeElement.focus();
+      }
     }
   }
 }

@@ -19,6 +19,7 @@ import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
+import { SearchScope } from 'src/app/services/view-state.service';
 import { ToolbarComponent } from './toolbar.component';
 import { ToolbarAdvancedComponent } from './toolbar-advanced.component';
 
@@ -40,6 +41,9 @@ import { ToolbarAdvancedComponent } from './toolbar-advanced.component';
 export class ToolbarFrameComponent {
   /** Two-way model binding managing the advanced display mode state. */
   readonly isAdvancedMode = model.required<boolean>();
+
+  /** Holds the current active search scope. */
+  readonly activeSearchScope = input.required<SearchScope>();
 
   // Shared parameters
   /** Flag indicating if the app is currently filtering timelines/logs. */

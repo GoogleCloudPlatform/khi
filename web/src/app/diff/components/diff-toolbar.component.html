@@ -29,6 +29,14 @@
     >
   </div>
   <div class="right">
+    <button
+      matIconButton
+      class="toolbar-button"
+      matTooltip="Search in diff (Ctrl+F)"
+      (click)="openSearch.emit()"
+    >
+      <mat-icon>search</mat-icon>
+    </button>
     <button matIconButton class="toolbar-button" (click)="copyContent.emit()">
       <mat-icon>content_paste</mat-icon>
     </button>

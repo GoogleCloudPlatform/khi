@@ -27,6 +27,15 @@ import {
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 
 /**
+ * Represents the current active search scope for keyboard shortcut navigation.
+ */
+export enum SearchScope {
+  Global = 'GLOBAL',
+  Log = 'LOG',
+  Diff = 'DIFF',
+}
+
+/**
  * A service to manage statuses used for view in application wide.
  */
 @Injectable({ providedIn: 'root' })
@@ -37,6 +46,11 @@ export class ViewStateService {
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/canvas#maximum_canvas_size
    */
   public static DEVICE_PIXEL_RATIO_SCALE = 1;
+
+  /**
+   * The currently active search scope for handling search keyboard shortcuts.
+   */
+  public readonly activeSearchScope = signal<SearchScope>(SearchScope.Global);
 
   /**
    * Whether the timeline toolbar is in advanced (CEL) mode.

@@ -39,6 +39,8 @@
         [selectedTimeline]="selectedTimeline()"
         (timelineSelected)="onTimelineSelected($event)"
         (timelineHighlighted)="onTimelineHighlighted($event)"
+        (scopeActiveChange)="onScopeActiveChange($event)"
+        [activeSearchScope]="activeSearchScope()"
       >
       </khi-log-content>
     </as-split-area>

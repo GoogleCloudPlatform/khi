@@ -68,6 +68,10 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   /** Global display mode state signal managed by ViewStateService. */
   protected readonly isAdvancedMode = this.viewStateService.isAdvancedMode;
 
+  /** Signal holding the current active search scope. */
+  protected readonly activeSearchScope =
+    this.viewStateService.activeSearchScope;
+
   /** Signal holding the current timezone shift offset in hours. */
   protected readonly timezoneShift = toSignal(
     this.viewStateService.timezoneShift,
