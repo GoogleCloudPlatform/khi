@@ -466,6 +466,8 @@ export class TimelineSmartComponent {
         true,
       );
 
+      const hasHighlightedLog =
+        this.selectionManager.highlightedLogs().length > 0;
       return {
         timelineId: timeline.id,
         timeMs: targetTimeMs,
@@ -476,6 +478,7 @@ export class TimelineSmartComponent {
           revisions: finalRevisions,
           events: finalEvents,
           initialRevision: initialRevision,
+          cursorTime: hasHighlightedLog ? null : targetTimeNs,
         },
       } as TimelineHoverOverlayRequest;
     });
@@ -537,6 +540,7 @@ export class TimelineSmartComponent {
         );
       } else {
         this.selectionManager.onHighlightLog();
+        this.lastClickedTime.set(BigInt(Math.floor(event.timeMS)) * 1000000n);
       }
     }
   }

@@ -18,170 +18,195 @@
   <div class="container">
     <div class="table">
       @for (log of vm.logs; let index = $index; track log.uniqueID) {
-        <div
-          class="body"
-          [ngClass]="{ revision: log.isRevision }"
-          [class.selected]="
-            log.highlightType === TimelineChartItemHighlightType.Selected
-          "
-          [class.hovered]="
-            log.highlightType === TimelineChartItemHighlightType.Hovered
-          "
-          (mouseenter)="handleMouse($event, vm.timeline!, log, hoverOnElement)"
-          (click)="handleMouse($event, vm.timeline!, log, clickOnElement)"
-        >
+        @if (log.isCursor) {
+          <div class="body cursor-row">
+            <div class="body-state-container cursor-icon-container">
+              <mat-icon class="material-icons-outlined cursor-icon"
+                >navigation</mat-icon
+              >
+            </div>
+            <div class="body-misc-colors bottom-line"></div>
+            <div class="body-time bottom-line">
+              <p class="cursor-time-text">{{ log.timeLabel }}</p>
+            </div>
+            <div
+              class="body-log-summaries bottom-line cursor-summary-container"
+            >
+              <div class="cursor-dash-line"></div>
+              <p class="summary-text cursor-summary-text">Your cursor</p>
+              <div class="cursor-dash-line"></div>
+            </div>
+          </div>
+        } @else {
           <div
-            class="body-state-container"
-            [style.--revision-state-color]="log.revisionStateColor"
+            class="body"
+            [ngClass]="{ revision: log.isRevision }"
+            [class.selected]="
+              log.highlightType === TimelineChartItemHighlightType.Selected
+            "
+            [class.hovered]="
+              log.highlightType === TimelineChartItemHighlightType.Hovered
+            "
+            (mouseenter)="
+              handleMouse($event, vm.timeline!, log, hoverOnElement)
+            "
+            (click)="handleMouse($event, vm.timeline!, log, clickOnElement)"
           >
-            @if (index > 0) {
-              @let prevLog = vm.logs[index - 1];
-              <div
-                class="revision-state-top"
-                [matTooltip]="prevLog.revisionStateLabel"
-                [style.--revision-state-color]="prevLog.revisionStateColor"
-                [class.style-normal]="
-                  prevLog.revisionStateStyle === RevisionStateStyle.NORMAL
-                "
-                [class.style-partial-info]="
-                  prevLog.revisionStateStyle === RevisionStateStyle.PARTIAL_INFO
-                "
-                [class.style-deleted]="
-                  prevLog.revisionStateStyle === RevisionStateStyle.DELETED
-                "
-                [class.status-end]="
-                  prevLog.statusContinous === StatusContinousMode.End ||
-                  prevLog.statusContinous === StatusContinousMode.StartAndEnd
-                "
-                [class.selected]="
-                  prevLog.lastRevisionHightlightType !== null &&
-                  prevLog.lastRevisionHightlightType ===
-                    TimelineChartItemHighlightType.Selected
-                "
-                [class.hovered]="
-                  prevLog.lastRevisionHightlightType !== null &&
-                  prevLog.lastRevisionHightlightType ===
-                    TimelineChartItemHighlightType.Hovered
-                "
-              ></div>
-            } @else if (index === 0) {
-              @let initialRevisionState = vm.initialRevisionState;
-              @if (initialRevisionState) {
+            <div
+              class="body-state-container"
+              [style.--revision-state-color]="log.revisionStateColor"
+            >
+              @if (index > 0) {
+                @let prevLog = vm.logs[index - 1];
                 <div
                   class="revision-state-top"
-                  [style.--revision-state-color]="
-                    initialRevisionState.revisionStateColor
-                  "
+                  [matTooltip]="prevLog.revisionStateLabel"
+                  [style.--revision-state-color]="prevLog.revisionStateColor"
                   [class.style-normal]="
-                    initialRevisionState.revisionStateStyle ===
-                    RevisionStateStyle.NORMAL
+                    prevLog.revisionStateStyle === RevisionStateStyle.NORMAL
                   "
                   [class.style-partial-info]="
-                    initialRevisionState.revisionStateStyle ===
+                    prevLog.revisionStateStyle ===
                     RevisionStateStyle.PARTIAL_INFO
                   "
                   [class.style-deleted]="
-                    initialRevisionState.revisionStateStyle ===
-                    RevisionStateStyle.DELETED
+                    prevLog.revisionStateStyle === RevisionStateStyle.DELETED
                   "
                   [class.status-end]="
-                    initialRevisionState.statusContinous ===
-                      StatusContinousMode.End ||
-                    initialRevisionState.statusContinous ===
-                      StatusContinousMode.StartAndEnd
+                    prevLog.statusContinous === StatusContinousMode.End ||
+                    prevLog.statusContinous === StatusContinousMode.StartAndEnd
                   "
-                ></div>
-              }
-            }
-            @if (!log.isRevision) {
-              <div
-                class="event-anchor"
-                [style.--log-type-color]="log.logTypeColor"
-                [style.--severity-color]="log.severityColor"
-              >
-                <div
-                  class="event-rect"
                   [class.selected]="
-                    log.highlightType ===
-                    TimelineChartItemHighlightType.Selected
+                    prevLog.lastRevisionHightlightType !== null &&
+                    prevLog.lastRevisionHightlightType ===
+                      TimelineChartItemHighlightType.Selected
                   "
                   [class.hovered]="
-                    log.highlightType === TimelineChartItemHighlightType.Hovered
+                    prevLog.lastRevisionHightlightType !== null &&
+                    prevLog.lastRevisionHightlightType ===
+                      TimelineChartItemHighlightType.Hovered
                   "
                 ></div>
+              } @else if (index === 0) {
+                @let initialRevisionState = vm.initialRevisionState;
+                @if (initialRevisionState) {
+                  <div
+                    class="revision-state-top"
+                    [style.--revision-state-color]="
+                      initialRevisionState.revisionStateColor
+                    "
+                    [class.style-normal]="
+                      initialRevisionState.revisionStateStyle ===
+                      RevisionStateStyle.NORMAL
+                    "
+                    [class.style-partial-info]="
+                      initialRevisionState.revisionStateStyle ===
+                      RevisionStateStyle.PARTIAL_INFO
+                    "
+                    [class.style-deleted]="
+                      initialRevisionState.revisionStateStyle ===
+                      RevisionStateStyle.DELETED
+                    "
+                    [class.status-end]="
+                      initialRevisionState.statusContinous ===
+                        StatusContinousMode.End ||
+                      initialRevisionState.statusContinous ===
+                        StatusContinousMode.StartAndEnd
+                    "
+                  ></div>
+                }
+              }
+              @if (!log.isRevision) {
+                <div
+                  class="event-anchor"
+                  [style.--log-type-color]="log.logTypeColor"
+                  [style.--severity-color]="log.severityColor"
+                >
+                  <div
+                    class="event-rect"
+                    [class.selected]="
+                      log.highlightType ===
+                      TimelineChartItemHighlightType.Selected
+                    "
+                    [class.hovered]="
+                      log.highlightType ===
+                      TimelineChartItemHighlightType.Hovered
+                    "
+                  ></div>
+                </div>
+              }
+              @let nextLog = vm.logs[index];
+              <div
+                class="revision-state-bottom"
+                [matTooltip]="nextLog.revisionStateLabel"
+                [style.--revision-state-color]="nextLog.revisionStateColor"
+                [class.style-normal]="
+                  nextLog.revisionStateStyle === RevisionStateStyle.NORMAL
+                "
+                [class.style-partial-info]="
+                  nextLog.revisionStateStyle === RevisionStateStyle.PARTIAL_INFO
+                "
+                [class.style-deleted]="
+                  nextLog.revisionStateStyle === RevisionStateStyle.DELETED
+                "
+                [class.status-start]="
+                  nextLog.statusContinous === StatusContinousMode.Start ||
+                  nextLog.statusContinous === StatusContinousMode.StartAndEnd
+                "
+                [class.is-last-row]="index === vm.logs.length - 1"
+                [class.selected]="
+                  nextLog.lastRevisionHightlightType !== null &&
+                  nextLog.lastRevisionHightlightType ===
+                    TimelineChartItemHighlightType.Selected
+                "
+                [class.hovered]="
+                  nextLog.lastRevisionHightlightType !== null &&
+                  nextLog.lastRevisionHightlightType ===
+                    TimelineChartItemHighlightType.Hovered
+                "
+              >
+                @if (
+                  nextLog.statusContinous === StatusContinousMode.Start ||
+                  nextLog.statusContinous === StatusContinousMode.StartAndEnd
+                ) {
+                  <mat-icon class="material-icons-outlined">{{
+                    nextLog.revisionStateIcon
+                  }}</mat-icon>
+                }
               </div>
-            }
-            @let nextLog = vm.logs[index];
-            <div
-              class="revision-state-bottom"
-              [matTooltip]="nextLog.revisionStateLabel"
-              [style.--revision-state-color]="nextLog.revisionStateColor"
-              [class.style-normal]="
-                nextLog.revisionStateStyle === RevisionStateStyle.NORMAL
-              "
-              [class.style-partial-info]="
-                nextLog.revisionStateStyle === RevisionStateStyle.PARTIAL_INFO
-              "
-              [class.style-deleted]="
-                nextLog.revisionStateStyle === RevisionStateStyle.DELETED
-              "
-              [class.status-start]="
-                nextLog.statusContinous === StatusContinousMode.Start ||
-                nextLog.statusContinous === StatusContinousMode.StartAndEnd
-              "
-              [class.is-last-row]="index === vm.logs.length - 1"
-              [class.selected]="
-                nextLog.lastRevisionHightlightType !== null &&
-                nextLog.lastRevisionHightlightType ===
-                  TimelineChartItemHighlightType.Selected
-              "
-              [class.hovered]="
-                nextLog.lastRevisionHightlightType !== null &&
-                nextLog.lastRevisionHightlightType ===
-                  TimelineChartItemHighlightType.Hovered
-              "
-            >
-              @if (
-                nextLog.statusContinous === StatusContinousMode.Start ||
-                nextLog.statusContinous === StatusContinousMode.StartAndEnd
-              ) {
-                <mat-icon class="material-icons-outlined">{{
-                  nextLog.revisionStateIcon
-                }}</mat-icon>
+            </div>
+            <div class="body-misc-colors bottom-line">
+              <div
+                class="verb-type-container"
+                [style.--verb-type-color]="log.verbTypeColor"
+              ></div>
+              <div
+                class="log-type-container"
+                [style.--log-type-color]="log.logTypeColor"
+                [matTooltip]="log.logTypeLabel"
+              ></div>
+              @if (log.showSeverity) {
+                <div
+                  class="severity-container"
+                  [style.--severity-color]="log.severityColor"
+                >
+                  {{ log.severityLabel }}
+                </div>
+              } @else {
+                <div
+                  class="severity-container"
+                  [style.--severity-color]="'transparent'"
+                ></div>
               }
             </div>
+            <div class="body-time bottom-line">
+              <p>{{ log.timeLabel }}</p>
+            </div>
+            <div class="body-log-summaries bottom-line">
+              <p class="summary-text">{{ log.summary }}</p>
+            </div>
           </div>
-          <div class="body-misc-colors bottom-line">
-            <div
-              class="verb-type-container"
-              [style.--verb-type-color]="log.verbTypeColor"
-            ></div>
-            <div
-              class="log-type-container"
-              [style.--log-type-color]="log.logTypeColor"
-              [matTooltip]="log.logTypeLabel"
-            ></div>
-            @if (log.showSeverity) {
-              <div
-                class="severity-container"
-                [style.--severity-color]="log.severityColor"
-              >
-                {{ log.severityLabel }}
-              </div>
-            } @else {
-              <div
-                class="severity-container"
-                [style.--severity-color]="'transparent'"
-              ></div>
-            }
-          </div>
-          <div class="body-time bottom-line">
-            <p>{{ log.timeLabel }}</p>
-          </div>
-          <div class="body-log-summaries bottom-line">
-            <p class="summary-text">{{ log.summary }}</p>
-          </div>
-        </div>
+        }
       }
     </div>
   </div>
