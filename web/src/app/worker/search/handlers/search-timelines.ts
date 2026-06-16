@@ -60,6 +60,11 @@ export function handleSearchTimelines(
     }
     const t = state.timelineStore.getTimeline(tId);
     if (state.timelineCelEnv.evaluate(t, state.timelineStore)) {
+      if (matchCount >= resultView.length - 1) {
+        throw new Error(
+          `[SearchWorker #${workerIndex}] result buffer overflow.`,
+        );
+      }
       matchCount++;
       resultView[matchCount] = t.id;
     }

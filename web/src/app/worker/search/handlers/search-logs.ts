@@ -67,6 +67,11 @@ export function handleSearchLogs(
         const l = state.logStore.getLog(logId);
         if (state.logCelEnv.evaluate(l)) {
           matchedIdsSet.add(logId);
+          if (matchCount >= resultView.length - 1) {
+            throw new Error(
+              `[SearchWorker #${workerIndex}] result buffer overflow.`,
+            );
+          }
           matchCount++;
           resultView[matchCount] = logId;
         }
@@ -84,6 +89,11 @@ export function handleSearchLogs(
         const l = state.logStore.getLog(logId);
         if (state.logCelEnv.evaluate(l)) {
           matchedIdsSet.add(logId);
+          if (matchCount >= resultView.length - 1) {
+            throw new Error(
+              `[SearchWorker #${workerIndex}] result buffer overflow.`,
+            );
+          }
           matchCount++;
           resultView[matchCount] = logId;
         }
