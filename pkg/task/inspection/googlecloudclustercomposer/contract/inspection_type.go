@@ -29,7 +29,7 @@ const InspectionTypeID = "gcp-composer"
 var ComposerInspectionType = coreinspection.InspectionType{
 	Id:          InspectionTypeID,
 	Name:        "Cloud Composer",
-	Description: `Gather and parse Cloud Composer environment logs (supporting GKE logs in Cloud Composer v2 and Apache Airflow logs for Airflow 2.0.0 or higher in any Composer version) to visualize environment operations on timelines.`,
+	Description: "Gather and parse Cloud Composer environment logs (supporting GKE logs in Cloud Composer v2 and Apache Airflow logs (version 2.0.0 or higher) in any Composer version) to visualize environment operations on timelines.",
 	Icon:        "assets/icons/composer.webp",
 	Priority:    math.MaxInt - 10,
 	Labels: map[string]string{
