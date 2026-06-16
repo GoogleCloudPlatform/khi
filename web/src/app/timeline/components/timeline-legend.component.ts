@@ -15,10 +15,11 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, computed, input, model } from '@angular/core';
+import { Component, computed, input, model, signal } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { OverlayModule, ConnectionPositionPair } from '@angular/cdk/overlay';
 import {
   RevisionStateStyle,
   LogType,
@@ -28,6 +29,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from './canvas/convertutil';
+import { MarkdownPopupComponent } from './markdown-popup.component';
 
 /**
  * ViewModel for revision legend item.
@@ -37,6 +39,7 @@ interface RevisionLegendViewModel {
   icon: string;
   style: RevisionStateStyle;
   color: string;
+  description: string;
 }
 
 /**
@@ -71,6 +74,8 @@ interface TimelineTypeLegendViewModel {
     KHIIconRegistrationModule,
     MatButtonToggleModule,
     MatExpansionModule,
+    OverlayModule,
+    MarkdownPopupComponent,
   ],
 })
 export class TimelineLegendComponent {
@@ -90,6 +95,61 @@ export class TimelineLegendComponent {
    * The timeline data to generate legends for.
    */
   timeline = input<ReadonlyDomainElement<Timeline> | null>(null);
+
+  /**
+   * The label of the revision legend whose popup is currently open.
+   */
+  readonly activePopupLabel = signal<string | null>(null);
+
+  /**
+   * Delay in milliseconds before closing the popup to allow transition to the popup card.
+   */
+  private static readonly POPUP_CLOSE_DELAY_MS = 100;
+
+  private _closeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Connection position pairs for the description overlay.
+   */
+  readonly popupPositions: ConnectionPositionPair[] = [
+    new ConnectionPositionPair(
+      { originX: 'center', originY: 'top' },
+      { overlayX: 'center', overlayY: 'bottom' },
+      0,
+      -8,
+    ),
+    new ConnectionPositionPair(
+      { originX: 'center', originY: 'bottom' },
+      { overlayX: 'center', overlayY: 'top' },
+      0,
+      8,
+    ),
+  ];
+
+  /**
+   * Opens the description popup for the specified legend.
+   */
+  openPopup(legend: RevisionLegendViewModel): void {
+    // Cancels any pending close timeout to keep the popup open when moving the cursor into the popup card.
+    if (this._closeTimeout) {
+      clearTimeout(this._closeTimeout);
+      this._closeTimeout = null;
+    }
+    if (legend.description) {
+      this.activePopupLabel.set(legend.label);
+    }
+  }
+
+  /**
+   * Closes the description popup.
+   */
+  closePopup(): void {
+    // Delays closing to allow the cursor to transition from the trigger icon into the popup card without disappearing.
+    this._closeTimeout = setTimeout(() => {
+      this.activePopupLabel.set(null);
+      this._closeTimeout = null;
+    }, TimelineLegendComponent.POPUP_CLOSE_DELAY_MS);
+  }
 
   /**
    * Computed ViewModel for the timeline type legend.
@@ -146,6 +206,7 @@ export class TimelineLegendComponent {
           state.backgroundColor.b,
           state.backgroundColor.a,
         ]),
+        description: state.description,
       };
     });
   });
