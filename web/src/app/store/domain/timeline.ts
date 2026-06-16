@@ -442,4 +442,37 @@ export class Timeline {
     }
     return idx > 0 ? arr[idx - 1] : null;
   }
+
+  /**
+   * Checks if this timeline contains the specified log within its events using binary search.
+   */
+  public hasLogInEvents(log: ReadonlyDomainElement<Log>): boolean {
+    const events = this.events;
+    const eIdx = bisectLeft(
+      events,
+      log.logIndex,
+      (item, target) => item.logIndex - target,
+    );
+    return eIdx < events.length && events[eIdx].logIndex === log.logIndex;
+  }
+
+  /**
+   * Checks if this timeline contains the specified log within its revisions using binary search.
+   */
+  public hasLogInRevisions(log: ReadonlyDomainElement<Log>): boolean {
+    const revisions = this.revisions;
+    const rIdx = bisectLeft(
+      revisions,
+      log.logIndex,
+      (item, target) => item.logIndex - target,
+    );
+    return rIdx < revisions.length && revisions[rIdx].logIndex === log.logIndex;
+  }
+
+  /**
+   * Checks if this timeline contains the specified log using binary search.
+   */
+  public hasLog(log: ReadonlyDomainElement<Log>): boolean {
+    return this.hasLogInEvents(log) || this.hasLogInRevisions(log);
+  }
 }

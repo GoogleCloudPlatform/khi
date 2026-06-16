@@ -352,27 +352,21 @@ export class TimelineFrameComponent implements AfterViewInit {
       return null;
     }
     const logIndex = Number(logIndexStr);
+    const allLogs = this.allLogsWithoutFilter();
+    const log = allLogs[logIndex];
+    if (!log) {
+      return null;
+    }
     const timelines = this.timelines();
 
     // If the currently selected timeline already contains the selected log,
     // we should prioritize it to prevent jumping to another timeline that shares the log.
     const currentSelected = this.selectedTimeline();
-    if (currentSelected) {
-      const containsLog =
-        currentSelected.events.some((e) => e.logIndex === logIndex) ||
-        currentSelected.revisions.some((r) => r.logIndex === logIndex);
-      if (containsLog) {
-        return currentSelected;
-      }
+    if (currentSelected?.hasLog(log)) {
+      return currentSelected;
     }
 
-    return (
-      timelines.find(
-        (timeline) =>
-          timeline.events.some((e) => e.logIndex === logIndex) ||
-          timeline.revisions.some((r) => r.logIndex === logIndex),
-      ) ?? null
-    );
+    return timelines.find((timeline) => timeline.hasLog(log)) ?? null;
   });
 
   /**

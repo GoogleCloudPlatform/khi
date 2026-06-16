@@ -19,6 +19,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TimelineFrameComponent } from 'src/app/timeline/components/timeline-frame.component';
 import { Timeline, Event } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { Log } from 'src/app/store/domain/log';
+import { LogStore } from 'src/app/store/domain/log-store';
 import {
   TimelineHighlightType,
   TimelineChartItemHighlightType,
@@ -83,6 +85,19 @@ class MockEvent extends Event {
   }
 }
 
+class MockLog extends Log {
+  private readonly _logIndex: number;
+
+  constructor(logIndex: number) {
+    super(0, null as unknown as LogStore);
+    this._logIndex = logIndex;
+  }
+
+  override get logIndex(): number {
+    return this._logIndex;
+  }
+}
+
 @Component({
   selector: 'khi-testing-timeline-frame',
   standalone: true,
@@ -140,6 +155,13 @@ describe('TimelineFrameComponent', () => {
       generateDefaultRulerStyle(mockStyleStore),
     );
     fixture.componentRef.setInput('styleStore', mockStyleStore);
+
+    const mockLogs: Log[] = [];
+    for (let i = 0; i <= 20; i++) {
+      mockLogs.push(new MockLog(i));
+    }
+    fixture.componentRef.setInput('allLogsWithoutFilter', mockLogs);
+
     fixture.detectChanges();
   });
 

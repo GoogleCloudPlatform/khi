@@ -776,4 +776,87 @@ describe('Timeline', () => {
       });
     });
   });
+
+  describe('hasLogInEvents, hasLogInRevisions, and hasLog', () => {
+    it('should correctly check if the timeline contains the log using binary search', () => {
+      internPool.addStrings([
+        { id: 1, value: 'timeline-label' },
+        { id: 2, value: 'user-name' },
+        { id: 3, value: 'log-summary' },
+      ]);
+
+      const rawTimelines: TimelineDTO[] = [
+        {
+          id: 10,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [100],
+          eventIds: [200],
+        },
+      ];
+
+      const rawRevisions: RevisionDTO[] = [
+        {
+          id: 100,
+          logId: 1,
+          changedTime: 100n,
+          principalStringId: 2,
+          verbTypeId: 1,
+          stateTypeId: 1,
+        },
+      ];
+
+      const rawEvents: EventDTO[] = [
+        {
+          id: 200,
+          logId: 2,
+        },
+      ];
+
+      const rawLogs: LogDTO[] = [
+        {
+          id: 1,
+          ts: 100n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 2,
+          ts: 200n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+        {
+          id: 3,
+          ts: 300n,
+          logTypeId: 1,
+          severityTypeId: 1,
+          summaryStringId: 3,
+        },
+      ];
+
+      logStore.initialize(rawLogs, 3);
+      timelineStore.initialize(rawTimelines, 1, rawRevisions, 1, rawEvents, 1);
+
+      const timeline = timelineStore.getTimeline(10);
+      const log1 = logStore.getLog(1);
+      const log2 = logStore.getLog(2);
+      const log3 = logStore.getLog(3);
+
+      expect(timeline.hasLogInRevisions(log1)).toBe(true);
+      expect(timeline.hasLogInEvents(log1)).toBe(false);
+      expect(timeline.hasLog(log1)).toBe(true);
+
+      expect(timeline.hasLogInRevisions(log2)).toBe(false);
+      expect(timeline.hasLogInEvents(log2)).toBe(true);
+      expect(timeline.hasLog(log2)).toBe(true);
+
+      expect(timeline.hasLogInRevisions(log3)).toBe(false);
+      expect(timeline.hasLogInEvents(log3)).toBe(false);
+      expect(timeline.hasLog(log3)).toBe(false);
+    });
+  });
 });
