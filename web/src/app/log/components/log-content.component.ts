@@ -139,6 +139,9 @@ export class LogContentComponent {
       const vm = this.vm();
       const isOpen = this.isSearchOpen();
       setTimeout(() => {
+        // applyHighlights read DOM contents that can be updated by the signals above.
+        // applyHighlights can update a signal and effects shouldn't update signals.
+        // This setTimeout is a workaround to avoid this issue.
         if (isOpen && vm && query) {
           this.applyHighlights(query);
         } else {
@@ -287,12 +290,11 @@ timestamp="${timestampString}"
   }
 
   /**
-   * Updates the search query and applies highlights to the log body.
+   * Updates the search query string.
    * @param query The search query string.
    */
   updateSearchQuery(query: string) {
     this.searchQuery.set(query);
-    this.applyHighlights(query);
   }
 
   /**

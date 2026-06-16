@@ -144,7 +144,19 @@ export class DiffContentComponent {
   constructor() {
     effect(() => {
       const query = this.searchQuery();
-      this.applyHighlights(query);
+      this.currentRevisionContent();
+      this.previousRevisionContent();
+      const isOpen = this.isSearchOpen();
+      setTimeout(() => {
+        // applyHighlights read DOM contents that can be updated by the signals above.
+        // applyHighlights can update a signal and effects shouldn't update signals.
+        // This setTimeout is a workaround to avoid this issue.
+        if (isOpen && query) {
+          this.applyHighlights(query);
+        } else {
+          this.removeHighlights();
+        }
+      });
     });
   }
 
