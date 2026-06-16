@@ -51,8 +51,8 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputea
 
 // LogToTimelineMapperTask maps GCE API audit logs to timeline events and revisions in parallel.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabelV2(`Compute API Logs`,
-		`Gather Compute API audit logs to show the timings of the provisioning of resources(e.g creating/deleting GCE VM,mounting Persistent Disk...etc) on associated timelines.`,
+	inspectioncore_contract.FeatureTaskLabelV2("Compute API Logs",
+		"Gather Compute API audit logs to visualize the provisioning of infrastructure resources (e.g., GCE VM creation/deletion, Persistent Disk mounting) on associated timelines.",
 		6000,
 		true,
 	),

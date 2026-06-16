@@ -252,8 +252,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudlogonpremapiaudit_contract.LogToTimelineMapperTaskID,
 	&OnPremAPIAuditTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"OnPrem API logs",
-		"Gather Anthos OnPrem audit log including cluster creation,deletion,enroll,unenroll and upgrades.",
+		"On-Premises API Logs",
+		"Gather Anthos On-Premises audit logs to visualize cluster lifecycle events (creation, deletion, enrollment, unenrollment, and upgrades) on timelines.",
 		9500,
 		true,
 	),

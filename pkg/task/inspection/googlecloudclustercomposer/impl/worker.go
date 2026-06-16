@@ -162,7 +162,7 @@ var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMa
 	&workerLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"Airflow Worker Logs",
-		"Timeline mapping for worker logs under Apache Airflow.",
+		"Gather Apache Airflow worker logs to visualize task execution progress and errors on resource timelines.",
 		1502,
 		false,
 	),

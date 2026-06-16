@@ -148,8 +148,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[st
 	googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID,
 	&containerLogLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"Kubernetes container logs",
-		"Gather stdout/stderr logs of containers on the cluster to visualize them on the timeline under an associated Pod. Log volume can be huge when the cluster has many Pods.",
+		"Kubernetes Container Logs",
+		"Gather stdout/stderr logs of containers to visualize application runtime behaviors under associated Pod timelines. Note: The log volume can be very large if the cluster contains many Pods.",
 		4000,
 		false,
 	),

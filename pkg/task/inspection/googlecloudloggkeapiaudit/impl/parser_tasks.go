@@ -104,8 +104,8 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiau
 
 // LogToTimelineMapperTask is a task that maps GKE audit logs to timeline elements.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabelV2(`GKE Audit logs`,
-		`Gather GKE audit log to show creation/upgrade/deletion of cluster/nodepool`,
+	inspectioncore_contract.FeatureTaskLabelV2(`GKE Audit Logs`,
+		`Gather GKE audit logs to visualize the creation, upgrade, and deletion of clusters and node pools on timelines.`,
 		5000,
 		true),
 )

@@ -197,7 +197,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contra
 	},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"Kubernetes Node Logs",
-		"Gather node components(e.g docker/container) logs. Log volume can be huge when the cluster has many nodes.",
+		"Gather logs from Kubernetes node components (e.g., Docker, containerd, or Kubelet) to troubleshoot node-level issues. Note: The log volume can be very large if the cluster contains many nodes.",
 		3000,
 		false,
 	),

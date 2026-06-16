@@ -27,12 +27,11 @@ const InspectionTypeID = "gcp-gke-on-azure"
 
 // AnthosOnAzureInspectionType defines the inspection type for GKE on Azure.
 var AnthosOnAzureInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeID,
-	Name: "GKE on Azure(Anthos on Azure)",
-	Description: `Visualize logs generated from GKE on Azure cluster. 
-Supporting K8s audit log, k8s event log, k8s node log, k8s container log and MultiCloud API audit log.`,
-	Icon:     "assets/icons/anthos.png",
-	Priority: math.MaxInt - 3,
+	Id:          InspectionTypeID,
+	Name:        "GKE on Azure (Anthos on Azure)",
+	Description: `Gather and parse GKE on Azure cluster logs (Kubernetes audit, event, node, container logs, and Multi-Cloud API audit logs) to visualize cluster operations on timelines.`,
+	Icon:        "assets/icons/anthos.png",
+	Priority:    math.MaxInt - 3,
 	Labels: map[string]string{
 		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
 		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",

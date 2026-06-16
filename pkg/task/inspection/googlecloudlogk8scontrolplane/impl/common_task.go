@@ -35,8 +35,8 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 		return struct{}{}, nil
 	},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"Kubernetes Control plane component logs",
-		"Gather Kubernetes control plane component(e.g kube-scheduler, kube-controller-manager,api-server) logs",
+		"Kubernetes Control Plane Component Logs",
+		"Gather logs from Kubernetes control plane components (e.g., kube-scheduler, kube-controller-manager, and kube-apiserver) to troubleshoot control plane behavior.",
 		9000,
 		false,
 	),

@@ -277,7 +277,7 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[*perNEGHistoryModificationStatus]
 // LogToTimelineMapperTask registers the mapper to resolve network status in timeline.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(googlecloudlognetworkapiaudit_contract.LogToTimelineMapperTaskID, &networkAPITimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(`GCE Network Logs`,
-		`Gather GCE Network API logs to visualize statuses of Network Endpoint Groups(NEG)`,
+		`Gather GCE Network API logs to visualize the provisioning and status transitions of Network Endpoint Groups (NEGs) on timelines.`,
 		7000,
 		true,
 	),

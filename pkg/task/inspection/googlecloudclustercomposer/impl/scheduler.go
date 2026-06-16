@@ -167,7 +167,7 @@ var AirflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelin
 	&schedulerLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"Airflow Scheduler Logs",
-		"Timeline mapping for scheduler logs under Apache Airflow.",
+		"Gather Apache Airflow scheduler logs to visualize DAG scheduling decisions and latency on resource timelines.",
 		1501,
 		false,
 	),

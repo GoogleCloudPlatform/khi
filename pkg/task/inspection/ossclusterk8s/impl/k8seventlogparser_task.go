@@ -135,8 +135,8 @@ var OSSK8sEventLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapp
 	ossclusterk8s_contract.OSSK8sEventLogToTimelineMapperTaskID,
 	&OSSK8sEventTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"OSS Kubernetes Event logs from JSONL audit log",
-		"The event log parser for OSS kubernetes from the audit log",
+		"OSS Kubernetes Event Logs",
+		"Gather and parse Kubernetes event logs from OSS Kubernetes JSONL audit logs to visualize resource lifecycle and operational events.",
 		2000,
 		true,
 	),

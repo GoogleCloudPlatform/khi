@@ -245,8 +245,8 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*multicloudAuditLogL
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudlogmulticloudapiaudit_contract.LogToTimelineMapperTaskID,
 	&multicloudAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabelV2(`MultiCloud API logs`,
-		`Gather Anthos MultiCloud audit log including cluster creation, deletion and upgrades.`,
+	inspectioncore_contract.FeatureTaskLabelV2(`Multi-Cloud API Logs`,
+		`Gather Anthos Multi-Cloud audit logs to visualize cluster lifecycle events (creation, deletion, and upgrades) on timelines.`,
 		5000,
 		true,
 	),

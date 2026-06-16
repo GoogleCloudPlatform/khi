@@ -232,7 +232,7 @@ var CSMTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimel
 	&CSMTrafficDirectorLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
 		"CSM Resource Audit Logs",
-		"Gather audit logs related to TrafficDirector resources created by the TD based CSM. Map them into pseudo timelines with other Kubernetes logs.",
+		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
 		10100,
 		false,
 	),

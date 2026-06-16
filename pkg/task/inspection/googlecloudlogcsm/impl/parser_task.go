@@ -162,8 +162,8 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudlogcsm_contract.LogToTimelineMapperTaskID,
 	&CSMAccessLogLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"CSM Access Log",
-		"Gather CSM access logs from Cloud Logging and associate them in client or server Pods on timelines",
+		"CSM Access Logs",
+		"Gather CSM access logs to visualize network traffic flows and latency under client or server Pod timelines.",
 		10000,
 		false,
 	),
