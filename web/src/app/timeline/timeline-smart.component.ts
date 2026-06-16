@@ -29,7 +29,7 @@ import {
   TimelineHighlight,
   TimelineHighlightType,
 } from 'src/app/timeline/components/interaction-model';
-import { Timeline } from 'src/app/store/domain/timeline';
+import { Timeline, Event, Revision } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
@@ -41,6 +41,8 @@ import {
   generateDefaultRulerStyle,
 } from 'src/app/timeline/components/style-model-v2';
 import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
+import { bisectLeft } from 'src/app/common/misc-util';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 /**
  * Smart component for the timeline view.
@@ -271,7 +273,153 @@ export class TimelineSmartComponent {
     return log.legacyTimestampMs;
   });
 
-  private readonly lastClickedTimeMs = signal(0);
+  private readonly lastClickedTime = signal(0n);
+
+  private readonly isMouseOnTimeline = signal(false);
+
+  /**
+   * Handles the mouse entering the chart area.
+   */
+  protected onMouseEnterChart(): void {
+    this.isMouseOnTimeline.set(true);
+  }
+
+  /**
+   * Handles the mouse leaving the chart area.
+   */
+  protected onMouseLeaveChart(): void {
+    this.isMouseOnTimeline.set(false);
+  }
+
+  private readonly isMouseOnStickyHeader = signal(false);
+
+  /**
+   * Handles the mouse entering the sticky header area.
+   */
+  protected onMouseEnterStickyHeader(): void {
+    this.isMouseOnStickyHeader.set(true);
+  }
+
+  /**
+   * Handles the mouse leaving the sticky header area.
+   */
+  protected onMouseLeaveStickyHeader(): void {
+    this.isMouseOnStickyHeader.set(false);
+  }
+
+  /**
+   * Resolves the target timeline and target timestamp for hover overlay rendering.
+   * Prioritizes directly hovered timeline items over remote selection highlights.
+   */
+  private resolveTargetTimelineAndTime(): {
+    timeline: ReadonlyDomainElement<Timeline>;
+    targetTimeNs: bigint;
+  } | null {
+    if (this.isMouseOnTimeline()) {
+      const timeline = this.highlightedTimeline();
+      if (!timeline) {
+        return null;
+      }
+      return { timeline, targetTimeNs: this.lastClickedTime() };
+    }
+
+    const highlightedLogs = this.selectionManager.highlightedLogs();
+    if (highlightedLogs.length === 0) {
+      return null;
+    }
+    const targetLog = highlightedLogs[0];
+    const targetTimeNs = targetLog.timestamp;
+
+    const currentSelected = this.selectedTimeline();
+    if (currentSelected && currentSelected.hasLog(targetLog)) {
+      return { timeline: currentSelected, targetTimeNs };
+    }
+
+    if (currentSelected) {
+      const descendants = new Set(currentSelected.descendants());
+      const allTimelines = this.filteredTimelines();
+      const descendantMatch = allTimelines.find(
+        (t) => descendants.has(t) && t.hasLog(targetLog),
+      );
+      if (descendantMatch) {
+        return { timeline: descendantMatch, targetTimeNs };
+      }
+    }
+
+    const allTimelines = this.filteredTimelines();
+    const globalMatch = allTimelines.find((t) => t.hasLog(targetLog));
+    return globalMatch ? { timeline: globalMatch, targetTimeNs } : null;
+  }
+
+  /**
+   * Retrieves up to two log items (events or revisions) preceding the target time.
+   * Uses binary search to quickly locate historical items on sorted timeline collections.
+   */
+  private lookupPrecedingLogs(
+    timeline: ReadonlyDomainElement<Timeline>,
+    targetTimeNs: bigint,
+  ): (ReadonlyDomainElement<Event> | ReadonlyDomainElement<Revision>)[] {
+    const events = timeline.events;
+    const eEndIdx = bisectLeft(events, targetTimeNs, (item, target) =>
+      item.timestamp < target ? -1 : 1,
+    );
+    const eStartIdx = Math.max(0, eEndIdx - 2);
+    const prevEvents = events.slice(eStartIdx, eEndIdx);
+
+    const revisions = timeline.revisions;
+    const rEndIdx = bisectLeft(revisions, targetTimeNs, (item, target) =>
+      item.changedTime < target ? -1 : 1,
+    );
+    const rStartIdx = Math.max(0, rEndIdx - 2);
+    const prevRevisions = revisions.slice(rStartIdx, rEndIdx);
+
+    const combinedPrev = [
+      ...prevEvents.map((e) => ({ item: e, time: e.timestamp })),
+      ...prevRevisions.map((r) => ({ item: r, time: r.changedTime })),
+    ];
+    combinedPrev.sort((a, b) =>
+      a.time < b.time ? -1 : a.time > b.time ? 1 : 0,
+    );
+    return combinedPrev.slice(-2).map((x) => x.item);
+  }
+
+  /**
+   * Retrieves succeeding log items within the selectable pixel range limit.
+   * Truncates the result to fit within the remaining display budget.
+   */
+  private lookupSucceedingLogs(
+    timeline: ReadonlyDomainElement<Timeline>,
+    targetTimeNs: bigint,
+    remainingCount: number,
+  ): (ReadonlyDomainElement<Event> | ReadonlyDomainElement<Revision>)[] {
+    if (remainingCount <= 0) {
+      return [];
+    }
+    const rangeNs =
+      BigInt(
+        Math.floor(this.HOVER_VIEW_SELECTABLE_RANGE_IN_PX / this.pixelsPerMs()),
+      ) * 1000000n;
+    const maxTimeNs = targetTimeNs + rangeNs;
+
+    const nextEvents = timeline.lookupEventsInRangeNs(targetTimeNs, maxTimeNs);
+    const nextRevisionsRaw = timeline.lookupRevisionsInRangeNs(
+      targetTimeNs,
+      maxTimeNs,
+    );
+    const nextRevisions = nextRevisionsRaw.filter(
+      (r) => r.changedTime >= targetTimeNs,
+    );
+
+    const combinedNext = [
+      ...nextEvents.map((e) => ({ item: e, time: e.timestamp })),
+      ...nextRevisions.map((r) => ({ item: r, time: r.changedTime })),
+    ];
+    combinedNext.sort((a, b) =>
+      a.time < b.time ? -1 : a.time > b.time ? 1 : 0,
+    );
+
+    return combinedNext.slice(0, remainingCount).map((x) => x.item);
+  }
 
   /**
    * Data required to render the hover overlay (tooltip) when hovering over the timeline.
@@ -279,35 +427,39 @@ export class TimelineSmartComponent {
    */
   protected readonly timelineHoverOverlayRequest =
     computed<TimelineHoverOverlayRequest | null>(() => {
-      const timeline = this.highlightedTimeline();
-      if (!timeline) {
+      const resolved = this.resolveTargetTimelineAndTime();
+      if (!resolved) {
         return null;
       }
-      const lastClickedTimeMs = this.lastClickedTimeMs();
+      const { timeline, targetTimeNs } = resolved;
+      const targetTimeMs = BigIntTimeUtil.NsToNumberMs(targetTimeNs);
 
-      const maxT = this.HOVER_VIEW_SELECTABLE_RANGE_IN_PX / this.pixelsPerMs();
-      const maxC = this.MAX_HOVER_VIEW_LOG_COUNT;
-      const optimalT = this.calculateOptimalQueryPeriod(
+      const prevLogs = this.lookupPrecedingLogs(timeline, targetTimeNs);
+      const remainingCount = this.MAX_HOVER_VIEW_LOG_COUNT - prevLogs.length;
+      const nextLogs = this.lookupSucceedingLogs(
         timeline,
-        lastClickedTimeMs,
-        maxT,
-        maxC,
+        targetTimeNs,
+        remainingCount,
       );
 
-      const beginTimeMs = lastClickedTimeMs - optimalT;
-      const endTimeMs = lastClickedTimeMs + optimalT;
+      const finalEvents: ReadonlyDomainElement<Event>[] = [];
+      const finalRevisions: ReadonlyDomainElement<Revision>[] = [];
 
-      const beginTimeNs = BigInt(Math.floor(beginTimeMs)) * 1000000n;
-      const endTimeNs = BigInt(Math.floor(endTimeMs)) * 1000000n;
+      for (const item of [...prevLogs, ...nextLogs]) {
+        if ('changedTime' in item) {
+          finalRevisions.push(item as ReadonlyDomainElement<Revision>);
+        } else {
+          finalEvents.push(item as ReadonlyDomainElement<Event>);
+        }
+      }
 
-      const events = timeline.lookupEventsInRangeNs(beginTimeNs, endTimeNs);
-      const revisions = timeline.lookupRevisionsInRangeNs(
-        beginTimeNs,
-        endTimeNs,
-      );
-      let findRevisionStartTimeNs = beginTimeNs;
-      if (revisions.length > 0) {
-        findRevisionStartTimeNs = revisions[0].changedTime;
+      let findRevisionStartTimeNs = targetTimeNs;
+      if (prevLogs.length > 0) {
+        const firstPrev = prevLogs[0];
+        findRevisionStartTimeNs =
+          'changedTime' in firstPrev
+            ? (firstPrev as { changedTime: bigint }).changedTime
+            : (firstPrev as { timestamp: bigint }).timestamp;
       }
       const initialRevision = timeline.lookupRevisionAtNs(
         findRevisionStartTimeNs,
@@ -316,11 +468,13 @@ export class TimelineSmartComponent {
 
       return {
         timelineId: timeline.id,
-        timeMs: lastClickedTimeMs,
+        timeMs: targetTimeMs,
+        isMouseOnTimeline: this.isMouseOnTimeline(),
+        isStickyHeaderHover: this.isMouseOnStickyHeader(),
         overlay: {
           timeline: timeline,
-          revisions: revisions,
-          events: events,
+          revisions: finalRevisions,
+          events: finalEvents,
           initialRevision: initialRevision,
         },
       } as TimelineHoverOverlayRequest;
@@ -370,15 +524,17 @@ export class TimelineSmartComponent {
       this.selectionManager.onHighlightLog();
     } else {
       if (event.revisionIndex !== undefined) {
-        this.selectionManager.onHighlightLog(
-          event.timeline.revisions[event.revisionIndex].log,
+        const log = event.timeline.revisions[event.revisionIndex].log;
+        this.selectionManager.onHighlightLog(log);
+        this.lastClickedTime.set(
+          log ? log.timestamp : BigInt(Math.floor(event.timeMS)) * 1000000n,
         );
-        this.lastClickedTimeMs.set(event.timeMS);
       } else if (event.eventIndex !== undefined) {
-        this.selectionManager.onHighlightLog(
-          event.timeline.events[event.eventIndex].log,
+        const log = event.timeline.events[event.eventIndex].log;
+        this.selectionManager.onHighlightLog(log);
+        this.lastClickedTime.set(
+          log ? log.timestamp : BigInt(Math.floor(event.timeMS)) * 1000000n,
         );
-        this.lastClickedTimeMs.set(event.timeMS);
       } else {
         this.selectionManager.onHighlightLog();
       }
@@ -402,47 +558,5 @@ export class TimelineSmartComponent {
         );
       }
     }
-  }
-
-  /**
-   * Calculates the optimal query period for the hover overlay. It returns the maximum time range that doesn't exceed the maximum number of events.
-   * @param timeline The timeline to query.
-   * @param centerTimeMs The center time of the query.
-   * @param maxT The maximum time range for the query.
-   * @param maxC The maximum number of events to query.
-   * @returns The optimal query period.
-   */
-  private calculateOptimalQueryPeriod(
-    timeline: ReadonlyDomainElement<Timeline>,
-    centerTimeMs: number,
-    maxT: number,
-    maxC: number,
-  ): number {
-    let low = 0;
-    let high = maxT;
-    let optimalT = 0;
-
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-
-      const beginTimeNs = BigInt(Math.floor(centerTimeMs - mid)) * 1000000n;
-      const endTimeNs = BigInt(Math.floor(centerTimeMs + mid)) * 1000000n;
-
-      const events = timeline.lookupEventsInRangeNs(beginTimeNs, endTimeNs);
-      const revisions = timeline.lookupRevisionsInRangeNs(
-        beginTimeNs,
-        endTimeNs,
-      );
-      const totalCount = events.length + revisions.length;
-
-      if (totalCount <= maxC) {
-        optimalT = mid;
-        low = mid + 1;
-      } else {
-        high = mid - 1;
-      }
-    }
-
-    return optimalT;
   }
 }
