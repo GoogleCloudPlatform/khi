@@ -23,7 +23,7 @@ var (
 	RevisionStateProvisioning = style.MustRegisterRevisionState(
 		"Resource is being provisioned",
 		"deployed_code_history",
-		"Resource is being provisioned",
+		"The GKE API resource is currently being provisioned.",
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)

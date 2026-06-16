@@ -22,7 +22,7 @@ var (
 	// TimelineTypeOnPremCluster is the timeline type style for On-Prem Clusters.
 	TimelineTypeOnPremCluster = style.MustRegisterTimelineType(
 		"onpremCluster",
-		"On-Prem Cluster",
+		"Timeline representing an On-Prem Kubernetes cluster",
 		"dns",
 		0.6,
 		style.ColorWhite,
@@ -37,7 +37,7 @@ var (
 	// TimelineTypeOnPremNodePool is the timeline type style for On-Prem NodePools.
 	TimelineTypeOnPremNodePool = style.MustRegisterTimelineType(
 		"onpremNodePool",
-		"On-Prem NodePool",
+		"Timeline representing an On-Prem nodepool",
 		"workspaces",
 		0.6,
 		style.ColorWhite,

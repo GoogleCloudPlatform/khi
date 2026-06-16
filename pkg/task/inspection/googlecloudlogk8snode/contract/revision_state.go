@@ -24,7 +24,7 @@ var (
 	RevisionStateComponentRunning = style.MustRegisterRevisionState(
 		"Component is running",
 		"check_circle",
-		"Component is running",
+		"The node component (e.g., kubelet, kube-proxy) is running normally.",
 		style.MustForceConvertSRGBHex("#00cc66"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
@@ -33,7 +33,7 @@ var (
 	RevisionStateComponentTerminated = style.MustRegisterRevisionState(
 		"Component is terminated",
 		"cancel",
-		"Component is terminated",
+		"The node component has terminated or stopped.",
 		style.MustForceConvertSRGBHex("#ff3333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)

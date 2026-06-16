@@ -22,54 +22,54 @@ import (
 var (
 	// RevisionStateProvisioning represents the resource provisioning state.
 	RevisionStateProvisioning = style.MustRegisterRevisionState(
-		"Provisioning",
-		"deployed_code_history",
 		"Resource is being provisioned",
+		"deployed_code_history",
+		"The on-prem GKE API resource is currently being provisioned.",
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
 	// RevisionStateExisting represents the resource existing state.
 	RevisionStateExisting = style.MustRegisterRevisionState(
-		"Existing",
-		"check_circle",
 		"Resource exists",
+		"check_circle",
+		"The on-prem GKE API resource exists and is active.",
 		style.MustForceConvertSRGBHex("#00aa00"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
 	// RevisionStateDeleting represents the resource deleting state.
 	RevisionStateDeleting = style.MustRegisterRevisionState(
-		"Deleting",
-		"delete_sweep",
 		"Resource is being deleted",
+		"delete_sweep",
+		"The on-prem GKE API resource is in the process of being deleted.",
 		style.MustForceConvertSRGBHex("#ff6666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
 	// RevisionStateDeleted represents the resource deleted state.
 	RevisionStateDeleted = style.MustRegisterRevisionState(
-		"Deleted",
-		"cancel",
 		"Resource is deleted",
+		"cancel",
+		"The on-prem GKE API resource has been deleted.",
 		style.MustForceConvertSRGBHex("#aa0000"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 
 	// RevisionStateOperationStarted represents the operation started state.
 	RevisionStateOperationStarted = style.MustRegisterRevisionState(
-		"OperationStarted",
+		"Processing operation",
 		"play_arrow",
-		"Operation started",
+		"The on-prem GKE API resource is processing a long-running operation.",
 		style.MustForceConvertSRGBHex("#00bb00"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 
 	// RevisionStateOperationFinished represents the operation finished state.
 	RevisionStateOperationFinished = style.MustRegisterRevisionState(
-		"OperationFinished",
+		"Operation is finished",
 		"stop",
-		"Operation finished",
+		"The on-prem GKE API resource has finished the long-running operation.",
 		style.MustForceConvertSRGBHex("#777777"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)

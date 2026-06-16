@@ -23,7 +23,7 @@ var (
 	// TimelineTypeMultiCloudCluster is the timeline type style for MultiCloud Cluster resources.
 	TimelineTypeMultiCloudCluster = style.MustRegisterTimelineType(
 		"multicloudCluster",
-		"MultiCloud Cluster",
+		"Timeline representing a Multi-Cloud cluster",
 		"dns",
 		1.0,
 		style.ColorWhite,
@@ -38,7 +38,7 @@ var (
 	// TimelineTypeMultiCloudNodepool is the timeline type style for MultiCloud Nodepool resources.
 	TimelineTypeMultiCloudNodepool = style.MustRegisterTimelineType(
 		"multicloudNodepool",
-		"MultiCloud NodePool",
+		"Timeline representing a Multi-Cloud nodepool",
 		"list",
 		1.0,
 		style.ColorWhite,
@@ -54,7 +54,7 @@ var (
 	RevisionStateProvisioning = style.MustRegisterRevisionState(
 		"Resource is being provisioned",
 		"deployed_code_history",
-		"Resource is being provisioned",
+		"The Multi-Cloud GKE API resource is currently being provisioned.",
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)

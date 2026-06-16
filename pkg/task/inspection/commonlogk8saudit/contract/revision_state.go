@@ -24,149 +24,159 @@ import (
 // when this package is imported.
 var (
 	RevisionStateConditionTrue = style.MustRegisterRevisionState(
-		"State is 'True'",
+		"Condition is True",
 		"lightbulb",
-		"State is 'True'",
+		`The condition is set to **True**.
+
+**Note**: **True** does not always indicate a healthy state (e.g., Ready=True is healthy, but DiskPressure=True is unhealthy).`,
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateConditionFalse = style.MustRegisterRevisionState(
-		"State is 'False'",
+		"Condition is False",
 		"light_off",
-		"State is 'False'",
+		`The condition is set to **False**.
+
+**Note**: **False** does not always indicate an unhealthy state (e.g., DiskPressure=False is healthy, but Ready=False is unhealthy).`,
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateConditionUnknown = style.MustRegisterRevisionState(
-		"State is 'Unknown'",
+		"Condition is Unknown",
 		"siren_question",
-		"State is 'Unknown'",
+		"The condition is `Unknown`, meaning its state cannot be determined at this moment.",
 		style.MustForceConvertSRGBHex("#663366"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateConditionNotGiven = style.MustRegisterRevisionState(
-		"Condition is not defined at this moment",
+		"Condition is not defined",
 		"select",
-		"Condition is not defined at this moment",
+		"The condition has not yet been set or reported at this point in the timeline.",
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateConditionNoAvailableInfo = style.MustRegisterRevisionState(
-		"No enough information to show condition",
+		"Condition info is unavailable",
 		"unknown_document",
-		"No enough information to show condition",
+		`The condition status is undetermined due to insufficient log information in the selected range.
+
+**Tip**: Consider expanding the query time range to capture complete condition reports.`,
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateEndpointReady = style.MustRegisterRevisionState(
 		"Endpoint is ready",
 		"heart_check",
-		"Endpoint is ready",
+		"The endpoint is active and ready to receive traffic.",
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateEndpointUnready = style.MustRegisterRevisionState(
 		"Endpoint is not ready",
 		"heart_broken",
-		"Endpoint is not ready",
+		"The endpoint is not ready to receive traffic (e.g., the backing pod is unready).",
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateEndpointTerminating = style.MustRegisterRevisionState(
 		"Endpoint is being terminated",
 		"auto_delete",
-		"Endpoint is being terminated",
+		"The endpoint is in the process of being deleted or terminated.",
 		style.MustForceConvertSRGBHex("#cea700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStatePodPhasePending = style.MustRegisterRevisionState(
 		"Pod is pending",
 		"hourglass_empty",
-		"Pod is pending",
+		"The pod is accepted by the Kubernetes cluster, but one or more containers are not yet running.",
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStatePodPhaseScheduled = style.MustRegisterRevisionState(
 		"Pod is scheduled",
 		"schedule",
-		"Pod is scheduled",
+		"The pod is scheduled to run on a specific node.",
 		style.MustForceConvertSRGBHex("#4444ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStatePodPhaseRunning = style.MustRegisterRevisionState(
 		"Pod is running",
 		"motion_play",
-		"Pod is running",
+		"The pod is running on a node, and at least one container is currently active.",
 		style.MustForceConvertSRGBHex("#004400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStatePodPhaseSucceeded = style.MustRegisterRevisionState(
-		"Pod is succeeded",
+		"Pod has succeeded",
 		"check_circle",
-		"Pod is succeeded",
+		"The pod has succeeded (all containers have terminated successfully and will not be restarted).",
 		style.MustForceConvertSRGBHex("#113333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStatePodPhaseFailed = style.MustRegisterRevisionState(
-		"Pod is failed",
+		"Pod has failed",
 		"error",
-		"Pod is failed",
+		"The pod has failed (all containers have terminated, and at least one container terminated in failure).",
 		style.MustForceConvertSRGBHex("#331111"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStatePodPhaseUnknown = style.MustRegisterRevisionState(
-		"Pod status is not available from current log range",
+		"Pod status is unavailable",
 		"unknown_document",
-		"Pod status is not available from current log range",
+		`The pod status is undetermined due to missing logs in the selected time range.
+
+**Tip**: Consider expanding the query time range to capture complete pod lifecycle events.`,
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
-		"Waiting for starting container",
+		"Container is waiting",
 		"deployed_code_history",
-		"Waiting for starting container",
+		"The container is waiting to start (e.g., image pull or init container execution is in progress).",
 		style.MustForceConvertSRGBHex("#4444ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateContainerRunningNonReady = style.MustRegisterRevisionState(
 		"Container is not ready",
 		"heart_broken",
-		"Container is not ready",
+		"The container is running but has not passed its readiness probe.",
 		style.MustForceConvertSRGBHex("#EE4400"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateContainerRunningReady = style.MustRegisterRevisionState(
 		"Container is ready",
 		"heart_check",
-		"Container is ready",
+		"The container is running and has successfully passed its readiness probe.",
 		style.MustForceConvertSRGBHex("#007700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 	RevisionStateContainerTerminatedWithSuccess = style.MustRegisterRevisionState(
-		"Container exited with healthy exit code",
+		"Container exited successfully",
 		"check_circle",
-		"Container exited with healthy exit code",
+		"The container has terminated successfully with an exit code of `0`.",
 		style.MustForceConvertSRGBHex("#113333"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateContainerTerminatedWithError = style.MustRegisterRevisionState(
-		"Container exited with erroneous exit code",
+		"Container exited with error",
 		"error",
-		"Container exited with erroneous exit code",
+		"The container has terminated in failure with a non-zero exit code.",
 		style.MustForceConvertSRGBHex("#551111"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
 	RevisionStateContainerStatusNotAvailable = style.MustRegisterRevisionState(
-		"Container status is not available",
+		"Container status is unavailable",
 		"unknown_document",
-		"Container status is not available",
+		`The container status is unknown or not yet reported in the log data.
+
+**Tip**: Consider expanding the query time range to capture complete container status events.`,
 		style.MustForceConvertSRGBHex("#666666"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateContainerStarted = style.MustRegisterRevisionState(
-		"Container is started but readiness info is not available",
+		"Container is started, readiness unknown",
 		"siren_question",
-		"Container is started but readiness info is not available",
+		`The container has started, but no readiness probe information has been recorded yet.`,
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)

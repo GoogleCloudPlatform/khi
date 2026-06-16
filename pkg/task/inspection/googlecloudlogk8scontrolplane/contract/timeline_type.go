@@ -24,7 +24,7 @@ import (
 var (
 	TimelineTypeControlPlaneComponent = style.MustRegisterTimelineType(
 		"controlplane",
-		"Control plane component of the cluster",
+		"Timeline representing control plane components of the cluster",
 		"crown",
 		0.6,
 		style.ColorWhite,
