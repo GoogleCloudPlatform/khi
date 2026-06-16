@@ -91,4 +91,45 @@ describe('LogListComponent', () => {
     component['onLogHover'](mockLogs[0]);
     expect(component.logHovered.emit).toHaveBeenCalledWith(mockLogs[0]);
   });
+
+  it('should select first log on ArrowDown when no log is selected', () => {
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[0]);
+  });
+
+  it('should select next log on ArrowDown when a log is selected', () => {
+    fixture.componentRef.setInput('selectedLogIndex', mockLogs[0].logIndex);
+    fixture.detectChanges();
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[1]);
+  });
+
+  it('should select last log on ArrowUp when no log is selected', () => {
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(
+      mockLogs[mockLogs.length - 1],
+    );
+  });
+
+  it('should select previous log on ArrowUp when a log is selected', () => {
+    fixture.componentRef.setInput('selectedLogIndex', mockLogs[1].logIndex);
+    fixture.detectChanges();
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[0]);
+  });
+
+  it('should prevent default browser scrolling behavior on ArrowUp and ArrowDown', () => {
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+    spyOn(event, 'preventDefault');
+    component['onKeyDown'](event);
+    expect(event.preventDefault).toHaveBeenCalled();
+  });
 });
