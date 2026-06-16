@@ -229,8 +229,25 @@ describe('TimelineFilterBuilderComponent', () => {
     expect(emitted).toBeTrue();
   });
 
-  it('should filter timeline types based on autocomplete input query', () => {
+  it('should filter timeline types based on autocomplete input query and sort them alphabetically by default', () => {
     fixture.componentRef.setInput('timelineTypes', MOCK_TIMELINE_TYPES);
+    fixture.detectChanges();
+
+    component['onTypeInputChange']('k8s');
+    fixture.detectChanges();
+
+    expect(component['filteredTimelineTypes']().map((t) => t.label)).toEqual([
+      'K8sNamespace',
+      'K8sResource',
+    ]);
+  });
+
+  it('should sort timeline types by candidate counts descending', () => {
+    fixture.componentRef.setInput('timelineTypes', MOCK_TIMELINE_TYPES);
+    fixture.componentRef.setInput('typeCandidateCounts', {
+      k8sresource: 10,
+      k8snamespace: 5,
+    });
     fixture.detectChanges();
 
     component['onTypeInputChange']('k8s');

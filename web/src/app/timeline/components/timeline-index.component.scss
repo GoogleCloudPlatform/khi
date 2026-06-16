@@ -157,7 +157,6 @@ $tint-border-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 600);
         inset 0 1px 2px rgba(0, 0, 0, 0.15),
         inset 0 -0.5px 0 rgba(255, 255, 255, 0.2);
       color: var(--timeline-chip-fg-color);
-      text-transform: uppercase;
       letter-spacing: 0.5px;
       user-select: none;
       text-align: center;

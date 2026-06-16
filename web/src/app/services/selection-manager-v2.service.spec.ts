@@ -277,8 +277,8 @@ describe('SelectionManagerV2', () => {
     service.onSelectLog(targetLog);
 
     expect(service.selectedLog()?.id).toBe(targetLog.id);
-    // Log 1 resides on Resource Timeline (ID 4) inside Revision 1
-    expect(service.selectedTimeline()?.id).toBe(4);
+    // Under new spec, log selection does not automatically select the timeline
+    expect(service.selectedTimeline()).toBeNull();
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
 
@@ -286,11 +286,15 @@ describe('SelectionManagerV2', () => {
     const logs = Array.from(logStore.logs());
     const targetLog = logs[0];
     const timelines = timelineStore.timelines;
+    const timeline4 = timelines.find((t) => t.id === 4)!;
     const unrelatedTimeline = timelines.find((t) => t.id === 1)!;
 
-    // Select log (will select Log 1, Timeline 4, Revision 1)
+    // Select log (will select Log 1, Revision 1)
     service.onSelectLog(targetLog);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
+
+    // Explicitly select timeline 4 to align with test scenario
+    service.onSelectTimeline(timeline4);
     expect(service.selectedTimeline()?.id).toBe(4);
 
     // Select unrelated timeline

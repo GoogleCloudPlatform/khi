@@ -14,38 +14,36 @@
  * limitations under the License.
  */
 
-import {
-  VerticalScrollCalculator,
-  TimelineLayer,
-} from './vertical-scroll-calculator';
+import { VerticalScrollCalculator } from './vertical-scroll-calculator';
 import { Timeline } from 'src/app/store/domain/timeline';
 
 describe('VerticalScrollCalculator', () => {
-  const createTimelines = (layers: TimelineLayer[]): Timeline[] => {
-    const result: Timeline[] = [];
-    for (let index = 0; index < layers.length; index++) {
-      const layer = layers[index];
-      let height = 1.0;
-      if (layer === TimelineLayer.Kind) height = 4.0; // 4.0 * 25.0 = 100
-      if (layer === TimelineLayer.Namespace) height = 4.0; // 100
-      if (layer === TimelineLayer.Name) height = 4.0; // 100
-      if (layer === TimelineLayer.Subresource) height = 2.0; // 50
-      if (layer === TimelineLayer.APIVersion) height = 0.0; // 0
+  interface TimelineSpecConfig {
+    readonly height: number;
+    readonly parentIndex?: number;
+    readonly childrenCount?: number;
+  }
 
+  const createMockTimelines = (
+    configs: readonly TimelineSpecConfig[],
+  ): Timeline[] => {
+    const result: Timeline[] = [];
+    for (let index = 0; index < configs.length; index++) {
+      const config = configs[index];
       const mockTimeline = {
         id: index + 1,
-        type: { height },
-        layer,
+        type: { height: config.height },
         get parent() {
-          for (let j = index - 1; j >= 0; j--) {
-            if (result[j].layer < layer) {
-              return result[j];
-            }
+          if (config.parentIndex !== undefined) {
+            return result[config.parentIndex];
           }
           return null;
         },
         get childrenCount() {
-          return result.filter((t) => t.parent?.id === index + 1).length;
+          return (
+            config.childrenCount ??
+            result.filter((t) => t.parent?.id === index + 1).length
+          );
         },
       } as unknown as Timeline;
       result.push(mockTimeline);
@@ -55,10 +53,10 @@ describe('VerticalScrollCalculator', () => {
 
   describe('constructor', () => {
     it('should calculate totalHeight correctly', () => {
-      const timelines = createTimelines([
-        TimelineLayer.Kind, // 100
-        TimelineLayer.Name, // 100
-        TimelineLayer.Subresource, // 50
+      const timelines = createMockTimelines([
+        { height: 4.0 }, // 4.0 * 25 = 100
+        { height: 4.0 }, // 100
+        { height: 2.0 }, // 50
       ]);
       const calculator = new VerticalScrollCalculator(timelines, 0);
       expect(calculator.totalHeight).toBe(250);
@@ -77,22 +75,19 @@ describe('VerticalScrollCalculator', () => {
     });
 
     it('should return the last offsetY when scrollY is greater than totalHeight', () => {
-      const timelines = createTimelines([
-        TimelineLayer.Kind,
-        TimelineLayer.Name,
-      ]); // 100,100
+      const timelines = createMockTimelines([
+        { height: 4.0 }, // 100
+        { height: 4.0 }, // 100
+      ]);
       const calculator = new VerticalScrollCalculator(timelines, 0);
       expect(calculator.topDrawAreaOffset(250)).toBe(100);
     });
 
     it('should return correct offset for scroll position within a timeline', () => {
-      // Timeline 0: 0-100
-      // Timeline 1: 100-200
-      // Timeline 2: 200-250
-      const timelines = createTimelines([
-        TimelineLayer.Kind, // 100
-        TimelineLayer.Name, // 100
-        TimelineLayer.Subresource, // 50
+      const timelines = createMockTimelines([
+        { height: 4.0 }, // 100
+        { height: 4.0 }, // 100
+        { height: 2.0 }, // 50
       ]);
       const calculator = new VerticalScrollCalculator(timelines, 0);
 
@@ -120,13 +115,10 @@ describe('VerticalScrollCalculator', () => {
     });
 
     it('should return correct timelines overlapping the draw area', () => {
-      // Timeline 0: 0-100
-      // Timeline 1: 100-200
-      // Timeline 2: 200-250
-      const timelines = createTimelines([
-        TimelineLayer.Kind, // 100
-        TimelineLayer.Name, // 100
-        TimelineLayer.Subresource, // 50
+      const timelines = createMockTimelines([
+        { height: 4.0 }, // 100
+        { height: 4.0 }, // 100
+        { height: 2.0 }, // 50
       ]);
       const calculator = new VerticalScrollCalculator(timelines, 0);
 
@@ -152,17 +144,12 @@ describe('VerticalScrollCalculator', () => {
   describe('with marginTimelineCount = 2', () => {
     const margin = 2;
     it('should include margin timelines in timelinesInDrawArea', () => {
-      // Timeline 0: 0-100
-      // Timeline 1: 100-200
-      // Timeline 2: 200-250
-      // Timeline 3: 250-350
-      // Timeline 4: 350-450
-      const timelines = createTimelines([
-        TimelineLayer.Kind, // 100
-        TimelineLayer.Name, // 100
-        TimelineLayer.Subresource, // 50
-        TimelineLayer.Kind, // 100
-        TimelineLayer.Kind, // 100
+      const timelines = createMockTimelines([
+        { height: 4.0 }, // 100
+        { height: 4.0 }, // 100
+        { height: 2.0 }, // 50
+        { height: 4.0 }, // 100
+        { height: 4.0 }, // 100
       ]);
       const calculator = new VerticalScrollCalculator(timelines, margin);
 
@@ -176,7 +163,7 @@ describe('VerticalScrollCalculator', () => {
     });
 
     it('should calculate totalRenderHeight with margin', () => {
-      const timelines = createTimelines([TimelineLayer.Kind]); // max 100
+      const timelines = createMockTimelines([{ height: 4.0 }]); // max 100
       const calculator = new VerticalScrollCalculator(timelines, margin);
       expect(calculator.totalRenderHeight(500)).toBe(900);
     });
@@ -193,18 +180,18 @@ describe('VerticalScrollCalculator', () => {
       let timelines: Timeline[];
 
       beforeEach(() => {
-        timelines = createTimelines([
-          TimelineLayer.Kind, // 0-100 (Kind1)
-          TimelineLayer.Namespace, // 100-200 (Namespace1)
-          TimelineLayer.Name, // 200-300 (Pod1)
-          TimelineLayer.Name, // 300-400 (Pod2)
-          TimelineLayer.Namespace, // 400-500 (Namespace2)
-          TimelineLayer.Name, // 500-600 (Pod3)
-          TimelineLayer.Subresource, // 600-650 (Subresource1)
-          TimelineLayer.Kind, // 650-750 (Kind2)
-          TimelineLayer.Namespace, // 750-850 (Namespace3)
-          TimelineLayer.Name, // 850-950 (Pod4)
-          TimelineLayer.Subresource, // 950-1050 (Subresource2)
+        timelines = createMockTimelines([
+          { height: 4.0 }, // index 0 (Kind1), parent = null
+          { height: 4.0, parentIndex: 0 }, // index 1 (Namespace1)
+          { height: 4.0, parentIndex: 1 }, // index 2 (Pod1)
+          { height: 4.0, parentIndex: 1 }, // index 3 (Pod2)
+          { height: 4.0, parentIndex: 0 }, // index 4 (Namespace2)
+          { height: 4.0, parentIndex: 4 }, // index 5 (Pod3)
+          { height: 2.0, parentIndex: 5 }, // index 6 (Subresource1)
+          { height: 4.0 }, // index 7 (Kind2), parent = null
+          { height: 4.0, parentIndex: 7 }, // index 8 (Namespace3)
+          { height: 4.0, parentIndex: 8 }, // index 9 (Pod4)
+          { height: 2.0, parentIndex: 9 }, // index 10 (Subresource2)
         ]);
         calculator = new VerticalScrollCalculator(timelines, 0);
       });
@@ -216,15 +203,12 @@ describe('VerticalScrollCalculator', () => {
         expect(result[1]).toBe(timelines[1]);
       });
 
-      it('should maintain current sticky header before next header arrives (scroll 199)', () => {
-        // Namespace2 starts at 400.
-        // 400 - 199 = 201.
-        // Sticky header area is 200.
-        // So Namespace2 is NOT yet sticky.
-        const result = calculator.stickyTimelines(199);
+      it('should maintain current sticky header before next header arrives (scroll 99)', () => {
+        // 99 + 200 = 299 -> invades Pod1 (200-300).
+        const result = calculator.stickyTimelines(99);
+        expect(result.length).toBe(2);
         expect(result[0]).toBe(timelines[0]);
         expect(result[1]).toBe(timelines[1]);
-        // The next item is also the Name layer, so the sticky header is up to the namespace layer.
       });
 
       it('should maintain current sticky header at exact boundary (scroll 100)', () => {
@@ -241,7 +225,6 @@ describe('VerticalScrollCalculator', () => {
         expect(result.length).toBe(2);
         expect(result[0]).toBe(timelines[0]); // Kind1
         expect(result[1]).toBe(timelines[1]); // Namespace1
-        // The next item is also the Name layer, so the sticky header is up to the namespace layer.
       });
 
       it('should return sticky timelines only when the sticky timeline is fully visible (scroll 550)', () => {

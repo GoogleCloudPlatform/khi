@@ -65,6 +65,9 @@ export class TimelineFilterBuilderComponent {
   /** The list of matching candidates for the selected timeline type. */
   readonly candidates = input<string[]>([]);
 
+  /** Map of timeline type labels (lowercase) to their candidate counts. */
+  readonly typeCandidateCounts = input<Record<string, number>>({});
+
   /** Whether to display the delete trash can icon button. */
   readonly showDeleteButton = input<boolean>(false);
 
@@ -85,14 +88,24 @@ export class TimelineFilterBuilderComponent {
 
   private lastSyncedType = '*';
 
-  /** Filters the timeline types case-insensitively based on the current text input query. */
+  /** Filters the timeline types case-insensitively based on the current text input query and sorts them by candidate count. */
   protected readonly filteredTimelineTypes = computed<TimelineType[]>(() => {
     const query = this.typeInputQuery().trim().toLowerCase();
     const allTypes = this.timelineTypes();
-    if (!query) {
-      return allTypes;
-    }
-    return allTypes.filter((t) => t.label.toLowerCase().includes(query));
+    const counts = this.typeCandidateCounts();
+
+    const filtered = query
+      ? allTypes.filter((t) => t.label.toLowerCase().includes(query))
+      : [...allTypes];
+
+    return filtered.sort((a, b) => {
+      const countA = counts[a.label.toLowerCase()] || 0;
+      const countB = counts[b.label.toLowerCase()] || 0;
+      if (countA !== countB) {
+        return countB - countA; // Descending order
+      }
+      return a.label.localeCompare(b.label); // Alphabetical fallback
+    });
   });
 
   /** Computes candidate choices in the format expected by SetInputComponent. */
@@ -136,10 +149,10 @@ export class TimelineFilterBuilderComponent {
    */
   protected getTypeForegroundColor(type: TimelineType): string {
     return RendererConvertUtil.hdrColorToCSSColor([
-      type.foregroundColor.r,
-      type.foregroundColor.g,
-      type.foregroundColor.b,
-      type.foregroundColor.a,
+      type.typeChipForegroundColor.r,
+      type.typeChipForegroundColor.g,
+      type.typeChipForegroundColor.b,
+      type.typeChipForegroundColor.a,
     ]);
   }
 
@@ -148,10 +161,34 @@ export class TimelineFilterBuilderComponent {
    */
   protected getTypeBackgroundColor(type: TimelineType): string {
     return RendererConvertUtil.hdrColorToCSSColor([
+      type.typeChipBackgroundColor.r,
+      type.typeChipBackgroundColor.g,
+      type.typeChipBackgroundColor.b,
+      type.typeChipBackgroundColor.a,
+    ]);
+  }
+
+  /**
+   * Returns the computed CSS color for a timeline type's row background color.
+   */
+  protected getTypeRowBackgroundColor(type: TimelineType): string {
+    return RendererConvertUtil.hdrColorToCSSColor([
       type.backgroundColor.r,
       type.backgroundColor.g,
       type.backgroundColor.b,
       type.backgroundColor.a,
+    ]);
+  }
+
+  /**
+   * Returns the computed CSS color for a timeline type's row foreground color.
+   */
+  protected getTypeRowForegroundColor(type: TimelineType): string {
+    return RendererConvertUtil.hdrColorToCSSColor([
+      type.foregroundColor.r,
+      type.foregroundColor.g,
+      type.foregroundColor.b,
+      type.foregroundColor.a,
     ]);
   }
 

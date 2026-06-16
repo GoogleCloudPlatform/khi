@@ -48,13 +48,19 @@ limitations under the License.
       >
         <mat-option value="*">Any (*)</mat-option>
         @for (type of filteredTimelineTypes(); track type.label) {
-          <mat-option [value]="type.label">
+          <mat-option
+            [value]="type.label"
+            [style.background-color]="getTypeRowBackgroundColor(type)"
+            [style.color]="getTypeRowForegroundColor(type)"
+          >
             <span
               class="type-autocomplete-label"
               [style.color]="getTypeForegroundColor(type)"
               [style.background-color]="getTypeBackgroundColor(type)"
             >
-              {{ type.label }}
+              {{ type.label }} ({{
+                typeCandidateCounts()[type.label.toLowerCase()] || 0
+              }})
             </span>
           </mat-option>
         }

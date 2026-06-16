@@ -143,23 +143,33 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       .sort((a, b) => a.label.localeCompare(b.label));
   });
 
-  /** Interactive timeline label suggestions list. */
-  protected readonly candidates = computed<string[]>(() => {
+  /**
+   * Returns a list of label suggestions for a given timeline type.
+   */
+  private getCandidatesForType(typeLabel: string): string[] {
     const store = this.inspectionData()?.timelineStore;
-    const selectedType = this.selectedTimelineTypeForBuilder();
-    if (!store || !selectedType || selectedType === '*') {
+    if (!store) {
       return [];
     }
     const candSet = new Set<string>();
-    const selectedTypeLower = selectedType.toLowerCase();
+    const typeLower = typeLabel.toLowerCase();
     for (const t of store.timelines) {
       for (const node of t.path) {
-        if (node.type.label.toLowerCase() === selectedTypeLower) {
+        if (node.type.label.toLowerCase() === typeLower) {
           candSet.add(node.label);
         }
       }
     }
     return Array.from(candSet).sort();
+  }
+
+  /** Interactive timeline label suggestions list. */
+  protected readonly candidates = computed<string[]>(() => {
+    const selectedType = this.selectedTimelineTypeForBuilder();
+    if (selectedType === '*') {
+      return [];
+    }
+    return this.getCandidatesForType(selectedType);
   });
 
   /** Summary count metrics. */

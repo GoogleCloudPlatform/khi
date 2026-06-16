@@ -36,6 +36,11 @@ limitations under the License.
               class="filter-badge"
               [matTooltip]="getFilterTooltip(filter)"
               (click)="openEditFilterPopup(filter)"
+              [style.--badge-bg]="getTypeRowBgColor(filter.timelineType)"
+              [style.--badge-fg]="getTypeRowColor(filter.timelineType)"
+              [style.--badge-border]="getTypeRowColor(filter.timelineType)"
+              [style.--badge-type-bg]="getTypeChipBgColor(filter.timelineType)"
+              [style.--badge-type-fg]="getTypeChipColor(filter.timelineType)"
             >
               <mat-icon class="filter-icon">
                 {{
@@ -43,11 +48,7 @@ limitations under the License.
                 }}
               </mat-icon>
               <span class="filter-label">
-                <span
-                  class="filter-type"
-                  [style.color]="getTypeColor(filter.timelineType)"
-                  [style.background-color]="getTypeBgColor(filter.timelineType)"
-                  >{{ filter.timelineType }}</span
+                <span class="filter-type">{{ filter.timelineType }}</span
                 ><span class="filter-colon">: </span
                 ><span class="filter-value">{{
                   getFilterValueDisplay(filter)
@@ -153,6 +154,7 @@ limitations under the License.
   <khi-timeline-filter-builder
     [timelineTypes]="timelineTypes()"
     [candidates]="candidates()"
+    [typeCandidateCounts]="typeCandidateCounts()"
     [showDeleteButton]="editingFilter() !== null"
     [(selectedTimelineType)]="selectedTimelineTypeForBuilder"
     [(filterMode)]="builderFilterMode"

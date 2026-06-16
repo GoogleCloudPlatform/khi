@@ -226,8 +226,7 @@ export class SelectionManagerV2 {
    * Selects an event and updates timeline and log selections.
    */
   public onSelectEvent(event: ReadonlyDomainElement<Event>) {
-    this.selectedTimeline.set(event.timeline);
-    this.changeSelectionByLogInternal(event.log, true);
+    this.changeSelectionByEventInternal(event.timeline, event, false);
     this.synchronizeSelection();
   }
 
@@ -240,9 +239,7 @@ export class SelectionManagerV2 {
       this.synchronizeSelection();
       return;
     }
-    this.selectedRevision.set(revision);
-    this.selectedTimeline.set(revision.timeline);
-    this.changeSelectionByLogInternal(revision.log, true);
+    this.changeSelectionByRevisionInternal(revision.timeline, revision, false);
     this.synchronizeSelection();
   }
 
@@ -300,16 +297,44 @@ export class SelectionManagerV2 {
     if (!targetTimeline) return;
 
     if (relatedRevision) {
-      this.selectedRevision.set(relatedRevision);
-      this.selectedTimeline.set(targetTimeline);
-      this.changeSelectionByLogInternal(relatedRevision.log, true);
+      this.changeSelectionByRevisionInternal(
+        targetTimeline,
+        relatedRevision,
+        true,
+        true,
+      );
       return;
     }
 
     if (relatedEvent) {
-      this.selectedTimeline.set(targetTimeline);
-      this.changeSelectionByLogInternal(relatedEvent.log, true);
+      this.changeSelectionByEventInternal(
+        targetTimeline,
+        relatedEvent,
+        true,
+        true,
+      );
       return;
     }
+  }
+
+  private changeSelectionByEventInternal(
+    timeline: ReadonlyDomainElement<Timeline>,
+    event: ReadonlyDomainElement<Event>,
+    ignoreLogSelect: boolean,
+    ignoreTimelineSelect: boolean = false,
+  ) {
+    if (!ignoreTimelineSelect) this.selectedTimeline.set(timeline);
+    if (!ignoreLogSelect) this.changeSelectionByLogInternal(event.log, true);
+  }
+
+  private changeSelectionByRevisionInternal(
+    timeline: ReadonlyDomainElement<Timeline>,
+    revision: ReadonlyDomainElement<Revision>,
+    ignoreLogSelect: boolean,
+    ignoreTimelineSelect: boolean = false,
+  ) {
+    this.selectedRevision.set(revision);
+    if (!ignoreTimelineSelect) this.selectedTimeline.set(timeline);
+    if (!ignoreLogSelect) this.changeSelectionByLogInternal(revision.log, true);
   }
 }

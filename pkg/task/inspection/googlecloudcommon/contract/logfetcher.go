@@ -65,7 +65,9 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 		Filter:        filter,
 		OrderBy:       l.orderBy,
 		PageSize:      l.pageSize,
-	}, gax.WithRetry(newCloudLoggingRetrier), googlecloud.NeverTimeout)
+	}, gax.WithRetry(func() gax.Retryer {
+		return newCloudLoggingRetrier(ctx)
+	}), googlecloud.NeverTimeout)
 
 	for {
 		entry, err := iter.Next()
@@ -93,11 +95,11 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 	return nil
 }
 
-func newCloudLoggingRetrier() gax.Retryer {
+func newCloudLoggingRetrier(ctx context.Context) gax.Retryer {
 	// Cloud Logging may return PermissionError even when caller has sufficient permission especially when the project contains many log views.
 	// Allow up to 5 Permission errors in series.
 	return googlecloud.NewRetryWithCountBudget([]codes.Code{
 		codes.PermissionDenied,
-	}, 100*time.Millisecond, 1.0, time.Second, 5, googlecloud.NewDefaultRetryer(),
+	}, 100*time.Millisecond, 1.0, time.Second, 5, googlecloud.NewDefaultRetryerWithContext(ctx),
 	)
 }

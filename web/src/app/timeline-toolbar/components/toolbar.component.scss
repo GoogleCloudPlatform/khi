@@ -155,8 +155,9 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   height: 36px;
   padding: 0 12px !important;
   border-radius: 18px !important;
-  border: 1px solid $badge-border-color !important;
-  background-color: $badge-bg-color !important;
+  border: 1px solid var(--badge-border, #{$badge-border-color}) !important;
+  background-color: var(--badge-bg, #{$badge-bg-color}) !important;
+  color: var(--badge-fg, inherit) !important;
   font-size: 13px;
   font-weight: 500;
   transition: background-color 0.2s ease;
@@ -173,7 +174,8 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   /* stylelint-enable selector-class-pattern */
 
   &:hover {
-    background-color: $badge-hover-bg-color !important;
+    background-color: var(--badge-bg, #{$badge-hover-bg-color}) !important;
+    opacity: 0.9;
   }
 }
 
@@ -181,7 +183,7 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   font-size: 18px;
   width: 18px;
   height: 18px;
-  color: $icon-color;
+  color: var(--badge-fg, #{$icon-color});
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,14 +199,15 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
 }
 
 .filter-type {
-  color: $type-color;
+  color: var(--badge-type-fg, #{$type-color});
+  background-color: var(--badge-type-bg, transparent);
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 .filter-colon {
-  color: $colon-color;
+  color: var(--badge-fg, #{$colon-color});
 }
 
 .filter-value {
@@ -227,14 +230,15 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   width: 16px;
   height: 16px;
   cursor: pointer;
-  color: $delete-icon-color;
+  color: var(--badge-fg, #{$delete-icon-color});
   margin-left: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    color: $delete-icon-hover-color;
+    color: var(--badge-fg, #{$delete-icon-hover-color});
+    opacity: 0.7;
   }
 }
 

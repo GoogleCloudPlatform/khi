@@ -35,6 +35,7 @@ var OSSK8sAuditLogFieldExtractorTask = inspectiontaskbase.NewFieldSetReadTask(
 var OSSK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	ossclusterk8s_contract.OSSK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
+		commonlogk8saudit_contract.LogSummaryLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),

@@ -42,11 +42,13 @@ import { TimelineType } from 'src/app/store/domain/style';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 
 /**
- * Visual theme representation for a timeline type chip.
+ * Visual theme representation for a timeline type chip and row.
  */
 export interface TimelineTypeColor {
-  readonly backgroundColor: string;
-  readonly foregroundColor: string;
+  readonly chipBackgroundColor: string;
+  readonly chipForegroundColor: string;
+  readonly rowBackgroundColor: string;
+  readonly rowForegroundColor: string;
 }
 
 export enum ToolbarPopupStatus {
@@ -122,13 +124,25 @@ export class ToolbarComponent {
       const map: Record<string, TimelineTypeColor> = {};
       for (const type of this.timelineTypes()) {
         map[type.label.toLowerCase()] = {
-          backgroundColor: RendererConvertUtil.hdrColorToCSSColor([
+          chipBackgroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.typeChipBackgroundColor.r,
+            type.typeChipBackgroundColor.g,
+            type.typeChipBackgroundColor.b,
+            type.typeChipBackgroundColor.a,
+          ]),
+          chipForegroundColor: RendererConvertUtil.hdrColorToCSSColor([
+            type.typeChipForegroundColor.r,
+            type.typeChipForegroundColor.g,
+            type.typeChipForegroundColor.b,
+            type.typeChipForegroundColor.a,
+          ]),
+          rowBackgroundColor: RendererConvertUtil.hdrColorToCSSColor([
             type.backgroundColor.r,
             type.backgroundColor.g,
             type.backgroundColor.b,
             type.backgroundColor.a,
           ]),
-          foregroundColor: RendererConvertUtil.hdrColorToCSSColor([
+          rowForegroundColor: RendererConvertUtil.hdrColorToCSSColor([
             type.foregroundColor.r,
             type.foregroundColor.g,
             type.foregroundColor.b,
@@ -144,14 +158,24 @@ export class ToolbarComponent {
   readonly drawDiagram = output<void>();
   readonly switchToAdvanced = output<void>();
 
-  protected getTypeColor(typeLabel: string): string {
+  protected getTypeChipColor(typeLabel: string): string {
     const colors = this.typeColors()[typeLabel.toLowerCase()];
-    return colors ? colors.foregroundColor : '';
+    return colors ? colors.chipForegroundColor : '';
   }
 
-  protected getTypeBgColor(typeLabel: string): string {
+  protected getTypeChipBgColor(typeLabel: string): string {
     const colors = this.typeColors()[typeLabel.toLowerCase()];
-    return colors ? colors.backgroundColor : '';
+    return colors ? colors.chipBackgroundColor : '';
+  }
+
+  protected getTypeRowColor(typeLabel: string): string {
+    const colors = this.typeColors()[typeLabel.toLowerCase()];
+    return colors ? colors.rowForegroundColor : '';
+  }
+
+  protected getTypeRowBgColor(typeLabel: string): string {
+    const colors = this.typeColors()[typeLabel.toLowerCase()];
+    return colors ? colors.rowBackgroundColor : '';
   }
 
   /**
