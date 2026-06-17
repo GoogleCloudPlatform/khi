@@ -174,8 +174,9 @@ $selected-event-scale: 1.5;
 
       .cursor-summary-container {
         display: grid;
-        grid-template: "left text right" auto /
-                        1fr auto 1fr;
+        grid-template:
+          'left text right' auto /
+          1fr auto 1fr;
         align-items: center;
         justify-content: center;
 

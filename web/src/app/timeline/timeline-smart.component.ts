@@ -273,7 +273,7 @@ export class TimelineSmartComponent {
     return log.legacyTimestampMs;
   });
 
-  private readonly lastClickedTime = signal(0n);
+  private readonly hoveredTime = signal(0n);
 
   private readonly isMouseOnTimeline = signal(false);
 
@@ -320,7 +320,7 @@ export class TimelineSmartComponent {
       if (!timeline) {
         return null;
       }
-      return { timeline, targetTimeNs: this.lastClickedTime() };
+      return { timeline, targetTimeNs: this.hoveredTime() };
     }
 
     const highlightedLogs = this.selectionManager.highlightedLogs();
@@ -529,18 +529,14 @@ export class TimelineSmartComponent {
       if (event.revisionIndex !== undefined) {
         const log = event.timeline.revisions[event.revisionIndex].log;
         this.selectionManager.onHighlightLog(log);
-        this.lastClickedTime.set(
-          log ? log.timestamp : BigInt(Math.floor(event.timeMS)) * 1000000n,
-        );
+        this.hoveredTime.set(log.timestamp);
       } else if (event.eventIndex !== undefined) {
         const log = event.timeline.events[event.eventIndex].log;
         this.selectionManager.onHighlightLog(log);
-        this.lastClickedTime.set(
-          log ? log.timestamp : BigInt(Math.floor(event.timeMS)) * 1000000n,
-        );
+        this.hoveredTime.set(log.timestamp);
       } else {
         this.selectionManager.onHighlightLog();
-        this.lastClickedTime.set(BigInt(Math.floor(event.timeMS)) * 1000000n);
+        this.hoveredTime.set(BigInt(Math.floor(event.timeMS)) * 1000000n);
       }
     }
   }
