@@ -30,7 +30,6 @@ limitations under the License.
     [timelineCelError]="timelineCelError()"
     [logCelError]="logCelError()"
     [activeSearchScope]="activeSearchScope()"
-    (drawDiagram)="drawDiagram.emit()"
     (switchToStandard)="isAdvancedMode.set(false)"
   ></khi-timeline-toolbar-advanced>
 } @else {
@@ -47,7 +46,6 @@ limitations under the License.
     (timezoneShiftChange)="timezoneShiftChange.emit($event)"
     [logOrTimelineNotSelected]="logOrTimelineNotSelected()"
     [activeSearchScope]="activeSearchScope()"
-    (drawDiagram)="drawDiagram.emit()"
     (switchToAdvanced)="isAdvancedMode.set(true)"
   ></khi-timeline-toolbar>
 }

@@ -385,16 +385,6 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   }
 
   /**
-   * Triggers the rendering graph outputs.
-   */
-  protected onDrawDiagram() {
-    const targetPath = window.location.pathname.endsWith('/')
-      ? window.location.pathname + 'graph'
-      : window.location.pathname + '/graph';
-    window.open(targetPath, '_blank');
-  }
-
-  /**
    * Updates the state visibility for timelines missing log hits.
    */
   protected onToggleHideTimelinesWithoutMatchingLogs(value: boolean): void {
