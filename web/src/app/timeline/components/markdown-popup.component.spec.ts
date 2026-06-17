@@ -15,7 +15,7 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MarkdownPopupComponent } from './markdown-popup.component';
+import { MarkdownPopupComponent } from 'src/app/timeline/components/markdown-popup.component';
 import { ComponentRef } from '@angular/core';
 
 describe('MarkdownPopupComponent', () => {

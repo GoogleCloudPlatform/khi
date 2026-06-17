@@ -29,7 +29,7 @@ import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registrati
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from './canvas/convertutil';
-import { MarkdownPopupComponent } from './markdown-popup.component';
+import { MarkdownPopupComponent } from 'src/app/timeline/components/markdown-popup.component';
 
 /**
  * ViewModel for revision legend item.
@@ -144,6 +144,9 @@ export class TimelineLegendComponent {
    * Closes the description popup.
    */
   closePopup(): void {
+    if (this._closeTimeout) {
+      clearTimeout(this._closeTimeout);
+    }
     // Delays closing to allow the cursor to transition from the trigger icon into the popup card without disappearing.
     this._closeTimeout = setTimeout(() => {
       this.activePopupLabel.set(null);
