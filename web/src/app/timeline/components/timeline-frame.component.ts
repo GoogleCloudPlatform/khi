@@ -86,6 +86,8 @@ export interface TimelineHoverOverlayRequest {
   timeMs: number;
   timelineId: number;
   overlay: TimelineHoverOverlay;
+  isMouseOnTimeline?: boolean;
+  isStickyHeaderHover?: boolean;
 }
 
 @Component({
@@ -297,7 +299,30 @@ export class TimelineFrameComponent implements AfterViewInit {
     input<TimelineHoverOverlayRequest | null>(null);
   protected readonly timelineHoverOverlay = computed(() => {
     const request = this.timelineHoverOverlayRequest();
-    return request?.overlay ?? null;
+    if (!request) {
+      return null;
+    }
+    if (!request.isMouseOnTimeline) {
+      const vpLeftTime = this.viewportLeftTimeMS();
+      const vpWidth = this.viewportWidth();
+      const pixelsPerMs = this.pixelsPerMs();
+      const vpRightTime = vpLeftTime + vpWidth / pixelsPerMs;
+
+      if (request.timeMs < vpLeftTime || request.timeMs > vpRightTime) {
+        return null;
+      }
+
+      const visible = this.visibleTimelines();
+      const sticky = this.stickyTimelines();
+      const isVisible =
+        visible.some((t) => t.id === request.timelineId) ||
+        sticky.some((t) => t.id === request.timelineId);
+
+      if (!isVisible) {
+        return null;
+      }
+    }
+    return request.overlay;
   });
   protected readonly timelineHoverOverlayOffsetX = computed(() => {
     const request = this.timelineHoverOverlayRequest();
@@ -316,6 +341,19 @@ export class TimelineFrameComponent implements AfterViewInit {
     const request = this.timelineHoverOverlayRequest();
     if (request === null) {
       return 0;
+    }
+    if (request.isStickyHeaderHover) {
+      const stickyTimelines = this.stickyTimelines();
+      const stickyIndex = stickyTimelines.findIndex(
+        (t) => t.id === request.timelineId,
+      );
+      if (stickyIndex !== -1) {
+        let stickyBottom = 0;
+        for (let i = 0; i <= stickyIndex; i++) {
+          stickyBottom += stickyTimelines[i].type.height * BASE_ROW_HEIGHT;
+        }
+        return stickyBottom + this.viewportScrollTop();
+      }
     }
     const verticalScrollCalculator = this.verticalScrollCalculator();
     const timeMSToOffsetLeft =
@@ -415,6 +453,24 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Emitted when the user clicks on an item (event or revision) in the chart.
    */
   readonly clickOnTimelineItem = output<TimelineChartMouseEvent>();
+
+  /**
+   * Emitted when the mouse enters the chart area.
+   */
+  readonly mouseEnterChart = output<void>();
+  /**
+   * Emitted when the mouse leaves the chart area.
+   */
+  readonly mouseLeaveChart = output<void>();
+
+  /**
+   * Emitted when the mouse enters the sticky header area.
+   */
+  readonly mouseEnterStickyHeader = output<void>();
+  /**
+   * Emitted when the mouse leaves the sticky header area.
+   */
+  readonly mouseLeaveStickyHeader = output<void>();
 
   /**
    * The timezone shift in hours from UTC.

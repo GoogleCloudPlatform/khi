@@ -35,12 +35,14 @@ import {
 } from './interaction-model';
 import { RendererConvertUtil } from './canvas/convertutil';
 import { TimelineChartMouseEvent } from './timeline-chart.component';
+import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 
 export interface TimelineHoverOverlay {
   timeline: ReadonlyDomainElement<Timeline>;
   revisions: ReadonlyDomainElement<Revision>[];
   events: ReadonlyDomainElement<Event>[];
   initialRevision: ReadonlyDomainElement<Revision> | null;
+  cursorTime: bigint | null;
 }
 
 enum StatusContinousMode {
@@ -52,7 +54,8 @@ enum StatusContinousMode {
 
 interface TimelineHoverOverlayLogItem {
   uniqueID: string;
-  log: ReadonlyDomainElement<Log>;
+  isCursor?: boolean;
+  log?: ReadonlyDomainElement<Log>;
   revision?: ReadonlyDomainElement<Revision>;
   event?: ReadonlyDomainElement<Event>;
   logIndex: number;
@@ -69,7 +72,7 @@ interface TimelineHoverOverlayLogItem {
   showSeverity: boolean;
   severityColor: string;
   severityLabel: string;
-  timeMs: number;
+  time: bigint;
   timeLabel: string;
   summary: string;
   statusContinous: StatusContinousMode;
@@ -140,11 +143,13 @@ export class TimelineHoverOverlayComponent {
     const base: TimelineChartMouseEvent = {
       event: e,
       timeline,
-      timeMS: log.timeMs,
+      timeMS: BigIntTimeUtil.NsToNumberMs(log.time),
       clientX: e.clientX,
       clientY: e.clientY,
     };
-    if (log.isRevision) {
+    if (log.isCursor) {
+      o.emit(base);
+    } else if (log.isRevision) {
       o.emit({
         ...base,
         revisionIndex: timeline.revisions.indexOf(log.revision!),
@@ -219,7 +224,7 @@ export class TimelineHoverOverlayComponent {
           revision.verb.backgroundColor.a,
         ]),
         verbTypeLabel: revision.verb.label,
-        timeMs: revision.legacyChangedTimeMs,
+        time: revision.changedTime,
         timeLabel: this.formatTimeLabel(revision.legacyChangedTimeMs),
         summary: log.summary,
         severityColor: RendererConvertUtil.hdrColorToCSSColor([
@@ -266,7 +271,7 @@ export class TimelineHoverOverlayComponent {
         logTypeLabel: log.logType.label,
         verbTypeColor: '',
         verbTypeLabel: '',
-        timeMs: event.legacyTimestamp,
+        time: event.timestamp,
         timeLabel: this.formatTimeLabel(event.legacyTimestamp),
         summary: log.summary,
         severityColor: RendererConvertUtil.hdrColorToCSSColor([
@@ -284,8 +289,39 @@ export class TimelineHoverOverlayComponent {
       });
     }
 
-    // 3. Sort by User Log Index (chronological order)
-    viewModel.logs.sort((a, b) => a.timeMs - b.timeMs);
+    if (timelineHoverOverlay.cursorTime !== null) {
+      viewModel.logs.push({
+        uniqueID: 'cursor-position',
+        isCursor: true,
+        time: timelineHoverOverlay.cursorTime,
+        timeLabel: this.formatTimeLabel(
+          BigIntTimeUtil.NsToNumberMs(timelineHoverOverlay.cursorTime),
+        ),
+        summary: '',
+        logIndex: -1,
+        isRevision: false,
+        revisionStateColor: '',
+        revisionStateLabel: '',
+        revisionStateIcon: '',
+        revisionStateStyle: RevisionStateStyle.NORMAL,
+        logTypeColor: '',
+        logTypeLabel: '',
+        verbTypeColor: '',
+        verbTypeLabel: '',
+        showSeverity: false,
+        severityColor: '',
+        severityLabel: '',
+        statusContinous: StatusContinousMode.Middle,
+        highlightType: TimelineChartItemHighlightType.None,
+        lastRevisionLog: null,
+        lastRevisionHightlightType: TimelineChartItemHighlightType.None,
+      });
+    }
+
+    // 3. Sort by User Log Index / Timestamp (chronological order)
+    viewModel.logs.sort((a, b) =>
+      a.time < b.time ? -1 : a.time > b.time ? 1 : 0,
+    );
 
     // 4. Calculate Continuity and Inherit States
     // Iterate through the sorted logs to:
@@ -295,7 +331,7 @@ export class TimelineHoverOverlayComponent {
     let lastRevisionStateLabel = "status doesn't exist";
     let lastRevisionStateIcon = '';
     let lastRevisionStateStyle = RevisionStateStyle.NORMAL;
-    let lastRevisionLog = null;
+    let lastRevisionLog: ReadonlyDomainElement<Log> | null = null;
     let lastRevisionHightlightType = TimelineChartItemHighlightType.None;
 
     if (timelineHoverOverlay.initialRevision) {
@@ -322,12 +358,15 @@ export class TimelineHoverOverlayComponent {
 
     for (let i = 0; i < viewModel.logs.length; i++) {
       const log = viewModel.logs[i];
+      if (log.isCursor) {
+        continue;
+      }
       if (log.isRevision) {
         lastRevisionStateColor = log.revisionStateColor;
         lastRevisionStateLabel = log.revisionStateLabel;
         lastRevisionStateIcon = log.revisionStateIcon;
         lastRevisionStateStyle = log.revisionStateStyle;
-        lastRevisionLog = log.log;
+        lastRevisionLog = log.log ?? null;
         lastRevisionHightlightType = log.highlightType;
         if (i < viewModel.logs.length - 1) {
           const nextLog = viewModel.logs[i + 1];
@@ -340,7 +379,7 @@ export class TimelineHoverOverlayComponent {
         log.revisionStateLabel = lastRevisionStateLabel;
         log.revisionStateIcon = lastRevisionStateIcon;
         log.revisionStateStyle = lastRevisionStateStyle;
-        log.lastRevisionLog = lastRevisionLog;
+        log.lastRevisionLog = lastRevisionLog ?? null;
         log.lastRevisionHightlightType = lastRevisionHightlightType;
         if (
           i === viewModel.logs.length - 1 ||

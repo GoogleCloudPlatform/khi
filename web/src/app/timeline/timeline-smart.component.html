@@ -39,5 +39,9 @@
   [timelineHoverOverlayRequest]="timelineHoverOverlayRequest()"
   [allLogsWithoutFilter]="allLogs()"
   [filteredLogs]="filteredLogs()"
+  (mouseEnterChart)="onMouseEnterChart()"
+  (mouseLeaveChart)="onMouseLeaveChart()"
+  (mouseEnterStickyHeader)="onMouseEnterStickyHeader()"
+  (mouseLeaveStickyHeader)="onMouseLeaveStickyHeader()"
 >
 </khi-timeline-frame>

@@ -197,6 +197,7 @@ function createHoverOverlayDemoData(): TimelineHoverOverlay {
     revisions,
     events,
     initialRevision: revisions[0],
+    cursorTime: BigInt(baseTime + 120) * 1000000n,
   };
 }
 
@@ -259,6 +260,7 @@ function createHoverOverlayDemoDataWithEventFirst(): TimelineHoverOverlay {
     revisions: [revisions[1]], // background revision is out of range
     events,
     initialRevision: revisions[0],
+    cursorTime: BigInt(baseTime + 120) * 1000000n,
   };
 }
 
@@ -295,7 +297,10 @@ export const FirstItemIsEvent: Story = {
 
 export const HoveredOnEventAndSelectedOnRevision: Story = {
   args: {
-    timelineHoverOverlay: createHoverOverlayDemoData(),
+    timelineHoverOverlay: {
+      ...createHoverOverlayDemoData(),
+      cursorTime: null,
+    },
     highlights: {
       0: TimelineChartItemHighlightType.Selected, // Revision (foo)
       1: TimelineChartItemHighlightType.Hovered, // Event (bar)
@@ -313,7 +318,10 @@ export const HoveredOnEventAndSelectedOnRevision: Story = {
 
 export const HoveredOnRevisionAndSelectedOnEvent: Story = {
   args: {
-    timelineHoverOverlay: createHoverOverlayDemoData(),
+    timelineHoverOverlay: {
+      ...createHoverOverlayDemoData(),
+      cursorTime: null,
+    },
     highlights: {
       0: TimelineChartItemHighlightType.Hovered, // Revision (foo)
       1: TimelineChartItemHighlightType.Selected, // Event (bar)
