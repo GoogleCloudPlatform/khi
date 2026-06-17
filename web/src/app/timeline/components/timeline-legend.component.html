@@ -75,7 +75,36 @@
                   legend.icon
                 }}</mat-icon>
               </div>
-              <p>{{ legend.label }}</p>
+              <div class="legend-label-container">
+                <p>{{ legend.label }}</p>
+                @if (legend.description) {
+                  <div
+                    class="help-icon-wrapper"
+                    cdkOverlayOrigin
+                    #overlayOrigin="cdkOverlayOrigin"
+                    (mouseenter)="openPopup(legend)"
+                    (mouseleave)="closePopup()"
+                  >
+                    <mat-icon class="material-icons-outlined help-icon"
+                      >help_outline</mat-icon
+                    >
+                  </div>
+                  <ng-template
+                    cdkConnectedOverlay
+                    [cdkConnectedOverlayOrigin]="overlayOrigin"
+                    [cdkConnectedOverlayOpen]="
+                      activePopupLabel() === legend.label
+                    "
+                    [cdkConnectedOverlayPositions]="popupPositions"
+                  >
+                    <khi-markdown-popup
+                      [markdown]="legend.description"
+                      (mouseenter)="openPopup(legend)"
+                      (mouseleave)="closePopup()"
+                    ></khi-markdown-popup>
+                  </ng-template>
+                }
+              </div>
             </div>
           }
         }
