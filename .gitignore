@@ -36,3 +36,6 @@ zzz_*.json
 # Vendor folders
 scripts/msdf-generator/vendor/
 scripts/make/*.done
+
+# Go embedded assets for icons
+pkg/model/khifile/v6/style/assets/

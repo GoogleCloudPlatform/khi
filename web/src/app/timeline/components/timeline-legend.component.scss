@@ -165,6 +165,23 @@ $font-weight-light: 300;
   padding: 5px 0 0;
 }
 
+.legend-label-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .help-icon-wrapper {
+    display: flex;
+    align-items: center;
+    cursor: help;
+
+    mat-icon {
+      @include common.adjust-mat-icon-size(16px);
+      color: dimgray;
+    }
+  }
+}
+
 .toggle-button-container {
   display: flex;
   justify-content: center;

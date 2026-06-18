@@ -1,0 +1,166 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$primary-palette: mat.$m2-indigo-palette;
+$success-palette: mat.$m2-green-palette;
+$error-palette: mat.$m2-red-palette;
+$gray-palette: mat.$m2-gray-palette;
+
+$input-border-color: mat.m2-get-color-from-palette($gray-palette, 400);
+$input-focus-border-color: mat.m2-get-color-from-palette($primary-palette, 500);
+$input-valid-color: mat.m2-get-color-from-palette($success-palette, 500);
+$input-invalid-color: mat.m2-get-color-from-palette($error-palette, 500);
+$input-background-color: mat.m2-get-color-from-palette($gray-palette, 50);
+
+$error-bubble-bg: mat.m2-get-color-from-palette($error-palette, 50);
+$error-bubble-border: mat.m2-get-color-from-palette($error-palette, 200);
+$error-bubble-text: mat.m2-get-color-from-palette($error-palette, 800);
+$error-bubble-shadow: rgba(0, 0, 0, 0.1);
+
+.cel-input-container {
+  display: grid;
+  grid-template:
+    'label input' 1fr
+    / auto 1fr;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.cel-input-label-icon {
+  grid-area: label;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: mat.m2-get-color-from-palette($primary-palette, 500);
+  cursor: default;
+  user-select: none;
+}
+
+.input-wrapper {
+  grid-area: input;
+  display: grid;
+  grid-template:
+    'field icon' 1fr
+    / 1fr auto;
+  align-items: center;
+  position: relative;
+  width: 100%;
+}
+
+.cel-input-field {
+  grid-area: field;
+  height: 20px;
+  padding: 2px 24px 2px 6px;
+  border: 1px solid $input-border-color;
+  border-radius: 4px;
+  background-color: $input-background-color;
+  font-size: small;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  outline: none;
+
+  &:focus {
+    border-color: $input-focus-border-color;
+    box-shadow: 0 0 0 2px mat.m2-get-color-from-palette($primary-palette, 100);
+  }
+
+  &.invalid {
+    border-color: $input-invalid-color;
+
+    &:focus {
+      box-shadow: 0 0 0 2px mat.m2-get-color-from-palette($error-palette, 100);
+    }
+  }
+}
+
+.status-icon {
+  grid-area: icon;
+  position: absolute;
+  right: 6px;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+
+  &.valid {
+    color: $input-valid-color;
+  }
+
+  &.invalid {
+    color: $input-invalid-color;
+  }
+}
+
+.error-bubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10000;
+  max-width: 320px;
+  background-color: $error-bubble-bg;
+  border: 1px solid $error-bubble-border;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px $error-bubble-shadow;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease-out,
+    transform 0.15s ease-out;
+
+  .input-wrapper:focus-within &,
+  .input-wrapper:hover & {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+.error-bubble-content {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: $error-bubble-text;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.error-bubble-arrow {
+  position: absolute;
+  bottom: 100%;
+  left: 16px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid $error-bubble-border;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: -6px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid $error-bubble-bg;
+  }
+}

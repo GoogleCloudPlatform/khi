@@ -22,7 +22,6 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
@@ -52,9 +51,9 @@ func (c *composerListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskR
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (c *composerListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeComposerEnvironment,
-		QueryName:      c.queryName,
-		ExampleQuery:   generateExampleQuery("test-project", "sample-composer-environment"),
+
+		QueryName:    c.queryName,
+		ExampleQuery: generateExampleQuery("test-project", "sample-composer-environment"),
 	}
 }
 

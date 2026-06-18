@@ -19,16 +19,16 @@
 <div class="container">
   <p
     class="log-type"
-    [ngClass]="resolvedLogType"
+    [ngStyle]="typeStyle()"
     matTooltip="Type of the log. Usually it represents its source."
   >
-    Type: <span class="value">{{ resolvedLogType }}</span>
+    Type: <span class="value">{{ resolvedLogType?.label ?? "N/A" }}</span>
   </p>
-  @if (resolvedSeverity === "UNKNOWN") {
+  @if (!resolvedSeverity || resolvedSeverity.label === "UNKNOWN") {
     <p class="log-severity-empty"></p>
   } @else {
-    <p class="log-severity" [ngClass]="resolvedSeverity | lowercase">
-      Severity: <span class="value">{{ resolvedSeverity }}</span>
+    <p class="log-severity" [ngStyle]="severityStyle()">
+      Severity: <span class="value">{{ resolvedSeverity.label }}</span>
     </p>
   }
 </div>

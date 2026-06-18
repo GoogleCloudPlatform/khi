@@ -15,25 +15,11 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { of } from 'rxjs';
-import { SelectionManagerService } from 'src/app/services/selection-manager.service';
 import { ResourceReferenceListComponent } from './resource-reference-list.component';
 
 export default {
-  title: 'Log/Components/ResourceReferenceList',
+  title: 'Log/ResourceReferenceList',
   component: ResourceReferenceListComponent,
-  providers: [
-    {
-      provide: SelectionManagerService,
-      useValue: {
-        selectedTimeline: of({
-          resourcePath: 'v1#ConfigMap#default#my-config',
-        }),
-        onSelectTimeline: () => {},
-        onHighlightTimeline: () => {},
-      },
-    },
-  ],
 } as Meta<ResourceReferenceListComponent>;
 
 type Story = StoryObj<ResourceReferenceListComponent>;
@@ -41,8 +27,8 @@ type Story = StoryObj<ResourceReferenceListComponent>;
 export const Default: Story = {
   args: {
     refs: [
-      { label: 'my-config of default', path: 'v1#ConfigMap#default#my-config' },
-      { label: 'my-secret of default', path: 'v1#Secret#default#my-secret' },
+      { label: 'my-config of default', timelineId: 101 },
+      { label: 'my-secret of default', timelineId: 102 },
     ],
   },
 };

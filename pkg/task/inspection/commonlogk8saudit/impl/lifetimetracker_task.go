@@ -29,8 +29,7 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -51,18 +50,18 @@ type lifeTimeTrackerTaskSetting struct {
 }
 
 // isDeletiveVerb returns true if the verb is delete or deletecollection.
-func isDeletiveVerb(verb enum.RevisionVerb) bool {
-	return verb == enum.RevisionVerbDelete || verb == enum.RevisionVerbDeleteCollection
+func isDeletiveVerb(verb *pb.Verb) bool {
+	return verb == commonlogk8saudit_contract.VerbDelete || verb == commonlogk8saudit_contract.VerbDeleteCollection
 }
 
 // isCreativeVerb returns true if the verb is create or update. These are possible to create the resource.
-func isCreativeVerb(verb enum.RevisionVerb) bool {
-	return verb == enum.RevisionVerbCreate || verb == enum.RevisionVerbUpdate
+func isCreativeVerb(verb *pb.Verb) bool {
+	return verb == commonlogk8saudit_contract.VerbCreate || verb == commonlogk8saudit_contract.VerbUpdate
 }
 
 // isPod returns true if the operation is for a pod.
-func isPod(op *model.KubernetesObjectOperation) bool {
-	return op.APIVersion == "core/v1" && op.GetSingularKindName() == "pod"
+func isPod(apiVersion string, pluralKind string) bool {
+	return apiVersion == "core/v1" && commonlogk8saudit_contract.GetSingularKindName(pluralKind) == "pod"
 }
 
 // DetectLifetimeLogEvent detects if the log is the timing to create or delete the timeline resource and update the log field.
@@ -76,16 +75,16 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 
 	// Mark the resource being created when it is a first log, or when it's non-deletive log and the resource was completely removed.
 	if isFirst ||
-		k8sFieldSet.K8sOperation.Verb == enum.RevisionVerbCreate ||
-		(isCreativeVerb(k8sFieldSet.K8sOperation.Verb) && prevGroupData.WasCompletelyRemoved) {
+		k8sFieldSet.Verb == commonlogk8saudit_contract.VerbCreate ||
+		(isCreativeVerb(k8sFieldSet.Verb) && prevGroupData.WasCompletelyRemoved) {
 		l.ResourceCreated = true
 	}
-	if isDeletiveVerb(k8sFieldSet.K8sOperation.Verb) && prevGroupData.WasCompletelyRemoved {
+	if isDeletiveVerb(k8sFieldSet.Verb) && prevGroupData.WasCompletelyRemoved {
 		return prevGroupData, nil
 	}
 
 	if l.ResourceBodyReader == nil {
-		if isDeletiveVerb(k8sFieldSet.K8sOperation.Verb) {
+		if isDeletiveVerb(k8sFieldSet.Verb) {
 			prevGroupData.DeletionStarted = true
 			l.ResourceDeleted = true
 		}
@@ -96,7 +95,7 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 		uid, _ := GetUID(l.ResourceBodyReader)
 		if uid != prevGroupData.PrevUID {
 			prevGroupData.PrevUID = uid
-			if !isDeletiveVerb(k8sFieldSet.K8sOperation.Verb) {
+			if !isDeletiveVerb(k8sFieldSet.Verb) {
 				l.ResourceCreated = true
 			}
 			prevGroupData.DeletionStarted = false
@@ -106,10 +105,10 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 			deletionCompleted = prevGroupData.WasCompletelyRemoved
 		}
 
-		if isDeletiveVerb(k8sFieldSet.K8sOperation.Verb) {
+		if isDeletiveVerb(k8sFieldSet.Verb) {
 			prevGroupData.DeletionStarted = true
 			deletionStarted = true
-			if isPod(k8sFieldSet.K8sOperation) {
+			if isPod(k8sFieldSet.APIVersion, k8sFieldSet.PluralKind) {
 				phase, _ := GetPodPhase(l.ResourceBodyReader)
 				switch phase {
 				case "Failed", "Succeeded":
@@ -156,7 +155,7 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 			// The exact deletion proof is not found for this case.
 			prevGroupData.WasCompletelyRemoved = false
 			prevGroupData.DeletionStarted = true
-			apiVersionKind := fmt.Sprintf("%s#%s", k8sFieldSet.K8sOperation.APIVersion, k8sFieldSet.K8sOperation.GetSingularKindName())
+			apiVersionKind := fmt.Sprintf("%s#%s", k8sFieldSet.APIVersion, commonlogk8saudit_contract.GetSingularKindName(k8sFieldSet.PluralKind))
 			if _, found := r.kindsToWaitExactDeletionToDetermineDeletion[apiVersionKind]; !found {
 				l.ResourceDeleted = true
 			}

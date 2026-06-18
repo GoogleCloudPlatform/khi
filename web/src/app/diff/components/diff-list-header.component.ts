@@ -16,9 +16,22 @@
 
 import { Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ResourceTimeline, TimelineLayer } from '../../store/timeline';
 import { CopiableKeyValueComponent } from 'src/app/shared/components/copiable-key-value/copiable-key-value.component';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+
+/**
+ * View model for a single path node displayed in the diff list header.
+ */
+export interface HeaderPathNodeViewModel {
+  /** The label key or layer type name (e.g., 'Kind', 'Namespace'). */
+  readonly label: string;
+  /** The actual resource identifier/name. */
+  readonly value: string;
+  /** The Material Symbol icon name to display. */
+  readonly icon: string;
+}
 
 /**
  * Component for displaying the header of the diff list, which shows annotators for the selected timeline.
@@ -33,33 +46,18 @@ export class DiffListHeaderComponent {
   /**
    * The selected timeline.
    */
-  readonly timeline = input.required<ResourceTimeline | null>();
+  readonly timeline = input.required<ReadonlyDomainElement<Timeline> | null>();
 
   /**
-   * Computed signal for the timeline's kind.
+   * Computed signal for path nodes view models to display.
    */
-  protected readonly kind = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Kind);
-  });
-
-  /**
-   * Computed signal for the timeline's namespace.
-   */
-  protected readonly namespace = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Namespace);
-  });
-
-  /**
-   * Computed signal for the timeline's name.
-   */
-  protected readonly name = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Name);
-  });
-
-  /**
-   * Computed signal for the timeline's subresource.
-   */
-  protected readonly subresource = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Subresource);
+  protected readonly pathNodes = computed<HeaderPathNodeViewModel[]>(() => {
+    const t = this.timeline();
+    if (!t) return [];
+    return t.path.map((node) => ({
+      label: node.type.label,
+      value: node.label,
+      icon: node.type.icon || 'label',
+    }));
   });
 }

@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,53 +16,79 @@ package commonlogk8saudit_impl
 
 import (
 	"testing"
+	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestLogSummaryLogToTimelineMapperSetting_getLogSummary(t *testing.T) {
+func TestK8sAuditLogIngesterV2_ProcessLog(t *testing.T) {
+	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
+
 	testCases := []struct {
-		desc  string
-		input *commonlogk8saudit_contract.K8sAuditLogFieldSet
-		want  string
+		name   string
+		input  *log.Log
+		assert func(t *testing.T, cs *khifilev6.LogChangeSet)
 	}{
 		{
-			desc: "",
-			input: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				IsError:       true,
-				StatusMessage: "test",
-				StatusCode:    404,
-				K8sOperation: &model.KubernetesObjectOperation{
-					Verb: enum.RevisionVerbDelete,
+			name: "successful info log ingestion",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: testTime},
+				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "test-pod",
+					RequestURI:   "/api/v1/namespaces/default/pods/test-pod",
+					Verb:         commonlogk8saudit_contract.VerbCreate,
+					IsError:      false,
 				},
-				RequestURI: "/test",
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
+					HasSummary("Create /api/v1/namespaces/default/pods/test-pod")
 			},
-			want: "【test(404)】Delete /test",
 		},
 		{
-			desc: "",
-			input: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				IsError:       false,
-				StatusMessage: "test",
-				StatusCode:    200,
-				K8sOperation: &model.KubernetesObjectOperation{
-					Verb: enum.RevisionVerbDelete,
+			name: "error log ingestion",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: testTime},
+				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:    "core/v1",
+					PluralKind:    "pods",
+					Namespace:     "default",
+					ResourceName:  "test-pod",
+					RequestURI:    "/api/v1/namespaces/default/pods/test-pod",
+					Verb:          commonlogk8saudit_contract.VerbCreate,
+					IsError:       true,
+					StatusCode:    409,
+					StatusMessage: "Conflict",
 				},
-				RequestURI: "/test",
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore_contract.SeverityError).
+					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
+					HasSummary("【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
 			},
-			want: "Delete /test",
 		},
 	}
 
+	ingester := &k8sAuditLogIngesterV2{}
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			setting := &logSummaryLogToTimelineMapperSetting{}
-			got := setting.logSummary(tc.input)
-			if got != tc.want {
-				t.Errorf("got %q, want %q", got, tc.want)
+		t.Run(tc.name, func(t *testing.T) {
+			cs, err := ingester.ProcessLog(t.Context(), tc.input)
+			if err != nil {
+				t.Fatalf("ProcessLog() failed: %v", err)
 			}
+			tc.assert(t, cs)
 		})
 	}
 }

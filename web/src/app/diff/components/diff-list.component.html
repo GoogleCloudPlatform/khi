@@ -68,10 +68,10 @@ limitations under the License.
                 class="operation"
                 (click)="_selectRevision(row.revision)"
                 (mouseover)="_highlightRevision(row.revision)"
-                [ngClass]="row.revision.verbCSSClass"
+                [style]="row.verbStyle"
               >
                 <span class="operation-span">
-                  {{ row.revision.verbLabel }}
+                  {{ row.verbLabel }}
                 </span>
               </div>
               @if (row.author) {

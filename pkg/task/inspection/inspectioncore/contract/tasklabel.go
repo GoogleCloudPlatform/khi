@@ -19,7 +19,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 // LabelSelector represents a set of labels to match against target resources/features.
@@ -57,7 +56,6 @@ var (
 	// LabelKeyInspectionTypeLabelSelector is a label key used to specify multiple target environments using a label selector.
 	LabelKeyInspectionTypeLabelSelector = coretask.NewTaskLabelKey[LabelSelector](InspectionTaskPrefix + "inspection-type-selector")
 	LabelKeyFeatureTaskTitle            = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/title")
-	LabelKeyFeatureTaskTargetLogType    = coretask.NewTaskLabelKey[enum.LogType](InspectionTaskPrefix + "feature/log-type")
 	LabelKeyFeatureTaskDescription      = coretask.NewTaskLabelKey[string](InspectionTaskPrefix + "feature/description")
 	// LabelKeyFeatureTaskOrder is a label key of an integer assigned for a feature task. Feature task with smaller order is placed at the top of the feature task list.
 	LabelKeyFeatureTaskOrder = coretask.NewTaskLabelKey[int](InspectionTaskPrefix + "feature/order")
@@ -72,50 +70,33 @@ func (i *ProgressReportableTaskLabelOptImpl) Write(label *typedmap.TypedMap) {
 
 var _ coretask.LabelOpt = (*ProgressReportableTaskLabelOptImpl)(nil)
 
-// FeatureTaskLabelImpl is an implementation of task.LabelOpt.
-// This annotate a task to be a feature in inspection.
-type FeatureTaskLabelImpl struct {
+// FeatureTaskLabelV2Impl is an implementation of task.LabelOpt.
+// This annotates a task to be a feature in inspection for v6 format.
+type FeatureTaskLabelV2Impl struct {
 	title            string
 	description      string
-	logType          enum.LogType
 	featureOrder     int
 	isDefaultFeature bool
-	inspectionTypes  []string
 }
 
-func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
+// Write implements task.LabelOpt.
+func (ftl *FeatureTaskLabelV2Impl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyInspectionFeatureFlag, true)
-	typedmap.Set(label, LabelKeyFeatureTaskTargetLogType, ftl.logType)
 	typedmap.Set(label, LabelKeyFeatureTaskTitle, ftl.title)
 	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
 	typedmap.Set(label, LabelKeyFeatureTaskOrder, ftl.featureOrder)
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
-	if len(ftl.inspectionTypes) > 0 {
-		typedmap.Set(label, LabelKeyInspectionTypes, ftl.inspectionTypes)
-	}
 }
 
-func (ftl *FeatureTaskLabelImpl) WithDescription(description string) *FeatureTaskLabelImpl {
-	ftl.description = description
-	return ftl
-}
+var _ coretask.LabelOpt = (*FeatureTaskLabelV2Impl)(nil)
 
-var _ coretask.LabelOpt = (*FeatureTaskLabelImpl)(nil)
-
-func FeatureTaskLabel(title string, description string, logType enum.LogType, featureOrder int, isDefaultFeature bool, inspectionTypes ...string) *FeatureTaskLabelImpl {
-	for i, t := range inspectionTypes {
-		if t == "" {
-			panic(fmt.Sprintf(`Invalid inspection type at index at #%d. Empty inspection type was given to FeatureTaskLabel function. This may be caused because of initialization order issue of global variables.
-Please define task IDs and types used in its type parameter in a different package.`, i))
-		}
-	}
-	return &FeatureTaskLabelImpl{
+// FeatureTaskLabelV2 returns a LabelOpt to mark the task as a feature in the inspection for v6 format.
+func FeatureTaskLabelV2(title string, description string, featureOrder int, isDefaultFeature bool) *FeatureTaskLabelV2Impl {
+	return &FeatureTaskLabelV2Impl{
 		title:            title,
 		description:      description,
-		logType:          logType,
 		featureOrder:     featureOrder,
 		isDefaultFeature: isDefaultFeature,
-		inspectionTypes:  inspectionTypes,
 	}
 }
 

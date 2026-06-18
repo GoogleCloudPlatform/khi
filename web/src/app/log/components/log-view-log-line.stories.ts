@@ -14,75 +14,106 @@
  * limitations under the License.
  */
 
-import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
 import { LogViewLogLineComponent } from './log-view-log-line.component';
-import { of } from 'rxjs';
-import { ViewStateService } from 'src/app/services/view-state.service';
-import { LogEntry } from 'src/app/store/log';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 
-export default {
-  title: 'log/LogViewLogLineComponent',
+const meta: Meta<LogViewLogLineComponent> = {
+  title: 'Log/LogViewLogLineComponent',
   component: LogViewLogLineComponent,
+  tags: ['autodocs'],
   decorators: [
-    moduleMetadata({
-      providers: [
-        {
-          provide: ViewStateService,
-          useValue: {
-            timezoneShift: of(0),
-          },
-        },
-      ],
-    }),
+    componentWrapperDecorator(
+      (story) => `
+      <div style="display: grid; grid-template: 'type severity ts message' / auto auto auto 1fr; width: 100%;">
+        ${story}
+      </div>
+    `,
+    ),
   ],
-} as Meta<LogViewLogLineComponent>;
+  args: {},
+};
 
+export default meta;
 type Story = StoryObj<LogViewLogLineComponent>;
 
-const mockLog: LogEntry = {
-  logIndex: 123,
-  time: 1700000000000,
-  insertId: 'mock-insert-id',
-  logType: 0,
-  logTypeLabel: 'k8s_audit',
-  severity: 3,
-  logSeverityLabel: 'WARNING',
-  summary: 'Mock log entry summary explaining what happened.',
-  body: ToTextReferenceFromKHIFileBinary({ offset: 0, len: 0, buffer: 0 }), // Mock TextReference
-  annotations: [],
-} as unknown as LogEntry;
-
-const mockErrorLog: LogEntry = {
-  ...mockLog,
-  logTypeLabel: 'k8s_container',
-  severity: 4,
-  logSeverityLabel: 'ERROR',
-  summary: 'A critical container error occurred.',
-} as unknown as LogEntry;
-
 export const Warning: Story = {
-  args: {
-    log: mockLog,
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log =
+      Array.from(data.logStore.logs()).find(
+        (l) => l.severity.label === 'WARNING',
+      ) ?? Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        log,
+      },
+    };
   },
 };
 
 export const ErrorLog: Story = {
-  args: {
-    log: mockErrorLog,
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log =
+      Array.from(data.logStore.logs()).find(
+        (l) => l.severity.label === 'ERROR',
+      ) ?? Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        log,
+      },
+    };
   },
 };
 
 export const Highlighted: Story = {
-  args: {
-    log: mockLog,
-    highlighted: true,
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log = Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        log,
+        highlighted: true,
+      },
+    };
   },
 };
 
 export const Selected: Story = {
-  args: {
-    log: mockLog,
-    selected: true,
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const data = mockData as InspectionDataV2;
+    const log = Array.from(data.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        log,
+        selected: true,
+      },
+    };
   },
 };

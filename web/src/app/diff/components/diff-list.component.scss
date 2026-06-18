@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-@use '../../zzz-generated' as gen;
 @use '../../common' as common;
 @use '@angular/material' as mat;
 
@@ -154,8 +153,6 @@ $unchanged-icon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
   .operation {
     grid-area: operation;
     margin: 0 2px;
-    color: white;
-    @include gen.verb-type-colors-for-all;
     text-align: center;
     font-size: 0;
 

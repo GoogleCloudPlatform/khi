@@ -23,18 +23,22 @@ import {
 import { Component, DestroyRef, inject, NgZone, OnInit } from '@angular/core';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerComponent } from './timeline-ruler.component';
-import { Severity } from 'src/app/zzz-generated';
+
 import {
   RulerViewModelBuilder,
   TimelineRulerViewModel,
 } from './timeline-ruler.viewmodel';
 import { HistogramCache } from './misc/histogram-cache';
-import { LogEntry } from 'src/app/store/log';
+import { Log } from 'src/app/store/domain/log';
+import { LogStore } from 'src/app/store/domain/log-store';
+import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
+import { StyleStore } from 'src/app/store/domain/style-store';
+import { generateDefaultRulerStyle } from './style-model-v2';
 
 @Component({
   selector: 'khi-rendering-loop-starter',
   template: `<ng-content></ng-content>`,
-  standalone: true,
+  imports: [],
 })
 class RenderingLoopStarter implements OnInit {
   private readonly renderingLoopManager = inject(RenderingLoopManager);
@@ -45,6 +49,59 @@ class RenderingLoopStarter implements OnInit {
     this.renderingLoopManager.start(this.ngZone, this.destroyRef);
   }
 }
+
+const sharedStyleStore = new StyleStore();
+sharedStyleStore.addSeverities([
+  {
+    id: 0,
+    label: 'Unknown',
+    shortLabel: 'U',
+    backgroundColor: { r: 0, g: 0, b: 0, a: 1 },
+    foregroundColor: { r: 0.667, g: 0.667, b: 0.667, a: 1 },
+    order: 0,
+  },
+  {
+    id: 1,
+    label: 'Info',
+    shortLabel: 'I',
+    backgroundColor: { r: 0, g: 0, b: 1, a: 1 },
+    foregroundColor: { r: 0.118, g: 0.533, b: 0.898, a: 1 },
+    order: 1,
+  },
+  {
+    id: 2,
+    label: 'Warning',
+    shortLabel: 'W',
+    backgroundColor: { r: 1, g: 0.667, b: 0.267, a: 1 },
+    foregroundColor: { r: 0.992, g: 0.847, b: 0.208, a: 1 },
+    order: 2,
+  },
+  {
+    id: 3,
+    label: 'Error',
+    shortLabel: 'E',
+    backgroundColor: { r: 1, g: 0.224, b: 0.208, a: 1 },
+    foregroundColor: { r: 1, g: 0.533, b: 0.533, a: 1 },
+    order: 3,
+  },
+  {
+    id: 4,
+    label: 'Fatal',
+    shortLabel: 'F',
+    backgroundColor: { r: 0.667, g: 0.4, b: 0.667, a: 1 },
+    foregroundColor: { r: 1, g: 0.6, b: 1, a: 1 },
+    order: 4,
+  },
+]);
+sharedStyleStore.addLogTypes([
+  {
+    id: 1,
+    label: 'K8sAudit',
+    description: 'Kubernetes Audit Log',
+    backgroundColor: { r: 0, g: 0, b: 0, a: 1 },
+    foregroundColor: { r: 1, g: 1, b: 1, a: 1 },
+  },
+]);
 
 const meta: Meta<TimelineRulerComponent> = {
   title: 'Timeline/TimelineRuler',
@@ -69,10 +126,21 @@ const meta: Meta<TimelineRulerComponent> = {
     viewModel: { control: 'object' },
     timezoneShift: { control: 'number' },
   },
+  args: {
+    rulerStyle: generateDefaultRulerStyle(sharedStyleStore),
+  },
 };
 
 export default meta;
 type Story = StoryObj<TimelineRulerComponent>;
+
+enum MockSeverity {
+  Unknown = 0,
+  Info = 1,
+  Warning = 2,
+  Error = 3,
+  Fatal = 4,
+}
 
 const START_TIME = Date.parse('2025-12-31T23:30:00Z');
 const DURATION = 60 * 60 * 24 * 1000; // 24 hour
@@ -80,53 +148,66 @@ const VIEWPORT_WIDTH = window.innerWidth;
 
 function generateMockLogs(
   count: number,
-  severityRatio: { [severity in Severity]?: number },
-): LogEntry[] {
-  const logs: LogEntry[] = [];
+  severityRatio: { [severity in MockSeverity]?: number },
+): Log[] {
+  const internPool = InternPoolStore.create();
+  const logStore = LogStore.create(internPool, sharedStyleStore);
+
   const culmativeRatios: number[] = [];
-  for (const severity of [
-    Severity.SeverityUnknown,
-    Severity.SeverityInfo,
-    Severity.SeverityWarning,
-    Severity.SeverityError,
-    Severity.SeverityFatal,
-  ]) {
+  const severitiesList = [
+    MockSeverity.Unknown,
+    MockSeverity.Info,
+    MockSeverity.Warning,
+    MockSeverity.Error,
+    MockSeverity.Fatal,
+  ];
+  for (const severity of severitiesList) {
     const lastRatio: number = culmativeRatios[culmativeRatios.length - 1] || 0;
     culmativeRatios.push(lastRatio + (severityRatio[severity] || 0));
   }
+
+  const logDataList = [];
   for (let i = 0; i < count; i++) {
     const time = START_TIME + Math.random() * DURATION;
     const rand = Math.random();
-    let severity: Severity = Severity.SeverityInfo;
+    let severity: MockSeverity = MockSeverity.Info;
     for (let j = 0; j < culmativeRatios.length; j++) {
       if (
         rand <
         culmativeRatios[j] / culmativeRatios[culmativeRatios.length - 1]
       ) {
-        severity = j as Severity;
+        severity = severitiesList[j];
         break;
       }
     }
-    logs.push({
-      time,
-      severity,
-    } as LogEntry);
+    logDataList.push({
+      id: i + 1,
+      ts: BigInt(Math.floor(time)) * 1000000n,
+      logTypeId: 1,
+      severityTypeId: severity,
+      summaryStringId: 0,
+      body: undefined,
+    });
   }
-  return logs;
+  logDataList.sort((a, b) => Number(a.ts - b.ts));
+  logStore.initialize(logDataList, count);
+  return Array.from(logStore.logs()) as Log[];
 }
 
 function generateViewModel(
-  logs: LogEntry[],
-  filteredLogs: LogEntry[] = logs,
+  logs: Log[],
+  filteredLogs: Log[] = logs,
 ): TimelineRulerViewModel {
   const calculator = new RulerViewModelBuilder();
   const allLogsCache = new HistogramCache(
+    sharedStyleStore.severities,
     logs,
     1000,
     START_TIME,
     START_TIME + DURATION,
   ); // 1s bucket
   const filteredLogsCache = new HistogramCache(
+    sharedStyleStore.severities,
     filteredLogs,
     1000,
     START_TIME,
@@ -144,11 +225,11 @@ function generateViewModel(
 }
 
 function filterLogs(
-  logs: LogEntry[],
+  logs: Log[],
   rate: number,
 ): {
-  allLogs: LogEntry[];
-  filteredLogs: LogEntry[];
+  allLogs: Log[];
+  filteredLogs: Log[];
 } {
   const allLogs = logs;
   const filteredLogs = logs.filter(() => {
@@ -160,12 +241,12 @@ function filterLogs(
 export const Default: Story = {
   args: {
     viewModel: generateViewModel(
-      generateMockLogs(100000, {
-        [Severity.SeverityUnknown]: 1,
-        [Severity.SeverityInfo]: 1,
-        [Severity.SeverityWarning]: 1,
-        [Severity.SeverityError]: 1,
-        [Severity.SeverityFatal]: 1,
+      generateMockLogs(10000, {
+        [MockSeverity.Unknown]: 1,
+        [MockSeverity.Info]: 1,
+        [MockSeverity.Warning]: 1,
+        [MockSeverity.Error]: 1,
+        [MockSeverity.Fatal]: 1,
       }),
     ),
     leftEdgeTime: START_TIME,
@@ -184,12 +265,12 @@ export const NoLogs: Story = {
 export const HighError: Story = {
   args: {
     viewModel: generateViewModel(
-      generateMockLogs(100000, {
-        [Severity.SeverityUnknown]: 1,
-        [Severity.SeverityInfo]: 1,
-        [Severity.SeverityWarning]: 1,
-        [Severity.SeverityError]: 5,
-        [Severity.SeverityFatal]: 1,
+      generateMockLogs(10000, {
+        [MockSeverity.Unknown]: 1,
+        [MockSeverity.Info]: 1,
+        [MockSeverity.Warning]: 1,
+        [MockSeverity.Error]: 5,
+        [MockSeverity.Fatal]: 1,
       }),
     ),
     leftEdgeTime: START_TIME,
@@ -198,12 +279,12 @@ export const HighError: Story = {
 };
 
 const filtered = filterLogs(
-  generateMockLogs(100000, {
-    [Severity.SeverityUnknown]: 1,
-    [Severity.SeverityInfo]: 30,
-    [Severity.SeverityWarning]: 10,
-    [Severity.SeverityError]: 5,
-    [Severity.SeverityFatal]: 1,
+  generateMockLogs(10000, {
+    [MockSeverity.Unknown]: 1,
+    [MockSeverity.Info]: 30,
+    [MockSeverity.Warning]: 10,
+    [MockSeverity.Error]: 5,
+    [MockSeverity.Fatal]: 1,
   }),
   0.3,
 );
@@ -218,12 +299,12 @@ export const Filtered: Story = {
 export const WithTimezoneshift: Story = {
   args: {
     viewModel: generateViewModel(
-      generateMockLogs(100000, {
-        [Severity.SeverityUnknown]: 1,
-        [Severity.SeverityInfo]: 1,
-        [Severity.SeverityWarning]: 1,
-        [Severity.SeverityError]: 1,
-        [Severity.SeverityFatal]: 1,
+      generateMockLogs(10000, {
+        [MockSeverity.Unknown]: 1,
+        [MockSeverity.Info]: 1,
+        [MockSeverity.Warning]: 1,
+        [MockSeverity.Error]: 1,
+        [MockSeverity.Fatal]: 1,
       }),
     ),
     leftEdgeTime: START_TIME,

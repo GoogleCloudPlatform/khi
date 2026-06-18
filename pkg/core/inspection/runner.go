@@ -33,7 +33,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/lifecycle"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
@@ -105,8 +105,8 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 		RunContextOptionFromValue(inspectioncore_contract.InspectionSharedMap, i.inspectionSharedMap),
 		RunContextOptionFromValue(inspectioncore_contract.GlobalSharedMap, inspectionRunnerGlobalSharedMap),
 		RunContextOptionFromValue(inspectioncore_contract.CurrentIOConfig, i.ioconfig),
-		RunContextOptionFromFunc(inspectioncore_contract.CurrentHistoryBuilder, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (*history.Builder, error) {
-			return history.NewBuilder(i.ioconfig.TemporaryFolder), nil
+		RunContextOptionFromFunc(inspectioncore_contract.Builder, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (*khifilev6.Builder, error) {
+			return khifilev6.NewBuilder(), nil
 		}),
 	}
 

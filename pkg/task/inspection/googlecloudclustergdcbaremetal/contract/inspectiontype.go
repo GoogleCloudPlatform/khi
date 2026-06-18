@@ -27,14 +27,11 @@ const InspectionTypeID = "gcp-gdcv-for-baremetal"
 
 // GDCVForBaremetalInspectionType defines the inspection type for GDCV for Baremetal.
 var GDCVForBaremetalInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeID,
-	Name: "GDCV for Baremetal (GKE on Baremetal, Anthos on Baremetal)",
-	Description: `Visualize logs generated from GDCV for baremetal cluster (including user, admin, hybrid, or standalone clusters).
-Supporting K8s audit log, K8s event log, K8s node log, K8s container log and OnPrem API audit log.
-
-This type can also be used for GCDE or GDCH.`,
-	Icon:     "assets/icons/anthos.png",
-	Priority: math.MaxInt - 3,
+	Id:          InspectionTypeID,
+	Name:        "GDCV for Baremetal (GKE on Baremetal, Anthos on Baremetal)",
+	Description: `Gather and parse Google Distributed Cloud Virtual (GDCV) for Baremetal cluster logs (including user, admin, hybrid, or standalone clusters; Kubernetes audit, event, node, container, and On-Premises API audit logs) to visualize cluster operations on timelines. This type also supports GCDE and GDCH clusters.`,
+	Icon:        "assets/icons/anthos.png",
+	Priority:    math.MaxInt - 3,
 	Labels: map[string]string{
 		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
 		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",

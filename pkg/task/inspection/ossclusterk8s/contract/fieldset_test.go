@@ -18,12 +18,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestOSSK8sAuditLogFieldSetReader(t *testing.T) {
@@ -51,22 +50,21 @@ objectRef:
 requestURI: "/api/v1/namespaces/default/pods/test-pod"
 `,
 			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				OperationID:   "test-audit-id",
-				IsFirst:       true,
-				IsLast:        true,
-				Principal:     "test-user",
-				StatusCode:    200,
-				StatusMessage: "OK",
-				IsError:       false,
-				RequestURI:    "/api/v1/namespaces/default/pods/test-pod",
-				K8sOperation: &model.KubernetesObjectOperation{
-					APIVersion:      "core/v1",
-					PluralKind:      "pods",
-					Namespace:       "default",
-					Name:            "test-pod",
-					SubResourceName: "",
-					Verb:            enum.RevisionVerbCreate,
-				},
+				OperationID:     "test-audit-id",
+				IsFirst:         true,
+				IsLast:          true,
+				Principal:       "test-user",
+				StatusCode:      200,
+				StatusMessage:   "OK",
+				IsError:         false,
+				RequestURI:      "/api/v1/namespaces/default/pods/test-pod",
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "test-pod",
+				SubresourceName: "",
+				ClusterName:     "cluster",
+				Verb:            commonlogk8saudit_contract.VerbCreate,
 			},
 		},
 		{
@@ -86,22 +84,21 @@ responseStatus:
   code: 201
 `,
 			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				OperationID:   "test-audit-id-2",
-				IsFirst:       true,
-				IsLast:        true,
-				Principal:     "unknown",
-				StatusCode:    201,
-				StatusMessage: "",
-				IsError:       false,
-				RequestURI:    "",
-				K8sOperation: &model.KubernetesObjectOperation{
-					APIVersion:      "apps/v1",
-					PluralKind:      "deployments",
-					Namespace:       "default",
-					Name:            "generated-deployment-name",
-					SubResourceName: "",
-					Verb:            enum.RevisionVerbCreate,
-				},
+				OperationID:     "test-audit-id-2",
+				IsFirst:         true,
+				IsLast:          true,
+				Principal:       "unknown",
+				StatusCode:      201,
+				StatusMessage:   "",
+				IsError:         false,
+				RequestURI:      "",
+				APIVersion:      "apps/v1",
+				PluralKind:      "deployments",
+				Namespace:       "default",
+				ResourceName:    "generated-deployment-name",
+				SubresourceName: "",
+				ClusterName:     "cluster",
+				Verb:            commonlogk8saudit_contract.VerbCreate,
 			},
 		},
 		{
@@ -117,22 +114,21 @@ objectRef:
   name: "missing-pod"
 `,
 			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				OperationID:   "error-audit-id",
-				IsFirst:       true,
-				IsLast:        true,
-				Principal:     "unknown",
-				StatusCode:    404,
-				StatusMessage: "Not Found",
-				IsError:       true,
-				RequestURI:    "",
-				K8sOperation: &model.KubernetesObjectOperation{
-					APIVersion:      "core/unknown",
-					PluralKind:      "pods",
-					Namespace:       "cluster-scope",
-					Name:            "missing-pod",
-					SubResourceName: "",
-					Verb:            enum.RevisionVerbUpdate,
-				},
+				OperationID:     "error-audit-id",
+				IsFirst:         true,
+				IsLast:          true,
+				Principal:       "unknown",
+				StatusCode:      404,
+				StatusMessage:   "Not Found",
+				IsError:         true,
+				RequestURI:      "",
+				APIVersion:      "core/unknown",
+				PluralKind:      "pods",
+				Namespace:       "cluster-scope",
+				ResourceName:    "missing-pod",
+				SubresourceName: "",
+				ClusterName:     "cluster",
+				Verb:            commonlogk8saudit_contract.VerbUpdate,
 			},
 		},
 	}
@@ -152,6 +148,7 @@ objectRef:
 			// Ignore Request and Response fields for now as they are NodeReaders and hard to compare directly with cmp.Diff without custom options
 			opts := []cmp.Option{
 				cmpopts.IgnoreFields(commonlogk8saudit_contract.K8sAuditLogFieldSet{}, "Request", "Response"),
+				protocmp.Transform(),
 			}
 
 			if diff := cmp.Diff(tc.want, got, opts...); diff != "" {
@@ -174,9 +171,7 @@ auditID: "test-audit-id"
 stageTimestamp: "2023-10-26T10:00:00Z"
 `,
 			want: &log.CommonFieldSet{
-				DisplayID: "test-audit-id",
 				Timestamp: time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC),
-				Severity:  enum.SeverityUnknown,
 			},
 		},
 	}
@@ -194,6 +189,77 @@ stageTimestamp: "2023-10-26T10:00:00Z"
 			got := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("CommonFieldSet mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestOSSK8sEventFieldSetReader(t *testing.T) {
+	testCases := []struct {
+		desc  string
+		input string
+		want  *OSSK8sEventFieldSet
+	}{
+		{
+			desc: "standard event log",
+			input: `
+responseObject:
+  involvedObject:
+    apiVersion: "apps/v1"
+    kind: "Deployment"
+    namespace: "default"
+    name: "test-deployment"
+    subresource: "status"
+  reason: "ScalingReplicaSet"
+  message: "Scaled up replica set test-deployment-123 to 3"
+`,
+			want: &OSSK8sEventFieldSet{
+				APIVersion:   "apps/v1",
+				ResourceKind: "deployment",
+				Namespace:    "default",
+				Resource:     "test-deployment",
+				Subresource:  "status",
+				Reason:       "ScalingReplicaSet",
+				Message:      "Scaled up replica set test-deployment-123 to 3",
+			},
+		},
+		{
+			desc: "default core apiVersion",
+			input: `
+responseObject:
+  involvedObject:
+    apiVersion: "v1"
+    kind: "Pod"
+    namespace: "default"
+    name: "test-pod"
+  reason: "Scheduled"
+  message: "Successfully assigned default/test-pod to node-1"
+`,
+			want: &OSSK8sEventFieldSet{
+				APIVersion:   "core/v1",
+				ResourceKind: "pod",
+				Namespace:    "default",
+				Resource:     "test-pod",
+				Subresource:  "",
+				Reason:       "Scheduled",
+				Message:      "Successfully assigned default/test-pod to node-1",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			l, err := log.NewLogFromYAMLString(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse YAML test input to log: %v", err)
+			}
+			err = l.SetFieldSetReader(&OSSK8sEventFieldSetReader{})
+			if err != nil {
+				t.Errorf("failed to run OSSK8sEventFieldSetReader.Read(): %v", err)
+			}
+			got := log.MustGetFieldSet(l, &OSSK8sEventFieldSet{})
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("OSSK8sEventFieldSet mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

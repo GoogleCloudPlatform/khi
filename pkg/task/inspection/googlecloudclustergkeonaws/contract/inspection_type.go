@@ -27,12 +27,11 @@ const InspectionTypeID = "gcp-gke-on-aws"
 
 // AnthosOnAWSInspectionType defines the inspection type for GKE on AWS.
 var AnthosOnAWSInspectionType = coreinspection.InspectionType{
-	Id:   InspectionTypeID,
-	Name: "GKE on AWS(Anthos on AWS)",
-	Description: `Visualize logs generated from GKE on AWS cluster. 
-Supporting K8s audit log, k8s event log, k8s node log, k8s container log and MultiCloud API audit log.`,
-	Icon:     "assets/icons/anthos.png",
-	Priority: math.MaxInt - 2,
+	Id:          InspectionTypeID,
+	Name:        "GKE on AWS (Anthos on AWS)",
+	Description: `Gather and parse GKE on AWS cluster logs (Kubernetes audit, event, node, container logs, and Multi-Cloud API audit logs) to visualize cluster operations on timelines.`,
+	Icon:        "assets/icons/anthos.png",
+	Priority:    math.MaxInt - 2,
 	Labels: map[string]string{
 		inspectioncore_contract.InspectionTypeLabelKeyLogSource:         "cloud_logging",
 		inspectioncore_contract.InspectionTypeLabelKeyEnvironment:       "googlecloud",

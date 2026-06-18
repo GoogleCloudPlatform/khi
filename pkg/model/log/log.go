@@ -21,7 +21,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 )
 
 var logInstanceID = atomic.Int32{}
@@ -45,9 +44,8 @@ type FieldSetReader interface {
 // It provides direct access to its fields and abstracted cached access via FieldSet interface.
 type Log struct {
 	*structured.NodeReader
-	fields  *typedmap.TypedMap
-	ID      string
-	LogType enum.LogType
+	fields *typedmap.TypedMap
+	ID     string
 }
 
 // NewLog returns a log instance from NodeReader instance.
@@ -56,7 +54,6 @@ func NewLog(reader *structured.NodeReader) *Log {
 		ID:         strconv.Itoa(int(logInstanceID.Add(1))),
 		NodeReader: reader,
 		fields:     typedmap.NewTypedMap(),
-		LogType:    enum.LogTypeUnknown,
 	}
 }
 

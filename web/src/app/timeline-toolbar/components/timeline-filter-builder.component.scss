@@ -1,0 +1,141 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$gray-palette: mat.$m2-gray-palette;
+
+$popover-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+$popover-border-color: mat.m2-get-color-from-palette($gray-palette, 200);
+$popover-shadow-color: rgba(0, 0, 0, 0.12);
+$text-primary-color: mat.m2-get-color-from-palette($gray-palette, 800);
+
+.filter-builder-card {
+  background-color: $popover-bg-color;
+  border: 1px solid $popover-border-color;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 16px $popover-shadow-color;
+  display: grid;
+  grid-template:
+    'title' auto
+    'type-field' auto
+    'mode-toggle' auto
+    'input-field' auto
+    'actions' auto
+    / 100%;
+  gap: 16px;
+  width: 600px;
+  box-sizing: border-box;
+}
+
+.header-container {
+  grid-area: title;
+  display: grid;
+  grid-template:
+    'title-text delete-btn' auto
+    / 1fr auto;
+  align-items: center;
+  width: 100%;
+}
+
+.title {
+  grid-area: title-text;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: $text-primary-color;
+}
+
+.delete-btn {
+  grid-area: delete-btn;
+}
+
+.form-field {
+  width: 100%;
+}
+
+.type-field-wrapper {
+  grid-area: type-field;
+}
+
+.mode-selector-wrapper {
+  grid-area: mode-toggle;
+  display: grid;
+  grid-template:
+    'toggle' auto
+    / 100%;
+  justify-items: center;
+  width: 100%;
+}
+
+.mode-toggle-group {
+  grid-area: toggle;
+  width: 100%;
+  display: grid;
+  grid-template:
+    'regex-toggle selection-toggle' auto
+    / 1fr 1fr;
+
+  mat-button-toggle {
+    text-align: center;
+  }
+}
+
+.input-field-wrapper {
+  grid-area: input-field;
+  min-height: 75px;
+}
+
+.actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'cancel-btn add-btn' auto
+    / 1fr 1fr;
+  gap: 8px;
+
+  button {
+    width: 100%;
+  }
+}
+
+.type-autocomplete-label {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.toggle-button-content {
+  display: grid;
+  grid-template:
+    'toggle-icon toggle-label' auto
+    / auto auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.toggle-icon {
+  grid-area: toggle-icon;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

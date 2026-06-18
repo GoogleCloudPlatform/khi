@@ -15,14 +15,15 @@
 package googlecloudlogk8snode_impl
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudlogk8snode_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8snode/contract"
 )
 
@@ -61,28 +62,34 @@ func readNextQuotedString(msg string) string {
 	}
 }
 
-// checkStartingAndTerminationLog checks if the log message matches a predefined starting or termination log for a component and adds a corresponding revision to the ChangeSet.
-func checkStartingAndTerminationLog(cs *history.ChangeSet, l *log.Log, startingLog string, terminationLog string) {
-	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
-	nodeLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+// checkStartingAndTerminationLog checks if the log message matches a predefined starting or termination log for a component and adds a corresponding revision to the TimelineChangeSet.
+func checkStartingAndTerminationLog(ctx context.Context, cs *khifilev6.TimelineChangeSet, l *log.Log, startingLog string, terminationLog string, targetPath *khifilev6.TimelinePath) {
+	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
+	if err != nil {
+		return
+	}
+	nodeLogFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
+	if err != nil || nodeLogFieldSet.Message == nil {
+		return
+	}
 	mainMessage, _ := nodeLogFieldSet.Message.MainMessage()
 	switch mainMessage {
 	case startingLog:
 		if startingLog != "" {
-			cs.AddRevision(nodeLogFieldSet.ResourcePath(), &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbCreate,
-				State:      enum.RevisionStateExisting,
-				Requestor:  nodeLogFieldSet.Component,
-				ChangeTime: commonFieldSet.Timestamp,
+			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    commonlogk8saudit_contract.VerbCreate,
+				StateType:   googlecloudlogk8snode_contract.RevisionStateComponentRunning,
+				Principal:   nodeLogFieldSet.Component,
+				ChangedTime: commonFieldSet.Timestamp,
 			})
 		}
 	case terminationLog:
 		if terminationLog != "" {
-			cs.AddRevision(nodeLogFieldSet.ResourcePath(), &history.StagingResourceRevision{
-				Verb:       enum.RevisionVerbDelete,
-				State:      enum.RevisionStateDeleted,
-				Requestor:  nodeLogFieldSet.Component,
-				ChangeTime: commonFieldSet.Timestamp,
+			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    commonlogk8saudit_contract.VerbDelete,
+				StateType:   googlecloudlogk8snode_contract.RevisionStateComponentTerminated,
+				Principal:   nodeLogFieldSet.Component,
+				ChangedTime: commonFieldSet.Timestamp,
 			})
 		}
 	}

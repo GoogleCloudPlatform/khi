@@ -15,23 +15,21 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, computed, input, model } from '@angular/core';
+import { Component, computed, input, model, signal } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { OverlayModule, ConnectionPositionPair } from '@angular/cdk/overlay';
 import {
-  LogType,
-  logTypeColors,
-  LogTypeMetadata,
-  ParentRelationshipMetadata,
-  RevisionState,
-  revisionStatecolors,
-  RevisionStateMetadata,
   RevisionStateStyle,
-} from 'src/app/zzz-generated';
+  LogType,
+  RevisionState,
+} from 'src/app/store/domain/style';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { RendererConvertUtil } from './canvas/convertutil';
+import { MarkdownPopupComponent } from 'src/app/timeline/components/markdown-popup.component';
 
 /**
  * ViewModel for revision legend item.
@@ -41,6 +39,7 @@ interface RevisionLegendViewModel {
   icon: string;
   style: RevisionStateStyle;
   color: string;
+  description: string;
 }
 
 /**
@@ -75,11 +74,12 @@ interface TimelineTypeLegendViewModel {
     KHIIconRegistrationModule,
     MatButtonToggleModule,
     MatExpansionModule,
+    OverlayModule,
+    MarkdownPopupComponent,
   ],
 })
 export class TimelineLegendComponent {
-  readonly RevisionStateStyle = RevisionStateStyle;
-  readonly TimelineLayer = TimelineLayer;
+  protected readonly RevisionStateStyle = RevisionStateStyle;
 
   /**
    * Whether the legend is expanded.
@@ -94,7 +94,65 @@ export class TimelineLegendComponent {
   /**
    * The timeline data to generate legends for.
    */
-  timeline = input<ResourceTimeline | null>(null);
+  timeline = input<ReadonlyDomainElement<Timeline> | null>(null);
+
+  /**
+   * The label of the revision legend whose popup is currently open.
+   */
+  readonly activePopupLabel = signal<string | null>(null);
+
+  /**
+   * Delay in milliseconds before closing the popup to allow transition to the popup card.
+   */
+  private static readonly POPUP_CLOSE_DELAY_MS = 100;
+
+  private _closeTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Connection position pairs for the description overlay.
+   */
+  readonly popupPositions: ConnectionPositionPair[] = [
+    new ConnectionPositionPair(
+      { originX: 'center', originY: 'top' },
+      { overlayX: 'center', overlayY: 'bottom' },
+      0,
+      -8,
+    ),
+    new ConnectionPositionPair(
+      { originX: 'center', originY: 'bottom' },
+      { overlayX: 'center', overlayY: 'top' },
+      0,
+      8,
+    ),
+  ];
+
+  /**
+   * Opens the description popup for the specified legend.
+   */
+  openPopup(legend: RevisionLegendViewModel): void {
+    // Cancels any pending close timeout to keep the popup open when moving the cursor into the popup card.
+    if (this._closeTimeout) {
+      clearTimeout(this._closeTimeout);
+      this._closeTimeout = null;
+    }
+    if (legend.description) {
+      this.activePopupLabel.set(legend.label);
+    }
+  }
+
+  /**
+   * Closes the description popup.
+   */
+  closePopup(): void {
+    if (this._closeTimeout) {
+      clearTimeout(this._closeTimeout);
+    }
+    // Delays closing to allow the cursor to transition from the trigger icon into the popup card without disappearing.
+    this._closeTimeout = setTimeout(() => {
+      this.activePopupLabel.set(null);
+      this._closeTimeout = null;
+    }, TimelineLegendComponent.POPUP_CLOSE_DELAY_MS);
+  }
 
   /**
    * Computed ViewModel for the timeline type legend.
@@ -104,15 +162,22 @@ export class TimelineLegendComponent {
     if (timeline === null) {
       return null;
     }
-    const metadata = ParentRelationshipMetadata[timeline.parentRelationship];
 
     return {
-      label: metadata.label,
-      color: RendererConvertUtil.hdrColorToCSSColor(metadata.color),
-      backgroundColor: RendererConvertUtil.hdrColorToCSSColor(
-        metadata.backgroundColor,
-      ),
-      hint: metadata.hint,
+      label: timeline.type.label,
+      color: RendererConvertUtil.hdrColorToCSSColor([
+        timeline.type.foregroundColor.r,
+        timeline.type.foregroundColor.g,
+        timeline.type.foregroundColor.b,
+        timeline.type.foregroundColor.a,
+      ]),
+      backgroundColor: RendererConvertUtil.hdrColorToCSSColor([
+        timeline.type.backgroundColor.r,
+        timeline.type.backgroundColor.g,
+        timeline.type.backgroundColor.b,
+        timeline.type.backgroundColor.a,
+      ]),
+      hint: timeline.type.description,
     };
   });
 
@@ -124,19 +189,27 @@ export class TimelineLegendComponent {
     if (timeline === null) {
       return [];
     }
-    const revisionStates = new Set<RevisionState>();
+    const revisionStateIds = new Set<number>();
+    const uniqueStates: RevisionState[] = [];
     for (const revision of timeline.revisions) {
-      revisionStates.add(revision.stateRaw);
+      const state = revision.state;
+      if (!revisionStateIds.has(state.id)) {
+        revisionStateIds.add(state.id);
+        uniqueStates.push(state);
+      }
     }
-    return Array.from(revisionStates).map<RevisionLegendViewModel>((state) => {
-      const md = RevisionStateMetadata[state];
+    return uniqueStates.map<RevisionLegendViewModel>((state) => {
       return {
-        label: md.label,
-        icon: md.icon,
-        style: md.style,
-        color: RendererConvertUtil.hdrColorToCSSColor(
-          revisionStatecolors[md.cssSelector],
-        ),
+        label: state.label,
+        icon: state.icon,
+        style: state.style,
+        color: RendererConvertUtil.hdrColorToCSSColor([
+          state.backgroundColor.r,
+          state.backgroundColor.g,
+          state.backgroundColor.b,
+          state.backgroundColor.a,
+        ]),
+        description: state.description,
       };
     });
   });
@@ -149,15 +222,24 @@ export class TimelineLegendComponent {
     if (timeline === null) {
       return [];
     }
-    const eventTypes = new Set<LogType>();
+    const eventTypeIds = new Set<number>();
+    const uniqueTypes: LogType[] = [];
     for (const event of timeline.events) {
-      eventTypes.add(event.logType);
+      const type = event.log.logType;
+      if (!eventTypeIds.has(type.id)) {
+        eventTypeIds.add(type.id);
+        uniqueTypes.push(type);
+      }
     }
-    return Array.from(eventTypes).map<EventLegendViewModel>((type) => {
-      const md = LogTypeMetadata[type];
+    return uniqueTypes.map<EventLegendViewModel>((type) => {
       return {
-        label: md.label,
-        color: RendererConvertUtil.hdrColorToCSSColor(logTypeColors[md.label]),
+        label: type.label,
+        color: RendererConvertUtil.hdrColorToCSSColor([
+          type.backgroundColor.r,
+          type.backgroundColor.g,
+          type.backgroundColor.b,
+          type.backgroundColor.a,
+        ]),
       };
     });
   });
