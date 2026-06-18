@@ -58,7 +58,7 @@ var AutocompleteClusterIdentityTask = inspectiontaskbase.NewCachedTask(googleclo
 	cf := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientFactoryTaskID.Ref())
 	optionInjector := coretask.GetTaskResult(ctx, googlecloudcommon_contract.APIClientCallOptionsInjectorTaskID.Ref())
 
-	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterNamePrefix, projectID, startTime.Unix(), endTime.Unix())
+	currentDigest := fmt.Sprintf("%s-%s-%d-%d", clusterNamePrefix.PrefixFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), projectID, startTime.Unix(), endTime.Unix())
 	if currentDigest == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
@@ -91,7 +91,7 @@ var AutocompleteClusterIdentityTask = inspectiontaskbase.NewCachedTask(googleclo
 	if err != nil {
 		errorString = err.Error()
 	}
-	metricsLabels = filterAndTrimPrefixFromClusterNames(metricsLabels, clusterNamePrefix)
+	metricsLabels = filterAndTrimPrefixFromClusterNames(metricsLabels, clusterNamePrefix.PrefixFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster))
 	if hintString == "" && errorString == "" && len(metricsLabels) == 0 {
 		hintString = fmt.Sprintf("No cluster names found between %s and %s. It is highly likely that the time range is incorrect. Please verify the time range, or proceed by manually entering the cluster name.", startTime.Format(time.RFC3339), endTime.Format(time.RFC3339))
 	}
@@ -99,10 +99,10 @@ var AutocompleteClusterIdentityTask = inspectiontaskbase.NewCachedTask(googleclo
 	identities := make([]googlecloudk8scommon_contract.GoogleCloudClusterIdentity, len(metricsLabels))
 	for i, labels := range metricsLabels {
 		identities[i] = googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-			ProjectID:         projectID,
-			ClusterTypePrefix: clusterNamePrefix,
-			ClusterName:       labels["cluster_name"],
-			Location:          labels["location"],
+			ProjectID:    projectID,
+			PrefixPolicy: clusterNamePrefix,
+			ClusterName:  labels["cluster_name"],
+			Location:     labels["location"],
 		}
 	}
 

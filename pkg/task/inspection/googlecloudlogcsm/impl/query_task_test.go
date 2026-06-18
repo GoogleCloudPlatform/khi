@@ -15,10 +15,23 @@
 package googlecloudlogcsm_impl
 
 import (
+	"context"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+
+	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	googlecloudclustergdcbaremetal_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/impl"
+	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
+	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
+	googlecloudclustergkeonazure_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonazure/impl"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
+	googlecloudk8scommon_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/impl"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestCsmAccessLogsFilter(t *testing.T) {
@@ -154,8 +167,84 @@ resource.labels.cluster_name="test-cluster"`,
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			got := csmAccessLogsFilter(tc.cluster, tc.responseFlagsFilter, tc.namespaceFilter)
-			if got != tc.want {
-				t.Errorf("csmAccessLogsFilter() got = %v, want %v", got, tc.want)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("csmAccessLogsFilter() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCSMQueryTaskPrefixResolution(t *testing.T) {
+	testCases := []struct {
+		name       string
+		prefixTask coretask.Task[googlecloudk8scommon_contract.ClusterPrefixPolicy]
+		want       string
+	}{
+		{
+			name:       "GKE side task generates no prefix",
+			prefixTask: googlecloudclustergke_impl.GKEClusterNamePrefixTask,
+			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
+labels.response_flag:("UH")
+resource.labels.namespace_name:("default")
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="test-cluster"`,
+		},
+		{
+			name:       "baremetal side task adds prefix",
+			prefixTask: googlecloudclustergdcbaremetal_impl.GDCVForBaremetalClusterNamePrefixTask,
+			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
+labels.response_flag:("UH")
+resource.labels.namespace_name:("default")
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="baremetalClusters/test-cluster"`,
+		},
+		{
+			name:       "aws side task adds prefix",
+			prefixTask: googlecloudclustergkeonaws_impl.AnthosOnAWSClusterNamePrefixTask,
+			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
+labels.response_flag:("UH")
+resource.labels.namespace_name:("default")
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="awsClusters/test-cluster"`,
+		},
+		{
+			name:       "azure side task adds prefix",
+			prefixTask: googlecloudclustergkeonazure_impl.AnthosOnAzureClusterNamePrefixTask,
+			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
+labels.response_flag:("UH")
+resource.labels.namespace_name:("default")
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.cluster_name="azureClusters/test-cluster"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ctx = khictx.WithValue(ctx, inspectioncore_contract.InspectionTaskMode, inspectioncore_contract.TaskModeRun)
+			prefixPolicy, err := tasktest.RunTask(ctx, tc.prefixTask)
+			if err != nil {
+				t.Fatalf("unexpected error running prefix task: %v", err)
+			}
+
+			idRes, err := tasktest.RunTask(ctx, googlecloudk8scommon_impl.ClusterIdentityTask,
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), "test-project"),
+				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster"),
+				tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLocationsTaskID.Ref(), "test-location"),
+				tasktest.NewTaskDependencyValuePair(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, prefixPolicy),
+			)
+			if err != nil {
+				t.Fatalf("unexpected error running cluster identity task: %v", err)
+			}
+
+			got := csmAccessLogsFilter(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}})
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("csmAccessLogsFilter() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

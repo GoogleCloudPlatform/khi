@@ -31,10 +31,15 @@ func TestGenerateMultiCloudAPIQuery(t *testing.T) {
 		{
 			name: "standard input",
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-				ProjectID:         "test-project",
-				ClusterName:       "test-cluster",
-				ClusterTypePrefix: "awsClusters/",
-				Location:          "asia-northeast1",
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "awsClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+					},
+				},
+				Location: "asia-northeast1",
 			},
 			want: `
 log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
@@ -65,10 +70,15 @@ func TestGenerateMultiCloudAPIQueryIsValid(t *testing.T) {
 		{
 			name: "Valid Query",
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-				ProjectID:         "test-project",
-				ClusterName:       "test-cluster",
-				ClusterTypePrefix: "awsClusters/",
-				Location:          "asia-northeast1",
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "awsClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+					},
+				},
+				Location: "asia-northeast1",
 			},
 		},
 	}
