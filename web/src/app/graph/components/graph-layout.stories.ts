@@ -24,6 +24,7 @@ const meta: Meta<GraphLayoutComponent> = {
   tags: ['autodocs'],
   args: {
     graphData: emptyGraphData(),
+    isLoading: false,
   },
 };
 
@@ -37,7 +38,7 @@ export const Default: Story = {
     },
     template: `
       <div style="height: 500px; width: 100%;">
-        <khi-graph-layout [graphData]="graphData"></khi-graph-layout>
+        <khi-graph-layout [graphData]="graphData" [isLoading]="isLoading"></khi-graph-layout>
       </div>
     `,
   }),
@@ -105,5 +106,12 @@ export const WithNodeAndPod: Story = {
         cronjob: [],
       },
     },
+  },
+};
+
+export const Loading: Story = {
+  ...Default,
+  args: {
+    isLoading: true,
   },
 };

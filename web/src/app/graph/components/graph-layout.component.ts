@@ -24,6 +24,7 @@ import {
 } from '@angular/core';
 import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
 import { GraphRenderer } from 'src/app/pages/graph/architecture-graph/graph/renderer';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 /**
  * Renders the architecture graph layout based on the provided graph data.
@@ -32,12 +33,18 @@ import { GraphRenderer } from 'src/app/pages/graph/architecture-graph/graph/rend
   selector: 'khi-graph-layout',
   templateUrl: './graph-layout.component.html',
   styleUrls: ['./graph-layout.component.scss'],
+  imports: [MatProgressSpinnerModule],
 })
 export class GraphLayoutComponent implements AfterViewInit {
   /**
    * Input signal holding the graph data to be rendered.
    */
   readonly graphData = input<GraphData>(emptyGraphData());
+
+  /**
+   * Input signal indicating whether the graph data is currently loading.
+   */
+  readonly isLoading = input<boolean>(false);
 
   /**
    * Reference to the container element for the SVG graph.

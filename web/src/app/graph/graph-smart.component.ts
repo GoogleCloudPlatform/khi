@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, resource } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
@@ -36,18 +36,32 @@ export class GraphSmartComponent {
   private readonly selectionManager = inject(SelectionManagerV2);
   private readonly graphConverter = inject(GraphDataConverterService);
 
-  /**
-   * Computed signal holding the graph data derived from the currently selected log.
-   */
-  readonly graphData = computed<GraphData>(() => {
-    const log = this.selectionManager.selectedLog();
-    const timelineView = this.inspectionDataStore.timelineView();
-    if (!log || !timelineView) {
-      return emptyGraphData();
-    }
-    return this.graphConverter.getGraphDataAt(
-      timelineView.filteredTimelines(),
-      log.timestamp,
-    );
+  private readonly graphResource = resource({
+    params: () => ({
+      log: this.selectionManager.selectedLog(),
+      timelineView: this.inspectionDataStore.timelineView(),
+    }),
+    loader: async ({ params: { log, timelineView }, abortSignal }) => {
+      if (!log || !timelineView) {
+        return emptyGraphData();
+      }
+      return this.graphConverter.getGraphDataAt(
+        timelineView.filteredTimelines(),
+        log.timestamp,
+        abortSignal,
+      );
+    },
   });
+
+  /**
+   * Signal holding the graph data derived from the currently selected log.
+   */
+  readonly graphData = computed<GraphData>(
+    () => this.graphResource.value() ?? emptyGraphData(),
+  );
+
+  /**
+   * Signal indicating whether the graph resource is currently loading.
+   */
+  readonly isLoading = this.graphResource.isLoading;
 }
