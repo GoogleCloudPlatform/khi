@@ -156,10 +156,42 @@ export class ViewStateService {
     );
   }
 
+  private lastDataID = '';
+  private isScaleInitialized = false;
+
+  /**
+   * Checks whether initial scale calculation has already been applied for the given data ID.
+   * @param dataID The inspection data ID.
+   * @returns True if already initialized.
+   */
+  public isScaleInitializedForData(dataID: string): boolean {
+    if (!dataID || this.lastDataID !== dataID) {
+      this.lastDataID = dataID;
+      this.isScaleInitialized = false;
+      return false;
+    }
+    return this.isScaleInitialized;
+  }
+
+  /**
+   * Sets whether the initial scale calculation has been applied for the given data ID.
+   * @param dataID The inspection data ID.
+   * @param initialized The initialization state.
+   */
+  public setScaleInitializedForData(
+    dataID: string,
+    initialized: boolean,
+  ): void {
+    if (this.lastDataID === dataID) {
+      this.isScaleInitialized = initialized;
+    }
+  }
+
   /**
    * Reset scale and offset of timeline status.
    */
   public resetTimelineStatus(): void {
+    this.isScaleInitialized = false;
     this.timelineStateResetCommandSubject.next(null);
   }
 }

@@ -100,6 +100,70 @@ export class LayoutService implements OnDestroy {
     },
   };
 
+  /** The layout configuration for state analysis. */
+  private readonly stateAnalysisLayout: LayoutConfig = {
+    settings: {
+      showPopoutIcon: false,
+    },
+    dimensions: {
+      borderWidth: 5,
+    },
+    root: {
+      type: 'column',
+      content: [
+        {
+          type: 'row',
+          content: [
+            {
+              type: 'component',
+              componentType: 'timeline',
+              title: 'Timeline',
+              size: '60%',
+            },
+            {
+              type: 'component',
+              componentType: 'history',
+              title: 'History',
+              size: '40%',
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  /** The layout configuration for topology analysis. */
+  private readonly topologyAnalysisLayout: LayoutConfig = {
+    settings: {
+      showPopoutIcon: false,
+    },
+    dimensions: {
+      borderWidth: 5,
+    },
+    root: {
+      type: 'column',
+      content: [
+        {
+          type: 'row',
+          content: [
+            {
+              type: 'component',
+              componentType: 'timeline',
+              title: 'Timeline',
+              size: '50%',
+            },
+            {
+              type: 'component',
+              componentType: 'graph',
+              title: 'Graph',
+              size: '50%',
+            },
+          ],
+        },
+      ],
+    },
+  };
+
   /**
    * Initializes GoldenLayout.
    */
@@ -117,6 +181,7 @@ export class LayoutService implements OnDestroy {
     });
     this.resizeObserver.observe(hostElement);
     this.setupMenu();
+    window.addEventListener('keydown', this.handleKeyDown);
   }
 
   /**
@@ -204,6 +269,38 @@ export class LayoutService implements OnDestroy {
     this.goldenLayout.loadLayout(this.defaultLayout);
   }
 
+  /**
+   * Loads state analysis layout configuration.
+   */
+  public loadStateAnalysisLayout() {
+    this.goldenLayout.loadLayout(this.stateAnalysisLayout);
+  }
+
+  /**
+   * Loads topology analysis layout configuration.
+   */
+  public loadTopologyAnalysisLayout() {
+    this.goldenLayout.loadLayout(this.topologyAnalysisLayout);
+  }
+
+  /**
+   * Handles keyboard shortcuts for switching layout mode.
+   */
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if (event.key === '1') {
+        event.preventDefault();
+        this.loadDefaultLayout();
+      } else if (event.key === '2') {
+        event.preventDefault();
+        this.loadStateAnalysisLayout();
+      } else if (event.key === '3') {
+        event.preventDefault();
+        this.loadTopologyAnalysisLayout();
+      }
+    }
+  };
+
   private setupMenu() {
     this.menuManager.addGroup('view', 'View', 2, 'dashboard_customize');
     this.menuManager.addItem('view', {
@@ -255,21 +352,49 @@ export class LayoutService implements OnDestroy {
       priority: 5,
     });
     this.menuManager.addItem('view', {
-      id: 'reset-layout',
-      label: 'Reset layout',
+      id: 'default-layout',
+      label: 'Default layout',
       type: MenuItemType.Button,
-      icon: 'refresh',
+      icon: 'dashboard',
+      shortcut: 'Ctrl+1',
       priority: 6,
       action: () => {
         this.loadDefaultLayout();
       },
     });
     this.menuManager.addItem('view', {
+      id: 'state-view-layout',
+      label: 'State view layout',
+      type: MenuItemType.Button,
+      icon: 'conditions',
+      shortcut: 'Ctrl+2',
+      priority: 7,
+      action: () => {
+        this.loadStateAnalysisLayout();
+      },
+    });
+    this.menuManager.addItem('view', {
+      id: 'topology-view-layout',
+      label: 'Topology view layout',
+      type: MenuItemType.Button,
+      icon: 'hub',
+      shortcut: 'Ctrl+3',
+      priority: 8,
+      action: () => {
+        this.loadTopologyAnalysisLayout();
+      },
+    });
+    this.menuManager.addItem('view', {
+      id: 'view-separator-2',
+      type: MenuItemType.Separator,
+      priority: 9,
+    });
+    this.menuManager.addItem('view', {
       id: 'style-override',
       label: 'Style override Settings',
       type: MenuItemType.Button,
       icon: 'palette',
-      priority: 7,
+      priority: 10,
       action: () => {
         this.openStyleOverrideDialog();
       },
@@ -317,6 +442,7 @@ export class LayoutService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('keydown', this.handleKeyDown);
     this.resizeObserver?.disconnect();
     this.goldenLayout?.destroy();
   }

@@ -110,6 +110,23 @@ export class TimelineSmartComponent {
     return id;
   });
 
+  protected readonly initialScaleApplied = computed(() => {
+    return this.viewStateService.isScaleInitializedForData(
+      this.inspectionDataUniqueID(),
+    );
+  });
+
+  /**
+   * Handles initial scale application status change.
+   * @param applied Whether initial scale is applied.
+   */
+  protected onInitialScaleAppliedChange(applied: boolean): void {
+    this.viewStateService.setScaleInitializedForData(
+      this.inspectionDataUniqueID(),
+      applied,
+    );
+  }
+
   /**
    * The StyleStore containing all color and layout styling definitions.
    */

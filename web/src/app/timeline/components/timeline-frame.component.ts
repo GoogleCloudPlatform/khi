@@ -265,6 +265,12 @@ export class TimelineFrameComponent implements AfterViewInit {
    * This is a two-way bound signal (model).
    */
   readonly pixelsPerMs = model<number>(1.0);
+
+  /**
+   * Whether the initial scale calculation has already been applied.
+   * If true, auto-scaling on load is skipped to preserve the current scale.
+   */
+  readonly initialScaleApplied = model<boolean>(false);
   /**
    * Highlights for timelines (rows).
    * Key is the timeline ID, value is the highlight type (Hovered, Selected, etc.).
@@ -793,11 +799,25 @@ export class TimelineFrameComponent implements AfterViewInit {
       };
       moveToTargetScroll();
     });
-    // Updates the viewportLeftTimeMS property and pxielsPerMs when the loaded inspection data is updated.
+    // Updates the viewportLeftTimeMS property and pxielsPerMs when the loaded inspection data is updated and viewport size is ready.
     effect(() => {
+      const dataID = this.inspectionDataUniqueID();
       const minTime = this.minQueryLogTimeMS();
       const maxTime = this.maxQueryLogTimeMS();
-      const viewportWidth = untracked(this.viewportWidth);
+      const viewportWidth = this.viewportWidth();
+
+      if (
+        !dataID ||
+        viewportWidth <= 0 ||
+        untracked(this.initialScaleApplied)
+      ) {
+        return;
+      }
+      if (maxTime <= minTime) {
+        return;
+      }
+      this.initialScaleApplied.set(true);
+
       const overdrawX = untracked(this.horizontalOverdrawInPx);
       const drawMargin = overdrawX * 0.1; // Scroll and scale to match viewport to show 10% of margin area.
       const pixelsPerMs =

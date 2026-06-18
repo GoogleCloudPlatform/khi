@@ -74,6 +74,7 @@ describe('HeaderComponent', () => {
       type: MenuItemType.Button,
       icon: '',
       tooltip: '',
+      shortcut: '',
       action: () => {},
       checked: signal(false),
       disabled: signal(false),

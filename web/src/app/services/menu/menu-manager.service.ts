@@ -40,6 +40,8 @@ export interface MenuItem {
   icon?: string;
   /** Tooltip text. */
   tooltip?: string;
+  /** Shortcut string. */
+  shortcut?: string;
   /** Action to perform on click or change. */
   action?: (state?: boolean) => void;
   /** Signal for the checked state (only for Checkbox). */
@@ -77,6 +79,7 @@ export interface MenuItemViewModel {
   type: MenuItemType;
   icon: string;
   tooltip: string;
+  shortcut: string;
   action: (state?: boolean) => void;
   checked: Signal<boolean>;
   disabled: Signal<boolean>;
@@ -106,6 +109,7 @@ export function createMenuItemViewModel(item: MenuItem): MenuItemViewModel {
     type: item.type || MenuItemType.Button,
     icon: item.icon || '',
     tooltip: item.tooltip || '',
+    shortcut: item.shortcut || '',
     action: item.action || (() => {}),
     checked: item.checked || signal(false),
     disabled: item.disabled || signal(false),

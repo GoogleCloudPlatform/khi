@@ -27,6 +27,8 @@
   [viewportLeftTimeMS]="viewportLeftTimeMs()"
   [minQueryLogTimeMS]="minQueryLogTimeMS()"
   [maxQueryLogTimeMS]="maxQueryLogTimeMS()"
+  [initialScaleApplied]="initialScaleApplied()"
+  (initialScaleAppliedChange)="onInitialScaleAppliedChange($event)"
   (pixelsPerMsChange)="onPixelsPerMsChange($event)"
   (viewportLeftTimeMSChange)="onViewportLeftTimeMsChange($event)"
   [timelineHighlights]="timelineHighlights()"
