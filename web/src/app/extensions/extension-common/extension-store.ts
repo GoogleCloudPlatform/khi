@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline } from 'src/app/store/timeline';
-import {
-  DisplayableTimelineNavigatorExtension,
-  TimelineNavigatorExtension,
-} from './extension-types/timeline-navigator';
 import { InjectionToken, Injector, runInInjectionContext } from '@angular/core';
 import { URLDataOpenerExtension } from './extension-types/url-data-opener';
 import {
@@ -38,9 +33,6 @@ export const EXTENSION_STORE = new InjectionToken<ExtensionStore>(
  * ExtensionStore is the type to hold the reference to plugin instances of each extensible points in KHI.
  */
 export class ExtensionStore {
-  public readonly timelineNavigatorExtensions: TimelineNavigatorExtension[] =
-    [];
-
   public readonly urlDataOenerExtensions: URLDataOpenerExtension[] = [];
 
   public readonly lifecycleHookExtensions: LifecycleHookExtension[] = [];
@@ -60,18 +52,6 @@ export class ExtensionStore {
     if (this._injector === null)
       throw new Error('environment injector is not set yet');
     return this._injector;
-  }
-  /**
-   * Returns the visible extensions for the given timeline.
-   */
-  public getVisibleTimelineNavigatorExtensions(
-    timeline: ResourceTimeline,
-  ): DisplayableTimelineNavigatorExtension[] {
-    return runInInjectionContext(this.injector, () => {
-      return this.timelineNavigatorExtensions
-        .filter((extension) => extension.show(timeline))
-        .map((extension) => extension.getDisplayable(timeline));
-    });
   }
 
   /**

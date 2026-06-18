@@ -19,7 +19,6 @@ import {
   LongTimestampFormatPipe,
   TimestampFormatPipe,
 } from './timestamp-format.pipe';
-import { MetaTableRowComponent } from './components/meta-table-row.component';
 import { BreaklinePipe } from './breakline.pipe';
 import { CaptureShiftKeyDirective } from './capture-shiftkey.directive';
 
@@ -27,14 +26,12 @@ import { CaptureShiftKeyDirective } from './capture-shiftkey.directive';
   imports: [
     TimestampFormatPipe,
     LongTimestampFormatPipe,
-    MetaTableRowComponent,
     BreaklinePipe,
     CaptureShiftKeyDirective,
   ],
   exports: [
     TimestampFormatPipe,
     LongTimestampFormatPipe,
-    MetaTableRowComponent,
     BreaklinePipe,
     CaptureShiftKeyDirective,
   ],
