@@ -19,16 +19,23 @@ import {
   moduleMetadata,
   StoryObj,
   componentWrapperDecorator,
-  StoryContext,
 } from '@storybook/angular';
 import { TimelineChartComponent } from './timeline-chart.component';
-import { Component, DestroyRef, inject, NgZone, OnInit } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  NgZone,
+  OnInit,
+  computed,
+  resource,
+  input,
+} from '@angular/core';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
 } from './style-model-v2';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 import { HistogramCache } from 'src/app/timeline/components/misc/histogram-cache';
 import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculator/human-friendly-tick';
@@ -49,60 +56,95 @@ class RenderingLoopStarter implements OnInit {
   }
 }
 
-// Dynamic renderer that consumes mockData from Storybook's loaded context
-function renderTimelineChart(
-  args: Record<string, unknown>,
-  context: StoryContext,
-) {
-  const mockData = context.loaded['mockData'] as InspectionDataV2;
-  const startTimeMs = mockData.metadata!.header!.startTimeUnixSeconds * 1000;
-  const endTimeMs = mockData.metadata!.header!.endTimeUnixSeconds * 1000;
-  const durationMs = endTimeMs - startTimeMs;
+@Component({
+  template: `
+    @if (viewModel().ready) {
+      <div style="height: 100vh; width: 100vw; display: grid;">
+        <khi-timeline-chart
+          [chartViewModel]="viewModel().chartViewModel"
+          [rulerViewModel]="viewModel().rulerViewModel"
+          [activeLogsIndices]="viewModel().activeLogsIndices"
+          [leftEdgeTime]="viewModel().leftEdgeTime"
+          [pixelsPerMs]="viewModel().pixelsPerMs"
+          [rulerStyle]="viewModel().rulerStyle"
+          [chartStyle]="viewModel().chartStyle"
+          [forceNotReadyToRender]="forceNotReadyToRender()"
+        ></khi-timeline-chart>
+      </div>
+    }
+  `,
+  imports: [TimelineChartComponent],
+})
+class TimelineChartStoriesComponent {
+  readonly forceNotReadyToRender = input(false);
 
-  const timelines = mockData.timelineStore.timelines;
-  const logsList = Array.from(mockData.logStore.logs());
+  readonly khiInspectionData = resource({
+    loader: async () => {
+      return await createMockInspectionDataV2();
+    },
+  });
 
-  const chartViewModel = {
-    inspectionDataUniqueID: 'mock-unique-id',
-    timelinesInDrawArea: timelines,
-    logBeginTime: startTimeMs,
-    logEndTime: endTimeMs,
-    styleStore: mockData.styleStore,
-  };
+  viewModel = computed(() => {
+    const mockData = this.khiInspectionData.value();
+    if (!mockData) {
+      return {
+        ready: false,
+        chartViewModel: undefined,
+        rulerViewModel: undefined,
+        activeLogsIndices: undefined,
+        leftEdgeTime: 0,
+        pixelsPerMs: 1,
+        rulerStyle: undefined,
+        chartStyle: undefined,
+      };
+    }
+    const startTimeMs = mockData.metadata!.header!.startTimeUnixSeconds * 1000;
+    const endTimeMs = mockData.metadata!.header!.endTimeUnixSeconds * 1000;
+    const durationMs = endTimeMs - startTimeMs;
 
-  const allLogsCache = new HistogramCache(
-    mockData.styleStore.severities,
-    logsList,
-    getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
-    startTimeMs,
-    endTimeMs,
-  );
-  const filteredLogsCache = new HistogramCache(
-    mockData.styleStore.severities,
-    logsList,
-    getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
-    startTimeMs,
-    endTimeMs,
-  );
+    const timelines = mockData.timelineStore.timelines.slice(0, 50);
+    const logsList = Array.from(mockData.logStore.logs());
 
-  const rulerViewModelBuilder = new RulerViewModelBuilder();
-  const rulerViewModel = rulerViewModelBuilder.generateRulerViewModel(
-    startTimeMs,
-    window.innerWidth / durationMs,
-    window.innerWidth,
-    0,
-    allLogsCache,
-    filteredLogsCache,
-  );
+    const chartViewModel = {
+      inspectionDataUniqueID: 'mock-unique-id',
+      timelinesInDrawArea: timelines,
+      logBeginTime: startTimeMs,
+      logEndTime: endTimeMs,
+      styleStore: mockData.styleStore,
+    };
 
-  const activeLogsIndices = new Set<number>();
-  for (const log of logsList) {
-    activeLogsIndices.add(log.logIndex);
-  }
+    const allLogsCache = new HistogramCache(
+      mockData.styleStore.severities,
+      logsList,
+      getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
+      startTimeMs,
+      endTimeMs,
+    );
+    const filteredLogsCache = new HistogramCache(
+      mockData.styleStore.severities,
+      logsList,
+      getMinTimeSpanForHistogram(10000, startTimeMs, endTimeMs),
+      startTimeMs,
+      endTimeMs,
+    );
 
-  return {
-    props: {
-      ...args,
+    const rulerViewModelBuilder = new RulerViewModelBuilder();
+    const rulerViewModel = rulerViewModelBuilder.generateRulerViewModel(
+      startTimeMs,
+      window.innerWidth / (durationMs || 1),
+      window.innerWidth,
+      0,
+      allLogsCache,
+      filteredLogsCache,
+    );
+
+    const activeLogsIndices = new Set<number>();
+    for (const log of logsList) {
+      activeLogsIndices.add(log.logIndex);
+    }
+
+    return {
+      ready: true,
       chartViewModel,
       rulerViewModel,
       activeLogsIndices,
@@ -110,13 +152,13 @@ function renderTimelineChart(
       pixelsPerMs: window.innerWidth / (durationMs + 10000),
       rulerStyle: generateDefaultRulerStyle(mockData.styleStore),
       chartStyle: generateDefaultChartStyle(),
-    },
-  };
+    };
+  });
 }
 
-const meta: Meta<TimelineChartComponent> = {
+const meta: Meta<TimelineChartStoriesComponent> = {
   title: 'Timeline/TimelineChart',
-  component: TimelineChartComponent,
+  component: TimelineChartStoriesComponent,
   tags: ['autodocs'],
   decorators: [
     moduleMetadata({
@@ -132,16 +174,15 @@ const meta: Meta<TimelineChartComponent> = {
   parameters: {
     layout: 'fullscreen',
   },
-  loaders: [
-    async () => ({
-      mockData: await createMockInspectionDataV2(),
-    }),
-  ],
-  render: renderTimelineChart,
+  argTypes: {
+    forceNotReadyToRender: {
+      control: 'boolean',
+    },
+  },
 };
 
 export default meta;
-type Story = StoryObj<TimelineChartComponent>;
+type Story = StoryObj<TimelineChartStoriesComponent>;
 
 export const Default: Story = {
   args: {},

@@ -18,17 +18,21 @@ import { componentWrapperDecorator, Meta, StoryObj } from '@storybook/angular';
 import {
   TimelineFrameComponent,
   TimelineHoverOverlayRequest,
-} from './timeline-frame.component';
+} from 'src/app/timeline/components/timeline-frame.component';
 import { Component, computed, effect, resource, signal } from '@angular/core';
 import { Timeline } from 'src/app/store/domain/timeline';
-import { TimelineChartMouseEvent } from './timeline-chart.component';
-import { TimelineHoverOverlay } from './timeline-hover-overlay.component';
+import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
+import { TimelineHoverOverlay } from 'src/app/timeline/components/timeline-hover-overlay.component';
 import {
   TimelineHighlight,
   TimelineChartItemHighlight,
   TimelineHighlightType,
   TimelineChartItemHighlightType,
-} from './interaction-model';
+} from 'src/app/timeline/components/interaction-model';
+import {
+  generateDefaultChartStyle,
+  generateDefaultRulerStyle,
+} from 'src/app/timeline/components/style-model-v2';
 import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
 function msToNs(ms: number): bigint {
@@ -54,24 +58,31 @@ function filterTimelineHighlight(
 }
 
 @Component({
-  template: `<khi-timeline-frame
-    [timelines]="viewModel().timelines"
-    [minQueryLogTimeMS]="viewModel().minLogTime"
-    [maxQueryLogTimeMS]="viewModel().maxLogTime"
-    [viewportLeftTimeMS]="viewportLeftTimeMS()"
-    [pixelsPerMs]="pixelsPerMs()"
-    [timelineHighlights]="timelineHighlights()"
-    [timelineChartItemHighlights]="timelineChartItemHighlights()"
-    [cursorTimeMS]="timeCursorMS()"
-    [timezoneShiftHours]="9"
-    [allLogsWithoutFilter]="viewModel().logs"
-    [filteredLogs]="viewModel().filteredLogs"
-    [timelineHoverOverlayRequest]="timelineHoverRequest()"
-    (hoverOnTimeline)="hoverOnTimeline($event)"
-    (clickOnTimeline)="clickOnTimeline($event)"
-    (hoverOnTimelineItem)="hoverOnTimelineChartItem($event)"
-    (clickOnTimelineItem)="clickOnTimelineChartItem($event)"
-  ></khi-timeline-frame>`,
+  template: `
+    @if (viewModel().ready) {
+      <khi-timeline-frame
+        [timelines]="viewModel().timelines"
+        [minQueryLogTimeMS]="viewModel().minLogTime"
+        [maxQueryLogTimeMS]="viewModel().maxLogTime"
+        [viewportLeftTimeMS]="viewportLeftTimeMS()"
+        [pixelsPerMs]="pixelsPerMs()"
+        [timelineHighlights]="timelineHighlights()"
+        [timelineChartItemHighlights]="timelineChartItemHighlights()"
+        [cursorTimeMS]="timeCursorMS()"
+        [timezoneShiftHours]="9"
+        [allLogsWithoutFilter]="viewModel().logs"
+        [filteredLogs]="viewModel().filteredLogs"
+        [timelineHoverOverlayRequest]="timelineHoverRequest()"
+        [chartStyle]="viewModel().chartStyle!"
+        [rulerStyle]="viewModel().rulerStyle!"
+        [styleStore]="viewModel().styleStore!"
+        (hoverOnTimeline)="hoverOnTimeline($event)"
+        (clickOnTimeline)="clickOnTimeline($event)"
+        (hoverOnTimelineItem)="hoverOnTimelineChartItem($event)"
+        (clickOnTimelineItem)="clickOnTimelineChartItem($event)"
+      ></khi-timeline-frame>
+    }
+  `,
   imports: [TimelineFrameComponent],
 })
 class TimelineFrameStoriesComponent {
@@ -101,11 +112,15 @@ class TimelineFrameStoriesComponent {
     const data = this.khiInspectionData.value();
     if (!data) {
       return {
+        ready: false,
         timelines: [],
         logs: [],
         filteredLogs: [],
         minLogTime: 0,
         maxLogTime: 0,
+        chartStyle: undefined,
+        rulerStyle: undefined,
+        styleStore: undefined,
       };
     }
     const minTimeMs = data.metadata?.header
@@ -114,12 +129,17 @@ class TimelineFrameStoriesComponent {
     const maxTimeMs = data.metadata?.header
       ? data.metadata.header.endTimeUnixSeconds * 1000
       : 0;
+    const logs = Array.from(data.logStore.logs());
     return {
+      ready: true,
       timelines: data.timelineStore.timelines,
-      logs: data.logStore.logs,
-      filteredLogs: data.logStore.logs,
+      logs,
+      filteredLogs: logs,
       minLogTime: minTimeMs,
       maxLogTime: maxTimeMs,
+      chartStyle: generateDefaultChartStyle(),
+      rulerStyle: generateDefaultRulerStyle(data.styleStore),
+      styleStore: data.styleStore,
     };
   });
 
@@ -290,7 +310,20 @@ const meta: Meta<TimelineFrameStoriesComponent> = {
   parameters: {
     layout: 'fullscreen',
   },
-  argTypes: {},
+  argTypes: {
+    viewModel: {
+      control: false,
+    },
+    timelineHighlights: {
+      control: false,
+    },
+    timelineChartItemHighlights: {
+      control: false,
+    },
+    timelineHoverRequest: {
+      control: false,
+    },
+  },
   decorators: [
     componentWrapperDecorator(
       (story) => `

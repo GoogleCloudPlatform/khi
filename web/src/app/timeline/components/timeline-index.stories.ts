@@ -40,10 +40,19 @@ const meta: Meta<TimelineIndexComponent> = {
     `,
     ),
   ],
-  args: {
-    timelines: createTimelines(),
-  },
+  render: (args) => ({
+    props: {
+      ...args,
+      timelines: createTimelines(),
+    },
+  }),
   argTypes: {
+    timelines: {
+      control: false,
+    },
+    highlights: {
+      control: false,
+    },
     hoverOnTimeline: {
       action: 'hoverOnTimeline',
     },
