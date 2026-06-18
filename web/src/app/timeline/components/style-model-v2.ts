@@ -357,9 +357,9 @@ export function generateDefaultChartStyle(): TimelineChartStyle {
  * Generates the default style configuration for the timeline ruler.
  */
 export function generateDefaultRulerStyle(
-  styleStore: StyleStoreLike,
+  styleStore?: StyleStoreLike,
 ): TimelineRulerStyle {
-  const severities = styleStore.severities;
+  const severities = styleStore?.severities ?? [];
   const severityColors: { [severityId: number]: HDRColor4 } = {};
   const severityStrokeColors: { [severityId: number]: HDRColor4 } = {};
 

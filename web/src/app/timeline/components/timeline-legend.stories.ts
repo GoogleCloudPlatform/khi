@@ -248,9 +248,12 @@ function createMockTimeline(isKind: boolean): Timeline {
 }
 
 export const Default: Story = {
-  args: {
-    timeline: createMockTimeline(false),
-  },
+  render: (args) => ({
+    props: {
+      ...args,
+      timeline: createMockTimeline(false),
+    },
+  }),
 };
 
 export const NoSelection: Story = {
