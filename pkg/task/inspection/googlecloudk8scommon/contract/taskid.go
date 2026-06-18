@@ -49,10 +49,10 @@ var AutocompletePodNamesTaskID = taskid.NewDefaultImplementationID[*inspectionco
 var HeaderSuggestedFileNameTaskID = taskid.NewDefaultImplementationID[struct{}](GoogleCloudCommonK8STaskIDPrefix + "header-suggested-file-name")
 
 // ClusterNamePrefixTaskRef is the task reference ID for generating the cluster name prefix used in query.
-// For GKE, it's just a task to return "" always.
-// For Anthos on AWS, it should return "awsClusters/" because the `resource.labels.cluster_name` field would be `awsClusters/<cluster-name>`
-// For Anthos on Azure, it will be "azureClusters/"
-var ClusterNamePrefixTaskRef = taskid.NewTaskReference[string](GoogleCloudCommonK8STaskIDPrefix + "cluster-name-prefix")
+// For GKE, it's just a task to return empty prefix policy always.
+// For Anthos on AWS, it should return "awsClusters/".
+// For Anthos on Azure, it will be "azureClusters/".
+var ClusterNamePrefixTaskRef = taskid.NewTaskReference[ClusterPrefixPolicy](GoogleCloudCommonK8STaskIDPrefix + "cluster-name-prefix")
 
 // InputClusterNameTaskID is the task ID for the cluster name.
 var InputClusterNameTaskID = taskid.NewDefaultImplementationID[string](GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name")

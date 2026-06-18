@@ -20,10 +20,14 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergke_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-// GKEClusterNamePrefixTask is a task that returns an empty string as the cluster name prefix for GKE.
+// GKEClusterNamePrefixTask is a task that returns an empty prefix policy as the cluster name prefix for GKE.
 // This task is necessary to satisfy the dependency of the log source profile, but GKE does not require a prefix.
-var GKEClusterNamePrefixTask = coretask.NewTask(googlecloudclustergke_contract.ClusterNamePrefixTaskIDForGKE, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
-	return "", nil
+var GKEClusterNamePrefixTask = coretask.NewTask(googlecloudclustergke_contract.ClusterNamePrefixTaskIDForGKE, []taskid.UntypedTaskReference{}, func(ctx context.Context) (googlecloudk8scommon_contract.ClusterPrefixPolicy, error) {
+	return googlecloudk8scommon_contract.ClusterPrefixPolicy{
+		Prefix:         "",
+		RequiredUsages: nil,
+	}, nil
 })

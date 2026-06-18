@@ -37,7 +37,7 @@ resource.labels.location="%s"
 resource.labels.cluster_name="%s"
 -log_id("events") -- ignore node related events because it's captured in k8s event log parsers
 %s
-`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateNodeNameSubstringLogFilter(nodeNameSubstrings))
+`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateNodeNameSubstringLogFilter(nodeNameSubstrings))
 }
 
 func generateNodeNameSubstringLogFilter(nodeNameSubstrings []string) string {

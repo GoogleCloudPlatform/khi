@@ -36,7 +36,7 @@ resource.labels.service="gkemulticloud.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete")
 protoPayload.resourceName:"projects/%s/locations/%s/"
 protoPayload.resourceName:"%s"
-`, clusterIdentity.ProjectID, clusterIdentity.Location, clusterIdentity.NameWithClusterTypePrefix())
+`, clusterIdentity.ProjectID, clusterIdentity.Location, clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit))
 }
 
 type multicloudAPIListLogEntriesTaskSetting struct {
@@ -60,10 +60,15 @@ func (g *multicloudAPIListLogEntriesTaskSetting) Description() *googlecloudcommo
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 		QueryName: "Multicloud API Logs",
 		ExampleQuery: generateQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-			ProjectID:         "example-project-id",
-			Location:          "example-location",
-			ClusterName:       "example-cluster-name",
-			ClusterTypePrefix: "awsClusters/",
+			ProjectID:   "example-project-id",
+			Location:    "example-location",
+			ClusterName: "example-cluster-name",
+			PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+				Prefix: "awsClusters/",
+				RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+					googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+				},
+			},
 		}),
 	}
 }

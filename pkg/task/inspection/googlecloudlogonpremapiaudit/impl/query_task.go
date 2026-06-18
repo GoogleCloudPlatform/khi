@@ -35,7 +35,7 @@ resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
 protoPayload.resourceName:"projects/%s/locations/%s/"
 protoPayload.resourceName:"%s"
-`, clusterIdentiy.ProjectID, clusterIdentiy.Location, clusterIdentiy.NameWithClusterTypePrefix())
+`, clusterIdentiy.ProjectID, clusterIdentiy.Location, clusterIdentiy.ClusterName)
 }
 
 type onpremAPIListLogEntriesTaskSetting struct {

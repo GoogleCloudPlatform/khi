@@ -36,7 +36,7 @@ func GenerateK8sEventQuery(cluster googlecloudk8scommon_contract.GoogleCloudClus
 resource.labels.project_id="%s"
 resource.labels.location="%s"
 resource.labels.cluster_name="%s"
-%s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateK8sEventNamespaceFilter(namespaceFilter))
+%s`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateK8sEventNamespaceFilter(namespaceFilter))
 }
 
 func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {

@@ -102,7 +102,7 @@ resource.labels.cluster_name="%s"
 protoPayload.methodName: ("create" OR "update" OR "patch" OR "delete")
 %s
 %s
-`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateAuditKindFilter(auditKindFilter), generateK8sAuditNamespaceFilter(namespaceFilter))
+`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateAuditKindFilter(auditKindFilter), generateK8sAuditNamespaceFilter(namespaceFilter))
 }
 
 // generateAuditKindFilter creates a log filter snippet for Kubernetes resource kinds

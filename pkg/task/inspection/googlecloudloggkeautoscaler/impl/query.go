@@ -37,7 +37,7 @@ resource.labels.project_id="%s"
 resource.labels.location="%s"
 resource.labels.cluster_name="%s"
 %s
-logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), excludeStatusQueryFragment, cluster.ProjectID)
+logName="projects/%s/logs/container.googleapis.com%%2Fcluster-autoscaler-visibility"`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), excludeStatusQueryFragment, cluster.ProjectID)
 }
 
 type autoscalerListLogEntriesTaskSetting struct{}
