@@ -20,10 +20,17 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudclustergdcbaremetal_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergdcbaremetal/contract"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-// GDCVForBaremetalClusterNamePrefixTask is a task that returns an empty string as the cluster name prefix for GDCV for Baremetal.
-// This task is necessary to satisfy the dependency of the log source profile, but GDCV for Baremetal does not require a prefix.
-var GDCVForBaremetalClusterNamePrefixTask = coretask.NewTask(googlecloudclustergdcbaremetal_contract.ClusterNamePrefixTaskIDForGDCVForBaremetal, []taskid.UntypedTaskReference{}, func(_ context.Context) (string, error) {
-	return "", nil
+// GDCVForBaremetalClusterNamePrefixTask is a task that returns a prefix policy as the cluster name prefix for GDCV for Baremetal.
+// This task applies "baremetalClusters/" prefix only for platform audit and CSM logs.
+var GDCVForBaremetalClusterNamePrefixTask = coretask.NewTask(googlecloudclustergdcbaremetal_contract.ClusterNamePrefixTaskIDForGDCVForBaremetal, []taskid.UntypedTaskReference{}, func(_ context.Context) (googlecloudk8scommon_contract.ClusterPrefixPolicy, error) {
+	return googlecloudk8scommon_contract.ClusterPrefixPolicy{
+		Prefix: "baremetalClusters/",
+		RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+			googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+			googlecloudk8scommon_contract.ClusterNameUsageCSM,
+		},
+	}, nil
 })

@@ -63,10 +63,11 @@ var InputClusterNameTask = formtask.NewTextFormTaskBuilder(googlecloudk8scommon_
 			return clusters.Hint, inspectionmetadata.Info, nil
 		}
 		for _, suggestedCluster := range clusters.Values {
-			if suggestedCluster.NameWithClusterTypePrefix() == convertedValue.(string) {
+			if suggestedCluster.ClusterName == convertedValue.(string) {
 				return "", inspectionmetadata.Info, nil
 			}
 		}
+
 		availableClusterNameStr := ""
 		for _, cluster := range dedupeClusterName(clusters.Values) {
 			availableClusterNameStr += fmt.Sprintf("* %s\n", cluster)

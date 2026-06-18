@@ -37,7 +37,7 @@ resource.labels.project_id="%s"
 resource.labels.location="%s"
 resource.labels.cluster_name="%s"
 %s
-%s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateNamespacesFilter(namespacesFilter), generatePodNamesFilter(podNamesFilter))
+%s`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateNamespacesFilter(namespacesFilter), generatePodNamesFilter(podNamesFilter))
 }
 
 func generateNamespacesFilter(namespacesFilter *gcpqueryutil.SetFilterParseResult) string {

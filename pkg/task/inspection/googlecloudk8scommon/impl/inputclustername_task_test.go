@@ -23,6 +23,8 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	googlecloudclustergke_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergke/impl"
+	googlecloudclustergkeonaws_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustergkeonaws/impl"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/google/go-cmp/cmp"
@@ -30,7 +32,7 @@ import (
 
 func TestClusterNameInput(t *testing.T) {
 	wantDescription := "The cluster name to gather logs."
-	testClusterNamePrefix := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.ClusterNamePrefixTaskRef, "", nil)
+
 	mockClusterNamesTask1 := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 		Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			{
@@ -42,12 +44,40 @@ func TestClusterNameInput(t *testing.T) {
 		},
 		Error: "",
 	}, nil)
+
+	mockAWSClusterNamesTask := tasktest.StubTaskFromReferenceID(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID.Ref(), &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+		Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			{
+				ClusterName: "foo-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "awsClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sCluster,
+						googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+						googlecloudk8scommon_contract.ClusterNameUsageCSM,
+					},
+				},
+			},
+			{
+				ClusterName: "bar-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "awsClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sCluster,
+						googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+						googlecloudk8scommon_contract.ClusterNameUsageCSM,
+					},
+				},
+			},
+		},
+		Error: "",
+	}, nil)
 	form_task_test.TestTextForms(t, "cluster name", InputClusterNameTask, []*form_task_test.TextFormTestCase{
 		{
-			Name:          "with valid cluster name",
+			Name:          "with valid cluster name under GKE prefix task",
 			Input:         "foo-cluster",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -62,10 +92,29 @@ func TestClusterNameInput(t *testing.T) {
 			},
 		},
 		{
+			Name:          "with valid cluster name under AWS prefix task",
+			Input:         "foo-cluster",
+			ExpectedValue: "foo-cluster",
+			Dependencies:  []coretask.UntypedTask{mockAWSClusterNamesTask, googlecloudclustergkeonaws_impl.AnthosOnAWSClusterNamePrefixTask},
+			ExpectedFormField: inspectionmetadata.TextParameterFormField{
+				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
+					ID:          googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
+					Type:        "Text",
+					Label:       "Cluster name",
+					HintType:    inspectionmetadata.None,
+					Description: wantDescription,
+				},
+				Suggestions:      []string{"foo-cluster", "bar-cluster"},
+				Default:          "foo-cluster",
+				ValidationTiming: inspectionmetadata.Change,
+			},
+		},
+
+		{
 			Name:          "spaces around cluster name must be trimmed",
 			Input:         "  foo-cluster   ",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -83,7 +132,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "invalid cluster name",
 			Input:         "An invalid cluster name",
 			ExpectedValue: "foo-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",
@@ -102,7 +151,7 @@ func TestClusterNameInput(t *testing.T) {
 			Name:          "non existing cluster should show a hint",
 			Input:         "nonexisting-cluster",
 			ExpectedValue: "nonexisting-cluster",
-			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, testClusterNamePrefix},
+			Dependencies:  []coretask.UntypedTask{mockClusterNamesTask1, googlecloudclustergke_impl.GKEClusterNamePrefixTask},
 			ExpectedFormField: inspectionmetadata.TextParameterFormField{
 				ParameterFormFieldBase: inspectionmetadata.ParameterFormFieldBase{
 					ID:          googlecloudk8scommon_contract.GoogleCloudCommonK8STaskIDPrefix + "input-cluster-name",

@@ -31,10 +31,15 @@ func TestGenerateOnPremAPIQuery(t *testing.T) {
 		{
 			name: "BaremetalCluster",
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-				ProjectID:         "test-project",
-				ClusterName:       "test-cluster",
-				ClusterTypePrefix: "baremetalClusters/",
-				Location:          "asia-northeast1",
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "baremetalClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+					},
+				},
+				Location: "asia-northeast1",
 			},
 			want: `
 log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access")
@@ -42,7 +47,7 @@ resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
 protoPayload.resourceName:"projects/test-project/locations/asia-northeast1/"
-protoPayload.resourceName:"baremetalClusters/test-cluster"
+protoPayload.resourceName:"test-cluster"
 `,
 		},
 	}
@@ -65,10 +70,15 @@ func TestGenerateOnPremAPIQueryIsValid(t *testing.T) {
 		{
 			name: "Valid Query",
 			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-				ProjectID:         "test-project",
-				ClusterName:       "test-cluster",
-				ClusterTypePrefix: "baremetalClusters/",
-				Location:          "asia-northeast1",
+				ProjectID:   "test-project",
+				ClusterName: "test-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "baremetalClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sPlatformAudit,
+					},
+				},
+				Location: "asia-northeast1",
 			},
 		},
 	}

@@ -34,11 +34,12 @@ var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(googlecloudk8scom
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	location := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLocationsTaskID.Ref())
-	clusterTypePrefix := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskRef)
+	prefixPolicy := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterNamePrefixTaskRef)
 	return googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-		ProjectID:         projectID,
-		ClusterTypePrefix: clusterTypePrefix,
-		ClusterName:       clusterName,
-		Location:          location,
+		ProjectID:    projectID,
+		PrefixPolicy: prefixPolicy,
+		ClusterName:  clusterName,
+		Location:     location,
 	}, nil
+
 })

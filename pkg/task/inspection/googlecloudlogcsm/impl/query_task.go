@@ -38,7 +38,7 @@ func csmAccessLogsFilter(cluster googlecloudk8scommon_contract.GoogleCloudCluste
 %s
 resource.labels.project_id="%s"
 resource.labels.location="%s"
-resource.labels.cluster_name="%s"`, responseFlagsFilterStr, namespaceFilterStr, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix())
+resource.labels.cluster_name="%s"`, responseFlagsFilterStr, namespaceFilterStr, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageCSM))
 }
 
 func responseFlagsFilter(responseFlagsFilter *gcpqueryutil.SetFilterParseResult) string {

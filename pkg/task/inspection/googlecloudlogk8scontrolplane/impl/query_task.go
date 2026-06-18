@@ -36,7 +36,7 @@ resource.labels.project_id="%s"
 resource.labels.location="%s"
 resource.labels.cluster_name="%s"
 -sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
-%s`, cluster.ProjectID, cluster.Location, cluster.NameWithClusterTypePrefix(), generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
+%s`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateK8sControlPlaneComponentFilter(controlplaneComponentFilter))
 }
 
 func generateK8sControlPlaneComponentFilter(filter *gcpqueryutil.SetFilterParseResult) string {
