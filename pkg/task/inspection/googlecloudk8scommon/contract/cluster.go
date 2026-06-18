@@ -37,7 +37,7 @@ type ClusterPrefixPolicy struct {
 }
 
 // PrefixFor returns the prefix for the given usage context if the usage is listed in RequiredUsages.
-func (c *ClusterPrefixPolicy) PrefixFor(usage ClusterNameUsage) string {
+func (c ClusterPrefixPolicy) PrefixFor(usage ClusterNameUsage) string {
 	for _, u := range c.RequiredUsages {
 		if u == usage {
 			return c.Prefix
@@ -47,7 +47,7 @@ func (c *ClusterPrefixPolicy) PrefixFor(usage ClusterNameUsage) string {
 }
 
 // Apply applies the prefix to the given cluster name if the usage is listed in RequiredUsages.
-func (c *ClusterPrefixPolicy) Apply(usage ClusterNameUsage, clusterName string) string {
+func (c ClusterPrefixPolicy) Apply(usage ClusterNameUsage, clusterName string) string {
 	return fmt.Sprintf("%s%s", c.PrefixFor(usage), clusterName)
 }
 

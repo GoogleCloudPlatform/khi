@@ -47,7 +47,7 @@ resource.type="audited_resource"
 resource.labels.service="gkeonprem.googleapis.com"
 resource.labels.method:("Update" OR "Create" OR "Delete" OR "Enroll" OR "Unenroll")
 protoPayload.resourceName:"projects/test-project/locations/asia-northeast1/"
-protoPayload.resourceName:"baremetalClusters/test-cluster"
+protoPayload.resourceName:"test-cluster"
 `,
 		},
 	}
