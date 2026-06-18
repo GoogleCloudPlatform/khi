@@ -34,22 +34,40 @@ export class GraphPageDataSourceServer {
   private readonly store = inject(InspectionDataStoreV2);
   private readonly selectionManager = inject(SelectionManagerV2);
 
+  private abortController?: AbortController;
+
+  /**
+   * Activates the server by listening to graph page open requests and responding with generated graph data asynchronously.
+   */
   public activate() {
-    this.connector.receiver(GRAPH_PAGE_OPEN).subscribe((message) => {
+    this.connector.receiver(GRAPH_PAGE_OPEN).subscribe(async (message) => {
       const log = this.selectionManager.selectedLog();
       const timelineView = this.store.timelineView();
       if (log && timelineView) {
-        const graphData = this.graphConverter.getGraphDataAt(
-          timelineView.filteredTimelines(),
-          log.timestamp,
-        );
-        this.connector.unicast<UpdateGraphMessage>(
-          UPDATE_GRAPH_DATA,
-          {
-            graphData,
-          },
-          message.sourceFrameId!,
-        );
+        if (this.abortController) {
+          this.abortController.abort();
+        }
+        const controller = new AbortController();
+        this.abortController = controller;
+
+        try {
+          const graphData = await this.graphConverter.getGraphDataAt(
+            timelineView.filteredTimelines(),
+            log.timestamp,
+            controller.signal,
+          );
+          if (!controller.signal.aborted) {
+            this.connector.unicast<UpdateGraphMessage>(
+              UPDATE_GRAPH_DATA,
+              {
+                graphData,
+              },
+              message.sourceFrameId!,
+            );
+          }
+        } catch {
+          // Ignore cancellation error
+        }
       }
     });
   }

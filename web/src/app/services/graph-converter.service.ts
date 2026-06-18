@@ -34,6 +34,7 @@ import { ViewStateService } from '../services/view-state.service';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TaskYielder } from 'src/app/utils/task-yielder';
 
 interface PodGraphDataGroupedByNode {
   [nodeName: string]: PodGraphData[];
@@ -53,16 +54,39 @@ export class GraphDataConverterService {
     this._viewStateService.timezoneShift,
   );
 
-  public getGraphDataAt(
+  /**
+   * Generates graph data at the specified timestamp asynchronously, yielding execution to prevent UI freezing.
+   *
+   * @param timelines - Array of timelines to inspect.
+   * @param t - Timestamp in nanoseconds.
+   * @param abortSignal - Optional signal to cancel the generation.
+   * @param maxProcessingTimeMs - Maximum execution time per chunk in milliseconds.
+   * @returns A promise resolving to the converted GraphData.
+   */
+  public async getGraphDataAt(
     timelines: ReadonlyDomainElement<Timeline>[],
     t: bigint,
-  ): GraphData {
+    abortSignal?: AbortSignal,
+    maxProcessingTimeMs = 16,
+  ): Promise<GraphData> {
+    const taskYielder = new TaskYielder(maxProcessingTimeMs, abortSignal);
+
+    await taskYielder.yield();
+
     const nodes = this.getNodes(timelines);
-    const podNames = this.getPodGraphData(timelines, t);
+    const podNames = await this.getPodGraphData(timelines, t, taskYielder);
     this.sortPods(podNames);
-    const nodeData = nodes
-      .map((n) => this.getNodeGraphData(podNames, n, t))
-      .filter((a) => a != null) as GraphNode[];
+
+    await taskYielder.yield();
+
+    const nodeData: GraphNode[] = [];
+    for (const n of nodes) {
+      await taskYielder.yield();
+      const data = this.getNodeGraphData(podNames, n, t);
+      if (data != null) {
+        nodeData.push(data);
+      }
+    }
     const foundNodeNames = new Set(nodeData.map((n) => n.name));
 
     // Add nodes not observed in node audit logs but observed in pod manifest
@@ -79,57 +103,86 @@ export class GraphDataConverterService {
         externalIP: '-',
       });
     }
+
+    const daemonsetOwners = await this._parsePodOwnerGraphObjects(
+      'daemonset',
+      nodeData,
+      timelines,
+      t,
+      taskYielder,
+    );
+    const jobOwners = await this._parsePodOwnerGraphObjects(
+      'job',
+      nodeData,
+      timelines,
+      t,
+      taskYielder,
+    );
+    const replicasetOwners = await this._parsePodOwnerGraphObjects(
+      'replicaset',
+      nodeData,
+      timelines,
+      t,
+      taskYielder,
+    );
     const podOwners = {
-      daemonset: this._parsePodOwnerGraphObjects(
-        'daemonset',
-        nodeData,
-        timelines,
-        t,
-      ),
-      job: this._parsePodOwnerGraphObjects('job', nodeData, timelines, t),
-      replicaset: this._parsePodOwnerGraphObjects(
-        'replicaset',
-        nodeData,
-        timelines,
-        t,
-      ),
+      daemonset: daemonsetOwners,
+      job: jobOwners,
+      replicaset: replicasetOwners,
     };
+
+    const services = await this.getServiceGraphData(
+      nodeData,
+      timelines,
+      t,
+      taskYielder,
+    );
+
+    const cronjobOwnerOwners = await this._parsePodOwnerOwnerGraphObjects(
+      'cronjob',
+      podOwners.job,
+      timelines,
+      t,
+      taskYielder,
+    );
+    const deploymentOwnerOwners = await this._parsePodOwnerOwnerGraphObjects(
+      'deployment',
+      podOwners.replicaset,
+      timelines,
+      t,
+      taskYielder,
+    );
+
+    await taskYielder.yield();
+
     return {
       nodes: nodeData,
-      services: this.getServiceGraphData(nodeData, timelines, t),
+      services,
       graphTime: LongTimestampFormatPipe.toLongDisplayTimestamp(
         Number(t / 1_000_000n),
         this.timezoneShift() ?? 0,
       ),
       podOwners,
       podOwnerOwners: {
-        cronjob: this._parsePodOwnerOwnerGraphObjects(
-          'cronjob',
-          podOwners.job,
-          timelines,
-          t,
-        ),
-        deployment: this._parsePodOwnerOwnerGraphObjects(
-          'deployment',
-          podOwners.replicaset,
-          timelines,
-          t,
-        ),
+        cronjob: cronjobOwnerOwners,
+        deployment: deploymentOwnerOwners,
       },
     };
   }
 
-  private getServiceGraphData(
+  private async getServiceGraphData(
     nodes: GraphNode[],
     timelines: ReadonlyDomainElement<Timeline>[],
     t: bigint,
-  ): ServiceGraphData[] {
+    taskYielder: TaskYielder,
+  ): Promise<ServiceGraphData[]> {
     const services = timelines.filter((serviceTimeline) => {
       const path = serviceTimeline.path;
       return path.length === 5 && path[2].label === 'service';
     });
     const result: ServiceGraphData[] = [];
     for (const serviceTimeline of services) {
+      await taskYielder.yield();
       const rev = serviceTimeline.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest =
@@ -249,10 +302,11 @@ export class GraphDataConverterService {
     return null;
   }
 
-  private getPodGraphData(
+  private async getPodGraphData(
     timeline: ReadonlyDomainElement<Timeline>[],
     t: bigint,
-  ): PodGraphDataGroupedByNode {
+    taskYielder: TaskYielder,
+  ): Promise<PodGraphDataGroupedByNode> {
     const result: PodGraphDataGroupedByNode = {};
     const podTimelines = timeline.filter((t) => {
       const path = t.path;
@@ -260,6 +314,7 @@ export class GraphDataConverterService {
       return path.length === 5 && path[2].label === 'pod';
     });
     for (const pd of podTimelines) {
+      await taskYielder.yield();
       const rev = pd.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest = rev.body as ReadonlyDomainElement<k8s.K8sPodResource>;
@@ -395,18 +450,20 @@ export class GraphDataConverterService {
     }
   }
 
-  private _parsePodOwnerGraphObjects(
+  private async _parsePodOwnerGraphObjects(
     kind: string,
     nodes: GraphNode[],
     timelines: ReadonlyDomainElement<Timeline>[],
     t: bigint,
-  ): GraphPodOwner[] {
+    taskYielder: TaskYielder,
+  ): Promise<GraphPodOwner[]> {
     const owners = timelines.filter((t) => {
       const path = t.path;
       return path.length === 5 && path[2].label === kind;
     });
     const result: GraphPodOwner[] = [];
     for (const owner of owners) {
+      await taskYielder.yield();
       const rev = owner.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest =
@@ -463,18 +520,20 @@ export class GraphDataConverterService {
     return result;
   }
 
-  private _parsePodOwnerOwnerGraphObjects(
+  private async _parsePodOwnerOwnerGraphObjects(
     kind: string,
     childGraphData: GraphPodOwner[],
     timelines: ReadonlyDomainElement<Timeline>[],
     t: bigint,
-  ): GraphPodOwnerOwner[] {
+    taskYielder: TaskYielder,
+  ): Promise<GraphPodOwnerOwner[]> {
     const ownerOwners = timelines.filter((ownerTimeline) => {
       const path = ownerTimeline.path;
       return path.length === 5 && path[2].label === kind;
     });
     const result: GraphPodOwnerOwner[] = [];
     for (const owner of ownerOwners) {
+      await taskYielder.yield();
       const rev = owner.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest =

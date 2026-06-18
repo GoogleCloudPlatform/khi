@@ -14,4 +14,10 @@
  limitations under the License.
 -->
 
-<div #graphContainer class="svg-container"></div>
+<div #graphContainer class="svg-container" [class.hidden]="isLoading()"></div>
+@if (isLoading()) {
+  <div class="loading-overlay">
+    <mat-spinner diameter="40"></mat-spinner>
+    <span>Loading architecture graph...</span>
+  </div>
+}
