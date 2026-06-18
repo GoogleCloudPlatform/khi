@@ -15,7 +15,7 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { GraphLayoutComponent } from './graph-layout.component';
+import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
 import { emptyGraphData } from 'src/app/common/schema/graph-schema';
 
 const meta: Meta<GraphLayoutComponent> = {

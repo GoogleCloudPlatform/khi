@@ -15,7 +15,7 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { GraphLayoutComponent } from './graph-layout.component';
+import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
 
 describe('GraphLayoutComponent', () => {
   let component: GraphLayoutComponent;

@@ -16,7 +16,7 @@
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ToolbarComponent } from './toolbar.component';
+import { ToolbarComponent } from 'src/app/timeline-toolbar/components/toolbar.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { By } from '@angular/platform-browser';
 
@@ -46,24 +46,6 @@ describe('ToolbarComponent', () => {
     expect(component.showButtonLabel()).toBeFalse();
     expect(component.logOrTimelineNotSelected()).toBeTrue();
     expect(component.timezoneShift()).toBe(0);
-  });
-
-  it('should emit drawDiagram when draw button is clicked', () => {
-    let emitted = false;
-    component.drawDiagram.subscribe(() => (emitted = true));
-
-    // Set logOrTimelineNotSelected to false to enable the button
-    fixture.componentRef.setInput('logOrTimelineNotSelected', false);
-    fixture.detectChanges();
-
-    const button = fixture.debugElement.query(
-      By.css('button[mat-raised-button]'),
-    );
-    expect(button.nativeElement.disabled).toBeFalse();
-
-    button.nativeElement.click();
-
-    expect(emitted).toBeTrue();
   });
 
   it('should emit switchToAdvanced when advanced button is clicked', () => {

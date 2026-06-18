@@ -15,7 +15,7 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { GraphSmartComponent } from './graph-smart.component';
+import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
 
 describe('GraphSmartComponent', () => {
   let component: GraphSmartComponent;

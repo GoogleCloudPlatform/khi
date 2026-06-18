@@ -22,7 +22,6 @@ $gray-palette: mat.$m2-gray-palette;
 $container-border-color: mat.m2-get-color-from-palette($gray-palette, 400);
 $timezone-color: mat.m2-get-color-from-palette($primary-palette, 500);
 
-
 .container {
   border-bottom: 1px solid $container-border-color;
 }

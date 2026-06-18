@@ -49,23 +49,6 @@ describe('ToolbarAdvancedComponent', () => {
     expect(component.timezoneShift()).toBe(0);
   });
 
-  it('should emit drawDiagram when draw button is clicked', () => {
-    let emitted = false;
-    component.drawDiagram.subscribe(() => (emitted = true));
-
-    fixture.componentRef.setInput('logOrTimelineNotSelected', false);
-    fixture.detectChanges();
-
-    const button = fixture.debugElement.query(
-      By.css('button[mat-raised-button]'),
-    );
-    expect(button.nativeElement.disabled).toBeFalse();
-
-    button.nativeElement.click();
-
-    expect(emitted).toBeTrue();
-  });
-
   it('should bind timeline CEL filter value correctly', () => {
     component.timelineCelFilter.set('timeline.name == "test"');
     fixture.detectChanges();

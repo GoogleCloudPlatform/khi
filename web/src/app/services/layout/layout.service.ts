@@ -28,11 +28,14 @@ import {
   LayoutConfig,
   Tab,
 } from 'golden-layout';
-import { TimelineSmartComponent } from '../../timeline/timeline-smart.component';
-import { LogSmartComponent } from '../../log/log-smart.component';
-import { DiffSmartComponent } from '../../diff/diff-smart.component';
-import { GraphSmartComponent } from '../../graph/graph-smart.component';
-import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
+import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
+import { LogSmartComponent } from 'src/app/log/log-smart.component';
+import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
+import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
+import {
+  MenuManager,
+  MenuItemType,
+} from 'src/app/services/menu/menu-manager.service';
 import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 
 /**

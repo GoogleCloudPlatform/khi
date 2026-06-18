@@ -16,7 +16,7 @@
 
 import { Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GraphLayoutComponent } from './components/graph-layout.component';
+import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
