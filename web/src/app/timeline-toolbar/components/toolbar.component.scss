@@ -33,11 +33,6 @@ $value-bg-color: mat.m2-get-color-from-palette($gray-palette, 100);
 $delete-icon-color: mat.m2-get-color-from-palette($gray-palette, 500);
 $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
 
-.draw-diagram-button-icon {
-  margin-left: 0;
-  margin-right: 0;
-}
-
 .filter-button-icon {
   margin-left: 5px;
   margin-right: 5px;

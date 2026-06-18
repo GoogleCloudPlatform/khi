@@ -28,10 +28,14 @@ import {
   LayoutConfig,
   Tab,
 } from 'golden-layout';
-import { TimelineSmartComponent } from '../../timeline/timeline-smart.component';
-import { LogSmartComponent } from '../../log/log-smart.component';
-import { DiffSmartComponent } from '../../diff/diff-smart.component';
-import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
+import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
+import { LogSmartComponent } from 'src/app/log/log-smart.component';
+import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
+import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
+import {
+  MenuManager,
+  MenuItemType,
+} from 'src/app/services/menu/menu-manager.service';
 import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 
 /**
@@ -56,6 +60,8 @@ export class LayoutService implements OnDestroy {
 
   private readonly disableCreateLogPane = signal(false);
 
+  private readonly disableCreateGraphPane = signal(false);
+
   /** The default layout configuration used if no saved state is found. */
   private readonly defaultLayout: LayoutConfig = {
     settings: {
@@ -65,25 +71,30 @@ export class LayoutService implements OnDestroy {
       borderWidth: 5,
     },
     root: {
-      type: 'row',
+      type: 'column',
       content: [
         {
-          type: 'component',
-          componentType: 'timeline',
-          title: 'Timeline',
-          size: '70%',
-        },
-        {
-          type: 'component',
-          componentType: 'log',
-          title: 'Logs',
-          size: '15%',
-        },
-        {
-          type: 'component',
-          componentType: 'history',
-          title: 'History',
-          size: '15%',
+          type: 'row',
+          content: [
+            {
+              type: 'component',
+              componentType: 'timeline',
+              title: 'Timeline',
+              size: '70%',
+            },
+            {
+              type: 'component',
+              componentType: 'log',
+              title: 'Logs',
+              size: '15%',
+            },
+            {
+              type: 'component',
+              componentType: 'history',
+              title: 'History',
+              size: '15%',
+            },
+          ],
         },
       ],
     },
@@ -153,6 +164,21 @@ export class LayoutService implements OnDestroy {
         this.disableCreateDiffPane.set(true);
       },
     );
+
+    this.goldenLayout.registerComponentFactoryFunction(
+      'graph',
+      (container: ComponentContainer) => {
+        const componentRef =
+          this.viewContainerRef.createComponent(GraphSmartComponent);
+        container.element.appendChild(componentRef.location.nativeElement);
+        this.addIconToTab(container, 'family_history');
+        container.on('destroy', () => {
+          componentRef.destroy();
+          this.disableCreateGraphPane.set(false);
+        });
+        this.disableCreateGraphPane.set(true);
+      },
+    );
   }
 
   /**
@@ -213,16 +239,27 @@ export class LayoutService implements OnDestroy {
       },
     });
     this.menuManager.addItem('view', {
+      id: 'open-graph',
+      label: 'Open graph view',
+      type: MenuItemType.Button,
+      icon: 'family_history',
+      disabled: this.disableCreateGraphPane,
+      priority: 4,
+      action: () => {
+        this.addPane('graph', 'Graph');
+      },
+    });
+    this.menuManager.addItem('view', {
       id: 'view-separator',
       type: MenuItemType.Separator,
-      priority: 4,
+      priority: 5,
     });
     this.menuManager.addItem('view', {
       id: 'reset-layout',
       label: 'Reset layout',
       type: MenuItemType.Button,
       icon: 'refresh',
-      priority: 5,
+      priority: 6,
       action: () => {
         this.loadDefaultLayout();
       },
@@ -232,7 +269,7 @@ export class LayoutService implements OnDestroy {
       label: 'Style override Settings',
       type: MenuItemType.Button,
       icon: 'palette',
-      priority: 6,
+      priority: 7,
       action: () => {
         this.openStyleOverrideDialog();
       },

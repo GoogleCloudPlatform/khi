@@ -100,9 +100,6 @@ export class ToolbarFrameComponent {
   readonly hideTimelinesWithoutMatchingLogs = input.required<boolean>();
 
   // Output Events
-  /** Requests rendering the architectural timeline network graph. */
-  readonly drawDiagram = output<void>();
-
   /** Commits timezone changes to the parent store. */
   readonly timezoneShiftChange = output<number>();
 

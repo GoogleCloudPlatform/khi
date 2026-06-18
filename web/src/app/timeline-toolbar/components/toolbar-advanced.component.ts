@@ -130,11 +130,6 @@ export class ToolbarAdvancedComponent {
   readonly logCelFilter = model('');
 
   /**
-   * Emits an event to request drawing the architecture diagram.
-   */
-  readonly drawDiagram = output<void>();
-
-  /**
    * Emits an event to switch to standard mode.
    */
   readonly switchToStandard = output<void>();
