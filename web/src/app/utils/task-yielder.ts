@@ -15,6 +15,20 @@
  */
 
 /**
+ * Represents an error thrown when an operation is cancelled or aborted.
+ */
+export class CancellationError extends Error {
+  /**
+   * Initializes a new CancellationError.
+   * @param message The optional error message.
+   */
+  constructor(message = 'The operation was cancelled') {
+    super(message);
+    this.name = 'CancellationError';
+  }
+}
+
+/**
  * Utility class to cooperatively yield execution in heavy synchronous loops
  * to avoid UI freezing.
  */
@@ -35,16 +49,16 @@ export class TaskYielder {
 
   /**
    * Yields execution if the elapsed time since the last yield exceeds maxProcessingTimeMs.
-   * Throws DOMException('Aborted', 'AbortError') if the abortSignal is aborted.
+   * Throws CancellationError if the abortSignal is aborted.
    */
   public async yield(): Promise<void> {
     if (this.abortSignal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError');
+      throw new CancellationError();
     }
     if (performance.now() - this.lastYieldTime > this.maxProcessingTimeMs) {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       if (this.abortSignal?.aborted) {
-        throw new DOMException('Aborted', 'AbortError');
+        throw new CancellationError();
       }
       this.lastYieldTime = performance.now();
     }

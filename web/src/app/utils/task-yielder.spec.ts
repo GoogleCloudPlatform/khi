@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TaskYielder } from './task-yielder';
+import { TaskYielder, CancellationError } from 'src/app/utils/task-yielder';
 
 describe('TaskYielder', () => {
   it('should not yield if elapsed time does not exceed maxProcessingTimeMs', async () => {
@@ -31,11 +31,11 @@ describe('TaskYielder', () => {
     await expectAsync(yielder.yield()).toBeResolved();
   });
 
-  it('should throw DOMException when aborted initially', async () => {
+  it('should throw CancellationError when aborted initially', async () => {
     const controller = new AbortController();
     controller.abort();
     const yielder = new TaskYielder(16, controller.signal);
 
-    await expectAsync(yielder.yield()).toBeRejectedWithError(DOMException);
+    await expectAsync(yielder.yield()).toBeRejectedWithError(CancellationError);
   });
 });
