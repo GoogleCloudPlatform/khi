@@ -16,9 +16,7 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { LogContentHeaderComponent } from './log-content-header.component';
-import { LogEntry } from 'src/app/store/log';
-import { LogType, Severity } from 'src/app/zzz-generated';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
 const meta: Meta<LogContentHeaderComponent> = {
   title: 'Log/LogContentHeader',
@@ -31,16 +29,18 @@ export default meta;
 type Story = StoryObj<LogContentHeaderComponent>;
 
 export const Default: Story = {
-  args: {
-    log: new LogEntry(
-      0,
-      'foobar',
-      LogType.LogTypeAudit,
-      Severity.SeverityWarning,
-      1234567890,
-      'summary',
-      ToTextReferenceFromKHIFileBinary(null),
-      [],
-    ),
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const log = Array.from(mockData.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        log,
+      },
+    };
   },
 };

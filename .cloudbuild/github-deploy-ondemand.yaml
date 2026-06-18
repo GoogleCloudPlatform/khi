@@ -13,19 +13,22 @@
 # limitations under the License.
 
 steps:
-  - name: 'node:22-trixie'
+  - name: "node:22-trixie"
     args:
-      - '-c'
+      - "-c"
       - |
         cd ./web
         npm ci
+        cd ..
+        npx @bufbuild/buf generate
+        touch scripts/make/build-proto.done
     id: dependency_web
     waitFor:
-      - '-'
+      - "-"
     entrypoint: /bin/bash
-  - name: 'golang:1.25-trixie'
+  - name: "golang:1.25-trixie"
     args:
-      - '-c'
+      - "-c"
       - |
         echo "dev-${SHORT_SHA}" > VERSION
         apt-get update && apt-get install jq -y
@@ -35,9 +38,9 @@ steps:
     waitFor:
       - dependency_web
     entrypoint: /bin/bash
-  - name: 'node:22-trixie'
+  - name: "node:22-trixie"
     args:
-      - '-c'
+      - "-c"
       - |
         make build-web
     id: build_web
@@ -46,7 +49,7 @@ steps:
     entrypoint: /bin/bash
   - name: gcr.io/cloud-builders/docker
     args:
-      - '-c'
+      - "-c"
       - |
         docker buildx create --driver docker-container --name container --use
         docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA --push .

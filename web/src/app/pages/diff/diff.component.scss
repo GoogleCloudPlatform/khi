@@ -18,6 +18,13 @@
 
 $toolbar-background: mat.m2-get-color-from-palette(mat.$m2-indigo-palette, 100);
 
+.diff-timeline-annotators {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
 .diff {
   flex: 1;
   display: grid;

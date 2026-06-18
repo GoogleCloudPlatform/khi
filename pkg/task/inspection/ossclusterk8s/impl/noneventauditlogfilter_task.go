@@ -21,7 +21,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	ossclusterk8s_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/ossclusterk8s/contract"
@@ -46,7 +45,6 @@ var NonEventAuditLogFilterTask = inspectiontaskbase.NewProgressReportableInspect
 				if verb == "" || verb == "get" || verb == "watch" || verb == "list" {
 					continue
 				}
-				l.LogType = enum.LogTypeAudit
 				auditLogs = append(auditLogs, l)
 			}
 		}

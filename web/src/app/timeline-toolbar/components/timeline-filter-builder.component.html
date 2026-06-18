@@ -1,0 +1,132 @@
+<!--
+Copyright 2026 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<form (submit)="onAdd(); $event.preventDefault()" class="filter-builder-card">
+  <div class="header-container">
+    <h3 class="title">Add Timeline Filter</h3>
+    @if (showDeleteButton()) {
+      <button
+        mat-icon-button
+        color="warn"
+        class="delete-btn"
+        type="button"
+        (click)="deleteButtonClicked.emit()"
+        matTooltip="Delete Filter"
+      >
+        <mat-icon>delete</mat-icon>
+      </button>
+    }
+  </div>
+
+  <div class="type-field-wrapper">
+    <mat-form-field appearance="outline" class="form-field">
+      <mat-label>Timeline Type</mat-label>
+      <input
+        type="text"
+        placeholder="kind, namespace, etc. (leave empty to match all)"
+        matInput
+        [value]="typeInputQuery()"
+        (input)="onTypeInputChange($any($event.target).value)"
+        [matAutocomplete]="auto"
+      />
+      <mat-autocomplete
+        #auto="matAutocomplete"
+        (optionSelected)="onTimelineTypeSelected($event.option.value)"
+      >
+        <mat-option value="*">Any (*)</mat-option>
+        @for (type of filteredTimelineTypes(); track type.label) {
+          <mat-option
+            [value]="type.label"
+            [style.background-color]="getTypeRowBackgroundColor(type)"
+            [style.color]="getTypeRowForegroundColor(type)"
+          >
+            <span
+              class="type-autocomplete-label"
+              [style.color]="getTypeForegroundColor(type)"
+              [style.background-color]="getTypeBackgroundColor(type)"
+            >
+              {{ type.label }} ({{
+                typeCandidateCounts()[type.label.toLowerCase()] || 0
+              }})
+            </span>
+          </mat-option>
+        }
+      </mat-autocomplete>
+    </mat-form-field>
+  </div>
+
+  <div class="mode-selector-wrapper">
+    <mat-button-toggle-group
+      [value]="filterMode()"
+      (change)="filterMode.set($event.value)"
+      class="mode-toggle-group"
+    >
+      <mat-button-toggle value="regex">
+        <div class="toggle-button-content">
+          <mat-icon class="toggle-icon">match_case</mat-icon>
+          <span>Regex</span>
+        </div>
+      </mat-button-toggle>
+      <mat-button-toggle
+        value="selection"
+        [disabled]="selectedTimelineType() === '*'"
+      >
+        <div class="toggle-button-content">
+          <mat-icon class="toggle-icon">checklist</mat-icon>
+          <span>Selection</span>
+        </div>
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <div class="input-field-wrapper">
+    @if (filterMode() === "regex") {
+      <mat-form-field appearance="outline" class="form-field">
+        <mat-label>Filter Pattern (Regex)</mat-label>
+        <input
+          matInput
+          placeholder="e.g. pod-a.*"
+          [value]="regexValue()"
+          (input)="regexValue.set($any($event.target).value)"
+        />
+      </mat-form-field>
+    }
+
+    @if (filterMode() === "selection") {
+      <khi-shared-set-input
+        [choices]="mappedCandidates()"
+        [selectedItems]="selectedCandidates()"
+        [showAddAll]="true"
+        [showRemoveAll]="true"
+        (selectedItemsChange)="selectedCandidates.set($event)"
+      ></khi-shared-set-input>
+    }
+  </div>
+
+  <div class="actions">
+    <button mat-button type="button" (click)="closeButtonClicked.emit()">
+      Cancel
+    </button>
+    <button
+      mat-raised-button
+      color="primary"
+      type="submit"
+      [disabled]="isAddDisabled()"
+    >
+      Add Filter
+    </button>
+  </div>
+</form>

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { TimelinePathNode } from 'src/app/store/domain/timeline';
 
 export const DIFF_PAGE_OPEN = 'DIFF_PAGE_OPEN';
 export const UPDATE_SELECTED_RESOURCE_MESSAGE_KEY = 'UPDATE_SELECTED_RESOURCE';
@@ -24,13 +24,17 @@ export const GRAPH_PAGE_OPEN = 'GRAPH_PAGE_OPEN';
  * Main window broadcast this message when another resource was selected.
  */
 export interface UpdateSelectedResourceMessage {
-  timeline: ResourceTimeline;
+  timelinePath: readonly TimelinePathNode[];
+  previousContent: string;
+  currentContent: string;
   logIndex: number;
 }
 /**
  * A viewmodel for entire diff page.
  */
 export interface DiffPageViewModel {
-  timeline: ResourceTimeline;
+  timelinePath: readonly TimelinePathNode[];
+  previousContent: string;
+  currentContent: string;
   logIndex: number;
 }

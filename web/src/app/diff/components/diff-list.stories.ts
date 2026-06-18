@@ -16,110 +16,80 @@
 
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { DiffListComponent } from './diff-list.component';
-import { ResourceTimeline } from '../../store/timeline';
-import {
-  ParentRelationship,
-  RevisionState,
-  RevisionVerb,
-  LogType,
-  Severity,
-} from '../../zzz-generated';
-import { ResourceRevision } from '../../store/revision';
-import { LogEntry } from '../../store/log';
-import { ToTextReferenceFromKHIFileBinary } from '../../common/loader/reference-type';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
-const mockLogs: LogEntry[] = [
-  new LogEntry(
-    0,
-    'a1',
-    LogType.LogTypeAudit,
-    Severity.SeverityInfo,
-    new Date('2025-01-01T00:00:00Z').getTime(),
-    'Created pod',
-    ToTextReferenceFromKHIFileBinary(null),
-    [],
-  ),
-  new LogEntry(
-    1,
-    'a2',
-    LogType.LogTypeAudit,
-    Severity.SeverityInfo,
-    new Date('2025-01-01T00:00:01Z').getTime(),
-    'Updated pod',
-    ToTextReferenceFromKHIFileBinary(null),
-    [],
-  ),
-  new LogEntry(
-    2,
-    'a3',
-    LogType.LogTypeAudit,
-    Severity.SeverityInfo,
-    new Date('2025-01-01T00:00:02Z').getTime(),
-    'Deleted pod',
-    ToTextReferenceFromKHIFileBinary(null),
-    [],
-  ),
-];
+const mockLogs = [
+  {
+    id: 1,
+    logIndex: 0,
+    summary: 'Created pod',
+  },
+  {
+    id: 2,
+    logIndex: 1,
+    summary: 'Updated pod',
+  },
+  {
+    id: 3,
+    logIndex: 2,
+    summary: 'Deleted pod',
+  },
+] as unknown as ReadonlyDomainElement<Log>[];
 
-const mockRevisions: ResourceRevision[] = [
-  new ResourceRevision(
-    mockLogs[0].time,
-    mockLogs[1].time,
-    RevisionState.RevisionStateExisting,
-    RevisionVerb.RevisionVerbCreate,
-    'content1',
-    'system:serviceaccount:kube-system:replicaset-controller',
-    false,
-    false,
-    0,
-  ),
-  new ResourceRevision(
-    mockLogs[1].time,
-    mockLogs[2].time,
-    RevisionState.RevisionStateExisting,
-    RevisionVerb.RevisionVerbUpdate,
-    'content2',
-    'user@example.com',
-    false,
-    false,
-    1,
-  ),
-  new ResourceRevision(
-    mockLogs[2].time,
-    mockLogs[2].time + 1000,
-    RevisionState.RevisionStateDeleted,
-    RevisionVerb.RevisionVerbDelete,
-    'content3',
-    'admin@example.com',
-    true,
-    false,
-    2,
-  ),
-];
-
-// Add an unknown/inferred revision at the end
-mockRevisions.push(
-  new ResourceRevision(
-    mockLogs[2].time + 1000,
-    mockLogs[2].time + 2000,
-    RevisionState.RevisionStateInferred,
-    RevisionVerb.RevisionVerbUnknown,
-    'content4',
-    '',
-    false,
-    true,
-    -1,
-  ),
-);
-
-const mockTimeline = new ResourceTimeline(
-  'timeline-id-1',
-  'api/v1#pods#default#my-pod',
-  mockRevisions,
-  [], // events
-  ParentRelationship.RelationshipOwnerReference,
-);
+const mockTimeline = {
+  id: 1,
+  revisions: [
+    {
+      id: 1,
+      timelineId: 1,
+      legacyChangedTimeMs: new Date('2025-01-01T00:00:00Z').getTime(),
+      principal: 'system:serviceaccount:kube-system:replicaset-controller',
+      verb: {
+        id: 1,
+        label: 'CREATE',
+        backgroundColor: { r: 0.1, g: 0.5, b: 0.9, a: 1.0 },
+        foregroundColor: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+        visible: true,
+      },
+      bodyYAML: 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod\n',
+      logIndex: 0,
+    },
+    {
+      id: 2,
+      timelineId: 1,
+      legacyChangedTimeMs: new Date('2025-01-01T00:00:01Z').getTime(),
+      principal: 'user@example.com',
+      verb: {
+        id: 2,
+        label: 'UPDATE',
+        backgroundColor: { r: 0.9, g: 0.8, b: 0.2, a: 1.0 },
+        foregroundColor: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+        visible: true,
+      },
+      bodyYAML:
+        'apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod\nspec:\n  containers:\n  - name: nginx\n',
+      logIndex: 1,
+    },
+    {
+      id: 3,
+      timelineId: 1,
+      legacyChangedTimeMs: new Date('2025-01-01T00:00:02Z').getTime(),
+      principal: 'admin@example.com',
+      verb: {
+        id: 3,
+        label: 'DELETE',
+        backgroundColor: { r: 0.9, g: 0.2, b: 0.2, a: 1.0 },
+        foregroundColor: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+        visible: true,
+      },
+      bodyYAML: '',
+      logIndex: 2,
+    },
+  ],
+} as unknown as ReadonlyDomainElement<Timeline>;
 
 const meta: Meta<DiffListComponent> = {
   title: 'Diff/DiffList',

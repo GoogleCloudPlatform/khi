@@ -63,7 +63,19 @@ func redirectMiddleware(exactPath string, redirectTo string) gin.HandlerFunc {
 	}
 }
 
+func coepCoopMiddleware() gin.HandlerFunc {
+	// KHI uses SharedArrayBuffer to share memory between the main thread and worker threads.
+	// COOP and COEP headers are required for SharedArrayBuffer to work.
+	// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#api_availability
+	return func(ctx *gin.Context) {
+		ctx.Header("Cross-Origin-Opener-Policy", "same-origin")
+		ctx.Header("Cross-Origin-Embedder-Policy", "require-corp")
+		ctx.Next()
+	}
+}
+
 func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.InspectionTaskServer, serverConfig *ServerConfig) *gin.Engine {
+	engine.Use(coepCoopMiddleware())
 	basePathWithoutTrailingSlash := strings.TrimSuffix(serverConfig.ServerBasePath, "/")
 	engine.Use(redirectMiddleware(basePathWithoutTrailingSlash+"/", basePathWithoutTrailingSlash+"/session/0")) // Request for `/` shouldn't be handled by `static.Serve`, redirect `/session/0` to be handled by patternToString
 

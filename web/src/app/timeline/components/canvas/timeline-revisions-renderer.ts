@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { SharedTmpBuffer, WebGLUtil } from './glutil';
-import {
-  revisionStatecolors,
-  RevisionStateMetadata,
-  revisionStates,
-  revisionStateToIndex,
-} from 'src/app/zzz-generated';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { IDisposableRenderer, TimelineRect } from './timeline-renderer';
 import {
   TimelineChartItemHighlight,
   TimelineChartItemHighlightType,
 } from '../interaction-model';
-import { TimelineChartStyle } from '../style-model';
+import {
+  TimelineChartStyle,
+  BASE_ROW_HEIGHT,
+  getRevisionStyleForHeight,
+} from '../style-model-v2';
 import { RendererConvertUtil } from './convertutil';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 /**
  * Renders timeline revisions (horizontal bars representing resource states) using WebGL.
@@ -44,7 +44,7 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
   private intDynamicMetaVBOSource!: Uint32Array;
 
   constructor(
-    private timeline: ResourceTimeline,
+    private timeline: ReadonlyDomainElement<Timeline>,
     private revisionSharedResources: TimelineRevisionsSharedResources,
     private timelineSharedResources: TimelineRendererSharedResource,
   ) {}
@@ -54,25 +54,32 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
    * Calculates and buffers static data (time, state metadata) to the GPU.
    *
    * @param gl The WebGL2 rendering context.
+   * @param tmpBuffer Shared temporary buffer for allocations.
+   * @param logEndTimeNs The maximum query end time fallback.
    */
-  setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer): void {
+  setup(
+    gl: WebGL2RenderingContext,
+    tmpBuffer: SharedTmpBuffer,
+    logEndTimeNs: bigint,
+  ): void {
     const timeVBOSource = tmpBuffer.uint32Array(
       this.timeline.revisions.length * 4,
     );
     for (let i = 0; i < this.timeline.revisions.length; i++) {
       const revision = this.timeline.revisions[i];
-      const start = RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(
-        revision.startAt,
+      const start = RendererConvertUtil.splitBigIntTimeToSecondsAndNanoSeconds(
+        revision.changedTime,
       );
-      const end = RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(
-        revision.endAt,
+      const endNs = revision.getEndNs();
+      const end = RendererConvertUtil.splitBigIntTimeToSecondsAndNanoSeconds(
+        endNs !== null ? endNs : logEndTimeNs,
       );
       timeVBOSource[i * 4] = start[0];
       timeVBOSource[i * 4 + 1] = start[1];
       timeVBOSource[i * 4 + 2] = end[0];
       timeVBOSource[i * 4 + 3] = end[1];
     }
-    this.timeVBO = gl.createBuffer();
+    this.timeVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.bufferData(gl.ARRAY_BUFFER, timeVBOSource, gl.STATIC_DRAW);
 
@@ -82,19 +89,18 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
     for (let i = 0; i < this.timeline.revisions.length; i++) {
       const revision = this.timeline.revisions[i];
       intStaticMetaVBOSource[i * 4] = i;
-      intStaticMetaVBOSource[i * 4 + 1] =
-        revisionStateToIndex[revision.revisionStateCssSelector];
+      intStaticMetaVBOSource[i * 4 + 1] = revision.state.id;
       intStaticMetaVBOSource[i * 4 + 2] = revision.logIndex;
-      intStaticMetaVBOSource[i * 4 + 3] = 0;
+      intStaticMetaVBOSource[i * 4 + 3] = this.timeline.type.id;
     }
-    this.intStaticMetaVBO = gl.createBuffer();
+    this.intStaticMetaVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intStaticMetaVBO);
     gl.bufferData(gl.ARRAY_BUFFER, intStaticMetaVBOSource, gl.STATIC_DRAW);
 
     this.intDynamicMetaVBOSource = new Uint32Array(
       this.timeline.revisions.length * 4,
     );
-    this.intDynamicMetaVBO = gl.createBuffer();
+    this.intDynamicMetaVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -102,8 +108,9 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
       gl.DYNAMIC_DRAW,
     );
 
-    this.revisionsVAO = gl.createVertexArray();
+    this.revisionsVAO = gl.createVertexArray()!;
     gl.bindVertexArray(this.revisionsVAO);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.vertexAttribIPointer(
       TimelineRevisionsSharedResources.VBO_LAYOUT_LOCATION_TIME,
@@ -159,7 +166,7 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL rendering context.
    * @param logElementHighlights Map of log indices to their highlight state.
-   * @param activeLogsIndices Set of log indices that are currently active(not filtered out).
+   * @param activeLogsIndices Set of log indices that are currently active (not filtered out).
    */
   updateDynamicBuffer(
     gl: WebGLRenderingContext,
@@ -193,13 +200,9 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
    * @param rect The screen rectangle where the revisions should be drawn.
    */
   renderColor(gl: WebGL2RenderingContext, rect: TimelineRect) {
-    if (!this.revisionSharedResources.revisionLayerStylesUBOs) {
-      return;
-    }
-
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // canvas expects premultiplied alpha, thus
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     this.renderInstances(
       gl,
@@ -216,10 +219,6 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
    * @param rect The screen rectangle where the hit test is being performed.
    */
   renderHittest(gl: WebGL2RenderingContext, rect: TimelineRect) {
-    if (!this.revisionSharedResources.revisionLayerStylesUBOs) {
-      return;
-    }
-
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
 
@@ -254,6 +253,15 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
       TimelineRevisionsSharedResources.UBO_BINDING_NUMBER_MSDF_ATLAS_PARAM,
       this.timelineSharedResources.uboNumberMSDFParamBuffer,
     );
+    const layerStyleUBO = this.revisionSharedResources.layerStyleUBOs.get(
+      this.timeline.type.id,
+    );
+    if (!layerStyleUBO) {
+      throw new Error(
+        `UBO for TimelineType ID ${this.timeline.type.id} not found`,
+      );
+    }
+
     gl.bindBufferBase(
       gl.UNIFORM_BUFFER,
       TimelineRevisionsSharedResources.UBO_BINDING_REVISION_STYLES,
@@ -262,7 +270,7 @@ export class TimelineRevisionsRenderer implements IDisposableRenderer {
     gl.bindBufferBase(
       gl.UNIFORM_BUFFER,
       TimelineRevisionsSharedResources.UBO_BINDING_REVISION_LAYER_STYLES,
-      this.revisionSharedResources.revisionLayerStylesUBOs[this.timeline.layer],
+      layerStyleUBO,
     );
 
     gl.activeTexture(gl.TEXTURE0);
@@ -322,21 +330,19 @@ export class TimelineRevisionsSharedResources {
   public static readonly VBO_LAYOUT_LOCATION_INT_DYNAMIC_META = 2;
 
   public revisionsColorProgram!: WebGLProgram;
-
   public revisionsHittestProgram!: WebGLProgram;
 
   /**
-   * An UBO storeing the styles for each revision state.
+   * An UBO storing the styles for each revision state.
    */
   public revisionStylesUBO!: WebGLBuffer;
 
   /**
-   * UBOs storeing styles to render revisions for each layer.
-   * Styles bound to its revision states are stored in revisionStylesUBO.
+   * An Map of UBOs storing the layout styles for each timeline layer type.
    */
-  public revisionLayerStylesUBOs!: { [key in TimelineLayer]: WebGLBuffer };
+  public readonly layerStyleUBOs = new Map<number, WebGLBuffer>();
 
-  private chartStyle!: TimelineChartStyle;
+  public chartStyle!: TimelineChartStyle;
 
   private styleUpdated = false;
 
@@ -417,7 +423,8 @@ export class TimelineRevisionsSharedResources {
       'RevisionLayerStyles',
       TimelineRevisionsSharedResources.UBO_BINDING_REVISION_LAYER_STYLES,
     );
-    this.revisionStylesUBO = gl.createBuffer();
+    this.revisionStylesUBO = gl.createBuffer()!;
+    this.layerStyleUBOs.clear();
   }
 
   /**
@@ -425,37 +432,22 @@ export class TimelineRevisionsSharedResources {
    * This includes updating colors, dimensions, and icon mappings for revision states.
    *
    * @param gl The WebGL2 rendering context.
+   * @param tmpBuffer Temporary buffer for calculations.
+   * @param styleStore The dynamic StyleStore with dynamic style values.
    */
-  beforeRender(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
+  beforeRender(
+    gl: WebGL2RenderingContext,
+    tmpBuffer: SharedTmpBuffer,
+    styleStore: StyleStoreLike,
+  ) {
     if (this.styleUpdated) {
-      this.revisionLayerStylesUBOs = {
-        [TimelineLayer.APIVersion]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.APIVersion,
-        ),
-        [TimelineLayer.Kind]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Kind,
-        ),
-        [TimelineLayer.Namespace]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Namespace,
-        ),
-        [TimelineLayer.Name]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Name,
-        ),
-        [TimelineLayer.Subresource]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Subresource,
-        ),
-      };
+      const revisionStates = styleStore.revisionStates;
       if (
         revisionStates.length >
         TimelineRevisionsSharedResources.MAX_REVISION_STATE_TYPE
       ) {
         throw new Error(
-          'Too many revision states: Consider increassing the constant variables defined in the shader.',
+          'Too many revision states: Consider increasing the constant variables defined in the shader.',
         );
       }
       const uboSource = tmpBuffer.float32Array(
@@ -463,43 +455,133 @@ export class TimelineRevisionsSharedResources {
       );
       let baseOffset = 0;
       for (let i = 0; i < revisionStates.length; i++) {
-        const color = revisionStatecolors[revisionStates[i]];
-        uboSource[baseOffset + i * 4] = color[0];
-        uboSource[baseOffset + i * 4 + 1] = color[1];
-        uboSource[baseOffset + i * 4 + 2] = color[2];
-        uboSource[baseOffset + i * 4 + 3] = 0;
+        const state = revisionStates[i];
+        const id = state.id;
+        uboSource[baseOffset + id * 4] = state.backgroundColor.r;
+        uboSource[baseOffset + id * 4 + 1] = state.backgroundColor.g;
+        uboSource[baseOffset + id * 4 + 2] = state.backgroundColor.b;
+        uboSource[baseOffset + id * 4 + 3] = 0;
       }
       baseOffset +=
         TimelineRevisionsSharedResources.MAX_REVISION_STATE_TYPE * 4;
       for (let i = 0; i < revisionStates.length; i++) {
-        const rsm = RevisionStateMetadata[i];
-        const iconCode = rsm.icon;
+        const state = revisionStates[i];
+        const iconCode = state.icon;
+        const id = state.id;
         if (iconCode !== '') {
           const iconUVSizes =
             this.timelineRendererSharedResources.getIconUVSizes(iconCode);
-          uboSource[baseOffset + i * 4] = iconUVSizes[0];
-          uboSource[baseOffset + i * 4 + 1] = iconUVSizes[1];
-          uboSource[baseOffset + i * 4 + 2] = iconUVSizes[2];
-          uboSource[baseOffset + i * 4 + 3] = iconUVSizes[3];
+          uboSource[baseOffset + id * 4] = iconUVSizes[0];
+          uboSource[baseOffset + id * 4 + 1] = iconUVSizes[1];
+          uboSource[baseOffset + id * 4 + 2] = iconUVSizes[2];
+          uboSource[baseOffset + id * 4 + 3] = iconUVSizes[3];
         }
       }
       baseOffset +=
         TimelineRevisionsSharedResources.MAX_REVISION_STATE_TYPE * 4;
       for (let i = 0; i < revisionStates.length; i++) {
-        const rsm = RevisionStateMetadata[i];
+        const state = revisionStates[i];
+        const id = state.id;
         const revisionStateStyle =
-          this.chartStyle.revisionStateStyle[rsm.style];
-        uboSource[baseOffset + i * 4] = revisionStateStyle.alphaTransparency;
-        uboSource[baseOffset + i * 4 + 1] =
-          revisionStateStyle.borderStripePatten;
-        uboSource[baseOffset + i * 4 + 2] =
+          this.chartStyle.revisionStateStyle[state.style];
+        uboSource[baseOffset + id * 4] = revisionStateStyle.alphaTransparency;
+        uboSource[baseOffset + id * 4 + 1] =
+          revisionStateStyle.borderStripePattern;
+        uboSource[baseOffset + id * 4 + 2] =
           revisionStateStyle.bodyStripePattern;
-        uboSource[baseOffset + i * 4 + 3] = 0;
+        uboSource[baseOffset + id * 4 + 3] = 0;
       }
 
       gl.bindBuffer(gl.UNIFORM_BUFFER, this.revisionStylesUBO);
       gl.bufferData(gl.UNIFORM_BUFFER, uboSource, gl.STATIC_DRAW);
       gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+      const chartStyle = this.chartStyle;
+      if (chartStyle) {
+        for (const type of styleStore.timelineTypes) {
+          let ubo = this.layerStyleUBOs.get(type.id);
+          if (!ubo) {
+            ubo = gl.createBuffer()!;
+            this.layerStyleUBOs.set(type.id, ubo);
+          }
+          const timelineHeight = type.height * BASE_ROW_HEIGHT;
+          const revisionStyle = getRevisionStyleForHeight(timelineHeight);
+          const selectionBorderColor = chartStyle.selectionBorderColor;
+          const highlightBorderColor = chartStyle.highlightBorderColor;
+
+          gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+          const STD140_PADDING_FLOAT = 0;
+          const bufferSource = new Float32Array([
+            timelineHeight,
+            revisionStyle.verticalPaddingInPx,
+            revisionStyle.borderThickness,
+            STD140_PADDING_FLOAT,
+            revisionStyle.fontPaddingInPx[0], // 16
+            revisionStyle.fontPaddingInPx[1],
+            revisionStyle.fontSizeInPx,
+            STD140_PADDING_FLOAT,
+            revisionStyle.fontThicknessBySelectionType[ // 32
+              TimelineChartItemHighlightType.None
+            ],
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            revisionStyle.fontThicknessBySelectionType[ // 48
+              TimelineChartItemHighlightType.Hovered
+            ],
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            revisionStyle.fontThicknessBySelectionType[ // 64
+              TimelineChartItemHighlightType.Selected
+            ],
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            revisionStyle.fontAntialias, // 80
+            revisionStyle.fontStepInPx,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            selectionBorderColor[0], // 96
+            selectionBorderColor[1],
+            selectionBorderColor[2],
+            revisionStyle.selectionBorderThickness,
+            highlightBorderColor[0], // 112
+            highlightBorderColor[1],
+            highlightBorderColor[2],
+            revisionStyle.hoverBorderThickness,
+            revisionStyle.iconSizeInPx, // 128
+            STD140_PADDING_FLOAT,
+            revisionStyle.iconPaddingInPx[0], // 136
+            revisionStyle.iconPaddingInPx[1],
+            revisionStyle.iconThicknessBySelectionType[ // 144
+              TimelineChartItemHighlightType.None
+            ],
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            revisionStyle.iconThicknessBySelectionType[ // 160
+              TimelineChartItemHighlightType.Hovered
+            ],
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            revisionStyle.iconThicknessBySelectionType[ // 176
+              TimelineChartItemHighlightType.Selected
+            ],
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            revisionStyle.iconAntialias, // 192
+            chartStyle.borderStripePitch,
+            chartStyle.bodyStripePitch,
+            STD140_PADDING_FLOAT,
+          ]);
+          gl.bufferData(gl.UNIFORM_BUFFER, bufferSource, gl.STATIC_DRAW);
+        }
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+      }
+
       this.styleUpdated = false;
     }
   }
@@ -515,85 +597,10 @@ export class TimelineRevisionsSharedResources {
     this.styleUpdated = true;
   }
 
-  private createStyleUBOForLayer(
-    gl: WebGL2RenderingContext,
-    layer: TimelineLayer,
-  ): WebGLBuffer {
-    const revisionStyle = this.chartStyle.revisionStylesByLayer[layer];
-    const selectionBorderColor = this.chartStyle.selectionBorderColor;
-    const highlightBorderColor = this.chartStyle.highlightBorderColor;
-    const ubo = gl.createBuffer();
-    gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
-    const timelineHeight = this.chartStyle.heightsByLayer[layer];
-    const STD140_PADDING_FLOAT = 0;
-    const bufferSource = new Float32Array([
-      timelineHeight,
-      revisionStyle.verticalPaddingInPx,
-      revisionStyle.borderThickness,
-      STD140_PADDING_FLOAT,
-      revisionStyle.fontPaddingInPx[0], // 16
-      revisionStyle.fontPaddingInPx[1],
-      revisionStyle.fontSizeInPx,
-      STD140_PADDING_FLOAT,
-      revisionStyle.fontThicknessBySelectionType[ // 32
-        TimelineChartItemHighlightType.None
-      ],
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      revisionStyle.fontThicknessBySelectionType[ // 48
-        TimelineChartItemHighlightType.Hovered
-      ],
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      revisionStyle.fontThicknessBySelectionType[ // 64
-        TimelineChartItemHighlightType.Selected
-      ],
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      revisionStyle.fontAntialias, // 80
-      revisionStyle.fontStepInPx,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      selectionBorderColor[0], // 96
-      selectionBorderColor[1],
-      selectionBorderColor[2],
-      revisionStyle.selectionBorderThickness,
-      highlightBorderColor[0], // 112
-      highlightBorderColor[1],
-      highlightBorderColor[2],
-      revisionStyle.hoverBorderThickness,
-      revisionStyle.iconSizeInPx, // 128
-      STD140_PADDING_FLOAT,
-      revisionStyle.iconPaddingInPx[0], // 136
-      revisionStyle.iconPaddingInPx[1],
-      revisionStyle.iconThicknessBySelectionType[ // 144
-        TimelineChartItemHighlightType.None
-      ],
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      revisionStyle.iconThicknessBySelectionType[ // 160
-        TimelineChartItemHighlightType.Hovered
-      ],
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      revisionStyle.iconThicknessBySelectionType[ // 176
-        TimelineChartItemHighlightType.Selected
-      ],
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      revisionStyle.iconAntialias, // 192
-      this.chartStyle.borderStripePitch,
-      this.chartStyle.bodyStripePitch,
-      STD140_PADDING_FLOAT,
-    ]);
-    gl.bufferData(gl.UNIFORM_BUFFER, bufferSource, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-    return ubo;
+  /**
+   * Invalidates cached styles, forcing UBOs to rebuild on next frame.
+   */
+  invalidateStyles() {
+    this.styleUpdated = true;
   }
 }

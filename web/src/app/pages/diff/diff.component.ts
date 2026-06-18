@@ -20,7 +20,6 @@ import { SideBySideDiffComponent } from 'ngx-diff';
 import { map } from 'rxjs';
 import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { DiffPageDataSource } from 'src/app/services/frame-connection/frames/diff-page-datasource.service';
-import { TimelineLayer } from 'src/app/store/timeline';
 import { DiffToolbarComponent } from 'src/app/diff/components/diff-toolbar.component';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
@@ -46,38 +45,27 @@ export class DiffComponent {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
 
-  timeline = toSignal(
-    this.diffPageSource.data$.pipe(map((data) => data.timeline)),
-    { initialValue: null },
+  timelinePath = toSignal(
+    this.diffPageSource.data$.pipe(map((data) => data.timelinePath)),
+    { initialValue: [] },
   );
 
-  protected readonly kind = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Kind);
+  protected readonly pathNodes = computed(() => {
+    return this.timelinePath().map((node) => ({
+      label: node.type.label,
+      value: node.label,
+      icon: node.type.icon || 'label',
+    }));
   });
 
-  protected readonly namespace = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Namespace);
+  private readonly data = toSignal(this.diffPageSource.data$, {
+    initialValue: null,
   });
-
-  protected readonly name = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Name);
-  });
-
-  protected readonly subresource = computed(() => {
-    return this.timeline()?.getNameOfLayer(TimelineLayer.Subresource);
-  });
-
-  changePair = this.diffPageSource.data$.pipe(
-    map((data) => data.timeline.getRevisionPairByLogId(data.logIndex)),
-  );
-
-  changePairSignal = toSignal(this.changePair);
 
   showManagedFields = model(false);
 
   currentContent = computed(() => {
-    const originalContent =
-      this.changePairSignal()?.current.resourceContent ?? '';
+    const originalContent = this.data()?.currentContent ?? '';
     if (this.showManagedFields()) {
       return originalContent;
     }
@@ -85,8 +73,7 @@ export class DiffComponent {
   });
 
   previousContent = computed(() => {
-    const originalContent =
-      this.changePairSignal()?.previous?.resourceContent ?? '';
+    const originalContent = this.data()?.previousContent ?? '';
     if (this.showManagedFields()) {
       return originalContent;
     }

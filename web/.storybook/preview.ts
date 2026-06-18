@@ -30,4 +30,10 @@ const preview: Preview = {
   },
 };
 
+// Workaround to use BigInt in Storybook.
+// Ref: https://github.com/storybookjs/storybook/issues/22452#issuecomment-1538474857
+(window.BigInt.prototype as any).toJSON = function () {
+  return this.toString();
+};
+
 export default preview;

@@ -15,12 +15,10 @@
 package googlecloudlogk8snode_contract
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -47,13 +45,6 @@ func (k *K8sNodeLogCommonFieldSet) ParserType() K8sNodeParserType {
 	default:
 		return Other
 	}
-}
-
-func (k *K8sNodeLogCommonFieldSet) ResourcePath() resourcepath.ResourcePath {
-	if k.Component == "kube-proxy" {
-		return resourcepath.Pod("kube-system", fmt.Sprintf("kube-proxy-%s", k.NodeName))
-	}
-	return resourcepath.NodeComponent(k.NodeName, k.Component)
 }
 
 // Kind implements log.FieldSet.

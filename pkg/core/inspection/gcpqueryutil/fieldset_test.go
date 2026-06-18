@@ -18,23 +18,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 func TestGCPCommonFieldSet(t *testing.T) {
 	testCase := []struct {
 		Name              string
-		ExpectedSeverity  enum.Severity
 		ExpectedTimestamp time.Time
-		ExpectedDisplayID string
 		InputYAML         string
 	}{
 		{
 			Name:              "from a standard GCP log",
-			ExpectedSeverity:  enum.SeverityInfo,
 			ExpectedTimestamp: time.Date(2025, time.January, 2, 1, 2, 3, 0, time.UTC),
-			ExpectedDisplayID: "foo",
 			InputYAML: `insertId: foo
 severity: INFO
 timestamp: 2025-01-02T01:02:03.000Z`,
@@ -51,112 +46,9 @@ timestamp: 2025-01-02T01:02:03.000Z`,
 			if err != nil {
 				t.Fatalf("failed to extract gcp common fields: %v", err)
 			}
-			if gcpCommonField.Severity != tc.ExpectedSeverity {
-				t.Errorf("expected severity: %v, got: %v", tc.ExpectedSeverity, gcpCommonField.Severity)
-			}
 			if gcpCommonField.Timestamp != tc.ExpectedTimestamp {
 				t.Errorf("expected timestamp: %v, got: %v", tc.ExpectedTimestamp, gcpCommonField.Timestamp)
 			}
-			if gcpCommonField.DisplayID != tc.ExpectedDisplayID {
-				t.Errorf("expected displayID: %v, got: %v", tc.ExpectedDisplayID, gcpCommonField.DisplayID)
-			}
 		})
 	}
-}
-
-func TestGCPMainMessageFieldSet(t *testing.T) {
-	testCase := []struct {
-		Name                string
-		ExpectedMainMessage string
-		InputYAML           string
-	}{
-		{
-			Name:                "from textPayload field",
-			ExpectedMainMessage: "foo",
-			InputYAML:           `textPayload: foo`,
-		},
-		{
-			Name:                "from jsonPayload.message field",
-			ExpectedMainMessage: "bar",
-			InputYAML: `jsonPayload:
-  message: bar`,
-		},
-		{
-			Name:                "from jsonPayload.MESSAGE field",
-			ExpectedMainMessage: "bar",
-			InputYAML: `jsonPayload:
-  MESSAGE: bar`,
-		},
-		{
-			Name:                "from jsonPayload.msg field",
-			ExpectedMainMessage: "bar",
-			InputYAML: `jsonPayload:
-  msg: bar`,
-		},
-		{
-			Name:                "from jsonPayload.log field",
-			ExpectedMainMessage: "bar",
-			InputYAML: `jsonPayload:
-  log: bar`,
-		},
-		{
-			Name:                "from the whole jsonPayload field",
-			ExpectedMainMessage: `{"foo":"bar"}`,
-			InputYAML: `jsonPayload:
-  foo: bar`,
-		},
-		{
-			Name:                "from the whole labels field",
-			ExpectedMainMessage: `{"foo":"bar"}`,
-			InputYAML: `labels:
-  foo: bar`,
-		},
-		{
-			Name:                "ignore when the message is protoPayload even labels are provided",
-			ExpectedMainMessage: "",
-			InputYAML: `labels:
-  foo: bar
-protoPayload:
-  qux: quux`,
-		},
-		{
-			Name:                "empty if no proper field is given",
-			ExpectedMainMessage: "",
-			InputYAML:           `foo: bar`,
-		},
-		{
-			Name:                "prioritize textPayload rather than jsonPayload.msg or labels",
-			ExpectedMainMessage: "bar",
-			InputYAML: `jsonPayload:
-  msg: foo
-textPayload: bar
-labels:
-  qux: quux`,
-		},
-		{
-			Name:                "prioritize jsonPayload.msg over labels",
-			ExpectedMainMessage: "foo",
-			InputYAML: `jsonPayload:
-  msg: foo
-labels:
-  qux: quux`,
-		},
-	}
-	for _, tc := range testCase {
-		t.Run(tc.Name, func(t *testing.T) {
-			l, err := log.NewLogFromYAMLString(tc.InputYAML)
-			if err != nil {
-				t.Fatalf("failed to parse log from yaml: %v", err)
-			}
-			l.SetFieldSetReader(&GCPMainMessageFieldSetReader{})
-			gcpMainMessageField, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
-			if err != nil {
-				t.Fatalf("failed to extract gcp main message field: %v", err)
-			}
-			if gcpMainMessageField.MainMessage != tc.ExpectedMainMessage {
-				t.Errorf("expected main message: %v, got: %v", tc.ExpectedMainMessage, gcpMainMessageField.MainMessage)
-			}
-		})
-	}
-
 }

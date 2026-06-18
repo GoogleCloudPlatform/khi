@@ -29,7 +29,7 @@ limitations under the License.
   <khi-resource-reference-list
     [refs]="vm.resourceRefs"
     [selectedTimeline]="selectedTimeline()"
-    (resourceSelected)="resourceSelected.emit($event)"
-    (resourceHighlighted)="resourceHighlighted.emit($event)"
+    (timelineSelected)="timelineSelected.emit($event)"
+    (timelineHighlighted)="timelineHighlighted.emit($event)"
   ></khi-resource-reference-list>
 </div>

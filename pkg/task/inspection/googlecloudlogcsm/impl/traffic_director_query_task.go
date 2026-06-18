@@ -22,7 +22,6 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogcsm_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogcsm/contract"
@@ -48,8 +47,8 @@ func (s *CSMTrafficDirectorListLogEntryTaskSetting) Dependencies() []taskid.Unty
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (s *CSMTrafficDirectorListLogEntryTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeAudit,
-		QueryName:      "CSM Traffic Director logs",
+
+		QueryName: "CSM Traffic Director logs",
 		ExampleQuery: `(log_id("cloudaudit.googleapis.com/activity") OR log_id("cloudaudit.googleapis.com/data_access"))
   protoPayload.resourceName: "gsmrsvd-XXXX" -- XXXX part will be generated from other log parsing result
   resource.labels.project_id="fleet-project"`,

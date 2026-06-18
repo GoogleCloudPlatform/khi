@@ -51,7 +51,12 @@
         (scrollOnRuler)="onWheelForScaling($event)"
       ></khi-timeline-ruler>
     </div>
-    <div class="chart-sticky-header" [style.height.px]="stickyHeaderHeight()">
+    <div
+      class="chart-sticky-header"
+      [style.height.px]="stickyHeaderHeight()"
+      (mouseenter)="mouseEnterChart.emit(); mouseEnterStickyHeader.emit()"
+      (mouseleave)="mouseLeaveChart.emit(); mouseLeaveStickyHeader.emit()"
+    >
       <khi-timeline-chart
         [style.height.px]="maxStickyHeaderHeight()"
         [chartViewModel]="stickyChartViewModel()"
@@ -77,6 +82,7 @@
         <khi-timeline-index
           class="index-content"
           [timelines]="visibleTimelines()"
+          [styleStore]="styleStore()"
           (hoverOnTimeline)="
             handleTimelineEventForIndex($event, hoverOnTimeline)
           "
@@ -105,7 +111,6 @@
       >
         <khi-timeline-hover-overlay
           [timelineHoverOverlay]="timelineHoverOverlay()"
-          [logs]="allLogsWithoutFilter()"
           [timezoneShiftHours]="timezoneShiftHours()"
           [highlights]="timelineChartItemHighlights()"
           (hoverOnElement)="
@@ -118,7 +123,11 @@
       </div>
     }
 
-    <div class="chart">
+    <div
+      class="chart"
+      (mouseenter)="mouseEnterChart.emit()"
+      (mouseleave)="mouseLeaveChart.emit()"
+    >
       <div class="chart-inner">
         <khi-timeline-chart
           [chartViewModel]="chartViewModel()"
@@ -154,6 +163,7 @@
           <khi-timeline-index
             class="index-content"
             [timelines]="stickyTimelines()"
+            [styleStore]="styleStore()"
             (hoverOnTimeline)="
               handleTimelineEventForIndex($event, hoverOnTimeline)
             "

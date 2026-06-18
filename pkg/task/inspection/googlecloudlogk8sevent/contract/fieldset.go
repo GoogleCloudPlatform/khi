@@ -20,11 +20,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
 type KubernetesEventFieldSet struct {
+	ProjectID    string
 	ClusterName  string
 	APIVersion   string
 	ResourceKind string
@@ -32,13 +32,6 @@ type KubernetesEventFieldSet struct {
 	Resource     string
 	Reason       string
 	Message      string
-}
-
-func (k *KubernetesEventFieldSet) ResourcePath() resourcepath.ResourcePath {
-	if k.Resource == "" {
-		return resourcepath.Cluster(k.ClusterName)
-	}
-	return resourcepath.NameLayerGeneralItem(k.APIVersion, k.ResourceKind, k.Namespace, k.Resource)
 }
 
 // Kind implements log.FieldSet.
@@ -59,6 +52,7 @@ func (g *GCPKubernetesEventFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (g *GCPKubernetesEventFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result KubernetesEventFieldSet
+	result.ProjectID = reader.ReadStringOrDefault("resource.labels.project_id", "unknown")
 	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	// Event exporter ingests cluster scoped logs without jsonPayload at the beginning
 	if reader.Has("textPayload") {

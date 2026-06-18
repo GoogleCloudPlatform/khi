@@ -18,8 +18,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/k8s"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
@@ -27,7 +26,7 @@ import (
 )
 
 type testGroupManifestGeneratorInput struct {
-	op           *model.KubernetesObjectOperation
+	verb         *pb.Verb
 	requestYAML  string
 	responseYAML string
 }
@@ -43,9 +42,7 @@ func TestGroupManifestGenerator(t *testing.T) {
 			desc: "update must override existing values",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -53,9 +50,7 @@ metadata:
     foo: bar`,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -82,9 +77,7 @@ metadata:
 			desc: "simple patch request",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -92,9 +85,7 @@ metadata:
     foo: bar`,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbPatch,
-					},
+					verb: commonlogk8saudit_contract.VerbPatch,
 					requestYAML: `metadata:
   labels:
     qux: quux`,
@@ -120,9 +111,7 @@ metadata:
 			desc: "delete responded with deleteOptions must retain the previous merged result",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -130,9 +119,7 @@ metadata:
     foo: bar`,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbDelete,
-					},
+					verb: commonlogk8saudit_contract.VerbDelete,
 					responseYAML: `apiVersion: meta.k8s.io/__internal
 kind: DeleteOptions
 `,
@@ -155,9 +142,7 @@ metadata:
 			desc: "response with Status must use request",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -165,9 +150,7 @@ metadata:
     foo: bar`,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbPatch,
-					},
+					verb: commonlogk8saudit_contract.VerbPatch,
 					responseYAML: `apiVersion: v1
 kind: Status`,
 					requestYAML: `metadata:
@@ -195,9 +178,7 @@ metadata:
 			resourceName: "test-pod",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbDelete,
-					},
+					verb: commonlogk8saudit_contract.VerbDelete,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -206,9 +187,7 @@ metadata:
     foo: bar`,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbDeleteCollection,
-					},
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					responseYAML: `apiVersion: v1
 kind: PodList
 items:
@@ -243,9 +222,7 @@ metadata:
 			resourceName: "test-pod",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbDeleteCollection,
-					},
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					responseYAML: `apiVersion: v1
 kind: PodList
 items:
@@ -272,9 +249,7 @@ items:
 			resourceName: "test-pod",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbDelete,
-					},
+					verb: commonlogk8saudit_contract.VerbDelete,
 					responseYAML: `apiVersion: v1
 kind: Pod
 metadata:
@@ -283,9 +258,7 @@ metadata:
     foo: bar`,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbDeleteCollection,
-					},
+					verb: commonlogk8saudit_contract.VerbDeleteCollection,
 					responseYAML: `apiVersion: meta.k8s.io/__internal
 kind: DeleteOptions`,
 				},
@@ -310,14 +283,10 @@ metadata:
 			desc: "metadata level requests",
 			inputs: []*testGroupManifestGeneratorInput{
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 				},
 				{
-					op: &model.KubernetesObjectOperation{
-						Verb: enum.RevisionVerbUpdate,
-					},
+					verb: commonlogk8saudit_contract.VerbUpdate,
 				},
 			},
 			wantBodies: []string{
@@ -345,10 +314,12 @@ metadata:
 					}
 					response = structured.NewNodeReader(node)
 				}
+				verb := input.verb
 				logs = append(logs, log.NewLogWithFieldSetsForTest(&commonlogk8saudit_contract.K8sAuditLogFieldSet{
-					K8sOperation: input.op,
-					Request:      request,
-					Response:     response,
+					ClusterName: "k8s",
+					Verb:        verb,
+					Request:     request,
+					Response:    response,
 				}))
 			}
 

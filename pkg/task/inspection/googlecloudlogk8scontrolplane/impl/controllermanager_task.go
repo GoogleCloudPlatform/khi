@@ -22,11 +22,10 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogk8scontrolplane_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogk8scontrolplane/contract"
 )
 
@@ -91,63 +90,71 @@ var ControllerManagerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-var ControllerManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID, &controllerManagerLogToTimelineMapperTaskSetting{})
+var ControllerManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID, &ControllerManagerTimelineMapper{})
 
-type controllerManagerLogToTimelineMapperTaskSetting struct {
+// ControllerManagerTimelineMapper maps controller manager logs to timeline paths.
+type ControllerManagerTimelineMapper struct {
+	inspectiontaskbase.StatelessMapperBase
 	uidPrefixTokenCandidates []rune
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
-func (o *controllerManagerLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *ControllerManagerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *controllerManagerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *ControllerManagerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8scontrolplane_contract.ControllerManagerLogGrouperTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
-func (o *controllerManagerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
-func (o *controllerManagerLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevGroupData struct{}) (struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
 	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
 	if err != nil {
-		return struct{}{}, err
+		return nil, struct{}{}, err
 	}
 	commonMainMessage, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneCommonMessageFieldSet{})
 	if err != nil {
-		return struct{}{}, err
+		return nil, struct{}{}, err
 	}
 	controllerManagerFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControllerManagerComponentFieldSet{})
 	if err != nil {
-		return struct{}{}, err
+		return nil, struct{}{}, err
 	}
 
+	cs := khifilev6.NewTimelineChangeSet(l)
 	resources := patternfinder.FindAllWithStarterRunes(commonMainMessage.Message, finder, false, o.uidPrefixTokenCandidates...)
-	writtenResourcePaths := map[string]struct{}{}
-	cs.SetLogSummary(commonMainMessage.Message)
-	cs.AddEvent(controllerManagerFieldSet.ControlPlaneResourcePath(componentFieldSet.ClusterName))
-	for _, resourcePath := range controllerManagerFieldSet.AssociatedResources {
-		cs.AddEvent(resourcePath)
-		writtenResourcePaths[resourcePath.Path] = struct{}{}
+	writtenResourcePaths := map[uint32]struct{}{}
+
+	projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, componentFieldSet.ProjectID)
+	gkeTimeline := googlecloudcommon_contract.MustGKEClusterTimeline(ctx, projectTimeline, componentFieldSet.ClusterName)
+	compTimeline := googlecloudlogk8scontrolplane_contract.MustControllerManagerControlPlaneTimeline(ctx, gkeTimeline, controllerManagerFieldSet.Controller)
+	cs.AddEvent(compTimeline)
+
+	for _, tPath := range controllerManagerFieldSet.AssociatedResourceTimelines(ctx, componentFieldSet.ClusterName) {
+		cs.AddEvent(tPath)
+		writtenResourcePaths[tPath.ID] = struct{}{}
 	}
+
 	for _, resource := range resources {
-		path := resource.Value.ResourcePathString()
-		if _, ok := writtenResourcePaths[path]; ok {
+		tPath := commonlogk8saudit_contract.MustResourceTimeline(ctx, componentFieldSet.ClusterName, resource.Value)
+		if _, ok := writtenResourcePaths[tPath.ID]; ok {
 			continue
 		}
-		cs.AddEvent(resourcepath.ResourcePath{
-			Path:               path,
-			ParentRelationship: enum.RelationshipChild,
-		})
-		writtenResourcePaths[path] = struct{}{}
+		cs.AddEvent(tPath)
+		writtenResourcePaths[tPath.ID] = struct{}{}
 	}
-	return struct{}{}, nil
+
+	return cs, struct{}{}, nil
 }
+
+var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*ControllerManagerTimelineMapper)(nil)

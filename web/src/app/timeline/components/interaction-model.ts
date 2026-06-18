@@ -40,7 +40,7 @@ export enum TimelineHighlightType {
  * A map associating timeline IDs with their current highlighting state.
  * TimelineHighlightType.None is used for undefined values.
  */
-export type TimelineHighlight = { [timelineId: string]: TimelineHighlightType };
+export type TimelineHighlight = { [timelineId: number]: TimelineHighlightType };
 
 /**
  * Defines the highlighting state of an individual item (event or revision) on the chart.

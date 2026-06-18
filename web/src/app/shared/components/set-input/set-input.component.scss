@@ -25,6 +25,11 @@ mat-form-field {
   --mat-form-field-container-vertical-padding: 4px;
 }
 
+.chip-grid {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 .buttons {
   display: flex;
   gap: 10px;

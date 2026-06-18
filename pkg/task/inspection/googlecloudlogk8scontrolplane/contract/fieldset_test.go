@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -40,6 +40,7 @@ resource:
     component_name: "kube-apiserver"
 `,
 			want: &K8sControlplaneComponentFieldSet{
+				ProjectID:     "unknown",
 				ClusterName:   "test-cluster",
 				ComponentName: "kube-apiserver",
 			},
@@ -52,6 +53,7 @@ resource:
     foo: bar
 `,
 			want: &K8sControlplaneComponentFieldSet{
+				ProjectID:     "unknown",
 				ClusterName:   "unknown",
 				ComponentName: "",
 			},
@@ -226,20 +228,30 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	testCases := []struct {
 		desc  string
 		input string
-		want  []resourcepath.ResourcePath
+		want  []*commonlogk8saudit_contract.ResourceIdentity
 	}{
 		{
 			desc:  "with kind and namespaced key",
 			input: `"Finished syncing" kind="Pod" key="default/my-pod"`,
-			want: []resourcepath.ResourcePath{
-				resourcepath.NameLayerGeneralItem("core/v1", "pod", "default", "my-pod"),
+			want: []*commonlogk8saudit_contract.ResourceIdentity{
+				{
+					APIVersion: "core/v1",
+					Kind:       "pod",
+					Namespace:  "default",
+					Name:       "my-pod",
+				},
 			},
 		},
 		{
 			desc:  "with kind and cluster-scoped key",
 			input: `"Finished syncing" kind="Node" key="my-node"`,
-			want: []resourcepath.ResourcePath{
-				resourcepath.NameLayerGeneralItem("core/v1", "node", "cluster-scope", "my-node"),
+			want: []*commonlogk8saudit_contract.ResourceIdentity{
+				{
+					APIVersion: "core/v1",
+					Kind:       "node",
+					Namespace:  "cluster-scope",
+					Name:       "my-node",
+				},
 			},
 		},
 		{
@@ -290,29 +302,54 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	testCases := []struct {
 		desc  string
 		input string
-		want  []resourcepath.ResourcePath
+		want  []*commonlogk8saudit_contract.ResourceIdentity
 	}{
 		{
 			desc:  "with multiple resources",
 			input: `"Finished syncing" pod="default/my-job" node="node-foo"`,
-			want: []resourcepath.ResourcePath{
-				resourcepath.NameLayerGeneralItem("core/v1", "pod", "default", "my-job"),
-				resourcepath.NameLayerGeneralItem("core/v1", "node", "cluster-scope", "node-foo"),
+			want: []*commonlogk8saudit_contract.ResourceIdentity{
+				{
+					APIVersion: "core/v1",
+					Kind:       "pod",
+					Namespace:  "default",
+					Name:       "my-job",
+				},
+				{
+					APIVersion: "core/v1",
+					Kind:       "node",
+					Namespace:  "cluster-scope",
+					Name:       "node-foo",
+				},
 			},
 		},
 		{
 			desc:  "with single resource",
 			input: `"Finished syncing" pod="default/my-job"`,
-			want: []resourcepath.ResourcePath{
-				resourcepath.NameLayerGeneralItem("core/v1", "pod", "default", "my-job"),
+			want: []*commonlogk8saudit_contract.ResourceIdentity{
+				{
+					APIVersion: "core/v1",
+					Kind:       "pod",
+					Namespace:  "default",
+					Name:       "my-job",
+				},
 			},
 		},
 		{
 			desc:  "with kind and cluster-scoped key and longer name",
 			input: `"attacherDetacher.DetachVolume started" logger="persistentvolume-attach-detach-controller" node="node-foo" volumeName="kubernetes.io/csi/pd.csi.storage.gke.io^projects/UNSPECIFIED/zones/us-central1-a/disks/pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d"`,
-			want: []resourcepath.ResourcePath{
-				resourcepath.NameLayerGeneralItem("core/v1", "node", "cluster-scope", "node-foo"),
-				resourcepath.NameLayerGeneralItem("core/v1", "persistentvolume", "cluster-scope", "pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d"),
+			want: []*commonlogk8saudit_contract.ResourceIdentity{
+				{
+					APIVersion: "core/v1",
+					Kind:       "node",
+					Namespace:  "cluster-scope",
+					Name:       "node-foo",
+				},
+				{
+					APIVersion: "core/v1",
+					Kind:       "persistentvolume",
+					Namespace:  "cluster-scope",
+					Name:       "pvc-fe42fc7f-7618-4d3b-94d1-a2490cfd009d",
+				},
 			},
 		},
 		{
@@ -348,7 +385,9 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 
 			klogParser := logutil.NewKLogTextParser(false)
 			paths := reader.readResourceAssociationFromControllerSpecificField(klogParser.TryParse(tc.input))
-			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b resourcepath.ResourcePath) int { return strings.Compare(a.Path, b.Path) })); diff != "" {
+			if diff := cmp.Diff(tc.want, paths, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.ResourceIdentity) int {
+				return strings.Compare(a.String(), b.String())
+			})); diff != "" {
 				t.Errorf("readResourceAssociationFromControllerSpecificField() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -359,37 +398,52 @@ func TestK8sControllerManagerComponentFieldSetReader_ReadResourceAssociationFrom
 	testCases := []struct {
 		desc  string
 		input string
-		want  resourcepath.ResourcePath
+		want  *commonlogk8saudit_contract.ResourceIdentity
 	}{
 		{
 			desc:  "valid item field - namespaced",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[coordination.k8s.io/v1/Lease, namespace: kube-node-lease, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want:  resourcepath.NameLayerGeneralItem("coordination.k8s.io/v1", "lease", "kube-node-lease", "gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v"),
+			want: &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: "coordination.k8s.io/v1",
+				Kind:       "lease",
+				Namespace:  "kube-node-lease",
+				Name:       "gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v",
+			},
 		},
 		{
 			desc:  "valid item field - cluster-scoped",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[rbac.authorization.k8s.io/v1/ClusterRole, namespace: , name: admin, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want:  resourcepath.NameLayerGeneralItem("rbac.authorization.k8s.io/v1", "clusterrole", "cluster-scope", "admin"),
+			want: &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "clusterrole",
+				Namespace:  "cluster-scope",
+				Name:       "admin",
+			},
 		},
 		{
 			desc:  "valid item field - in core api version",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[v1/Pod, namespace: kube-system, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want:  resourcepath.NameLayerGeneralItem("core/v1", "pod", "kube-system", "gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v"),
+			want: &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "kube-system",
+				Name:       "gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v",
+			},
 		},
 		{
 			desc:  "item field missing",
 			input: `"Deleting item" logger="garbage-collector-controller" propagationPolicy="Background"`,
-			want:  resourcepath.ResourcePath{},
+			want:  nil,
 		},
 		{
 			desc:  "item field malformed",
 			input: `"Deleting item" logger="garbage-collector-controller" item="malformed-item" propagationPolicy="Background"`,
-			want:  resourcepath.ResourcePath{},
+			want:  nil,
 		},
 		{
 			desc:  "item field malformed - no slash contained in apiVersion",
 			input: `"Deleting item" logger="garbage-collector-controller" item="[Pod, namespace: kube-system, name: gke-p0-gke-basic-1-default-pool-4ca7ca8d-2k4v, uid: 8aba20bf-0392-40c9-ae35-240b7c099523]" propagationPolicy="Background"`,
-			want:  resourcepath.ResourcePath{},
+			want:  nil,
 		},
 	}
 	for _, tc := range testCases {

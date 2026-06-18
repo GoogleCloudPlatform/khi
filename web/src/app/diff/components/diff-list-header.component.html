@@ -15,36 +15,11 @@ limitations under the License.
 -->
 
 <div class="diff-timeline-annotators">
-  @let k = kind();
-  @if (k) {
+  @for (node of pathNodes(); track node.label + ":" + node.value) {
     <khi-copiable-key-value
-      icon="workspaces"
-      label="Kind"
-      [value]="k"
-    ></khi-copiable-key-value>
-  }
-  @let ns = namespace();
-  @if (ns) {
-    <khi-copiable-key-value
-      icon="folder"
-      label="Namespace"
-      [value]="ns"
-    ></khi-copiable-key-value>
-  }
-  @let n = name();
-  @if (n) {
-    <khi-copiable-key-value
-      icon="description"
-      label="Name"
-      [value]="n"
-    ></khi-copiable-key-value>
-  }
-  @let sub = subresource();
-  @if (sub) {
-    <khi-copiable-key-value
-      icon="page_info"
-      label="Subresource"
-      [value]="sub"
+      [icon]="node.icon"
+      [label]="node.label"
+      [value]="node.value"
     ></khi-copiable-key-value>
   }
 </div>

@@ -1,0 +1,63 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<h2 mat-dialog-title class="dialog-title">
+  <mat-icon class="title-icon">palette</mat-icon>
+  <span class="title-text">
+    Style Override Settings
+    <span class="title-badge">For developers</span>
+  </span>
+</h2>
+
+<mat-dialog-content class="dialog-content">
+  <div class="subtitle">
+    This UI is for currently for developers to adjust styles interactively.
+  </div>
+
+  <mat-tab-group mat-stretch-tabs="false" animationDuration="150ms">
+    <mat-tab label="Revision States">
+      <div class="tab-body-container">
+        <khi-revision-state-override-list
+          [revisionStates]="revisionStates()"
+          (colorChange)="revisionStateColorChange.emit($event)"
+          (resetColor)="revisionStateResetColor.emit($event)"
+        ></khi-revision-state-override-list>
+      </div>
+    </mat-tab>
+    <mat-tab label="Timeline Types">
+      <div class="tab-body-container">
+        <khi-timeline-type-override-list
+          [timelineTypes]="timelineTypes()"
+          (propertyChange)="timelineTypePropertyChange.emit($event)"
+          (resetColor)="timelineTypeResetColor.emit($event)"
+        ></khi-timeline-type-override-list>
+      </div>
+    </mat-tab>
+    <mat-tab label="Log Types">
+      <div class="tab-body-container">
+        <khi-log-type-override-list
+          [logTypes]="logTypes()"
+          (propertyChange)="logTypePropertyChange.emit($event)"
+          (resetColor)="logTypeResetColor.emit($event)"
+        ></khi-log-type-override-list>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="dialog-actions">
+  <button mat-button mat-dialog-close color="primary">Close</button>
+</mat-dialog-actions>

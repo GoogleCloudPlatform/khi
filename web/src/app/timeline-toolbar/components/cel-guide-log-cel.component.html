@@ -1,0 +1,118 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ you may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="guide-content">
+  <p>
+    Log CEL expressions filter individual logs that appear in the timelines.
+    Logs that do not match the expression are grayed out.
+  </p>
+
+  <div class="section-block">
+    <h3>Examples</h3>
+    <div class="example-list">
+      <div class="example-card">
+        <span class="example-label"
+          >Filter by log severity level equal or greater than WARNING</span
+        >
+        <code>severity >= WARNING</code>
+      </div>
+
+      <div class="example-card">
+        <span class="example-label"
+          >Filter by nested operation ID in the log body</span
+        >
+        <code>body('operation.id', 'operation-123')</code>
+      </div>
+      <div class="example-card">
+        <span class="example-label"
+          >Filter by summary containing 'error' (case-insensitive)</span
+        >
+        <code>summary.contains('error')</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-block">
+    <h3>Helper Functions</h3>
+    <table class="guide-table">
+      <thead>
+        <tr>
+          <th>Function</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>body(value)</code><br /><code>B(value)</code></td>
+          <td>
+            Checks if any key or value in the body contains the pattern
+            case-insensitively.
+          </td>
+        </tr>
+        <tr>
+          <td><code>body(key, value)</code><br /><code>B(key, value)</code></td>
+          <td>
+            Checks if a specific dot-separated path in the body (e.g.
+            <code>operation.id</code>) matches the pattern.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-block">
+    <h3>Variables Available</h3>
+    <table class="guide-table">
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>logType</code></td>
+          <td><code>string</code></td>
+          <td>Type of log (e.g. <code>audit</code>, <code>event</code>).</td>
+        </tr>
+        <tr>
+          <td><code>severity</code></td>
+          <td><code>int</code></td>
+          <td>
+            Severity level (e.g. <code>INFO</code>, <code>WARNING</code>,
+            <code>ERROR</code>, <code>FATAL</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><code>summary</code></td>
+          <td><code>string</code></td>
+          <td>A brief text summary of the log.</td>
+        </tr>
+        <tr>
+          <td><code>body</code></td>
+          <td><code>map</code></td>
+          <td>The parsed structured JSON body of the log.</td>
+        </tr>
+        <tr>
+          <td><code>bodyYAML</code></td>
+          <td><code>string</code></td>
+          <td>The entire log body represented as YAML.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

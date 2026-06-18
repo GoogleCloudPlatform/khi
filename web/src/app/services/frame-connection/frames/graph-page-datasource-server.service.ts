@@ -18,47 +18,57 @@ import {
   GRAPH_PAGE_OPEN,
   UPDATE_GRAPH_DATA,
 } from 'src/app/common/schema/inter-window-messages';
-import { GraphDataConverterService } from '../../graph-converter.service';
-import { SelectionManagerService } from '../../selection-manager.service';
-import { WindowConnectorService } from '../window-connector.service';
-import { withLatestFrom } from 'rxjs';
+import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
+import { WindowConnectorService } from 'src/app/services/frame-connection/window-connector.service';
 import { Injectable, inject } from '@angular/core';
-import { UpdateGraphMessage } from './graph-page-datasource.service';
-import {
-  DEFAULT_TIMELINE_FILTER,
-  TimelineFilter,
-} from '../../timeline-filter.service';
+import { UpdateGraphMessage } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
+
+import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+
+import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
 
 @Injectable()
 export class GraphPageDataSourceServer {
   private readonly graphConverter = inject(GraphDataConverterService);
   private readonly connector = inject(WindowConnectorService);
-  private readonly selectionManager = inject(SelectionManagerService);
-  private readonly filter = inject<TimelineFilter>(DEFAULT_TIMELINE_FILTER);
+  private readonly store = inject(InspectionDataStoreV2);
+  private readonly selectionManager = inject(SelectionManagerV2);
 
+  private abortController?: AbortController;
+
+  /**
+   * Activates the server by listening to graph page open requests and responding with generated graph data asynchronously.
+   */
   public activate() {
-    this.connector
-      .receiver(GRAPH_PAGE_OPEN)
-      .pipe(
-        withLatestFrom(
-          this.selectionManager.selectedLog,
-          this.filter.filteredTimeline,
-        ),
-      )
-      .subscribe(([message, log, timeline]) => {
-        if (log && timeline) {
-          const graphData = this.graphConverter.getGraphDataAt(
-            timeline,
-            log.time,
-          );
-          this.connector.unicast<UpdateGraphMessage>(
-            UPDATE_GRAPH_DATA,
-            {
-              graphData,
-            },
-            message.sourceFrameId!,
-          );
+    this.connector.receiver(GRAPH_PAGE_OPEN).subscribe(async (message) => {
+      const log = this.selectionManager.selectedLog();
+      const timelineView = this.store.timelineView();
+      if (log && timelineView) {
+        if (this.abortController) {
+          this.abortController.abort();
         }
-      });
+        const controller = new AbortController();
+        this.abortController = controller;
+
+        try {
+          const graphData = await this.graphConverter.getGraphDataAt(
+            timelineView.filteredTimelines(),
+            log.timestamp,
+            controller.signal,
+          );
+          if (!controller.signal.aborted) {
+            this.connector.unicast<UpdateGraphMessage>(
+              UPDATE_GRAPH_DATA,
+              {
+                graphData,
+              },
+              message.sourceFrameId!,
+            );
+          }
+        } catch {
+          // Ignore cancellation error
+        }
+      }
+    });
   }
 }
