@@ -18,21 +18,21 @@ import { componentWrapperDecorator, Meta, StoryObj } from '@storybook/angular';
 import {
   TimelineFrameComponent,
   TimelineHoverOverlayRequest,
-} from './timeline-frame.component';
+} from 'src/app/timeline/components/timeline-frame.component';
 import { Component, computed, effect, resource, signal } from '@angular/core';
 import { Timeline } from 'src/app/store/domain/timeline';
-import { TimelineChartMouseEvent } from './timeline-chart.component';
-import { TimelineHoverOverlay } from './timeline-hover-overlay.component';
+import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
+import { TimelineHoverOverlay } from 'src/app/timeline/components/timeline-hover-overlay.component';
 import {
   TimelineHighlight,
   TimelineChartItemHighlight,
   TimelineHighlightType,
   TimelineChartItemHighlightType,
-} from './interaction-model';
+} from 'src/app/timeline/components/interaction-model';
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
-} from './style-model-v2';
+} from 'src/app/timeline/components/style-model-v2';
 import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
 function msToNs(ms: number): bigint {
@@ -129,11 +129,12 @@ class TimelineFrameStoriesComponent {
     const maxTimeMs = data.metadata?.header
       ? data.metadata.header.endTimeUnixSeconds * 1000
       : 0;
+    const logs = Array.from(data.logStore.logs());
     return {
       ready: true,
       timelines: data.timelineStore.timelines,
-      logs: Array.from(data.logStore.logs()),
-      filteredLogs: Array.from(data.logStore.logs()),
+      logs,
+      filteredLogs: logs,
       minLogTime: minTimeMs,
       maxLogTime: maxTimeMs,
       chartStyle: generateDefaultChartStyle(),
