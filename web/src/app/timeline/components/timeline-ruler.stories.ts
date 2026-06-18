@@ -34,7 +34,6 @@ import { LogStore } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { generateDefaultRulerStyle } from './style-model-v2';
-import { Severity } from 'src/app/zzz-generated';
 
 @Component({
   selector: 'khi-rendering-loop-starter',
@@ -135,24 +134,32 @@ const meta: Meta<TimelineRulerComponent> = {
 export default meta;
 type Story = StoryObj<TimelineRulerComponent>;
 
+enum MockSeverity {
+  Unknown = 0,
+  Info = 1,
+  Warning = 2,
+  Error = 3,
+  Fatal = 4,
+}
+
 const START_TIME = Date.parse('2025-12-31T23:30:00Z');
 const DURATION = 60 * 60 * 24 * 1000; // 24 hour
 const VIEWPORT_WIDTH = window.innerWidth;
 
 function generateMockLogs(
   count: number,
-  severityRatio: { [severity in Severity]?: number },
+  severityRatio: { [severity in MockSeverity]?: number },
 ): Log[] {
   const internPool = InternPoolStore.create();
   const logStore = LogStore.create(internPool, sharedStyleStore);
 
   const culmativeRatios: number[] = [];
   const severitiesList = [
-    Severity.SeverityUnknown,
-    Severity.SeverityInfo,
-    Severity.SeverityWarning,
-    Severity.SeverityError,
-    Severity.SeverityFatal,
+    MockSeverity.Unknown,
+    MockSeverity.Info,
+    MockSeverity.Warning,
+    MockSeverity.Error,
+    MockSeverity.Fatal,
   ];
   for (const severity of severitiesList) {
     const lastRatio: number = culmativeRatios[culmativeRatios.length - 1] || 0;
@@ -163,7 +170,7 @@ function generateMockLogs(
   for (let i = 0; i < count; i++) {
     const time = START_TIME + Math.random() * DURATION;
     const rand = Math.random();
-    let severity: Severity = Severity.SeverityInfo;
+    let severity: MockSeverity = MockSeverity.Info;
     for (let j = 0; j < culmativeRatios.length; j++) {
       if (
         rand <
@@ -235,11 +242,11 @@ export const Default: Story = {
   args: {
     viewModel: generateViewModel(
       generateMockLogs(10000, {
-        [Severity.SeverityUnknown]: 1,
-        [Severity.SeverityInfo]: 1,
-        [Severity.SeverityWarning]: 1,
-        [Severity.SeverityError]: 1,
-        [Severity.SeverityFatal]: 1,
+        [MockSeverity.Unknown]: 1,
+        [MockSeverity.Info]: 1,
+        [MockSeverity.Warning]: 1,
+        [MockSeverity.Error]: 1,
+        [MockSeverity.Fatal]: 1,
       }),
     ),
     leftEdgeTime: START_TIME,
@@ -259,11 +266,11 @@ export const HighError: Story = {
   args: {
     viewModel: generateViewModel(
       generateMockLogs(10000, {
-        [Severity.SeverityUnknown]: 1,
-        [Severity.SeverityInfo]: 1,
-        [Severity.SeverityWarning]: 1,
-        [Severity.SeverityError]: 5,
-        [Severity.SeverityFatal]: 1,
+        [MockSeverity.Unknown]: 1,
+        [MockSeverity.Info]: 1,
+        [MockSeverity.Warning]: 1,
+        [MockSeverity.Error]: 5,
+        [MockSeverity.Fatal]: 1,
       }),
     ),
     leftEdgeTime: START_TIME,
@@ -273,11 +280,11 @@ export const HighError: Story = {
 
 const filtered = filterLogs(
   generateMockLogs(10000, {
-    [Severity.SeverityUnknown]: 1,
-    [Severity.SeverityInfo]: 30,
-    [Severity.SeverityWarning]: 10,
-    [Severity.SeverityError]: 5,
-    [Severity.SeverityFatal]: 1,
+    [MockSeverity.Unknown]: 1,
+    [MockSeverity.Info]: 30,
+    [MockSeverity.Warning]: 10,
+    [MockSeverity.Error]: 5,
+    [MockSeverity.Fatal]: 1,
   }),
   0.3,
 );
@@ -293,11 +300,11 @@ export const WithTimezoneshift: Story = {
   args: {
     viewModel: generateViewModel(
       generateMockLogs(10000, {
-        [Severity.SeverityUnknown]: 1,
-        [Severity.SeverityInfo]: 1,
-        [Severity.SeverityWarning]: 1,
-        [Severity.SeverityError]: 1,
-        [Severity.SeverityFatal]: 1,
+        [MockSeverity.Unknown]: 1,
+        [MockSeverity.Info]: 1,
+        [MockSeverity.Warning]: 1,
+        [MockSeverity.Error]: 1,
+        [MockSeverity.Fatal]: 1,
       }),
     ),
     leftEdgeTime: START_TIME,

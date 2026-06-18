@@ -16,7 +16,6 @@
 
 import { InjectionToken, Provider } from '@angular/core';
 import { ExtensionStore } from './extension-store';
-import { TimelineNavigatorExtension } from './extension-types/timeline-navigator';
 import { URLDataOpenerExtension } from './extension-types/url-data-opener';
 import { LifecycleHookExtension } from './extension-types/lifecycle-hook';
 
@@ -55,18 +54,6 @@ export class KHIExtensionBundle {
   public initializeExtension(store: ExtensionStore): void {
     this.extensionStore = store;
     this.init(this);
-  }
-
-  /**
-   * Register the new extension for TimelineNavigator
-   */
-  public addTimelineNavigatorExtension(
-    extension: TimelineNavigatorExtension,
-  ): void {
-    if (this.extensionStore === null) {
-      throw new Error('KHIExtension is not initialized');
-    }
-    this.extensionStore.timelineNavigatorExtensions.push(extension);
   }
 
   /**

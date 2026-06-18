@@ -19,7 +19,7 @@ ENUM_GO_FILES := $(filter-out %_test.go,$(ENUM_GO_ALL_FILES))
 FRONTEND_CODEGEN_DIR := scripts/frontend-codegen
 FRONTEND_CODEGEN_DEPS := $(wildcard $(FRONTEND_CODEGEN_DIR)/*.go $(FRONTEND_CODEGEN_DIR)/templates/*)
 FRONTEND_SOURCE_FILES := $(shell find ./web \( -name "node_modules" -o -name ".angular" -o -path "./web/src/assets" \) -prune -o -not -path "./web/src/environments/version.*.ts" -not -path "*/zzz-generated.*" -not -path "./web/angular.json" -print)
-FRONTEND_GENERATED_SRCS = web/src/app/zzz-generated.scss web/src/app/zzz-generated.ts web/angular.json
+FRONTEND_GENERATED_SRCS = web/angular.json
 FRONTEND_ARTIFACT_FILES_DUMMY = pkg/server/dist/browser/build-web.done
 
 include scripts/make/*.mk
