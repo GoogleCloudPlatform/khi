@@ -23,6 +23,7 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -73,7 +74,7 @@ func (i *otherLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifile
 		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
 	}
 
-	if messageFS, err := log.GetFieldSet(l, &log.MainMessageFieldSet{}); err == nil {
+	if messageFS, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{}); err == nil {
 		cs.SetSummary(messageFS.MainMessage)
 	}
 

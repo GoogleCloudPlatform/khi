@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
@@ -104,7 +105,7 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 	cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
 	cs.SetSummary("")
 
-	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	mainMessage, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{})
 	if err != nil {
 		return cs, prevGroupData, nil
 	}
@@ -183,7 +184,7 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
 
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
-	mainMessage, err := log.GetFieldSet(l, &log.MainMessageFieldSet{})
+	mainMessage, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{})
 	if err != nil {
 		return nil, prevGroupData, nil
 	}

@@ -30,18 +30,3 @@ func (c *CommonFieldSet) Kind() string {
 }
 
 var _ FieldSet = (*CommonFieldSet)(nil)
-
-// MainMessageFieldSet is an abstract FieldSet struct type to get the main message of its log.
-// This would be read from `textPayload`, `protoPayload` or `jsonPayload` when it is read from Cloud Logging.
-//
-// Deprecated: Define custom FieldSet and FieldSetReader instead.
-type MainMessageFieldSet struct {
-	MainMessage string
-}
-
-// Kind implements FieldSet.
-func (d *MainMessageFieldSet) Kind() string {
-	return "main_message"
-}
-
-var _ FieldSet = (*MainMessageFieldSet)(nil)

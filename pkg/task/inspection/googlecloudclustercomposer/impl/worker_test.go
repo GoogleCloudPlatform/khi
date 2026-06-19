@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
+	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
@@ -45,7 +46,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Worker basic identification and TaskInstance extraction",
 			input: log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: timestamp},
-				&log.MainMessageFieldSet{MainMessage: "Executing task"},
+				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Executing task"},
 				&googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
@@ -83,7 +84,7 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 			name: "Worker log without TaskInstance",
 			input: log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{Timestamp: timestamp},
-				&log.MainMessageFieldSet{MainMessage: "Worker Heartbeat"},
+				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Worker Heartbeat"},
 				&googlecloudclustercomposer_contract.ComposerFieldSet{
 					WorkerID: "airflow-worker-abc",
 				},
