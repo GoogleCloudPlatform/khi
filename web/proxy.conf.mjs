@@ -16,16 +16,16 @@
 
 /**
  * Angular Proxy Configuration
- * 
+ *
  * This file defines the proxy configuration for the Angular development server.
  * During development, requests to the /api/ path are forwarded to localhost:8080.
  */
 
 export default {
-  '/api': {
-    target: 'http://localhost:8080',
+  "/api": {
+    target: "http://127.0.0.1:8080",
     secure: false,
     changeOrigin: true,
-    logLevel: 'debug'
-  }
+    logLevel: "debug",
+  },
 };

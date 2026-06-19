@@ -58,4 +58,9 @@ export class DiffToolbarComponent {
    * Emitted when the open in new tab button is clicked.
    */
   openInNewTab = output<void>();
+
+  /**
+   * Emitted when the open search button is clicked.
+   */
+  openSearch = output<void>();
 }

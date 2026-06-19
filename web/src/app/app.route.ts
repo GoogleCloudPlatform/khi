@@ -51,7 +51,7 @@ export const KHIRoutes: Routes = [
     canDeactivate: [SessionDeactivateGuard, GraphPageDeactiveGuard],
   },
   {
-    path: 'session/:sessionId/diff/:kind/:namespace/:resourceName/:subresource',
+    path: 'session/:sessionId/diff',
     component: DiffComponent,
     title: 'KHI - Diff view',
     canActivate: [

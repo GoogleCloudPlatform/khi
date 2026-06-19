@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
-import { Component, input, output } from '@angular/core';
-import { LogEntry } from 'src/app/store/log';
+import { Component, computed, input, output } from '@angular/core';
+import { Log } from 'src/app/store/domain/log';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
+
+import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 
 /**
  * `LogViewLogLineComponent` renders a single log entry row within the virtualized log list.
@@ -35,7 +38,7 @@ export class LogViewLogLineComponent {
   /**
    * The LogEntry to show in this line.
    */
-  readonly log = input.required<LogEntry>();
+  readonly log = input.required<ReadonlyDomainElement<Log>>();
 
   /**
    * Whether this log line is currently selected.
@@ -48,15 +51,55 @@ export class LogViewLogLineComponent {
   readonly highlighted = input<boolean>(false);
 
   /**
+   * Dynamic background and text styling for the log type badge.
+   */
+  protected readonly typeStyle = computed(() => {
+    const t = this.log().logType;
+    const bg = RendererConvertUtil.hdrColorToCSSColor([
+      t.backgroundColor.r,
+      t.backgroundColor.g,
+      t.backgroundColor.b,
+      t.backgroundColor.a,
+    ]);
+    const fg = RendererConvertUtil.hdrColorToCSSColor([
+      t.foregroundColor.r,
+      t.foregroundColor.g,
+      t.foregroundColor.b,
+      t.foregroundColor.a,
+    ]);
+    return { 'background-color': bg, color: fg };
+  });
+
+  /**
+   * Dynamic background and text styling for the severity indicator badge.
+   */
+  protected readonly severityStyle = computed(() => {
+    const s = this.log().severity;
+    const bg = RendererConvertUtil.hdrColorToCSSColor([
+      s.backgroundColor.r,
+      s.backgroundColor.g,
+      s.backgroundColor.b,
+      s.backgroundColor.a,
+    ]);
+    const fg = RendererConvertUtil.hdrColorToCSSColor([
+      s.foregroundColor.r,
+      s.foregroundColor.g,
+      s.foregroundColor.b,
+      s.foregroundColor.a,
+    ]);
+    return { 'background-color': bg, color: fg };
+  });
+
+  /**
    * An event triggered when user's mouse cursor hover on this line.
    */
-  readonly lineHover = output<LogEntry>();
+  readonly lineHover = output<ReadonlyDomainElement<Log>>();
 
   /**
    * Emits the clicked `LogEntry` when the user selects this log line.
    * This is typically used by the parent component to update the detailed view state.
    */
-  readonly lineClick = output<LogEntry>();
+  readonly lineClick = output<ReadonlyDomainElement<Log>>();
 
   /**
    * Internal click handler that triggers the `lineClick` output signal.

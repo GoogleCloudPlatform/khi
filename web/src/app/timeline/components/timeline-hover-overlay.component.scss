@@ -149,6 +149,51 @@ $selected-event-scale: 1.5;
       cursor: pointer;
     }
 
+    &.cursor-row {
+      background-color: mat.m2-get-color-from-palette(
+        mat.$m2-amber-palette,
+        50
+      );
+
+      .cursor-icon-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .cursor-icon {
+          transform: rotate(90deg);
+          color: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 900);
+          @include common.adjust-mat-icon-size(14px);
+        }
+      }
+
+      .cursor-time-text {
+        font-weight: 600;
+        color: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 900);
+      }
+
+      .cursor-summary-container {
+        display: grid;
+        grid-template:
+          'left text right' auto /
+          1fr auto 1fr;
+        align-items: center;
+        justify-content: center;
+
+        .cursor-dash-line {
+          border-bottom: 1.5px dashed
+            mat.m2-get-color-from-palette(mat.$m2-amber-palette, 800);
+          min-width: 50px;
+        }
+
+        .cursor-summary-text {
+          grid-area: text;
+          color: mat.m2-get-color-from-palette(mat.$m2-amber-palette, 800);
+          text-align: center;
+        }
+      }
+    }
+
     .body-state-container {
       display: grid;
       width: 30px;

@@ -16,32 +16,7 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { LogListComponent } from './log-list.component';
-import { LogEntry } from 'src/app/store/log';
-import { LogType, Severity } from 'src/app/zzz-generated';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
-
-const mockLogs: LogEntry[] = [
-  new LogEntry(
-    0,
-    'a1',
-    LogType.LogTypeAudit,
-    Severity.SeverityInfo,
-    new Date('2025-01-01T00:00:00Z').getTime(),
-    'Created pod',
-    ToTextReferenceFromKHIFileBinary(null),
-    [],
-  ),
-  new LogEntry(
-    1,
-    'a2',
-    LogType.LogTypeNode,
-    Severity.SeverityError,
-    new Date('2025-01-01T00:00:01Z').getTime(),
-    'Failed to pull image',
-    ToTextReferenceFromKHIFileBinary(null),
-    [],
-  ),
-];
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
 const meta: Meta<LogListComponent> = {
   title: 'Log/LogList',
@@ -49,7 +24,6 @@ const meta: Meta<LogListComponent> = {
   tags: ['autodocs'],
   args: {
     allLogsCount: 100,
-    filteredLogs: mockLogs,
     selectedLogIndex: 1,
     highlightLogIndices: new Set([0]),
     selectedTimelinesWithChildren: [],
@@ -62,23 +36,32 @@ export default meta;
 type Story = StoryObj<LogListComponent>;
 
 export const Default: Story = {
-  render: (args) => ({
-    props: {
-      ...args,
-    },
-    template: `
-      <div style="height: 500px; border: 1px solid #ccc; position: relative;">
-        <khi-log-list
-          [allLogsCount]="allLogsCount"
-          [filteredLogs]="filteredLogs"
-          [selectedLogIndex]="selectedLogIndex"
-          [highlightLogIndices]="highlightLogIndices"
-          [selectedTimelinesWithChildren]="selectedTimelinesWithChildren"
-          [filterByTimeline]="filterByTimeline"
-          (filterByTimelineChange)="filterByTimelineChange($event)"
-          [includeTimelineChildren]="includeTimelineChildren"
-          (includeTimelineChildrenChange)="includeTimelineChildrenChange($event)"></khi-log-list>
-      </div>
-    `,
-  }),
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionDataV2(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const filteredLogs = Array.from(mockData.logStore.logs());
+    return {
+      props: {
+        ...args,
+        filteredLogs,
+      },
+      template: `
+        <div style="height: 500px; border: 1px solid #ccc; position: relative;">
+          <khi-log-list
+            [allLogsCount]="allLogsCount"
+            [filteredLogs]="filteredLogs"
+            [selectedLogIndex]="selectedLogIndex"
+            [highlightLogIndices]="highlightLogIndices"
+            [selectedTimelinesWithChildren]="selectedTimelinesWithChildren"
+            [filterByTimeline]="filterByTimeline"
+            (filterByTimelineChange)="filterByTimelineChange($event)"
+            [includeTimelineChildren]="includeTimelineChildren"
+            (includeTimelineChildrenChange)="includeTimelineChildrenChange($event)"></khi-log-list>
+        </div>
+      `,
+    };
+  },
 };

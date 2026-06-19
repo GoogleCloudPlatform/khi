@@ -25,6 +25,10 @@ When developing or modifying Go code in the KHI project, you **must** adhere to 
    - Add GoDoc comments for private types, functions, and methods when their names are not self-explanatory or usage is not intuitive.
    - Add `var _ Interface = (*Implementation)(nil);` after the type definition to show that it's implementing the interface explicitly.
 
+2. **Error and Test Assertion Messages**:
+   - Do not capitalize the first character of messages in `fmt.Errorf`, `t.Error`, `t.Errorf`, `t.Fatal`, `t.Fatalf`, etc. (e.g., use lowercase "failed to ..." instead of "Failed to ...").
+   - This rule does not apply if the message starts with a capitalized name, such as a method name or proper acronym (e.g. `MyFunction() mismatch (-want +got)`).
+
 ## Testing Practices
 
 1. **Table-Driven Tests**: Tests must be written using the table-driven testing pattern. Define a slice of anonymous structs representing the test cases, and iterate over them using `t.Run()`.

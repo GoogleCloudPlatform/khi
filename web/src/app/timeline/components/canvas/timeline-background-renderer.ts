@@ -17,7 +17,13 @@
 import { TimelineRulerViewModel } from '../timeline-ruler.viewmodel';
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
 import { TimelineHighlight } from '../interaction-model';
-import { TimelineRulerStyle, TimelineChartStyle } from '../style-model';
+import {
+  TimelineRulerStyle,
+  TimelineChartStyle,
+  BASE_ROW_HEIGHT,
+  BASE_HORIZONTAL_BORDER_THICKNESS,
+  HORIZONTAL_BORDER_THICKNESS_RANGE,
+} from '../style-model-v2';
 import { RendererConvertUtil } from './convertutil';
 
 /**
@@ -137,8 +143,14 @@ export class TimelineBackgroundRenderer {
   ) {
     let currentY = 0;
     for (const timeline of viewModel.timelinesInDrawArea) {
-      const t = style.horizontalLineThicknessByLayer[timeline.layer];
-      this.ctx.lineWidth = t;
+      const rowHeight = timeline.type.height * BASE_ROW_HEIGHT;
+      this.ctx.lineWidth = Math.min(
+        HORIZONTAL_BORDER_THICKNESS_RANGE[1],
+        Math.max(
+          HORIZONTAL_BORDER_THICKNESS_RANGE[0],
+          BASE_HORIZONTAL_BORDER_THICKNESS * timeline.type.height,
+        ),
+      );
       this.ctx.strokeStyle = RendererConvertUtil.hdrColorToCSSColor(
         style.horizontalLineColor,
       );
@@ -146,7 +158,7 @@ export class TimelineBackgroundRenderer {
       this.ctx.moveTo(0, currentY);
       this.ctx.lineTo(this.width, currentY);
       this.ctx.stroke();
-      currentY += style.heightsByLayer[timeline.layer];
+      currentY += rowHeight;
     }
   }
 
@@ -182,16 +194,17 @@ export class TimelineBackgroundRenderer {
     }
     let currentY = 0;
     for (const timeline of viewModel.timelinesInDrawArea) {
-      currentY += style.heightsByLayer[timeline.layer];
+      currentY += timeline.type.height * BASE_ROW_HEIGHT;
     }
     for (let i = viewModel.timelinesInDrawArea.length - 1; i >= 0; i--) {
       const timeline = viewModel.timelinesInDrawArea[i];
-      currentY -= style.heightsByLayer[timeline.layer];
+      const rowHeight = timeline.type.height * BASE_ROW_HEIGHT;
+      currentY -= rowHeight;
 
       const isNextTimelineChild =
         i + 1 < viewModel.timelinesInDrawArea.length &&
         viewModel.timelinesInDrawArea[i + 1].layer > timeline.layer;
-      const highlight = this.timelineHighlights[timeline.timelineId];
+      const highlight = this.timelineHighlights[timeline.id];
       if (!isNextTimelineChild) {
         this.ctx.shadowColor = 'transparent';
       } else {
@@ -202,29 +215,35 @@ export class TimelineBackgroundRenderer {
       }
       // Draw the white rect at first to drop shadow not to show the entire shadow by the transparent color given by background color.
       this.ctx.fillStyle = 'white';
-      this.ctx.fillRect(
-        0,
-        currentY,
-        this.width,
-        style.heightsByLayer[timeline.layer],
-      );
+      this.ctx.fillRect(0, currentY, this.width, rowHeight);
       this.ctx.shadowColor = 'transparent';
 
+      const bg = timeline.type.backgroundColor;
+      this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColor([
+        bg.r,
+        bg.g,
+        bg.b,
+        bg.a,
+      ]);
+      this.ctx.fillRect(0, currentY, this.width, rowHeight);
+
       if (highlight) {
-        this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColor(
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.rect(0, currentY, this.width, rowHeight);
+        this.ctx.clip();
+
+        const color = RendererConvertUtil.hdrColorToCSSColor(
           style.timelineTintColorByHighlightType[highlight],
         );
-      } else {
-        this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColor(
-          style.timelineBackgroundColorByLayer[timeline.layer],
-        );
+        // 2. Draw a solid inner border
+        const edgeWidth = 3;
+        this.ctx.lineWidth = edgeWidth * 2;
+        this.ctx.strokeStyle = color;
+        this.ctx.strokeRect(0, currentY, this.width, rowHeight);
+
+        this.ctx.restore();
       }
-      this.ctx.fillRect(
-        0,
-        currentY,
-        this.width,
-        style.heightsByLayer[timeline.layer],
-      );
     }
     this.ctx.shadowColor = 'transparent';
   }

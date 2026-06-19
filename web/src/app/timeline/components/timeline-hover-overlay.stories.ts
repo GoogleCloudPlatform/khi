@@ -20,18 +20,10 @@ import {
   TimelineHoverOverlayComponent,
 } from './timeline-hover-overlay.component';
 import { TimelineChartItemHighlightType } from './interaction-model';
-import { LogEntry } from 'src/app/store/log';
-import {
-  LogType,
-  ParentRelationship,
-  RevisionState,
-  RevisionVerb,
-  Severity,
-} from 'src/app/zzz-generated';
-import { ReferenceType } from 'src/app/common/loader/interface';
-import { ResourceRevision } from 'src/app/store/revision';
-import { ResourceEvent } from 'src/app/store/event';
-import { ResourceTimeline } from 'src/app/store/timeline';
+import { RevisionStateStyle } from 'src/app/store/domain/style';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { Timeline, Revision, Event } from 'src/app/store/domain/timeline';
+import { Log } from 'src/app/store/domain/log';
 
 const meta: Meta<TimelineHoverOverlayComponent> = {
   title: 'Timeline/Hover Overlay',
@@ -39,166 +31,237 @@ const meta: Meta<TimelineHoverOverlayComponent> = {
   tags: ['autodocs'],
 };
 
-function createLogEntry(
+const mockSeverityInfo = {
+  id: 1,
+  shortLabel: 'I',
+  label: 'Info',
+  backgroundColor: { r: 0.2, g: 0.6, b: 0.2, a: 1.0 },
+  foregroundColor: { r: 1, g: 1, b: 1, a: 1.0 },
+};
+
+const mockSeverityWarning = {
+  id: 2,
+  shortLabel: 'W',
+  label: 'Warning',
+  backgroundColor: { r: 0.8, g: 0.5, b: 0.1, a: 1.0 },
+  foregroundColor: { r: 1, g: 1, b: 1, a: 1.0 },
+};
+
+const mockSeverityError = {
+  id: 3,
+  shortLabel: 'E',
+  label: 'Error',
+  backgroundColor: { r: 0.8, g: 0.2, b: 0.2, a: 1.0 },
+  foregroundColor: { r: 1, g: 1, b: 1, a: 1.0 },
+};
+
+const mockLogTypeAudit = {
+  id: 1,
+  label: 'Audit',
+  description: 'Audit log',
+  backgroundColor: { r: 0.1, g: 0.3, b: 0.6, a: 1.0 },
+  foregroundColor: { r: 1, g: 1, b: 1, a: 1.0 },
+};
+
+const mockLogTypeAutoscaler = {
+  id: 2,
+  label: 'Autoscaler',
+  description: 'Autoscaler events',
+  backgroundColor: { r: 0.4, g: 0.2, b: 0.5, a: 1.0 },
+  foregroundColor: { r: 1, g: 1, b: 1, a: 1.0 },
+};
+
+const mockStateNormal = {
+  id: 1,
+  label: 'Normal',
+  icon: 'check_circle',
+  style: RevisionStateStyle.NORMAL,
+  backgroundColor: { r: 0.1, g: 0.5, b: 0.1, a: 1.0 },
+};
+
+const mockStatePartial = {
+  id: 2,
+  label: 'Partial Info',
+  icon: 'info',
+  style: RevisionStateStyle.PARTIAL_INFO,
+  backgroundColor: { r: 0.8, g: 0.5, b: 0.1, a: 1.0 },
+};
+
+const mockStateDeleted = {
+  id: 3,
+  label: 'Deleted',
+  icon: 'delete',
+  style: RevisionStateStyle.DELETED,
+  backgroundColor: { r: 0.5, g: 0.5, b: 0.5, a: 1.0 },
+};
+
+const mockVerbUpdate = {
+  id: 1,
+  label: 'Update',
+  backgroundColor: { r: 0.2, g: 0.4, b: 0.8, a: 1.0 },
+};
+
+function createMockLog(
   logIndex: number,
   summary: string,
-  timeMS: number,
-  logType: LogType,
-  severity: Severity,
-): LogEntry {
-  return new LogEntry(
+  timeMs: number,
+  logType: unknown,
+  severity: unknown,
+): ReadonlyDomainElement<Log> {
+  return {
+    id: logIndex,
     logIndex,
-    '',
+    timestamp: BigInt(timeMs) * 1000000n,
+    legacyTimestampMs: timeMs,
+    summary,
     logType,
     severity,
-    timeMS,
-    summary,
-    { type: ReferenceType.NullReference },
-    [],
-  );
+  } as unknown as ReadonlyDomainElement<Log>;
 }
 
-function createRevision(
-  log: LogEntry,
+function createMockRevision(
+  log: ReadonlyDomainElement<Log>,
   startAt: number,
-  stateRaw: number,
-): ResourceRevision {
-  return new ResourceRevision(
-    startAt,
-    startAt + 100,
-    stateRaw,
-    RevisionVerb.RevisionVerbUpdate,
-    '',
-    '',
-    false,
-    false,
-    log.logIndex,
-  );
+  state: unknown,
+): ReadonlyDomainElement<Revision> {
+  return {
+    id: log.logIndex,
+    timelineId: 1,
+    index: 0,
+    legacyChangedTimeMs: startAt,
+    changedTime: BigInt(startAt) * 1000000n,
+    log,
+    state,
+    verb: mockVerbUpdate,
+  } as unknown as ReadonlyDomainElement<Revision>;
 }
 
-function createEvent(log: LogEntry, ts: number): ResourceEvent {
-  return new ResourceEvent(log.logIndex, ts, log.logType, log.severity);
+function createMockEvent(
+  log: ReadonlyDomainElement<Log>,
+  ts: number,
+): ReadonlyDomainElement<Event> {
+  return {
+    id: log.logIndex,
+    timelineId: 1,
+    log,
+    legacyTimestamp: ts,
+  } as unknown as ReadonlyDomainElement<Event>;
 }
 
-function createHoverOverlayDemoData(): {
-  overlay: TimelineHoverOverlay;
-  logs: LogEntry[];
-} {
-  const result = {} as { overlay: TimelineHoverOverlay; logs: LogEntry[] };
+function createHoverOverlayDemoData(): TimelineHoverOverlay {
   const baseTime = new Date(2025, 0, 1, 12, 0, 0, 0).getTime();
-  result.logs = [
-    createLogEntry(
-      0,
-      'foo',
-      baseTime,
-      LogType.LogTypeAudit,
-      Severity.SeverityInfo,
-    ),
-    createLogEntry(
-      1,
-      'bar',
-      baseTime + 100,
-      LogType.LogTypeAutoscaler,
-      Severity.SeverityWarning,
-    ),
-    createLogEntry(
-      2,
-      'baz',
-      baseTime + 200,
-      LogType.LogTypeAudit,
-      Severity.SeverityError,
-    ),
-  ];
-  const timeline = new ResourceTimeline(
-    '',
-    '',
-    [
-      createRevision(
-        result.logs[0],
-        baseTime,
-        RevisionState.RevisionStateInferred,
-      ),
-      createRevision(
-        result.logs[2],
-        baseTime + 200,
-        RevisionState.RevisionStateContainerStatusNotAvailable,
-      ),
-    ],
-    [createEvent(result.logs[1], baseTime + 100)],
-    ParentRelationship.RelationshipChild,
+  const log0 = createMockLog(
+    0,
+    'foo',
+    baseTime,
+    mockLogTypeAudit,
+    mockSeverityInfo,
   );
-  result.overlay = {
-    timeline: timeline,
-    revisions: timeline.revisions,
-    events: timeline.events,
-    initialRevision: timeline.revisions[0],
+  const log1 = createMockLog(
+    1,
+    'bar',
+    baseTime + 100,
+    mockLogTypeAutoscaler,
+    mockSeverityWarning,
+  );
+  const log2 = createMockLog(
+    2,
+    'baz',
+    baseTime + 200,
+    mockLogTypeAudit,
+    mockSeverityError,
+  );
+
+  const revisions = [
+    createMockRevision(log0, baseTime, mockStateNormal),
+    createMockRevision(log2, baseTime + 200, mockStatePartial),
+  ];
+
+  const events = [createMockEvent(log1, baseTime + 100)];
+
+  const timeline: ReadonlyDomainElement<Timeline> = {
+    id: 1,
+    name: 'mock-resource',
+    type: {
+      id: 1,
+      label: 'name',
+      height: 1.0,
+      backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+    },
+    revisions,
+    events,
+  } as unknown as ReadonlyDomainElement<Timeline>;
+
+  return {
+    timeline,
+    revisions,
+    events,
+    initialRevision: revisions[0],
+    cursorTime: BigInt(baseTime + 120) * 1000000n,
   };
-  return result;
 }
 
-function createHoverOverlayDemoDataWithEventFirst(): {
-  overlay: TimelineHoverOverlay;
-  logs: LogEntry[];
-} {
-  const result = {} as { overlay: TimelineHoverOverlay; logs: LogEntry[] };
+function createHoverOverlayDemoDataWithEventFirst(): TimelineHoverOverlay {
   const baseTime = new Date(2025, 0, 1, 12, 0, 0, 0).getTime();
-  result.logs = [
-    createLogEntry(
-      0,
-      'Event before any revision in the viewport',
-      baseTime + 100,
-      LogType.LogTypeAutoscaler,
-      Severity.SeverityWarning,
-    ),
-    createLogEntry(
-      1,
-      'Another event',
-      baseTime + 150,
-      LogType.LogTypeAudit,
-      Severity.SeverityInfo,
-    ),
-    createLogEntry(
-      2,
-      'baz',
-      baseTime + 200,
-      LogType.LogTypeAudit,
-      Severity.SeverityError,
-    ),
-  ];
-  const timeline = new ResourceTimeline(
-    '',
-    '',
-    [
-      createRevision(
-        createLogEntry(
-          -1,
-          'Background Revision',
-          baseTime - 1000,
-          LogType.LogTypeAudit,
-          Severity.SeverityInfo,
-        ),
-        baseTime - 1000,
-        RevisionState.RevisionStateExisting,
-      ),
-      createRevision(
-        result.logs[2],
-        baseTime + 200,
-        RevisionState.RevisionStateContainerStatusNotAvailable,
-      ),
-    ],
-    [
-      createEvent(result.logs[0], baseTime + 100),
-      createEvent(result.logs[1], baseTime + 150),
-    ],
-    ParentRelationship.RelationshipChild,
+  const logBackground = createMockLog(
+    -1,
+    'Background Revision',
+    baseTime - 1000,
+    mockLogTypeAudit,
+    mockSeverityInfo,
   );
-  result.overlay = {
-    timeline: timeline,
-    revisions: [timeline.revisions[1]], // The background revision is naturally out of range during rendering
-    events: timeline.events,
-    initialRevision: timeline.revisions[0], // But it is received dynamically at the beginning
+  const log0 = createMockLog(
+    0,
+    'Event before any revision in the viewport',
+    baseTime + 100,
+    mockLogTypeAutoscaler,
+    mockSeverityWarning,
+  );
+  const log1 = createMockLog(
+    1,
+    'Another event',
+    baseTime + 150,
+    mockLogTypeAudit,
+    mockSeverityInfo,
+  );
+  const log2 = createMockLog(
+    2,
+    'baz',
+    baseTime + 200,
+    mockLogTypeAudit,
+    mockSeverityError,
+  );
+
+  const revisions = [
+    createMockRevision(logBackground, baseTime - 1000, mockStateNormal),
+    createMockRevision(log2, baseTime + 200, mockStateDeleted),
+  ];
+
+  const events = [
+    createMockEvent(log0, baseTime + 100),
+    createMockEvent(log1, baseTime + 150),
+  ];
+
+  const timeline: ReadonlyDomainElement<Timeline> = {
+    id: 1,
+    name: 'mock-resource-event-first',
+    type: {
+      id: 1,
+      label: 'name',
+      height: 1.0,
+      backgroundColor: { r: 0, g: 0, b: 0, a: 0 },
+    },
+    revisions,
+    events,
+  } as unknown as ReadonlyDomainElement<Timeline>;
+
+  return {
+    timeline,
+    revisions: [revisions[1]], // background revision is out of range
+    events,
+    initialRevision: revisions[0],
+    cursorTime: BigInt(baseTime + 120) * 1000000n,
   };
-  return result;
 }
 
 export default meta;
@@ -206,8 +269,7 @@ type Story = StoryObj<TimelineHoverOverlayComponent>;
 
 export const Default: Story = {
   args: {
-    timelineHoverOverlay: createHoverOverlayDemoData().overlay,
-    logs: createHoverOverlayDemoData().logs,
+    timelineHoverOverlay: createHoverOverlayDemoData(),
   },
   argTypes: {
     hoverOnElement: {
@@ -221,8 +283,7 @@ export const Default: Story = {
 
 export const FirstItemIsEvent: Story = {
   args: {
-    timelineHoverOverlay: createHoverOverlayDemoDataWithEventFirst().overlay,
-    logs: createHoverOverlayDemoDataWithEventFirst().logs,
+    timelineHoverOverlay: createHoverOverlayDemoDataWithEventFirst(),
   },
   argTypes: {
     hoverOnElement: {
@@ -236,8 +297,10 @@ export const FirstItemIsEvent: Story = {
 
 export const HoveredOnEventAndSelectedOnRevision: Story = {
   args: {
-    timelineHoverOverlay: createHoverOverlayDemoData().overlay,
-    logs: createHoverOverlayDemoData().logs,
+    timelineHoverOverlay: {
+      ...createHoverOverlayDemoData(),
+      cursorTime: null,
+    },
     highlights: {
       0: TimelineChartItemHighlightType.Selected, // Revision (foo)
       1: TimelineChartItemHighlightType.Hovered, // Event (bar)
@@ -255,8 +318,10 @@ export const HoveredOnEventAndSelectedOnRevision: Story = {
 
 export const HoveredOnRevisionAndSelectedOnEvent: Story = {
   args: {
-    timelineHoverOverlay: createHoverOverlayDemoData().overlay,
-    logs: createHoverOverlayDemoData().logs,
+    timelineHoverOverlay: {
+      ...createHoverOverlayDemoData(),
+      cursorTime: null,
+    },
     highlights: {
       0: TimelineChartItemHighlightType.Hovered, // Revision (foo)
       1: TimelineChartItemHighlightType.Selected, // Event (bar)

@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import {
-  logTypeColors,
-  logTypes,
-  severities,
-  severityColors,
-} from 'src/app/zzz-generated';
 import { SharedTmpBuffer, WebGLUtil } from './glutil';
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { IDisposableRenderer, TimelineRect } from './timeline-renderer';
 import { TimelineChartItemHighlight } from '../interaction-model';
-import { TimelineChartStyle } from '../style-model';
+import {
+  TimelineChartStyle,
+  BASE_ROW_HEIGHT,
+  getEventStyleForHeight,
+} from '../style-model-v2';
 import { RendererConvertUtil } from './convertutil';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 /**
  * Renders timeline events (points in time) using WebGL.
@@ -41,7 +41,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
   private intDynamicMetaVBOSource!: Uint32Array;
 
   constructor(
-    private timeline: ResourceTimeline,
+    private timeline: ReadonlyDomainElement<Timeline>,
     private eventSharedResources: TimelineEventsSharedResources,
     private timelineSharedResources: TimelineRendererSharedResource,
   ) {}
@@ -51,6 +51,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    * Calculates and buffers static data (time, type, severity) to the GPU.
    *
    * @param gl The WebGL2 rendering context.
+   * @param tmpBuffer Shared temporary buffer for allocations.
    */
   setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
     const timeVBOSource = tmpBuffer.uint32Array(
@@ -58,16 +59,13 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     );
     for (let i = 0; i < this.timeline.events.length; i++) {
       const event = this.timeline.events[i];
-      const start = RendererConvertUtil.splitTimeToSecondsAndNanoSeconds(
-        event.ts,
+      const start = RendererConvertUtil.splitBigIntTimeToSecondsAndNanoSeconds(
+        event.timestamp,
       );
       timeVBOSource[i * 2] = start[0];
       timeVBOSource[i * 2 + 1] = start[1];
     }
-    this.timeVBO = gl.createBuffer();
-    if (this.timeVBO === null) {
-      throw new Error('Failed to create time VBO');
-    }
+    this.timeVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.bufferData(gl.ARRAY_BUFFER, timeVBOSource, gl.STATIC_DRAW);
 
@@ -77,24 +75,18 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     for (let i = 0; i < this.timeline.events.length; i++) {
       const event = this.timeline.events[i];
       intStaticMetaVBOSource[i * 4] = i;
-      intStaticMetaVBOSource[i * 4 + 1] = event.logType;
-      intStaticMetaVBOSource[i * 4 + 2] = event.logSeverity;
+      intStaticMetaVBOSource[i * 4 + 1] = event.log.logType.id;
+      intStaticMetaVBOSource[i * 4 + 2] = event.log.severity.id;
       intStaticMetaVBOSource[i * 4 + 3] = 0;
     }
-    this.intStaticMetaVBO = gl.createBuffer();
-    if (this.intStaticMetaVBO === null) {
-      throw new Error('Failed to create intStaticMeta VBO');
-    }
+    this.intStaticMetaVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intStaticMetaVBO);
     gl.bufferData(gl.ARRAY_BUFFER, intStaticMetaVBOSource, gl.STATIC_DRAW);
 
     this.intDynamicMetaVBOSource = new Uint32Array(
       this.timeline.events.length * 4,
     );
-    this.intDynamicMetaVBO = gl.createBuffer();
-    if (this.intDynamicMetaVBO === null) {
-      throw new Error('Failed to create intDynamicMeta VBO');
-    }
+    this.intDynamicMetaVBO = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.intDynamicMetaVBO);
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -102,11 +94,9 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
       gl.DYNAMIC_DRAW,
     );
 
-    this.eventsVAO = gl.createVertexArray();
-    if (this.eventsVAO === null) {
-      throw new Error('Failed to create events VAO');
-    }
+    this.eventsVAO = gl.createVertexArray()!;
     gl.bindVertexArray(this.eventsVAO);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.timeVBO);
     gl.vertexAttribIPointer(
       TimelineEventsSharedResources.VBO_LAYOUT_LOCATION_TIME,
@@ -162,7 +152,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    *
    * @param gl The WebGL rendering context.
    * @param logElementHighlights Map of log indices to their highlight state.
-   * @param activeLogsIndices Set of log indices that are currently active(not filtered out).
+   * @param activeLogsIndices Set of log indices that are currently active (not filtered out).
    */
   updateDynamicBuffer(
     gl: WebGLRenderingContext,
@@ -196,12 +186,9 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    * @param rect The screen rectangle where the events should be drawn.
    */
   renderColor(gl: WebGL2RenderingContext, rect: TimelineRect) {
-    if (!this.eventSharedResources.eventLayerStylesUBO) {
-      return;
-    }
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // transparent canvas expects premultiplied alpha result
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
     this.renderInstances(
       gl,
@@ -218,9 +205,6 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
    * @param rect The screen rectangle where the hit test is being performed.
    */
   renderHittest(gl: WebGL2RenderingContext, rect: TimelineRect) {
-    if (!this.eventSharedResources.eventLayerStylesUBO) {
-      return;
-    }
     gl.disable(gl.BLEND);
     gl.enable(gl.DEPTH_TEST);
 
@@ -245,6 +229,15 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     gl.useProgram(program);
     gl.bindVertexArray(this.eventsVAO);
 
+    const layerStyleUBO = this.eventSharedResources.layerStyleUBOs.get(
+      this.timeline.type.id,
+    );
+    if (!layerStyleUBO) {
+      throw new Error(
+        `UBO for TimelineType ID ${this.timeline.type.id} not found`,
+      );
+    }
+
     gl.bindBufferBase(
       gl.UNIFORM_BUFFER,
       TimelineEventsSharedResources.UBO_BINDING_VIEW_STATE,
@@ -258,7 +251,7 @@ export class TimelineEventsRenderer implements IDisposableRenderer {
     gl.bindBufferBase(
       gl.UNIFORM_BUFFER,
       TimelineEventsSharedResources.UBO_BINDING_EVENT_LAYER_STYLES,
-      this.eventSharedResources.eventLayerStylesUBO[this.timeline.layer],
+      layerStyleUBO,
     );
 
     gl.drawArraysInstanced(
@@ -302,27 +295,21 @@ export class TimelineEventsSharedResources {
   public static readonly VBO_LAYOUT_LOCATION_INT_DYNAMIC_META = 2;
 
   public eventsColorProgram!: WebGLProgram;
-
   public eventsHittestProgram!: WebGLProgram;
-
   public eventStylesUBO!: WebGLBuffer;
+  public readonly layerStyleUBOs = new Map<number, WebGLBuffer>();
 
-  /**
-   * UBOs storeing styles to render events for each layer.
-   * Styles bound to its layer are stored in eventStylesUBO.
-   */
-  public eventLayerStylesUBO!: { [key in TimelineLayer]: WebGLBuffer };
-
-  private chartStyle!: TimelineChartStyle;
+  public chartStyle!: TimelineChartStyle;
 
   private styleUpdated = false;
 
+  /**
   /**
    * Initializes shaders and buffers for event rendering.
    *
    * @param gl The WebGL2 rendering context.
    */
-  async setup(gl: WebGL2RenderingContext, tmpBuffer: SharedTmpBuffer) {
+  async setup(gl: WebGL2RenderingContext) {
     this.eventsColorProgram = await WebGLUtil.compileAndLinkShaders(
       gl,
       'assets/event.vertex.glsl',
@@ -379,75 +366,104 @@ export class TimelineEventsSharedResources {
       TimelineEventsSharedResources.UBO_BINDING_EVENT_LAYER_STYLES,
     );
 
-    if (logTypes.length > TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT) {
-      throw new Error(
-        'Too many log types: Consider increassing the constant variables defined in the shader.',
-      );
-    }
-    if (severities.length > TimelineEventsSharedResources.MAX_SEVERITY_COUNT) {
-      throw new Error(
-        'Too many severities: Consider increassing the constant variables defined in the shader.',
-      );
-    }
-
-    const uboSource = tmpBuffer.float32Array(
-      TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT * 4 +
-        TimelineEventsSharedResources.MAX_SEVERITY_COUNT * 4,
-    );
-    for (let i = 0; i < logTypes.length; i++) {
-      const color = logTypeColors[logTypes[i]];
-      uboSource[i * 4] = color[0];
-      uboSource[i * 4 + 1] = color[1];
-      uboSource[i * 4 + 2] = color[2];
-      uboSource[i * 4 + 3] = 0;
-    }
-    const baseOffset = TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT * 4;
-    for (let i = 0; i < severities.length; i++) {
-      const color = severityColors[severities[i]];
-      uboSource[baseOffset + i * 4] = color[0];
-      uboSource[baseOffset + i * 4 + 1] = color[1];
-      uboSource[baseOffset + i * 4 + 2] = color[2];
-      uboSource[baseOffset + i * 4 + 3] = 0;
-    }
-
     this.eventStylesUBO = gl.createBuffer()!;
-    if (this.eventStylesUBO === null) {
-      throw new Error('Failed to create eventStyles UBO');
-    }
-    gl.bindBuffer(gl.UNIFORM_BUFFER, this.eventStylesUBO);
-    gl.bufferData(gl.UNIFORM_BUFFER, uboSource, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+    this.layerStyleUBOs.clear();
   }
 
   /**
    * Updates the style buffers if the chart style has changed.
    *
    * @param gl The WebGL2 rendering context.
+   * @param tmpBuffer Shared temporary buffer for allocations.
+   * @param styleStore The dynamic StyleStore.
    */
-  beforeRender(gl: WebGL2RenderingContext) {
+  beforeRender(
+    gl: WebGL2RenderingContext,
+    tmpBuffer: SharedTmpBuffer,
+    styleStore: StyleStoreLike,
+  ) {
     if (this.styleUpdated) {
-      this.eventLayerStylesUBO = {
-        [TimelineLayer.APIVersion]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.APIVersion,
-        ),
-        [TimelineLayer.Kind]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Kind,
-        ),
-        [TimelineLayer.Namespace]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Namespace,
-        ),
-        [TimelineLayer.Name]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Name,
-        ),
-        [TimelineLayer.Subresource]: this.createStyleUBOForLayer(
-          gl,
-          TimelineLayer.Subresource,
-        ),
-      };
+      const logTypes = styleStore.logTypes;
+      const severities = styleStore.severities;
+
+      if (logTypes.length > TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT) {
+        throw new Error(
+          'Too many log types: Consider increasing the constant variables defined in the shader.',
+        );
+      }
+      if (
+        severities.length > TimelineEventsSharedResources.MAX_SEVERITY_COUNT
+      ) {
+        throw new Error(
+          'Too many severities: Consider increasing the constant variables defined in the shader.',
+        );
+      }
+
+      const uboSource = tmpBuffer.float32Array(
+        TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT * 4 +
+          TimelineEventsSharedResources.MAX_SEVERITY_COUNT * 4,
+      );
+      for (let i = 0; i < logTypes.length; i++) {
+        const color = logTypes[i].backgroundColor;
+        const id = logTypes[i].id;
+        uboSource[id * 4] = color.r;
+        uboSource[id * 4 + 1] = color.g;
+        uboSource[id * 4 + 2] = color.b;
+        uboSource[id * 4 + 3] = color.a;
+      }
+      const baseOffset = TimelineEventsSharedResources.MAX_LOG_TYPE_COUNT * 4;
+      for (let i = 0; i < severities.length; i++) {
+        const color = severities[i].backgroundColor;
+        const id = severities[i].id;
+        uboSource[baseOffset + id * 4] = color.r;
+        uboSource[baseOffset + id * 4 + 1] = color.g;
+        uboSource[baseOffset + id * 4 + 2] = color.b;
+        uboSource[baseOffset + id * 4 + 3] = color.a;
+      }
+
+      gl.bindBuffer(gl.UNIFORM_BUFFER, this.eventStylesUBO);
+      gl.bufferData(gl.UNIFORM_BUFFER, uboSource, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+      const chartStyle = this.chartStyle;
+      if (chartStyle) {
+        for (const type of styleStore.timelineTypes) {
+          let ubo = this.layerStyleUBOs.get(type.id);
+          if (!ubo) {
+            ubo = gl.createBuffer()!;
+            this.layerStyleUBOs.set(type.id, ubo);
+          }
+          const timelineHeight = type.height * BASE_ROW_HEIGHT;
+          const eventStyle = getEventStyleForHeight(timelineHeight);
+          const STD140_PADDING_FLOAT = 0;
+          const hoverBorderColorInVec3 = chartStyle.highlightBorderColor;
+          const selectionBorderColorInVec3 = chartStyle.selectionBorderColor;
+
+          gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+          // Note: Carefully review std140 padding layout when updating the following array.
+          const bufferSource = new Float32Array([
+            timelineHeight,
+            eventStyle.verticalPaddingInPx,
+            eventStyle.severityColorRatio,
+            eventStyle.borderThickness, // 16
+            eventStyle.borderAntialias,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT,
+            STD140_PADDING_FLOAT, // 32
+            hoverBorderColorInVec3[0],
+            hoverBorderColorInVec3[1],
+            hoverBorderColorInVec3[2],
+            eventStyle.hoverBorderThickness, // 48
+            selectionBorderColorInVec3[0],
+            selectionBorderColorInVec3[1],
+            selectionBorderColorInVec3[2],
+            eventStyle.selectionBorderThickness, // 64
+          ]);
+          gl.bufferData(gl.UNIFORM_BUFFER, bufferSource, gl.STATIC_DRAW);
+        }
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+      }
+
       this.styleUpdated = false;
     }
   }
@@ -461,42 +477,5 @@ export class TimelineEventsSharedResources {
   updateChartStyle(chartStyle: TimelineChartStyle) {
     this.chartStyle = chartStyle;
     this.styleUpdated = true;
-  }
-
-  private createStyleUBOForLayer(
-    gl: WebGL2RenderingContext,
-    layer: TimelineLayer,
-  ): WebGLBuffer {
-    const ubo = gl.createBuffer();
-    if (ubo === null) {
-      throw new Error('Failed to create layer style UBO');
-    }
-    gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
-    const timelineHeight = this.chartStyle.heightsByLayer[layer];
-    const eventStyle = this.chartStyle.eventStylesByLayer[layer];
-    const STD140_PADDING_FLOAT = 0;
-    const hoverBorderColorInVec3 = this.chartStyle.highlightBorderColor;
-    const selectionBorderColorInVec3 = this.chartStyle.selectionBorderColor;
-    const bufferSource = new Float32Array([
-      timelineHeight,
-      eventStyle.verticalPaddingInPx,
-      eventStyle.severityColorRatio,
-      eventStyle.borderThickness, // 16
-      eventStyle.borderAntialias,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      STD140_PADDING_FLOAT,
-      hoverBorderColorInVec3[0], // 32
-      hoverBorderColorInVec3[1],
-      hoverBorderColorInVec3[2],
-      eventStyle.hoverBorderThickness,
-      selectionBorderColorInVec3[0], // 48
-      selectionBorderColorInVec3[1],
-      selectionBorderColorInVec3[2],
-      eventStyle.selectionBorderThickness,
-    ]);
-    gl.bufferData(gl.UNIFORM_BUFFER, bufferSource, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-    return ubo;
   }
 }

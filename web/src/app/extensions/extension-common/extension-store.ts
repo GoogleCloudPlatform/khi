@@ -14,19 +14,13 @@
  * limitations under the License.
  */
 
-import { ResourceTimeline } from 'src/app/store/timeline';
-import {
-  DisplayableTimelineNavigatorExtension,
-  TimelineNavigatorExtension,
-} from './extension-types/timeline-navigator';
 import { InjectionToken, Injector, runInInjectionContext } from '@angular/core';
 import { URLDataOpenerExtension } from './extension-types/url-data-opener';
 import {
   LifecycleHookExtension,
   PageType,
 } from './extension-types/lifecycle-hook';
-import { InspectionData } from 'src/app/store/inspection-data';
-import { ReferenceResolverStore } from 'src/app/common/loader/reference-resolver';
+import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 
 /**
  * An injectio toke to get the instnce of ExtensionStore.
@@ -39,9 +33,6 @@ export const EXTENSION_STORE = new InjectionToken<ExtensionStore>(
  * ExtensionStore is the type to hold the reference to plugin instances of each extensible points in KHI.
  */
 export class ExtensionStore {
-  public readonly timelineNavigatorExtensions: TimelineNavigatorExtension[] =
-    [];
-
   public readonly urlDataOenerExtensions: URLDataOpenerExtension[] = [];
 
   public readonly lifecycleHookExtensions: LifecycleHookExtension[] = [];
@@ -61,18 +52,6 @@ export class ExtensionStore {
     if (this._injector === null)
       throw new Error('environment injector is not set yet');
     return this._injector;
-  }
-  /**
-   * Returns the visible extensions for the given timeline.
-   */
-  public getVisibleTimelineNavigatorExtensions(
-    timeline: ResourceTimeline,
-  ): DisplayableTimelineNavigatorExtension[] {
-    return runInInjectionContext(this.injector, () => {
-      return this.timelineNavigatorExtensions
-        .filter((extension) => extension.show(timeline))
-        .map((extension) => extension.getDisplayable(timeline));
-    });
   }
 
   /**
@@ -111,16 +90,13 @@ export class ExtensionStore {
    * Call the lifecycle hooks onInspectionDataOpen.
    */
   public notifyLifecycleOnInspectionDataOpen(
-    inspectionData: InspectionData,
-    textBufferSource: ReferenceResolverStore,
+    inspectionData: InspectionDataV2,
     rawData: ArrayBuffer,
   ): void {
     return runInInjectionContext(this.injector, () => {
       this.lifecycleHookExtensions
         .filter((e) => e.onInspectionDataOpen)
-        .forEach((e) =>
-          e.onInspectionDataOpen!(inspectionData, textBufferSource, rawData),
-        );
+        .forEach((e) => e.onInspectionDataOpen!(inspectionData, rawData));
     });
   }
 }

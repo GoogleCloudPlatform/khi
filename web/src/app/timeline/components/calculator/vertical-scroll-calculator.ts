@@ -19,12 +19,25 @@ import {
   bisectRight,
   defaultNumberComparator,
 } from 'src/app/common/misc-util';
-import { ResourceTimeline, TimelineLayer } from 'src/app/store/timeline';
-import { TimelineChartStyle } from '../style-model';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import { BASE_ROW_HEIGHT } from '../style-model-v2';
+
+/**
+ * Enum for layer of a timeline.
+ * Timelines are hierarchical structure, it has k8s specific names on each depths.
+ */
+export enum TimelineLayer {
+  APIVersion = 0,
+  Kind = 1,
+  Namespace = 2,
+  Name = 3,
+  Subresource = 4,
+}
 
 /**
  * VerticalScrollCalculator calculates vertical virtual scrolling for timelines.
- * It handles cases where each timeline has a different height (e.g., depending on the layer)
+ * It handles cases where each timeline has a different height (e.g., depending on its style)
  * and efficiently calculates the index or offset of timelines corresponding to a specified scroll position.
  */
 export class VerticalScrollCalculator {
@@ -47,23 +60,20 @@ export class VerticalScrollCalculator {
 
   /**
    * @param timelines List of resource timelines to be displayed.
-   * @param style Timeline chart style containing height definitions for each layer.
    * @param marginTimelineCount Number of timelines to render outside the visible area as a buffer. Defaults to 10.
    */
   constructor(
-    private readonly timelines: ResourceTimeline[],
-    private readonly style: TimelineChartStyle,
+    private readonly timelines: readonly ReadonlyDomainElement<Timeline>[],
     private readonly marginTimelineCount = 10,
   ) {
     this.accumulatedHeights = new Array<number>(this.timelines.length);
     let height = 0;
     for (let i = 0; i < this.timelines.length; i++) {
       this.accumulatedHeights[i] = height;
-      height += this.style.heightsByLayer[this.timelines[i].layer];
-      this.maxTimelineHeight = Math.max(
-        this.maxTimelineHeight,
-        this.style.heightsByLayer[this.timelines[i].layer],
-      );
+      const timeline = this.timelines[i];
+      const timelineHeight = timeline.type.height * BASE_ROW_HEIGHT;
+      height += timelineHeight;
+      this.maxTimelineHeight = Math.max(this.maxTimelineHeight, timelineHeight);
     }
     this.totalHeight = height;
   }
@@ -107,7 +117,7 @@ export class VerticalScrollCalculator {
   timelinesInDrawArea(
     scrollY: number,
     visibleHeight: number,
-  ): ResourceTimeline[] {
+  ): ReadonlyDomainElement<Timeline>[] {
     if (this.accumulatedHeights.length === 0) {
       return [];
     }
@@ -137,60 +147,46 @@ export class VerticalScrollCalculator {
    * at the current scroll position.
    *
    * @param scrollY Current vertical scroll position (px)
-   * @returns Array of sticky ResourceTimelines
+   * @returns Array of sticky Timelines
    */
-  stickyTimelines(scrollY: number): ResourceTimeline[] {
+  stickyTimelines(scrollY: number): ReadonlyDomainElement<Timeline>[] {
     if (this.accumulatedHeights.length === 0) {
       return [];
     }
-    let maxStickyLayer = TimelineLayer.Name;
-    let currIndex = 0;
-    // At scroll position 0, simply returns the timelines up to the maximum sticky layer to ensure initial shadow consistency.
-    // While an empty array visually behaves almost the same, having actual items prevents the bottom shadow from disappearing initially.
-    if (scrollY === 0) {
-      const result = [];
-      for (let i = 0; i < this.timelines.length; i++) {
-        result.push(this.timelines[i]);
-        if (this.timelines[i].layer === maxStickyLayer) {
-          break;
-        }
-      }
-      return result;
-    }
-    // Looks ahead by the total size of the candidate sticky header. If the resulting timeline layer matches the candidate layer, it would overlap (e.g. a Pod row sticking over another Pod row).
-    // In such cases, shrinks the maximum sticky layer candidate by one to fallback to an upper layer timeline as the base context.
-    for (; maxStickyLayer > TimelineLayer.APIVersion; maxStickyLayer--) {
-      let stickyHeaderSize = 0;
-      for (let l = TimelineLayer.APIVersion; l <= maxStickyLayer; l++) {
-        stickyHeaderSize += this.style.heightsByLayer[l];
-      }
-      let i = bisectLeft(
-        this.accumulatedHeights,
-        scrollY + stickyHeaderSize,
-        defaultNumberComparator,
-      );
-      i = Math.min(Math.max(0, i - 1), this.timelines.length - 1);
-      if (this.timelines[i].layer > maxStickyLayer) {
-        currIndex = i;
+    // Find the index of the first timeline that can be visible if no sticky timelines are used.
+    const upperVisibleCandidateIndex = Math.max(
+      0,
+      bisectLeft(this.accumulatedHeights, scrollY, defaultNumberComparator) - 1,
+    );
+
+    let stickyHeaderOrigin = upperVisibleCandidateIndex;
+    let stickyHeight = 0;
+    for (let i = upperVisibleCandidateIndex; i < this.timelines.length; i++) {
+      const timeline = this.timelines[i];
+      const currentStickyHeight =
+        this.calculateStickyHeaderHeightFrom(timeline);
+      stickyHeaderOrigin = i;
+      stickyHeight = currentStickyHeight;
+      // The timeline is visible even if the sticky timeline is drawn from its parent
+      if (
+        stickyHeight + scrollY <
+        this.accumulatedHeights[i] + timeline.type.height * BASE_ROW_HEIGHT
+      ) {
         break;
       }
     }
-
-    // Retrieves the ancestor timelines for each target sticky layer from the established base index.
-    const result: ResourceTimeline[] = [];
-    for (let l = maxStickyLayer; l >= TimelineLayer.Kind; l--) {
-      for (let j = currIndex; j >= 0; j--) {
-        if (this.timelines[j].layer === l) {
-          result.push(this.timelines[j]);
-          currIndex = j;
-          break;
-        }
-        if (this.timelines[j].layer < l) {
-          break;
-        }
-      }
+    // After determined the first visible timeline, go up until the top level timeline is reached.
+    const stickyOriginTimeline = this.timelines[stickyHeaderOrigin];
+    const result: ReadonlyDomainElement<Timeline>[] = [];
+    for (
+      let timeline: ReadonlyDomainElement<Timeline> | null =
+        stickyOriginTimeline.parent;
+      timeline !== null;
+      timeline = timeline.parent
+    ) {
+      result.push(timeline);
     }
-    return result.filter((timeline) => timeline !== null).reverse();
+    return result.reverse();
   }
 
   /**
@@ -215,17 +211,16 @@ export class VerticalScrollCalculator {
    * @param timelineID The unique identifier of the timeline
    * @returns The bottom Y coordinate of the timeline (px), or 0 if not found.
    */
-  timelineIDToTimelineBottomOffset(timelineID: string): number {
+  timelineIDToTimelineBottomOffset(timelineID: number): number {
     const timelineIndex = this.timelines.findIndex(
-      (timeline) => timeline.timelineId === timelineID,
+      (timeline) => timeline.id === timelineID,
     );
     if (timelineIndex === -1) {
       return 0;
     }
-    return (
-      this.accumulatedHeights[timelineIndex] +
-      this.style.heightsByLayer[this.timelines[timelineIndex].layer]
-    );
+    const timelineHeight =
+      this.timelines[timelineIndex].type.height * BASE_ROW_HEIGHT;
+    return this.accumulatedHeights[timelineIndex] + timelineHeight;
   }
 
   /**
@@ -235,13 +230,27 @@ export class VerticalScrollCalculator {
    * @param timelineID The unique identifier of the timeline
    * @returns The top Y coordinate of the timeline (px), or 0 if not found.
    */
-  timelineIDToTimelineTopOffset(timelineID: string): number {
+  timelineIDToTimelineTopOffset(timelineID: number): number {
     const timelineIndex = this.timelines.findIndex(
-      (timeline) => timeline.timelineId === timelineID,
+      (timeline) => timeline.id === timelineID,
     );
     if (timelineIndex === -1) {
       return 0;
     }
     return this.accumulatedHeights[timelineIndex];
+  }
+
+  private calculateStickyHeaderHeightFrom(
+    timeline: ReadonlyDomainElement<Timeline>,
+  ): number {
+    let result = 0;
+    for (
+      let t = timeline.childrenCount === 0 ? timeline.parent : timeline; // If the timeline is a leaf node, the sticky header should start from the parent.
+      t !== null;
+      t = t.parent
+    ) {
+      result += t.type.height * BASE_ROW_HEIGHT;
+    }
+    return result;
   }
 }

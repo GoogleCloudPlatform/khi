@@ -20,7 +20,6 @@ import (
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -39,7 +38,6 @@ var GCPK8sAuditLogCommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadT
 var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	googlecloudlogk8saudit_contract.GCPK8sAuditLogParserTailTaskID,
 	[]taskid.UntypedTaskReference{
-		commonlogk8saudit_contract.LogSummaryLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(),
@@ -59,5 +57,5 @@ var GCPK8sAuditLogParserTailTask = inspectiontaskbase.NewInspectionTask(
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabel("Kubernetes Audit Log(v3)", `Gather kubernetes audit logs and visualize resource modifications.`, enum.LogTypeAudit, 1001, true), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
+	inspectioncore_contract.FeatureTaskLabelV2("Kubernetes Audit Logs", `Gather Kubernetes audit logs to visualize resource modifications and API call histories on associated timelines.`, 1001, true), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()),
 )

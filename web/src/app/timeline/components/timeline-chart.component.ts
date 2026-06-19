@@ -43,12 +43,7 @@ import {
   TimelineChartItemHighlight,
   TimelineHighlight,
 } from './interaction-model';
-import {
-  TimelineRulerStyle,
-  generateDefaultRulerStyle,
-  TimelineChartStyle,
-  generateDefaultChartStyle,
-} from './style-model';
+import { TimelineRulerStyle, TimelineChartStyle } from './style-model-v2';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 /**
@@ -95,7 +90,7 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Configuration for the timeline ruler style.
    */
-  readonly rulerStyle = input<TimelineRulerStyle>(generateDefaultRulerStyle());
+  readonly rulerStyle = input.required<TimelineRulerStyle>();
 
   /**
    * The view model data for the timeline ruler, containing ticks and labels.
@@ -105,7 +100,7 @@ export class TimelineChartComponent implements AfterViewInit {
   /**
    * Configuration for the timeline chart style.
    */
-  readonly chartStyle = input<TimelineChartStyle>(generateDefaultChartStyle());
+  readonly chartStyle = input.required<TimelineChartStyle>();
 
   /**
    * The view model data for the timeline chart, containing timeline rows and items.
@@ -179,6 +174,12 @@ export class TimelineChartComponent implements AfterViewInit {
 
   constructor() {
     effect(() => {
+      const chartViewModel = this.chartViewModel();
+      if (chartViewModel) {
+        chartViewModel.styleStore.stylesUpdated?.();
+        this.timelineRenderer.invalidateStyles();
+      }
+      this.invalidate.set(true);
       this.updateRendererParams();
     });
   }

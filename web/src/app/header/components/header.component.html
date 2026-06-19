@@ -54,6 +54,9 @@
                 <mat-icon>{{ item.icon }}</mat-icon>
               }
               <span>{{ item.label }}</span>
+              @if (item.shortcut) {
+                <span class="menu-shortcut">{{ item.shortcut }}</span>
+              }
 
               @if (item.type === MenuItemType.Checkbox && item.checked()) {
                 <mat-icon>check</mat-icon>

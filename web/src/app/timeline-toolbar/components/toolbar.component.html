@@ -17,163 +17,106 @@ limitations under the License.
 <div class="container">
   <div class="toolbar">
     <div class="toolbar-grid">
-      <div class="smaller-input left-control">
-        <div class="button-group">
-          <!--Kind filter-->
-          <button
-            mat-stroked-button
-            color="primary"
-            cdkOverlayOrigin
-            #openKindFilter="cdkOverlayOrigin"
-            (click)="setPopupState(ToolbarPopupStatus.KindFilter)"
-            matTooltip="Kinds"
-          >
-            <mat-icon class="filter-button-icon">workspaces</mat-icon>
-            @if (showButtonLabel()) {
-              <span
-                >Kinds<span class="count-indicator"
-                  >{{ includedKinds().size }}<span class="divisor">/</span
-                  >{{ kinds().size }}</span
-                ></span
-              >
-            }
-          </button>
-          <ng-template
-            cdkConnectedOverlay
-            [cdkConnectedOverlayOrigin]="openKindFilter"
-            [cdkConnectedOverlayOpen]="
-              popupStatus === ToolbarPopupStatus.KindFilter
-            "
-            [cdkConnectedOverlayHasBackdrop]="true"
-            (backdropClick)="setPopupState(ToolbarPopupStatus.None)"
-          >
-            <khi-timeline-set-input-popup
-              label="Kinds"
-              [choices]="kinds()"
-              [selectedItems]="includedKinds()"
-              (selectedItemsChange)="includedKinds.set($event)"
-              (closeButtonClicked)="setPopupState(ToolbarPopupStatus.None)"
+      <div class="button-group">
+        <!-- Switch to advanced mode button -->
+        <button
+          mat-icon-button
+          color="primary"
+          (click)="switchToAdvanced.emit()"
+          matTooltip="Switch to advanced filter mode"
+        >
+          <mat-icon>search_gear</mat-icon>
+        </button>
+      </div>
+      <div class="center-control">
+        <div class="filter-list">
+          @for (filter of timelineFilters(); track filter.id) {
+            <button
+              mat-stroked-button
+              class="filter-badge"
+              [matTooltip]="getFilterTooltip(filter)"
+              (click)="openEditFilterPopup(filter)"
+              [style.--badge-bg]="getTypeRowBgColor(filter.timelineType)"
+              [style.--badge-fg]="getTypeRowColor(filter.timelineType)"
+              [style.--badge-border]="getTypeRowColor(filter.timelineType)"
+              [style.--badge-type-bg]="getTypeChipBgColor(filter.timelineType)"
+              [style.--badge-type-fg]="getTypeChipColor(filter.timelineType)"
             >
-            </khi-timeline-set-input-popup>
-          </ng-template>
-          <!--Namespace filter-->
+              <mat-icon class="filter-icon">
+                {{
+                  typeIcons()[filter.timelineType.toLowerCase()] || "filter_alt"
+                }}
+              </mat-icon>
+              <span class="filter-label">
+                <span class="filter-type">{{ filter.timelineType }}</span
+                ><span class="filter-colon">: </span
+                ><span class="filter-value">{{
+                  getFilterValueDisplay(filter)
+                }}</span>
+              </span>
+              <mat-icon
+                class="delete-icon"
+                (click)="$event.stopPropagation(); deleteFilter(filter.id)"
+              >
+                close
+              </mat-icon>
+            </button>
+          }
+
           <button
             mat-stroked-button
             color="primary"
+            class="add-filter-btn"
+            (click)="toggleFilterBuilder()"
+            #builderTrigger="cdkOverlayOrigin"
             cdkOverlayOrigin
-            #openNamespaceFilter="cdkOverlayOrigin"
-            (click)="setPopupState(ToolbarPopupStatus.NamespaceFilter)"
-            matTooltip="Namespaces"
+            matTooltip="Add timeline filter"
           >
-            <mat-icon class="filter-button-icon">folder</mat-icon>
-            @if (showButtonLabel()) {
-              <span>
-                Namespaces<span class="count-indicator"
-                  >{{ includedNamespaces().size }}<span class="divisor">/</span
-                  >{{ namespaces().size }}</span
-                ></span
-              >
-            }
+            <mat-icon>add</mat-icon>
+            <span>Add filter</span>
           </button>
-          <ng-template
-            cdkConnectedOverlay
-            [cdkConnectedOverlayOrigin]="openNamespaceFilter"
-            [cdkConnectedOverlayOpen]="
-              popupStatus === ToolbarPopupStatus.NamespaceFilter
-            "
-            [cdkConnectedOverlayHasBackdrop]="true"
-            (backdropClick)="setPopupState(ToolbarPopupStatus.None)"
-          >
-            <khi-timeline-set-input-popup
-              label="Namespaces"
-              [choices]="namespaces()"
-              [selectedItems]="includedNamespaces()"
-              (selectedItemsChange)="includedNamespaces.set($event)"
-              (closeButtonClicked)="setPopupState(ToolbarPopupStatus.None)"
-            ></khi-timeline-set-input-popup>
-          </ng-template>
-          <!--Subresource relationship filter-->
-          <button
-            mat-stroked-button
-            color="primary"
-            cdkOverlayOrigin
-            #openSubresourceRelationshipFilter="cdkOverlayOrigin"
-            (click)="setPopupState(ToolbarPopupStatus.SubresourceFilter)"
-            matTooltip="Subresources"
-          >
-            <mat-icon class="filter-button-icon">page_info</mat-icon>
-            @if (showButtonLabel()) {
-              <span>
-                Subresources<span class="count-indicator"
-                  >{{ includedSubresourceRelationships().size
-                  }}<span class="divisor">/</span
-                  >{{ subresourceRelationships().size }}</span
-                ></span
+        </div>
+
+        <div class="log-filters">
+          <mat-form-field appearance="outline" class="severity-select">
+            <mat-label>Min Severity</mat-label>
+            <mat-select
+              [value]="selectedSeverity()"
+              (selectionChange)="selectedSeverity.set($event.value)"
+            >
+              <mat-option value="ANY">Any</mat-option>
+              <mat-option value="INFO">INFO</mat-option>
+              <mat-option value="WARNING">WARNING</mat-option>
+              <mat-option value="ERROR">ERROR</mat-option>
+              <mat-option value="FATAL">FATAL</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="search-input">
+            <mat-icon matPrefix class="search-prefix-icon">search</mat-icon>
+            <mat-label>Search Logs</mat-label>
+            <input
+              #logSearchInput
+              matInput
+              placeholder="Search in log body..."
+              [value]="logSearchQuery()"
+              (input)="logSearchQuery.set($any($event.target).value)"
+            />
+            @if (logSearchQuery()) {
+              <button
+                matSuffix
+                mat-icon-button
+                aria-label="Clear"
+                (click)="logSearchQuery.set('')"
+                class="clear-search-btn"
               >
+                <mat-icon>close</mat-icon>
+              </button>
             }
-          </button>
-          <ng-template
-            cdkConnectedOverlay
-            [cdkConnectedOverlayOrigin]="openSubresourceRelationshipFilter"
-            [cdkConnectedOverlayOpen]="
-              popupStatus === ToolbarPopupStatus.SubresourceFilter
-            "
-            [cdkConnectedOverlayHasBackdrop]="true"
-            (backdropClick)="setPopupState(ToolbarPopupStatus.None)"
-          >
-            <khi-timeline-set-input-popup
-              label="Subresources"
-              [choices]="subresourceRelationships()"
-              [selectedItems]="includedSubresourceRelationships()"
-              (selectedItemsChange)="
-                includedSubresourceRelationships.set($event)
-              "
-              (closeButtonClicked)="setPopupState(ToolbarPopupStatus.None)"
-            ></khi-timeline-set-input-popup>
-          </ng-template>
-          <khi-timeline-regex-input
-            class="resource-name-filter"
-            label="Resource name(regex)"
-            [(value)]="nameFilter"
-          ></khi-timeline-regex-input>
+          </mat-form-field>
         </div>
       </div>
-      <div class="center-control"></div>
       <div class="right-control">
-        <mat-button-toggle-group multiple>
-          <mat-button-toggle
-            value="filter_subresource"
-            [checked]="hideSubresourcesWithoutMatchingLogs()"
-            matTooltip="hide subresource timelines without any logs matched by the log filter"
-            (change)="
-              hideSubresourcesWithoutMatchingLogs.set(
-                !hideSubresourcesWithoutMatchingLogs()
-              )
-            "
-          >
-            <mat-icon color="primary">page_info</mat-icon>
-            <mat-icon color="primary">search_off</mat-icon></mat-button-toggle
-          >
-          <mat-button-toggle
-            value="filter_resource"
-            matTooltip="hide resource timelines without any logs matched by the log filter on it or its children"
-            [checked]="hideResourcesWithoutMatchingLogs()"
-            (change)="
-              hideResourcesWithoutMatchingLogs.set(
-                !hideResourcesWithoutMatchingLogs()
-              )
-            "
-          >
-            <mat-icon color="primary">description</mat-icon>
-            <mat-icon color="primary">search_off</mat-icon>
-          </mat-button-toggle>
-        </mat-button-toggle-group>
-        <khi-timeline-regex-input
-          #logFilterInput
-          class="log-filter"
-          label="Log body(regex)"
-          [(value)]="logFilter"
-        ></khi-timeline-regex-input>
         <div class="timezone-control">
           <p>UTC+</p>
           <input
@@ -186,16 +129,30 @@ limitations under the License.
           />
           <p>hours</p>
         </div>
-        <button
-          mat-raised-button
-          color="primary"
-          [disabled]="logOrTimelineNotSelected()"
-          (click)="drawDiagram.emit()"
-          matTooltip="Draw diagram at the point of the timeline"
-        >
-          <mat-icon class="draw-diagram-button-icon">family_history</mat-icon>
-        </button>
       </div>
     </div>
   </div>
 </div>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="builderTrigger"
+  [cdkConnectedOverlayOpen]="isFilterBuilderOpen()"
+  [cdkConnectedOverlayHasBackdrop]="true"
+  cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+  (backdropClick)="toggleFilterBuilder()"
+>
+  <khi-timeline-filter-builder
+    [timelineTypes]="timelineTypes()"
+    [candidates]="candidates()"
+    [typeCandidateCounts]="typeCandidateCounts()"
+    [showDeleteButton]="editingFilter() !== null"
+    [(selectedTimelineType)]="selectedTimelineTypeForBuilder"
+    [(filterMode)]="builderFilterMode"
+    [(regexValue)]="builderRegexValue"
+    [(selectedCandidates)]="builderSelectedCandidates"
+    (closeButtonClicked)="toggleFilterBuilder()"
+    (deleteButtonClicked)="deleteFilter(editingFilter()!.id)"
+    (confirm)="onFilterAddConfirm($event)"
+  ></khi-timeline-filter-builder>
+</ng-template>

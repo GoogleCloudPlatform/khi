@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,49 +15,105 @@
 package googlecloudlogserialport_impl
 
 import (
+	"context"
 	"testing"
+	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	googlecloudlogserialport_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogserialport/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestLogToTimelineMapperTask(t *testing.T) {
+func TestSerialPortLogIngester_ProcessLog(t *testing.T) {
+	testTime := time.Date(2025, 9, 29, 6, 39, 24, 0, time.UTC)
 	testCases := []struct {
-		desc     string
-		fieldSet googlecloudlogserialport_contract.GCESerialPortLogFieldSet
-		asserter []testchangeset.ChangeSetAsserter
+		name   string
+		input  *log.Log
+		assert func(t *testing.T, cs *khifilev6.LogChangeSet)
 	}{
 		{
-			desc: "with standard input",
-			fieldSet: googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
-				Message:  "foo",
-				NodeName: "node-name-bar",
-				Port:     "serial_port_output_qux",
-			},
-			asserter: []testchangeset.ChangeSetAsserter{
-				&testchangeset.MatchResourcePathSet{
-					WantResourcePaths: []string{"core/v1#node#cluster-scope#node-name-bar#serial_port_output_qux"},
+			name: "successful log ingestion",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
 				},
-				&testchangeset.HasEvent{
-					ResourcePath: "core/v1#node#cluster-scope#node-name-bar#serial_port_output_qux",
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityError,
 				},
+				&googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
+					Message:  "foo payload",
+					NodeName: "node-name-bar",
+					Port:     "serial_port_output_qux",
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("foo payload").
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore_contract.SeverityError).
+					HasLogType(googlecloudlogserialport_contract.LogTypeSerialPort)
 			},
 		},
 	}
+
+	ingester := &serialPortLogIngester{}
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(&tc.fieldSet)
-			modifier := serialportLogToTimelineMapper{}
-			cs := history.NewChangeSet(l)
-			_, err := modifier.ProcessLogByGroup(t.Context(), l, cs, nil, struct{}{})
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			cs, err := ingester.ProcessLog(ctx, tc.input)
 			if err != nil {
-				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
+				t.Fatalf("ProcessLog() returned unexpected error: %v", err)
 			}
-			for _, asserter := range tc.asserter {
-				asserter.Assert(t, cs)
+			tc.assert(t, cs)
+		})
+	}
+}
+
+func TestSerialPortLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+	builder := khifilev6.NewBuilder()
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+	wantSerialPortPath := googlecloudlogserialport_contract.MustSerialPortTimeline(ctx, "test-cluster", "node-name-bar", "serial_port_output_qux")
+
+	testCases := []struct {
+		name     string
+		inputLog *log.Log
+		assert   func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
+	}{
+		{
+			name: "create timeline event",
+			inputLog: log.NewLogWithFieldSetsForTest(
+				&googlecloudlogserialport_contract.GCESerialPortLogFieldSet{
+					Message:  "foo payload",
+					NodeName: "node-name-bar",
+					Port:     "serial_port_output_qux",
+				},
+			),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantSerialPortPath)
+			},
+		},
+	}
+
+	mapper := &serialportLogToTimelineMapper{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			})
+
+			cs, _, err := mapper.ProcessLogByGroup(ctx, tc.inputLog, struct{}{})
+			if err != nil {
+				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}
+
+			tc.assert(t, ctx, cs)
 		})
 	}
 }

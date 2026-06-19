@@ -20,7 +20,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourceinfo/resourcelease"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history/resourcepath"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -74,15 +73,15 @@ func (r *ResourceIdentity) Type() ResourceIdentityType {
 	}
 }
 
-// ResourcePathString returns the resource path string.
-func (r *ResourceIdentity) ResourcePathString() string {
+// String returns a unique string by resource identifier. This can be useful for grouping key to process resources by each resources.
+func (r *ResourceIdentity) String() string {
 	switch r.Type() {
 	case Namespace:
-		return resourcepath.NameLayerGeneralItem(r.APIVersion, r.Kind, r.Namespace, "@namespace").Path
+		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s", r.APIVersion, r.Kind, r.Namespace)
 	case Resource:
-		return resourcepath.NameLayerGeneralItem(r.APIVersion, r.Kind, r.Namespace, r.Name).Path
+		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s", r.APIVersion, r.Kind, r.Namespace, r.Name)
 	case Subresource:
-		return resourcepath.SubresourceLayerGeneralItem(r.APIVersion, r.Kind, r.Namespace, r.Name, r.SubresourceName).Path
+		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s,subresource=%s", r.APIVersion, r.Kind, r.Namespace, r.Name, r.SubresourceName)
 	default:
 		panic(fmt.Sprintf("unknown resource identity type: %d", r.Type()))
 	}
@@ -142,10 +141,6 @@ func (c *ContainerIdentity) Merge(other *ContainerIdentity) *ContainerIdentity {
 		result.PodSandboxID = other.PodSandboxID
 	}
 	return &result
-}
-
-func (c *ContainerIdentity) ResourcePath(podNamespace string, podName string) resourcepath.ResourcePath {
-	return resourcepath.Container(podNamespace, podName, c.ContainerName)
 }
 
 // ResourceLogGroup is the group of the logs associated with k8s resource.

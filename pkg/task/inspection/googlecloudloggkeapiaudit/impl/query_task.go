@@ -20,7 +20,6 @@ import (
 
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -57,9 +56,9 @@ func (g *gkeAPIListLogEntriesTaskSetting) Dependencies() []taskid.UntypedTaskRef
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
 func (g *gkeAPIListLogEntriesTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
-		DefaultLogType: enum.LogTypeGkeAudit,
-		QueryName:      "GKE Audit logs",
-		ExampleQuery:   GenerateGKEAuditQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "gcp-project-id", Location: "gcp-location", ClusterName: "gcp-cluster-name"}),
+
+		QueryName:    "GKE Audit logs",
+		ExampleQuery: GenerateGKEAuditQuery(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "gcp-project-id", Location: "gcp-location", ClusterName: "gcp-cluster-name"}),
 	}
 }
 

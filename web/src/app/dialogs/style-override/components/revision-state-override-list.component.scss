@@ -1,0 +1,229 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+$bg-color-row: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$bg-color-row-hover: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 100);
+$text-color-primary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900);
+$text-color-secondary: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+$picker-border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
+$picker-border-hover: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+
+.states-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.state-row {
+  display: grid;
+  grid-template:
+    'info actions' 1fr
+    / 1fr auto;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background-color: $bg-color-row;
+  border: 1px solid $border-color;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+
+  &:hover {
+    background-color: $bg-color-row-hover;
+    border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 400);
+  }
+}
+
+.state-info {
+  grid-area: info;
+  display: grid;
+  grid-template:
+    'icon details' 1fr
+    / auto 1fr;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+@mixin dashed-border($dash-size, $gap-size, $border-width, $color) {
+  $bg-size: $dash-size + $gap-size;
+  background-image:
+    linear-gradient(to right, $color $dash-size, transparent $dash-size),
+    linear-gradient(to bottom, $color $dash-size, transparent $dash-size),
+    linear-gradient(to right, $color $dash-size, transparent $dash-size),
+    linear-gradient(to bottom, $color $dash-size, transparent $dash-size);
+
+  background-position:
+    top left,
+    top right,
+    bottom left,
+    top left;
+
+  background-size:
+    $bg-size $border-width,
+    $border-width $bg-size,
+    $bg-size $border-width,
+    $border-width $bg-size;
+
+  background-repeat: repeat-x, repeat-y, repeat-x, repeat-y;
+}
+
+@mixin revision-style-box($revisionColor, $borderThickness) {
+  box-sizing: border-box;
+  $revision-background-color: color-mix(
+    in display-p3,
+    $revisionColor 40%,
+    transparent
+  );
+  $revision-darker-color: $revisionColor;
+
+  mat-icon {
+    color: $revision-darker-color;
+  }
+
+  &.style-normal {
+    background-color: $revision-background-color;
+    border: $borderThickness solid $revision-darker-color;
+  }
+
+  &.style-partial-info {
+    $stripe-brighter: color-mix(
+      in display-p3,
+      $revision-background-color 50%,
+      transparent
+    );
+    background-image: repeating-linear-gradient(
+      45deg,
+      $stripe-brighter,
+      $stripe-brighter 5px,
+      $revision-background-color 5px,
+      $revision-background-color 10px
+    );
+    border: $borderThickness solid $revision-darker-color;
+  }
+
+  &.style-deleted {
+    background-color: $revision-background-color;
+    @include dashed-border(2px, 2px, $borderThickness, $revision-darker-color);
+  }
+}
+
+.revision-rect {
+  grid-area: icon;
+  width: 30px;
+  height: 30px;
+  @include revision-style-box(var(--revision-color), 3px);
+  display: grid;
+  place-items: center;
+  color: var(--revision-color);
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.state-details {
+  grid-area: details;
+  display: grid;
+  grid-template:
+    'label' auto
+    'desc' auto
+    / 1fr;
+  min-width: 0;
+}
+
+.state-label {
+  grid-area: label;
+  font-size: 14px;
+  font-weight: 500;
+  color: $text-color-primary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.state-description {
+  grid-area: desc;
+  font-size: 12px;
+  color: $text-color-secondary;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.state-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'picker copy reset' 1fr
+    / auto auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-button {
+  grid-area: copy;
+}
+
+.color-picker-wrapper {
+  grid-area: picker;
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid $picker-border-color;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    transform: scale(1.1);
+    border-color: $picker-border-hover;
+  }
+}
+
+.color-picker-input {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+}
+
+.reset-button {
+  grid-area: reset;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 32px;
+  font-style: italic;
+  color: $text-color-secondary;
+}

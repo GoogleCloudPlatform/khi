@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,86 +16,77 @@ package commonlogk8saudit_impl
 
 import (
 	"testing"
+	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/history"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestNonSuccessLogLogToTimelineMapperTaskSetting_AddEventForLog(t *testing.T) {
+func TestNonSuccessLogLogToTimelineMapperTaskSettingV2_ProcessLogByGroup(t *testing.T) {
+	// 1. Set up the mock Builder and construct comparison paths hierarchically.
+	builder := khifilev6.NewBuilder()
+	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+
+	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test-pod", Type: inspectioncore_contract.TimelineTypeResource})
+	otherSubresourcePath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "proxy", Type: inspectioncore_contract.TimelineTypeSubresource})
+
 	testCases := []struct {
-		desc     string
-		input    *commonlogk8saudit_contract.K8sAuditLogFieldSet
-		wantPath []string
+		name            string
+		subresourceName string
+		wantPath        *khifilev6.TimelinePath
 	}{
 		{
-			desc: "error on name layer resource",
-			input: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				K8sOperation: &model.KubernetesObjectOperation{
-					APIVersion:      "core/v1",
-					PluralKind:      "pods",
-					Namespace:       "kube-system",
-					Name:            "kube-dns",
-					SubResourceName: "",
-				},
-			},
-			wantPath: []string{
-				"core/v1#pod#kube-system#kube-dns",
-			},
+			name:            "standard pod mapping",
+			subresourceName: "",
+			wantPath:        parentPath,
 		},
 		{
-			desc: "error on subresource layer resource but not included in the exception map",
-			input: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				K8sOperation: &model.KubernetesObjectOperation{
-					APIVersion:      "core/v1",
-					PluralKind:      "pods",
-					Namespace:       "kube-system",
-					Name:            "kube-dns",
-					SubResourceName: "binding",
-				},
-			},
-			wantPath: []string{
-				"core/v1#pod#kube-system#kube-dns#binding",
-			},
+			name:            "status subresource mapped to parent",
+			subresourceName: "status",
+			wantPath:        parentPath,
 		},
 		{
-			desc: "error on subresource layer resource and included in the exception map",
-			input: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				K8sOperation: &model.KubernetesObjectOperation{
-					APIVersion:      "core/v1",
-					PluralKind:      "pods",
-					Namespace:       "kube-system",
-					Name:            "kube-dns",
-					SubResourceName: "status",
-				},
-			},
-			wantPath: []string{
-				"core/v1#pod#kube-system#kube-dns",
-			},
+			name:            "non-status subresource proxy NOT mapped to parent",
+			subresourceName: "proxy",
+			wantPath:        otherSubresourcePath,
+		},
+	}
+
+	mapperSetting := &nonSuccessLogLogToTimelineMapperTaskSettingV2{
+		subresourceMapToWriteToParent: map[string]struct{}{
+			"status":   {},
+			"finalize": {},
+			"approve":  {},
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			l := log.NewLogWithFieldSetsForTest(tc.input)
-			cs := history.NewChangeSet(l)
-
-			setting := &nonSuccessLogLogToTimelineMapperTaskSetting{
-				subresourceMapToWriteToParent: map[string]struct{}{
-					"status": {},
-				},
+		t.Run(tc.name, func(t *testing.T) {
+			fs := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				APIVersion:      "core/v1",
+				PluralKind:      "pods",
+				Namespace:       "default",
+				ResourceName:    "test-pod",
+				SubresourceName: tc.subresourceName,
+				ClusterName:     "k8s",
 			}
-			err := setting.addEventForLog(l, cs)
+			logObj := log.NewLogWithFieldSetsForTest(fs, &log.CommonFieldSet{Timestamp: time.Now()})
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, logObj, struct{}{})
 			if err != nil {
-				t.Fatalf("failed to add event for log: %v", err)
-			}
-			asserter := testchangeset.MatchResourcePathSet{
-				WantResourcePaths: tc.wantPath,
+				t.Fatalf("ProcessLogByGroup() failed: %v", err)
 			}
 
-			asserter.Assert(t, cs)
+			testchangeset.AssertTimeline(t, cs).
+				HasEvent(tc.wantPath)
 		})
 	}
 }

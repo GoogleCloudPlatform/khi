@@ -15,70 +15,24 @@
  */
 
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LogListComponent } from './log-list.component';
-import { LogEntry } from '../../store/log';
-import { ResourceTimeline } from '../../store/timeline';
+import { LogListComponent } from 'src/app/log/components/log-list.component';
+import { Log } from 'src/app/store/domain/log';
+import { Timeline } from 'src/app/store/domain/timeline';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { LogType, Severity } from '../../zzz-generated';
-import { ToTextReferenceFromKHIFileBinary } from 'src/app/common/loader/reference-type';
-import { ResourceRevision } from '../../store/revision';
-import { ResourceEvent } from '../../store/event';
+import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
 
 describe('LogListComponent', () => {
   let component: LogListComponent;
   let fixture: ComponentFixture<LogListComponent>;
-
-  const mockLogs: LogEntry[] = [
-    new LogEntry(
-      0,
-      '',
-      LogType.LogTypeUnknown,
-      Severity.SeverityUnknown,
-      1000,
-      'sum0',
-      ToTextReferenceFromKHIFileBinary({ offset: 0, len: 0, buffer: 0 }),
-      [],
-    ),
-    new LogEntry(
-      1,
-      '',
-      LogType.LogTypeUnknown,
-      Severity.SeverityUnknown,
-      2000,
-      'sum1',
-      ToTextReferenceFromKHIFileBinary({ offset: 0, len: 0, buffer: 0 }),
-      [],
-    ),
-    new LogEntry(
-      2,
-      '',
-      LogType.LogTypeUnknown,
-      Severity.SeverityUnknown,
-      3000,
-      'sum2',
-      ToTextReferenceFromKHIFileBinary({ offset: 0, len: 0, buffer: 0 }),
-      [],
-    ),
-  ];
-
-  const mockTimelines: ResourceTimeline[] = [
-    new ResourceTimeline(
-      'mock-timeline',
-      'mock-path',
-      [{ logIndex: 0 } as unknown as ResourceRevision],
-      [
-        new ResourceEvent(
-          2,
-          0,
-          LogType.LogTypeUnknown,
-          Severity.SeverityUnknown,
-        ),
-      ],
-      0, // Fallback for ParentRelationship enum
-    ),
-  ];
+  let mockLogs: ReadonlyDomainElement<Log>[];
+  let mockTimelines: readonly ReadonlyDomainElement<Timeline>[];
 
   beforeEach(async () => {
+    const mockData = await createMockInspectionDataV2();
+    mockLogs = Array.from(mockData.logStore.logs());
+    mockTimelines = mockData.timelineStore.timelines;
+
     await TestBed.configureTestingModule({
       imports: [LogListComponent, ScrollingModule],
     }).compileComponents();
@@ -87,7 +41,7 @@ describe('LogListComponent', () => {
     component = fixture.componentInstance;
 
     // Set required inputs
-    fixture.componentRef.setInput('allLogsCount', 3);
+    fixture.componentRef.setInput('allLogsCount', mockLogs.length);
     fixture.componentRef.setInput('filteredLogs', mockLogs);
     fixture.componentRef.setInput('selectedLogIndex', -1);
     fixture.componentRef.setInput('highlightLogIndices', new Set<number>());
@@ -108,13 +62,21 @@ describe('LogListComponent', () => {
 
   it('should filter logs by timeline when filterByTimeline is true', () => {
     fixture.componentRef.setInput('filterByTimeline', true);
-    fixture.componentRef.setInput(
-      'selectedTimelinesWithChildren',
-      mockTimelines,
-    );
+    fixture.componentRef.setInput('selectedTimelinesWithChildren', [
+      mockTimelines[0],
+    ]);
     fixture.detectChanges();
 
-    const expectedLogs = [mockLogs[0], mockLogs[2]];
+    const timeline = mockTimelines[0];
+    const logIndices = new Set<number>();
+    for (const revision of timeline.revisions) {
+      logIndices.add(revision.logIndex);
+    }
+    for (const event of timeline.events) {
+      logIndices.add(event.logIndex);
+    }
+    const expectedLogs = mockLogs.filter((log) => logIndices.has(log.logIndex));
+
     expect(component['shownLogs']()).toEqual(expectedLogs);
   });
 
@@ -128,5 +90,46 @@ describe('LogListComponent', () => {
     spyOn(component.logHovered, 'emit');
     component['onLogHover'](mockLogs[0]);
     expect(component.logHovered.emit).toHaveBeenCalledWith(mockLogs[0]);
+  });
+
+  it('should select first log on ArrowDown when no log is selected', () => {
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[0]);
+  });
+
+  it('should select next log on ArrowDown when a log is selected', () => {
+    fixture.componentRef.setInput('selectedLogIndex', mockLogs[0].logIndex);
+    fixture.detectChanges();
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[1]);
+  });
+
+  it('should select last log on ArrowUp when no log is selected', () => {
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(
+      mockLogs[mockLogs.length - 1],
+    );
+  });
+
+  it('should select previous log on ArrowUp when a log is selected', () => {
+    fixture.componentRef.setInput('selectedLogIndex', mockLogs[1].logIndex);
+    fixture.detectChanges();
+    spyOn(component.logSelected, 'emit');
+    const event = new KeyboardEvent('keydown', { key: 'ArrowUp' });
+    component['onKeyDown'](event);
+    expect(component.logSelected.emit).toHaveBeenCalledWith(mockLogs[0]);
+  });
+
+  it('should prevent default browser scrolling behavior on ArrowUp and ArrowDown', () => {
+    const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+    spyOn(event, 'preventDefault');
+    component['onKeyDown'](event);
+    expect(event.preventDefault).toHaveBeenCalled();
   });
 });

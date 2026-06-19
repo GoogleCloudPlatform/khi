@@ -21,16 +21,22 @@ import {
   signal,
   ViewContainerRef,
 } from '@angular/core';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import {
   GoldenLayout,
   ComponentContainer,
   LayoutConfig,
   Tab,
 } from 'golden-layout';
-import { TimelineSmartComponent } from '../../timeline/timeline-smart.component';
-import { LogSmartComponent } from '../../log/log-smart.component';
-import { DiffSmartComponent } from '../../diff/diff-smart.component';
-import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
+import { TimelineSmartComponent } from 'src/app/timeline/timeline-smart.component';
+import { LogSmartComponent } from 'src/app/log/log-smart.component';
+import { DiffSmartComponent } from 'src/app/diff/diff-smart.component';
+import { GraphSmartComponent } from 'src/app/graph/graph-smart.component';
+import {
+  MenuManager,
+  MenuItemType,
+} from 'src/app/services/menu/menu-manager.service';
+import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
 
 /**
  * LayoutService manages the GoldenLayout instance and component registration.
@@ -38,6 +44,9 @@ import { MenuManager, MenuItemType } from '../menu/menu-manager.service';
 @Injectable()
 export class LayoutService implements OnDestroy {
   private readonly menuManager = inject(MenuManager);
+  private readonly dialog = inject(MatDialog);
+  private styleOverrideDialogRef: MatDialogRef<StyleOverrideSmartComponent> | null =
+    null;
   /** The GoldenLayout instance. */
   private goldenLayout!: GoldenLayout;
 
@@ -51,6 +60,8 @@ export class LayoutService implements OnDestroy {
 
   private readonly disableCreateLogPane = signal(false);
 
+  private readonly disableCreateGraphPane = signal(false);
+
   /** The default layout configuration used if no saved state is found. */
   private readonly defaultLayout: LayoutConfig = {
     settings: {
@@ -60,25 +71,94 @@ export class LayoutService implements OnDestroy {
       borderWidth: 5,
     },
     root: {
-      type: 'row',
+      type: 'column',
       content: [
         {
-          type: 'component',
-          componentType: 'timeline',
-          title: 'Timeline',
-          size: '70%',
+          type: 'row',
+          content: [
+            {
+              type: 'component',
+              componentType: 'timeline',
+              title: 'Timeline',
+              size: '70%',
+            },
+            {
+              type: 'component',
+              componentType: 'log',
+              title: 'Logs',
+              size: '15%',
+            },
+            {
+              type: 'component',
+              componentType: 'history',
+              title: 'History',
+              size: '15%',
+            },
+          ],
         },
+      ],
+    },
+  };
+
+  /** The layout configuration for state analysis. */
+  private readonly stateAnalysisLayout: LayoutConfig = {
+    settings: {
+      showPopoutIcon: false,
+    },
+    dimensions: {
+      borderWidth: 5,
+    },
+    root: {
+      type: 'column',
+      content: [
         {
-          type: 'component',
-          componentType: 'log',
-          title: 'Logs',
-          size: '15%',
+          type: 'row',
+          content: [
+            {
+              type: 'component',
+              componentType: 'timeline',
+              title: 'Timeline',
+              size: '60%',
+            },
+            {
+              type: 'component',
+              componentType: 'history',
+              title: 'History',
+              size: '40%',
+            },
+          ],
         },
+      ],
+    },
+  };
+
+  /** The layout configuration for topology analysis. */
+  private readonly topologyAnalysisLayout: LayoutConfig = {
+    settings: {
+      showPopoutIcon: false,
+    },
+    dimensions: {
+      borderWidth: 5,
+    },
+    root: {
+      type: 'column',
+      content: [
         {
-          type: 'component',
-          componentType: 'history',
-          title: 'History',
-          size: '15%',
+          type: 'row',
+          content: [
+            {
+              type: 'component',
+              componentType: 'timeline',
+              title: 'Timeline',
+              size: '50%',
+            },
+            {
+              type: 'component',
+              componentType: 'graph',
+              title: 'Graph',
+              size: '50%',
+            },
+          ],
         },
       ],
     },
@@ -101,6 +181,7 @@ export class LayoutService implements OnDestroy {
     });
     this.resizeObserver.observe(hostElement);
     this.setupMenu();
+    window.addEventListener('keydown', this.handleKeyDown);
   }
 
   /**
@@ -148,6 +229,21 @@ export class LayoutService implements OnDestroy {
         this.disableCreateDiffPane.set(true);
       },
     );
+
+    this.goldenLayout.registerComponentFactoryFunction(
+      'graph',
+      (container: ComponentContainer) => {
+        const componentRef =
+          this.viewContainerRef.createComponent(GraphSmartComponent);
+        container.element.appendChild(componentRef.location.nativeElement);
+        this.addIconToTab(container, 'family_history');
+        container.on('destroy', () => {
+          componentRef.destroy();
+          this.disableCreateGraphPane.set(false);
+        });
+        this.disableCreateGraphPane.set(true);
+      },
+    );
   }
 
   /**
@@ -172,6 +268,38 @@ export class LayoutService implements OnDestroy {
   public loadDefaultLayout() {
     this.goldenLayout.loadLayout(this.defaultLayout);
   }
+
+  /**
+   * Loads state analysis layout configuration.
+   */
+  public loadStateAnalysisLayout() {
+    this.goldenLayout.loadLayout(this.stateAnalysisLayout);
+  }
+
+  /**
+   * Loads topology analysis layout configuration.
+   */
+  public loadTopologyAnalysisLayout() {
+    this.goldenLayout.loadLayout(this.topologyAnalysisLayout);
+  }
+
+  /**
+   * Handles keyboard shortcuts for switching layout mode.
+   */
+  private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
+      if (event.key === '1') {
+        event.preventDefault();
+        this.loadDefaultLayout();
+      } else if (event.key === '2') {
+        event.preventDefault();
+        this.loadStateAnalysisLayout();
+      } else if (event.key === '3') {
+        event.preventDefault();
+        this.loadTopologyAnalysisLayout();
+      }
+    }
+  };
 
   private setupMenu() {
     this.menuManager.addGroup('view', 'View', 2, 'dashboard_customize');
@@ -208,19 +336,90 @@ export class LayoutService implements OnDestroy {
       },
     });
     this.menuManager.addItem('view', {
-      id: 'view-separator',
-      type: MenuItemType.Separator,
+      id: 'open-graph',
+      label: 'Open graph view',
+      type: MenuItemType.Button,
+      icon: 'family_history',
+      disabled: this.disableCreateGraphPane,
       priority: 4,
+      action: () => {
+        this.addPane('graph', 'Graph');
+      },
     });
     this.menuManager.addItem('view', {
-      id: 'reset-layout',
-      label: 'Reset layout',
-      type: MenuItemType.Button,
-      icon: 'refresh',
+      id: 'view-separator',
+      type: MenuItemType.Separator,
       priority: 5,
+    });
+    this.menuManager.addItem('view', {
+      id: 'default-layout',
+      label: 'Default layout',
+      type: MenuItemType.Button,
+      icon: 'dashboard',
+      shortcut: 'Ctrl+1',
+      priority: 6,
       action: () => {
         this.loadDefaultLayout();
       },
+    });
+    this.menuManager.addItem('view', {
+      id: 'state-view-layout',
+      label: 'State view layout',
+      type: MenuItemType.Button,
+      icon: 'conditions',
+      shortcut: 'Ctrl+2',
+      priority: 7,
+      action: () => {
+        this.loadStateAnalysisLayout();
+      },
+    });
+    this.menuManager.addItem('view', {
+      id: 'topology-view-layout',
+      label: 'Topology view layout',
+      type: MenuItemType.Button,
+      icon: 'hub',
+      shortcut: 'Ctrl+3',
+      priority: 8,
+      action: () => {
+        this.loadTopologyAnalysisLayout();
+      },
+    });
+    this.menuManager.addItem('view', {
+      id: 'view-separator-2',
+      type: MenuItemType.Separator,
+      priority: 9,
+    });
+    this.menuManager.addItem('view', {
+      id: 'style-override',
+      label: 'Style override Settings',
+      type: MenuItemType.Button,
+      icon: 'palette',
+      priority: 10,
+      action: () => {
+        this.openStyleOverrideDialog();
+      },
+    });
+  }
+
+  private openStyleOverrideDialog() {
+    if (this.styleOverrideDialogRef) {
+      return;
+    }
+    this.styleOverrideDialogRef = this.dialog.open(
+      StyleOverrideSmartComponent,
+      {
+        width: '400px',
+        height: '100vh',
+        maxHeight: '100vh',
+        position: {
+          right: '0px',
+          top: '0px',
+        },
+        hasBackdrop: false,
+      },
+    );
+    this.styleOverrideDialogRef.afterClosed().subscribe(() => {
+      this.styleOverrideDialogRef = null;
     });
   }
 
@@ -243,6 +442,7 @@ export class LayoutService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('keydown', this.handleKeyDown);
     this.resizeObserver?.disconnect();
     this.goldenLayout?.destroy();
   }

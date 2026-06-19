@@ -1,0 +1,42 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$gray-palette: mat.$m2-gray-palette;
+
+$popover-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+$popover-border-color: mat.m2-get-color-from-palette($gray-palette, 200);
+$popover-shadow-color: rgba(0, 0, 0, 0.12);
+
+.settings-popover-card {
+  background-color: $popover-bg-color;
+  border: 1px solid $popover-border-color;
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 16px $popover-shadow-color;
+  display: grid;
+  grid-template:
+    'subresource' auto
+    'resource' auto
+    / auto;
+  gap: 12px;
+
+  mat-checkbox {
+    font-size: 13px;
+    user-select: none;
+  }
+}

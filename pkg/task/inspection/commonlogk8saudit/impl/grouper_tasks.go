@@ -24,7 +24,6 @@ import (
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	"github.com/GoogleCloudPlatform/khi/pkg/model"
-	"github.com/GoogleCloudPlatform/khi/pkg/model/enum"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -37,7 +36,7 @@ var NonSuccessLogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	commonlogk8saudit_contract.NonSuccessLogFilterTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-		return fieldSet.K8sOperation.ResourcePath()
+		return fmt.Sprintf("apiVersion=%s,kind=%s,ns=%s,name=%s, subresource=%s", fieldSet.APIVersion, fieldSet.PluralKind, fieldSet.Namespace, fieldSet.ResourceName, fieldSet.SubresourceName)
 	},
 )
 
@@ -66,7 +65,7 @@ var ChangeTargetGrouperTask = inspectiontaskbase.NewProgressReportableInspection
 			ops := scanner.scanTargetResource(l)
 			for _, op := range ops {
 				resource := commonlogk8saudit_contract.ResourceIdentityFromKubernetesOperation(op)
-				path := resource.ResourcePathString()
+				path := resource.String()
 				if result[path] == nil {
 					result[path] = &commonlogk8saudit_contract.ResourceLogGroup{
 						Logs:     []*log.Log{},
@@ -120,8 +119,15 @@ func (s *targetResourceScanner) scanTargetResource(l *log.Log) []*model.Kubernet
 
 func (s *targetResourceScanner) scanTargetResourceInternal(l *log.Log) []*model.KubernetesObjectOperation {
 	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
-	op := fieldSet.K8sOperation
-	if fieldSet.K8sOperation.Verb == enum.RevisionVerbDeleteCollection {
+	op := &model.KubernetesObjectOperation{
+		APIVersion:      fieldSet.APIVersion,
+		PluralKind:      fieldSet.PluralKind,
+		Namespace:       fieldSet.Namespace,
+		Name:            fieldSet.ResourceName,
+		SubResourceName: fieldSet.SubresourceName,
+		Verb:            fieldSet.Verb,
+	}
+	if fieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection {
 		removedResourceNames := []*model.KubernetesObjectOperation{}
 		foundItemSource := false
 		if fieldSet.Response != nil {

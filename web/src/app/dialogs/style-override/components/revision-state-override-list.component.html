@@ -1,0 +1,76 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="states-list">
+  @for (state of revisionStates(); track state.id) {
+    <div class="state-row">
+      <div class="state-info">
+        <div
+          class="revision-rect"
+          [style.--revision-color]="state.hexColor"
+          [ngClass]="{
+            'style-normal': state.style === RevisionStateStyle.NORMAL,
+            'style-partial-info':
+              state.style === RevisionStateStyle.PARTIAL_INFO,
+            'style-deleted': state.style === RevisionStateStyle.DELETED,
+          }"
+        >
+          <mat-icon class="material-icons-outlined">{{ state.icon }}</mat-icon>
+        </div>
+        <div class="state-details">
+          <span class="state-label">{{ state.label }}</span>
+          <span class="state-description">{{ state.description }}</span>
+        </div>
+      </div>
+
+      <div class="state-actions">
+        <div
+          class="color-picker-wrapper"
+          [style.background-color]="state.hexColor"
+        >
+          <input
+            type="color"
+            class="color-picker-input"
+            [value]="state.hexColor"
+            (input)="onColorPickerChange(state.id, $event)"
+          />
+        </div>
+
+        <button
+          mat-icon-button
+          class="copy-button"
+          (click)="copyToClipboard(state.goColorCode)"
+          title="Copy Go color code"
+        >
+          <mat-icon>content_copy</mat-icon>
+        </button>
+
+        <button
+          mat-icon-button
+          color="warn"
+          class="reset-button"
+          [disabled]="!state.isOverridden"
+          (click)="resetColor.emit(state.id)"
+          title="Reset to default color"
+        >
+          <mat-icon>restart_alt</mat-icon>
+        </button>
+      </div>
+    </div>
+  } @empty {
+    <div class="empty-state">No revision states found.</div>
+  }
+</div>

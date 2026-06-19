@@ -16,24 +16,23 @@
 
 module.exports = {
   extends: ["stylelint-config-sass-guidelines"],
-  ignoreFiles: ["**/zzz-generated.scss", "**/zzz_generated.scss"],
   rules: {
     "max-nesting-depth": 5,
     "color-named": null,
     "selector-pseudo-element-no-unknown": [
       true,
-      { ignorePseudoElements: ["ng-deep"] }
+      { ignorePseudoElements: ["ng-deep"] },
     ],
     // Indentation is handled by Prettier, so it is disabled here to avoid conflicts.
-    "@stylistic/indentation": null
+    "@stylistic/indentation": null,
   },
   overrides: [
     {
       files: ["**/golden-layout-khi-theme.scss"],
       rules: {
         "selector-class-pattern": null,
-        "max-nesting-depth": null
-      }
-    }
-  ]
+        "max-nesting-depth": null,
+      },
+    },
+  ],
 };
