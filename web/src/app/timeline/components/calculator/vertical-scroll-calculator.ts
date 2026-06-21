@@ -19,6 +19,7 @@ import {
   bisectRight,
   defaultNumberComparator,
 } from 'src/app/common/misc-util';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { BASE_ROW_HEIGHT } from '../style-model-v2';
@@ -61,17 +62,20 @@ export class VerticalScrollCalculator {
   /**
    * @param timelines List of resource timelines to be displayed.
    * @param marginTimelineCount Number of timelines to render outside the visible area as a buffer. Defaults to 10.
+   * @param styleStore Style store to resolve overridden timeline heights.
    */
   constructor(
     private readonly timelines: readonly ReadonlyDomainElement<Timeline>[],
     private readonly marginTimelineCount = 10,
+    private readonly styleStore?: StyleStoreLike,
   ) {
     this.accumulatedHeights = new Array<number>(this.timelines.length);
     let height = 0;
     for (let i = 0; i < this.timelines.length; i++) {
       this.accumulatedHeights[i] = height;
       const timeline = this.timelines[i];
-      const timelineHeight = timeline.type.height * BASE_ROW_HEIGHT;
+      const timelineType = this.resolveTimelineType(timeline);
+      const timelineHeight = timelineType.height * BASE_ROW_HEIGHT;
       height += timelineHeight;
       this.maxTimelineHeight = Math.max(this.maxTimelineHeight, timelineHeight);
     }
@@ -170,7 +174,8 @@ export class VerticalScrollCalculator {
       // The timeline is visible even if the sticky timeline is drawn from its parent
       if (
         stickyHeight + scrollY <
-        this.accumulatedHeights[i] + timeline.type.height * BASE_ROW_HEIGHT
+        this.accumulatedHeights[i] +
+          this.resolveTimelineType(timeline).height * BASE_ROW_HEIGHT
       ) {
         break;
       }
@@ -218,8 +223,10 @@ export class VerticalScrollCalculator {
     if (timelineIndex === -1) {
       return 0;
     }
-    const timelineHeight =
-      this.timelines[timelineIndex].type.height * BASE_ROW_HEIGHT;
+    const timelineType = this.resolveTimelineType(
+      this.timelines[timelineIndex],
+    );
+    const timelineHeight = timelineType.height * BASE_ROW_HEIGHT;
     return this.accumulatedHeights[timelineIndex] + timelineHeight;
   }
 
@@ -249,8 +256,21 @@ export class VerticalScrollCalculator {
       t !== null;
       t = t.parent
     ) {
-      result += t.type.height * BASE_ROW_HEIGHT;
+      result += this.resolveTimelineType(t).height * BASE_ROW_HEIGHT;
     }
     return result;
+  }
+
+  private resolveTimelineType(timeline: ReadonlyDomainElement<Timeline>) {
+    if (this.styleStore) {
+      try {
+        return (
+          this.styleStore.getTimelineType(timeline.type.id) ?? timeline.type
+        );
+      } catch {
+        return timeline.type;
+      }
+    }
+    return timeline.type;
   }
 }

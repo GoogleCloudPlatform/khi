@@ -143,12 +143,15 @@ export class TimelineBackgroundRenderer {
   ) {
     let currentY = 0;
     for (const timeline of viewModel.timelinesInDrawArea) {
-      const rowHeight = timeline.type.height * BASE_ROW_HEIGHT;
+      const timelineType =
+        viewModel.styleStore?.getTimelineType(timeline.type.id) ??
+        timeline.type;
+      const rowHeight = timelineType.height * BASE_ROW_HEIGHT;
       this.ctx.lineWidth = Math.min(
         HORIZONTAL_BORDER_THICKNESS_RANGE[1],
         Math.max(
           HORIZONTAL_BORDER_THICKNESS_RANGE[0],
-          BASE_HORIZONTAL_BORDER_THICKNESS * timeline.type.height,
+          BASE_HORIZONTAL_BORDER_THICKNESS * timelineType.height,
         ),
       );
       this.ctx.strokeStyle = RendererConvertUtil.hdrColorToCSSColor(
@@ -194,11 +197,17 @@ export class TimelineBackgroundRenderer {
     }
     let currentY = 0;
     for (const timeline of viewModel.timelinesInDrawArea) {
-      currentY += timeline.type.height * BASE_ROW_HEIGHT;
+      const timelineType =
+        viewModel.styleStore?.getTimelineType(timeline.type.id) ??
+        timeline.type;
+      currentY += timelineType.height * BASE_ROW_HEIGHT;
     }
     for (let i = viewModel.timelinesInDrawArea.length - 1; i >= 0; i--) {
       const timeline = viewModel.timelinesInDrawArea[i];
-      const rowHeight = timeline.type.height * BASE_ROW_HEIGHT;
+      const timelineType =
+        viewModel.styleStore?.getTimelineType(timeline.type.id) ??
+        timeline.type;
+      const rowHeight = timelineType.height * BASE_ROW_HEIGHT;
       currentY -= rowHeight;
 
       const isNextTimelineChild =
@@ -218,7 +227,7 @@ export class TimelineBackgroundRenderer {
       this.ctx.fillRect(0, currentY, this.width, rowHeight);
       this.ctx.shadowColor = 'transparent';
 
-      const bg = timeline.type.backgroundColor;
+      const bg = timelineType.backgroundColor;
       this.ctx.fillStyle = RendererConvertUtil.hdrColorToCSSColor([
         bg.r,
         bg.g,
