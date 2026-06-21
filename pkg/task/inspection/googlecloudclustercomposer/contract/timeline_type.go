@@ -26,8 +26,8 @@ var (
 	// TimelineTypeComposerEnvironment is the style for a Cloud Composer environment.
 	// Background is set to #377e22.
 	TimelineTypeComposerEnvironment = style.MustRegisterTimelineType(
-		"composer_environment",
-		"Timeline representing a Cloud Composer environment",
+		"Airflow",
+		"Timeline representing a Managed Airflow environment",
 		"settings",
 		0.6,
 		style.MustForceConvertSRGBHex("#377e22"),
@@ -100,7 +100,7 @@ var (
 		style.ColorWhite,
 		true,
 		1501,
-		style.AlphabeticalSortPolicy(),
+		style.ChronologicalSortPolicy(1),
 	)
 
 	// TimelineTypeComponents is the category style for components.
@@ -122,9 +122,9 @@ var (
 	// TimelineTypeDAGProcessorManager is the category style for DAG Processor Manager stats.
 	// Progressive lighter green background #5cb239.
 	TimelineTypeDAGProcessorManager = style.MustRegisterTimelineType(
-		"dag_processor_manager",
-		"Timeline representing the Airflow DAG Processor Manager",
-		"summarize",
+		"dag_files",
+		"Grouping timeline for parsed DAG files",
+		"folder",
 		0.6,
 		style.MustForceConvertSRGBHex("#5cb239"),
 		style.ColorWhite,

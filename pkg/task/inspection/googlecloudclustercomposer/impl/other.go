@@ -61,17 +61,7 @@ func (i *otherLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifile
 	}
 
 	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		if severityFS.Severity != nil && severityFS.Severity.Id != nil {
-			if severityFS.Severity.GetId() == inspectioncore_contract.SeverityError.GetId() ||
-				severityFS.Severity.GetId() == inspectioncore_contract.SeverityWarning.GetId() {
-				cs.SetSeverity(severityFS.Severity)
-			}
-		}
-	}
-
-	// Ensure severity is at least SeverityUnknown if not set.
-	if cs.Severity == nil {
-		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
+		cs.SetSeverity(severityFS.Severity)
 	}
 
 	if messageFS, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{}); err == nil {
@@ -170,10 +160,4 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*otherLogToTimelineM
 var AirflowOtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudclustercomposer_contract.AirflowOtherLogToTimelineMapperTaskID,
 	&otherLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
-		"Airflow Other Components Logs",
-		"Gather logs from other Apache Airflow components to map and visualize their activities on timelines.",
-		1505,
-		false,
-	),
 )

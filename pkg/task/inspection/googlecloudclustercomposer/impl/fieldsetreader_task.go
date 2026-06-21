@@ -27,6 +27,7 @@ var ComposerLogsFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
 	googlecloudclustercomposer_contract.ComposerLogsQueryTaskID.Ref(),
 	[]log.FieldSetReader{
 		&googlecloudcommon_contract.GCPMainMessageFieldSetReader{},
+		&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
 		&googlecloudclustercomposer_contract.ComposerFieldSetReader{},
 		&googlecloudclustercomposer_contract.ComposerTaskInstanceFieldSetReader{},
 		&googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSetReader{},

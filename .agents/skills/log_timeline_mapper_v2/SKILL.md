@@ -276,7 +276,7 @@ func TestMyLogIngester_ProcessLog(t *testing.T) {
      Timestamp: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
      Severity:  "INFO",
     },
-    &log.MainMessageFieldSet{
+    &googlecloudcommon_contract.GCPMainMessageFieldSet{
      MainMessage: "server started",
     },
    ),

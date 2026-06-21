@@ -114,4 +114,20 @@ var (
 		style.MustForceConvertSRGBHex("#e60076"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	// RevisionStateComposerDagProcessorNoError indicates that DAG file processing completed without errors.
+	RevisionStateComposerDagProcessorNoError = style.MustRegisterRevisionState(
+		"DAG processing has no errors",
+		"check",
+		"The Airflow DAG processor manager processed the DAG file without errors.",
+		style.MustForceConvertSRGBHex("#008001"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	// RevisionStateComposerDagProcessorHasErrors indicates that DAG file processing encountered errors.
+	RevisionStateComposerDagProcessorHasErrors = style.MustRegisterRevisionState(
+		"DAG processing has errors",
+		"exclamation",
+		"The Airflow DAG processor manager encountered errors while processing the DAG file.",
+		style.MustForceConvertSRGBHex("#fe0000"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
 )

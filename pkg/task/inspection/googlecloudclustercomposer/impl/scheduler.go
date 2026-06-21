@@ -65,10 +65,6 @@ func (i *schedulerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 		cs.SetSeverity(severityFS.Severity)
 	}
 
-	if cs.Severity == nil {
-		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
-	}
-
 	if messageFS, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{}); err == nil {
 		cs.SetSummary(messageFS.MainMessage)
 	}
@@ -166,10 +162,4 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*schedulerLogToTimel
 var AirflowSchedulerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudclustercomposer_contract.AirflowSchedulerLogToTimelineMapperTaskID,
 	&schedulerLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
-		"Airflow Scheduler Logs",
-		"Gather Apache Airflow scheduler logs to visualize DAG scheduling decisions and latency on resource timelines.",
-		1501,
-		false,
-	),
 )
