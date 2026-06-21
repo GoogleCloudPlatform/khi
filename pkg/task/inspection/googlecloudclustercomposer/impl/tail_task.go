@@ -35,9 +35,9 @@ var ComposerLogsTailTask = coretask.NewTask(
 		return struct{}{}, nil
 	},
 	inspectioncore_contract.FeatureTaskLabelV2(
-		"Composer Logs",
-		"Gather Cloud Composer logs, including airflow-worker, airflow-scheduler, and airflow-dag-processor-manager, to visualize general environment operations on timelines.",
-		101000,
+		"Managed Service for Apache Airflow Logs",
+		"Gather Managed Service for Apache Airflow logs, including airflow-worker, airflow-scheduler, and airflow-dag-processor-manager, to visualize general environment operations on timelines.",
+		2500,
 		true,
 	),
 )

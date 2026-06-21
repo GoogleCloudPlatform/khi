@@ -27,7 +27,6 @@ import (
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
@@ -114,7 +113,7 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 							ChangedTime: timestamp5,
 							Principal:   "dag-processor-manager",
 							VerbType:    googlecloudclustercomposer_contract.VerbComposerTaskInstanceStats,
-							StateType:   commonlogk8saudit_contract.RevisionStateConditionTrue,
+							StateType:   googlecloudclustercomposer_contract.RevisionStateComposerDagProcessorNoError,
 						}, cmp.AllowUnexported(
 							structured.StandardMapNode{},
 							structured.StandardScalarNode[string]{},

@@ -26,7 +26,6 @@ import (
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -223,9 +222,9 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 		return cs, prevGroupData, nil
 	}
 
-	condition := commonlogk8saudit_contract.RevisionStateConditionTrue
+	condition := googlecloudclustercomposer_contract.RevisionStateComposerDagProcessorNoError
 	if res.Values[dagProcessorManagerColumnNumErrors] != "" && res.Values[dagProcessorManagerColumnNumErrors] != "0" {
-		condition = commonlogk8saudit_contract.RevisionStateConditionFalse
+		condition = googlecloudclustercomposer_contract.RevisionStateComposerDagProcessorHasErrors
 	}
 
 	timelinePath := googlecloudclustercomposer_contract.MustAirflowDAGProcessorManagerInstanceTimeline(ctx, envPath, res.Values[dagProcessorManagerColumnFilePath], parserID)

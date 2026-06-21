@@ -355,8 +355,12 @@ export class TimelineFrameComponent implements AfterViewInit {
       );
       if (stickyIndex !== -1) {
         let stickyBottom = 0;
+        const styleStore = this.styleStore();
         for (let i = 0; i <= stickyIndex; i++) {
-          stickyBottom += stickyTimelines[i].type.height * BASE_ROW_HEIGHT;
+          const tType =
+            styleStore?.getTimelineType(stickyTimelines[i].type.id) ??
+            stickyTimelines[i].type;
+          stickyBottom += tType.height * BASE_ROW_HEIGHT;
         }
         return stickyBottom + this.viewportScrollTop();
       }

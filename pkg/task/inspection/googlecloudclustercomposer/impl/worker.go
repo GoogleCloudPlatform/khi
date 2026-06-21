@@ -65,10 +65,6 @@ func (i *workerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifil
 		cs.SetSeverity(severityFS.Severity)
 	}
 
-	if cs.Severity == nil {
-		cs.SetSeverity(inspectioncore_contract.SeverityUnknown)
-	}
-
 	if messageFS, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{}); err == nil {
 		cs.SetSummary(messageFS.MainMessage)
 	}
@@ -161,10 +157,4 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*workerLogToTimeline
 var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	googlecloudclustercomposer_contract.AirflowWorkerLogToTimelineMapperTaskID,
 	&workerLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
-		"Airflow Worker Logs",
-		"Gather Apache Airflow worker logs to visualize task execution progress and errors on resource timelines.",
-		1502,
-		false,
-	),
 )

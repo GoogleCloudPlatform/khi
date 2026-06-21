@@ -28,8 +28,8 @@ const InspectionTypeID = "gcp-composer"
 // ComposerInspectionType is the inspection type for google cloud composer.
 var ComposerInspectionType = coreinspection.InspectionType{
 	Id:          InspectionTypeID,
-	Name:        "Cloud Composer",
-	Description: "Gather and parse Cloud Composer environment logs (supporting GKE logs in Cloud Composer v2 and Apache Airflow logs (version 2.0.0 or higher) in any Composer version) to visualize environment operations on timelines.",
+	Name:        "Managed Service for Apache Airflow",
+	Description: "Gather and parse Managed Service for Apache Airflow environment logs (supporting GKE logs in Managed Airflow v2 and Apache Airflow logs (version 2.0.0 or higher) in any Managed Airflow version) to visualize environment operations on timelines.",
 	Icon:        "assets/icons/composer.webp",
 	Priority:    math.MaxInt - 10,
 	Labels: map[string]string{
