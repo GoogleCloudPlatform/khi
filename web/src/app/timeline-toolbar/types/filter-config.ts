@@ -19,4 +19,5 @@ export interface TimelineFilterConfig {
   timelineType: string;
   mode: 'regex' | 'selection';
   value: string;
+  action: 'include' | 'exclude';
 }

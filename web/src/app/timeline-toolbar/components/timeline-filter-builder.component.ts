@@ -16,12 +16,14 @@
 
 import {
   Component,
+  ElementRef,
   computed,
   effect,
   input,
   model,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
@@ -77,11 +79,17 @@ export class TimelineFilterBuilderComponent {
   /** The selected filter mode: regex or selection (model). */
   readonly filterMode = model<'regex' | 'selection'>('selection');
 
+  /** The selected filter action: include or exclude (model). */
+  readonly filterAction = model<'include' | 'exclude'>('include');
+
   /** The current raw regex filter string input (model). */
   readonly regexValue = model<string>('');
 
   /** The selected candidate values in selection mode (model). */
   readonly selectedCandidates = model<string[]>([]);
+
+  /** Holds reference to the regex input box element. */
+  readonly regexInput = viewChild<ElementRef<HTMLInputElement>>('regexInput');
 
   /** Holds the current text input query for autocomplete filtering. */
   protected readonly typeInputQuery = signal<string>('');
@@ -127,6 +135,7 @@ export class TimelineFilterBuilderComponent {
     timelineType: string;
     mode: 'regex' | 'selection';
     value: string;
+    action: 'include' | 'exclude';
   }>();
 
   constructor() {
@@ -140,6 +149,16 @@ export class TimelineFilterBuilderComponent {
       if (currentType !== this.lastSyncedType) {
         this.lastSyncedType = currentType;
         this.typeInputQuery.set(currentType === '*' ? '' : currentType);
+      }
+    });
+
+    // Auto-focus the regex input field whenever regex mode is active.
+    effect(() => {
+      if (this.filterMode() === 'regex') {
+        const inputEl = this.regexInput()?.nativeElement;
+        if (inputEl) {
+          setTimeout(() => inputEl.focus(), 0);
+        }
       }
     });
   }
@@ -242,6 +261,7 @@ export class TimelineFilterBuilderComponent {
       timelineType: this.selectedTimelineType(),
       mode: this.filterMode(),
       value,
+      action: this.filterAction(),
     });
   }
 }

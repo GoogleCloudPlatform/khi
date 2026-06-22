@@ -30,20 +30,30 @@
       </div>
       <div class="center-control">
         <div class="cel-inputs-grid">
-          <khi-timeline-cel-input
-            [errorMessage]="timelineCelError()"
-            tooltip="Timeline CEL"
-            icon="view_timeline"
-            placeholder='e.g. match("kind", "pod") && !match("namespace", "kube-system")'
-            [(value)]="timelineCelFilter"
-            (focused)="onTimelineCelFocus()"
-          ></khi-timeline-cel-input>
+          <div class="timeline-cel-inputs-row">
+            <khi-timeline-cel-input
+              [errorMessage]="timelineIncludeCelError()"
+              tooltip="Timeline Include CEL"
+              icon="filter_alt"
+              placeholder='e.g. match("kind", "pod")'
+              [(value)]="timelineIncludeCelFilter"
+              (focused)="onTimelineCelFocus()"
+            ></khi-timeline-cel-input>
+            <khi-timeline-cel-input
+              [errorMessage]="timelineExcludeCelError()"
+              tooltip="Timeline Exclude CEL"
+              icon="filter_alt_off"
+              placeholder='e.g. match("namespace", "kube-system")'
+              [(value)]="timelineExcludeCelFilter"
+              (focused)="onTimelineCelFocus()"
+            ></khi-timeline-cel-input>
+          </div>
           <khi-timeline-cel-input
             #logCelInput
             [errorMessage]="logCelError()"
             tooltip="Log CEL"
             icon="notes"
-            placeholder='e.g. body("jsonPayload.message","error") && severity == "ERROR"'
+            placeholder='e.g. body("jsonPayload.message","error") && severity == ERROR'
             [(value)]="logCelFilter"
             (focused)="onLogCelFocus()"
           ></khi-timeline-cel-input>
@@ -101,6 +111,7 @@
             "
           ></khi-timeline-toolbar-settings>
         </ng-template>
+
         <div class="timezone-control">
           <p>UTC+</p>
           <input

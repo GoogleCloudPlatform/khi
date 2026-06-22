@@ -52,6 +52,13 @@ export class TimelineView {
   });
   private readonly _isFiltering = signal<boolean>(false);
   private readonly _progress = signal<FilteringProgressInfo | null>(null);
+  private readonly _stepContexts = signal<
+    {
+      filterName: string;
+      priority: number;
+      contextAfter: LogTimelineFilterContext;
+    }[]
+  >([]);
   private activeAbortController?: AbortController;
 
   /**
@@ -150,6 +157,12 @@ export class TimelineView {
     };
 
     try {
+      const stepContexts: {
+        filterName: string;
+        priority: number;
+        contextAfter: LogTimelineFilterContext;
+      }[] = [];
+
       for (const filter of sortedFilters) {
         ctx = await filter.process(
           ctx,
@@ -165,9 +178,21 @@ export class TimelineView {
             }
           },
         );
+
+        if (!abortController.signal.aborted) {
+          stepContexts.push({
+            filterName: filter.displayName,
+            priority: filter.priority,
+            contextAfter: {
+              timelineIds: new Set(ctx.timelineIds),
+              logIds: new Set(ctx.logIds),
+            },
+          });
+        }
       }
 
       if (!abortController.signal.aborted) {
+        this._stepContexts.set(stepContexts);
         this._context.set(ctx);
       }
     } catch (err) {

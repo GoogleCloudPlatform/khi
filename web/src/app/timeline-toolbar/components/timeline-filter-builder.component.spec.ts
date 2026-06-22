@@ -69,6 +69,7 @@ describe('TimelineFilterBuilderComponent', () => {
   it('should have correct defaults', () => {
     expect(component.selectedTimelineType()).toBe('*');
     expect(component.filterMode()).toBe('regex');
+    expect(component.filterAction()).toBe('include');
     expect(component.regexValue()).toBe('');
     expect(component.selectedCandidates()).toEqual([]);
     expect(component['typeInputQuery']()).toBe('');
@@ -134,6 +135,7 @@ describe('TimelineFilterBuilderComponent', () => {
       timelineType: string;
       mode: 'regex' | 'selection';
       value: string;
+      action: 'include' | 'exclude';
     } | null = null;
     component.confirm.subscribe((data) => (confirmData = data));
 
@@ -153,6 +155,7 @@ describe('TimelineFilterBuilderComponent', () => {
       timelineType: 'K8sResource',
       mode: 'regex',
       value: 'my-regex-pattern',
+      action: 'include',
     });
   });
 
@@ -161,6 +164,7 @@ describe('TimelineFilterBuilderComponent', () => {
       timelineType: string;
       mode: 'regex' | 'selection';
       value: string;
+      action: 'include' | 'exclude';
     } | null = null;
     component.confirm.subscribe((data) => (confirmData = data));
 
@@ -179,6 +183,7 @@ describe('TimelineFilterBuilderComponent', () => {
       timelineType: 'K8sResource',
       mode: 'selection',
       value: 'pod',
+      action: 'include',
     });
   });
 
@@ -187,12 +192,14 @@ describe('TimelineFilterBuilderComponent', () => {
       timelineType: string;
       mode: 'regex' | 'selection';
       value: string;
+      action: 'include' | 'exclude';
     } | null = null;
     component.confirm.subscribe((data) => (confirmData = data));
 
     fixture.componentRef.setInput('selectedTimelineType', 'K8sResource');
     fixture.componentRef.setInput('filterMode', 'selection');
     fixture.componentRef.setInput('selectedCandidates', ['pod-x', 'pod-y']);
+    fixture.componentRef.setInput('filterAction', 'exclude');
     fixture.detectChanges();
 
     const addButton = fixture.debugElement
@@ -205,6 +212,7 @@ describe('TimelineFilterBuilderComponent', () => {
       timelineType: 'K8sResource',
       mode: 'selection',
       value: 'pod-x|pod-y',
+      action: 'exclude',
     });
   });
 

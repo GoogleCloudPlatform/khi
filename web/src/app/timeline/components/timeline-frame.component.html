@@ -89,6 +89,8 @@
           (clickOnTimeline)="
             handleTimelineEventForIndex($event, clickOnTimeline)
           "
+          (excludeTimeline)="excludeTimeline.emit($event)"
+          (excludeTimelineType)="excludeTimelineType.emit($event)"
           [highlights]="timelineHighlights()"
         ></khi-timeline-index>
       </div>
@@ -170,6 +172,8 @@
             (clickOnTimeline)="
               handleTimelineEventForIndex($event, clickOnTimeline)
             "
+            (excludeTimeline)="excludeTimeline.emit($event)"
+            (excludeTimelineType)="excludeTimelineType.emit($event)"
             [highlights]="timelineHighlights()"
           ></khi-timeline-index>
         </div>

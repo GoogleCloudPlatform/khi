@@ -84,14 +84,20 @@ export class ToolbarFrameComponent {
   readonly showButtonLabel = input.required<boolean>();
 
   // Advanced Toolbar properties
-  /** Holds the advanced timeline CEL filter text. */
-  readonly timelineCelFilter = input.required<string>();
+  /** Holds the advanced timeline include CEL filter text. */
+  readonly timelineIncludeCelFilter = input.required<string>();
+
+  /** Holds the advanced timeline exclude CEL filter text. */
+  readonly timelineExcludeCelFilter = input.required<string>();
 
   /** Holds the advanced log CEL filter text. */
   readonly logCelFilter = input.required<string>();
 
-  /** Displays validation error for timeline CEL field. */
-  readonly timelineCelError = input.required<string>();
+  /** Displays validation error for timeline include CEL field. */
+  readonly timelineIncludeCelError = input.required<string>();
+
+  /** Displays validation error for timeline exclude CEL field. */
+  readonly timelineExcludeCelError = input.required<string>();
 
   /** Displays validation error for log CEL field. */
   readonly logCelError = input.required<string>();
@@ -106,8 +112,11 @@ export class ToolbarFrameComponent {
   /** Commits hide timelines without matching logs toggle changes. */
   readonly hideTimelinesWithoutMatchingLogsChange = output<boolean>();
 
-  /** Pushes changes to the timeline CEL string. */
-  readonly timelineCelFilterChange = output<string>();
+  /** Pushes changes to the timeline include CEL string. */
+  readonly timelineIncludeCelFilterChange = output<string>();
+
+  /** Pushes changes to the timeline exclude CEL string. */
+  readonly timelineExcludeCelFilterChange = output<string>();
 
   /** Pushes changes to the log CEL string. */
   readonly logCelFilterChange = output<string>();

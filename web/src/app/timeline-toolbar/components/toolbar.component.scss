@@ -18,11 +18,18 @@
 
 $gray-palette: mat.$m2-gray-palette;
 $indigo-palette: mat.$m2-indigo-palette;
+$red-palette: mat.$m2-red-palette;
 
 // Design system tokens for filter badges and buttons
 $badge-border-color: mat.m2-get-color-from-palette($gray-palette, 300);
 $badge-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
 $badge-hover-bg-color: mat.m2-get-color-from-palette($gray-palette, 100);
+
+$exclude-badge-bg: mat.m2-get-color-from-palette($red-palette, 50);
+$exclude-badge-border: mat.m2-get-color-from-palette($red-palette, 400);
+$exclude-badge-fg: mat.m2-get-color-from-palette($red-palette, 700);
+$exclude-tag-bg: mat.m2-get-color-from-palette($red-palette, 100);
+$exclude-tag-fg: mat.m2-get-color-from-palette($red-palette, 800);
 
 $icon-color: mat.m2-get-color-from-palette($indigo-palette, 500);
 $type-color: mat.m2-get-color-from-palette($indigo-palette, 700);
@@ -171,6 +178,30 @@ $delete-icon-hover-color: mat.m2-get-color-from-palette($gray-palette, 800);
   &:hover {
     background-color: var(--badge-bg, #{$badge-hover-bg-color}) !important;
     opacity: 0.9;
+  }
+
+  &.action-exclude {
+    border-style: dashed !important;
+    border-color: var(--badge-border, #{$exclude-badge-border}) !important;
+
+    &:hover {
+      background-color: var(--badge-bg, #{$exclude-badge-bg}) !important;
+    }
+  }
+}
+
+.action-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+
+  &.exclude {
+    background-color: $exclude-tag-bg;
+    color: $exclude-tag-fg;
   }
 }
 
