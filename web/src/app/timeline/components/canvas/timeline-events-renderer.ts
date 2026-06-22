@@ -478,4 +478,11 @@ export class TimelineEventsSharedResources {
     this.chartStyle = chartStyle;
     this.styleUpdated = true;
   }
+
+  /**
+   * Invalidates cached styles, forcing UBOs to rebuild on next frame.
+   */
+  public invalidateStyles() {
+    this.styleUpdated = true;
+  }
 }

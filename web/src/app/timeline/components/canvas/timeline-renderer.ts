@@ -272,6 +272,7 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
    */
   public invalidateStyles() {
     this.revisionSharedResource.invalidateStyles();
+    this.eventSharedResource.invalidateStyles();
   }
 
   /**
@@ -315,7 +316,10 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       let hit = false;
       for (let i = 0; i < this.chartViewModel.timelinesInDrawArea.length; i++) {
         const tl = this.chartViewModel.timelinesInDrawArea[i];
-        const height = tl.type.height * BASE_ROW_HEIGHT;
+        const tlType =
+          this.chartViewModel.styleStore?.getTimelineType(tl.type.id) ??
+          tl.type;
+        const height = tlType.height * BASE_ROW_HEIGHT;
         if (request.y < offsetY + height) {
           const result = this.hittestSharedResource.hittest(
             gl,
@@ -357,7 +361,9 @@ export class TimelineRenderer implements GLRenderer<TimelineRendererRenderArgs> 
       height: 0,
     };
     for (const t of this.chartViewModel.timelinesInDrawArea) {
-      drawRect.height = t.type.height * BASE_ROW_HEIGHT;
+      const tType =
+        this.chartViewModel.styleStore?.getTimelineType(t.type.id) ?? t.type;
+      drawRect.height = tType.height * BASE_ROW_HEIGHT;
       drawRect.offsetY -= drawRect.height;
       onRender(t, drawRect);
     }

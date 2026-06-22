@@ -128,11 +128,14 @@ export class TimelineIndexComponent {
     timelines: ReadonlyDomainElement<Timeline[]>,
   ): TimelineIndexViewModel[] {
     const highlights = this.highlights();
+    const styleStore = this.styleStore();
     return timelines.map((timeline, i, arr) => {
+      const timelineType =
+        styleStore?.getTimelineType(timeline.type.id) ?? timeline.type;
       const nextTimeline = arr[i + 1];
       const isNextChildren =
         nextTimeline && nextTimeline.layer > timeline.layer;
-      const containerClasses = [timeline.type.label];
+      const containerClasses = [timelineType.label];
       if (isNextChildren) {
         containerClasses.push('is-next-children');
       }
@@ -148,10 +151,10 @@ export class TimelineIndexComponent {
           containerClasses.push('children-of-selected');
           break;
       }
-      const bg = timeline.type.backgroundColor;
-      const fg = timeline.type.foregroundColor;
-      const chipBg = timeline.type.typeChipBackgroundColor;
-      const height = timeline.type.height * BASE_ROW_HEIGHT;
+      const bg = timelineType.backgroundColor;
+      const fg = timelineType.foregroundColor;
+      const chipBg = timelineType.typeChipBackgroundColor;
+      const height = timelineType.height * BASE_ROW_HEIGHT;
       const style: Record<string, string> = {
         '--timeline-bg-color': RendererConvertUtil.hdrColorToCSSColor([
           bg.r,
@@ -172,15 +175,16 @@ export class TimelineIndexComponent {
           chipBg.a,
         ]),
         '--timeline-chip-fg-color': RendererConvertUtil.hdrColorToCSSColor([
-          timeline.type.typeChipForegroundColor.r,
-          timeline.type.typeChipForegroundColor.g,
-          timeline.type.typeChipForegroundColor.b,
-          timeline.type.typeChipForegroundColor.a,
+          timelineType.typeChipForegroundColor.r,
+          timelineType.typeChipForegroundColor.g,
+          timelineType.typeChipForegroundColor.b,
+          timelineType.typeChipForegroundColor.a,
         ]),
         '--timeline-height': `${height}px`,
         '--timeline-layer': `${timeline.layer}`,
       };
       const isLastChild = !nextTimeline || nextTimeline.layer < timeline.layer;
+
       const levels: TreeGuideViewModel[] = [];
       for (let d = 0; d < timeline.layer; d++) {
         const isParent = d === timeline.layer - 1;

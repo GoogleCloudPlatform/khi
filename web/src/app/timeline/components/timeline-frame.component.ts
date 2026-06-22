@@ -557,9 +557,11 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Calculator for vertical scrolling and layout of rows.
    */
   protected readonly verticalScrollCalculator = computed(() => {
+    this.styleStore()?.stylesUpdated?.();
     return new VerticalScrollCalculator(
       this.timelines(),
       this.verticalOverdrawTimelineCount(),
+      this.styleStore(),
     );
   });
 
@@ -646,9 +648,18 @@ export class TimelineFrameComponent implements AfterViewInit {
    */
   protected readonly stickyHeaderHeight = computed(() => {
     const stickyTimelines = this.stickyTimelines();
+    const styleStore = this.styleStore();
     let height = 0;
     for (const t of stickyTimelines) {
-      height += t.type.height * BASE_ROW_HEIGHT;
+      let tType = t.type;
+      if (styleStore) {
+        try {
+          tType = styleStore.getTimelineType(t.type.id) ?? t.type;
+        } catch {
+          tType = t.type;
+        }
+      }
+      height += tType.height * BASE_ROW_HEIGHT;
     }
     return height;
   });

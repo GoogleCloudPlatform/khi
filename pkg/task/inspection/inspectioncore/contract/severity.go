@@ -24,7 +24,7 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	SeverityUnknown = style.MustRegisterSeverity("UNKNOWN", "U", style.ColorBlack, style.ColorWhite, 0)
+	SeverityUnknown = style.MustRegisterSeverity("UNKNOWN", "", style.ColorBlack, style.ColorWhite, 0)
 	SeverityInfo    = style.MustRegisterSeverity("INFO", "I", style.MustForceConvertSRGBHex("#0000FF"), style.ColorWhite, 1)
 	SeverityWarning = style.MustRegisterSeverity("WARNING", "W", style.MustForceConvertSRGBHex("#FFAA44"), style.ColorWhite, 2)
 	SeverityError   = style.MustRegisterSeverity("ERROR", "E", style.MustForceConvertSRGBHex("#FF3935"), style.ColorWhite, 3)
