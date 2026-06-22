@@ -28,7 +28,7 @@ var (
 		"shuffle",
 		0.6,
 		style.ColorWhite,
-		style.ColorWhite,
+		style.ColorBlack,
 		style.MustForceConvertSRGBHex("#FF8500"),
 		style.ColorWhite,
 		true,
