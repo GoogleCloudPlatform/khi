@@ -12,50 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+substitutions:
+  _VERSION: "dev-${SHORT_SHA}"
+  # TODO(#21): Remove asia.gcr.io from the build targets.
+  # The new repository is gcr.io, but we will keep the old one for a while.
+  _DOCKER_TAGS: "-t gcr.io/kubernetes-history-inspector/develop:${COMMIT_SHA}"
+
 steps:
-  - name: "node:22-trixie"
+  - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     args:
       - "-c"
       - |
         cd ./web
         npm ci
-        cd ..
-        npx @bufbuild/buf generate
-        touch scripts/make/build-proto.done
-    id: dependency_web
+    id: install_deps
     waitFor:
       - "-"
     entrypoint: /bin/bash
-  - name: "golang:1.25-trixie"
+  - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     args:
       - "-c"
       - |
-        echo "dev-${SHORT_SHA}" > VERSION
-        apt-get update && apt-get install jq -y
-        make generate-frontend
-        make generate-backend
-    id: pre_build_web
-    waitFor:
-      - dependency_web
-    entrypoint: /bin/bash
-  - name: "node:22-trixie"
-    args:
-      - "-c"
-      - |
+        echo "${_VERSION}" > VERSION
         make build-web
-    id: build_web
+    id: build_app
     waitFor:
-      - pre_build_web
+      - install_deps
     entrypoint: /bin/bash
   - name: gcr.io/cloud-builders/docker
     args:
       - "-c"
       - |
         docker buildx create --driver docker-container --name container --use
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t gcr.io/kubernetes-history-inspector/develop:$SHORT_SHA --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile ${_DOCKER_TAGS} --push .
     id: build_container
     waitFor:
-      - build_web
+      - build_app
     entrypoint: /bin/bash
 options:
   machineType: E2_HIGHCPU_32

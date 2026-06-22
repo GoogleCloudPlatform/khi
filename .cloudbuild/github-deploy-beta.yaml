@@ -12,52 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+substitutions:
+  _VERSION: "${TAG_NAME}"
+  # TODO(#21): Remove asia.gcr.io from the build targets.
+  # The new repository is gcr.io, but we will keep the old one for a while.
+  _DOCKER_TAGS: "-t asia.gcr.io/kubernetes-history-inspector/release:beta -t gcr.io/kubernetes-history-inspector/release:beta -t asia.gcr.io/kubernetes-history-inspector/release:${TAG_NAME} -t gcr.io/kubernetes-history-inspector/release:${TAG_NAME}"
+
 steps:
-  - name: "node:22-trixie"
+  - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     args:
       - "-c"
       - |
         cd ./web
         npm ci
-        cd ..
-        npx @bufbuild/buf generate
-        touch scripts/make/build-proto.done
-    id: dependency_web
+    id: install_deps
     waitFor:
       - "-"
     entrypoint: /bin/bash
-  - name: "golang:1.25-trixie"
+  - name: "gcr.io/kubernetes-history-inspector/builder:latest"
     args:
       - "-c"
       - |
-        echo ${TAG_NAME} > VERSION
-        apt-get update && apt-get install jq -y
-        make generate-frontend
-        make generate-backend
-    id: pre_build_web
-    waitFor:
-      - dependency_web
-    entrypoint: /bin/bash
-  - name: "node:22-trixie"
-    args:
-      - "-c"
-      - |
+        echo "${_VERSION}" > VERSION
         make build-web
-    id: build_web
+    id: build_app
     waitFor:
-      - pre_build_web
+      - install_deps
     entrypoint: /bin/bash
   - name: gcr.io/cloud-builders/docker
     args:
       - "-c"
       - |
         docker buildx create --driver docker-container --name container --use
-        # TODO(#21): Remove asia.gcr.io from the build targets.
-        # The new repository is gcr.io, but we will keep the old one for a while.
-        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile -t asia.gcr.io/kubernetes-history-inspector/release:beta -t gcr.io/kubernetes-history-inspector/release:beta -t asia.gcr.io/kubernetes-history-inspector/release:${TAG_NAME} -t gcr.io/kubernetes-history-inspector/release:${TAG_NAME} --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --file=./Dockerfile ${_DOCKER_TAGS} --push .
     id: build_container
     waitFor:
-      - build_web
+      - build_app
     entrypoint: /bin/bash
 options:
   machineType: E2_HIGHCPU_32
