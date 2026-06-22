@@ -67,7 +67,7 @@ export class VerticalScrollCalculator {
   constructor(
     private readonly timelines: readonly ReadonlyDomainElement<Timeline>[],
     private readonly marginTimelineCount = 10,
-    private readonly styleStore?: StyleStoreLike,
+    private readonly styleStore: StyleStoreLike,
   ) {
     this.accumulatedHeights = new Array<number>(this.timelines.length);
     let height = 0;
@@ -261,16 +261,11 @@ export class VerticalScrollCalculator {
     return result;
   }
 
+  /**
+   * Resolves the latest timeline type.
+   * Timeline type styles may be updated from the override dialog. This returns the latest one.
+   */
   private resolveTimelineType(timeline: ReadonlyDomainElement<Timeline>) {
-    if (this.styleStore) {
-      try {
-        return (
-          this.styleStore.getTimelineType(timeline.type.id) ?? timeline.type
-        );
-      } catch {
-        return timeline.type;
-      }
-    }
-    return timeline.type;
+    return this.styleStore?.getTimelineType(timeline.type.id) ?? timeline.type;
   }
 }

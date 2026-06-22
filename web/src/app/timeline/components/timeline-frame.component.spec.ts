@@ -131,9 +131,7 @@ const mockStyleStore: StyleStoreLike = {
   getRevisionState: () => {
     throw new Error();
   },
-  getTimelineType: () => {
-    throw new Error();
-  },
+  getTimelineType: () => undefined as unknown as TimelineType,
   getIconAtlas: () => undefined,
 };
 

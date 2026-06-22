@@ -16,6 +16,8 @@
 
 import { VerticalScrollCalculator } from './vertical-scroll-calculator';
 import { Timeline } from 'src/app/store/domain/timeline';
+import { StyleStoreLike } from 'src/app/store/domain/style-store';
+import { TimelineType } from 'src/app/store/domain/style';
 
 describe('VerticalScrollCalculator', () => {
   interface TimelineSpecConfig {
@@ -23,6 +25,28 @@ describe('VerticalScrollCalculator', () => {
     readonly parentIndex?: number;
     readonly childrenCount?: number;
   }
+
+  const mockStyleStore: StyleStoreLike = {
+    severities: [],
+    logTypes: [],
+    verbs: [],
+    revisionStates: [],
+    timelineTypes: [],
+    getSeverity: () => {
+      throw new Error('not implemented');
+    },
+    getLogType: () => {
+      throw new Error('not implemented');
+    },
+    getVerb: () => {
+      throw new Error('not implemented');
+    },
+    getRevisionState: () => {
+      throw new Error('not implemented');
+    },
+    getTimelineType: () => undefined as unknown as TimelineType,
+    getIconAtlas: () => undefined,
+  };
 
   const createMockTimelines = (
     configs: readonly TimelineSpecConfig[],
@@ -58,19 +82,43 @@ describe('VerticalScrollCalculator', () => {
         { height: 4.0 }, // 100
         { height: 2.0 }, // 50
       ]);
-      const calculator = new VerticalScrollCalculator(timelines, 0);
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        0,
+        mockStyleStore,
+      );
       expect(calculator.totalHeight).toBe(250);
     });
 
     it('should handle empty timelines', () => {
-      const calculator = new VerticalScrollCalculator([], 0);
+      const calculator = new VerticalScrollCalculator([], 0, mockStyleStore);
       expect(calculator.totalHeight).toBe(0);
+    });
+
+    it('should respect overridden timeline heights from styleStore', () => {
+      const timelines = createMockTimelines([{ height: 4.0 }]);
+      (timelines[0].type as { id: number }).id = 101;
+      const customStyleStore: StyleStoreLike = {
+        ...mockStyleStore,
+        getTimelineType: (id: number) => {
+          if (id === 101) {
+            return { height: 2.0 } as unknown as TimelineType;
+          }
+          return undefined as unknown as TimelineType;
+        },
+      };
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        0,
+        customStyleStore,
+      );
+      expect(calculator.totalHeight).toBe(50);
     });
   });
 
   describe('topDrawAreaOffset', () => {
     it('should return 0 when timelines are empty', () => {
-      const calculator = new VerticalScrollCalculator([], 0);
+      const calculator = new VerticalScrollCalculator([], 0, mockStyleStore);
       expect(calculator.topDrawAreaOffset(100)).toBe(0);
     });
 
@@ -79,7 +127,11 @@ describe('VerticalScrollCalculator', () => {
         { height: 4.0 }, // 100
         { height: 4.0 }, // 100
       ]);
-      const calculator = new VerticalScrollCalculator(timelines, 0);
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        0,
+        mockStyleStore,
+      );
       expect(calculator.topDrawAreaOffset(250)).toBe(100);
     });
 
@@ -89,7 +141,11 @@ describe('VerticalScrollCalculator', () => {
         { height: 4.0 }, // 100
         { height: 2.0 }, // 50
       ]);
-      const calculator = new VerticalScrollCalculator(timelines, 0);
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        0,
+        mockStyleStore,
+      );
 
       // scrollY at 0
       expect(calculator.topDrawAreaOffset(0)).toBe(0);
@@ -110,7 +166,7 @@ describe('VerticalScrollCalculator', () => {
 
   describe('timelinesInDrawArea', () => {
     it('should return empty array when timelines are empty', () => {
-      const calculator = new VerticalScrollCalculator([], 0);
+      const calculator = new VerticalScrollCalculator([], 0, mockStyleStore);
       expect(calculator.timelinesInDrawArea(0, 100)).toEqual([]);
     });
 
@@ -120,7 +176,11 @@ describe('VerticalScrollCalculator', () => {
         { height: 4.0 }, // 100
         { height: 2.0 }, // 50
       ]);
-      const calculator = new VerticalScrollCalculator(timelines, 0);
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        0,
+        mockStyleStore,
+      );
 
       // Case 1: Only first timeline visible (0-50)
       let result = calculator.timelinesInDrawArea(0, 50);
@@ -151,7 +211,11 @@ describe('VerticalScrollCalculator', () => {
         { height: 4.0 }, // 100
         { height: 4.0 }, // 100
       ]);
-      const calculator = new VerticalScrollCalculator(timelines, margin);
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        margin,
+        mockStyleStore,
+      );
 
       // Only Timeline 2 (200-250) is strictly visible
       // scrollY=210, visibleHeight=10
@@ -164,14 +228,18 @@ describe('VerticalScrollCalculator', () => {
 
     it('should calculate totalRenderHeight with margin', () => {
       const timelines = createMockTimelines([{ height: 4.0 }]); // max 100
-      const calculator = new VerticalScrollCalculator(timelines, margin);
+      const calculator = new VerticalScrollCalculator(
+        timelines,
+        margin,
+        mockStyleStore,
+      );
       expect(calculator.totalRenderHeight(500)).toBe(900);
     });
   });
 
   describe('stickyTimelines', () => {
     it('should return empty array when timelines are empty', () => {
-      const calculator = new VerticalScrollCalculator([], 0);
+      const calculator = new VerticalScrollCalculator([], 0, mockStyleStore);
       expect(calculator.stickyTimelines(100)).toEqual([]);
     });
 
@@ -193,7 +261,7 @@ describe('VerticalScrollCalculator', () => {
           { height: 4.0, parentIndex: 8 }, // index 9 (Pod4)
           { height: 2.0, parentIndex: 9 }, // index 10 (Subresource2)
         ]);
-        calculator = new VerticalScrollCalculator(timelines, 0);
+        calculator = new VerticalScrollCalculator(timelines, 0, mockStyleStore);
       });
 
       it('should return initial sticky header at scroll 0', () => {
