@@ -17,6 +17,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
   CelTimelineFilter,
+  CelTimelineExclusionFilter,
   CelLogFilter,
 } from 'src/app/store/domain/filter/cel-filter';
 import { LogTimelineFilterContext } from 'src/app/store/domain/filter/types';
@@ -216,5 +217,71 @@ describe('CelLogFilter', () => {
 
     const result = await filter.process(context, timelineStoreSpy);
     expect(result).toBe(context);
+  });
+});
+
+describe('CelTimelineExclusionFilter', () => {
+  let filter: CelTimelineExclusionFilter;
+  let searchWorkerManagerSpy: jasmine.SpyObj<SearchWorkerManager>;
+
+  beforeEach(() => {
+    searchWorkerManagerSpy = jasmine.createSpyObj<SearchWorkerManager>(
+      'SearchWorkerManager',
+      ['searchTimelines', 'searchLogs'],
+    );
+
+    TestBed.configureTestingModule({
+      providers: [
+        CelTimelineExclusionFilter,
+        { provide: SearchWorkerManager, useValue: searchWorkerManagerSpy },
+      ],
+    });
+
+    filter = TestBed.inject(CelTimelineExclusionFilter);
+  });
+
+  it('should exclude timeline and its descendants when ancestor fails exclusion filter', async () => {
+    const rootTimeline = {
+      id: 10,
+      name: 'Root',
+      parent: null,
+      events: [],
+      revisions: [],
+    };
+    const childTimeline = {
+      id: 11,
+      name: 'Child',
+      parent: rootTimeline,
+      events: [],
+      revisions: [],
+    };
+
+    const timelines = [rootTimeline, childTimeline];
+
+    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
+      'TimelineStore',
+      ['getTimeline'],
+    );
+    timelineStoreSpy.getTimeline.and.callFake((id: number) => {
+      const found = timelines.find((t) => t.id === id);
+      if (!found) {
+        throw new Error(`Timeline ${id} not found`);
+      }
+      return found as unknown as ReadonlyDomainElement<Timeline>;
+    });
+
+    searchWorkerManagerSpy.searchTimelines.and.returnValue(
+      Promise.resolve(new Set([10])),
+    );
+
+    filter.updateFilter('match("kube-system")');
+
+    const context: LogTimelineFilterContext = {
+      timelineIds: new Set([10, 11]),
+      logIds: new Set(),
+    };
+
+    const result = await filter.process(context, timelineStoreSpy);
+    expect(result.timelineIds.size).toBe(0);
   });
 });

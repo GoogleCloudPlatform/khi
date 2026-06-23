@@ -17,11 +17,26 @@
 @use '@angular/material' as mat;
 
 $gray-palette: mat.$m2-gray-palette;
+$blue-palette: mat.$m2-blue-palette;
+$red-palette: mat.$m2-red-palette;
 
 $popover-bg-color: mat.m2-get-color-from-palette($gray-palette, 50);
 $popover-border-color: mat.m2-get-color-from-palette($gray-palette, 200);
 $popover-shadow-color: rgba(0, 0, 0, 0.12);
 $text-primary-color: mat.m2-get-color-from-palette($gray-palette, 800);
+
+// Action toggle button tokens
+$include-fg-color: mat.m2-get-color-from-palette($blue-palette, 700);
+$include-bg-color: mat.m2-get-color-from-palette($blue-palette, 50);
+$include-border-color: mat.m2-get-color-from-palette($blue-palette, 300);
+$include-checked-bg-color: mat.m2-get-color-from-palette($blue-palette, 600);
+$include-checked-fg-color: mat.m2-get-color-from-palette($gray-palette, 50);
+
+$exclude-fg-color: mat.m2-get-color-from-palette($red-palette, 700);
+$exclude-bg-color: mat.m2-get-color-from-palette($red-palette, 50);
+$exclude-border-color: mat.m2-get-color-from-palette($red-palette, 400);
+$exclude-checked-bg-color: mat.m2-get-color-from-palette($red-palette, 600);
+$exclude-checked-fg-color: mat.m2-get-color-from-palette($gray-palette, 50);
 
 .filter-builder-card {
   background-color: $popover-bg-color;
@@ -32,6 +47,7 @@ $text-primary-color: mat.m2-get-color-from-palette($gray-palette, 800);
   display: grid;
   grid-template:
     'title' auto
+    'action-toggle' auto
     'type-field' auto
     'mode-toggle' auto
     'input-field' auto
@@ -70,6 +86,74 @@ $text-primary-color: mat.m2-get-color-from-palette($gray-palette, 800);
 
 .type-field-wrapper {
   grid-area: type-field;
+}
+
+.action-selector-wrapper {
+  grid-area: action-toggle;
+  display: grid;
+  grid-template:
+    'toggle' auto
+    / 100%;
+  justify-items: center;
+  width: 100%;
+}
+
+.action-toggle-group {
+  grid-area: toggle;
+  width: 100%;
+  display: grid;
+  grid-template:
+    'include-toggle exclude-toggle' auto
+    / 1fr 1fr;
+
+  .action-toggle {
+    text-align: center;
+    border: 1px solid transparent;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
+
+    &.include-toggle {
+      background-color: $include-bg-color;
+      color: $include-fg-color;
+      border-color: $include-border-color;
+
+      .toggle-icon {
+        color: $include-fg-color;
+      }
+
+      &.mat-button-toggle-checked {
+        background-color: $include-checked-bg-color;
+        color: $include-checked-fg-color;
+        border-color: $include-checked-bg-color;
+
+        .toggle-icon {
+          color: $include-checked-fg-color;
+        }
+      }
+    }
+
+    &.exclude-toggle {
+      background-color: $exclude-bg-color;
+      color: $exclude-fg-color;
+      border-color: $exclude-border-color;
+
+      .toggle-icon {
+        color: $exclude-fg-color;
+      }
+
+      &.mat-button-toggle-checked {
+        background-color: $exclude-checked-bg-color;
+        color: $exclude-checked-fg-color;
+        border-color: $exclude-checked-bg-color;
+
+        .toggle-icon {
+          color: $exclude-checked-fg-color;
+        }
+      }
+    }
+  }
 }
 
 .mode-selector-wrapper {

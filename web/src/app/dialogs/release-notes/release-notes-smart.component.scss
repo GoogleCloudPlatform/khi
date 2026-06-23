@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-export interface TimelineFilterConfig {
-  id: string;
-  timelineType: string;
-  mode: 'regex' | 'selection';
-  value: string;
-  action: 'include' | 'exclude';
+:host {
+  display: contents;
 }

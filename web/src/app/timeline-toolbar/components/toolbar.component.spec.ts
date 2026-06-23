@@ -68,8 +68,20 @@ describe('ToolbarComponent', () => {
 
   it('should render the filter badges for provided filters', () => {
     fixture.componentRef.setInput('timelineFilters', [
-      { id: '1', timelineType: 'K8sResource', mode: 'regex', value: 'Pod' },
-      { id: '2', timelineType: '*', mode: 'regex', value: 'test-pattern' },
+      {
+        id: '1',
+        timelineType: 'K8sResource',
+        mode: 'regex',
+        value: 'Pod',
+        action: 'include',
+      },
+      {
+        id: '2',
+        timelineType: '*',
+        mode: 'regex',
+        value: 'test-pattern',
+        action: 'include',
+      },
     ]);
     fixture.detectChanges();
 
@@ -92,7 +104,13 @@ describe('ToolbarComponent', () => {
 
   it('should delete the filter when delete icon in a badge is clicked', () => {
     fixture.componentRef.setInput('timelineFilters', [
-      { id: '1', timelineType: 'K8sResource', mode: 'selection', value: 'Pod' },
+      {
+        id: '1',
+        timelineType: 'K8sResource',
+        mode: 'selection',
+        value: 'Pod',
+        action: 'include',
+      },
     ]);
     fixture.detectChanges();
 

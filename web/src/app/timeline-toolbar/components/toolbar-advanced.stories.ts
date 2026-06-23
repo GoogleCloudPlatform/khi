@@ -35,11 +35,13 @@ type Story = StoryObj<ToolbarAdvancedComponent>;
 
 export const Default: Story = {
   args: {
-    timelineCelError: '',
-    logCelError: '',
     timezoneShift: 0,
     logOrTimelineNotSelected: false,
-    timelineCelFilter: 'timeline.name == "foo"',
+    timelineIncludeCelFilter: 'timeline.name == "foo"',
+    timelineIncludeCelError: '',
+    timelineExcludeCelFilter: 'timeline.name == "bar"',
+    timelineExcludeCelError: '',
     logCelFilter: 'log.severity == ERROR',
+    logCelError: '',
   },
 };

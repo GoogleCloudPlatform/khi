@@ -16,9 +16,20 @@
 
 <div class="guide-content">
   <p>
-    Timeline CEL expressions filter which resource timelines are shown. The
-    expression must evaluate to a boolean.
+    Timeline CEL expressions filter which resource timelines are shown or
+    excluded. The expression must evaluate to a boolean.
   </p>
+
+  <div class="section-block">
+    <h3>Timeline Exclusion Filter</h3>
+    <p>
+      When an expression is used in the
+      <strong>Timeline Exclusion filter</strong>, any timeline that evaluates to
+      <code>true</code>
+      <strong>and all of its descendant timelines</strong> (e.g., Pods belonging
+      to an excluded Node or Workload) will be hidden from the view.
+    </p>
+  </div>
 
   <div class="section-block">
     <h3>Examples</h3>
@@ -59,6 +70,13 @@
           using regex</span
         >
         <code>revision_body('status.podIP', '^10\\..*')</code>
+      </div>
+      <div class="example-card">
+        <span class="example-label"
+          >Exclude kube-system namespace and all resources inside it (for
+          Exclusion filter)</span
+        >
+        <code>match('namespace', '^kube-system$')</code>
       </div>
     </div>
   </div>

@@ -17,6 +17,7 @@
 import {
   compileLogFiltersToCel,
   compileFiltersToCel,
+  compileExclusionFiltersToCel,
 } from './timeline-toolbar-smart.component';
 import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
 
@@ -64,6 +65,7 @@ describe('TimelineToolbarSmart compilation helpers', () => {
           timelineType: '*',
           mode: 'regex',
           value: 'pod-.*',
+          action: 'include',
         },
       ];
       expect(compileFiltersToCel(filters)).toBe('match("pod-.*")');
@@ -76,6 +78,7 @@ describe('TimelineToolbarSmart compilation helpers', () => {
           timelineType: 'K8sResource',
           mode: 'regex',
           value: 'pod-.*',
+          action: 'include',
         },
       ];
       expect(compileFiltersToCel(filters)).toBe(
@@ -90,6 +93,7 @@ describe('TimelineToolbarSmart compilation helpers', () => {
           timelineType: 'K8sResource',
           mode: 'regex',
           value: 'test"val\\ue',
+          action: 'include',
         },
       ];
       expect(compileFiltersToCel(filters)).toBe(
@@ -104,6 +108,7 @@ describe('TimelineToolbarSmart compilation helpers', () => {
           timelineType: 'K8sResource',
           mode: 'selection',
           value: 'pod-a|pod.b|pod+c',
+          action: 'include',
         },
       ];
       expect(compileFiltersToCel(filters)).toBe(
@@ -118,6 +123,7 @@ describe('TimelineToolbarSmart compilation helpers', () => {
           timelineType: 'K8sResource',
           mode: 'selection',
           value: 'val"ue\\1|val"ue\\2',
+          action: 'include',
         },
       ];
       expect(compileFiltersToCel(filters)).toBe(
@@ -125,23 +131,25 @@ describe('TimelineToolbarSmart compilation helpers', () => {
       );
     });
 
-    it('should join multiple filters with &&', () => {
+    it('should ignore exclude filters in compileFiltersToCel', () => {
       const filters: TimelineFilterConfig[] = [
         {
           id: '1',
           timelineType: 'K8sResource',
           mode: 'regex',
           value: 'pod-.*',
+          action: 'include',
         },
         {
           id: '2',
           timelineType: '*',
           mode: 'selection',
           value: 'ns-1|ns-2',
+          action: 'exclude',
         },
       ];
       expect(compileFiltersToCel(filters)).toBe(
-        'match("K8sResource", "pod-.*") && match("^(?:ns-1|ns-2)$")',
+        'match("K8sResource", "pod-.*")',
       );
     });
 
@@ -152,6 +160,7 @@ describe('TimelineToolbarSmart compilation helpers', () => {
           timelineType: '*',
           mode: 'regex',
           value: 'pod-.*',
+          action: 'include',
         },
       ];
       expect(compileFiltersToCel(filters, 'ERROR')).toBe(
@@ -161,6 +170,43 @@ describe('TimelineToolbarSmart compilation helpers', () => {
 
     it('should return minSeverity only when filters is empty and severity is not ANY', () => {
       expect(compileFiltersToCel([], 'ERROR')).toBe('minSeverity(ERROR)');
+    });
+  });
+
+  describe('compileExclusionFiltersToCel', () => {
+    it('should return empty string when no exclude filters exist', () => {
+      const filters: TimelineFilterConfig[] = [
+        {
+          id: '1',
+          timelineType: '*',
+          mode: 'regex',
+          value: 'pod-.*',
+          action: 'include',
+        },
+      ];
+      expect(compileExclusionFiltersToCel(filters)).toBe('');
+    });
+
+    it('should compile exclude filters to match', () => {
+      const filters: TimelineFilterConfig[] = [
+        {
+          id: '1',
+          timelineType: 'K8sResource',
+          mode: 'regex',
+          value: 'pod-.*',
+          action: 'exclude',
+        },
+        {
+          id: '2',
+          timelineType: '*',
+          mode: 'selection',
+          value: 'ns-1',
+          action: 'exclude',
+        },
+      ];
+      expect(compileExclusionFiltersToCel(filters)).toBe(
+        'match("K8sResource", "pod-.*") || match("^(?:ns-1)$")',
+      );
     });
   });
 });

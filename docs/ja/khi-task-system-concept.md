@@ -377,7 +377,7 @@ result := task.GetTaskResultFromLocalRunner(taskRunner, TaskID)
 
 KHI を使用する場合、ユーザーは以下のようなワークフローに従います:
 
-![ユーザーに表示されるインスペクションフローでタスク構造がどのように使用されるかを示す図](./images/inspection-task-structure.png)
+![ユーザーに表示されるインスペクションフローでタスク構造がどのように使用されるかを示す図](../en/images/inspection-task-structure.png)
 
 実際のログ処理に使用される様々なタスクは、KHI の初期化中に `InspectionServer` に登録されます。
 ユーザーが `New Inspection` ボタンをクリックすると、まず `Inspection Type` を選択する必要があります。すると KHI は、登録されたタスクをフィルタリングし、選択された `Inspection Type` で動作可能なタスクのみを含めます。これには、ユーザーが有効化または無効化できるタスクだけでなく、それらの依存関係で使用されるすべてのタスクも含まれます。

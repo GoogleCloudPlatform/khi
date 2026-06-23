@@ -31,6 +31,27 @@ limitations under the License.
     }
   </div>
 
+  <div class="action-selector-wrapper">
+    <mat-button-toggle-group
+      [value]="filterAction()"
+      (change)="filterAction.set($event.value)"
+      class="action-toggle-group"
+    >
+      <mat-button-toggle value="include" class="action-toggle include-toggle">
+        <div class="toggle-button-content">
+          <mat-icon class="toggle-icon">filter_alt</mat-icon>
+          <span>Include</span>
+        </div>
+      </mat-button-toggle>
+      <mat-button-toggle value="exclude" class="action-toggle exclude-toggle">
+        <div class="toggle-button-content">
+          <mat-icon class="toggle-icon">filter_alt_off</mat-icon>
+          <span>Exclude</span>
+        </div>
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
   <div class="type-field-wrapper">
     <mat-form-field appearance="outline" class="form-field">
       <mat-label>Timeline Type</mat-label>
@@ -97,7 +118,9 @@ limitations under the License.
       <mat-form-field appearance="outline" class="form-field">
         <mat-label>Filter Pattern (Regex)</mat-label>
         <input
+          #regexInput
           matInput
+          autofocus
           placeholder="e.g. pod-a.*"
           [value]="regexValue()"
           (input)="regexValue.set($any($event.target).value)"

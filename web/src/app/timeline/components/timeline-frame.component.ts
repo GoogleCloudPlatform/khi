@@ -454,6 +454,18 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Emitted when the user clicks on a timeline (row).
    */
   readonly clickOnTimeline = output<Timeline>();
+  /**
+   * Emitted when toggling timeline registration in the CEL debugger.
+   */
+  readonly toggleDebugTimeline = output<Timeline>();
+  /**
+   * Emitted when requesting to exclude a specific timeline.
+   */
+  readonly excludeTimeline = output<Timeline>();
+  /**
+   * Emitted when requesting to exclude all timelines of a specific type.
+   */
+  readonly excludeTimelineType = output<string>();
 
   /**
    * Emitted when the user hovers over an item (event or revision) in the chart.

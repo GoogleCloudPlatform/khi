@@ -34,6 +34,7 @@ limitations under the License.
             <button
               mat-stroked-button
               class="filter-badge"
+              [class.action-exclude]="filter.action === 'exclude'"
               [matTooltip]="getFilterTooltip(filter)"
               (click)="openEditFilterPopup(filter)"
               [style.--badge-bg]="getTypeRowBgColor(filter.timelineType)"
@@ -48,6 +49,9 @@ limitations under the License.
                 }}
               </mat-icon>
               <span class="filter-label">
+                @if (filter.action === "exclude") {
+                  <span class="action-tag exclude">Exclude</span>
+                }
                 <span class="filter-type">{{ filter.timelineType }}</span
                 ><span class="filter-colon">: </span
                 ><span class="filter-value">{{
@@ -149,6 +153,7 @@ limitations under the License.
     [showDeleteButton]="editingFilter() !== null"
     [(selectedTimelineType)]="selectedTimelineTypeForBuilder"
     [(filterMode)]="builderFilterMode"
+    [(filterAction)]="builderFilterAction"
     [(regexValue)]="builderRegexValue"
     [(selectedCandidates)]="builderSelectedCandidates"
     (closeButtonClicked)="toggleFilterBuilder()"

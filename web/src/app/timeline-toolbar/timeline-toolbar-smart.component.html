@@ -32,12 +32,15 @@ limitations under the License.
   (hideTimelinesWithoutMatchingLogsChange)="
     onToggleHideTimelinesWithoutMatchingLogs($event)
   "
-  [timelineCelFilter]="timelineCelFilter()"
+  [timelineIncludeCelFilter]="timelineIncludeCelFilter()"
+  [timelineExcludeCelFilter]="timelineExcludeCelFilter()"
+  [timelineIncludeCelError]="timelineIncludeCelError()"
+  [timelineExcludeCelError]="timelineExcludeCelError()"
   [logCelFilter]="logCelFilter()"
-  [timelineCelError]="timelineCelError()"
   [logCelError]="logCelError()"
   [activeSearchScope]="activeSearchScope()"
   (timezoneShiftChange)="onTimezoneshiftCommit($event)"
-  (timelineCelFilterChange)="onTimelineCelFilterChange($event)"
+  (timelineIncludeCelFilterChange)="onTimelineIncludeCelFilterChange($event)"
+  (timelineExcludeCelFilterChange)="onTimelineExcludeCelFilterChange($event)"
   (logCelFilterChange)="onLogCelFilterChange($event)"
 ></khi-toolbar-frame>

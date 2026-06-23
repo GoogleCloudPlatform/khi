@@ -23,6 +23,7 @@ import {
 import { ViewStateService } from 'src/app/services/view-state.service';
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+
 import {
   TimelineChartItemHighlight,
   TimelineChartItemHighlightType,
@@ -43,6 +44,8 @@ import {
 import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
 import { bisectLeft } from 'src/app/common/misc-util';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
+import { TimelineFilterConfig } from 'src/app/timeline-toolbar/types/filter-config';
+import { CelTimelineExclusionFilter } from 'src/app/store/domain/filter/cel-filter';
 
 /**
  * Smart component for the timeline view.
@@ -71,6 +74,10 @@ export class TimelineSmartComponent {
   private readonly selectionManager = inject(SelectionManagerV2);
 
   private readonly styleOverrideService = inject(StyleOverrideService);
+
+  private readonly celTimelineExclusionFilter = inject(
+    CelTimelineExclusionFilter,
+  );
 
   private readonly inspectionData = computed(() => {
     return this.inspectionDataStore.inspectionData();
@@ -532,6 +539,90 @@ export class TimelineSmartComponent {
    */
   protected clickOnTimeline(event: ReadonlyDomainElement<Timeline>): void {
     this.selectionManager.onSelectTimeline(event);
+  }
+
+  /**
+   * Handles excluding a single timeline by adding or updating an exclusion filter.
+   * @param timeline - The timeline to exclude.
+   */
+  protected excludeTimeline(timeline: Timeline): void {
+    if (this.viewStateService.isAdvancedMode()) {
+      const currentExpr = this.celTimelineExclusionFilter.celExpr();
+      const escapedName = timeline.name
+        .replace(/\\/g, '\\\\')
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        .replace(/"/g, '\\"');
+      const predicate = `match("${timeline.type.label}", "^(?:${escapedName})$")`;
+      const updatedExpr = currentExpr
+        ? `${currentExpr} || ${predicate}`
+        : predicate;
+      this.celTimelineExclusionFilter.updateFilter(updatedExpr);
+      return;
+    }
+
+    const currentFilters = this.viewStateService.standardTimelineFilters();
+    const typeLabel = timeline.type.label;
+    const existingIndex = currentFilters.findIndex(
+      (f) =>
+        f.timelineType === typeLabel &&
+        f.action === 'exclude' &&
+        f.mode === 'selection',
+    );
+
+    if (existingIndex !== -1) {
+      const existingFilter = currentFilters[existingIndex];
+      const parts = existingFilter.value ? existingFilter.value.split('|') : [];
+      if (!parts.includes(timeline.name)) {
+        parts.push(timeline.name);
+        const updatedFilters = [...currentFilters];
+        updatedFilters[existingIndex] = {
+          ...existingFilter,
+          value: parts.join('|'),
+        };
+        this.viewStateService.standardTimelineFilters.set(updatedFilters);
+      }
+    } else {
+      const newFilter: TimelineFilterConfig = {
+        id: crypto.randomUUID(),
+        timelineType: typeLabel,
+        mode: 'selection',
+        value: timeline.name,
+        action: 'exclude',
+      };
+      this.viewStateService.standardTimelineFilters.set([
+        ...currentFilters,
+        newFilter,
+      ]);
+    }
+  }
+
+  /**
+   * Handles excluding all timelines of a specific type.
+   * @param typeLabel - The label of the timeline type to exclude.
+   */
+  protected excludeTimelineType(typeLabel: string): void {
+    if (this.viewStateService.isAdvancedMode()) {
+      const currentExpr = this.celTimelineExclusionFilter.celExpr();
+      const predicate = `match("${typeLabel}", ".*")`;
+      const updatedExpr = currentExpr
+        ? `${currentExpr} || ${predicate}`
+        : predicate;
+      this.celTimelineExclusionFilter.updateFilter(updatedExpr);
+      return;
+    }
+
+    const currentFilters = this.viewStateService.standardTimelineFilters();
+    const newFilter: TimelineFilterConfig = {
+      id: crypto.randomUUID(),
+      timelineType: typeLabel,
+      mode: 'regex',
+      value: '.*',
+      action: 'exclude',
+    };
+    this.viewStateService.standardTimelineFilters.set([
+      ...currentFilters,
+      newFilter,
+    ]);
   }
 
   /**

@@ -40,7 +40,9 @@
         }}</mat-icon>
       }
       <div class="index">
-        <p class="main-name" [matTooltip]="t.name">{{ t.name }}</p>
+        <p class="main-name" [matTooltip]="t.name">
+          {{ t.name }}
+        </p>
         @if (t.subLabel !== "") {
           <p class="sub-label">{{ t.subLabel }}</p>
         }
@@ -48,6 +50,28 @@
           <span class="layer-name">{{ t.layerName }}</span>
         }
       </div>
+      <button
+        type="button"
+        class="menu-trigger-btn"
+        [matMenuTriggerFor]="itemMenu"
+        (click)="$event.stopPropagation()"
+        matTooltip="Menu"
+      >
+        <mat-icon class="menu-icon">more_vert</mat-icon>
+      </button>
+      <mat-menu #itemMenu="matMenu">
+        <button mat-menu-item (click)="excludeTimeline.emit(t.timeline)">
+          <mat-icon>filter_alt_off</mat-icon>
+          <span>Exclude this timeline</span>
+        </button>
+        <button
+          mat-menu-item
+          (click)="excludeTimelineType.emit(t.timeline.type.label)"
+        >
+          <mat-icon>block</mat-icon>
+          <span>Exclude all timelines of this type</span>
+        </button>
+      </mat-menu>
     </div>
   }
 </div>

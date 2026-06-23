@@ -1,0 +1,150 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+$dialog-title-color: #1f1f1f;
+$dialog-content-text-color: #333;
+$markdown-code-bg: #f5f5f5;
+$actions-border-color: #e0e0e0;
+$header-border-color: #eaecef;
+$table-border-color: #ccc;
+$table-header-bg: #f5f5f5;
+$blockquote-border-color: #4285f4;
+$blockquote-bg: #f8f9fa;
+$blockquote-text-color: #5f6368;
+
+:host {
+  display: grid;
+  grid-template:
+    'content' 1fr
+    'actions' auto
+    / 1fr;
+  height: 100%;
+  max-height: 90vh;
+}
+
+.dialog-content {
+  grid-area: content;
+  padding: 16px 24px;
+  margin: 0;
+  max-height: none;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: $dialog-content-text-color;
+
+  ::ng-deep .markdown-body {
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin-top: 16px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: $dialog-title-color;
+    }
+
+    h1,
+    h2 {
+      padding-bottom: 4px;
+      border-bottom: 1px solid $header-border-color;
+    }
+
+    h1 {
+      font-size: 18px;
+    }
+
+    h2 {
+      font-size: 16px;
+    }
+
+    h3 {
+      font-size: 14px;
+    }
+
+    p {
+      margin-bottom: 10px;
+    }
+
+    ul,
+    ol {
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    code {
+      background-color: $markdown-code-bg;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid $table-border-color;
+      margin-bottom: 16px;
+
+      th,
+      td {
+        border: 1px solid $table-border-color;
+        padding: 6px 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: $table-header-bg;
+        font-weight: 600;
+      }
+    }
+
+    blockquote {
+      margin: 0 0 14px;
+      padding: 8px 14px;
+      background-color: $blockquote-bg;
+      border-left: 4px solid $blockquote-border-color;
+      color: $blockquote-text-color;
+
+      p {
+        margin: 0;
+      }
+    }
+  }
+}
+
+.dialog-actions {
+  grid-area: actions;
+  display: grid;
+  grid-template:
+    'checkbox button' auto
+    / 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 24px;
+  border-top: 1px solid $actions-border-color;
+  margin: 0;
+}
+
+.suppress-checkbox {
+  grid-area: checkbox;
+}
+
+button {
+  grid-area: button;
+}

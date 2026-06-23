@@ -35,7 +35,8 @@ describe('ToolbarAdvancedComponent', () => {
 
     fixture = TestBed.createComponent(ToolbarAdvancedComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('timelineCelError', '');
+    fixture.componentRef.setInput('timelineIncludeCelError', '');
+    fixture.componentRef.setInput('timelineExcludeCelError', '');
     fixture.componentRef.setInput('logCelError', '');
     fixture.detectChanges();
   });
@@ -50,13 +51,16 @@ describe('ToolbarAdvancedComponent', () => {
   });
 
   it('should bind timeline CEL filter value correctly', () => {
-    component.timelineCelFilter.set('timeline.name == "test"');
+    component.timelineIncludeCelFilter.set('timeline.name == "test"');
+    component.timelineExcludeCelFilter.set(
+      'timeline.namespace == "kube-system"',
+    );
     fixture.detectChanges();
 
     const celInputs = fixture.debugElement.queryAll(
       By.css('khi-timeline-cel-input'),
     );
-    expect(celInputs.length).toBe(2);
+    expect(celInputs.length).toBe(3);
   });
 
   it('should emit switchToStandard when standard button is clicked', () => {
