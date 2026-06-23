@@ -122,7 +122,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 						ResourceBody: node,
 						Principal:    "admin",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 					}, nodeComparer)
 			},
 		},
@@ -178,7 +178,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 						ResourceBody: node,
 						Principal:    "admin",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 					}, nodeComparer)
 			},
 		},
@@ -208,7 +208,7 @@ status:
 						ResourceBody: node,
 						Principal:    "admin",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 					}, nodeComparer)
 			},
 		},
@@ -263,7 +263,7 @@ status:
 						ResourceBody: node,
 						Principal:    "admin",
 						VerbType:     commonlogk8saudit_contract.VerbDeleteCollection,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 					}, nodeComparer)
 			},
 		},
@@ -375,7 +375,7 @@ status:
 						ResourceBody: node,
 						Principal:    "admin",
 						VerbType:     commonlogk8saudit_contract.VerbPatch,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 					}, nodeComparer)
 			},
 		},
@@ -473,7 +473,7 @@ uid: "test-uid"`,
 						ResourceBody: node,
 						Principal:    "admin",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 					}, nodeComparer)
 			},
 		},

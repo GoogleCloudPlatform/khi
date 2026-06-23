@@ -57,13 +57,36 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 			),
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
-					HasSummary("compute.instances.insert Started").
+					HasSummary("Start: compute.instances.insert").
 					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
 					HasTimestamp(testTime)
 			},
 		},
 		{
-			name: "ingest compute API audit log - finish",
+			name: "ingest compute API audit log - finish succeeded",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "compute.instances.insert",
+					OperationFirst: false,
+					OperationLast:  true,
+					Status:         0,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("Succeeded: compute.instances.insert").
+					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
+					HasTimestamp(testTime)
+			},
+		},
+		{
+			name: "ingest compute API audit log - finish failed",
 			input: log.NewLogWithFieldSetsForTest(
 				&log.CommonFieldSet{
 					Timestamp: testTime,
@@ -75,18 +98,67 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 					MethodName:     "compute.instances.insert",
 					OperationFirst: false,
 					OperationLast:  true,
+					Status:         3,
+					StatusMessage:  "Invalid argument provided",
 				},
 			),
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
-					HasSummary("compute.instances.insert Finished").
+					HasSummary("Failed: [3: Invalid argument provided] compute.instances.insert").
+					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
+					HasTimestamp(testTime)
+			},
+		},
+		{
+			name: "ingest compute API audit log - immediate failed",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityError,
+				},
+				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "compute.instances.delete",
+					OperationFirst: true,
+					OperationLast:  true,
+					Status:         7,
+					StatusMessage:  "Permission denied",
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("Failed: [7: Permission denied] compute.instances.delete").
+					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
+					HasTimestamp(testTime)
+			},
+		},
+		{
+			name: "ingest compute API audit log - immediate succeeded",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: testTime,
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudcommon_contract.GCPAuditLogFieldSet{
+					MethodName:     "compute.instances.delete",
+					OperationFirst: true,
+					OperationLast:  true,
+					Status:         0,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("Succeeded: compute.instances.delete").
 					HasLogType(googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi).
 					HasTimestamp(testTime)
 			},
 		},
 	}
 
-	ingester := &gcpComputeAuditLogLogIngester{}
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(), googlecloudlogcomputeapiaudit_contract.LogTypeComputeApi)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -129,6 +201,10 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		Name: "delete-op-3",
 		Type: googlecloudcommon_contract.TimelineTypeOperation,
 	})
+	wantOp4Path := builder.TimelineAccumulator.GetPath(wantNodeGhiPath, khifilev6.PathSegment{
+		Name: "delete-op-4",
+		Type: googlecloudcommon_contract.TimelineTypeOperation,
+	})
 
 	testTime := time.Date(2025, time.January, 1, 1, 1, 1, 1, time.UTC)
 	testCommonFieldSet := &log.CommonFieldSet{
@@ -138,6 +214,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		name     string
 		inputLog *log.Log
+		state    *googlecloudcommon_contract.GCPOperationTracker
 		assert   func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -161,7 +238,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name: "operation finished",
+			name: "operation finished with prior start log found",
 			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-1",
 				OperationFirst: false,
@@ -170,11 +247,24 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ResourceName:   "projects/123/resources/abc",
 				PrincipalEmail: "foobar@qux.test",
 			}),
+			state: func() *googlecloudcommon_contract.GCPOperationTracker {
+				tr := googlecloudcommon_contract.NewGCPOperationTracker()
+				dummyLog := log.NewLogWithFieldSetsForTest(&googlecloudcommon_contract.GCPAuditLogFieldSet{
+					OperationID:    "op-1",
+					OperationFirst: true,
+				})
+				dummyCs := khifilev6.NewTimelineChangeSet(dummyLog)
+				tr.ProcessOperationLog(ctx, dummyCs, wantOp1Path, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+					OperationID:    "op-1",
+					OperationFirst: true,
+				}, testTime)
+				return tr
+			}(),
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantOp1Path, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
 						Principal:   "foobar@qux.test",
 					})
@@ -216,7 +306,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name: "deletion operation finished",
+			name: "deletion operation finished without prior start log",
 			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
 				OperationID:    "op-3",
 				OperationFirst: false,
@@ -228,8 +318,41 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantOp3Path, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						StateType:   googlecloudcommon_contract.RevisionStateOperationStartedLogNotFound,
+						VerbType:    googlecloudcommon_contract.VerbOperationStart,
+						Principal:   "foobar@qux.test",
+					}).
+					HasRevision(wantOp3Path, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
+						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
+						Principal:   "foobar@qux.test",
+					})
+			},
+		},
+		{
+			name: "deletion operation failed without prior start log",
+			inputLog: log.NewLogWithFieldSetsForTest(testCommonFieldSet, &googlecloudcommon_contract.GCPAuditLogFieldSet{
+				OperationID:    "op-4",
+				OperationFirst: false,
+				OperationLast:  true,
+				MethodName:     "compute.instances.delete",
+				ResourceName:   "projects/123/resources/ghi",
+				PrincipalEmail: "foobar@qux.test",
+				Status:         1,
+			}),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(wantOp4Path, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						StateType:   googlecloudcommon_contract.RevisionStateOperationStartedLogNotFound,
+						VerbType:    googlecloudcommon_contract.VerbOperationStart,
+						Principal:   "foobar@qux.test",
+					}).
+					HasRevision(wantOp4Path, &khifilev6.StagingRevision{
+						ChangedTime: testTime,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationFailed,
 						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
 						Principal:   "foobar@qux.test",
 					})
@@ -241,7 +364,7 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testCtx := khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)
-			cs, _, err := mapper.ProcessLogByGroup(testCtx, tc.inputLog, struct{}{})
+			cs, _, err := mapper.ProcessLogByGroup(testCtx, tc.inputLog, tc.state)
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}

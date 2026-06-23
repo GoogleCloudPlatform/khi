@@ -15,7 +15,6 @@
 package googlecloudlogmulticloudapiaudit_contract
 
 import (
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
@@ -48,14 +47,5 @@ var (
 		true,
 		1100,
 		style.AlphabeticalSortPolicy(),
-	)
-
-	// RevisionStateProvisioning is the style for a resource that is being provisioned.
-	RevisionStateProvisioning = style.MustRegisterRevisionState(
-		"Resource is being provisioned",
-		"deployed_code_history",
-		"The Multi-Cloud GKE API resource is currently being provisioned.",
-		style.MustForceConvertSRGBHex("#6666ff"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 )

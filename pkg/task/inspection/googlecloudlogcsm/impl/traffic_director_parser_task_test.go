@@ -17,6 +17,7 @@ package googlecloudlogcsm_impl
 import (
 	"testing"
 	"time"
+	"unique"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -45,7 +46,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 				OperationFirst: true,
 				OperationLast:  true,
 			},
-			wantSummary: "CreateMesh",
+			wantSummary: "Succeeded: google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 		},
 		{
 			desc: "long running operation CreateMesh started",
@@ -54,7 +55,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 				OperationFirst: true,
 				OperationLast:  false,
 			},
-			wantSummary: "CreateMesh Started",
+			wantSummary: "Start: google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 		},
 		{
 			desc: "long running operation CreateMesh finished",
@@ -63,11 +64,11 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 				OperationFirst: false,
 				OperationLast:  true,
 			},
-			wantSummary: "CreateMesh Finished",
+			wantSummary: "Succeeded: google.cloud.networkservices.v1.NetworkServices.CreateMesh",
 		},
 	}
 
-	ingester := &CSMTrafficDirectorLogIngester{}
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMAccessLog)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(
@@ -164,33 +165,41 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "CreateMesh-op1", Type: googlecloudcommon_contract.TimelineTypeOperation},
 				)
 
+				reqNode := createReader(t, map[string]any{"description": "init"}).Node
+
 				// First log (starting)
 				testchangeset.AssertTimeline(t, results[0]).
-					HasNoRevision(wantMeshPath).
-					HasRevision(wantOpPath, &khifilev6.StagingRevision{
-						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
-						Principal:    "u@e.c",
-						ResourceBody: structured.NewStandardScalarNode("description: init\n"),
-						ChangedTime:  now,
-					}, cmp.AllowUnexported(structured.StandardScalarNode[string]{}))
-
-				// Second log (finished)
-				testchangeset.AssertTimeline(t, results[1]).
 					HasRevision(wantMeshPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
 						Principal:    "u@e.c",
 						ResourceBody: structured.NewStandardScalarNode("description: init\n"),
-						ChangedTime:  now.Add(time.Second),
+						ChangedTime:  now,
 					}, cmp.AllowUnexported(structured.StandardScalarNode[string]{})).
 					HasRevision(wantOpPath, &khifilev6.StagingRevision{
-						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationFinished,
+						VerbType:     googlecloudcommon_contract.VerbOperationStart,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
 						Principal:    "u@e.c",
-						ResourceBody: structured.NewStandardScalarNode(""),
+						ResourceBody: reqNode,
+						ChangedTime:  now,
+					}, cmp.AllowUnexported(
+						structured.StandardMapNode{},
+						structured.StandardScalarNode[string]{},
+						structured.StandardScalarNode[any]{},
+						structured.StandardSequenceNode{},
+						unique.Handle[string]{},
+					))
+
+				// Second log (finished)
+				testchangeset.AssertTimeline(t, results[1]).
+					HasNoRevision(wantMeshPath).
+					HasRevision(wantOpPath, &khifilev6.StagingRevision{
+						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
+						Principal:    "u@e.c",
+						ResourceBody: nil,
 						ChangedTime:  now.Add(time.Second),
-					}, cmp.AllowUnexported(structured.StandardScalarNode[string]{}))
+					})
 			},
 		},
 	}
@@ -204,7 +213,7 @@ func TestCSMTrafficDirectorLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				ClusterName: "test-cluster",
 			})
 
-			tracker := googlecloudcommon_contract.NewGCPOperationStateTracker()
+			tracker := googlecloudcommon_contract.NewGCPOperationTracker()
 			var results []*khifilev6.TimelineChangeSet
 
 			for i, auditFieldSet := range tc.auditFieldSets {

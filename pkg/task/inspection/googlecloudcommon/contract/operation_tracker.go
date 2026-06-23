@@ -14,49 +14,88 @@
 
 package googlecloudcommon_contract
 
-import "sync"
+import (
+	"context"
+	"time"
 
-// GCPOperationStateTracker tracks the state of long-running operations.
-type GCPOperationStateTracker struct {
-	pendingRequests sync.Map // map[string]string
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+)
+
+// GCPOperationTracker tracks operation start/finish logs within a group and generates revisions.
+type GCPOperationTracker struct {
+	startedOperations map[string]struct{}
+	lastManifest      string
 }
 
-// NewGCPOperationStateTracker creates a new GCPOperationStateTracker.
-func NewGCPOperationStateTracker() *GCPOperationStateTracker {
-	return &GCPOperationStateTracker{}
+// NewGCPOperationTracker creates a new GCPOperationTracker.
+func NewGCPOperationTracker() *GCPOperationTracker {
+	return &GCPOperationTracker{
+		startedOperations: make(map[string]struct{}),
+	}
 }
 
-// TrackAndGetManifest tracks the operation and returns the manifest string if the resource state should be updated.
-func (t *GCPOperationStateTracker) TrackAndGetManifest(audit *GCPAuditLogFieldSet) (manifest string, shouldUpdate bool) {
+// TrackAndGetManifest tracks the latest resource manifest from an audit log and returns it if updated.
+func (t *GCPOperationTracker) TrackAndGetManifest(audit *GCPAuditLogFieldSet) (string, bool) {
+	manifest := ""
+	if resp, err := audit.ResponseString(); err == nil && resp != "" {
+		manifest = resp
+	} else if req, err := audit.RequestString(); err == nil && req != "" {
+		manifest = req
+	}
+	if manifest == "" {
+		return "", false
+	}
+	if t.lastManifest == manifest {
+		return manifest, false
+	}
+	t.lastManifest = manifest
+	return manifest, true
+}
+
+// ProcessOperationLog adds necessary operation revisions or events to the TimelineChangeSet.
+// If an ending log is encountered without a prior starting log, it automatically prepends
+// a dummy starting revision with RevisionStateOperationStartedLogNotFound at Unix time 0.
+func (t *GCPOperationTracker) ProcessOperationLog(ctx context.Context, cs *khifilev6.TimelineChangeSet, targetPath *khifilev6.TimelinePath, audit *GCPAuditLogFieldSet, timestamp time.Time) {
 	if audit.ImmediateOperation() {
-		if audit.Response != nil {
-			manifest, _ = audit.ResponseString()
-		} else if audit.Request != nil {
-			manifest, _ = audit.RequestString()
-		}
-		return manifest, true
+		cs.AddEvent(targetPath)
+		return
 	}
 
 	if audit.Starting() {
-		if audit.Request != nil {
-			req, _ := audit.RequestString()
-			t.pendingRequests.Store(audit.OperationID, req)
-		}
-		return "", false
+		t.startedOperations[audit.OperationID] = struct{}{}
 	}
 
+	_, hasStarted := t.startedOperations[audit.OperationID]
+	if audit.Ending() && !hasStarted {
+		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+			VerbType:    VerbOperationStart,
+			StateType:   RevisionStateOperationStartedLogNotFound,
+			Principal:   audit.PrincipalEmail,
+			ChangedTime: time.Unix(0, 0),
+		})
+	}
+
+	revisionState := RevisionStateOperationStarted
+	verb := VerbOperationStart
 	if audit.Ending() {
-		if audit.Response != nil {
-			manifest, _ = audit.ResponseString()
+		if audit.Status <= 0 { // -1 should be the default value of the field set reader.
+			revisionState = RevisionStateOperationSucceed
+		} else {
+			revisionState = RevisionStateOperationFailed
 		}
-		if manifest == "" {
-			if v, ok := t.pendingRequests.Load(audit.OperationID); ok {
-				manifest = v.(string)
-			}
-		}
-		t.pendingRequests.Delete(audit.OperationID)
-		return manifest, true
+		verb = VerbOperationFinish
 	}
 
-	return "", false
+	var body structured.Node
+	if audit.Request != nil {
+		body = audit.Request.Node
+	}
+	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+		ResourceBody: body,
+		VerbType:     verb,
+		StateType:    revisionState,
+		Principal:    audit.PrincipalEmail,
+		ChangedTime:  timestamp,
+	})
 }

@@ -16,103 +16,149 @@ package googlecloudcommon_contract
 
 import (
 	"testing"
+	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestGCPOperationStateTracker(t *testing.T) {
-	createReader := func(t *testing.T, data map[string]any) *structured.NodeReader {
-		if data == nil {
-			return nil
-		}
-		node, err := structured.FromGoValue(data, &structured.AlphabeticalGoMapKeyOrderProvider{})
-		if err != nil {
-			t.Fatalf("failed to create node: %v", err)
-		}
-		return structured.NewNodeReader(node)
-	}
+func TestGCPOperationTracker_ProcessOperationLog(t *testing.T) {
+	testTime := time.Date(2026, 6, 24, 10, 0, 0, 0, time.UTC)
+	builder := khifilev6.NewBuilder()
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-	t.Run("Long running operation with response", func(t *testing.T) {
-		tracker := NewGCPOperationStateTracker()
+	parentPath := MustGCPProjectTimeline(ctx, "test-project")
+	targetPath := MustGCPOperationTimeline(ctx, parentPath, "insert", "op-1")
 
-		start := &GCPAuditLogFieldSet{
-			OperationID:    "op1",
+	t.Run("immediate operation adds event", func(t *testing.T) {
+		tracker := NewGCPOperationTracker()
+		dummyLog := &log.Log{}
+		cs := khifilev6.NewTimelineChangeSet(dummyLog)
+		audit := &GCPAuditLogFieldSet{
+			MethodName:     "compute.instances.insert",
 			OperationFirst: true,
-			OperationLast:  false,
-			Request:        createReader(t, map[string]any{"key": "value"}),
-		}
-
-		manifest, shouldUpdate := tracker.TrackAndGetManifest(start)
-		if shouldUpdate {
-			t.Errorf("Starting log should not trigger update")
-		}
-		if manifest != "" {
-			t.Errorf("Starting log should not return manifest")
-		}
-
-		end := &GCPAuditLogFieldSet{
-			OperationID:    "op1",
-			OperationFirst: false,
 			OperationLast:  true,
-			Response:       createReader(t, map[string]any{"id": "res1"}),
 		}
 
-		manifest, shouldUpdate = tracker.TrackAndGetManifest(end)
-		if !shouldUpdate {
-			t.Errorf("Ending log should trigger update")
-		}
-		want := "id: res1\n"
-		if diff := cmp.Diff(want, manifest); diff != "" {
-			t.Errorf("manifest mismatch (-want +got):\n%s", diff)
-		}
+		tracker.ProcessOperationLog(ctx, cs, targetPath, audit, testTime)
+
+		testchangeset.AssertTimeline(t, cs).
+			HasEvent(targetPath)
 	})
 
-	t.Run("Long running operation fallback to request", func(t *testing.T) {
-		tracker := NewGCPOperationStateTracker()
-
-		start := &GCPAuditLogFieldSet{
-			OperationID:    "op1",
+	t.Run("long running operation normal flow", func(t *testing.T) {
+		tracker := NewGCPOperationTracker()
+		dummyLog := &log.Log{}
+		csStart := khifilev6.NewTimelineChangeSet(dummyLog)
+		auditStart := &GCPAuditLogFieldSet{
+			MethodName:     "compute.instances.insert",
+			OperationID:    "op-1",
 			OperationFirst: true,
 			OperationLast:  false,
-			Request:        createReader(t, map[string]any{"key": "value"}),
 		}
 
-		tracker.TrackAndGetManifest(start)
+		tracker.ProcessOperationLog(ctx, csStart, targetPath, auditStart, testTime)
 
-		end := &GCPAuditLogFieldSet{
-			OperationID:    "op1",
+		testchangeset.AssertTimeline(t, csStart).
+			HasRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    VerbOperationStart,
+				StateType:   RevisionStateOperationStarted,
+				ChangedTime: testTime,
+			})
+
+		csFinish := khifilev6.NewTimelineChangeSet(dummyLog)
+		auditFinish := &GCPAuditLogFieldSet{
+			MethodName:     "compute.instances.insert",
+			OperationID:    "op-1",
 			OperationFirst: false,
 			OperationLast:  true,
-			// No response
+			Status:         0,
 		}
 
-		manifest, shouldUpdate := tracker.TrackAndGetManifest(end)
-		if !shouldUpdate {
-			t.Errorf("Ending log should trigger update")
-		}
-		want := "key: value\n"
-		if diff := cmp.Diff(want, manifest); diff != "" {
-			t.Errorf("manifest mismatch (-want +got):\n%s", diff)
-		}
+		tracker.ProcessOperationLog(ctx, csFinish, targetPath, auditFinish, testTime.Add(time.Minute))
+
+		testchangeset.AssertTimeline(t, csFinish).
+			HasRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    VerbOperationFinish,
+				StateType:   RevisionStateOperationSucceed,
+				ChangedTime: testTime.Add(time.Minute),
+			})
 	})
 
-	t.Run("Immediate operation", func(t *testing.T) {
-		tracker := NewGCPOperationStateTracker()
-
-		imm := &GCPAuditLogFieldSet{
-			OperationFirst: true,
+	t.Run("long running operation start log missing flow", func(t *testing.T) {
+		tracker := NewGCPOperationTracker()
+		dummyLog := &log.Log{}
+		csFinish := khifilev6.NewTimelineChangeSet(dummyLog)
+		auditFinish := &GCPAuditLogFieldSet{
+			MethodName:     "compute.instances.insert",
+			OperationID:    "op-2",
+			OperationFirst: false,
 			OperationLast:  true,
-			Response:       createReader(t, map[string]any{"imm": "res"}),
+			Status:         0,
 		}
 
-		manifest, shouldUpdate := tracker.TrackAndGetManifest(imm)
-		if !shouldUpdate {
-			t.Errorf("Immediate log should trigger update")
+		tracker.ProcessOperationLog(ctx, csFinish, targetPath, auditFinish, testTime)
+
+		testchangeset.AssertTimeline(t, csFinish).
+			HasRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    VerbOperationStart,
+				StateType:   RevisionStateOperationStartedLogNotFound,
+				ChangedTime: time.Unix(0, 0),
+			}).
+			HasRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    VerbOperationFinish,
+				StateType:   RevisionStateOperationSucceed,
+				ChangedTime: testTime,
+			})
+	})
+
+	t.Run("long running operation failed flow", func(t *testing.T) {
+		tracker := NewGCPOperationTracker()
+		dummyLog := &log.Log{}
+		csFinish := khifilev6.NewTimelineChangeSet(dummyLog)
+		auditFinish := &GCPAuditLogFieldSet{
+			MethodName:     "compute.instances.insert",
+			OperationID:    "op-3",
+			OperationFirst: false,
+			OperationLast:  true,
+			Status:         13,
 		}
-		want := "imm: res\n"
-		if diff := cmp.Diff(want, manifest); diff != "" {
-			t.Errorf("manifest mismatch (-want +got):\n%s", diff)
+
+		tracker.ProcessOperationLog(ctx, csFinish, targetPath, auditFinish, testTime)
+
+		testchangeset.AssertTimeline(t, csFinish).
+			HasRevision(targetPath, &khifilev6.StagingRevision{
+				VerbType:    VerbOperationFinish,
+				StateType:   RevisionStateOperationFailed,
+				ChangedTime: testTime,
+			})
+	})
+
+	t.Run("long running operation request body inclusion", func(t *testing.T) {
+		tracker := NewGCPOperationTracker()
+		dummyLog := &log.Log{}
+		cs := khifilev6.NewTimelineChangeSet(dummyLog)
+		dummyNode := structured.NewStandardScalarNode("test-body")
+		audit := &GCPAuditLogFieldSet{
+			MethodName:     "compute.instances.insert",
+			OperationID:    "op-4",
+			OperationFirst: true,
+			Request:        structured.NewNodeReader(dummyNode),
 		}
+
+		tracker.ProcessOperationLog(ctx, cs, targetPath, audit, testTime)
+
+		testchangeset.AssertTimeline(t, cs).
+			HasRevision(targetPath, &khifilev6.StagingRevision{
+				ResourceBody: dummyNode,
+				VerbType:     VerbOperationStart,
+				StateType:    RevisionStateOperationStarted,
+				ChangedTime:  testTime,
+			}, cmp.AllowUnexported(structured.StandardScalarNode[string]{}))
 	})
 }

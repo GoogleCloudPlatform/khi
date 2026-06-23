@@ -36,6 +36,7 @@ type GCPAuditLogFieldSet struct {
 	ResourceName   string
 	PrincipalEmail string
 	Status         int
+	StatusMessage  string
 	Request        *structured.NodeReader
 	Response       *structured.NodeReader
 }
@@ -126,6 +127,7 @@ func (g *GCPOperationAuditLogFieldSetReader) Read(reader *structured.NodeReader)
 	result.ResourceName = reader.ReadStringOrDefault("protoPayload.resourceName", "unknown")
 	result.PrincipalEmail = reader.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
 	result.Status = reader.ReadIntOrDefault("protoPayload.status.code", -1)
+	result.StatusMessage = reader.ReadStringOrDefault("protoPayload.status.message", "")
 	result.Request, _ = reader.GetReader("protoPayload.request")
 	result.Response, _ = reader.GetReader("protoPayload.response")
 	return &result, nil

@@ -102,7 +102,7 @@ var (
 		style.ColorWhite,
 		true,
 		3000,
-		style.AlphabeticalSortPolicy(),
+		style.ChronologicalSortPolicy(0),
 	)
 	TimelineTypeGCPProject = style.MustRegisterTimelineType(
 		"project",

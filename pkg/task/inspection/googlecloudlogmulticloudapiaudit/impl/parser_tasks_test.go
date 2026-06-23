@@ -108,6 +108,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		desc          string
 		inputResource googlecloudlogmulticloudapiaudit_contract.MulticloudAPIAuditResourceFieldSet
 		inputAudit    googlecloudcommon_contract.GCPAuditLogFieldSet
+		inputTracker  *googlecloudcommon_contract.GCPOperationTracker
 		assert        func(t *testing.T, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -128,6 +129,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
   name: test-cluster`),
 				ProjectID: "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
@@ -136,7 +138,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 name: test-cluster`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: googlecloudlogmulticloudapiaudit_contract.RevisionStateProvisioning,
+						StateType: commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
 					}, nodeComparer).
 					HasRevision(wantOp1ClusterPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
@@ -165,6 +167,7 @@ name: test-cluster`).Node,
 				Request:        nil,
 				ProjectID:      "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
@@ -172,14 +175,14 @@ name: test-cluster`).Node,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 					}, nodeComparer).
 					HasRevision(wantOp1AzureClusterPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeComparer)
 			},
 		},
@@ -201,6 +204,7 @@ name: test-cluster`).Node,
   name: test-nodepool`),
 				ProjectID: "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
@@ -209,7 +213,7 @@ name: test-cluster`).Node,
 name: test-nodepool`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: googlecloudlogmulticloudapiaudit_contract.RevisionStateProvisioning,
+						StateType: commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
 					}, nodeComparer).
 					HasRevision(wantOp2NodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
@@ -238,6 +242,7 @@ name: test-nodepool`).Node,
 				Request:        nil,
 				ProjectID:      "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
@@ -245,14 +250,14 @@ name: test-nodepool`).Node,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 					}, nodeComparer).
 					HasRevision(wantOp2AzureNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeComparer)
 			},
 		},
@@ -272,6 +277,7 @@ name: test-nodepool`).Node,
 				Request:        nil,
 				ProjectID:      "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
@@ -279,14 +285,14 @@ name: test-nodepool`).Node,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
 					}, nodeComparer).
 					HasRevision(wantOp2DeleteNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeComparer)
 			},
 		},
@@ -306,6 +312,7 @@ name: test-nodepool`).Node,
 				Request:        nil,
 				ProjectID:      "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantNodepoolPath)
@@ -327,6 +334,7 @@ name: test-nodepool`).Node,
 				Request:        nil,
 				ProjectID:      "project-foo",
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantOp2UnknownNodepoolPath, &khifilev6.StagingRevision{
@@ -347,7 +355,7 @@ name: test-nodepool`).Node,
 			l.NodeReader = testReaderFromYAML(t, "protoPayload:\n  resourceName: projects/123456/locations/asia-southeast1/awsClusters/test-cluster/awsNodePools/test-nodepool")
 
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tc.inputTracker)
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}

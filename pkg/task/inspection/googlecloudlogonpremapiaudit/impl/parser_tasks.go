@@ -43,59 +43,11 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(
 	},
 )
 
-// OnPremAPIAuditLogIngester ingests log metadata for OnPrem API audit logs.
-type OnPremAPIAuditLogIngester struct{}
-
-// RawLogTask returns the task reference providing the raw logs.
-func (i *OnPremAPIAuditLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID.Ref()
-}
-
-// Dependencies returns the task dependencies of the ingester.
-func (i *OnPremAPIAuditLogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
-}
-
-// ProcessLog parses raw log entry and manually populates the LogChangeSet.
-func (i *OnPremAPIAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	cs, err := khifilev6.NewLogChangeSet(l)
-	if err != nil {
-		return nil, err
-	}
-
-	cs.SetLogType(googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI)
-
-	if commonSet, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonSet.Timestamp)
-	}
-
-	if severitySet, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severitySet.Severity)
-	}
-
-	auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
-	if err != nil {
-		return nil, err
-	}
-
-	switch {
-	case auditFieldSet.Starting():
-		cs.SetSummary(fmt.Sprintf("%s Started", auditFieldSet.MethodName))
-	case auditFieldSet.Ending():
-		cs.SetSummary(fmt.Sprintf("%s Finished", auditFieldSet.MethodName))
-	default:
-		cs.SetSummary(auditFieldSet.MethodName)
-	}
-
-	return cs, nil
-}
-
-var _ inspectiontaskbase.LogIngesterV2 = (*OnPremAPIAuditLogIngester)(nil)
-
 // LogIngesterTask is a task that serializes MulticloudAPI audit logs for storage in the history builder.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogonpremapiaudit_contract.LogIngesterTaskID,
-	&OnPremAPIAuditLogIngester{},
+	googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI,
 )
 
 // LogGrouperTask is a task that groups MulticloudAPI audit logs by their resource path.
@@ -114,7 +66,7 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 
 // OnPremAPIAuditTimelineMapper maps On-Prem API audit logs to timeline elements.
 type OnPremAPIAuditTimelineMapper struct {
-	inspectiontaskbase.StatelessMapperBase
+	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
 }
 
 // LogIngesterTask returns the task reference providing the ingested logs.
@@ -133,18 +85,21 @@ func (m *OnPremAPIAuditTimelineMapper) GroupedLogTask() taskid.TaskReference[ins
 }
 
 // ProcessLogByGroup maps log entries to timeline elements.
-func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, tracker *googlecloudcommon_contract.GCPOperationTracker) (*khifilev6.TimelineChangeSet, *googlecloudcommon_contract.GCPOperationTracker, error) {
+	if tracker == nil {
+		tracker = googlecloudcommon_contract.NewGCPOperationTracker()
+	}
 	commonFieldSet, err := log.GetFieldSet(l, &log.CommonFieldSet{})
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, tracker, err
 	}
 	auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, tracker, err
 	}
 	resourceFieldSet, err := log.GetFieldSet(l, &googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSet{})
 	if err != nil {
-		return nil, struct{}{}, err
+		return nil, tracker, err
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(l)
@@ -182,9 +137,9 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		switch shortMethodName {
 		case "CreateCluster", "CreateNodePool", "EnrollCluster", "EnrollNodePool":
 			var bodyNode structured.Node
-			state := googlecloudlogonpremapiaudit_contract.RevisionStateProvisioning
+			state := commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning
 			if auditFieldSet.Ending() {
-				state = googlecloudlogonpremapiaudit_contract.RevisionStateExisting
+				state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
 			}
 			if auditFieldSet.Request != nil {
 				if reqReader, err := auditFieldSet.Request.GetReader(resourceBodyField); err == nil {
@@ -199,9 +154,9 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 				StateType:    state,
 			})
 		case "DeleteCluster", "DeleteNodePool", "UnenrollCluster", "UnenrollNodePool":
-			state := googlecloudlogonpremapiaudit_contract.RevisionStateDeleting
+			state := commonlogk8saudit_contract.RevisionStateK8sClusterDeleting
 			if auditFieldSet.Ending() {
-				state = googlecloudlogonpremapiaudit_contract.RevisionStateDeleted
+				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleted
 			}
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
 				ChangedTime:  commonFieldSet.Timestamp,
@@ -212,18 +167,6 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 			})
 		}
 
-		state := googlecloudlogonpremapiaudit_contract.RevisionStateOperationStarted
-		verb := googlecloudcommon_contract.VerbOperationStart
-		if auditFieldSet.Ending() {
-			state = googlecloudlogonpremapiaudit_contract.RevisionStateOperationFinished
-			verb = googlecloudcommon_contract.VerbOperationFinish
-		}
-
-		var requestBodyNode structured.Node
-		if auditFieldSet.Request != nil {
-			requestBodyNode = auditFieldSet.Request.Node
-		}
-
 		methodNameSplitted := strings.Split(auditFieldSet.MethodName, ".")
 		originalShortMethodName := "unknown"
 		if len(methodNameSplitted) > 0 {
@@ -231,21 +174,15 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		}
 		operationPath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetPath, originalShortMethodName, auditFieldSet.OperationID)
 
-		cs.AddRevision(operationPath, &khifilev6.StagingRevision{
-			ChangedTime:  commonFieldSet.Timestamp,
-			ResourceBody: requestBodyNode,
-			Principal:    auditFieldSet.PrincipalEmail,
-			VerbType:     verb,
-			StateType:    state,
-		})
+		tracker.ProcessOperationLog(ctx, cs, operationPath, auditFieldSet, commonFieldSet.Timestamp)
 	} else {
 		cs.AddEvent(targetPath)
 	}
 
-	return cs, struct{}{}, nil
+	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*OnPremAPIAuditTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationTracker] = (*OnPremAPIAuditTimelineMapper)(nil)
 
 // LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
