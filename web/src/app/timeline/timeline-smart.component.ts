@@ -571,7 +571,7 @@ export class TimelineSmartComponent {
 
     if (existingIndex !== -1) {
       const existingFilter = currentFilters[existingIndex];
-      const parts = existingFilter.value.split('|');
+      const parts = existingFilter.value ? existingFilter.value.split('|') : [];
       if (!parts.includes(timeline.name)) {
         parts.push(timeline.name);
         const updatedFilters = [...currentFilters];
