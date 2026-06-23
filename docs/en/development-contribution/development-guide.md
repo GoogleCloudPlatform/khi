@@ -82,7 +82,7 @@ Storybook automatically builds and serves the new build when you change the fron
 
 ### Generated codes from backend codes
 
-Several frontend codes are automativally generated from backend codes.
+Several frontend codes are automatically generated from backend codes.
 
 * `/web/src/app/generated.scss`
 * `/web/src/app/generated.ts`
