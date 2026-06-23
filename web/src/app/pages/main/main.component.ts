@@ -43,6 +43,7 @@ import { CommonModule } from '@angular/common';
 import { HeaderSmartComponent } from 'src/app/header/header-smart.component';
 import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline-toolbar-smart.component';
 import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
+import { openReleaseNotesDialog } from 'src/app/dialogs/release-notes/release-notes-smart.component';
 import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
@@ -112,6 +113,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.extensionStore.tryOpenDataFromURL()) {
       openStartupDialog(this.dialog);
     }
+    openReleaseNotesDialog(this.dialog);
     // Start monitoring popup request from server.
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
       null;
@@ -170,6 +172,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       priority: 1,
       action: () => {
         openStartupDialog(this.dialog);
+      },
+    });
+    this.menuManager.addGroup('help', 'Help', 99, 'help');
+    this.menuManager.addItem('help', {
+      id: 'release-notes',
+      label: 'Release Notes',
+      type: MenuItemType.Button,
+      icon: 'new_releases',
+      priority: 1,
+      action: () => {
+        openReleaseNotesDialog(this.dialog, true);
       },
     });
   }
