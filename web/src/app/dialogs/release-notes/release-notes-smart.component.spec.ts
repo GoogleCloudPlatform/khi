@@ -29,11 +29,10 @@ import {
 import { VERSION } from 'src/environments/version';
 import { By } from '@angular/platform-browser';
 import { ReleaseNotesLayoutComponent } from 'src/app/dialogs/release-notes/components/release-notes-layout.component';
-import { provideHttpClient } from '@angular/common/http';
 import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
+  SETTINGS_STORAGE,
+  SettingsStorage,
+} from 'src/app/services/settings/settings-storage';
 
 describe('ReleaseNotesDialogSmartComponent', () => {
   let component: ReleaseNotesDialogSmartComponent;
@@ -41,11 +40,18 @@ describe('ReleaseNotesDialogSmartComponent', () => {
   let dialogRefSpy: jasmine.SpyObj<
     MatDialogRef<ReleaseNotesDialogSmartComponent>
   >;
-  let httpMock: HttpTestingController;
+  let settingsStorageSpy: jasmine.SpyObj<SettingsStorage>;
 
   beforeEach(async () => {
     dialogRefSpy = jasmine.createSpyObj('MatDialogRef', ['close']);
-    localStorage.removeItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY);
+    settingsStorageSpy = jasmine.createSpyObj('SettingsStorage', [
+      'getItem',
+      'setItem',
+    ]);
+
+    spyOn(window, 'fetch').and.resolveTo(
+      new Response('# Mock Release Notes', { status: 200 }),
+    );
 
     await TestBed.configureTestingModule({
       imports: [
@@ -54,28 +60,22 @@ describe('ReleaseNotesDialogSmartComponent', () => {
         NoopAnimationsModule,
       ],
       providers: [
-        provideHttpClient(),
-        provideHttpClientTesting(),
         {
           provide: MatDialogRef,
           useValue: dialogRefSpy,
         },
+        {
+          provide: SETTINGS_STORAGE,
+          useValue: settingsStorageSpy,
+        },
       ],
     }).compileComponents();
 
-    httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ReleaseNotesDialogSmartComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-
-    const req = httpMock.expectOne('assets/release_note/release_note.md');
-    req.flush('# Mock Release Notes');
+    await fixture.whenStable();
     fixture.detectChanges();
-  });
-
-  afterEach(() => {
-    httpMock.verify();
-    localStorage.removeItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY);
   });
 
   it('should create and fetch release notes from assets', () => {
@@ -88,19 +88,17 @@ describe('ReleaseNotesDialogSmartComponent', () => {
     );
   });
 
-  it('should close dialog without saving to localStorage when doNotShowAgain is false', () => {
+  it('should close dialog without saving to settingsStorage when doNotShowAgain is false', () => {
     const layoutEl = fixture.debugElement.query(
       By.directive(ReleaseNotesLayoutComponent),
     );
     layoutEl.triggerEventHandler('closed', undefined);
 
-    expect(
-      localStorage.getItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY),
-    ).toBeNull();
+    expect(settingsStorageSpy.setItem).not.toHaveBeenCalled();
     expect(dialogRefSpy.close).toHaveBeenCalledOnceWith();
   });
 
-  it('should save version to localStorage when doNotShowAgain is true on close', () => {
+  it('should save version to settingsStorage when doNotShowAgain is true on close', () => {
     fixture.debugElement
       .query(By.directive(ReleaseNotesLayoutComponent))
       .componentInstance.doNotShowAgain.set(true);
@@ -110,7 +108,8 @@ describe('ReleaseNotesDialogSmartComponent', () => {
     );
     layoutEl.triggerEventHandler('closed', undefined);
 
-    expect(localStorage.getItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY)).toBe(
+    expect(settingsStorageSpy.setItem).toHaveBeenCalledOnceWith(
+      SUPPRESSED_RELEASE_NOTES_VERSION_KEY,
       VERSION,
     );
     expect(dialogRefSpy.close).toHaveBeenCalledOnceWith();
@@ -124,7 +123,8 @@ describe('ReleaseNotesDialogSmartComponent', () => {
     });
 
     it('should open dialog when not suppressed', () => {
-      openReleaseNotesDialog(dialogSpy);
+      settingsStorageSpy.getItem.and.returnValue(null);
+      openReleaseNotesDialog(dialogSpy, settingsStorageSpy);
       expect(dialogSpy.open).toHaveBeenCalledOnceWith(
         ReleaseNotesDialogSmartComponent,
         jasmine.any(Object),
@@ -132,15 +132,15 @@ describe('ReleaseNotesDialogSmartComponent', () => {
     });
 
     it('should not open dialog when suppressed for current version', () => {
-      localStorage.setItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY, VERSION);
-      const result = openReleaseNotesDialog(dialogSpy);
+      settingsStorageSpy.getItem.and.returnValue(VERSION);
+      const result = openReleaseNotesDialog(dialogSpy, settingsStorageSpy);
       expect(result).toBeNull();
       expect(dialogSpy.open).not.toHaveBeenCalled();
     });
 
     it('should open dialog when suppressed if force is true', () => {
-      localStorage.setItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY, VERSION);
-      openReleaseNotesDialog(dialogSpy, true);
+      settingsStorageSpy.getItem.and.returnValue(VERSION);
+      openReleaseNotesDialog(dialogSpy, settingsStorageSpy, true);
       expect(dialogSpy.open).toHaveBeenCalledOnceWith(
         ReleaseNotesDialogSmartComponent,
         jasmine.any(Object),

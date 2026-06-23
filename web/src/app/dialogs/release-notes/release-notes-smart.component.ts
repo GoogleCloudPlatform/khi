@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-import { Component, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, inject, signal, resource, computed } from '@angular/core';
 import {
   MatDialog,
   MatDialogConfig,
   MatDialogRef,
 } from '@angular/material/dialog';
 import { VERSION } from 'src/environments/version';
-import { ReleaseNotesLayoutComponent } from './components/release-notes-layout.component';
+import {
+  SETTINGS_STORAGE,
+  SettingsStorage,
+} from 'src/app/services/settings/settings-storage';
+import { ReleaseNotesLayoutComponent } from 'src/app/dialogs/release-notes/components/release-notes-layout.component';
 
 /** LocalStorage key used to store the version for which release notes are suppressed. */
 export const SUPPRESSED_RELEASE_NOTES_VERSION_KEY =
@@ -43,14 +45,29 @@ export const SUPPRESSED_RELEASE_NOTES_VERSION_KEY =
 export class ReleaseNotesDialogSmartComponent {
   private readonly dialogRef =
     inject<MatDialogRef<ReleaseNotesDialogSmartComponent>>(MatDialogRef);
-  private readonly http = inject(HttpClient);
+  private readonly settingsStorage = inject<SettingsStorage>(SETTINGS_STORAGE);
 
   protected readonly version = VERSION;
-  protected readonly markdownContent = toSignal(
-    this.http.get('assets/release_note/release_note.md', {
-      responseType: 'text',
-    }),
-    { initialValue: '' },
+
+  private readonly markdownResource = resource({
+    loader: async ({ abortSignal }) => {
+      try {
+        const response = await fetch('assets/release_note/release_note.md', {
+          signal: abortSignal,
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        return await response.text();
+      } catch (error) {
+        console.warn('Failed to load release notes:', error);
+        return '# Failed to load release notes\n\nPlease try again later.';
+      }
+    },
+  });
+
+  protected readonly markdownContent = computed(
+    () => this.markdownResource.value() ?? '',
   );
   protected readonly doNotShowAgain = signal<boolean>(false);
 
@@ -59,7 +76,10 @@ export class ReleaseNotesDialogSmartComponent {
    */
   protected onClose(): void {
     if (this.doNotShowAgain()) {
-      localStorage.setItem(SUPPRESSED_RELEASE_NOTES_VERSION_KEY, VERSION);
+      this.settingsStorage.setItem(
+        SUPPRESSED_RELEASE_NOTES_VERSION_KEY,
+        VERSION,
+      );
     }
     this.dialogRef.close();
   }
@@ -68,17 +88,19 @@ export class ReleaseNotesDialogSmartComponent {
 /**
  * Opens the Release Notes dialog if not suppressed for the current version.
  * @param dialog MatDialog service instance.
+ * @param storage SettingsStorage service instance.
  * @param force If true, opens the dialog even if suppressed for the current version.
  * @param config Optional dialog configuration overrides.
  * @returns MatDialogRef instance if opened, otherwise null.
  */
 export function openReleaseNotesDialog(
   dialog: MatDialog,
+  storage: SettingsStorage,
   force = false,
   config: Partial<MatDialogConfig> = {},
 ): MatDialogRef<ReleaseNotesDialogSmartComponent> | null {
   if (!force) {
-    const suppressedVersion = localStorage.getItem(
+    const suppressedVersion = storage.getItem(
       SUPPRESSED_RELEASE_NOTES_VERSION_KEY,
     );
     if (suppressedVersion === VERSION) {

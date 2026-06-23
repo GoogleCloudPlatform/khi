@@ -45,6 +45,10 @@ import { TimelineToolbarSmartComponent } from 'src/app/timeline-toolbar/timeline
 import { openStartupDialog } from 'src/app/dialogs/startup/startup-smart.component';
 import { openReleaseNotesDialog } from 'src/app/dialogs/release-notes/release-notes-smart.component';
 import {
+  SETTINGS_STORAGE,
+  SettingsStorage,
+} from 'src/app/services/settings/settings-storage';
+import {
   RequestUserActionPopupComponent,
   RequestUserActionPopupRequest,
 } from 'src/app/dialogs/request-user-action-popup/request-user-action-popup.component';
@@ -68,6 +72,9 @@ import {
 export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
   /** Store for extension data. */
   private readonly extensionStore = inject<ExtensionStore>(EXTENSION_STORE);
+
+  /** Settings storage. */
+  private readonly settingsStorage = inject<SettingsStorage>(SETTINGS_STORAGE);
 
   /** Dialog service. */
   private readonly dialog = inject(MatDialog);
@@ -113,8 +120,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     if (!this.extensionStore.tryOpenDataFromURL()) {
       openStartupDialog(this.dialog);
     }
-    openReleaseNotesDialog(this.dialog);
+    openReleaseNotesDialog(this.dialog, this.settingsStorage);
     // Start monitoring popup request from server.
+
     let lastDialogRef: MatDialogRef<RequestUserActionPopupComponent> | null =
       null;
     this.popupManager
@@ -182,7 +190,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
       icon: 'new_releases',
       priority: 1,
       action: () => {
-        openReleaseNotesDialog(this.dialog, true);
+        openReleaseNotesDialog(this.dialog, this.settingsStorage, true);
       },
     });
   }
