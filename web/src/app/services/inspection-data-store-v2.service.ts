@@ -19,6 +19,7 @@ import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
 import { TimelineView } from 'src/app/store/domain/timeline-view';
 import {
   CelTimelineFilter,
+  CelTimelineExclusionFilter,
   CelLogFilter,
 } from 'src/app/store/domain/filter/cel-filter';
 import {
@@ -37,6 +38,9 @@ export class InspectionDataStoreV2 {
   private readonly _inspectionData = signal<InspectionDataV2 | null>(null);
   private readonly _timelineView = signal<TimelineView | null>(null);
   private readonly celTimelineFilter = inject(CelTimelineFilter);
+  private readonly celTimelineExclusionFilter = inject(
+    CelTimelineExclusionFilter,
+  );
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
   private readonly searchWorkerManager = inject(SearchWorkerManager);
@@ -78,6 +82,7 @@ export class InspectionDataStoreV2 {
     const view = new TimelineView(data.timelineStore);
     view.addFilter(this.celTimelineFilter);
     view.addFilter(new IncludeDescendantsFilter());
+    view.addFilter(this.celTimelineExclusionFilter);
     view.addFilter(this.celLogFilter);
     view.addFilter(new IncludeAncestorsFilter());
     view.addFilter(this.excludeNoLogsFilter);

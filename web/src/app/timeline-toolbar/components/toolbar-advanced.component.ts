@@ -105,9 +105,14 @@ export class ToolbarAdvancedComponent {
   readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
 
   /**
-   * Validation error message for the timeline CEL filter.
+   * Validation error message for the timeline include CEL filter.
    */
-  readonly timelineCelError = input('');
+  readonly timelineIncludeCelError = input('');
+
+  /**
+   * Validation error message for the timeline exclude CEL filter.
+   */
+  readonly timelineExcludeCelError = input('');
 
   /**
    * Validation error message for the log CEL filter.
@@ -120,9 +125,14 @@ export class ToolbarAdvancedComponent {
   readonly hideTimelinesWithoutMatchingLogs = model(false);
 
   /**
-   * Holds the two-way bound timeline CEL filter string.
+   * Holds the two-way bound timeline include CEL filter string.
    */
-  readonly timelineCelFilter = model('');
+  readonly timelineIncludeCelFilter = model('');
+
+  /**
+   * Holds the two-way bound timeline exclude CEL filter string.
+   */
+  readonly timelineExcludeCelFilter = model('');
 
   /**
    * Holds the two-way bound log CEL filter string.

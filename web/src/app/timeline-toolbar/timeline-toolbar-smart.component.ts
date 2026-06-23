@@ -38,6 +38,7 @@ import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.servic
 import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
 import {
   CelTimelineFilter,
+  CelTimelineExclusionFilter,
   CelLogFilter,
 } from 'src/app/store/domain/filter/cel-filter';
 import { ExcludeNoLogsFilter } from 'src/app/store/domain/filter/other-filter';
@@ -57,6 +58,9 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly viewStateService = inject(ViewStateService);
   private readonly inspectionDataStore = inject(InspectionDataStoreV2);
   private readonly celTimelineFilter = inject(CelTimelineFilter);
+  private readonly celTimelineExclusionFilter = inject(
+    CelTimelineExclusionFilter,
+  );
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
   private readonly selectionManager = inject(SelectionManagerV2);
@@ -206,25 +210,51 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   );
 
   // Advanced Mode properties
-  private readonly timelineCelFilter$ = new BehaviorSubject<string>('');
+  private readonly timelineIncludeCelFilter$ = new BehaviorSubject<string>('');
+  private readonly timelineExcludeCelFilter$ = new BehaviorSubject<string>('');
   private readonly logCelFilter$ = new BehaviorSubject<string>('');
 
-  /** Active advanced timeline CEL expression signal. */
-  protected readonly timelineCelFilter = toSignal(this.timelineCelFilter$, {
-    initialValue: '',
-  });
+  /** Active advanced timeline include CEL expression signal. */
+  protected readonly timelineIncludeCelFilter = toSignal(
+    this.timelineIncludeCelFilter$,
+    {
+      initialValue: '',
+    },
+  );
+
+  /** Active advanced timeline exclude CEL expression signal. */
+  protected readonly timelineExcludeCelFilter = toSignal(
+    this.timelineExcludeCelFilter$,
+    {
+      initialValue: '',
+    },
+  );
 
   /** Active advanced log CEL expression signal. */
   protected readonly logCelFilter = toSignal(this.logCelFilter$, {
     initialValue: '',
   });
 
-  /** Validation result error output for timeline CEL queries. */
-  protected readonly timelineCelError = toSignal(
-    this.timelineCelFilter$.pipe(
+  /** Validation result error output for timeline include CEL queries. */
+  protected readonly timelineIncludeCelError = toSignal(
+    this.timelineIncludeCelFilter$.pipe(
       map((val) => {
         if (!val || val.trim() === '') return '';
         const checkRes = this.celTimelineFilter.validate(val);
+        return checkRes.success
+          ? ''
+          : (checkRes.error?.message ?? 'Invalid CEL expression.');
+      }),
+    ),
+    { initialValue: '' },
+  );
+
+  /** Validation result error output for timeline exclude CEL queries. */
+  protected readonly timelineExcludeCelError = toSignal(
+    this.timelineExcludeCelFilter$.pipe(
+      map((val) => {
+        if (!val || val.trim() === '') return '';
+        const checkRes = this.celTimelineExclusionFilter.validate(val);
         return checkRes.success
           ? ''
           : (checkRes.error?.message ?? 'Invalid CEL expression.');
@@ -255,21 +285,29 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
 
   constructor() {
     const viewState = this.viewStateService;
-    const currentTimelineCel = this.celTimelineFilter.celExpr();
+    const currentTimelineIncludeCel = this.celTimelineFilter.celExpr();
+    const currentTimelineExcludeCel = this.celTimelineExclusionFilter.celExpr();
     const currentLogCel = this.celLogFilter.celExpr();
 
-    const hypotheticalTimelineCel = compileFiltersToCel(
+    const hypotheticalTimelineIncludeCel = compileFiltersToCel(
       viewState.standardTimelineFilters(),
       viewState.standardSelectedSeverity(),
+    );
+    const hypotheticalTimelineExcludeCel = compileExclusionFiltersToCel(
+      viewState.standardTimelineFilters(),
     );
     const hypotheticalLogCel = compileLogFiltersToCel(
       viewState.standardSelectedSeverity(),
       viewState.standardLogSearchQuery(),
     );
 
-    if (currentTimelineCel !== hypotheticalTimelineCel) {
+    if (
+      currentTimelineIncludeCel !== hypotheticalTimelineIncludeCel ||
+      currentTimelineExcludeCel !== hypotheticalTimelineExcludeCel
+    ) {
       viewState.standardTimelineFilters.set([]);
       this.celTimelineFilter.updateFilter('');
+      this.celTimelineExclusionFilter.updateFilter('');
     }
 
     if (currentLogCel !== hypotheticalLogCel) {
@@ -283,8 +321,10 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
       if (!this.isAdvancedMode()) {
         const filters = this.timelineFilters();
         const severity = this.selectedSeverity();
-        const celExpr = compileFiltersToCel(filters, severity);
-        this.celTimelineFilter.updateFilter(celExpr);
+        const includeCelExpr = compileFiltersToCel(filters, severity);
+        const excludeCelExpr = compileExclusionFiltersToCel(filters);
+        this.celTimelineFilter.updateFilter(includeCelExpr);
+        this.celTimelineExclusionFilter.updateFilter(excludeCelExpr);
       }
     });
 
@@ -300,11 +340,23 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     // Sync advanced mode CEL triggers
     effect(() => {
       if (this.isAdvancedMode()) {
-        const currentTimelineExpr = this.celTimelineFilter.celExpr();
-        if (this.timelineCelFilter$.value !== currentTimelineExpr) {
-          const hasError = untracked(() => this.timelineCelError() !== '');
-          if (currentTimelineExpr !== '' || !hasError) {
-            this.timelineCelFilter$.next(currentTimelineExpr);
+        const currentIncludeExpr = this.celTimelineFilter.celExpr();
+        if (this.timelineIncludeCelFilter$.value !== currentIncludeExpr) {
+          const hasError = untracked(
+            () => this.timelineIncludeCelError() !== '',
+          );
+          if (currentIncludeExpr !== '' || !hasError) {
+            this.timelineIncludeCelFilter$.next(currentIncludeExpr);
+          }
+        }
+
+        const currentExcludeExpr = this.celTimelineExclusionFilter.celExpr();
+        if (this.timelineExcludeCelFilter$.value !== currentExcludeExpr) {
+          const hasError = untracked(
+            () => this.timelineExcludeCelError() !== '',
+          );
+          if (currentExcludeExpr !== '' || !hasError) {
+            this.timelineExcludeCelFilter$.next(currentExcludeExpr);
           }
         }
       }
@@ -323,15 +375,27 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
     });
 
     // Advanced mode RxJS streams debouncers
-    this.timelineCelFilter$
+    this.timelineIncludeCelFilter$
       .pipe(
         debounceTime(200),
         distinctUntilChanged(),
         takeUntil(this.destroyed),
       )
-      .subscribe((filter) => {
+      .subscribe((filter: string) => {
         if (this.isAdvancedMode()) {
           this.celTimelineFilter.updateFilter(filter);
+        }
+      });
+
+    this.timelineExcludeCelFilter$
+      .pipe(
+        debounceTime(200),
+        distinctUntilChanged(),
+        takeUntil(this.destroyed),
+      )
+      .subscribe((filter: string) => {
+        if (this.isAdvancedMode()) {
+          this.celTimelineExclusionFilter.updateFilter(filter);
         }
       });
 
@@ -341,7 +405,7 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
         distinctUntilChanged(),
         takeUntil(this.destroyed),
       )
-      .subscribe((filter) => {
+      .subscribe((filter: string) => {
         if (this.isAdvancedMode()) {
           this.celLogFilter.updateFilter(filter);
         }
@@ -371,10 +435,17 @@ export class TimelineToolbarSmartComponent implements OnDestroy {
   }
 
   /**
-   * Commits a modified timeline CEL filter expression text queries.
+   * Commits a modified timeline include CEL filter expression text queries.
    */
-  protected onTimelineCelFilterChange(filter: string): void {
-    this.timelineCelFilter$.next(filter);
+  protected onTimelineIncludeCelFilterChange(filter: string): void {
+    this.timelineIncludeCelFilter$.next(filter);
+  }
+
+  /**
+   * Commits a modified timeline exclude CEL filter expression text queries.
+   */
+  protected onTimelineExcludeCelFilterChange(filter: string): void {
+    this.timelineExcludeCelFilter$.next(filter);
   }
 
   /**
@@ -411,7 +482,7 @@ export function compileLogFiltersToCel(
 }
 
 /**
- * Compiles a list of standard timeline filters and a severity level into a CEL expression.
+ * Compiles a list of standard timeline filters and a severity level into a CEL expression for inclusion.
  */
 export function compileFiltersToCel(
   filters: TimelineFilterConfig[],
@@ -421,8 +492,9 @@ export function compileFiltersToCel(
   if (severity && severity !== 'ANY') {
     parts.push(`minSeverity(${severity})`);
   }
-  if (filters.length > 0) {
-    const filtersCel = filters
+  const includeFilters = filters.filter((f) => f.action !== 'exclude');
+  if (includeFilters.length > 0) {
+    const filtersCel = includeFilters
       .map((f) => {
         let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         if (f.mode === 'selection') {
@@ -444,4 +516,35 @@ export function compileFiltersToCel(
     parts.push(filtersCel);
   }
   return parts.join(' && ');
+}
+
+/**
+ * Compiles a list of standard timeline exclusion filters into a CEL expression for exclusion.
+ */
+export function compileExclusionFiltersToCel(
+  filters: TimelineFilterConfig[],
+): string {
+  const excludeFilters = filters.filter((f) => f.action === 'exclude');
+  if (excludeFilters.length === 0) {
+    return '';
+  }
+  return excludeFilters
+    .map((f) => {
+      let celValue = f.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      if (f.mode === 'selection') {
+        const escapedParts = f.value.split('|').map((val) =>
+          val
+            .replace(/\\/g, '\\\\')
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/"/g, '\\"'),
+        );
+        celValue = `^(?:${escapedParts.join('|')})$`;
+      }
+      if (f.timelineType === '*') {
+        return `match("${celValue}")`;
+      } else {
+        return `match("${f.timelineType}", "${celValue}")`;
+      }
+    })
+    .join(' || ');
 }

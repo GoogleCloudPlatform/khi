@@ -21,7 +21,9 @@ import {
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
+import { Timeline } from 'src/app/store/domain/timeline';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
+import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { CelFilterUpdateResult } from 'src/app/store/domain/filter/cel-types';
 import {
   CELTimelineFilterEnvironment,
@@ -104,6 +106,105 @@ export class CelTimelineFilter implements LogTimelineFilter {
     const filteredIds = new Set<number>();
     for (const id of context.timelineIds) {
       if (passedTimelineIds.has(id)) {
+        filteredIds.add(id);
+      }
+    }
+
+    return {
+      timelineIds: filteredIds,
+      logIds: context.logIds,
+    };
+  }
+}
+
+/**
+ * Filters timelines based on the configured CEL exclusion expression, removing matched timelines and their descendants.
+ */
+@Injectable({ providedIn: 'root' })
+export class CelTimelineExclusionFilter implements LogTimelineFilter {
+  readonly displayName = 'Timeline CEL exclusion filter';
+  readonly priority = 25;
+  private readonly searchWorkerManager = inject(SearchWorkerManager);
+  private readonly celEnv = new CELTimelineFilterEnvironment();
+  private readonly _celExpr = signal<string>('');
+  private readonly _onChanged = new Subject<void>();
+
+  /**
+   * Emits whenever the filter's internal configurations or state changes.
+   */
+  public readonly onChanged = this._onChanged.asObservable();
+
+  /**
+   * The currently active CEL timeline exclusion filter expression as a read-only signal.
+   */
+  public readonly celExpr = this._celExpr.asReadonly();
+
+  /**
+   * Validates the given CEL timeline expression against the registered environment schemas.
+   */
+  public validate(celExpr: string): CelFilterUpdateResult {
+    const tempEnv = new CELTimelineFilterEnvironment();
+    return tempEnv.compile(celExpr);
+  }
+
+  /**
+   * Updates the evaluator with a new CEL expression, validating its syntax beforehand.
+   */
+  public updateFilter(celExpr: string): CelFilterUpdateResult {
+    const compileRes = this.celEnv.compile(celExpr);
+    if (!compileRes.success) {
+      this._celExpr.set('');
+      return compileRes;
+    }
+    this._celExpr.set(celExpr);
+    this._onChanged.next();
+    return { success: true };
+  }
+
+  /**
+   * Evaluates each timeline in the context against the CEL exclusion expression and removes matching timeline IDs and their descendants.
+   */
+  public async process(
+    context: LogTimelineFilterContext,
+    timelineStore: TimelineStore,
+    signal?: AbortSignal,
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<LogTimelineFilterContext> {
+    if (this.celExpr() === '') {
+      return context;
+    }
+    if (signal?.aborted) {
+      throw new CancellationError();
+    }
+
+    onProgress?.(0, context.timelineIds.size);
+
+    const excludedTimelineIds = await this.searchWorkerManager.searchTimelines(
+      this.celExpr(),
+      onProgress,
+    );
+
+    if (signal?.aborted) {
+      throw new CancellationError();
+    }
+
+    const filteredIds = new Set<number>();
+    const isTimelineAndAncestorsValid = (
+      t: ReadonlyDomainElement<Timeline>,
+    ): boolean => {
+      let current: ReadonlyDomainElement<Timeline> | null | undefined = t;
+      while (current) {
+        if (excludedTimelineIds.has(current.id)) {
+          return false;
+        }
+        current = current.parent;
+      }
+      return true;
+    };
+
+    for (const id of context.timelineIds) {
+      const t = timelineStore.getTimeline(id);
+      if (t && isTimelineAndAncestorsValid(t)) {
         filteredIds.add(id);
       }
     }

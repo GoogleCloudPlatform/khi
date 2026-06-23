@@ -196,11 +196,12 @@ export class ToolbarComponent {
    * For selection mode, replaces '|' with ', ' for cleaner list presentation.
    */
   protected getFilterTooltip(filter: TimelineFilterConfig): string {
+    const actionPrefix = filter.action === 'exclude' ? '(Exclude) ' : '';
     if (filter.mode === 'regex') {
-      return `${filter.timelineType}: ${filter.value}`;
+      return `${actionPrefix}${filter.timelineType}: ${filter.value}`;
     }
     const formattedValue = filter.value.split('|').join(', ');
-    return `${filter.timelineType}: ${formattedValue}`;
+    return `${actionPrefix}${filter.timelineType}: ${formattedValue}`;
   }
 
   protected readonly ToolbarPopupStatus = ToolbarPopupStatus;
@@ -212,6 +213,9 @@ export class ToolbarComponent {
   protected readonly editingFilter = signal<TimelineFilterConfig | null>(null);
   protected readonly builderFilterMode = signal<'regex' | 'selection'>(
     'selection',
+  );
+  protected readonly builderFilterAction = signal<'include' | 'exclude'>(
+    'include',
   );
   protected readonly builderRegexValue = signal<string>('');
   protected readonly builderSelectedCandidates = signal<string[]>([]);
@@ -247,6 +251,7 @@ export class ToolbarComponent {
     timelineType: string;
     mode: 'regex' | 'selection';
     value: string;
+    action: 'include' | 'exclude';
   }): void {
     const currentFilters = this.timelineFilters();
     const editFilter = this.editingFilter();
@@ -260,6 +265,7 @@ export class ToolbarComponent {
             timelineType: event.timelineType,
             mode: event.mode,
             value: event.value,
+            action: event.action,
           };
         }
         return f;
@@ -272,6 +278,7 @@ export class ToolbarComponent {
         timelineType: event.timelineType,
         mode: event.mode,
         value: event.value,
+        action: event.action,
       };
       this.timelineFilters.set([...currentFilters, newFilter]);
     }
@@ -281,6 +288,7 @@ export class ToolbarComponent {
     this.editingFilter.set(null);
     this.selectedTimelineTypeForBuilder.set('*');
     this.builderFilterMode.set('selection');
+    this.builderFilterAction.set('include');
     this.builderRegexValue.set('');
     this.builderSelectedCandidates.set([]);
   }
@@ -292,6 +300,7 @@ export class ToolbarComponent {
     this.editingFilter.set(filter);
     this.selectedTimelineTypeForBuilder.set(filter.timelineType);
     this.builderFilterMode.set(filter.mode);
+    this.builderFilterAction.set(filter.action ?? 'include');
     if (filter.mode === 'regex') {
       this.builderRegexValue.set(filter.value);
       this.builderSelectedCandidates.set([]);
@@ -315,6 +324,7 @@ export class ToolbarComponent {
       this.editingFilter.set(null);
       this.selectedTimelineTypeForBuilder.set('*');
       this.builderFilterMode.set('selection');
+      this.builderFilterAction.set('include');
       this.builderRegexValue.set('');
       this.builderSelectedCandidates.set([]);
     }

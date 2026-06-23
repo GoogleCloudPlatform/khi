@@ -53,6 +53,15 @@ $timezone-color: mat.m2-get-color-from-palette($primary-palette, 500);
   padding: 4px 16px;
 }
 
+.timeline-cel-inputs-row {
+  display: grid;
+  grid-template:
+    'inc exc' 1fr
+    / 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
 .left-control {
   grid-area: left;
   justify-content: center;

@@ -23,11 +23,18 @@ limitations under the License.
     (hideTimelinesWithoutMatchingLogsChange)="
       hideTimelinesWithoutMatchingLogsChange.emit($event)
     "
-    [timelineCelFilter]="timelineCelFilter()"
-    (timelineCelFilterChange)="timelineCelFilterChange.emit($event)"
+    [timelineIncludeCelFilter]="timelineIncludeCelFilter()"
+    (timelineIncludeCelFilterChange)="
+      timelineIncludeCelFilterChange.emit($event)
+    "
+    [timelineExcludeCelFilter]="timelineExcludeCelFilter()"
+    (timelineExcludeCelFilterChange)="
+      timelineExcludeCelFilterChange.emit($event)
+    "
     [logCelFilter]="logCelFilter()"
     (logCelFilterChange)="logCelFilterChange.emit($event)"
-    [timelineCelError]="timelineCelError()"
+    [timelineIncludeCelError]="timelineIncludeCelError()"
+    [timelineExcludeCelError]="timelineExcludeCelError()"
     [logCelError]="logCelError()"
     [activeSearchScope]="activeSearchScope()"
     (switchToStandard)="isAdvancedMode.set(false)"

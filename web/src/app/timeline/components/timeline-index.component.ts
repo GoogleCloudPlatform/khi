@@ -18,6 +18,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
@@ -75,6 +76,7 @@ interface TimelineIndexViewModel {
   imports: [
     CommonModule,
     MatTooltipModule,
+    MatMenuModule,
     MatIconModule,
     KHIIconRegistrationModule,
   ],
@@ -100,6 +102,12 @@ export class TimelineIndexComponent {
 
   /** Emits the timeline when the user clicks on a row. */
   clickOnTimeline = output<Timeline>();
+
+  /** Emits the timeline when requesting to exclude it. */
+  excludeTimeline = output<Timeline>();
+
+  /** Emits the timeline type label when requesting to exclude all timelines of that type. */
+  excludeTimelineType = output<string>();
 
   /**
    * Handles mouse over events on a timeline row.
