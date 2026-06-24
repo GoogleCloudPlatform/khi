@@ -123,6 +123,13 @@ message ChronologicalSortPolicy {
   int32 chronological_search_depth = 1;
 }
 
+// GroupedChronologicalSortPolicy defines the configuration parameters for grouped chronological sorting.
+// It splits resource names into hierarchical tokens using a delimiter and sorts prefix groups chronologically.
+message GroupedChronologicalSortPolicy {
+  // delimiter is the character sequence used to split timeline names into hierarchical group tokens.
+  string delimiter = 1;
+}
+
 // TimelineType defines the presentation style for a specific type of timeline line
 // (e.g., a specific object's events, or a summarized view).
 message TimelineType {
@@ -154,6 +161,8 @@ message TimelineType {
     AlphabeticalSortPolicy alphabetical_policy = 11;
     // chronological_policy is the configuration for chronological sorting.
     ChronologicalSortPolicy chronological_policy = 12;
+    // grouped_chronological_policy is the configuration for grouped chronological sorting.
+    GroupedChronologicalSortPolicy grouped_chronological_policy = 14;
   }
 }
 

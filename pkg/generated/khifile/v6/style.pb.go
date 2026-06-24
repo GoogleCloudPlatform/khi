@@ -612,6 +612,53 @@ func (x *ChronologicalSortPolicy) GetChronologicalSearchDepth() int32 {
 	return 0
 }
 
+// GroupedChronologicalSortPolicy defines the configuration parameters for grouped chronological sorting.
+// It splits resource names into hierarchical tokens using a delimiter and sorts prefix groups chronologically.
+type GroupedChronologicalSortPolicy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// delimiter is the character sequence used to split timeline names into hierarchical group tokens.
+	Delimiter     *string `protobuf:"bytes,1,opt,name=delimiter" json:"delimiter,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GroupedChronologicalSortPolicy) Reset() {
+	*x = GroupedChronologicalSortPolicy{}
+	mi := &file_khifile_v6_style_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupedChronologicalSortPolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupedChronologicalSortPolicy) ProtoMessage() {}
+
+func (x *GroupedChronologicalSortPolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_khifile_v6_style_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupedChronologicalSortPolicy.ProtoReflect.Descriptor instead.
+func (*GroupedChronologicalSortPolicy) Descriptor() ([]byte, []int) {
+	return file_khifile_v6_style_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GroupedChronologicalSortPolicy) GetDelimiter() string {
+	if x != nil && x.Delimiter != nil {
+		return *x.Delimiter
+	}
+	return ""
+}
+
 // TimelineType defines the presentation style for a specific type of timeline line
 // (e.g., a specific object's events, or a summarized view).
 type TimelineType struct {
@@ -642,6 +689,7 @@ type TimelineType struct {
 	//
 	//	*TimelineType_AlphabeticalPolicy
 	//	*TimelineType_ChronologicalPolicy
+	//	*TimelineType_GroupedChronologicalPolicy
 	SortPolicyConfig isTimelineType_SortPolicyConfig `protobuf_oneof:"sort_policy_config"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -649,7 +697,7 @@ type TimelineType struct {
 
 func (x *TimelineType) Reset() {
 	*x = TimelineType{}
-	mi := &file_khifile_v6_style_proto_msgTypes[7]
+	mi := &file_khifile_v6_style_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +709,7 @@ func (x *TimelineType) String() string {
 func (*TimelineType) ProtoMessage() {}
 
 func (x *TimelineType) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v6_style_proto_msgTypes[7]
+	mi := &file_khifile_v6_style_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +722,7 @@ func (x *TimelineType) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineType.ProtoReflect.Descriptor instead.
 func (*TimelineType) Descriptor() ([]byte, []int) {
-	return file_khifile_v6_style_proto_rawDescGZIP(), []int{7}
+	return file_khifile_v6_style_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TimelineType) GetId() uint32 {
@@ -779,6 +827,15 @@ func (x *TimelineType) GetChronologicalPolicy() *ChronologicalSortPolicy {
 	return nil
 }
 
+func (x *TimelineType) GetGroupedChronologicalPolicy() *GroupedChronologicalSortPolicy {
+	if x != nil {
+		if x, ok := x.SortPolicyConfig.(*TimelineType_GroupedChronologicalPolicy); ok {
+			return x.GroupedChronologicalPolicy
+		}
+	}
+	return nil
+}
+
 type isTimelineType_SortPolicyConfig interface {
 	isTimelineType_SortPolicyConfig()
 }
@@ -793,9 +850,16 @@ type TimelineType_ChronologicalPolicy struct {
 	ChronologicalPolicy *ChronologicalSortPolicy `protobuf:"bytes,12,opt,name=chronological_policy,json=chronologicalPolicy,oneof"`
 }
 
+type TimelineType_GroupedChronologicalPolicy struct {
+	// grouped_chronological_policy is the configuration for grouped chronological sorting.
+	GroupedChronologicalPolicy *GroupedChronologicalSortPolicy `protobuf:"bytes,14,opt,name=grouped_chronological_policy,json=groupedChronologicalPolicy,oneof"`
+}
+
 func (*TimelineType_AlphabeticalPolicy) isTimelineType_SortPolicyConfig() {}
 
 func (*TimelineType_ChronologicalPolicy) isTimelineType_SortPolicyConfig() {}
+
+func (*TimelineType_GroupedChronologicalPolicy) isTimelineType_SortPolicyConfig() {}
 
 // IconAtlas is a collection of icons used in the UI.
 type IconAtlas struct {
@@ -812,7 +876,7 @@ type IconAtlas struct {
 
 func (x *IconAtlas) Reset() {
 	*x = IconAtlas{}
-	mi := &file_khifile_v6_style_proto_msgTypes[8]
+	mi := &file_khifile_v6_style_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -824,7 +888,7 @@ func (x *IconAtlas) String() string {
 func (*IconAtlas) ProtoMessage() {}
 
 func (x *IconAtlas) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v6_style_proto_msgTypes[8]
+	mi := &file_khifile_v6_style_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -837,7 +901,7 @@ func (x *IconAtlas) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IconAtlas.ProtoReflect.Descriptor instead.
 func (*IconAtlas) Descriptor() ([]byte, []int) {
-	return file_khifile_v6_style_proto_rawDescGZIP(), []int{8}
+	return file_khifile_v6_style_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *IconAtlas) GetMsdfIconImage() [][]byte {
@@ -883,7 +947,7 @@ type TimelineStyleChunk struct {
 
 func (x *TimelineStyleChunk) Reset() {
 	*x = TimelineStyleChunk{}
-	mi := &file_khifile_v6_style_proto_msgTypes[9]
+	mi := &file_khifile_v6_style_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -895,7 +959,7 @@ func (x *TimelineStyleChunk) String() string {
 func (*TimelineStyleChunk) ProtoMessage() {}
 
 func (x *TimelineStyleChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_khifile_v6_style_proto_msgTypes[9]
+	mi := &file_khifile_v6_style_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -908,7 +972,7 @@ func (x *TimelineStyleChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimelineStyleChunk.ProtoReflect.Descriptor instead.
 func (*TimelineStyleChunk) Descriptor() ([]byte, []int) {
-	return file_khifile_v6_style_proto_rawDescGZIP(), []int{9}
+	return file_khifile_v6_style_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *TimelineStyleChunk) GetSeverities() []*Severity {
@@ -1028,7 +1092,11 @@ var file_khifile_v6_style_proto_rawDesc = string([]byte{
 	0x67, 0x69, 0x63, 0x61, 0x6c, 0x5f, 0x73, 0x65, 0x61, 0x72, 0x63, 0x68, 0x5f, 0x64, 0x65, 0x70,
 	0x74, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x18, 0x63, 0x68, 0x72, 0x6f, 0x6e, 0x6f,
 	0x6c, 0x6f, 0x67, 0x69, 0x63, 0x61, 0x6c, 0x53, 0x65, 0x61, 0x72, 0x63, 0x68, 0x44, 0x65, 0x70,
-	0x74, 0x68, 0x22, 0xb4, 0x05, 0x0a, 0x0c, 0x54, 0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x54,
+	0x74, 0x68, 0x22, 0x3e, 0x0a, 0x1e, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x65, 0x64, 0x43, 0x68, 0x72,
+	0x6f, 0x6e, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x63, 0x61, 0x6c, 0x53, 0x6f, 0x72, 0x74, 0x50, 0x6f,
+	0x6c, 0x69, 0x63, 0x79, 0x12, 0x1c, 0x0a, 0x09, 0x64, 0x65, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x65,
+	0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x64, 0x65, 0x6c, 0x69, 0x6d, 0x69, 0x74,
+	0x65, 0x72, 0x22, 0xa4, 0x06, 0x0a, 0x0c, 0x54, 0x69, 0x6d, 0x65, 0x6c, 0x69, 0x6e, 0x65, 0x54,
 	0x79, 0x70, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52,
 	0x02, 0x69, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x18, 0x02, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x12, 0x20, 0x0a, 0x0b, 0x64, 0x65, 0x73,
@@ -1070,6 +1138,13 @@ var file_khifile_v6_style_proto_rawDesc = string([]byte{
 	0x65, 0x2e, 0x76, 0x36, 0x2e, 0x43, 0x68, 0x72, 0x6f, 0x6e, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x63,
 	0x61, 0x6c, 0x53, 0x6f, 0x72, 0x74, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x48, 0x00, 0x52, 0x13,
 	0x63, 0x68, 0x72, 0x6f, 0x6e, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x63, 0x61, 0x6c, 0x50, 0x6f, 0x6c,
+	0x69, 0x63, 0x79, 0x12, 0x6e, 0x0a, 0x1c, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x65, 0x64, 0x5f, 0x63,
+	0x68, 0x72, 0x6f, 0x6e, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x63, 0x61, 0x6c, 0x5f, 0x70, 0x6f, 0x6c,
+	0x69, 0x63, 0x79, 0x18, 0x0e, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2a, 0x2e, 0x6b, 0x68, 0x69, 0x66,
+	0x69, 0x6c, 0x65, 0x2e, 0x76, 0x36, 0x2e, 0x47, 0x72, 0x6f, 0x75, 0x70, 0x65, 0x64, 0x43, 0x68,
+	0x72, 0x6f, 0x6e, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x63, 0x61, 0x6c, 0x53, 0x6f, 0x72, 0x74, 0x50,
+	0x6f, 0x6c, 0x69, 0x63, 0x79, 0x48, 0x00, 0x52, 0x1a, 0x67, 0x72, 0x6f, 0x75, 0x70, 0x65, 0x64,
+	0x43, 0x68, 0x72, 0x6f, 0x6e, 0x6f, 0x6c, 0x6f, 0x67, 0x69, 0x63, 0x61, 0x6c, 0x50, 0x6f, 0x6c,
 	0x69, 0x63, 0x79, 0x42, 0x14, 0x0a, 0x12, 0x73, 0x6f, 0x72, 0x74, 0x5f, 0x70, 0x6f, 0x6c, 0x69,
 	0x63, 0x79, 0x5f, 0x63, 0x6f, 0x6e, 0x66, 0x69, 0x67, 0x22, 0xf4, 0x01, 0x0a, 0x09, 0x49, 0x63,
 	0x6f, 0x6e, 0x41, 0x74, 0x6c, 0x61, 0x73, 0x12, 0x26, 0x0a, 0x0f, 0x6d, 0x73, 0x64, 0x66, 0x5f,
@@ -1140,20 +1215,21 @@ func file_khifile_v6_style_proto_rawDescGZIP() []byte {
 }
 
 var file_khifile_v6_style_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_khifile_v6_style_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_khifile_v6_style_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_khifile_v6_style_proto_goTypes = []any{
-	(RevisionStateStyle)(0),         // 0: khifile.v6.RevisionStateStyle
-	(*HDRColor4)(nil),               // 1: khifile.v6.HDRColor4
-	(*Severity)(nil),                // 2: khifile.v6.Severity
-	(*Verb)(nil),                    // 3: khifile.v6.Verb
-	(*LogType)(nil),                 // 4: khifile.v6.LogType
-	(*RevisionState)(nil),           // 5: khifile.v6.RevisionState
-	(*AlphabeticalSortPolicy)(nil),  // 6: khifile.v6.AlphabeticalSortPolicy
-	(*ChronologicalSortPolicy)(nil), // 7: khifile.v6.ChronologicalSortPolicy
-	(*TimelineType)(nil),            // 8: khifile.v6.TimelineType
-	(*IconAtlas)(nil),               // 9: khifile.v6.IconAtlas
-	(*TimelineStyleChunk)(nil),      // 10: khifile.v6.TimelineStyleChunk
-	nil,                             // 11: khifile.v6.IconAtlas.NameToCodepointsEntry
+	(RevisionStateStyle)(0),                // 0: khifile.v6.RevisionStateStyle
+	(*HDRColor4)(nil),                      // 1: khifile.v6.HDRColor4
+	(*Severity)(nil),                       // 2: khifile.v6.Severity
+	(*Verb)(nil),                           // 3: khifile.v6.Verb
+	(*LogType)(nil),                        // 4: khifile.v6.LogType
+	(*RevisionState)(nil),                  // 5: khifile.v6.RevisionState
+	(*AlphabeticalSortPolicy)(nil),         // 6: khifile.v6.AlphabeticalSortPolicy
+	(*ChronologicalSortPolicy)(nil),        // 7: khifile.v6.ChronologicalSortPolicy
+	(*GroupedChronologicalSortPolicy)(nil), // 8: khifile.v6.GroupedChronologicalSortPolicy
+	(*TimelineType)(nil),                   // 9: khifile.v6.TimelineType
+	(*IconAtlas)(nil),                      // 10: khifile.v6.IconAtlas
+	(*TimelineStyleChunk)(nil),             // 11: khifile.v6.TimelineStyleChunk
+	nil,                                    // 12: khifile.v6.IconAtlas.NameToCodepointsEntry
 }
 var file_khifile_v6_style_proto_depIdxs = []int32{
 	1,  // 0: khifile.v6.Severity.background_color:type_name -> khifile.v6.HDRColor4
@@ -1170,18 +1246,19 @@ var file_khifile_v6_style_proto_depIdxs = []int32{
 	1,  // 11: khifile.v6.TimelineType.type_chip_foreground_color:type_name -> khifile.v6.HDRColor4
 	6,  // 12: khifile.v6.TimelineType.alphabetical_policy:type_name -> khifile.v6.AlphabeticalSortPolicy
 	7,  // 13: khifile.v6.TimelineType.chronological_policy:type_name -> khifile.v6.ChronologicalSortPolicy
-	11, // 14: khifile.v6.IconAtlas.name_to_codepoints:type_name -> khifile.v6.IconAtlas.NameToCodepointsEntry
-	2,  // 15: khifile.v6.TimelineStyleChunk.severities:type_name -> khifile.v6.Severity
-	3,  // 16: khifile.v6.TimelineStyleChunk.verbs:type_name -> khifile.v6.Verb
-	4,  // 17: khifile.v6.TimelineStyleChunk.log_types:type_name -> khifile.v6.LogType
-	5,  // 18: khifile.v6.TimelineStyleChunk.revision_states:type_name -> khifile.v6.RevisionState
-	8,  // 19: khifile.v6.TimelineStyleChunk.timeline_types:type_name -> khifile.v6.TimelineType
-	9,  // 20: khifile.v6.TimelineStyleChunk.icon_atlas:type_name -> khifile.v6.IconAtlas
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	8,  // 14: khifile.v6.TimelineType.grouped_chronological_policy:type_name -> khifile.v6.GroupedChronologicalSortPolicy
+	12, // 15: khifile.v6.IconAtlas.name_to_codepoints:type_name -> khifile.v6.IconAtlas.NameToCodepointsEntry
+	2,  // 16: khifile.v6.TimelineStyleChunk.severities:type_name -> khifile.v6.Severity
+	3,  // 17: khifile.v6.TimelineStyleChunk.verbs:type_name -> khifile.v6.Verb
+	4,  // 18: khifile.v6.TimelineStyleChunk.log_types:type_name -> khifile.v6.LogType
+	5,  // 19: khifile.v6.TimelineStyleChunk.revision_states:type_name -> khifile.v6.RevisionState
+	9,  // 20: khifile.v6.TimelineStyleChunk.timeline_types:type_name -> khifile.v6.TimelineType
+	10, // 21: khifile.v6.TimelineStyleChunk.icon_atlas:type_name -> khifile.v6.IconAtlas
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_khifile_v6_style_proto_init() }
@@ -1189,9 +1266,10 @@ func file_khifile_v6_style_proto_init() {
 	if File_khifile_v6_style_proto != nil {
 		return
 	}
-	file_khifile_v6_style_proto_msgTypes[7].OneofWrappers = []any{
+	file_khifile_v6_style_proto_msgTypes[8].OneofWrappers = []any{
 		(*TimelineType_AlphabeticalPolicy)(nil),
 		(*TimelineType_ChronologicalPolicy)(nil),
+		(*TimelineType_GroupedChronologicalPolicy)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1199,7 +1277,7 @@ func file_khifile_v6_style_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_khifile_v6_style_proto_rawDesc), len(file_khifile_v6_style_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

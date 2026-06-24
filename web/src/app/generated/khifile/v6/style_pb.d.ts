@@ -326,6 +326,28 @@ export declare type ChronologicalSortPolicy =
 export declare const ChronologicalSortPolicySchema: GenMessage<ChronologicalSortPolicy>;
 
 /**
+ * GroupedChronologicalSortPolicy defines the configuration parameters for grouped chronological sorting.
+ * It splits resource names into hierarchical tokens using a delimiter and sorts prefix groups chronologically.
+ *
+ * @generated from message khifile.v6.GroupedChronologicalSortPolicy
+ */
+export declare type GroupedChronologicalSortPolicy =
+  Message<'khifile.v6.GroupedChronologicalSortPolicy'> & {
+    /**
+     * delimiter is the character sequence used to split timeline names into hierarchical group tokens.
+     *
+     * @generated from field: string delimiter = 1;
+     */
+    delimiter: string;
+  };
+
+/**
+ * Describes the message khifile.v6.GroupedChronologicalSortPolicy.
+ * Use `create(GroupedChronologicalSortPolicySchema)` to create a new message.
+ */
+export declare const GroupedChronologicalSortPolicySchema: GenMessage<GroupedChronologicalSortPolicy>;
+
+/**
  * TimelineType defines the presentation style for a specific type of timeline line
  * (e.g., a specific object's events, or a summarized view).
  *
@@ -430,6 +452,15 @@ export declare type TimelineType = Message<'khifile.v6.TimelineType'> & {
          */
         value: ChronologicalSortPolicy;
         case: 'chronologicalPolicy';
+      }
+    | {
+        /**
+         * grouped_chronological_policy is the configuration for grouped chronological sorting.
+         *
+         * @generated from field: khifile.v6.GroupedChronologicalSortPolicy grouped_chronological_policy = 14;
+         */
+        value: GroupedChronologicalSortPolicy;
+        case: 'groupedChronologicalPolicy';
       }
     | { case: undefined; value?: undefined };
 };

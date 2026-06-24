@@ -161,3 +161,102 @@ func TestCompareChronological(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareGroupedChronological(t *testing.T) {
+	idGen := &IDGenerator{}
+	internPool := NewInternPool(idGen)
+	pool := NewTimelinePathPool(idGen, internPool)
+	timelineType := &pb.TimelineType{Id: proto.Uint32(1)}
+
+	t1 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	t2 := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
+	t3 := time.Date(2026, 1, 1, 9, 45, 0, 0, time.UTC)
+
+	path1 := pool.Get(nil, PathSegment{Name: "aaaa-bbbb-cccc-1111", Type: timelineType})
+	path2 := pool.Get(nil, PathSegment{Name: "aaaa-bbbb-cccc-2222", Type: timelineType})
+	path3 := pool.Get(nil, PathSegment{Name: "aaaa-bbbb-dddd-3333", Type: timelineType})
+	pathParent := pool.Get(nil, PathSegment{Name: "aaaa-bbbb", Type: timelineType})
+	pathChild := pool.Get(nil, PathSegment{Name: "aaaa-bbbb-cccc-dddd", Type: timelineType})
+	pathGroupA := pool.Get(nil, PathSegment{Name: "aaaa-bb-01", Type: timelineType})
+	pathGroupB := pool.Get(nil, PathSegment{Name: "aaaa-bbbb-01", Type: timelineType})
+	pathGroupB2 := pool.Get(nil, PathSegment{Name: "aaaa-bbbb-02", Type: timelineType})
+
+	t0800 := time.Date(2026, 1, 1, 8, 0, 0, 0, time.UTC)
+	t0900 := time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)
+	t1000 := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+
+	parentToChildren := map[*TimelinePath][]*TimelinePath{
+		nil: {path1, path2, path3, pathParent, pathChild, pathGroupA, pathGroupB, pathGroupB2},
+	}
+
+	testCases := []struct {
+		name      string
+		a         *TimelinePath
+		b         *TimelinePath
+		setupFunc func(registry *TimelineRegistry)
+		want      int
+	}{
+		{
+			name: "same group timelines sorted chronologically",
+			a:    path1,
+			b:    path2,
+			setupFunc: func(registry *TimelineRegistry) {
+				registry.GetBuilder(path1).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)}) // 10:00
+				registry.GetBuilder(path2).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)}) // 09:30
+			},
+			want: 1, // path1 (10:00) > path2 (09:30), so path2 comes first
+		},
+		{
+			name: "group representative time determines group order",
+			a:    path1, // cccc group (min time t2 = 09:30)
+			b:    path3, // dddd group (min time t3 = 09:45)
+			setupFunc: func(registry *TimelineRegistry) {
+				registry.GetBuilder(path1).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)}) // 10:00
+				registry.GetBuilder(path2).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)}) // 09:30
+				registry.GetBuilder(path3).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t3)}) // 09:45
+			},
+			want: -1, // cccc group (09:30) < dddd group (09:45)
+		},
+		{
+			name: "exact parent prefix comes before child subresource",
+			a:    pathParent,
+			b:    pathChild,
+			setupFunc: func(registry *TimelineRegistry) {
+				registry.GetBuilder(pathParent).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1)})
+				registry.GetBuilder(pathChild).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t2)})
+			},
+			want: -1, // pathParent ("aaaa-bbbb") comes before pathChild ("aaaa-bbbb-cccc-dddd") regardless of times
+		},
+		{
+			name: "prevents false positive substring matches across token boundaries",
+			a:    pathGroupA, // "aaaa-bb-01" (time = 09:00)
+			b:    pathGroupB, // "aaaa-bbbb-01" (time = 10:00, but sibling "aaaa-bbbb-02" has 08:00)
+			setupFunc: func(registry *TimelineRegistry) {
+				registry.GetBuilder(pathGroupA).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t0900)})  // 09:00
+				registry.GetBuilder(pathGroupB).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t1000)})  // 10:00
+				registry.GetBuilder(pathGroupB2).AddRevision(&pb.Revision{ChangedTime: timestamppb.New(t0800)}) // 08:00
+			},
+			want: 1, // pathGroupB's group ("aaaa-bbbb") has representative time 08:00 < 09:00 ("aaaa-bb"). If "aaaa-bbbb" leaked into "aaaa-bb", it would tie at 08:00 and return -1.
+		},
+		{
+			name:      "fallback to alphabetical when both have no timestamps",
+			a:         path1,
+			b:         path2,
+			setupFunc: func(registry *TimelineRegistry) {},
+			want:      -1, // "1111" < "2222"
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logAcc := NewLogAccumulator(internPool, idGen)
+			registry := NewTimelineRegistry(idGen, internPool, logAcc)
+			tc.setupFunc(registry)
+
+			got := CompareGroupedChronological(tc.a, tc.b, registry, parentToChildren, "-")
+			if (got < 0 && tc.want >= 0) || (got > 0 && tc.want <= 0) || (got == 0 && tc.want != 0) {
+				t.Errorf("CompareGroupedChronological() = %d; want sign of %d", got, tc.want)
+			}
+		})
+	}
+}
