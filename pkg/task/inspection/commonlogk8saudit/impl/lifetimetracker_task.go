@@ -94,8 +94,9 @@ func (r *lifeTimeTrackerTaskSetting) DetectLifetimeLogEvent(ctx context.Context,
 		deletionCompleted := false
 		uid, _ := GetUID(l.ResourceBodyReader)
 		if uid != prevGroupData.PrevUID {
+			isInitialUIDDiscovery := prevGroupData.PrevUID == ""
 			prevGroupData.PrevUID = uid
-			if !isDeletiveVerb(k8sFieldSet.Verb) {
+			if !isDeletiveVerb(k8sFieldSet.Verb) && !isInitialUIDDiscovery {
 				l.ResourceCreated = true
 			}
 			prevGroupData.DeletionStarted = false

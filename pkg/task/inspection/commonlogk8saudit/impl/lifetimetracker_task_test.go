@@ -425,6 +425,39 @@ metadata:
 				},
 			},
 		},
+		{
+			name:       "patch without UID followed by patch without UID and update with UID",
+			apiVersion: "core/v1",
+			pluralKind: "pods",
+			kindsToWaitExactDeletionToDetermineDeletion: map[string]struct{}{},
+			steps: []step{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					resourceBodyYAML: `metadata:
+  name: "test"`,
+					wantResourceCreated: true,
+					wantDeletionStarted: false,
+					wantResourceDeleted: false,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					resourceBodyYAML: `metadata:
+  name: "test"`,
+					wantResourceCreated: false,
+					wantDeletionStarted: false,
+					wantResourceDeleted: false,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbUpdate,
+					resourceBodyYAML: `metadata:
+  name: "test"
+  uid: "uid-1"`,
+					wantResourceCreated: false,
+					wantDeletionStarted: false,
+					wantResourceDeleted: false,
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

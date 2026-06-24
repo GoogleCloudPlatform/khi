@@ -27,6 +27,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.T) {
@@ -268,7 +269,70 @@ status:
 			},
 		},
 		{
-			name:       "Inferred creation revision",
+			name:       "Inferred creation revision with creationTimestamp",
+			inputState: nil,
+			verb:       commonlogk8saudit_contract.VerbUpdate,
+			bodyYAML: `metadata:
+  uid: "test-uid"
+  creationTimestamp: "2023-10-26T09:59:00Z"`,
+			role:      "target",
+			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+				WasCompletelyRemoved: false,
+				DeletionStarted:      false,
+				PrevUID:              "test-uid",
+			},
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						ResourceBody: node,
+						Principal:    "admin",
+						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+					}, nodeComparer).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Date(2023, 10, 26, 9, 59, 0, 0, time.UTC),
+						ResourceBody: nil,
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+					}, nodeComparer)
+			},
+		},
+		{
+			name:       "Inferred creation revision without creationTimestamp",
+			inputState: nil,
+			verb:       commonlogk8saudit_contract.VerbUpdate,
+			bodyYAML: `metadata:
+  uid: "test-uid"`,
+			role:      "target",
+			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+				WasCompletelyRemoved: false,
+				DeletionStarted:      false,
+				PrevUID:              "test-uid",
+			},
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node) {
+				testchangeset.AssertTimeline(t, cs).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  testTime,
+						ResourceBody: node,
+						Principal:    "admin",
+						VerbType:     commonlogk8saudit_contract.VerbUpdate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+					}, nodeComparer).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+					}, nodeComparer)
+			},
+		},
+		{
+			name:       "First event with VerbCreate does not add inferred creation",
 			inputState: nil,
 			verb:       commonlogk8saudit_contract.VerbCreate,
 			bodyYAML: `metadata:
@@ -287,13 +351,6 @@ status:
 						ChangedTime:  testTime,
 						ResourceBody: node,
 						Principal:    "admin",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
-					}, nodeComparer).
-					HasRevision(parentPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Date(2023, 10, 26, 9, 59, 0, 0, time.UTC),
-						ResourceBody: nil,
-						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
 					}, nodeComparer)
@@ -579,11 +636,304 @@ uid: "test-uid"`,
 				t.Fatalf("ProcessLog() failed: %v", err)
 			}
 
-			if diff := cmp.Diff(tc.wantState, nextState); diff != "" {
+			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(resourceRevisionLogToTimelineMapperStateV2{}), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("state mismatch (-want +got):\n%s", diff)
 			}
 
 			tc.assert(t, cs, node)
+		})
+	}
+}
+
+func TestResourceRevisionLogToTimelineMapperTaskSettingV2_PreProcessAndProcessLog(t *testing.T) {
+	testTime1 := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
+	testTime2 := time.Date(2023, 10, 26, 10, 5, 0, 0, time.UTC)
+	testTime3 := time.Date(2023, 10, 26, 10, 10, 0, 0, time.UTC)
+	creationTimeUID1 := time.Date(2023, 10, 26, 9, 50, 0, 0, time.UTC)
+
+	builder := khifilev6.NewBuilder()
+	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+	kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+	ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+	parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "test", Type: inspectioncore_contract.TimelineTypeResource})
+
+	testCases := []struct {
+		name      string
+		eventLogs []struct {
+			verb     *pb.Verb
+			bodyYAML string
+			time     time.Time
+		}
+		assert func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet)
+	}{
+		{
+			name: "patch without creationTimestamp followed by patch and update with creationTimestamp",
+			eventLogs: []struct {
+				verb     *pb.Verb
+				bodyYAML string
+				time     time.Time
+			}{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					bodyYAML: `metadata:
+  name: "test"`,
+					time: testTime1,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					bodyYAML: `metadata:
+  name: "test"`,
+					time: testTime2,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbUpdate,
+					bodyYAML: `metadata:
+  uid: "uid-1"
+  creationTimestamp: "2023-10-26T09:50:00Z"`,
+					time: testTime3,
+				},
+			},
+			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
+				if len(changeSets) < 3 {
+					t.Fatalf("expected at least 3 change sets, got %d", len(changeSets))
+				}
+				testchangeset.AssertTimeline(t, changeSets[0]).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  creationTimeUID1,
+						ResourceBody: nil,
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+					})
+
+				var existingLogNotFoundCount int
+				for _, cs := range changeSets {
+					for _, revs := range cs.Revisions {
+						for _, r := range revs {
+							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
+								existingLogNotFoundCount++
+							}
+						}
+					}
+				}
+				if existingLogNotFoundCount != 1 {
+					t.Errorf("expected exactly 1 ExistingLogNotFound revision across all change sets, got %d", existingLogNotFoundCount)
+				}
+			},
+		},
+		{
+			name: "starts with create verb",
+			eventLogs: []struct {
+				verb     *pb.Verb
+				bodyYAML string
+				time     time.Time
+			}{
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					bodyYAML: `metadata:
+  uid: "uid-1"
+  creationTimestamp: "2023-10-26T10:00:00Z"`,
+					time: testTime1,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbUpdate,
+					bodyYAML: `metadata:
+  uid: "uid-1"
+  creationTimestamp: "2023-10-26T10:00:00Z"`,
+					time: testTime2,
+				},
+			},
+			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
+				var existingLogNotFoundCount int
+				for _, cs := range changeSets {
+					for _, revs := range cs.Revisions {
+						for _, r := range revs {
+							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
+								existingLogNotFoundCount++
+							}
+						}
+					}
+				}
+				if existingLogNotFoundCount != 0 {
+					t.Errorf("expected 0 ExistingLogNotFound revision when starting with create, got %d", existingLogNotFoundCount)
+				}
+			},
+		},
+		{
+			name: "patch followed by delete and recreation with create verb",
+			eventLogs: []struct {
+				verb     *pb.Verb
+				bodyYAML string
+				time     time.Time
+			}{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					bodyYAML: `metadata:
+  name: "test"`,
+					time: testTime1,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbDelete,
+					bodyYAML: `metadata:
+  name: "test"
+  deletionGracePeriodSeconds: 0
+  deletionTimestamp: "2023-10-26T10:05:00Z"`,
+					time: testTime2,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					bodyYAML: `metadata:
+  uid: "uid-2"
+  creationTimestamp: "2023-10-26T10:10:00Z"`,
+					time: testTime3,
+				},
+			},
+			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
+				var existingLogNotFoundCount int
+				for _, cs := range changeSets {
+					for _, revs := range cs.Revisions {
+						for _, r := range revs {
+							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
+								existingLogNotFoundCount++
+							}
+						}
+					}
+				}
+				if existingLogNotFoundCount != 1 {
+					t.Errorf("expected exactly 1 ExistingLogNotFound revision from initial patch, got %d", existingLogNotFoundCount)
+				}
+			},
+		},
+		{
+			name: "all patch logs without creationTimestamp",
+			eventLogs: []struct {
+				verb     *pb.Verb
+				bodyYAML string
+				time     time.Time
+			}{
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					bodyYAML: `metadata:
+  name: "test"`,
+					time: testTime1,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbPatch,
+					bodyYAML: `metadata:
+  name: "test"`,
+					time: testTime2,
+				},
+			},
+			assert: func(t *testing.T, changeSets []*khifilev6.TimelineChangeSet) {
+				if len(changeSets) < 2 {
+					t.Fatalf("expected at least 2 change sets, got %d", len(changeSets))
+				}
+				testchangeset.AssertTimeline(t, changeSets[0]).
+					HasRevision(parentPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "N/A",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+					})
+
+				var existingLogNotFoundCount int
+				for _, cs := range changeSets {
+					for _, revs := range cs.Revisions {
+						for _, r := range revs {
+							if r.StateType == commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound {
+								existingLogNotFoundCount++
+							}
+						}
+					}
+				}
+				if existingLogNotFoundCount != 1 {
+					t.Errorf("expected exactly 1 ExistingLogNotFound revision falling back to Unix(0,0), got %d", existingLogNotFoundCount)
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSettingV2{
+				minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
+			}
+
+			targetResource := &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  "default",
+				Name:       "test",
+			}
+
+			var events []commonlogk8saudit_contract.MultiGroupLogEvent
+			for _, el := range tc.eventLogs {
+				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					Principal:    "admin",
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					ResourceName: "test",
+					Namespace:    "default",
+					ClusterName:  "k8s",
+					Verb:         el.verb,
+				}
+				commonFs := &log.CommonFieldSet{
+					Timestamp: el.time,
+				}
+				logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
+				node, err := structured.FromYAML(el.bodyYAML)
+				if err != nil {
+					t.Fatalf("failed to parse test YAML: %v", err)
+				}
+				var nodeReader *structured.NodeReader
+				if node != nil {
+					nodeReader = structured.NewNodeReader(node)
+				}
+				groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+					Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+						"target": {
+							Resource: targetResource,
+							Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
+								{Log: logObj, ResourceBodyReader: nodeReader, ResourceBodyYAML: el.bodyYAML},
+							},
+						},
+					},
+				}
+				events = append(events, commonlogk8saudit_contract.MultiGroupLogEvent{
+					Log:              logObj,
+					GroupRole:        "target",
+					ResourceIdentity: targetResource,
+					EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					GroupSet:         groupSet,
+				})
+			}
+
+			var state *resourceRevisionLogToTimelineMapperStateV2
+			for _, ev := range events {
+				var err error
+				state, err = mapperSetting.PreProcessLog(ctx, 0, ev, state)
+				if err != nil {
+					t.Fatalf("PreProcessLog() failed: %v", err)
+				}
+			}
+
+			var changeSets []*khifilev6.TimelineChangeSet
+			for idx, ev := range events {
+				if idx > 0 {
+					ev.EventType = commonlogk8saudit_contract.ChangeEventTypeV2Modification
+				}
+				cs, nextState, err := mapperSetting.ProcessLog(ctx, ev, state)
+				if err != nil {
+					t.Fatalf("ProcessLog() failed: %v", err)
+				}
+				state = nextState
+				changeSets = append(changeSets, cs)
+			}
+
+			tc.assert(t, changeSets)
 		})
 	}
 }
