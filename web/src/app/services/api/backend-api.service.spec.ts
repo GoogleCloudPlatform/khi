@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
+import { HttpEventType, provideHttpClient } from '@angular/common/http';
 import {
-  HttpClientTestingModule,
+  provideHttpClientTesting,
   HttpTestingController,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { BackendAPIImpl, InspectionClient } from './backend-api.service';
+import {
+  BackendAPIImpl,
+  BackendAPIUtil,
+  InspectionClient,
+} from './backend-api.service';
 import { ViewStateService } from '../view-state.service';
+import { ProgressDialogStatusUpdator } from 'src/app/services/progress/progress-interface';
 import {
   CreateInspectionResponse,
   GetConfigResponse,
@@ -44,8 +50,12 @@ describe('BackendAPIImpl testing', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [BackendAPIImpl, ViewStateService],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        BackendAPIImpl,
+        ViewStateService,
+      ],
     });
 
     api = TestBed.inject(BackendAPIImpl);
@@ -237,6 +247,85 @@ describe('BackendAPIImpl testing', () => {
     req1.flush(testData);
   });
 
+  it('reports granular progress when getInspectionData receives progress events', () => {
+    const fileSize = 100;
+    const testMetadata: InspectionMetadataOfRunResult = {
+      header: {
+        inspectionType: 'test',
+        inspectionName: 'test',
+        inspectionTypeIconPath: 'test',
+        inspectTimeUnixSeconds: 10,
+        startTimeUnixSeconds: 10,
+        endTimeUnixSeconds: 10,
+        suggestedFilename: 'test',
+        fileSize: 100,
+      },
+      query: [],
+      plan: {
+        taskGraph: '',
+      },
+      log: [],
+      error: {
+        errorMessages: [],
+      },
+    };
+    const reporterSpy = jasmine.createSpy('reporter');
+    api.getInspectionData('test', reporterSpy).subscribe();
+
+    const req0 = httpTestingController.expectOne(
+      '/api/v3/inspection/test/metadata',
+    );
+    req0.flush(testMetadata);
+
+    const req1 = httpTestingController.expectOne(
+      '/api/v3/inspection/test/data?start=0&maxSize=100',
+    );
+    req1.event({
+      type: HttpEventType.DownloadProgress,
+      loaded: 30,
+      total: 100,
+    });
+    expect(reporterSpy).toHaveBeenCalledWith(100, 30);
+
+    const testData = new Blob([new ArrayBuffer(fileSize)]);
+    req1.flush(testData);
+    expect(reporterSpy).toHaveBeenCalledWith(100, 100);
+  });
+
+  it('initializes progress dialog immediately when downloadInspectionDataAsFile is called', () => {
+    const progressSpy = jasmine.createSpyObj<ProgressDialogStatusUpdator>(
+      'Progress',
+      ['show', 'updateProgress', 'dismiss'],
+    );
+    BackendAPIUtil.downloadInspectionDataAsFile(
+      api,
+      'test',
+      progressSpy,
+    ).subscribe();
+
+    expect(progressSpy.show).toHaveBeenCalled();
+    expect(progressSpy.updateProgress).toHaveBeenCalledWith({
+      message: 'Downloading inspection data...',
+      percent: 0,
+      mode: 'determinate',
+    });
+
+    const req0 = httpTestingController.expectOne(
+      '/api/v3/inspection/test/metadata',
+    );
+    req0.flush({
+      header: { suggestedFilename: 'test.khi', fileSize: 10 },
+      query: [],
+      plan: { taskGraph: '' },
+      log: [],
+      error: { errorMessages: [] },
+    });
+    const req1 = httpTestingController.expectOne(
+      '/api/v3/inspection/test/data?start=0&maxSize=10',
+    );
+    req1.flush(new Blob([new ArrayBuffer(10)]));
+  });
+
   it('can call runTask', () => {
     const testParameters: InspectionRunRequest = {
       test: 'foo',
@@ -351,7 +440,7 @@ describe('InspectionTaskClient testing', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     });
 
     backendAPISpy = jasmine.createSpyObj<BackendAPI>('BackendAPI', [

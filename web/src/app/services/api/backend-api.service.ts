@@ -32,7 +32,7 @@ import {
   GetConfigResponse,
   InspectionPatchRequest,
 } from '../../common/schema/api-types';
-import { HttpClient, HttpEvent } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
 import {
   EMPTY,
   Observable,
@@ -42,6 +42,7 @@ import {
   concat,
   debounceTime,
   exhaustMap,
+  filter,
   map,
   mergeMap,
   of,
@@ -192,14 +193,13 @@ export class BackendAPIImpl implements BackendAPI {
     inspectionID: string,
     reporter: DownloadProgressReporter,
   ) {
-    // accumulator holds donwnloaded bytes for reporter
-    let done = 0;
     return this.getInspectionMetadata(inspectionID).pipe(
       switchMap((metadata) => {
         const totalSize = metadata.header.fileSize ?? 0;
         const chunks = Math.ceil(
           totalSize / this.MAX_INSPECTION_DATA_DOWNLOAD_CHUNK_SIZE,
         );
+        const chunkLoaded: number[] = new Array(chunks).fill(0);
         return range(0, chunks).pipe(
           map((index) => {
             const startInBytes =
@@ -214,13 +214,38 @@ export class BackendAPIImpl implements BackendAPI {
           mergeMap(({ index, params }) => {
             const url = this.baseUrl + `/inspection/${inspectionID}/data`;
             return this.http
-              .get(`${url}?${params}`, { responseType: 'blob' })
+              .get(`${url}?${params}`, {
+                responseType: 'blob',
+                observe: 'events',
+                reportProgress: true,
+              })
               .pipe(
-                map((blob) => {
-                  done += blob.size;
-                  reporter(totalSize, done);
-                  return { index, blob };
+                map((event: HttpEvent<Blob>) => {
+                  let updated = false;
+                  let blob: Blob | null = null;
+
+                  if (event.type === HttpEventType.DownloadProgress) {
+                    chunkLoaded[index] = event.loaded;
+                    updated = true;
+                  } else if (event.type === HttpEventType.Response) {
+                    blob = event.body;
+                    if (blob) {
+                      chunkLoaded[index] = blob.size;
+                      updated = true;
+                    }
+                  }
+
+                  if (updated) {
+                    const doneBytes = chunkLoaded.reduce((a, b) => a + b, 0);
+                    reporter(totalSize, doneBytes);
+                  }
+
+                  return blob ? { index, blob } : null;
                 }),
+                filter(
+                  (result): result is { index: number; blob: Blob } =>
+                    result !== null,
+                ),
               );
           }, this.INSPECTION_DATA_DOWNLOAD_CONCURRENCY),
           reduce(
@@ -384,6 +409,11 @@ export class BackendAPIUtil {
     progress: ProgressDialogStatusUpdator,
   ) {
     progress.show();
+    progress.updateProgress({
+      message: 'Downloading inspection data...',
+      percent: 0,
+      mode: 'determinate',
+    });
     return api
       .getInspectionData(inspectionID, (fileSize, done) => {
         progress.updateProgress({
