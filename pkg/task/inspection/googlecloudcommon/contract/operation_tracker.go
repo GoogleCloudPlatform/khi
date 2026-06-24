@@ -19,20 +19,178 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
+	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
+	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
 // GCPOperationTracker tracks operation start/finish logs within a group and generates revisions.
 type GCPOperationTracker struct {
-	startedOperations map[string]struct{}
-	lastManifest      string
+	startedOperations   map[string]struct{}
+	hasResourceRevision map[uint32]struct{}
+	lastManifest        string
 }
 
 // NewGCPOperationTracker creates a new GCPOperationTracker.
 func NewGCPOperationTracker() *GCPOperationTracker {
 	return &GCPOperationTracker{
-		startedOperations: make(map[string]struct{}),
+		startedOperations:   make(map[string]struct{}),
+		hasResourceRevision: make(map[uint32]struct{}),
 	}
+}
+
+// HasStarted returns true if the operation start log for the given operation ID was observed.
+func (t *GCPOperationTracker) HasStarted(operationID string) bool {
+	_, hasStarted := t.startedOperations[operationID]
+	return hasStarted
+}
+
+// HasResourceRevision returns true if any revision has been added to the given resource timeline path.
+func (t *GCPOperationTracker) HasResourceRevision(path *khifilev6.TimelinePath) bool {
+	_, has := t.hasResourceRevision[path.ID]
+	return has
+}
+
+// MarkResourceRevision records that a revision was added to the given resource timeline path.
+func (t *GCPOperationTracker) MarkResourceRevision(path *khifilev6.TimelinePath) {
+	t.hasResourceRevision[path.ID] = struct{}{}
+}
+
+// ProcessGCPClusterNodepoolOperationLog processes a GCP operation log for a cluster or node pool resource timeline.
+// It generates resource creation/deletion/enrollment/unenrollment revisions, handles missing start logs by prepending
+// appropriate LogNotFound revisions at Unix time 0, and updates operation tracking.
+func ProcessGCPClusterNodepoolOperationLog(
+	ctx context.Context,
+	cs *khifilev6.TimelineChangeSet,
+	tracker *GCPOperationTracker,
+	targetTimeline *khifilev6.TimelinePath,
+	operationTimeline *khifilev6.TimelinePath,
+	audit *GCPAuditLogFieldSet,
+	common *log.CommonFieldSet,
+	shortMethodName string,
+	isCluster bool,
+) {
+	if audit.ImmediateOperation() {
+		cs.AddEvent(targetTimeline)
+		return
+	}
+
+	resourceBodyField := "nodePool"
+	if isCluster {
+		resourceBodyField = "cluster"
+	}
+
+	switch shortMethodName {
+	case "CreateCluster", "CreateNodePool", "EnrollCluster", "EnrollNodePool":
+		var bodyNode structured.Node
+		if audit.Request != nil {
+			if subReader, err := audit.Request.GetReader(resourceBodyField); err == nil {
+				bodyNode = subReader.Node
+			}
+		}
+
+		if audit.Ending() && !tracker.HasStarted(audit.OperationID) {
+			var stateLogNotFound *pb.RevisionState
+			if isCluster {
+				stateLogNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterProvisioningLogNotFound
+			} else {
+				stateLogNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound
+			}
+			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				StateType:    stateLogNotFound,
+				Principal:    audit.PrincipalEmail,
+				ChangedTime:  time.Unix(0, 0),
+				ResourceBody: nil,
+			})
+			tracker.MarkResourceRevision(targetTimeline)
+		}
+
+		var state *pb.RevisionState
+		if isCluster {
+			if audit.Ending() {
+				state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
+			} else {
+				state = commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning
+			}
+		} else {
+			if audit.Ending() {
+				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting
+			} else {
+				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning
+			}
+		}
+
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			VerbType:     commonlogk8saudit_contract.VerbCreate,
+			StateType:    state,
+			Principal:    audit.PrincipalEmail,
+			ChangedTime:  common.Timestamp,
+			ResourceBody: bodyNode,
+		})
+		tracker.MarkResourceRevision(targetTimeline)
+
+	case "DeleteCluster", "DeleteNodePool", "UnenrollCluster", "UnenrollNodePool":
+		if !audit.Ending() && !tracker.HasResourceRevision(targetTimeline) {
+			var stateExistingNotFound *pb.RevisionState
+			if isCluster {
+				stateExistingNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterExistingLogNotFound
+			} else {
+				stateExistingNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolExistingLogNotFound
+			}
+			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				StateType:    stateExistingNotFound,
+				Principal:    audit.PrincipalEmail,
+				ChangedTime:  time.Unix(0, 0),
+				ResourceBody: nil,
+			})
+			tracker.MarkResourceRevision(targetTimeline)
+		}
+
+		if audit.Ending() && !tracker.HasStarted(audit.OperationID) {
+			var stateDeletingNotFound *pb.RevisionState
+			if isCluster {
+				stateDeletingNotFound = commonlogk8saudit_contract.RevisionStateK8sClusterDeletingLogNotFound
+			} else {
+				stateDeletingNotFound = commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound
+			}
+			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbDelete,
+				StateType:    stateDeletingNotFound,
+				Principal:    audit.PrincipalEmail,
+				ChangedTime:  time.Unix(0, 0),
+				ResourceBody: nil,
+			})
+			tracker.MarkResourceRevision(targetTimeline)
+		}
+
+		var state *pb.RevisionState
+		if isCluster {
+			if audit.Ending() {
+				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleted
+			} else {
+				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleting
+			}
+		} else {
+			if audit.Ending() {
+				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted
+			} else {
+				state = commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleting
+			}
+		}
+		cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
+			VerbType:     commonlogk8saudit_contract.VerbDelete,
+			StateType:    state,
+			Principal:    audit.PrincipalEmail,
+			ChangedTime:  common.Timestamp,
+			ResourceBody: nil,
+		})
+		tracker.MarkResourceRevision(targetTimeline)
+	}
+
+	tracker.ProcessOperationLog(ctx, cs, operationTimeline, audit, common.Timestamp)
 }
 
 // TrackAndGetManifest tracks the latest resource manifest from an audit log and returns it if updated.

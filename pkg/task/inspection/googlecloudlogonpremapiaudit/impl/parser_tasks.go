@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogonpremapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogonpremapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -114,70 +112,20 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 		targetPath = googlecloudlogonpremapiaudit_contract.MustOnPremNodePoolTimeline(ctx, clusterPath, resourceFieldSet.NodepoolName)
 	}
 
-	if !auditFieldSet.ImmediateOperation() {
-		resourceBodyField := ""
-		if resourceFieldSet.IsCluster() {
-			resourceBodyField = "cluster"
-		} else {
-			resourceBodyField = "nodePool"
-		}
-
-		clusterTypeToFragmentInMethodNameMapping := map[googlecloudlogonpremapiaudit_contract.OnPremClusterType]string{
-			googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalAdmin:      "BaremetalAdmin",
-			googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalStandalone: "BaremetalStandalone",
-			googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalUser:       "Baremetal",
-			googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareAdmin:         "VmwareAdmin",
-			googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareUser:          "Vmware",
-		}
-
-		methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
-		shortMethodName := methodNameParts[len(methodNameParts)-1]
-		shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "")
-
-		switch shortMethodName {
-		case "CreateCluster", "CreateNodePool", "EnrollCluster", "EnrollNodePool":
-			var bodyNode structured.Node
-			state := commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning
-			if auditFieldSet.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
-			}
-			if auditFieldSet.Request != nil {
-				if reqReader, err := auditFieldSet.Request.GetReader(resourceBodyField); err == nil {
-					bodyNode = reqReader.Node
-				}
-			}
-			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonFieldSet.Timestamp,
-				ResourceBody: bodyNode,
-				Principal:    auditFieldSet.PrincipalEmail,
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
-				StateType:    state,
-			})
-		case "DeleteCluster", "DeleteNodePool", "UnenrollCluster", "UnenrollNodePool":
-			state := commonlogk8saudit_contract.RevisionStateK8sClusterDeleting
-			if auditFieldSet.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleted
-			}
-			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonFieldSet.Timestamp,
-				ResourceBody: nil,
-				Principal:    auditFieldSet.PrincipalEmail,
-				VerbType:     commonlogk8saudit_contract.VerbDelete,
-				StateType:    state,
-			})
-		}
-
-		methodNameSplitted := strings.Split(auditFieldSet.MethodName, ".")
-		originalShortMethodName := "unknown"
-		if len(methodNameSplitted) > 0 {
-			originalShortMethodName = methodNameSplitted[len(methodNameSplitted)-1]
-		}
-		operationPath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetPath, originalShortMethodName, auditFieldSet.OperationID)
-
-		tracker.ProcessOperationLog(ctx, cs, operationPath, auditFieldSet, commonFieldSet.Timestamp)
-	} else {
-		cs.AddEvent(targetPath)
+	clusterTypeToFragmentInMethodNameMapping := map[googlecloudlogonpremapiaudit_contract.OnPremClusterType]string{
+		googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalAdmin:      "BaremetalAdmin",
+		googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalStandalone: "BaremetalStandalone",
+		googlecloudlogonpremapiaudit_contract.ClusterTypeBaremetalUser:       "Baremetal",
+		googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareAdmin:         "VmwareAdmin",
+		googlecloudlogonpremapiaudit_contract.ClusterTypeVMWareUser:          "Vmware",
 	}
+
+	methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
+	shortMethodName := methodNameParts[len(methodNameParts)-1]
+	normalizedShortMethodName := strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "")
+
+	operationPath := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, operationPath, auditFieldSet, commonFieldSet, normalizedShortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

@@ -320,7 +320,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: reqNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath1, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
@@ -351,11 +351,18 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "foobar@qux.test",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound,
+					}, cmpNode).
+					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath2, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
@@ -386,11 +393,18 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "foobar@qux.test",
+						VerbType:     commonlogk8saudit_contract.VerbDelete,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+					}, cmpNode).
+					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath3, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
@@ -421,11 +435,18 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "foobar@qux.test",
+						VerbType:     commonlogk8saudit_contract.VerbDelete,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+					}, cmpNode).
+					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath4, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
