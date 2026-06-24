@@ -57,7 +57,7 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 					OperationLast:  false,
 				},
 			),
-			wantSummary: "google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster Started",
+			wantSummary: "Start: google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster",
 		},
 		{
 			name: "operation ending log",
@@ -71,11 +71,11 @@ func TestOnPremAPIAuditLogIngester_ProcessLog(t *testing.T) {
 					OperationLast:  true,
 				},
 			),
-			wantSummary: "google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster Finished",
+			wantSummary: "Succeeded: google.cloud.gkeonprem.v1.GkeOnPrem.CreateBaremetalAdminCluster",
 		},
 	}
 
-	ingester := &OnPremAPIAuditLogIngester{}
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogonpremapiaudit_contract.FieldSetReaderTaskID.Ref(), googlecloudlogonpremapiaudit_contract.LogTypeOnPremAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.inputLog)
@@ -166,6 +166,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		desc          string
 		inputResource googlecloudlogonpremapiaudit_contract.OnPremAPIAuditResourceFieldSet
 		inputAudit    googlecloudcommon_contract.GCPAuditLogFieldSet
+		inputTracker  *googlecloudcommon_contract.GCPOperationTracker
 		assert        func(t *testing.T, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -186,6 +187,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
   initialNodeCount: 1
   name: test-cluster`),
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var reqNode structured.Node
 				if node, err := structured.FromYAML("initialNodeCount: 1\nname: test-cluster\n"); err == nil {
@@ -202,14 +204,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: reqNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateProvisioning,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
 					}, cmpNode).
 					HasRevision(wantClusterOpPath1, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: opNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationStarted,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
 					}, cmpNode)
 			},
 		},
@@ -229,6 +231,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
@@ -236,14 +239,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 					}, cmpNode).
 					HasRevision(wantClusterOpPath2, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, cmpNode)
 			},
 		},
@@ -263,6 +266,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
@@ -270,14 +274,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 					}, cmpNode).
 					HasRevision(wantClusterOpPath3, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, cmpNode)
 			},
 		},
@@ -299,6 +303,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
   initialNodeCount: 1
   name: test-nodepool`),
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var reqNode structured.Node
 				if node, err := structured.FromYAML("initialNodeCount: 1\nname: test-nodepool\n"); err == nil {
@@ -315,14 +320,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: reqNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateProvisioning,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath1, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: opNode,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationStarted,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
 					}, cmpNode)
 			},
 		},
@@ -342,6 +347,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
@@ -349,14 +355,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath2, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, cmpNode)
 			},
 		},
@@ -376,6 +382,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
@@ -383,14 +390,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath3, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, cmpNode)
 			},
 		},
@@ -410,6 +417,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodePoolPath, &khifilev6.StagingRevision{
@@ -417,14 +425,14 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
 					}, cmpNode).
 					HasRevision(wantNodePoolOpPath4, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationFinish,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationFinished,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, cmpNode)
 			},
 		},
@@ -444,6 +452,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantNodePoolPath)
@@ -465,6 +474,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterOpPath4, &khifilev6.StagingRevision{
@@ -472,7 +482,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     googlecloudcommon_contract.VerbOperationStart,
-						StateType:    googlecloudlogonpremapiaudit_contract.RevisionStateOperationStarted,
+						StateType:    googlecloudcommon_contract.RevisionStateOperationStarted,
 					}, cmpNode)
 			},
 		},
@@ -483,8 +493,7 @@ func TestOnPremAPIAuditTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-
-			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, _, err := mapper.ProcessLogByGroup(ctx, l, tc.inputTracker)
 			if err != nil {
 				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}

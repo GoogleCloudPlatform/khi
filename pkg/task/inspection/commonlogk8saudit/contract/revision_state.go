@@ -23,68 +23,71 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	RevisionStateConditionTrue = style.MustRegisterRevisionState(
-		"Condition is True",
-		"lightbulb",
-		`The condition is set to **True**.
+	// =============================================================================
+	// Kubernetes Cluster States
+	// =============================================================================
 
-**Note**: **True** does not always indicate a healthy state (e.g., Ready=True is healthy, but DiskPressure=True is unhealthy).`,
-		style.MustForceConvertSRGBHex("#004400"),
+	RevisionStateK8sClusterProvisioning = style.MustRegisterRevisionState(
+		"Cluster is being provisioned",
+		"deployed_code_history",
+		"The Kubernetes cluster is currently being provisioned.",
+		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
-	RevisionStateConditionFalse = style.MustRegisterRevisionState(
-		"Condition is False",
-		"light_off",
-		`The condition is set to **False**.
-
-**Note**: **False** does not always indicate an unhealthy state (e.g., DiskPressure=False is healthy, but Ready=False is unhealthy).`,
-		style.MustForceConvertSRGBHex("#EE4400"),
+	RevisionStateK8sClusterExisting = style.MustRegisterRevisionState(
+		"Cluster exists",
+		"deployed_code",
+		"The Kubernetes cluster exists and is active.",
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
-	RevisionStateConditionUnknown = style.MustRegisterRevisionState(
-		"Condition is Unknown",
-		"siren_question",
-		"The condition is `Unknown`, meaning its state cannot be determined at this moment.",
-		style.MustForceConvertSRGBHex("#663366"),
+	RevisionStateK8sClusterDeleting = style.MustRegisterRevisionState(
+		"Cluster is being deleted",
+		"auto_delete",
+		"The Kubernetes cluster is undergoing deletion.",
+		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
-	RevisionStateConditionNotGiven = style.MustRegisterRevisionState(
-		"Condition is not defined",
-		"select",
-		"The condition has not yet been set or reported at this point in the timeline.",
-		style.MustForceConvertSRGBHex("#666666"),
+	RevisionStateK8sClusterDeleted = style.MustRegisterRevisionState(
+		"Cluster is deleted",
+		"delete_forever",
+		"The Kubernetes cluster has been deleted.",
+		style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
-	RevisionStateConditionNoAvailableInfo = style.MustRegisterRevisionState(
-		"Condition info is unavailable",
-		"unknown_document",
-		`The condition status is undetermined due to insufficient log information in the selected range.
 
-**Tip**: Consider expanding the query time range to capture complete condition reports.`,
-		style.MustForceConvertSRGBHex("#997700"),
+	// =============================================================================
+	// Kubernetes Generic Resource States
+	// =============================================================================
+
+	RevisionStateK8sResourceExisting = style.MustRegisterRevisionState(
+		"Resource exists",
+		"deployed_code",
+		`The Kubernetes resource exists and is active.
+
+**Note**: This state indicates existence in the API server; it does not guarantee that the resource is healthy or fully reconciled.`,
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
-	RevisionStateEndpointReady = style.MustRegisterRevisionState(
-		"Endpoint is ready",
-		"heart_check",
-		"The endpoint is active and ready to receive traffic.",
-		style.MustForceConvertSRGBHex("#004400"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
-	)
-	RevisionStateEndpointUnready = style.MustRegisterRevisionState(
-		"Endpoint is not ready",
-		"heart_broken",
-		"The endpoint is not ready to receive traffic (e.g., the backing pod is unready).",
-		style.MustForceConvertSRGBHex("#EE4400"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
-	)
-	RevisionStateEndpointTerminating = style.MustRegisterRevisionState(
-		"Endpoint is being terminated",
+	RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
+		"Resource is being deleted",
 		"auto_delete",
-		"The endpoint is in the process of being deleted or terminated.",
-		style.MustForceConvertSRGBHex("#cea700"),
+		"The Kubernetes resource is undergoing deletion (e.g., finalizers are running or in a graceful termination phase).",
+		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	RevisionStateK8sResourceDeleted = style.MustRegisterRevisionState(
+		"Resource is deleted",
+		"delete_forever",
+		"The Kubernetes resource has been deleted.",
+		style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+
+	// =============================================================================
+	// Pod Phase States
+	// =============================================================================
+
 	RevisionStatePodPhasePending = style.MustRegisterRevisionState(
 		"Pod is pending",
 		"hourglass_empty",
@@ -129,6 +132,11 @@ var (
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
+
+	// =============================================================================
+	// Container States
+	// =============================================================================
+
 	RevisionStateContainerWaiting = style.MustRegisterRevisionState(
 		"Container is waiting",
 		"deployed_code_history",
@@ -179,5 +187,77 @@ var (
 		`The container has started, but no readiness probe information has been recorded yet.`,
 		style.MustForceConvertSRGBHex("#997700"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
+
+	// =============================================================================
+	// Endpoint States
+	// =============================================================================
+
+	RevisionStateEndpointReady = style.MustRegisterRevisionState(
+		"Endpoint is ready",
+		"heart_check",
+		"The endpoint is active and ready to receive traffic.",
+		style.MustForceConvertSRGBHex("#004400"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateEndpointUnready = style.MustRegisterRevisionState(
+		"Endpoint is not ready",
+		"heart_broken",
+		"The endpoint is not ready to receive traffic (e.g., the backing pod is unready).",
+		style.MustForceConvertSRGBHex("#EE4400"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateEndpointTerminating = style.MustRegisterRevisionState(
+		"Endpoint is being terminated",
+		"auto_delete",
+		"The endpoint is in the process of being deleted or terminated.",
+		style.MustForceConvertSRGBHex("#cea700"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+
+	// =============================================================================
+	// Condition States
+	// =============================================================================
+
+	RevisionStateConditionTrue = style.MustRegisterRevisionState(
+		"Condition is True",
+		"lightbulb",
+		`The condition is set to **True**.
+
+**Note**: **True** does not always indicate a healthy state (e.g., Ready=True is healthy, but DiskPressure=True is unhealthy).`,
+		style.MustForceConvertSRGBHex("#004400"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateConditionFalse = style.MustRegisterRevisionState(
+		"Condition is False",
+		"light_off",
+		`The condition is set to **False**.
+
+**Note**: **False** does not always indicate an unhealthy state (e.g., DiskPressure=False is healthy, but Ready=False is unhealthy).`,
+		style.MustForceConvertSRGBHex("#EE4400"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateConditionUnknown = style.MustRegisterRevisionState(
+		"Condition is Unknown",
+		"siren_question",
+		"The condition is `Unknown`, meaning its state cannot be determined at this moment.",
+		style.MustForceConvertSRGBHex("#663366"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateConditionNotGiven = style.MustRegisterRevisionState(
+		"Condition is not defined",
+		"select",
+		"The condition has not yet been set or reported at this point in the timeline.",
+		style.MustForceConvertSRGBHex("#666666"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateConditionNoAvailableInfo = style.MustRegisterRevisionState(
+		"Condition info is unavailable",
+		"unknown_document",
+		`The condition status is undetermined due to insufficient log information in the selected range.
+
+**Tip**: Consider expanding the query time range to capture complete condition reports.`,
+		style.MustForceConvertSRGBHex("#997700"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
 )

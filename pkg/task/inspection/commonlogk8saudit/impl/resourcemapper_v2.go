@@ -146,7 +146,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleParentChangeFor
 			ResourceBody: bodyNode,
 			Principal:    k8sFieldSet.Principal,
 			VerbType:     commonlogk8saudit_contract.VerbDelete,
-			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 		})
 		return nil
 	case commonlogk8saudit_contract.ChangeEventTypeV2Modification:
@@ -179,7 +179,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 	if !hasBody || bodyReader == nil {
 		if isDeletiveVerb(k8sFieldSet.Verb) {
 			prevGroupData.DeletionStarted = true
-			state = commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted
+			state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleted
 		}
 	} else {
 		deletionStarted := false
@@ -238,7 +238,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 				state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleting
 			}
 			if prevGroupData.WasCompletelyRemoved {
-				state = commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted
+				state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleted
 			}
 		}
 
@@ -246,7 +246,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 		case deletionCompleted:
 			prevGroupData.WasCompletelyRemoved = true
 			prevGroupData.DeletionStarted = false
-			state = commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted
+			state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleted
 		case underGracefulPeriod:
 			prevGroupData.WasCompletelyRemoved = false
 			prevGroupData.DeletionStarted = true
@@ -256,7 +256,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 			prevGroupData.DeletionStarted = true
 			apiVersionKind := fmt.Sprintf("%s#%s", k8sFieldSet.APIVersion, commonlogk8saudit_contract.GetSingularKindName(k8sFieldSet.PluralKind))
 			if _, found := r.kindsToWaitExactDeletionToDeterminDeletion[apiVersionKind]; !found {
-				state = commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted
+				state = commonlogk8saudit_contract.RevisionStateK8sResourceDeleted
 			}
 		default:
 			prevGroupData.WasCompletelyRemoved = false

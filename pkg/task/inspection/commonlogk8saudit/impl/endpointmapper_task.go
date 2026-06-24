@@ -274,7 +274,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 							ResourceBody: nil,
 							Principal:    k8sFieldSet.Principal,
 							ChangedTime:  commonLogFieldSet.Timestamp,
-							StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+							StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						})
 
 						rp2 := MustResolveEndpointSliceChildPodTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity, podIdentity.namespace, podIdentity.name)
@@ -283,7 +283,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 							ResourceBody: nil,
 							Principal:    k8sFieldSet.Principal,
 							ChangedTime:  commonLogFieldSet.Timestamp,
-							StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+							StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						})
 						removedEndpoints = append(removedEndpoints, touchedUID)
 					}
@@ -324,7 +324,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 					ResourceBody: nil,
 					Principal:    k8sFieldSet.Principal,
 					ChangedTime:  commonLogFieldSet.Timestamp,
-					StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+					StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 				})
 
 				rp2 := MustResolveEndpointSliceChildPodTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity, podIdentity.namespace, podIdentity.name)
@@ -333,7 +333,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 					ResourceBody: nil,
 					Principal:    k8sFieldSet.Principal,
 					ChangedTime:  commonLogFieldSet.Timestamp,
-					StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+					StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 				})
 				removedEndpoints = append(removedEndpoints, touchedUID)
 			}
@@ -345,7 +345,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 				ResourceBody: nil,
 				Principal:    k8sFieldSet.Principal,
 				ChangedTime:  commonLogFieldSet.Timestamp,
-				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
 		}
 	}

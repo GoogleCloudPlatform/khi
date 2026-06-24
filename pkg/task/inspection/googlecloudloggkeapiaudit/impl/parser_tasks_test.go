@@ -94,6 +94,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 		desc          string
 		inputResource googlecloudloggkeapiaudit_contract.GKEAuditLogResourceFieldSet
 		inputAudit    googlecloudcommon_contract.GCPAuditLogFieldSet
+		inputTracker  *googlecloudcommon_contract.GCPOperationTracker
 		assert        func(t *testing.T, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
@@ -113,6 +114,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
   initialNodeCount: 1
   name: test-cluster`),
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var bodyNode structured.Node
 				if subReader, err := testReaderFromYAML(t, `cluster:
@@ -124,7 +126,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudloggkeapiaudit_contract.RevisionStateProvisioning,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
@@ -155,17 +157,18 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantClusterPath, &khifilev6.StagingRevision{
 						VerbType:    commonlogk8saudit_contract.VerbCreate,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantClusterOpPath, &khifilev6.StagingRevision{
 						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -188,6 +191,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
   initialNodeCount: 1
   name: test-nodepool`),
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				var bodyNode structured.Node
 				if subReader, err := testReaderFromYAML(t, `nodePool:
@@ -199,7 +203,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    googlecloudloggkeapiaudit_contract.RevisionStateProvisioning,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
@@ -230,17 +234,18 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:    commonlogk8saudit_contract.VerbCreate,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp1Path, &khifilev6.StagingRevision{
 						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -261,17 +266,18 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:    commonlogk8saudit_contract.VerbDelete,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
 					HasRevision(wantNodepoolOp2Path, &khifilev6.StagingRevision{
 						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption)
@@ -292,6 +298,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				PrincipalEmail: "foobar@qux.test",
 				Request:        nil,
 			},
+			inputTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(wantNodepoolPath)
@@ -306,7 +313,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(testCommonFieldSet, &tc.inputAudit, &tc.inputResource)
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
-			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, l, struct{}{})
+			cs, _, err := mapperSetting.ProcessLogByGroup(ctx, l, tc.inputTracker)
 			if err != nil {
 				t.Errorf("ProcessLogByGroup() returned an unexpected error, err=%v", err)
 			}

@@ -192,7 +192,7 @@ func (c *containerLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Conte
 				ResourceBody: nil,
 				Principal:    k8sAuditLogFieldSet.Principal,
 				ChangedTime:  commonLogFieldSet.Timestamp,
-				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
 		}
 	}

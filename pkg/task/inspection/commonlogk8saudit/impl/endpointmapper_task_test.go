@@ -458,7 +458,7 @@ endpoints: []
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(expectedPodPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbUpdate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: nil,
@@ -508,14 +508,14 @@ metadata:
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(expectedPodPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: nil,
 					}, nodeComparer).
 					HasRevision(expectedSvcPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceIsDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 						ChangedTime:  timestamp,
 						Principal:    "user-1",
 						ResourceBody: nil,

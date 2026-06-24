@@ -20,7 +20,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -41,53 +40,12 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogne
 	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
 })
 
-type networkAPILogIngester struct{}
-
-// RawLogTask returns the task reference that provides the raw logs to ingest.
-func (i *networkAPILogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref()
-}
-
-// Dependencies returns additional task dependencies of the ingester.
-func (i *networkAPILogIngester) Dependencies() []taskid.UntypedTaskReference {
-	return []taskid.UntypedTaskReference{}
-}
-
-// ProcessLog parses raw log entry and manually populates the LogChangeSet.
-func (i *networkAPILogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
-	cs, err := khifilev6.NewLogChangeSet(l)
-	if err != nil {
-		return nil, err
-	}
-
-	cs.SetLogType(googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
-
-	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
-		cs.SetTimestamp(commonFS.Timestamp)
-	}
-
-	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
-		cs.SetSeverity(severityFS.Severity)
-	}
-
-	if auditFieldSet, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{}); err == nil {
-		switch {
-		case auditFieldSet.Starting():
-			cs.SetSummary(fmt.Sprintf("%s Started", auditFieldSet.MethodName))
-		case auditFieldSet.Ending():
-			cs.SetSummary(fmt.Sprintf("%s Finished", auditFieldSet.MethodName))
-		default:
-			cs.SetSummary(auditFieldSet.MethodName)
-		}
-	}
-
-	return cs, nil
-}
-
-var _ inspectiontaskbase.LogIngesterV2 = (*networkAPILogIngester)(nil)
-
 // LogIngesterTask is the task id to finalize the logs to be included in the final output.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(googlecloudlognetworkapiaudit_contract.LogIngesterTaskID, &networkAPILogIngester{})
+var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
+	googlecloudlognetworkapiaudit_contract.LogIngesterTaskID,
+	googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
+	googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI,
+)
 
 // LogGrouperTask groups logs by the NEG resource name.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlognetworkapiaudit_contract.LogGrouperTaskID, googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(),
@@ -112,6 +70,7 @@ type negAttachOrDetachRequest struct {
 
 type perNEGHistoryModificationStatus struct {
 	LastNegAttachRequest *negAttachOrDetachRequest
+	OperationTracker     *googlecloudcommon_contract.GCPOperationTracker
 }
 
 type networkAPITimelineMapper struct {
@@ -143,7 +102,9 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	commonFieldSet := log.MustGetFieldSet(l, &log.CommonFieldSet{})
 	auditFieldSet := log.MustGetFieldSet(l, &googlecloudcommon_contract.GCPAuditLogFieldSet{})
 	if prevGroupData == nil {
-		prevGroupData = &perNEGHistoryModificationStatus{}
+		prevGroupData = &perNEGHistoryModificationStatus{
+			OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
+		}
 	}
 
 	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref())
@@ -170,29 +131,7 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	if auditFieldSet.ImmediateOperation() {
 		cs.AddEvent(negOperationPath)
 	} else {
-		var state *pb.RevisionState
-		var verb *pb.Verb
-		if auditFieldSet.Ending() {
-			state = googlecloudcommon_contract.RevisionStateOperationFinished
-			verb = googlecloudcommon_contract.VerbOperationFinish
-		} else {
-			state = googlecloudcommon_contract.RevisionStateOperationStarted
-			verb = googlecloudcommon_contract.VerbOperationStart
-		}
-		requestBody, _ := auditFieldSet.RequestString()
-		var bodyNode structured.Node
-		if requestBody != "" {
-			if node, err := structured.FromYAML(requestBody); err == nil {
-				bodyNode = node
-			}
-		}
-		cs.AddRevision(negOperationPath, &khifilev6.StagingRevision{
-			ChangedTime:  commonFieldSet.Timestamp,
-			ResourceBody: bodyNode,
-			VerbType:     verb,
-			StateType:    state,
-			Principal:    auditFieldSet.PrincipalEmail,
-		})
+		prevGroupData.OperationTracker.ProcessOperationLog(ctx, cs, negOperationPath, auditFieldSet, commonFieldSet.Timestamp)
 	}
 
 	ipLeases := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref())

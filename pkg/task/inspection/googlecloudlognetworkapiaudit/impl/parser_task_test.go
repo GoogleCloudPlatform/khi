@@ -82,7 +82,7 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 			),
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
-					HasSummary("v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints Started").
+					HasSummary("Start: v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints").
 					HasTimestamp(testTime).
 					HasLogType(googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
 			},
@@ -105,14 +105,14 @@ func TestNetworkAPILogIngester_ProcessLog(t *testing.T) {
 			),
 			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
 				testchangeset.AssertLog(t, cs).
-					HasSummary("v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints Finished").
+					HasSummary("Succeeded: v1.Compute.NetworkEndpointGroups.attachNetworkEndpoints").
 					HasTimestamp(testTime).
 					HasLogType(googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
 			},
 		},
 	}
 
-	ingester := &networkAPILogIngester{}
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlognetworkapiaudit_contract.FieldSetReaderTaskID.Ref(), googlecloudlognetworkapiaudit_contract.LogTypeNetworkAPI)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)
@@ -155,7 +155,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 					Request:        testReaderFromYAML(t, "networkEndpoints:\n- instance: test-node\n  ipAddress: 10.0.0.1\n  port: \"80\""),
 				},
 			),
-			prevGroupData: &perNEGHistoryModificationStatus{},
+			prevGroupData: nil,
 			wantGroupData: &perNEGHistoryModificationStatus{
 				LastNegAttachRequest: &negAttachOrDetachRequest{
 					NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
@@ -204,6 +204,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			prevGroupData: &perNEGHistoryModificationStatus{
+				OperationTracker: googlecloudcommon_contract.NewGCPOperationTracker(),
 				LastNegAttachRequest: &negAttachOrDetachRequest{
 					NetworkEndpoints: []*negAttachOrDetachRequestEndpoint{
 						{
@@ -245,7 +246,7 @@ func TestNetworkAPITimelineMapper_ProcessLogByGroup(t *testing.T) {
 						ChangedTime: testTime,
 						Principal:   "test-user@google.com",
 						VerbType:    googlecloudcommon_contract.VerbOperationFinish,
-						StateType:   googlecloudcommon_contract.RevisionStateOperationFinished,
+						StateType:   googlecloudcommon_contract.RevisionStateOperationSucceed,
 					}, nodeTransformer)
 
 				clusterPath := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "cluster")

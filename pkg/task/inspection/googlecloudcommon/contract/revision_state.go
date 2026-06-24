@@ -27,14 +27,28 @@ var (
 		"Processing operation",
 		"change_circle",
 		"The GCP API long-running operation is currently in progress.",
-		style.MustForceConvertSRGBHex("#004400"),
+		style.Color{R: 0.012, G: 0.671, B: 0.012, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
-	RevisionStateOperationFinished = style.MustRegisterRevisionState(
-		"Operation is finished",
+	RevisionStateOperationSucceed = style.MustRegisterRevisionState(
+		"Operation succeeded",
 		"check_circle",
-		"The GCP API long-running operation has completed.",
-		style.MustForceConvertSRGBHex("#333333"),
+		"The GCP API long-running operation has completed successfully.",
+		style.Color{R: 0.812, G: 0.812, B: 0.812, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateOperationFailed = style.MustRegisterRevisionState(
+		"Operation failed",
+		"error",
+		"The GCP API long-running operation has failed.",
+		style.Color{R: 1.000, G: 0.000, B: 0.000, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateOperationStartedLogNotFound = style.MustRegisterRevisionState(
+		"Operation started, but starting log not found",
+		"unknown_document",
+		"The operation was started, but the starting log entry was not found in the selected time range. Try adjusting the time range.",
+		style.Color{R: 0.012, G: 0.671, B: 0.012, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 )
