@@ -1,17 +1,17 @@
 <!--
-Copyright 2024 Google LLC
+ Copyright 2026 Google LLC
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 -->
 
 @let resolvedRefs = refs();
@@ -26,19 +26,44 @@ limitations under the License.
         track resource.timelineId;
         let i = $index
       ) {
-        <p
-          class="path"
+        <div
+          class="resource-row"
+          [style]="getTimelineStyle(resource.type)"
           [ngClass]="{
             current: selectedTimeline()?.id === resource.timelineId,
           }"
           (mouseover)="highlightResource(resource.timelineId)"
           (click)="selectResource(resource.timelineId)"
+          cdkOverlayOrigin
+          #overlayOrigin="cdkOverlayOrigin"
+          (mouseenter)="activeOverlayTimelineId.set(resource.timelineId)"
+          (mouseleave)="activeOverlayTimelineId.set(null)"
         >
-          <span
-            ><span class="index">{{ i }}</span
-            >{{ resource.label }}</span
+          <span class="index">{{ i }}</span>
+          @if (resource.type.icon) {
+            <mat-icon class="icon">{{ resource.type.icon }}</mat-icon>
+          }
+          <span class="resource-name">{{ resource.name }}</span>
+          @if (resource.type.label) {
+            <span class="type-chip">{{ resource.type.label }}</span>
+          }
+        </div>
+        @if (resource.pathNodes && resource.pathNodes.length > 0) {
+          <ng-template
+            cdkConnectedOverlay
+            [cdkConnectedOverlayOrigin]="overlayOrigin"
+            [cdkConnectedOverlayOpen]="
+              activeOverlayTimelineId() === resource.timelineId
+            "
+            [cdkConnectedOverlayPositions]="overlayPositions"
           >
-        </p>
+            <khi-resource-hierarchy-overlay
+              [pathNodes]="resource.pathNodes"
+              (mouseenter)="activeOverlayTimelineId.set(resource.timelineId)"
+              (mouseleave)="activeOverlayTimelineId.set(null)"
+            ></khi-resource-hierarchy-overlay>
+          </ng-template>
+        }
       }
     </div>
   </div>

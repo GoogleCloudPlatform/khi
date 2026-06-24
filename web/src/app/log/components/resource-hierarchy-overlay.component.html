@@ -1,0 +1,42 @@
+<!--
+ Copyright 2026 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="overlay-card">
+  <div class="header">
+    <mat-icon class="header-icon">account_tree</mat-icon>
+    <span class="header-title">Resource hierarchy</span>
+  </div>
+  <div class="nodes-container">
+    @for (node of pathNodes(); track node.id; let i = $index) {
+      <div
+        class="node-row"
+        [style]="getTimelineStyle(node.type)"
+        [style.padding-left.px]="i * 12 + 4"
+      >
+        @if (i > 0) {
+          <span class="tree-line">└</span>
+        }
+        @if (node.type.icon) {
+          <mat-icon class="node-icon">{{ node.type.icon }}</mat-icon>
+        }
+        <span class="node-label">{{ node.label }}</span>
+        @if (node.type.label) {
+          <span class="type-chip">{{ node.type.label }}</span>
+        }
+      </div>
+    }
+  </div>
+</div>

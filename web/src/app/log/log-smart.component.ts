@@ -26,12 +26,14 @@ import {
   LogContentViewModel,
 } from 'src/app/log/components/log-content.component';
 import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-reference-list.component';
+import { ResourcePathNodeViewModel } from 'src/app/log/components/resource-hierarchy-overlay.component';
 import { LogListComponent } from 'src/app/log/components/log-list.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   SearchScope,
   ViewStateService,
 } from 'src/app/services/view-state.service';
+import { StyleOverrideService } from 'src/app/services/style-override.service';
 import jsyaml from 'js-yaml';
 
 /**
@@ -55,6 +57,7 @@ export class LogSmartComponent {
   private readonly selectionManager = inject(SelectionManagerV2);
   private readonly inspectionDataStore = inject(InspectionDataStoreV2);
   private readonly viewState = inject(ViewStateService);
+  private readonly styleOverrideService = inject(StyleOverrideService);
 
   /** Holds the active search scope. */
   public readonly activeSearchScope = this.viewState.activeSearchScope;
@@ -134,6 +137,7 @@ export class LogSmartComponent {
    */
   public readonly logContentViewModel = computed<LogContentViewModel | null>(
     () => {
+      this.styleOverrideService.stylesUpdated();
       const log = this.selectedLog();
       if (!log) {
         return null;
@@ -147,9 +151,23 @@ export class LogSmartComponent {
           timeline.lookupEventFromLog(log) !== null ||
           timeline.lookupRevisionFromLog(log) !== null
         ) {
+          const timelineType = this.styleOverrideService.getTimelineType(
+            timeline.type.id,
+          );
+          const pathNodes: ResourcePathNodeViewModel[] = timeline.path.map(
+            (node) => ({
+              id: node.id,
+              label: node.label,
+              type: this.styleOverrideService.getTimelineType(node.type.id),
+            }),
+          );
+
           resourceRefs.push({
-            label: timeline.debugPathText, // TODO: Replace with better readable path
+            label: timeline.debugPathText,
             timelineId: timeline.id,
+            name: timeline.name,
+            type: timelineType,
+            pathNodes,
           });
         }
       }
