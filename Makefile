@@ -65,7 +65,7 @@ generate-depguard-rules: ## Generate depguard rule from Go source. This rule pre
 
 ## Format
 .PHONY: format
-format: format-web format-go ## Format all source code
+format: format-web format-go format-misc ## Format all source code
 
 # ====================================================================================
 #  Setup
