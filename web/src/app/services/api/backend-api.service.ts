@@ -221,18 +221,26 @@ export class BackendAPIImpl implements BackendAPI {
               })
               .pipe(
                 map((event: HttpEvent<Blob>) => {
+                  let updated = false;
+                  let blob: Blob | null = null;
+
                   if (event.type === HttpEventType.DownloadProgress) {
                     chunkLoaded[index] = event.loaded;
-                    const doneBytes = chunkLoaded.reduce((a, b) => a + b, 0);
-                    reporter(totalSize, doneBytes);
+                    updated = true;
                   } else if (event.type === HttpEventType.Response) {
-                    const blob = event.body!;
-                    chunkLoaded[index] = blob.size;
+                    blob = event.body;
+                    if (blob) {
+                      chunkLoaded[index] = blob.size;
+                      updated = true;
+                    }
+                  }
+
+                  if (updated) {
                     const doneBytes = chunkLoaded.reduce((a, b) => a + b, 0);
                     reporter(totalSize, doneBytes);
-                    return { index, blob };
                   }
-                  return null;
+
+                  return blob ? { index, blob } : null;
                 }),
                 filter(
                   (result): result is { index: number; blob: Blob } =>
