@@ -15,15 +15,15 @@
  */
 
 import { Meta, StoryObj } from '@storybook/angular';
-import { ResourceReferenceListComponent } from 'src/app/log/components/resource-reference-list.component';
+import { ResourceHierarchyOverlayComponent } from 'src/app/log/components/resource-hierarchy-overlay.component';
 import { TimelineType } from 'src/app/store/domain/style';
 
 export default {
-  title: 'Log/ResourceReferenceList',
-  component: ResourceReferenceListComponent,
-} as Meta<ResourceReferenceListComponent>;
+  title: 'Log/ResourceHierarchyOverlay',
+  component: ResourceHierarchyOverlayComponent,
+} as Meta<ResourceHierarchyOverlayComponent>;
 
-type Story = StoryObj<ResourceReferenceListComponent>;
+type Story = StoryObj<ResourceHierarchyOverlayComponent>;
 
 const mockClusterType: TimelineType = {
   id: 1,
@@ -53,84 +53,38 @@ const mockNamespaceType: TimelineType = {
   height: 1,
 };
 
-const mockConfigMapType: TimelineType = {
+const mockPodType: TimelineType = {
   id: 3,
-  label: 'ConfigMap',
+  label: 'Pod',
   description: '',
-  icon: 'settings',
-  backgroundColor: { r: 0.91, g: 0.92, b: 0.96, a: 1 },
-  foregroundColor: { r: 0.1, g: 0.14, b: 0.49, a: 1 },
-  typeChipBackgroundColor: { r: 0.77, g: 0.79, b: 0.91, a: 1 },
-  typeChipForegroundColor: { r: 0.1, g: 0.14, b: 0.49, a: 1 },
-  visible: true,
-  sortPriority: 3,
-  height: 1,
-};
-
-const mockSecretType: TimelineType = {
-  id: 4,
-  label: 'Secret',
-  description: '',
-  icon: 'lock',
+  icon: 'widgets',
   backgroundColor: { r: 1, g: 0.95, b: 0.88, a: 1 },
   foregroundColor: { r: 0.9, g: 0.32, b: 0, a: 1 },
   typeChipBackgroundColor: { r: 1, g: 0.88, b: 0.7, a: 1 },
   typeChipForegroundColor: { r: 0.9, g: 0.32, b: 0, a: 1 },
   visible: true,
-  sortPriority: 4,
+  sortPriority: 3,
   height: 1,
 };
 
 export const Default: Story = {
   args: {
-    refs: [
+    pathNodes: [
       {
-        label: 'my-config',
-        timelineId: 101,
-        name: 'my-config',
-        type: mockConfigMapType,
-        pathNodes: [
-          {
-            id: 1,
-            label: 'my-cluster',
-            type: mockClusterType,
-          },
-          {
-            id: 2,
-            label: 'default',
-            type: mockNamespaceType,
-          },
-          {
-            id: 101,
-            label: 'my-config',
-            type: mockConfigMapType,
-          },
-        ],
+        id: 1,
+        label: 'my-cluster',
+        type: mockClusterType,
       },
       {
-        label: 'my-secret',
-        timelineId: 102,
-        name: 'my-secret',
-        type: mockSecretType,
-        pathNodes: [
-          {
-            id: 1,
-            label: 'my-cluster',
-            type: mockClusterType,
-          },
-          {
-            id: 102,
-            label: 'my-secret',
-            type: mockSecretType,
-          },
-        ],
+        id: 2,
+        label: 'default',
+        type: mockNamespaceType,
+      },
+      {
+        id: 3,
+        label: 'my-pod-123',
+        type: mockPodType,
       },
     ],
-  },
-};
-
-export const Empty: Story = {
-  args: {
-    refs: [],
   },
 };
