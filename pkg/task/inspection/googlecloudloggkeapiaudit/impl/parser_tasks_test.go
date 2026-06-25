@@ -203,7 +203,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning,
 						Principal:    "foobar@qux.test",
 						ChangedTime:  testTime,
 						ResourceBody: bodyNode,
@@ -239,7 +239,13 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:    commonlogk8saudit_contract.VerbCreate,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound,
+						Principal:   "foobar@qux.test",
+						ChangedTime: time.Unix(0, 0),
+					}, compareNodeOption).
+					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
+						VerbType:    commonlogk8saudit_contract.VerbCreate,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).
@@ -271,7 +277,13 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						VerbType:    commonlogk8saudit_contract.VerbDelete,
-						StateType:   commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+						Principal:   "foobar@qux.test",
+						ChangedTime: time.Unix(0, 0),
+					}, compareNodeOption).
+					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
+						VerbType:    commonlogk8saudit_contract.VerbDelete,
+						StateType:   commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
 						Principal:   "foobar@qux.test",
 						ChangedTime: testTime,
 					}, compareNodeOption).

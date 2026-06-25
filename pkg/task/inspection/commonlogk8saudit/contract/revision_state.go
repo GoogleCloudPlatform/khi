@@ -55,6 +55,81 @@ var (
 		style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
 	)
+	RevisionStateK8sClusterProvisioningLogNotFound = style.MustRegisterRevisionState(
+		"Cluster is being provisioned, but starting log not found",
+		"deployed_code_history",
+		"The Kubernetes cluster provisioning was started, but the starting log entry was not found in the selected time range.",
+		style.MustForceConvertSRGBHex("#6666ff"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
+	RevisionStateK8sClusterExistingLogNotFound = style.MustRegisterRevisionState(
+		"Cluster exists, but creation log not found",
+		"deployed_code",
+		"The Kubernetes cluster exists, but the creation or existence log entry was not found in the selected time range.",
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
+	RevisionStateK8sClusterDeletingLogNotFound = style.MustRegisterRevisionState(
+		"Cluster is being deleted, but starting log not found",
+		"auto_delete",
+		"The Kubernetes cluster deletion was in progress, but the deletion starting log entry was not found in the selected time range.",
+		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
+
+	// =============================================================================
+	// Kubernetes Node Pool States
+	// =============================================================================
+
+	RevisionStateK8sNodepoolProvisioning = style.MustRegisterRevisionState(
+		"Node pool is being provisioned",
+		"deployed_code_history",
+		"The Kubernetes node pool is currently being provisioned.",
+		style.MustForceConvertSRGBHex("#6666ff"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateK8sNodepoolExisting = style.MustRegisterRevisionState(
+		"Node pool exists",
+		"deployed_code",
+		"The Kubernetes node pool exists and is active.",
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateK8sNodepoolDeleting = style.MustRegisterRevisionState(
+		"Node pool is being deleted",
+		"auto_delete",
+		"The Kubernetes node pool is undergoing deletion.",
+		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+	)
+	RevisionStateK8sNodepoolDeleted = style.MustRegisterRevisionState(
+		"Node pool is deleted",
+		"delete_forever",
+		"The Kubernetes node pool has been deleted.",
+		style.Color{R: 0.8, G: 0.0, B: 0.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_DELETED,
+	)
+	RevisionStateK8sNodepoolProvisioningLogNotFound = style.MustRegisterRevisionState(
+		"Node pool is being provisioned, but starting log not found",
+		"deployed_code_history",
+		"The Kubernetes node pool provisioning was started, but the starting log entry was not found in the selected time range.",
+		style.MustForceConvertSRGBHex("#6666ff"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
+	RevisionStateK8sNodepoolExistingLogNotFound = style.MustRegisterRevisionState(
+		"Node pool exists, but creation log not found",
+		"deployed_code",
+		"The Kubernetes node pool exists, but the creation or existence log entry was not found in the selected time range.",
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
+	RevisionStateK8sNodepoolDeletingLogNotFound = style.MustRegisterRevisionState(
+		"Node pool is being deleted, but starting log not found",
+		"auto_delete",
+		"The Kubernetes node pool deletion was in progress, but the deletion starting log entry was not found in the selected time range.",
+		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
 
 	// =============================================================================
 	// Kubernetes Generic Resource States

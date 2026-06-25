@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudlogmulticloudapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudlogmulticloudapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -116,62 +114,17 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	if !auditFieldSet.ImmediateOperation() {
-		resourceBodyField := ""
-
-		if resourceFieldSet.IsCluster() {
-			resourceBodyField = "cluster"
-		} else {
-			resourceBodyField = "nodePool"
-		}
-
-		clusterTypeToFragmentInMethodNameMapping := map[googlecloudlogmulticloudapiaudit_contract.MultiCloudClusterType]string{
-			googlecloudlogmulticloudapiaudit_contract.ClusterTypeAWS:   "Aws",
-			googlecloudlogmulticloudapiaudit_contract.ClusterTypeAzure: "Azure",
-		}
-
-		methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
-		shortMethodName := methodNameParts[len(methodNameParts)-1]
-		shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "") // Remove type specific part.
-
-		switch shortMethodName {
-		case "CreateCluster", "CreateNodePool":
-			var bodyNode structured.Node
-			state := commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning
-			if auditFieldSet.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
-			}
-			if auditFieldSet.Request != nil {
-				if r, err := auditFieldSet.Request.GetReader(resourceBodyField); err == nil {
-					bodyNode = r.Node
-				}
-			}
-			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonFieldSet.Timestamp,
-				ResourceBody: bodyNode,
-				Principal:    auditFieldSet.PrincipalEmail,
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
-				StateType:    state,
-			})
-		case "DeleteCluster", "DeleteNodePool":
-			state := commonlogk8saudit_contract.RevisionStateK8sClusterDeleting
-			if auditFieldSet.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleted
-			}
-			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-				ChangedTime:  commonFieldSet.Timestamp,
-				ResourceBody: nil,
-				Principal:    auditFieldSet.PrincipalEmail,
-				VerbType:     commonlogk8saudit_contract.VerbDelete,
-				StateType:    state,
-			})
-		}
-
-		opPath := googlecloudlogmulticloudapiaudit_contract.MustOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
-		tracker.ProcessOperationLog(ctx, cs, opPath, auditFieldSet, commonFieldSet.Timestamp)
-	} else {
-		cs.AddEvent(targetPath)
+	clusterTypeToFragmentInMethodNameMapping := map[googlecloudlogmulticloudapiaudit_contract.MultiCloudClusterType]string{
+		googlecloudlogmulticloudapiaudit_contract.ClusterTypeAWS:   "Aws",
+		googlecloudlogmulticloudapiaudit_contract.ClusterTypeAzure: "Azure",
 	}
+
+	methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
+	shortMethodName := methodNameParts[len(methodNameParts)-1]
+	shortMethodName = strings.ReplaceAll(shortMethodName, clusterTypeToFragmentInMethodNameMapping[resourceFieldSet.ClusterType], "") // Remove type specific part.
+
+	opPath := googlecloudlogmulticloudapiaudit_contract.MustOperationTimeline(ctx, targetPath, shortMethodName, auditFieldSet.OperationID)
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetPath, opPath, auditFieldSet, commonFieldSet, shortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

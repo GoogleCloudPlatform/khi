@@ -19,12 +19,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
 	googlecloudloggkeapiaudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudloggkeapiaudit/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -118,55 +116,11 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	if !auditFieldSet.ImmediateOperation() {
-		resourceBodyField := ""
-		if resourceFieldSet.IsCluster() {
-			resourceBodyField = "cluster"
-		} else {
-			resourceBodyField = "nodePool"
-		}
+	methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
+	shortMethodName := methodNameParts[len(methodNameParts)-1]
 
-		methodNameParts := strings.Split(auditFieldSet.MethodName, ".")
-		shortMethodName := methodNameParts[len(methodNameParts)-1]
-
-		switch shortMethodName {
-		case "CreateCluster", "CreateNodePool":
-			var bodyNode structured.Node
-			state := commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning
-			if auditFieldSet.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterExisting
-			}
-			if auditFieldSet.Request != nil {
-				if subReader, err := auditFieldSet.Request.GetReader(resourceBodyField); err == nil {
-					bodyNode = subReader.Node
-				}
-			}
-			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbCreate,
-				StateType:    state,
-				Principal:    auditFieldSet.PrincipalEmail,
-				ChangedTime:  commonFieldSet.Timestamp,
-				ResourceBody: bodyNode,
-			})
-		case "DeleteCluster", "DeleteNodePool":
-			state := commonlogk8saudit_contract.RevisionStateK8sClusterDeleting
-			if auditFieldSet.Ending() {
-				state = commonlogk8saudit_contract.RevisionStateK8sClusterDeleted
-			}
-			cs.AddRevision(targetTimeline, &khifilev6.StagingRevision{
-				VerbType:     commonlogk8saudit_contract.VerbDelete,
-				StateType:    state,
-				Principal:    auditFieldSet.PrincipalEmail,
-				ChangedTime:  commonFieldSet.Timestamp,
-				ResourceBody: nil,
-			})
-		}
-
-		operationTimeline := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetTimeline, shortMethodName, auditFieldSet.OperationID)
-		tracker.ProcessOperationLog(ctx, cs, operationTimeline, auditFieldSet, commonFieldSet.Timestamp)
-	} else {
-		cs.AddEvent(targetTimeline)
-	}
+	operationTimeline := googlecloudcommon_contract.MustGCPOperationTimeline(ctx, targetTimeline, shortMethodName, auditFieldSet.OperationID)
+	googlecloudcommon_contract.ProcessGCPClusterNodepoolOperationLog(ctx, cs, tracker, targetTimeline, operationTimeline, auditFieldSet, commonFieldSet, shortMethodName, resourceFieldSet.IsCluster())
 
 	return cs, tracker, nil
 }

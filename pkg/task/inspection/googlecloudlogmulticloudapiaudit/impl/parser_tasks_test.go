@@ -213,7 +213,7 @@ name: test-cluster`).Node,
 name: test-nodepool`).Node,
 						Principal: "foobar@qux.test",
 						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStateK8sClusterProvisioning,
+						StateType: commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioning,
 					}, nodeComparer).
 					HasRevision(wantOp2NodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime: testTime,
@@ -246,11 +246,18 @@ name: test-nodepool`).Node,
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "foobar@qux.test",
+						VerbType:     commonlogk8saudit_contract.VerbCreate,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolProvisioningLogNotFound,
+					}, nodeComparer).
+					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterExisting,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolExisting,
 					}, nodeComparer).
 					HasRevision(wantOp2AzureNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
@@ -281,11 +288,18 @@ name: test-nodepool`).Node,
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
+						ChangedTime:  time.Unix(0, 0),
+						ResourceBody: nil,
+						Principal:    "foobar@qux.test",
+						VerbType:     commonlogk8saudit_contract.VerbDelete,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeletingLogNotFound,
+					}, nodeComparer).
+					HasRevision(wantNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
 						ResourceBody: nil,
 						Principal:    "foobar@qux.test",
 						VerbType:     commonlogk8saudit_contract.VerbDelete,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sClusterDeleted,
+						StateType:    commonlogk8saudit_contract.RevisionStateK8sNodepoolDeleted,
 					}, nodeComparer).
 					HasRevision(wantOp2DeleteNodepoolPath, &khifilev6.StagingRevision{
 						ChangedTime:  testTime,
