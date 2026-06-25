@@ -26,7 +26,7 @@ import (
 )
 
 // AutocompleteLocationTask is a task that provides a list of available locations for autocomplete.
-var AutocompleteLocationTask = inspectiontaskbase.NewCachedTask(googlecloudcommon_contract.AutocompleteLocationTaskID,
+var AutocompleteLocationTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudcommon_contract.AutocompleteLocationTaskID,
 	[]taskid.UntypedTaskReference{
 		googlecloudcommon_contract.InputProjectIdTaskID.Ref(), // for API restriction
 		googlecloudcommon_contract.LocationFetcherTaskID.Ref(),

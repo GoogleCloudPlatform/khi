@@ -59,6 +59,8 @@ type InspectionTaskRunner struct {
 	runnerLock             sync.Mutex
 	metadata               *typedmap.ReadonlyTypedMap
 	cancel                 context.CancelFunc
+	inspectionCtx          context.Context
+	inspectionCancel       context.CancelFunc
 	inspectionSharedMap    *typedmap.TypedMap
 	currentInspectionType  string
 	ioconfig               *inspectioncore_contract.IOConfig
@@ -70,6 +72,7 @@ type InspectionTaskRunner struct {
 
 // NewInspectionRunner creates a new InspectionTaskRunner.
 func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_contract.IOConfig, id string, options ...RunContextOption) *InspectionTaskRunner {
+	inspectionCtx, inspectionCancel := context.WithCancel(context.Background())
 	runner := &InspectionTaskRunner{
 		inspectionCreationTime: time.Now(),
 		inspectionServer:       server,
@@ -83,6 +86,8 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_
 		metadata:               nil,
 		inspectionSharedMap:    typedmap.NewTypedMap(),
 		cancel:                 nil,
+		inspectionCtx:          inspectionCtx,
+		inspectionCancel:       inspectionCancel,
 		currentInspectionType:  "N/A",
 		ioconfig:               ioConfig,
 		runContextOptions:      options,
@@ -98,6 +103,7 @@ func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 	// Options common for any run from this runner.
 	defaultRunContextOptions := []RunContextOption{
 		RunContextOptionFromValue(inspectioncore_contract.InspectionCreationTime, i.inspectionCreationTime),
+		RunContextOptionFromValue(inspectioncore_contract.InspectionContext, i.inspectionCtx),
 		RunContextOptionFromFunc(inspectioncore_contract.InspectionTaskRunID, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
 			return i.runIDGenerator.Generate(), nil
 		}),
@@ -333,6 +339,8 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 	}
 
 	go func() {
+		defer i.inspectionCancel()
+		defer cancel()
 		defer close(i.runComplete)
 		runFunc(cancelableCtx)
 		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)

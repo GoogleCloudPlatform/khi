@@ -25,7 +25,7 @@ import (
 )
 
 // APIClientFactoryTask is a task to inject googlecloud.ClientFactory to the later tasks. The instance is singleton in an inspection and the instance is cached on inspection cache after the first generation.
-var APIClientFactoryTask = inspectiontaskbase.NewCachedTask(googlecloudcommon_contract.APIClientFactoryTaskID, []taskid.UntypedTaskReference{
+var APIClientFactoryTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudcommon_contract.APIClientFactoryTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]) (inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory], error) {
 	// Use cached client if it was set already.

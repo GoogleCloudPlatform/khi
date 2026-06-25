@@ -30,7 +30,7 @@ import (
 
 // AutocompleteComposerClusterNamesTask is an implementation for googlecloudk8scommon_contract.AutocompleteClusterNamesTaskID
 // the task returns GKE cluster name where the provided Composer environment is running.
-var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerClusterNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerClusterNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinderTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),

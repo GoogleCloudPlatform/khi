@@ -15,6 +15,7 @@
 package inspectioncore_contract
 
 import (
+	"context"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
@@ -70,3 +71,7 @@ var TaskRunner = typedmap.NewTypedKey[coretask.TaskRunner]("khi.google.com/inspe
 // TracingActive is the context key to access the tracing active flag.
 // This flag indicates whether tracing is enabled for the current inspection task.
 var TracingActive = typedmap.NewTypedKey[bool]("khi.google.com/inspection/tracing-active")
+
+// InspectionContext is the context key to access the lifecycle context of the inspection.
+// This context persists across multiple executions of dryrun and run until the run finishes.
+var InspectionContext = typedmap.NewTypedKey[context.Context]("khi.google.com/inspection/context")

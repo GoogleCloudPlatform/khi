@@ -34,12 +34,27 @@ type CacheableTaskResult[T any] struct {
 	DependencyDigest string
 }
 
-// NewCachedTask generates a task which can reuse the value last time.
-func NewCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
-	return coretask.NewTask(taskID, depdendencies, func(ctx context.Context) (T, error) {
-		inspectionSharedMap := khictx.MustGetValue(ctx, inspectioncore_contract.GlobalSharedMap)
+// NewGlobalCachedTask generates a task which can reuse the value from previous runs stored in GlobalSharedMap.
+func NewGlobalCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
+	return newCachedTaskWithSharedMapKey(inspectioncore_contract.GlobalSharedMap, taskID, depdendencies, f, labelOpt...)
+}
+
+// NewInspectionCachedTask generates a task which can reuse the value from previous runs within the same inspection stored in InspectionSharedMap.
+// To clean up resources after inspection, use context.AfterFunc as below:
+//
+//	inspectionContext := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionContext)
+//	context.AfterFunc(inspectionContext, func() {
+//		// Dispose allocated resource here.
+//	})
+func NewInspectionCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
+	return newCachedTaskWithSharedMapKey(inspectioncore_contract.InspectionSharedMap, taskID, depdendencies, f, labelOpt...)
+}
+
+func newCachedTaskWithSharedMapKey[T any](sharedMapKey typedmap.TypedKey[*typedmap.TypedMap], taskID taskid.TaskImplementationID[T], dependencies []taskid.UntypedTaskReference, f func(ctx context.Context, prevValue CacheableTaskResult[T]) (CacheableTaskResult[T], error), labelOpt ...coretask.LabelOpt) coretask.Task[T] {
+	return coretask.NewTask(taskID, dependencies, func(ctx context.Context) (T, error) {
+		sharedMap := khictx.MustGetValue(ctx, sharedMapKey)
 		cacheKey := typedmap.NewTypedKey[CacheableTaskResult[T]](fmt.Sprintf("cached_result-%s", taskID.String()))
-		cachedResult := typedmap.GetOrDefault(inspectionSharedMap, cacheKey, CacheableTaskResult[T]{
+		cachedResult := typedmap.GetOrDefault(sharedMap, cacheKey, CacheableTaskResult[T]{
 			Value:            *new(T),
 			DependencyDigest: "",
 		})
@@ -49,7 +64,7 @@ func NewCachedTask[T any](taskID taskid.TaskImplementationID[T], depdendencies [
 			return *new(T), err
 		}
 
-		typedmap.Set(inspectionSharedMap, cacheKey, nextCache)
+		typedmap.Set(sharedMap, cacheKey, nextCache)
 		return nextCache.Value, nil
 	}, labelOpt...)
 }
