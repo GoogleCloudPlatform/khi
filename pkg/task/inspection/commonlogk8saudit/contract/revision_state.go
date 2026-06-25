@@ -58,21 +58,21 @@ var (
 	RevisionStateK8sClusterProvisioningLogNotFound = style.MustRegisterRevisionState(
 		"Cluster is being provisioned, but starting log not found",
 		"deployed_code_history",
-		"The Kubernetes cluster or node pool provisioning was started, but the starting log entry was not found in the selected time range.",
+		"The Kubernetes cluster provisioning was started, but the starting log entry was not found in the selected time range.",
 		style.MustForceConvertSRGBHex("#6666ff"),
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateK8sClusterExistingLogNotFound = style.MustRegisterRevisionState(
 		"Cluster exists, but creation log not found",
 		"deployed_code",
-		"The Kubernetes cluster or node pool exists, but the creation or existence log entry was not found in the selected time range.",
+		"The Kubernetes cluster exists, but the creation or existence log entry was not found in the selected time range.",
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 	RevisionStateK8sClusterDeletingLogNotFound = style.MustRegisterRevisionState(
 		"Cluster is being deleted, but starting log not found",
 		"auto_delete",
-		"The Kubernetes cluster or node pool deletion was in progress, but the deletion starting log entry was not found in the selected time range.",
+		"The Kubernetes cluster deletion was in progress, but the deletion starting log entry was not found in the selected time range.",
 		style.Color{R: 0.8, G: 0.33333334, B: 0.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
