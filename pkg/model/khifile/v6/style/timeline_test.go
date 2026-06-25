@@ -302,6 +302,17 @@ func TestRegisterTimelineTypeWithSortPolicy(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "grouped chronological sort policy",
+			sortOpt: GroupedChronologicalSortPolicy("-"),
+			wantType: &pb.TimelineType{
+				SortPolicyConfig: &pb.TimelineType_GroupedChronologicalPolicy{
+					GroupedChronologicalPolicy: &pb.GroupedChronologicalSortPolicy{
+						Delimiter: proto.String("-"),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

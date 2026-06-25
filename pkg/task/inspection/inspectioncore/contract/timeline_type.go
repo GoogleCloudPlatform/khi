@@ -85,7 +85,7 @@ var (
 		style.ColorBlack,
 		true,
 		1000,
-		style.ChronologicalSortPolicy(0),
+		style.GroupedChronologicalSortPolicy("-"),
 	)
 	TimelineTypeSubresource = style.MustRegisterTimelineType(
 		"subresource",

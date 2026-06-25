@@ -181,6 +181,28 @@ func ChronologicalSortPolicy(chronologicalSearchDepth int32) TimelineSortOpt {
 	}
 }
 
+type groupedChronologicalSortOpt struct {
+	delimiter string
+}
+
+// ApplyToTimelineType applies the grouped chronological sort policy configuration to the given TimelineType.
+func (o *groupedChronologicalSortOpt) ApplyToTimelineType(t *pb.TimelineType) {
+	t.SortPolicyConfig = &pb.TimelineType_GroupedChronologicalPolicy{
+		GroupedChronologicalPolicy: &pb.GroupedChronologicalSortPolicy{
+			Delimiter: proto.String(o.delimiter),
+		},
+	}
+}
+
+var _ TimelineSortOpt = (*groupedChronologicalSortOpt)(nil)
+
+// GroupedChronologicalSortPolicy returns a TimelineSortOpt that configures a timeline type to sort its child timelines hierarchically by grouping tokens with a delimiter and ordering them chronologically.
+func GroupedChronologicalSortPolicy(delimiter string) TimelineSortOpt {
+	return &groupedChronologicalSortOpt{
+		delimiter: delimiter,
+	}
+}
+
 // MustRegisterTimelineType registers a TimelineType, assigns a unique ID to it,
 // and returns the generated pointer. This allows for global inline initialization in plugins.
 func MustRegisterTimelineType(label string, description string, icon string, height float32, backgroundColor Color, foregroundColor Color, typeChipBackgroundColor Color, typeChipForegroundColor Color, visible bool, sortPriority int32, sortOpt TimelineSortOpt) *pb.TimelineType {

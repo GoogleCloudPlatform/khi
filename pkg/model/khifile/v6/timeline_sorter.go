@@ -66,6 +66,108 @@ func CompareChronological(a, b *TimelinePath, registry *TimelineRegistry, parent
 	return strings.Compare(a.Name.Resolve(), b.Name.Resolve())
 }
 
+// CompareGroupedChronological compares two timeline paths hierarchically by splitting their names with delimiter,
+// ordering common prefix groups chronologically by their oldest log timestamp.
+func CompareGroupedChronological(a, b *TimelinePath, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, delimiter string) int {
+	return CompareGroupedChronologicalWithMap(a, b, registry, parentToChildren, delimiter, nil)
+}
+
+// CompareGroupedChronologicalWithMap compares two timeline paths hierarchically using a pre-calculated prefix timestamp map.
+func CompareGroupedChronologicalWithMap(a, b *TimelinePath, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, delimiter string, prefixMap map[string]time.Time) int {
+	aName := a.Name.Resolve()
+	bName := b.Name.Resolve()
+
+	if aName == bName {
+		return 0
+	}
+
+	if delimiter == "" {
+		delimiter = "-"
+	}
+
+	aTokens := strings.Split(aName, delimiter)
+	bTokens := strings.Split(bName, delimiter)
+
+	minLen := min(len(aTokens), len(bTokens))
+	k := 0
+	for k < minLen && aTokens[k] == bTokens[k] {
+		k++
+	}
+
+	if k == len(aTokens) && k == len(bTokens) {
+		return CompareChronological(a, b, registry, parentToChildren, 0)
+	}
+
+	if k == len(aTokens) {
+		return -1
+	}
+	if k == len(bTokens) {
+		return 1
+	}
+
+	aSubPrefix := strings.Join(aTokens[:k+1], delimiter)
+	bSubPrefix := strings.Join(bTokens[:k+1], delimiter)
+
+	getPrefixTime := func(prefix string) (time.Time, bool) {
+		if prefixMap != nil {
+			t, ok := prefixMap[prefix]
+			return t, ok
+		}
+		return findPrefixOldestTime(prefix, registry, parentToChildren, delimiter)
+	}
+
+	aTime, aOk := getPrefixTime(aSubPrefix)
+	bTime, bOk := getPrefixTime(bSubPrefix)
+
+	switch {
+	case aOk && bOk:
+		if cmp := aTime.Compare(bTime); cmp != 0 {
+			return cmp
+		}
+	case aOk:
+		return -1
+	case bOk:
+		return 1
+	}
+
+	return strings.Compare(aTokens[k], bTokens[k])
+}
+
+// findPrefixOldestTime finds the oldest timestamp among all descendant timelines matching the given name prefix.
+// It serves as a fallback search mechanism when pre-calculated prefix maps are not available.
+func findPrefixOldestTime(prefix string, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, delimiter string) (time.Time, bool) {
+	var oldest time.Time
+	found := false
+
+	var visit func(p *TimelinePath)
+	visit = func(p *TimelinePath) {
+		if p == nil || p.Name == nil {
+			return
+		}
+		pName := p.Name.Resolve()
+		// Ensures pName belongs to the hierarchical group defined by prefix.
+		// To prevent false positive substring matches (e.g., prefix "aaaa-bb" matching "aaaa-bbbb"),
+		// we verify that pName either matches prefix exactly or continues immediately with the delimiter.
+		if strings.HasPrefix(pName, prefix) && (len(pName) == len(prefix) || strings.HasPrefix(pName[len(prefix):], delimiter)) {
+			if t, ok := FindOldestTime(p, registry, parentToChildren, 0, 0); ok {
+				if !found || t.Before(oldest) {
+					oldest = t
+					found = true
+				}
+			}
+		}
+		for _, child := range parentToChildren[p] {
+			visit(child)
+		}
+	}
+
+	// Starts DFS traversal from all root paths (where the parent pointer is nil).
+	for _, root := range parentToChildren[nil] {
+		visit(root)
+	}
+	return oldest, found
+}
+
 // FindOldestTime finds the oldest time in a timeline path and its descendants up to maxDepth.
 func FindOldestTime(path *TimelinePath, registry *TimelineRegistry, parentToChildren map[*TimelinePath][]*TimelinePath, currentDepth int, maxDepth int32) (time.Time, bool) {
 	var oldest time.Time
@@ -116,8 +218,10 @@ func sortTimelinePaths(paths iter.Seq[*TimelinePath], registry *TimelineRegistry
 	// 1. Build parent-to-children adjacency list
 	parentToChildren := make(map[*TimelinePath][]*TimelinePath)
 	var roots []*TimelinePath
+	var allPaths []*TimelinePath
 
 	for path := range paths {
+		allPaths = append(allPaths, path)
 		if path.Parent == nil {
 			roots = append(roots, path)
 		} else {
@@ -126,7 +230,12 @@ func sortTimelinePaths(paths iter.Seq[*TimelinePath], registry *TimelineRegistry
 	}
 
 	prioritizedNamesMap := make(map[uint32]map[string]int)
-	for path := range paths {
+	groupedSortMap := make(map[uint32]map[string]time.Time)
+
+	for _, path := range allPaths {
+		if path == nil || path.Name == nil {
+			continue
+		}
 		if path.Type != nil && path.Type.Id != nil {
 			typeID := *path.Type.Id
 			if _, ok := prioritizedNamesMap[typeID]; !ok {
@@ -137,6 +246,25 @@ func sortTimelinePaths(paths iter.Seq[*TimelinePath], registry *TimelineRegistry
 						m[name] = i
 					}
 					prioritizedNamesMap[typeID] = m
+				}
+			}
+			if policy, ok := path.Type.SortPolicyConfig.(*pb.TimelineType_GroupedChronologicalPolicy); ok && policy.GroupedChronologicalPolicy != nil {
+				if _, ok := groupedSortMap[typeID]; !ok {
+					groupedSortMap[typeID] = make(map[string]time.Time)
+				}
+				if t, ok := FindOldestTime(path, registry, parentToChildren, 0, 0); ok {
+					delimiter := policy.GroupedChronologicalPolicy.GetDelimiter()
+					if delimiter == "" {
+						delimiter = "-"
+					}
+					tokens := strings.Split(path.Name.Resolve(), delimiter)
+					curMap := groupedSortMap[typeID]
+					for i := range tokens {
+						prefix := strings.Join(tokens[:i+1], delimiter)
+						if existing, ok := curMap[prefix]; !ok || t.Before(existing) {
+							curMap[prefix] = t
+						}
+					}
 				}
 			}
 		}
@@ -175,6 +303,14 @@ func sortTimelinePaths(paths iter.Seq[*TimelinePath], registry *TimelineRegistry
 		case *pb.TimelineType_ChronologicalPolicy:
 			if policy.ChronologicalPolicy != nil {
 				return CompareChronological(a, b, registry, parentToChildren, policy.ChronologicalPolicy.GetChronologicalSearchDepth())
+			}
+		case *pb.TimelineType_GroupedChronologicalPolicy:
+			if policy.GroupedChronologicalPolicy != nil {
+				delimiter := policy.GroupedChronologicalPolicy.GetDelimiter()
+				if delimiter == "" {
+					delimiter = "-"
+				}
+				return CompareGroupedChronologicalWithMap(a, b, registry, parentToChildren, delimiter, groupedSortMap[aTypeID])
 			}
 		}
 		panic("SortPolicy is not specified for timeline path")
