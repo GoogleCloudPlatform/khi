@@ -193,13 +193,14 @@ func getOrInitClient[T any](
 	opts []option.ClientOption,
 	factoryFunc func(ctx context.Context, opts ...option.ClientOption) (T, error),
 ) (T, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	key := c.Identifier()
+
+	s.mu.Lock()
 	if client, ok := cache[key]; ok {
+		s.mu.Unlock()
 		return client, nil
 	}
+	s.mu.Unlock()
 
 	prepCtx, prepOpts, err := s.prepareServiceInput(ctx, c, specificOpts, opts...)
 	if err != nil {
@@ -211,6 +212,15 @@ func getOrInitClient[T any](
 	if err != nil {
 		var zero T
 		return zero, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if existing, ok := cache[key]; ok {
+		if closer, ok := any(client).(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		return existing, nil
 	}
 	cache[key] = client
 	return client, nil
