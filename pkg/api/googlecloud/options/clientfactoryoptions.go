@@ -81,3 +81,11 @@ func QuotaProject(projectID string) googlecloud.ClientFactoryOption {
 		return opts, nil
 	})
 }
+
+// GRPCConnPool returns a googlecloud.ClientFactoryOption that configures the client to use the specified gRPC connection pool size.
+func GRPCConnPool(num int) googlecloud.ClientFactoryOption {
+	return fromClientFactoryOptionsModifier(func(opts []option.ClientOption, c googlecloud.ResourceContainer) ([]option.ClientOption, error) {
+		opts = append(opts, option.WithGRPCConnectionPool(num))
+		return opts, nil
+	})
+}

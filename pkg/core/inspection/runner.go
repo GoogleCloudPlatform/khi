@@ -339,9 +339,9 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 	}
 
 	go func() {
+		defer close(i.runComplete)
 		defer i.inspectionCancel()
 		defer cancel()
-		defer close(i.runComplete)
 		runFunc(cancelableCtx)
 		progress, found := typedmap.Get(i.metadata, inspectionmetadata.ProgressMetadataKey)
 		if !found {

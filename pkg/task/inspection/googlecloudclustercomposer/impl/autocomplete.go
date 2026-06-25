@@ -68,7 +68,6 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCa
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	// Using "composer.googleapis.com/environment/healthy" as a generic metric to find environments.
@@ -218,7 +217,6 @@ var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 

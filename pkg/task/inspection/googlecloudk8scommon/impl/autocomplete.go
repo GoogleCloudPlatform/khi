@@ -83,7 +83,6 @@ var AutocompleteClusterIdentityTask = inspectiontaskbase.NewGlobalCachedTask(goo
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container"`, metricsType)
@@ -239,7 +238,6 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewGlobalCachedTask(googlecl
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
@@ -290,7 +288,6 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewGlobalCachedTask(googleclou
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
@@ -341,7 +338,6 @@ var AutocompleteNodeNamesTask = inspectiontaskbase.NewGlobalCachedTask(googleclo
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_node" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)

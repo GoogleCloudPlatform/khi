@@ -57,7 +57,6 @@ func (l *logFetcherImpl) FetchLogs(dest chan<- *loggingpb.LogEntry, ctx context.
 	if err != nil {
 		return err
 	}
-	defer client.Close()
 
 	ctx = l.callOptionInjector.InjectToCallContext(ctx, container)
 	iter := client.ListLogEntries(ctx, &loggingpb.ListLogEntriesRequest{

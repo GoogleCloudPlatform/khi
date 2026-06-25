@@ -51,6 +51,9 @@ type AuthParameters struct {
 	//
 	// Deprecated: Passing raw access token string to parameter is deprecated and not recommended. It's recommended to authenticate with Application Default Credentials(ADC).
 	AccessToken *string
+
+	// GRPCConnPool is the gRPC connection pool size for Google Cloud API clients.
+	GRPCConnPool *int
 }
 
 // PostProcess implements ParameterStore.
@@ -70,12 +73,16 @@ func (a *AuthParameters) PostProcess() error {
 	if *a.AccessToken != "" {
 		slog.Warn("--access-token parameter is deprecated and not recommended after KHI supporting authentication via Application Default Credentials(ADC)")
 	}
+	if *a.GRPCConnPool <= 0 {
+		return fmt.Errorf("--grpc-conn-pool must be positive")
+	}
 	return nil
 }
 
 // Prepare implements ParameterStore.
 func (a *AuthParameters) Prepare() error {
 	a.AccessToken = flag.String("access-token", "", "(Deprecated) The token used for GCP related requests. This parameter is deprecated, please consider authenticating with Application Default Credentials(ADC) instead.", "GCP_ACCESS_TOKEN")
+	a.GRPCConnPool = flag.Int("grpc-conn-pool", 8, "The gRPC connection pool size for Google Cloud API clients.", "")
 	a.FixedProjectID = flag.String("fixed-project-id", "", "A GCP project ID prefilled in the form. User won't be able to edit it from the form.", "KHI_FIXED_PROJECT_ID")
 	a.QuotaProjectID = flag.String("quota-project-id", "", "A GCP project ID used as the quota project. This is useful when user wants to use KHI against a project with another project with larger logging read quota.", "")
 	a.OAuthClientID = flag.String("oauth-client-id", "", "The client ID used for getting access tokens via OAuth.", "KHI_OAUTH_CLIENT_ID")
