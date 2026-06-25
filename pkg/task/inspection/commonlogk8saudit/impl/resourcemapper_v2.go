@@ -44,10 +44,15 @@ type resourceRevisionLogToTimelineMapperStateV2 struct {
 	hasFallbackCreationTime bool
 }
 
+// newResourceRevisionLogToTimelineMapperStateV2 returns a new instance of resourceRevisionLogToTimelineMapperStateV2.
+func newResourceRevisionLogToTimelineMapperStateV2() *resourceRevisionLogToTimelineMapperStateV2 {
+	return &resourceRevisionLogToTimelineMapperStateV2{
+		creationTimePerUID: make(map[string]time.Time),
+	}
+}
+
 // ResourceRevisionLogToTimelineMapperTaskSettingV2 is the setting for the V2 resource revision timeline mapper task.
 type ResourceRevisionLogToTimelineMapperTaskSettingV2 struct {
-	// minimumDeltaTimeToCreateInferredCreationRevision is a threshold of a duration that controls if KHI should create an inferred creation revision from creationTimestamp.
-	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
 }
@@ -65,12 +70,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PassCount() int {
 // PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
 func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*resourceRevisionLogToTimelineMapperStateV2, error) {
 	if prevGroupData == nil {
-		prevGroupData = &resourceRevisionLogToTimelineMapperStateV2{
-			creationTimePerUID: make(map[string]time.Time),
-		}
-	}
-	if prevGroupData.creationTimePerUID == nil {
-		prevGroupData.creationTimePerUID = make(map[string]time.Time)
+		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
 	if event.GroupRole != "target" {
 		return prevGroupData, nil
@@ -142,12 +142,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSe
 // ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
 func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperStateV2, error) {
 	if prevGroupData == nil {
-		prevGroupData = &resourceRevisionLogToTimelineMapperStateV2{
-			creationTimePerUID: make(map[string]time.Time),
-		}
-	}
-	if prevGroupData.creationTimePerUID == nil {
-		prevGroupData.creationTimePerUID = make(map[string]time.Time)
+		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
@@ -164,7 +159,6 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 
 // ResourceRevisionLogToTimelineMapperTask is the V2 task to generate resource revision history.
 var ResourceRevisionLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*resourceRevisionLogToTimelineMapperStateV2](&ResourceRevisionLogToTimelineMapperTaskSettingV2{
-	minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 	kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 		"core/v1#pod": {},
 	},
@@ -213,7 +207,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	if prevGroupData == nil {
-		prevGroupData = &resourceRevisionLogToTimelineMapperStateV2{}
+		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
 
 	if k8sFieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection && prevGroupData.WasCompletelyRemoved {

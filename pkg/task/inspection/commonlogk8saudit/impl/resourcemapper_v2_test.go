@@ -537,7 +537,6 @@ uid: "test-uid"`,
 	}
 
 	mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSettingV2{
-		minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 		kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 			"core/v1#pod": {},
 		},
@@ -858,9 +857,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_PreProcessAndProcessLo
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSettingV2{
-				minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
-			}
+			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSettingV2{}
 
 			targetResource := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",
