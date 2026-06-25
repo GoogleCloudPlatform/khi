@@ -234,3 +234,25 @@ func TestOAuth(t *testing.T) {
 		t.Errorf("Expected 1 option to be added, but got %d", len(opts))
 	}
 }
+
+func TestGRPCConnPool(t *testing.T) {
+	optionFunc := GRPCConnPool(8)
+	container := googlecloud.Project("any-project")
+	clientFactory := googlecloud.ClientFactory{}
+	err := optionFunc(&clientFactory)
+	if err != nil {
+		t.Errorf("optionFunc returned an unexpected error: %v", err)
+	}
+	clientOpts := clientFactory.ClientOptions
+	if len(clientOpts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(clientOpts))
+	}
+
+	opts, err := clientOpts[0]([]option.ClientOption{}, container)
+	if err != nil {
+		t.Errorf("client option returned an unexpected error: %v", err)
+	}
+	if len(opts) != 1 {
+		t.Errorf("Expected 1 option to be added, but got %d", len(opts))
+	}
+}

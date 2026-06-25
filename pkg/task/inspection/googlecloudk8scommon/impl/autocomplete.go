@@ -41,7 +41,7 @@ var AutocompleteMetricsK8sNodeTask = coretask.NewTask(googlecloudk8scommon_contr
 	return "kubernetes.io/anthos/up", nil
 })
 
-var AutocompleteClusterIdentityTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID, []taskid.UntypedTaskReference{
+var AutocompleteClusterIdentityTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteClusterIdentityTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.ClusterNamePrefixTaskRef,
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
@@ -83,7 +83,6 @@ var AutocompleteClusterIdentityTask = inspectiontaskbase.NewCachedTask(googleclo
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container"`, metricsType)
@@ -134,7 +133,7 @@ func filterAndTrimPrefixFromClusterNames(metricsLabels []map[string]string, pref
 }
 
 // AutocompleteLocationForClusterTask returns the location for the given cluster name.
-var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteLocationForClusterTaskID, []taskid.UntypedTaskReference{
+var AutocompleteLocationForClusterTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteLocationForClusterTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), // This task must not depend on ClusterIdentity because this autocomplete will generate the source of it.
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
@@ -199,7 +198,7 @@ var AutocompleteLocationForClusterTask = inspectiontaskbase.NewCachedTask(google
 	}, nil
 }, coretask.WithSelectionPriority(500))
 
-var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteNamespacesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteNamespacesTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -239,7 +238,6 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
@@ -260,7 +258,7 @@ var AutocompleteNamespacesTask = inspectiontaskbase.NewCachedTask(googlecloudk8s
 	}, nil
 })
 
-var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompletePodNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompletePodNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompletePodNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -290,7 +288,6 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_container" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)
@@ -311,7 +308,7 @@ var AutocompletePodNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sco
 	}, nil
 })
 
-var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID, []taskid.UntypedTaskReference{
+var AutocompleteNodeNamesTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudk8scommon_contract.AutocompleteNodeNamesTaskID, []taskid.UntypedTaskReference{
 	googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -341,7 +338,6 @@ var AutocompleteNodeNamesTask = inspectiontaskbase.NewCachedTask(googlecloudk8sc
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(cluster.ProjectID))
 	filter := fmt.Sprintf(`metric.type="%s" AND resource.type="k8s_node" AND resource.labels.cluster_name="%s" AND resource.labels.location="%s"`, metricsType, cluster.ClusterName, cluster.Location)

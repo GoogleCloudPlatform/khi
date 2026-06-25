@@ -42,7 +42,6 @@ func (e *EnvironmentClusterFinderImpl) GetGKEClusterName(ctx context.Context, pr
 	if err != nil {
 		return "", err
 	}
-	defer containerClusterManagerClient.Close()
 
 	ctx = injector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	cluster, err := containerClusterManagerClient.ListClusters(ctx, &containerpb.ListClustersRequest{

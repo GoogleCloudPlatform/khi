@@ -37,6 +37,7 @@ func WithDefaultTestInspectionTaskContext(baseContext context.Context) context.C
 	taskCtx := khictx.WithValue(baseContext, inspectioncore_contract.InspectionCreationTime, TestInspectionCreationTime)
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskInspectionID, "fake-inspection-id")
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionTaskRunID, "fake-run-id")
+	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionContext, baseContext)
 
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.GlobalSharedMap, typedmap.NewTypedMap())
 	taskCtx = khictx.WithValue(taskCtx, inspectioncore_contract.InspectionSharedMap, typedmap.NewTypedMap())

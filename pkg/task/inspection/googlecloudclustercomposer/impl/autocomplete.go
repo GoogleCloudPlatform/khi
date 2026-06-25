@@ -30,7 +30,7 @@ import (
 )
 
 // AutocompleteComposerEnvironmentIdentityTask is the task that autocompletes composer environment identities.
-var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -68,7 +68,6 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewCachedTa
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 	// Using "composer.googleapis.com/environment/healthy" as a generic metric to find environments.
@@ -106,7 +105,7 @@ var AutocompleteComposerEnvironmentIdentityTask = inspectiontaskbase.NewCachedTa
 	}, nil
 })
 
-var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteLocationForComposerEnvironmentTaskID, []taskid.UntypedTaskReference{
+var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteLocationForComposerEnvironmentTaskID, []taskid.UntypedTaskReference{
 	googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
 	googlecloudcommon_contract.InputProjectIdTaskID.Ref(),
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
@@ -181,7 +180,7 @@ var AutocompleteLocationForComposerEnvironmentTask = inspectiontaskbase.NewCache
 	coretask.WithSelectionPriority(1000),
 )
 
-var AutocompleteComposerComponentsTask = inspectiontaskbase.NewCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerComponentsTaskID, []taskid.UntypedTaskReference{
+var AutocompleteComposerComponentsTask = inspectiontaskbase.NewGlobalCachedTask(googlecloudclustercomposer_contract.AutocompleteComposerComponentsTaskID, []taskid.UntypedTaskReference{
 	googlecloudclustercomposer_contract.ClusterIdentityTaskID.GetUntypedReference(),
 	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
 	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
@@ -218,7 +217,6 @@ var AutocompleteComposerComponentsTask = inspectiontaskbase.NewCachedTask(google
 	if err != nil {
 		return prevValue, fmt.Errorf("failed to create monitoring metric client: %w", err)
 	}
-	defer client.Close()
 
 	ctx = optionInjector.InjectToCallContext(ctx, googlecloud.Project(projectID))
 

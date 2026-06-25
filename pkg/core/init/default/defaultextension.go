@@ -149,6 +149,7 @@ func (d *DefaultInitExtension) ConfigureInspectionTaskServer(taskServer *coreins
 		}
 	}
 	style.LockRegistry()
+	taskServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.GRPCConnPool(*parameters.Auth.GRPCConnPool)))
 	if *parameters.Auth.QuotaProjectID != "" {
 		taskServer.AddRunContextOption(coreinspection.RunContextOptionArrayElementFromValue(googlecloudcommon_contract.APIClientFactoryOptionsContextKey, options.QuotaProject(*parameters.Auth.QuotaProjectID)))
 	}

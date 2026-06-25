@@ -16,16 +16,19 @@ package googlecloudcommon_impl
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/api/googlecloud"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
+	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
 // APIClientFactoryTask is a task to inject googlecloud.ClientFactory to the later tasks. The instance is singleton in an inspection and the instance is cached on inspection cache after the first generation.
-var APIClientFactoryTask = inspectiontaskbase.NewCachedTask(googlecloudcommon_contract.APIClientFactoryTaskID, []taskid.UntypedTaskReference{
+var APIClientFactoryTask = inspectiontaskbase.NewInspectionCachedTask(googlecloudcommon_contract.APIClientFactoryTaskID, []taskid.UntypedTaskReference{
 	googlecloudcommon_contract.APIClientFactoryOptionsTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]) (inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory], error) {
 	// Use cached client if it was set already.
@@ -38,6 +41,13 @@ var APIClientFactoryTask = inspectiontaskbase.NewCachedTask(googlecloudcommon_co
 	if err != nil {
 		return inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]{}, err
 	}
+	inspectionContext := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionContext)
+	context.AfterFunc(inspectionContext, func() {
+		if err := clientFactory.Close(); err != nil {
+			slog.ErrorContext(inspectionContext, "failed to close client factory", "error", err)
+		}
+	})
+
 	return inspectiontaskbase.CacheableTaskResult[*googlecloud.ClientFactory]{
 		DependencyDigest: "singleton", // the client don't need to recreate and it's singleton because the options are not expected to be refresh.
 		Value:            clientFactory,
