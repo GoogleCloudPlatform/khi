@@ -62,6 +62,19 @@ func TestCSMAccessLogLogIngester_ProcessLog(t *testing.T) {
 			},
 			wantSummary: "【No healthy upstream(UH)】503 GET /productpage",
 		},
+		{
+			desc: "server access log with multiple error response flags",
+			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+				Status:     503,
+				Method:     "GET",
+				RequestURL: "/productpage",
+			},
+			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
+				Type:         googlecloudlogcsm_contract.AccessLogTypeServer,
+				ResponseFlag: "UH,URX",
+			},
+			wantSummary: "【No healthy upstream, Upstream retry limit exceeded(UH,URX)】503 GET /productpage",
+		},
 	}
 
 	ingester := &CSMAccessLogLogIngester{}

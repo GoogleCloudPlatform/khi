@@ -145,6 +145,16 @@ func TestIstioAccessLogFieldSet_ResponseFlagMessage(t *testing.T) {
 			flag: "SOME_UNKNOWN_FLAG",
 			want: "SOME_UNKNOWN_FLAG",
 		},
+		{
+			desc: "comma separated known flags",
+			flag: "UH,URX",
+			want: "No healthy upstream, Upstream retry limit exceeded",
+		},
+		{
+			desc: "comma separated containing unknown flags",
+			flag: "UH,UNKNOWN,URX",
+			want: "No healthy upstream, UNKNOWN, Upstream retry limit exceeded",
+		},
 	}
 
 	for _, tc := range testCases {
