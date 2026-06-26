@@ -311,6 +311,47 @@ spec:
 	}
 }
 
+func TestGetNodeNameOfBinding(t *testing.T) {
+	tests := []struct {
+		name      string
+		yaml      string
+		want      string
+		wantFound bool
+	}{
+		{
+			name: "exists",
+			yaml: `
+target:
+  name: "test-node"
+`,
+			want:      "test-node",
+			wantFound: true,
+		},
+		{
+			name: "not exists",
+			yaml: `
+target:
+  kind: Node
+`,
+			want:      "",
+			wantFound: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := mustParseYAML(t, tt.yaml)
+			got, found := GetNodeNameOfBinding(reader)
+			if got != tt.want {
+				t.Errorf("GetNodeNameOfBinding() got = %v, want %v", got, tt.want)
+			}
+			if found != tt.wantFound {
+				t.Errorf("GetNodeNameOfBinding() found = %v, want %v", found, tt.wantFound)
+			}
+		})
+	}
+}
+
 func TestGetCreationTimestamp(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -339,7 +339,7 @@ var (
 		`The condition status is undetermined due to insufficient log information in the selected range.
 
 **Tip**: Consider expanding the query time range to capture complete condition reports.`,
-		style.MustForceConvertSRGBHex("#997700"),
-		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
+		style.MustForceConvertSRGBHex("#666666"),
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
 	)
 )

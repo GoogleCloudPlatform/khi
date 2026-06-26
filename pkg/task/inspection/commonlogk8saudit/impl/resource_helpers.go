@@ -132,6 +132,20 @@ func GetNodeNameOfPod(reader *structured.NodeReader) (string, bool) {
 	return val, true
 }
 
+// GetNodeNameOfBinding returns the value of target.name.
+// It returns the value and true if the field exists and is a string.
+// Otherwise, it returns empty string and false.
+func GetNodeNameOfBinding(reader *structured.NodeReader) (string, bool) {
+	if reader == nil {
+		return "", false
+	}
+	val, err := reader.ReadString("target.name")
+	if err != nil {
+		return "", false
+	}
+	return val, true
+}
+
 // GetCreationTimestamp returns the value of metadata.creationTimestamp.
 // It returns the value and true if the field exists and is a valid timestamp.
 // Otherwise, it returns time.Time{} and false.

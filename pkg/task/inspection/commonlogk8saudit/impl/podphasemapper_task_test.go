@@ -15,6 +15,7 @@
 package commonlogk8saudit_impl
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,15 +30,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestPodPhaseTask_ProcessLog(t *testing.T) {
-	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
+func TestPodPhaseLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.T) {
+	baseTime := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
 
-	// 1. Set up the mock Builder and construct comparison paths hierarchically.
-	builder := khifilev6.NewBuilder()
-	ctxForPath := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	podPhasePath := MustPodPhaseTimelinePath(ctxForPath, "k8s", "node-1", "default", "test", "test-uid")
-
-	// Comparer for structured.Node using semantical YAML serializations to bypass unexported fields.
 	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
 		if a == nil || b == nil {
 			return a == b
@@ -50,7 +45,6 @@ func TestPodPhaseTask_ProcessLog(t *testing.T) {
 		return string(aYAML) == string(bYAML)
 	})
 
-	// Helper to parse YAML into structured.Node.
 	parseYAML := func(yamlStr string) structured.Node {
 		if yamlStr == "" {
 			return nil
@@ -63,517 +57,569 @@ func TestPodPhaseTask_ProcessLog(t *testing.T) {
 	}
 
 	type step struct {
-		verb             *pb.Verb
-		resourceBodyYAML string
-		role             string
-		eventType        commonlogk8saudit_contract.ChangeEventTypeV2
+		role      string
+		yaml      string
+		eventType commonlogk8saudit_contract.ChangeEventTypeV2
+		verb      *pb.Verb
+		time      time.Time
+	}
+
+	type wantRevision struct {
+		uid          string
+		nodeName     string
+		changedTime  time.Time
+		stateType    *pb.RevisionState
+		verbType     *pb.Verb
+		resourceBody structured.Node
+		principal    string
 	}
 
 	testCases := []struct {
-		name         string
-		targetPass   int
-		initialState *podPhaseTaskState
-		steps        []step
-		wantState    *podPhaseTaskState
-		assert       func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option)
+		name          string
+		podName       string
+		namespace     string
+		clusterName   string
+		steps         []step
+		wantRevisions []wantRevision
 	}{
 		{
-			name:       "Standard Pod Lifecycle - Pass 0",
-			targetPass: 0,
+			// Input:
+			// 1. A pod creation event at t=5s, verb: Create, phase: Pending. Unscheduled at this point.
+			// 2. A binding creation log event at t=10s, mapping the pod to node-1.
+			//    The binding log contains a binding-specific UID and creationTimestamp, which should be ignored by the pod phase mapper.
+			// 3. A pod status update event at t=20s, specifying uid-1, nodeName as node-1, and phase as Succeeded.
+			//
+			// Expected Output:
+			// - A single pod phase timeline path: k8s-cluster/node-1/default/my-pod[uid-1]
+			// - Revision at t=5s: StateType=PodPhasePending, Verb=Create, body=pod creation body.
+			// - Revision at t=10s: StateType=PodPhaseScheduled, Verb=Create, body=nil.
+			// - Revision at t=20s: StateType=PodPhaseSucceeded, Verb=Update, body=pod Succeeded body.
+			name:        "Standard lifecycle starting with pod creation followed by binding with binding metadata and Succeeded update",
+			podName:     "my-pod",
+			namespace:   "default",
+			clusterName: "k8s-cluster",
 			steps: []step{
 				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-spec:
-  nodeName: "node-1"
+					role: "pod",
+					yaml: `
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:05Z"
+spec: {}
 status:
-  phase: Pending`,
-					role:      "pod",
+  phase: Pending
+`,
 					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbCreate,
+					time:      baseTime.Add(5 * time.Second),
 				},
 				{
-					verb: commonlogk8saudit_contract.VerbPatch,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
+					role: "binding",
+					yaml: `
+metadata:
+  uid: binding-uid
+  creationTimestamp: "2026-06-26T12:00:10Z"
+target:
+  name: node-1
+`,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbCreate,
+					time:      baseTime.Add(10 * time.Second),
+				},
+				{
+					role: "pod",
+					yaml: `
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:05Z"
 spec:
-  nodeName: "node-1"
+  nodeName: node-1
 status:
-  phase: Running`,
-					role:      "pod",
+  phase: Succeeded
+`,
 					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+					verb:      commonlogk8saudit_contract.VerbUpdate,
+					time:      baseTime.Add(20 * time.Second),
 				},
 			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
+			wantRevisions: []wantRevision{
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(5 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhasePending,
+					verbType:    commonlogk8saudit_contract.VerbCreate,
+					resourceBody: parseYAML(`
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:05Z"
+spec: {}
+status:
+  phase: Pending
+`),
+					principal: "admin",
 				},
-				lastPhase: "",
-				lastNode:  "",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasNoRevision(podPhasePath)
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(10 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhaseScheduled,
+					verbType:    commonlogk8saudit_contract.VerbCreate,
+					resourceBody: parseYAML(`
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:05Z"
+spec: {}
+status:
+  phase: Pending
+`),
+					principal: "admin",
+				},
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(20 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhaseSucceeded,
+					verbType:    commonlogk8saudit_contract.VerbUpdate,
+					resourceBody: parseYAML(`
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:05Z"
+spec:
+  nodeName: node-1
+status:
+  phase: Succeeded
+`),
+					principal: "admin",
+				},
 			},
 		},
 		{
-			name:       "Standard Pod Lifecycle - Pass 1",
-			targetPass: 1,
-			initialState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-			},
+			// Input:
+			// 1. A binding creation log event at t=10s, mapping the pod to node-1.
+			//    The binding log contains a binding-specific UID and creationTimestamp, which should be ignored.
+			// 2. A pod update event at t=20s, specifying uid-1, nodeName node-1, and phase Failed.
+			//    The pod metadata includes creationTimestamp = 12:00:00Z.
+			//
+			// Expected Output:
+			// - An inferred creation revision at the creationTimestamp (12:00:00Z) with StateType=PodPhaseUnknown, Verb=Create.
+			// - A revision at t=20s: StateType=PodPhaseFailed, Verb=Update.
+			name:        "Inferred creation revision when the first pod event is an update, preceded by binding with binding metadata",
+			podName:     "my-pod",
+			namespace:   "default",
+			clusterName: "k8s-cluster",
 			steps: []step{
 				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-spec:
-  nodeName: "node-1"
-status:
-  phase: Pending`,
-					role:      "pod",
+					role: "binding",
+					yaml: `
+metadata:
+  uid: binding-uid
+  creationTimestamp: "2026-06-26T12:00:10Z"
+target:
+  name: node-1
+`,
 					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbCreate,
+					time:      baseTime.Add(10 * time.Second),
 				},
 				{
-					verb: commonlogk8saudit_contract.VerbPatch,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
+					role: "pod",
+					yaml: `
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:00Z"
 spec:
-  nodeName: "node-1"
+  nodeName: node-1
 status:
-  phase: Running`,
-					role:      "pod",
+  phase: Failed
+`,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbUpdate,
+					time:      baseTime.Add(20 * time.Second),
+				},
+			},
+			wantRevisions: []wantRevision{
+				{
+					uid:          "uid-1",
+					nodeName:     "node-1",
+					changedTime:  time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC),
+					stateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+					verbType:     commonlogk8saudit_contract.VerbCreate,
+					resourceBody: nil,
+					principal:    "N/A",
+				},
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(20 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhaseFailed,
+					verbType:    commonlogk8saudit_contract.VerbUpdate,
+					resourceBody: parseYAML(`
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:00Z"
+spec:
+  nodeName: node-1
+status:
+  phase: Failed
+`),
+					principal: "admin",
+				},
+			},
+		},
+		{
+			// Input:
+			// 1. A binding creation log event at t=10s, mapping the pod to node-1.
+			//    The binding log contains a binding-specific UID and creationTimestamp, which should be ignored.
+			// 2. A pod patch event at t=20s, specifying phase Running. This event lacks pod metadata (uid and creationTimestamp).
+			// 3. A pod status update event at t=30s, specifying uid-1, nodeName as node-1, and phase as Succeeded.
+			//    The pod metadata includes creationTimestamp = 12:00:00Z.
+			//
+			// Expected Output:
+			// - A single pod phase timeline path: k8s-cluster/node-1/default/my-pod[uid-1]
+			// - Revision at t=0s (12:00:00Z): StateType=PodPhaseUnknown, Verb=Create, body=nil.
+			// - Revision at t=10s: StateType=PodPhaseScheduled, Verb=Create, body=nil.
+			// - Revision at t=20s: StateType=PodPhaseRunning, Verb=Patch, body=patch body.
+			// - Revision at t=30s: StateType=PodPhaseSucceeded, Verb=Update, body=pod update body.
+			name:        "Resolve pod lifecycle stages with chronological fallback when metadata is missing in early events",
+			podName:     "my-pod",
+			namespace:   "default",
+			clusterName: "k8s-cluster",
+			steps: []step{
+				{
+					role: "binding",
+					yaml: `
+metadata:
+  uid: binding-uid
+  creationTimestamp: "2026-06-26T12:00:10Z"
+target:
+  name: node-1
+`,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbCreate,
+					time:      baseTime.Add(10 * time.Second),
+				},
+				{
+					role: "pod",
+					yaml: `
+status:
+  phase: Running
+`,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbPatch,
+					time:      baseTime.Add(20 * time.Second),
+				},
+				{
+					role: "pod",
+					yaml: `
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:00Z"
+spec:
+  nodeName: node-1
+status:
+  phase: Succeeded
+`,
 					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+					verb:      commonlogk8saudit_contract.VerbUpdate,
+					time:      baseTime.Add(30 * time.Second),
 				},
 			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
+			wantRevisions: []wantRevision{
+				{
+					uid:          "uid-1",
+					nodeName:     "node-1",
+					changedTime:  time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC),
+					stateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+					verbType:     commonlogk8saudit_contract.VerbCreate,
+					resourceBody: nil,
+					principal:    "N/A",
 				},
-				lastPhase: "Running",
-				lastNode:  "node-1",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime: testTime,
-						ResourceBody: parseYAML(`metadata:
-  uid: "test-uid"
-spec:
-  nodeName: "node-1"
+				{
+					uid:          "uid-1",
+					nodeName:     "node-1",
+					changedTime:  baseTime.Add(10 * time.Second),
+					stateType:    commonlogk8saudit_contract.RevisionStatePodPhaseScheduled,
+					verbType:     commonlogk8saudit_contract.VerbCreate,
+					resourceBody: nil,
+					principal:    "admin",
+				},
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(20 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhaseRunning,
+					verbType:    commonlogk8saudit_contract.VerbPatch,
+					resourceBody: parseYAML(`
 status:
-  phase: Pending`),
-						Principal: "admin",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStatePodPhasePending,
-					}, nodeComparer).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime: testTime.Add(1 * time.Second),
-						ResourceBody: parseYAML(`metadata:
-  uid: "test-uid"
+  phase: Running
+`),
+					principal: "admin",
+				},
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(30 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhaseSucceeded,
+					verbType:    commonlogk8saudit_contract.VerbUpdate,
+					resourceBody: parseYAML(`
+metadata:
+  uid: uid-1
+  creationTimestamp: "2026-06-26T12:00:00Z"
 spec:
-  nodeName: "node-1"
+  nodeName: node-1
 status:
-  phase: Running`),
-						Principal: "admin",
-						VerbType:  commonlogk8saudit_contract.VerbPatch,
-						StateType: commonlogk8saudit_contract.RevisionStatePodPhaseRunning,
-					}, nodeComparer)
+  phase: Succeeded
+`),
+					principal: "admin",
+				},
 			},
 		},
 		{
-			name:       "Pod scheduled later - Pass 0",
-			targetPass: 0,
+			// Input:
+			// 1. A binding creation log event at t=10s, mapping the pod to node-1.
+			//    The binding log contains a binding-specific UID and creationTimestamp, which should be ignored.
+			// 2. A pod patch event at t=20s, specifying uid-1 and phase Running.
+			//    The pod metadata does NOT include creationTimestamp.
+			//
+			// Expected Output:
+			// - An inferred creation revision at Unix Epoch (1970-01-01T00:00:00Z) with StateType=PodPhaseUnknown, Verb=Create.
+			// - Revision at t=10s: StateType=PodPhaseScheduled, Verb=Create, body=nil.
+			// - Revision at t=20s: StateType=PodPhaseRunning, Verb=Patch, body=patch body.
+			name:        "Inferred creation revision fallback to Unix Epoch when creationTimestamp is missing",
+			podName:     "my-pod",
+			namespace:   "default",
+			clusterName: "k8s-cluster",
 			steps: []step{
 				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-spec:
-  nodeName: ""
-status:
-  phase: Pending`,
-					role:      "pod",
+					role: "binding",
+					yaml: `
+metadata:
+  uid: binding-uid
+  creationTimestamp: "2026-06-26T12:00:10Z"
+target:
+  name: node-1
+`,
 					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbCreate,
+					time:      baseTime.Add(10 * time.Second),
 				},
 				{
-					verb: commonlogk8saudit_contract.VerbPatch,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-spec:
-  nodeName: "node-1"
+					role: "pod",
+					yaml: `
+metadata:
+  uid: uid-1
 status:
-  phase: Pending`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+  phase: Running
+`,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					verb:      commonlogk8saudit_contract.VerbPatch,
+					time:      baseTime.Add(20 * time.Second),
 				},
 			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
+			wantRevisions: []wantRevision{
+				{
+					uid:          "uid-1",
+					nodeName:     "node-1",
+					changedTime:  time.Unix(0, 0).UTC(),
+					stateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+					verbType:     commonlogk8saudit_contract.VerbCreate,
+					resourceBody: nil,
+					principal:    "N/A",
 				},
-				lastPhase: "",
-				lastNode:  "",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasNoRevision(podPhasePath)
+				{
+					uid:          "uid-1",
+					nodeName:     "node-1",
+					changedTime:  baseTime.Add(10 * time.Second),
+					stateType:    commonlogk8saudit_contract.RevisionStatePodPhaseScheduled,
+					verbType:     commonlogk8saudit_contract.VerbCreate,
+					resourceBody: nil,
+					principal:    "admin",
+				},
+				{
+					uid:         "uid-1",
+					nodeName:    "node-1",
+					changedTime: baseTime.Add(20 * time.Second),
+					stateType:   commonlogk8saudit_contract.RevisionStatePodPhaseRunning,
+					verbType:    commonlogk8saudit_contract.VerbPatch,
+					resourceBody: parseYAML(`
+metadata:
+  uid: uid-1
+status:
+  phase: Running
+`),
+					principal: "admin",
+				},
 			},
 		},
-		{
-			name:       "Pod scheduled later - Pass 1",
-			targetPass: 1,
-			initialState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-			},
-			steps: []step{
-				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-spec:
-  nodeName: ""
-status:
-  phase: Pending`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-				},
-				{
-					verb: commonlogk8saudit_contract.VerbPatch,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-spec:
-  nodeName: "node-1"
-status:
-  phase: Pending`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-				},
-			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-				lastPhase: "Pending",
-				lastNode:  "node-1",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime: testTime,
-						ResourceBody: parseYAML(`metadata:
-  uid: "test-uid"
-spec:
-  nodeName: ""
-status:
-  phase: Pending`),
-						Principal: "admin",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStatePodPhasePending,
-					}, nodeComparer)
-			},
-		},
-		{
-			name:       "Missing NodeName - Pass 0",
-			targetPass: 0,
-			steps: []step{
-				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-status:
-  phase: Pending`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-				},
-			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{},
-				lastPhase:        "",
-				lastNode:         "",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasNoRevision(podPhasePath)
-			},
-		},
-		{
-			name:       "Missing NodeName - Pass 1",
-			targetPass: 1,
-			initialState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{},
-			},
-			steps: []step{
-				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-status:
-  phase: Pending`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-				},
-			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{},
-				lastPhase:        "",
-				lastNode:         "",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasNoRevision(podPhasePath)
-			},
-		},
-		{
-			name:       "Pod scheduled by binding - Pass 1",
-			targetPass: 1,
-			initialState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-			},
-			steps: []step{
-				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-status:
-  phase: Pending`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-				},
-				{
-					// Binding resource creation
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-status:
-  phase: Pending`,
-					role:      "binding",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-				},
-			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-				lastPhase: "Pending",
-				lastNode:  "node-1",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime: testTime,
-						ResourceBody: parseYAML(`metadata:
-  uid: "test-uid"
-status:
-  phase: Pending`),
-						Principal: "admin",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStatePodPhasePending,
-					}, nodeComparer).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime: testTime.Add(1 * time.Second),
-						ResourceBody: parseYAML(`metadata:
-  uid: "test-uid"
-status:
-  phase: Pending`),
-						Principal: "admin",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStatePodPhaseScheduled,
-					}, nodeComparer)
-			},
-		},
-		{
-			name:       "Pod creation log is missing but complemented from creationTime - Pass 1",
-			targetPass: 1,
-			initialState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-			},
-			steps: []step{
-				{
-					verb: commonlogk8saudit_contract.VerbCreate,
-					resourceBodyYAML: `metadata:
-  uid: "test-uid"
-  creationTimestamp: "2023-10-26T09:00:00Z"
-status:
-  phase: Running`,
-					role:      "pod",
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-				},
-			},
-			wantState: &podPhaseTaskState{
-				uidToNodeNameMap: map[string]string{
-					"test-uid": "node-1",
-				},
-				lastPhase: "Running",
-				lastNode:  "node-1",
-			},
-			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, podPhasePath *khifilev6.TimelinePath, nodeComparer cmp.Option) {
-				testchangeset.AssertTimeline(t, cs).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime:  testTime.Add(-1 * time.Hour),
-						ResourceBody: nil,
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbCreate,
-						StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
-					}, nodeComparer).
-					HasRevision(podPhasePath, &khifilev6.StagingRevision{
-						ChangedTime: testTime,
-						ResourceBody: parseYAML(`metadata:
-  uid: "test-uid"
-  creationTimestamp: "2023-10-26T09:00:00Z"
-status:
-  phase: Running`),
-						Principal: "admin",
-						VerbType:  commonlogk8saudit_contract.VerbCreate,
-						StateType: commonlogk8saudit_contract.RevisionStatePodPhaseRunning,
-					}, nodeComparer)
-			},
-		},
-	}
-
-	taskSetting := &podPhaseLogToTimelineMapperTaskSettingV2{
-		minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Reset the builder for each test case to clear internal state.
-			builder = khifilev6.NewBuilder()
+			builder := khifilev6.NewBuilder()
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			podPhasePath = MustPodPhaseTimelinePath(ctx, "k8s", "node-1", "default", "test", "test-uid")
+			mapperSetting := &podPhaseLogToTimelineMapperTaskSettingV2{}
 
-			var state = tc.initialState
-			var err error
-
-			// Create a dummy initial log for NewTimelineChangeSet
-			dummyFs := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
-				Principal:    "admin",
-				APIVersion:   "core/v1",
-				PluralKind:   "pods",
-				ResourceName: "test",
-				Namespace:    "default",
-				ClusterName:  "k8s",
-				Verb:         commonlogk8saudit_contract.VerbCreate,
+			podResource := &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion: "core/v1",
+				Kind:       "pod",
+				Namespace:  tc.namespace,
+				Name:       tc.podName,
 			}
-			dummyCommon := &log.CommonFieldSet{
-				Timestamp: testTime,
+			bindingResource := &commonlogk8saudit_contract.ResourceIdentity{
+				APIVersion:      "core/v1",
+				Kind:            "pod",
+				Namespace:       tc.namespace,
+				Name:            tc.podName,
+				SubresourceName: "binding",
 			}
-			dummyLog := log.NewLogWithFieldSetsForTest(dummyFs, dummyCommon)
 
-			accumulatedCS := khifilev6.NewTimelineChangeSet(dummyLog)
+			podGroup := &commonlogk8saudit_contract.ResourceManifestLogGroup{
+				Resource: podResource,
+				Logs:     []*commonlogk8saudit_contract.ResourceManifestLog{},
+			}
+			bindingGroup := &commonlogk8saudit_contract.ResourceManifestLogGroup{
+				Resource: bindingResource,
+				Logs:     []*commonlogk8saudit_contract.ResourceManifestLog{},
+			}
 
-			for i, s := range tc.steps {
+			type stepLogInfo struct {
+				manifestLog *commonlogk8saudit_contract.ResourceManifestLog
+				role        string
+				identity    *commonlogk8saudit_contract.ResourceIdentity
+				eventType   commonlogk8saudit_contract.ChangeEventTypeV2
+				verb        *pb.Verb
+			}
+			var stepInfos []stepLogInfo
+
+			for _, step := range tc.steps {
 				k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
 					Principal:    "admin",
 					APIVersion:   "core/v1",
 					PluralKind:   "pods",
-					ResourceName: "test",
-					Namespace:    "default",
-					ClusterName:  "k8s",
-					Verb:         s.verb,
+					ResourceName: tc.podName,
+					Namespace:    tc.namespace,
+					ClusterName:  tc.clusterName,
+					Verb:         step.verb,
 				}
-				stepTime := testTime.Add(time.Duration(i) * time.Second)
 				commonFs := &log.CommonFieldSet{
-					Timestamp: stepTime,
+					Timestamp: step.time,
 				}
 				logObj := log.NewLogWithFieldSetsForTest(k8sFieldSet, commonFs)
-
-				node := parseYAML(s.resourceBodyYAML)
+				node, err := structured.FromYAML(step.yaml)
+				if err != nil {
+					t.Fatalf("failed to parse test YAML: %v", err)
+				}
 				var nodeReader *structured.NodeReader
 				if node != nil {
 					nodeReader = structured.NewNodeReader(node)
 				}
 
-				var sourceResource *commonlogk8saudit_contract.ResourceIdentity
-				var targetResource *commonlogk8saudit_contract.ResourceIdentity
+				mLog := &commonlogk8saudit_contract.ResourceManifestLog{
+					Log:                logObj,
+					ResourceBodyReader: nodeReader,
+					ResourceBodyYAML:   step.yaml,
+				}
 
-				if s.role == "binding" {
-					sourceResource = &commonlogk8saudit_contract.ResourceIdentity{
-						APIVersion: "core/v1",
-						Kind:       "pod",
-						Namespace:  "default",
-						Name:       "test",
-					}
-					targetResource = &commonlogk8saudit_contract.ResourceIdentity{
-						APIVersion:      "core/v1",
-						Kind:            "pod",
-						Namespace:       "default",
-						Name:            "test",
-						SubresourceName: "binding",
-					}
+				var identity *commonlogk8saudit_contract.ResourceIdentity
+				if step.role == "pod" {
+					identity = podResource
+					podGroup.Logs = append(podGroup.Logs, mLog)
 				} else {
-					targetResource = &commonlogk8saudit_contract.ResourceIdentity{
-						APIVersion: "core/v1",
-						Kind:       "pod",
-						Namespace:  "default",
-						Name:       "test",
-					}
+					identity = bindingResource
+					bindingGroup.Logs = append(bindingGroup.Logs, mLog)
 				}
 
-				groupSet := commonlogk8saudit_contract.RelatedGroupSet{
-					Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
-						"pod": {
-							Resource: targetResource,
-							Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-								{Log: logObj, ResourceBodyReader: nodeReader, ResourceBodyYAML: s.resourceBodyYAML},
-							},
-						},
-					},
-				}
-				if sourceResource != nil {
-					groupSet.Roles["binding"] = &commonlogk8saudit_contract.ResourceManifestLogGroup{
-						Resource: sourceResource,
-						Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-							{Log: logObj},
-						},
-					}
-				}
+				stepInfos = append(stepInfos, stepLogInfo{
+					manifestLog: mLog,
+					role:        step.role,
+					identity:    identity,
+					eventType:   step.eventType,
+					verb:        step.verb,
+				})
+			}
 
-				event := commonlogk8saudit_contract.MultiGroupLogEvent{
-					Log:              logObj,
-					GroupRole:        s.role,
-					ResourceIdentity: targetResource,
-					EventType:        s.eventType,
+			groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+				Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+					"pod":     podGroup,
+					"binding": bindingGroup,
+				},
+			}
+
+			var events []commonlogk8saudit_contract.MultiGroupLogEvent
+			for _, info := range stepInfos {
+				events = append(events, commonlogk8saudit_contract.MultiGroupLogEvent{
+					Log:              info.manifestLog.Log,
+					GroupRole:        info.role,
+					ResourceIdentity: info.identity,
+					EventType:        info.eventType,
 					GroupSet:         groupSet,
-				}
+				})
+			}
 
-				if tc.targetPass == 0 {
-					state, err = taskSetting.PreProcessLog(ctx, 0, event, state)
-					if err != nil {
-						t.Fatalf("PreProcessLog failed: %v", err)
-					}
-				} else {
-					var stepCS *khifilev6.TimelineChangeSet
-					stepCS, state, err = taskSetting.ProcessLog(ctx, event, state)
-					if err != nil {
-						t.Fatalf("ProcessLog failed: %v", err)
-					}
-					if stepCS != nil {
-						for path, ev := range stepCS.Events {
-							accumulatedCS.Events[path] = ev
+			// 1. Pass 0 of PreProcessLog
+			var state *podPhaseTaskState
+			for _, ev := range events {
+				var err error
+				state, err = mapperSetting.PreProcessLog(ctx, 0, ev, state)
+				if err != nil {
+					t.Fatalf("PreProcessLog(pass=0) failed: %v", err)
+				}
+			}
+
+			// 2. Pass 1 of PreProcessLog
+			for _, ev := range events {
+				var err error
+				state, err = mapperSetting.PreProcessLog(ctx, 1, ev, state)
+				if err != nil {
+					t.Fatalf("PreProcessLog(pass=1) failed: %v", err)
+				}
+			}
+
+			// 3. ProcessLog
+			var changeSets []*khifilev6.TimelineChangeSet
+			for _, ev := range events {
+				cs, nextState, err := mapperSetting.ProcessLog(ctx, ev, state)
+				if err != nil {
+					t.Fatalf("ProcessLog() failed: %v", err)
+				}
+				state = nextState
+				changeSets = append(changeSets, cs)
+			}
+
+			mergedCS := khifilev6.NewTimelineChangeSet(log.NewLogWithFieldSetsForTest())
+			for _, cs := range changeSets {
+				if cs != nil {
+					for path, revs := range cs.Revisions {
+						for _, r := range revs {
+							mergedCS.AddRevision(path, r)
 						}
-						for path, revs := range stepCS.Revisions {
-							accumulatedCS.Revisions[path] = append(accumulatedCS.Revisions[path], revs...)
-						}
+					}
+					for path := range cs.Events {
+						mergedCS.AddEvent(path)
+					}
+					for aliasPath, targetPath := range cs.Aliases {
+						mergedCS.AddAlias(aliasPath, targetPath)
 					}
 				}
 			}
 
-			if diff := cmp.Diff(tc.wantState, state, cmp.AllowUnexported(podPhaseTaskState{})); diff != "" {
-				t.Errorf("state mismatch (-want +got):\n%s", diff)
-			}
-
-			if tc.targetPass != 0 && tc.assert != nil {
-				tc.assert(t, accumulatedCS, podPhasePath, nodeComparer)
+			for _, want := range tc.wantRevisions {
+				path := MustResolvePodPhaseTimelinePath(ctx, tc.clusterName, want.nodeName, tc.namespace, tc.podName, want.uid)
+				wantStagingRev := &khifilev6.StagingRevision{
+					ChangedTime:  want.changedTime,
+					ResourceBody: want.resourceBody,
+					Principal:    want.principal,
+					VerbType:     want.verbType,
+					StateType:    want.stateType,
+				}
+				testchangeset.AssertTimeline(t, mergedCS).HasRevision(path, wantStagingRev, nodeComparer)
 			}
 		})
 	}
+}
+
+// MustResolvePodPhaseTimelinePath resolves the TimelinePath for the pod phase.
+func MustResolvePodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namespace, podName, uid string) *khifilev6.TimelinePath {
+	return MustPodPhaseTimelinePath(ctx, clusterName, nodeName, namespace, podName, uid)
 }
