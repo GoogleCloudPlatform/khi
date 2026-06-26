@@ -144,6 +144,13 @@ var (
 		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
 		pb.RevisionStateStyle_REVISION_STATE_STYLE_NORMAL,
 	)
+	RevisionStateK8sResourceExistingLogNotFound = style.MustRegisterRevisionState(
+		"Resource exists, but creation log not found",
+		"deployed_code",
+		"The Kubernetes resource exists, but the creation or existence log entry was not found in the selected time range.",
+		style.Color{R: 0.0, G: 0.0, B: 1.0, A: 1.0},
+		pb.RevisionStateStyle_REVISION_STATE_STYLE_PARTIAL_INFO,
+	)
 	RevisionStateK8sResourceDeleting = style.MustRegisterRevisionState(
 		"Resource is being deleted",
 		"auto_delete",

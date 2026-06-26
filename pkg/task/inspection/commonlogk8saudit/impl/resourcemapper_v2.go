@@ -36,14 +36,23 @@ type resourceRevisionLogToTimelineMapperStateV2 struct {
 	DeletionStarted bool
 	// PrevUID is the previous UID of the resource.
 	PrevUID string
+	// creationTimePerUID maps resource UID to its creationTimestamp collected during PreProcessLog pass.
+	creationTimePerUID map[string]time.Time
+	// fallbackCreationTime is the first creationTimestamp found in the log group during PreProcessLog pass.
+	fallbackCreationTime time.Time
+	// hasFallbackCreationTime is true if fallbackCreationTime was recorded.
+	hasFallbackCreationTime bool
+}
+
+// newResourceRevisionLogToTimelineMapperStateV2 returns a new instance of resourceRevisionLogToTimelineMapperStateV2.
+func newResourceRevisionLogToTimelineMapperStateV2() *resourceRevisionLogToTimelineMapperStateV2 {
+	return &resourceRevisionLogToTimelineMapperStateV2{
+		creationTimePerUID: make(map[string]time.Time),
+	}
 }
 
 // ResourceRevisionLogToTimelineMapperTaskSettingV2 is the setting for the V2 resource revision timeline mapper task.
 type ResourceRevisionLogToTimelineMapperTaskSettingV2 struct {
-	commonlogk8saudit_contract.ManifestSinglePassMapperBaseV2[*resourceRevisionLogToTimelineMapperStateV2]
-
-	// minimumDeltaTimeToCreateInferredCreationRevision is a threshold of a duration that controls if KHI should create an inferred creation revision from creationTimestamp.
-	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
 	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
 }
@@ -51,6 +60,39 @@ type ResourceRevisionLogToTimelineMapperTaskSettingV2 struct {
 // Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
 func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
+}
+
+// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PassCount() int {
+	return 1
+}
+
+// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
+func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*resourceRevisionLogToTimelineMapperStateV2, error) {
+	if prevGroupData == nil {
+		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
+	}
+	if event.GroupRole != "target" {
+		return prevGroupData, nil
+	}
+
+	bodyReader, hasBody := event.GetLastBodyReader(event.GroupRole)
+	if hasBody && bodyReader != nil {
+		creationTime, found := GetCreationTimestamp(bodyReader)
+		if found {
+			if !prevGroupData.hasFallbackCreationTime {
+				prevGroupData.fallbackCreationTime = creationTime
+				prevGroupData.hasFallbackCreationTime = true
+			}
+			uid, ok := GetUID(bodyReader)
+			if ok && uid != "" {
+				if _, exists := prevGroupData.creationTimePerUID[uid]; !exists {
+					prevGroupData.creationTimePerUID[uid] = creationTime
+				}
+			}
+		}
+	}
+	return prevGroupData, nil
 }
 
 // GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
@@ -100,7 +142,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSe
 // ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
 func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperStateV2, error) {
 	if prevGroupData == nil {
-		prevGroupData = &resourceRevisionLogToTimelineMapperStateV2{}
+		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
@@ -117,7 +159,6 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 
 // ResourceRevisionLogToTimelineMapperTask is the V2 task to generate resource revision history.
 var ResourceRevisionLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*resourceRevisionLogToTimelineMapperStateV2](&ResourceRevisionLogToTimelineMapperTaskSettingV2{
-	minimumDeltaTimeToCreateInferredCreationRevision: 5 * time.Second,
 	kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 		"core/v1#pod": {},
 	},
@@ -166,7 +207,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	if prevGroupData == nil {
-		prevGroupData = &resourceRevisionLogToTimelineMapperStateV2{}
+		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
 
 	if k8sFieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection && prevGroupData.WasCompletelyRemoved {
@@ -264,23 +305,49 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ct
 		}
 	}
 
+	// Resolve resource creation time with fallbacks.
+	// 1. Try resolving creationTimestamp directly from the current log body.
+	// 2. Fallback to pre-processed creationTimestamp mapped to the resource UID.
+	// 3. Fallback to the first creationTimestamp observed in the entire log group.
 	var creationTime time.Time
-	var found bool
+	var hasCreationTime bool
 	if bodyReader != nil {
-		creationTime, found = GetCreationTimestamp(bodyReader)
+		creationTime, hasCreationTime = GetCreationTimestamp(bodyReader)
+		if !hasCreationTime {
+			uid, ok := GetUID(bodyReader)
+			if ok && uid != "" {
+				if t, exists := prevGroupData.creationTimePerUID[uid]; exists {
+					creationTime = t
+					hasCreationTime = true
+				}
+			}
+		}
 	}
-	if !found {
-		creationTime = commonFieldSet.Timestamp
+	if !hasCreationTime && prevGroupData.hasFallbackCreationTime {
+		creationTime = prevGroupData.fallbackCreationTime
+		hasCreationTime = true
 	}
 
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation && commonFieldSet.Timestamp.Sub(creationTime) > r.minimumDeltaTimeToCreateInferredCreationRevision {
-		cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-			ChangedTime:  creationTime,
-			ResourceBody: nil,
-			Principal:    "N/A",
-			VerbType:     commonlogk8saudit_contract.VerbCreate,
-			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExisting,
-		})
+	// For the initial observation of a resource without an explicit creation log (e.g. starting with patch),
+	// prepend an inferred creation revision indicating that the resource already existed prior to the logs.
+	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate {
+		if hasCreationTime {
+			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+				ChangedTime:  creationTime,
+				ResourceBody: nil,
+				Principal:    "N/A",
+				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+			})
+		} else {
+			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
+				ChangedTime:  time.Unix(0, 0),
+				ResourceBody: nil,
+				Principal:    "N/A",
+				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+			})
+		}
 	}
 
 	var bodyNode structured.Node
