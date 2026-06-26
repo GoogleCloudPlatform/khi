@@ -67,7 +67,7 @@ var InputCSMResponseFlagsTask = formtask.NewSetFormTaskBuilder(googlecloudlogcsm
 			message := googlecloudlogcsm_contract.HumanReadableErrorMessage[googlecloudlogcsm_contract.ResponseFlag(id)]
 			if id == "-" {
 				id = "OK"
-				message = "It's '-' in the response flag field because '-' means substracting operator in this form."
+				message = "It's '-' in the response flag field because '-' means subtracting operator in this form."
 			}
 			result = append(result, inspectionmetadata.SetParameterFormFieldOptionItem{ID: id, Description: message})
 		}

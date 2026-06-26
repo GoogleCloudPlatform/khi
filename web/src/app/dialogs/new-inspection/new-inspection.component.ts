@@ -277,7 +277,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
 
   public selectedStepChange(stepIndex: number) {
     if (stepIndex === NewInspectionDialogComponent.STEP_INDEX_PARAMETER_INPUT) {
-      // Reset the parameter view model every time entering STEP_INDEX_PARAMETER_INPUT otherwise paramater list can be stale.
+      // Reset the parameter view model every time entering STEP_INDEX_PARAMETER_INPUT otherwise parameter list can be stale.
       this.parameterViewModelResetSubject.next(null);
 
       this.dryrunRequest.next({});

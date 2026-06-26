@@ -49,7 +49,7 @@ func generateK8sControlPlaneComponentFilter(filter *gcpqueryutil.SetFilterParseR
 		return fmt.Sprintf(`-resource.labels.component_name:(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(filter.Subtractives), " OR "))
 	} else {
 		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.`
+			return `-- Invalid: none of the controlplane component will be selected. Ignoring component name filter.`
 		}
 		return fmt.Sprintf(`resource.labels.component_name:(%s)`, strings.Join(gcpqueryutil.WrapDoubleQuoteForStringArray(filter.Additives), " OR "))
 	}

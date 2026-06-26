@@ -86,7 +86,7 @@ type RegexSequenceConverter struct {
 	Repl string
 }
 
-// NewRegexSequenceConverter instanciate RegexSequenceConverter from given string regex and replace target.
+// NewRegexSequenceConverter instantiate RegexSequenceConverter from given string regex and replace target.
 func NewRegexSequenceConverter(regex string, repl string) (*RegexSequenceConverter, error) {
 	if regex == "" {
 		return nil, fmt.Errorf("regex string must not be empty")

@@ -170,7 +170,7 @@ func (s *UploadFileStore) ensureIssuedToken(token UploadToken) error {
 	if found {
 		return nil
 	}
-	return fmt.Errorf("unknown upload token specifed")
+	return fmt.Errorf("unknown upload token specified")
 }
 
 // NewUploadFileStore creates a new UploadFileStore.

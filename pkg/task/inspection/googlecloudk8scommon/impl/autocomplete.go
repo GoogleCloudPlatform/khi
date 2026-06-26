@@ -31,7 +31,7 @@ import (
 
 // AutocompleteMetricsK8sContainerTask is the task to provide the default metrics type to collect the cluster names.
 // The resource type "k8s_container" must be available on the returned metrics type.
-// This task is overriden in GKE clusters.
+// This task is overridden in GKE clusters.
 var AutocompleteMetricsK8sContainerTask = coretask.NewTask(googlecloudk8scommon_contract.AutocompleteMetricsK8sContainerTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context) (string, error) {
 	// logging.googleapis.com/log_entry_count is better from the perspective of KHI's purpose, but use container metrics for longer retention period(24 months).
 	return "kubernetes.io/anthos/up", nil

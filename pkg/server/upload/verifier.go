@@ -52,7 +52,7 @@ type JSONLineUploadFileVerifier struct {
 func (j *JSONLineUploadFileVerifier) Verify(storeProvider UploadFileStoreProvider, token UploadToken) error {
 	reader, err := storeProvider.Read(token)
 	if err != nil {
-		return fmt.Errorf("failed to read the uploded file")
+		return fmt.Errorf("failed to read the uploaded file")
 	}
 	defer reader.Close()
 

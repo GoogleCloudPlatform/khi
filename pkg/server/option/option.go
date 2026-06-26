@@ -72,7 +72,7 @@ type accessLogOption struct {
 	ignoredPath []string
 }
 
-// AccessLog creates a new Option to log access logs with ignoreing the provided paths.
+// AccessLog creates a new Option to log access logs with ignoring the provided paths.
 func AccessLog(ignoredPath ...string) Option {
 	return &accessLogOption{
 		ignoredPath: ignoredPath,

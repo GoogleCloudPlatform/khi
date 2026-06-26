@@ -35,7 +35,7 @@ func (o *OSSK8sAuditLogFieldSetReader) FieldSetKind() string {
 func (o *OSSK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result commonlogk8saudit_contract.K8sAuditLogFieldSet
 	result.OperationID = reader.ReadStringOrDefault("auditID", "")
-	// Currently this won't support the long running operation. TODO: support long runnning operation
+	// Currently this won't support the long running operation. TODO: support long running operation
 	result.IsFirst = true
 	result.IsLast = true
 	apiGroup := reader.ReadStringOrDefault("objectRef.apiGroup", "core")

@@ -118,7 +118,7 @@ func generateAuditKindFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 		return fmt.Sprintf(`-protoPayload.methodName=~"\.(%s)\."`, strings.Join(filter.Subtractives, "|"))
 	} else {
 		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the resources will be selected. Ignoreing kind filter.`
+			return `-- Invalid: none of the resources will be selected. Ignoring kind filter.`
 		}
 		return fmt.Sprintf(`protoPayload.methodName=~"\.(%s)\."`, strings.Join(filter.Additives, "|"))
 	}
@@ -155,7 +155,7 @@ func generateK8sAuditNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) 
 			return fmt.Sprintf(`(protoPayload.resourceName:(%s) OR NOT (protoPayload.resourceName:"/namespaces/"))`, strings.Join(resourceNameContains, " OR "))
 		}
 		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the resources will be selected. Ignoreing namespace filter.`
+			return `-- Invalid: none of the resources will be selected. Ignoring namespace filter.`
 		}
 		resourceNameContains := []string{}
 		for _, additive := range filter.Additives {

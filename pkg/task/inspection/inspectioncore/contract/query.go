@@ -38,7 +38,7 @@ func (q *QueryTaskLabelOpt) Write(label *typedmap.TypedMap) {
 
 var _ (coretask.LabelOpt) = (*QueryTaskLabelOpt)(nil)
 
-// NewQueryTaskLabelOpt constucts a new instance of task.LabelOpt for query related tasks.
+// NewQueryTaskLabelOpt constructs a new instance of task.LabelOpt for query related tasks.
 func NewQueryTaskLabelOpt(sampleQuery string) *QueryTaskLabelOpt {
 	return &QueryTaskLabelOpt{
 		SampleQuery: sampleQuery,

@@ -167,7 +167,7 @@ func (d *DefaultInitExtension) ConfigureKHIWebServerFactory(serverFactory *serve
 
 	if *parameters.Debug.Verbose {
 		serverFactory.AddOptions(
-			option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoreing noisy paths
+			option.AccessLog("/api/v3/inspection", "/api/v3/popup"), // ignoring noisy paths
 		)
 	}
 
