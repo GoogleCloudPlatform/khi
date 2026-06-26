@@ -82,6 +82,9 @@ export function formatTimeLabel(
   timeInMs: number,
   timezoneShiftHours: number,
 ): string {
+  if (timeInMs === 0) {
+    return '??:??:??';
+  }
   const d = new Date(timeInMs + timezoneShiftHours * 60 * 60 * 1000);
   const h = d.getUTCHours().toString().padStart(2, '0');
   const m = d.getUTCMinutes().toString().padStart(2, '0');
