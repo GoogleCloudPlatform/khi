@@ -124,10 +124,17 @@ type IstioAccessLogFieldSet struct {
 
 // ResponseFlagMessage returns a human readable message describing response flag.
 func (i *IstioAccessLogFieldSet) ResponseFlagMessage() string {
-	if message, ok := HumanReadableErrorMessage[i.ResponseFlag]; ok {
-		return message
+	rawFlags := strings.Split(string(i.ResponseFlag), ",")
+	var messages []string
+	for _, rawFlag := range rawFlags {
+		trimmed := strings.TrimSpace(rawFlag)
+		if message, ok := HumanReadableErrorMessage[ResponseFlag(trimmed)]; ok {
+			messages = append(messages, message)
+		} else {
+			messages = append(messages, trimmed)
+		}
 	}
-	return string(i.ResponseFlag)
+	return strings.Join(messages, ", ")
 }
 
 // Kind implements log.FieldSet.
