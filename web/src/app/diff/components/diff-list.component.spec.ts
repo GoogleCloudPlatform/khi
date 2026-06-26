@@ -45,6 +45,10 @@ describe('DiffListComponent utils', () => {
       const timeInMs = Date.UTC(2024, 0, 1, 9, 5, 1);
       expect(formatTimeLabel(timeInMs, 0)).toBe('09:05:01');
     });
+
+    it('returns ??:??:?? if timeInMs is 0', () => {
+      expect(formatTimeLabel(0, 0)).toBe('??:??:??');
+    });
   });
 
   describe('parsePrincipal', () => {
