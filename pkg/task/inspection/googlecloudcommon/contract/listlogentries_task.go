@@ -153,7 +153,7 @@ func NewListLogEntriesTask(taskSetting ListLogEntriesTaskSetting) coretask.Task[
 				return nil, fmt.Errorf("LogFilters returned an error: %w", err)
 			}
 			if len(filters) == 0 {
-				slog.DebugContext(ctx, "LogFilters returned an emptry list. Skipping fetching logs for this task")
+				slog.DebugContext(ctx, "LogFilters returned an empty list. Skipping fetching logs for this task")
 				return []*log.Log{}, nil
 			}
 			timePartitionCount, err := taskSetting.TimePartitionCount(ctx)

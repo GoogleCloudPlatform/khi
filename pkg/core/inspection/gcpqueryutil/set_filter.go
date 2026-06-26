@@ -64,7 +64,7 @@ func ParseSetFilter(filter string, aliases SetFilterAliasToItemsMap, allowAny bo
 	for i := 0; i < len(filterElements); i++ {
 		filterElements[i] = strings.TrimSpace(filterElements[i])
 		if filterElements[i] != "" && !validElementRegex.Match([]byte(filterElements[i])) {
-			return &SetFilterParseResult{ValidationError: "filter value must be whitespace splitted series of [a-zA-Z0-9\\-_]+"}, nil
+			return &SetFilterParseResult{ValidationError: "filter value must be whitespace split series of [a-zA-Z0-9\\-_]+"}, nil
 		}
 	}
 

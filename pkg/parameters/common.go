@@ -52,7 +52,7 @@ func (c *CommonParameters) PostProcess() error {
 func (c *CommonParameters) Prepare() error {
 	c.DataDestinationFolder = flag.String("data-destination-folder", "./data", "The folder path where the final khi file to be stored for serving.", "")
 	c.TemporaryFolder = flag.String("temporary-folder", "/tmp", "The folder path where be used as a working directory to generate the final khi file.", "")
-	c.UploadFileStoreFolder = flag.String("upload-file-store-folder", "", "The folder path to store the uploaded log files. Use the concatinated path of `--data-destination-folder` and `/upload` when this value is not specified.", "")
+	c.UploadFileStoreFolder = flag.String("upload-file-store-folder", "", "The folder path to store the uploaded log files. Use the concatenated path of `--data-destination-folder` and `/upload` when this value is not specified.", "")
 	c.Version = flag.Bool("version", false, "Show the version.", "")
 	return nil
 }

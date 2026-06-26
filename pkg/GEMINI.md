@@ -46,7 +46,7 @@ We follow Google's Go coding standards and the conventions outlined in the root 
   - Packages under `pkg/task/inspection` should follow the naming convention `[provider][resource_type]` (e.g., `googlecloudclustergke`, `ossclusterk8s`).
     - `resource_type` should be `log[log_type]` if the task is not specific to cluster type but commonly used by multiple cluster types.
     - `resource_type` should be `cluster[cluster_type]` if the task is specific to cluster type.
-    - Folders directly under `pkg/task/inspection` contians `impl` and `contract` folders.
+    - Folders directly under `pkg/task/inspection` contains `impl` and `contract` folders.
     - `impl` folder should contain the implementation of the task.
     - `contract` folder should contain the contract of the task(Task ID and types used as results in the task).
       - `contract` folder should not depend on `impl` folder.

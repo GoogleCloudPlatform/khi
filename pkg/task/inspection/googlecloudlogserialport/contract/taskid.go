@@ -29,7 +29,7 @@ var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scomm
 // LogQueryTaskID is the task id for the task that queries serial port logs from GCE nodes.
 var LogQueryTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "query")
 
-// LogFilterTaskID is the task id for filtering empty messages incldued in the serial port logs.
+// LogFilterTaskID is the task id for filtering empty messages included in the serial port logs.
 var LogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "filter")
 
 // FieldSetReadTaskID is the task id for reading serial port node specific fields(GCESerialPortLogFieldSet).

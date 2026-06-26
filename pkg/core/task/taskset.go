@@ -42,7 +42,7 @@ type sortTaskResult struct {
 	MissingDependencies []taskid.UntypedTaskReference
 	// CyclicDependencyPath is the path of task dependencies. Runnable became false if this field is "".
 	CyclicDependencyPath string
-	// Runnable indicate if this task graph is runnable or not. It means the tasks are sorted in topoligical order and all of input dependencies are resolved.
+	// Runnable indicate if this task graph is runnable or not. It means the tasks are sorted in topological order and all of input dependencies are resolved.
 	Runnable bool
 }
 
@@ -63,7 +63,7 @@ func NewTaskSet(tasks []UntypedTask) (*TaskSet, error) {
 	}, nil
 }
 
-// Add a task definiton to current TaskSet.
+// Add a task definition to current TaskSet.
 // Returns an error when duplicated task Id is assigned on the task.
 func (s *TaskSet) Add(newTask UntypedTask) error {
 	taskIdMap := map[string]interface{}{}

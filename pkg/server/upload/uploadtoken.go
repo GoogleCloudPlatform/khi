@@ -29,7 +29,7 @@ type UploadToken interface {
 
 // DirectUploadToken is a UploadToken for uploading the target file to API directly.
 type DirectUploadToken struct {
-	// ID identiies the file location uploade to this server directly.
+	// ID identiies the file location upload to this server directly.
 	ID string `json:"id"`
 }
 

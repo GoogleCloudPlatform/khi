@@ -131,7 +131,7 @@ export class RequestUserActionPopupComponent implements OnInit, OnDestroy {
           this.onSubmit();
         });
     } else if (this.formRequest.type === 'text') {
-      // Send validation requests with empty to receive the initial error mesage.
+      // Send validation requests with empty to receive the initial error message.
       this.validationRequests.next('');
     }
   }

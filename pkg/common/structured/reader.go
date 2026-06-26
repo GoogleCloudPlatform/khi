@@ -185,7 +185,7 @@ func (n *NodeReader) getNode(fieldPath string) (Node, error) {
 	return currentNode, nil
 }
 
-// ReadReflect unmarshal the strutured data into a given type after the gicen fieldPath.
+// ReadReflect unmarshal the structured data into a given type after the gicen fieldPath.
 // TODO: ReadReflect currently marshals and unmarshals the strtucred data into the target.
 //
 //	There should be room to improve this behavior regarding the performance.
