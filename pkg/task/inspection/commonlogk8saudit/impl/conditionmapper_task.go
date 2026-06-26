@@ -20,6 +20,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -43,6 +44,19 @@ type conditionLogToTimelineMapperTaskStateV2 struct {
 	AvailableTypes map[string]struct{}
 	// ConditionWalkers is the map of condition walkers.
 	ConditionWalkers map[string]*conditionWalkerV2
+	// uidToCreationTimestampMap maps UID to creationTimestamp.
+	uidToCreationTimestampMap map[string]time.Time
+	// parentPathToUIDMap maps parent resource path to its UID history.
+	parentPathToUIDMap map[string]*common.TimeSeries[string]
+}
+
+func newConditionLogToTimelineMapperTaskStateV2() *conditionLogToTimelineMapperTaskStateV2 {
+	return &conditionLogToTimelineMapperTaskStateV2{
+		AvailableTypes:            map[string]struct{}{},
+		ConditionWalkers:          map[string]*conditionWalkerV2{},
+		uidToCreationTimestampMap: map[string]time.Time{},
+		parentPathToUIDMap:        map[string]*common.TimeSeries[string]{},
+	}
 }
 
 // conditionLogToTimelineMapperTaskSettingV2 maps resource status conditions to timeline revisions under the V2 model.
@@ -94,19 +108,39 @@ func (c *conditionLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx 
 // PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
 func (c *conditionLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *conditionLogToTimelineMapperTaskStateV2) (*conditionLogToTimelineMapperTaskStateV2, error) {
 	if state == nil {
-		state = &conditionLogToTimelineMapperTaskStateV2{
-			AvailableTypes:   map[string]struct{}{},
-			ConditionWalkers: map[string]*conditionWalkerV2{},
-		}
-	}
-
-	bodyReader, hasBody := event.GetLastBodyReader("target")
-	if !hasBody || bodyReader == nil {
-		return state, nil
+		state = newConditionLogToTimelineMapperTaskStateV2()
 	}
 
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+
+	bodyReader, hasBody := event.GetLastBodyReader("target")
+
+	if event.GroupRole == "target" {
+		path := event.ResourceIdentity.String()
+		ts, found := state.parentPathToUIDMap[path]
+		if !found {
+			ts = common.NewTimeSeries[string]()
+			state.parentPathToUIDMap[path] = ts
+		}
+
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+			ts.Set(commonFieldSet.Timestamp, "")
+		} else if hasBody && bodyReader != nil {
+			uid, _ := GetUID(bodyReader)
+			if uid != "" {
+				ts.Set(commonFieldSet.Timestamp, uid)
+				creationTime, found := GetCreationTimestamp(bodyReader)
+				if found {
+					state.uidToCreationTimestampMap[uid] = creationTime
+				}
+			}
+		}
+	}
+
+	if !hasBody || bodyReader == nil {
+		return state, nil
+	}
 
 	conditionsReader, err := bodyReader.GetReader("status.conditions")
 	if err != nil {
@@ -136,15 +170,17 @@ func (c *conditionLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Co
 	return state, nil
 }
 
+// resolveUID returns the active UID at time t.
+func (c *conditionLogToTimelineMapperTaskSettingV2) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
+	uid, ok := ts.Get(t)
+	if ok && uid != "" {
+		return uid
+	}
+	return ""
+}
+
 // ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
 func (c *conditionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *conditionLogToTimelineMapperTaskStateV2) (*khifilev6.TimelineChangeSet, *conditionLogToTimelineMapperTaskStateV2, error) {
-	if state == nil {
-		state = &conditionLogToTimelineMapperTaskStateV2{
-			AvailableTypes:   map[string]struct{}{},
-			ConditionWalkers: map[string]*conditionWalkerV2{},
-		}
-	}
-
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
@@ -174,26 +210,41 @@ func (c *conditionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Conte
 	}
 	slices.Sort(sortedKeys)
 
+	var uid string
+	var found bool
+	if hasBody && bodyReader != nil {
+		uid, found = GetUID(bodyReader)
+	}
+	if !found || uid == "" {
+		path := event.ResourceIdentity.String()
+		if ts, foundMap := state.parentPathToUIDMap[path]; foundMap {
+			uid = c.resolveUID(ts, commonFieldSet.Timestamp)
+		}
+	}
+
 	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation {
-		creationTime, found := GetCreationTimestamp(bodyReader)
-		if found {
-			if commonFieldSet.Timestamp.Sub(creationTime) > c.minimumDeltaTimeToCreateInferredCreationRevision {
-				// The creation time is not included in the log range.
-				for _, key := range sortedKeys {
-					walker := state.ConditionWalkers[key]
-					if walker == nil {
-						conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-						walker = newConditionWalkerV2(conditionPath, key)
-						state.ConditionWalkers[key] = walker
-					}
-					cs.AddRevision(walker.conditionPath, &khifilev6.StagingRevision{
-						VerbType:     k8sFieldSet.Verb,
-						ResourceBody: nil,
-						Principal:    k8sFieldSet.Principal,
-						ChangedTime:  creationTime,
-						StateType:    commonlogk8saudit_contract.RevisionStateConditionNoAvailableInfo,
-					})
+		var creationTime time.Time
+		var hasCreationTime bool
+		if uid != "" {
+			creationTime, hasCreationTime = state.uidToCreationTimestampMap[uid]
+		}
+
+		if hasCreationTime {
+			// The creation time is not included in the log range.
+			for _, key := range sortedKeys {
+				walker := state.ConditionWalkers[key]
+				if walker == nil {
+					conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
+					walker = newConditionWalkerV2(conditionPath, key)
+					state.ConditionWalkers[key] = walker
 				}
+				cs.AddRevision(walker.conditionPath, &khifilev6.StagingRevision{
+					VerbType:     k8sFieldSet.Verb,
+					ResourceBody: nil,
+					Principal:    k8sFieldSet.Principal,
+					ChangedTime:  creationTime,
+					StateType:    commonlogk8saudit_contract.RevisionStateConditionNoAvailableInfo,
+				})
 			}
 		}
 	}
@@ -222,7 +273,7 @@ func (c *conditionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Conte
 				ResourceBody: nil,
 				Principal:    k8sFieldSet.Principal,
 				ChangedTime:  commonFieldSet.Timestamp,
-				StateType:    commonlogk8saudit_contract.RevisionStateConditionNotGiven,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			})
 		}
 	}

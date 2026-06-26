@@ -392,6 +392,7 @@ status:
 
 		bodyYAML := `
 metadata:
+  uid: uid-1
   creationTimestamp: "2023-12-31T23:59:00Z"
 status:
   conditions: []
@@ -430,6 +431,9 @@ status:
 			ConditionWalkers: map[string]*conditionWalkerV2{
 				"Ready": newConditionWalkerV2(conditionPath, "Ready"),
 			},
+			uidToCreationTimestampMap: map[string]time.Time{
+				"uid-1": time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
+			},
 		}
 
 		cs, _, err := taskSetting.ProcessLog(ctx, event, initialState)
@@ -440,6 +444,114 @@ status:
 		testchangeset.AssertTimeline(t, cs).
 			HasRevision(conditionPath, &khifilev6.StagingRevision{
 				VerbType:     commonlogk8saudit_contract.VerbCreate,
+				ResourceBody: nil,
+				Principal:    "user-1",
+				ChangedTime:  time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
+				StateType:    commonlogk8saudit_contract.RevisionStateConditionNoAvailableInfo,
+			}, nodeComparer)
+	})
+
+	t.Run("PreProcessLog and ProcessLog inferred creation with UID tracking", func(t *testing.T) {
+		builder := khifilev6.NewBuilder()
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+		// Log 1: update event at t=10s, contains UID and creationTimestamp
+		logObj1 := log.NewLogWithFieldSetsForTest(
+			&log.CommonFieldSet{Timestamp: time.Date(2024, 1, 1, 0, 0, 10, 0, time.UTC)},
+			&commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbUpdate, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyYAML1 := `
+metadata:
+  uid: "uid-1"
+  creationTimestamp: "2023-12-31T23:59:00Z"
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:00Z"
+`
+		bodyReader1 := structured.NewNodeReader(parseYAML(bodyYAML1))
+
+		// Log 2: patch event at t=5s (first event), lacks UID and creationTimestamp in body
+		logObj2 := log.NewLogWithFieldSetsForTest(
+			&log.CommonFieldSet{Timestamp: time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC)},
+			&commonlogk8saudit_contract.K8sAuditLogFieldSet{Verb: commonlogk8saudit_contract.VerbPatch, Principal: "user-1", ClusterName: "k8s"},
+		)
+		bodyYAML2 := `
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:00Z"
+`
+		bodyReader2 := structured.NewNodeReader(parseYAML(bodyYAML2))
+
+		resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+			Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
+						{Log: logObj2, ResourceBodyReader: bodyReader2, ResourceBodyYAML: bodyYAML2},
+						{Log: logObj1, ResourceBodyReader: bodyReader1, ResourceBodyYAML: bodyYAML1},
+					},
+				},
+			},
+		}
+
+		event1 := commonlogk8saudit_contract.MultiGroupLogEvent{
+			Log:              logObj2,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+			GroupSet:         groupSet,
+		}
+		event2 := commonlogk8saudit_contract.MultiGroupLogEvent{
+			Log:              logObj1,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			GroupSet:         groupSet,
+		}
+
+		var state *conditionLogToTimelineMapperTaskStateV2
+		var err error
+
+		// Run PreProcessLog
+		state, err = taskSetting.PreProcessLog(ctx, 0, event2, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 1 failed: %v", err)
+		}
+		state, err = taskSetting.PreProcessLog(ctx, 0, event1, state)
+		if err != nil {
+			t.Fatalf("PreProcessLog 2 failed: %v", err)
+		}
+
+		// Run ProcessLog for the first event (Log 2)
+		cs, _, err := taskSetting.ProcessLog(ctx, event1, state)
+		if err != nil {
+			t.Fatalf("ProcessLog failed: %v", err)
+		}
+
+		// The creationTimestamp resolved from uid-1 is "2023-12-31T23:59:00Z".
+		// Log 2 timestamp is "2024-01-01T00:00:05Z".
+		// Difference is > 10 seconds, so it should generate inferred creation revision.
+		testchangeset.AssertTimeline(t, cs).
+			HasRevision(conditionPath, &khifilev6.StagingRevision{
+				VerbType:     commonlogk8saudit_contract.VerbPatch,
 				ResourceBody: nil,
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
@@ -519,7 +631,7 @@ status:
 				ResourceBody: nil,
 				Principal:    "user-1",
 				ChangedTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-				StateType:    commonlogk8saudit_contract.RevisionStateConditionNotGiven,
+				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			}, nodeComparer)
 	})
 }
