@@ -30,6 +30,7 @@
     "highlight.js": "^11.11.1",
     "highlightjs-line-numbers.js": "^2.9.1",
     "js-yaml": "^4.1.1",
+    "jsondiffpatch": "^0.7.6",
     "marked": "^18.0.5",
     "material-symbols": "^0.40.2",
     "ngx-diff": "^13.1.0",

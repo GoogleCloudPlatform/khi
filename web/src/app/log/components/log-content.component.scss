@@ -78,7 +78,7 @@ $search-highlight-active-text-color: mat.m2-get-color-from-palette(
 
 .log-body-container {
   grid: 'logbody';
-  margin: 0 10px;
+  margin: 0;
   overflow: auto;
 
   code {

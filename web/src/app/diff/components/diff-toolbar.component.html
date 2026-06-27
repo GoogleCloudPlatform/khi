@@ -28,6 +28,31 @@
       ></mat-slide-toggle
     >
   </div>
+  @if (diffCount() > 0) {
+    <div class="center">
+      <button
+        matIconButton
+        class="toolbar-button"
+        matTooltip="Previous change"
+        [disabled]="currentDiffIndex() <= 1"
+        (click)="prevDiff.emit()"
+      >
+        <mat-icon>keyboard_arrow_up</mat-icon>
+      </button>
+      <span class="diff-counter">
+        {{ currentDiffIndex() }} / {{ diffCount() }}
+      </span>
+      <button
+        matIconButton
+        class="toolbar-button"
+        matTooltip="Next change"
+        [disabled]="currentDiffIndex() >= diffCount()"
+        (click)="nextDiff.emit()"
+      >
+        <mat-icon>keyboard_arrow_down</mat-icon>
+      </button>
+    </div>
+  }
   <div class="right">
     <button
       matIconButton

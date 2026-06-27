@@ -117,8 +117,12 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   /**
    * Computed string of the previous revision's content, formatted according to managed fields visibility.
    */
-  protected readonly previousRevisionContent = computed(() => {
-    const content = this.previousRevision()?.bodyYAML ?? '';
+  protected readonly previousRevisionContent = computed<string | null>(() => {
+    const previous = this.previousRevision();
+    if (!previous) {
+      return null;
+    }
+    const content = previous.bodyYAML ?? '';
     return this.showManagedFields()
       ? content
       : this.removeManagedField(content);

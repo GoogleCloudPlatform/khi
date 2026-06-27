@@ -17,6 +17,7 @@ globs: **/*.ts
 - Do NOT prefix interface names with `I`.
 - Do NOT use `as unknown as X` type assertions in non test code.
 - Do NOT use Object literal type in non test code. Define an interface instead.
+- Do NOT reference types by accessing fields of other types (e.g., `Type['field']`). Use the official type name directly.
 
 ## Angular coding rules
 
