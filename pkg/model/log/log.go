@@ -66,7 +66,7 @@ func NewLogFromYAMLString(yaml string) (*Log, error) {
 	return NewLog(structured.NewNodeReader(node)), nil
 }
 
-// NewLogWithFieldSetsForTest generate an empty Log with given FieldSet. This is for testing purpose to instantiate a log already parsed.
+// NewLogWithFieldSetsForTest generates an empty Log with given FieldSet. This is for testing purposes to instantiate a log already parsed.
 func NewLogWithFieldSetsForTest(fieldSets ...FieldSet) *Log {
 	log := NewLog(&structured.NodeReader{})
 	for _, fieldSet := range fieldSets {
