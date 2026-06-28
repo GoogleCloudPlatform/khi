@@ -57,7 +57,7 @@ func NewLog(reader *structured.NodeReader) *Log {
 	}
 }
 
-// NewLogFromYAMLString instantiate a new Log from the given YAML string.
+// NewLogFromYAMLString instantiates a new Log from the given YAML string.
 func NewLogFromYAMLString(yaml string) (*Log, error) {
 	node, err := structured.FromYAML(yaml)
 	if err != nil {
