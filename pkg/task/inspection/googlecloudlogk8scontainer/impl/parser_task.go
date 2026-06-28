@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -154,7 +155,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[st
 )
 
 type containerLogPodPhaseTimelineMapper struct {
-	inspectiontaskbase.SinglePassMapperBase[string]
+	inspectiontaskbase.SinglePassMapperBase[*containerLogPodPhaseMapperState]
 }
 
 func (m *containerLogPodPhaseTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
@@ -172,23 +173,37 @@ func (m *containerLogPodPhaseTimelineMapper) GroupedLogTask() taskid.TaskReferen
 	return googlecloudlogk8scontainer_contract.LogGrouperTaskID.Ref()
 }
 
-func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevNodeName string) (*khifilev6.TimelineChangeSet, string, error) {
-	if prevNodeName == "AUDIT" {
-		return nil, "AUDIT", nil
+type containerLogPodPhaseMapperState struct {
+	LastNodeName  string
+	LastLabels    map[string]string
+	AuditLogFound bool
+}
+
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if bv, ok := b[k]; !ok || v != bv {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, state *containerLogPodPhaseMapperState) (*khifilev6.TimelineChangeSet, *containerLogPodPhaseMapperState, error) {
+	if state != nil && state.AuditLogFound {
+		return nil, state, nil
 	}
 
 	nodeFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{})
 	if err != nil || nodeFields.NodeName == "" {
-		return nil, prevNodeName, nil
-	}
-
-	if prevNodeName == nodeFields.NodeName {
-		return nil, prevNodeName, nil
+		return nil, state, nil
 	}
 
 	containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{})
 	if err != nil {
-		return nil, prevNodeName, nil
+		return nil, state, nil
 	}
 
 	clusterName := containerFields.ClusterName
@@ -212,23 +227,94 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 	_, hasBindingRevision := resourceResult.Revisions[bindingPath]
 
 	if hasPodRevision || hasBindingRevision {
-		return nil, "AUDIT", nil
+		return nil, &containerLogPodPhaseMapperState{AuditLogFound: true}, nil
+	}
+
+	nodeNameChanged := state == nil || state.LastNodeName != nodeFields.NodeName
+	labelsChanged := state == nil || !mapsEqual(state.LastLabels, nodeFields.PodLabels)
+
+	if !nodeNameChanged && !labelsChanged {
+		return nil, state, nil
 	}
 
 	// Generate Pod phase timeline path under the Node
 	podPhasePath := mustPodPhaseTimelinePath(ctx, clusterName, nodeFields.NodeName, containerFields.Namespace, containerFields.PodName, "unknown")
 
+	labels := map[string]any{}
+	for k, v := range nodeFields.PodLabels {
+		labels[k] = v
+	}
+
+	podManifest := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Pod",
+		"metadata": map[string]any{
+			"name":      containerFields.PodName,
+			"namespace": containerFields.Namespace,
+			"labels":    labels,
+		},
+		"spec": map[string]any{
+			"nodeName": nodeFields.NodeName,
+		},
+	}
+	podNode, err := structured.FromGoValue(podManifest, &structured.AlphabeticalGoMapKeyOrderProvider{})
+	if err != nil {
+		return nil, state, fmt.Errorf("failed to generate pod manifest: %w", err)
+	}
+
+	bindingManifest := map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Binding",
+		"metadata": map[string]any{
+			"name":      containerFields.PodName,
+			"namespace": containerFields.Namespace,
+		},
+		"target": map[string]any{
+			"kind": "Node",
+			"name": nodeFields.NodeName,
+		},
+	}
+	bindingNode, err := structured.FromGoValue(bindingManifest, &structured.AlphabeticalGoMapKeyOrderProvider{})
+	if err != nil {
+		return nil, state, fmt.Errorf("failed to generate binding manifest: %w", err)
+	}
+
 	cs := khifilev6.NewTimelineChangeSet(l)
 
-	cs.AddRevision(podPhasePath, &khifilev6.StagingRevision{
-		ChangedTime:  time.Unix(0, 0),
-		ResourceBody: nil,
-		Principal:    "N/A",
-		VerbType:     commonlogk8saudit_contract.VerbUnknown,
-		StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
-	})
+	if nodeNameChanged {
+		cs.AddRevision(podPhasePath, &khifilev6.StagingRevision{
+			ChangedTime:  time.Unix(0, 0),
+			ResourceBody: podNode,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbUnknown,
+			StateType:    commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+		})
+	}
 
-	return cs, nodeFields.NodeName, nil
+	if nodeNameChanged || labelsChanged {
+		cs.AddRevision(podPath, &khifilev6.StagingRevision{
+			ChangedTime:  time.Unix(0, 0),
+			ResourceBody: podNode,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbUnknown,
+			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+		})
+
+		cs.AddRevision(bindingPath, &khifilev6.StagingRevision{
+			ChangedTime:  time.Unix(0, 0),
+			ResourceBody: bindingNode,
+			Principal:    "N/A",
+			VerbType:     commonlogk8saudit_contract.VerbUnknown,
+			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
+		})
+	}
+
+	nextState := &containerLogPodPhaseMapperState{
+		LastNodeName: nodeFields.NodeName,
+		LastLabels:   nodeFields.PodLabels,
+	}
+
+	return cs, nextState, nil
 }
 
 func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namespace, podName, uid string) *khifilev6.TimelinePath {
@@ -244,10 +330,10 @@ func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 	})
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[string] = (*containerLogPodPhaseTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapperV2[*containerLogPodPhaseMapperState] = (*containerLogPodPhaseTimelineMapper)(nil)
 
 // PodPhaseTimelineMapperTask maps container logs to Pod phase timelines.
-var PodPhaseTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[string](
+var PodPhaseTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[*containerLogPodPhaseMapperState](
 	googlecloudlogk8scontainer_contract.PodPhaseTimelineMapperTaskID,
 	&containerLogPodPhaseTimelineMapper{},
 )

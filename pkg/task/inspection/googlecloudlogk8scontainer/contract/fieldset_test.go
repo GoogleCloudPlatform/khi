@@ -192,7 +192,8 @@ func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
 		{
 			desc: "from labels",
 			want: &GCPContainerLogNodeNameLabelFieldSet{
-				NodeName: "test-node",
+				NodeName:  "test-node",
+				PodLabels: map[string]string{},
 			},
 			input: `labels:
   compute.googleapis.com/resource_name: test-node`,
@@ -200,10 +201,26 @@ func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
 		{
 			desc: "missing labels",
 			want: &GCPContainerLogNodeNameLabelFieldSet{
-				NodeName: "",
+				NodeName:  "",
+				PodLabels: map[string]string{},
 			},
 			input: `labels:
   foo: bar`,
+		},
+		{
+			desc: "with k8s-pod labels",
+			want: &GCPContainerLogNodeNameLabelFieldSet{
+				NodeName: "test-node",
+				PodLabels: map[string]string{
+					"app":               "my-app",
+					"pod-template-hash": "12345",
+				},
+			},
+			input: `labels:
+  compute.googleapis.com/resource_name: test-node
+  k8s-pod/app: my-app
+  k8s-pod/pod-template-hash: "12345"
+  other-label: foo`,
 		},
 	}
 	for _, tc := range testCase {

@@ -16,6 +16,7 @@ package googlecloudlogk8scontainer_contract
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -99,7 +100,8 @@ var _ log.FieldSetReader = (*K8sContainerLogFieldSetReader)(nil)
 
 // GCPContainerLogNodeNameLabelFieldSet extracts the GCE resource name (Node name) if available.
 type GCPContainerLogNodeNameLabelFieldSet struct {
-	NodeName string
+	NodeName  string
+	PodLabels map[string]string
 }
 
 // Kind implements log.FieldSet.
@@ -119,7 +121,26 @@ func (g *GCPContainerLogNodeNameLabelFieldSetReader) FieldSetKind() string {
 // Read implements log.FieldSetReader.
 func (g *GCPContainerLogNodeNameLabelFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	nodeName := reader.ReadStringOrDefault(`labels.compute\.googleapis\.com/resource_name`, "")
-	return &GCPContainerLogNodeNameLabelFieldSet{NodeName: nodeName}, nil
+
+	podLabels := make(map[string]string)
+	labelsReader, err := reader.GetReader("labels")
+	if err == nil {
+		labelsReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
+			if strings.HasPrefix(key.Key, "k8s-pod/") {
+				valStr, err := value.ReadString("")
+				if err == nil {
+					trimmedKey := strings.TrimPrefix(key.Key, "k8s-pod/")
+					podLabels[trimmedKey] = valStr
+				}
+			}
+			return true
+		})
+	}
+
+	return &GCPContainerLogNodeNameLabelFieldSet{
+		NodeName:  nodeName,
+		PodLabels: podLabels,
+	}, nil
 }
 
 var _ log.FieldSetReader = (*GCPContainerLogNodeNameLabelFieldSetReader)(nil)
