@@ -21,7 +21,7 @@ import (
 )
 
 // StringField returns a TestLogOpt modifying the field at the specified fieldPath to the value.
-// It creates maps in ancestor when it doesn't exist.
+// It creates ancestor maps when they don't exist.
 func StringField(fieldPath string, value string) TestLogOpt {
 	return func(original structured.Node) (structured.Node, error) {
 		fieldPathInArray := strings.Split(fieldPath, ".")
