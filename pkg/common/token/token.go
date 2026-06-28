@@ -35,7 +35,7 @@ func NewWithExpiry(rawToken string, validAtLeastUntil time.Time) *Token {
 	}
 }
 
-// New instantiate a new Token without expiration time.
+// New instantiates a new Token without expiration time.
 func New(rawToken string) *Token {
 	return &Token{
 		RawToken: rawToken,
