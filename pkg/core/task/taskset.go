@@ -42,7 +42,7 @@ type sortTaskResult struct {
 	MissingDependencies []taskid.UntypedTaskReference
 	// CyclicDependencyPath is the path of task dependencies. Runnable became false if this field is "".
 	CyclicDependencyPath string
-	// Runnable indicate if this task graph is runnable or not. It means the tasks are sorted in topological order and all of input dependencies are resolved.
+	// Runnable indicates if this task graph is runnable or not. It means the tasks are sorted in topological order and all of input dependencies are resolved.
 	Runnable bool
 }
 
