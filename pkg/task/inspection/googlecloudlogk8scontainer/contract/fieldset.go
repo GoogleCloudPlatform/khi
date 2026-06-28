@@ -96,3 +96,30 @@ func (k *K8sContainerLogFieldSetReader) Read(reader *structured.NodeReader) (log
 }
 
 var _ log.FieldSetReader = (*K8sContainerLogFieldSetReader)(nil)
+
+// GCPContainerLogNodeNameLabelFieldSet extracts the GCE resource name (Node name) if available.
+type GCPContainerLogNodeNameLabelFieldSet struct {
+	NodeName string
+}
+
+// Kind implements log.FieldSet.
+func (g *GCPContainerLogNodeNameLabelFieldSet) Kind() string {
+	return "gcp_container_log_node_name_label"
+}
+
+var _ log.FieldSet = (*GCPContainerLogNodeNameLabelFieldSet)(nil)
+
+type GCPContainerLogNodeNameLabelFieldSetReader struct{}
+
+// FieldSetKind implements log.FieldSetReader.
+func (g *GCPContainerLogNodeNameLabelFieldSetReader) FieldSetKind() string {
+	return (&GCPContainerLogNodeNameLabelFieldSet{}).Kind()
+}
+
+// Read implements log.FieldSetReader.
+func (g *GCPContainerLogNodeNameLabelFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	nodeName := reader.ReadStringOrDefault(`labels.compute\.googleapis\.com/resource_name`, "")
+	return &GCPContainerLogNodeNameLabelFieldSet{NodeName: nodeName}, nil
+}
+
+var _ log.FieldSetReader = (*GCPContainerLogNodeNameLabelFieldSetReader)(nil)

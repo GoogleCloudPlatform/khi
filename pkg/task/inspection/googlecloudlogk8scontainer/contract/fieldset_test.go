@@ -182,3 +182,44 @@ func TestK8sContainerLogFieldSet_GroupKey(t *testing.T) {
 		t.Errorf("GroupKey() = %q, want %q", got, want)
 	}
 }
+
+func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
+	testCase := []struct {
+		desc  string
+		want  *GCPContainerLogNodeNameLabelFieldSet
+		input string
+	}{
+		{
+			desc: "from labels",
+			want: &GCPContainerLogNodeNameLabelFieldSet{
+				NodeName: "test-node",
+			},
+			input: `labels:
+  compute.googleapis.com/resource_name: test-node`,
+		},
+		{
+			desc: "missing labels",
+			want: &GCPContainerLogNodeNameLabelFieldSet{
+				NodeName: "",
+			},
+			input: `labels:
+  foo: bar`,
+		},
+	}
+	for _, tc := range testCase {
+		t.Run(tc.desc, func(t *testing.T) {
+			l, err := log.NewLogFromYAMLString(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse log from yaml: %v", err)
+			}
+			l.SetFieldSetReader(&GCPContainerLogNodeNameLabelFieldSetReader{})
+			nodeFieldSet, err := log.GetFieldSet(l, &GCPContainerLogNodeNameLabelFieldSet{})
+			if err != nil {
+				t.Fatalf("failed to extract node field: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, nodeFieldSet); diff != "" {
+				t.Errorf("GCPContainerLogNodeNameLabelFieldSetReader mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}

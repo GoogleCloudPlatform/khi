@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
+
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
@@ -142,6 +144,217 @@ func TestLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
 			}
 			tc.assert(t, ctx, cs)
+		})
+	}
+}
+
+// TestPodPhaseTimelineMapper_ProcessLogByGroup tests the containerLogPodPhaseTimelineMapper.ProcessLogByGroup function.
+func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
+	builder := khifilev6.NewBuilder()
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+	clusterTimeline := commonlogk8saudit_contract.MustK8sClusterTimeline(ctx, "test-cluster")
+	apiVersionTimeline := commonlogk8saudit_contract.MustK8sAPIVersionTimeline(ctx, clusterTimeline, "core/v1")
+	kindTimeline := commonlogk8saudit_contract.MustK8sKindTimeline(ctx, apiVersionTimeline, "pod")
+	namespaceTimeline := commonlogk8saudit_contract.MustK8sNamespaceTimeline(ctx, kindTimeline, "test-namespace")
+	podPath := commonlogk8saudit_contract.MustK8sNamespacedResourceTimeline(ctx, namespaceTimeline, "test-pod")
+	bindingPath := commonlogk8saudit_contract.MustK8sSubresourceTimeline(ctx, podPath, "binding")
+	expectedPath := mustPodPhaseTimelinePath(ctx, "test-cluster", "test-node", "test-namespace", "test-pod", "unknown")
+
+	testCases := []struct {
+		name                   string
+		inputLogs              []*log.Log
+		cluster                googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		resourceRevisionResult inspectiontaskbase.TimelineMapperResult
+		assert                 func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet)
+	}{
+		{
+			name: "skipped because NodeName is empty",
+			inputLogs: []*log.Log{
+				log.NewLogWithFieldSetsForTest(
+					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+						Namespace:     "test-namespace",
+						PodName:       "test-pod",
+						ContainerName: "test-container",
+					},
+					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+						NodeName: "",
+					},
+					&log.CommonFieldSet{
+						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+					},
+				),
+			},
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
+				if css[0] != nil {
+					t.Errorf("expected cs to be nil, got %v", css[0])
+				}
+			},
+		},
+		{
+			name: "mapped successfully (no audit log)",
+			inputLogs: []*log.Log{
+				log.NewLogWithFieldSetsForTest(
+					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+						Namespace:     "test-namespace",
+						PodName:       "test-pod",
+						ContainerName: "test-container",
+					},
+					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+						NodeName: "test-node",
+					},
+					&log.CommonFieldSet{
+						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+					},
+				),
+			},
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
+				testchangeset.AssertTimeline(t, css[0]).
+					HasRevision(expectedPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "N/A",
+						VerbType:    nil,
+						StateType:   commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+					})
+			},
+		},
+		{
+			name: "skipped because audit log has Pod resource timeline",
+			inputLogs: []*log.Log{
+				log.NewLogWithFieldSetsForTest(
+					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+						Namespace:     "test-namespace",
+						PodName:       "test-pod",
+						ContainerName: "test-container",
+					},
+					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+						NodeName: "test-node",
+					},
+					&log.CommonFieldSet{
+						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+					},
+				),
+			},
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			resourceRevisionResult: inspectiontaskbase.TimelineMapperResult{
+				Revisions: map[*khifilev6.TimelinePath]int{
+					podPath: 1,
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
+				if css[0] != nil {
+					t.Errorf("expected cs to be nil, got %v", css[0])
+				}
+			},
+		},
+		{
+			name: "skipped because audit log has Pod binding timeline",
+			inputLogs: []*log.Log{
+				log.NewLogWithFieldSetsForTest(
+					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+						Namespace:     "test-namespace",
+						PodName:       "test-pod",
+						ContainerName: "test-container",
+					},
+					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+						NodeName: "test-node",
+					},
+					&log.CommonFieldSet{
+						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+					},
+				),
+			},
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			resourceRevisionResult: inspectiontaskbase.TimelineMapperResult{
+				Revisions: map[*khifilev6.TimelinePath]int{
+					bindingPath: 1,
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
+				if css[0] != nil {
+					t.Errorf("expected cs to be nil, got %v", css[0])
+				}
+			},
+		},
+		{
+			name: "mapped once and skipped for subsequent logs with same node",
+			inputLogs: []*log.Log{
+				log.NewLogWithFieldSetsForTest(
+					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+						Namespace:     "test-namespace",
+						PodName:       "test-pod",
+						ContainerName: "test-container",
+					},
+					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+						NodeName: "test-node",
+					},
+					&log.CommonFieldSet{
+						Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+					},
+				),
+				log.NewLogWithFieldSetsForTest(
+					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+						Namespace:     "test-namespace",
+						PodName:       "test-pod",
+						ContainerName: "test-container",
+					},
+					&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSet{
+						NodeName: "test-node",
+					},
+					&log.CommonFieldSet{
+						Timestamp: time.Date(2026, 5, 26, 12, 0, 1, 0, time.UTC),
+					},
+				),
+			},
+			cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			},
+			assert: func(t *testing.T, ctx context.Context, css []*khifilev6.TimelineChangeSet) {
+				if len(css) != 2 {
+					t.Fatalf("expected 2 changesets, got %d", len(css))
+				}
+				testchangeset.AssertTimeline(t, css[0]).
+					HasRevision(expectedPath, &khifilev6.StagingRevision{
+						ChangedTime: time.Unix(0, 0),
+						Principal:   "N/A",
+						VerbType:    nil,
+						StateType:   commonlogk8saudit_contract.RevisionStatePodPhaseUnknown,
+					})
+				if css[1] != nil {
+					t.Errorf("expected second changeset to be nil, got %v", css[1])
+				}
+			},
+		},
+	}
+
+	mapper := &containerLogPodPhaseTimelineMapper{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8scontainer_contract.ClusterIdentityTaskID.Ref(), tc.cluster)
+			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID.Ref(), tc.resourceRevisionResult)
+
+			var css []*khifilev6.TimelineChangeSet
+			state := ""
+			for _, l := range tc.inputLogs {
+				cs, nextState, err := mapper.ProcessLogByGroup(ctx, l, state)
+				if err != nil {
+					t.Fatalf("ProcessLogByGroup() returned unexpected error: %v", err)
+				}
+				css = append(css, cs)
+				state = nextState
+			}
+			tc.assert(t, ctx, css)
 		})
 	}
 }
