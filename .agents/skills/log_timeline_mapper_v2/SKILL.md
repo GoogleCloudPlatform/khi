@@ -241,7 +241,7 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*SimpleEventMapper)(
 
 ```go
 // Defined in 'contract' package:
-var MyTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}]("my-timeline-mapper")
+var MyTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult]("my-timeline-mapper")
 
 // Instantiated in 'impl' package:
 task := NewLogToTimelineMapperTaskV2(mycontract.MyTimelineMapperTaskID, &SimpleEventMapper{})

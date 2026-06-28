@@ -39,4 +39,4 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](MultiCloud
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](MultiCloudAPIAuditLogTaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](MultiCloudAPIAuditLogTaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](MultiCloudAPIAuditLogTaskIDPrefix + "timeline-mapper")

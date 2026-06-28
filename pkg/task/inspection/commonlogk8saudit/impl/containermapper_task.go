@@ -21,6 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -81,7 +82,7 @@ func (c *containerLogToTimelineMapperTaskSettingV2) PassCount() int {
 }
 
 // TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[struct{}] {
+func (c *containerLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.ContainerLogToTimelineMapperTaskID
 }
 

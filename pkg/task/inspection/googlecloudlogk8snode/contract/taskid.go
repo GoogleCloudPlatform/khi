@@ -51,7 +51,7 @@ var ContainerdLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskb
 var PodSandboxIDDiscoveryTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*PodSandboxIDInfo]](TaskIDPrefix + "containerd-id-discovery")
 
 // ContainerdLogLogToTimelineMapperTaskID is the ID for a task to add events or revisions based on containerd logs.
-var ContainerdLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "containerd-log-timeline-mapper")
+var ContainerdLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "containerd-log-timeline-mapper")
 
 // KubeletLogFilterTaskID is the ID for a task to filter only the logs for kubelet.
 var KubeletLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "kubelet-log-filter")
@@ -60,7 +60,7 @@ var KubeletLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskI
 var KubeletLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "kubelet-log-group")
 
 // KubeletLogLogToTimelineMapperTaskID is the ID for a task to add events or revisions based on kubelet logs.
-var KubeletLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "kubelet-log-timeline-mapper")
+var KubeletLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "kubelet-log-timeline-mapper")
 
 // OtherLogFilterTaskID is the task ID for filtering other logs.
 var OtherLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "other-log-filter")
@@ -69,7 +69,7 @@ var OtherLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDP
 var OtherLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "other-log-group")
 
 // OtherLogLogToTimelineMapperTaskID is the task ID for a task to add events or revisions based on other logs.
-var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "other-log-timeline-mapper")
+var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "other-log-timeline-mapper")
 
 // TailTaskID is a nop task just to require all child parsers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")

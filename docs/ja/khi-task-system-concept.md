@@ -706,13 +706,15 @@ var IngestLogsTask = inspectiontaskbase.NewLogIngesterTask(
 )
 ```
 
-### NewLogToTimelineMapperTask
+### NewLogToTimelineMapperTaskV2
 
-`LogToTimelineMapperTask` はログを複数のリソースに関連付けたり、ログサマリーを上書きしたりします。
+`LogToTimelineMapperTaskV2` はログを複数のリソースに関連付けたり、ログサマリーを上書きしたりします。
 
-履歴を変更するには、`ProcessLogByGroup` に渡される `ChangeSet` オブジェクトを使用します。
+履歴を変更するには、`ProcessLogByGroup` から返される `TimelineChangeSet` オブジェクトを使用します。
 
-#### `ChangeSet` の操作
+このタスクは、実行された書き込みのサマリー（どのタイムラインパスにイベント、リビジョン、またはエイリアスが追加されたか）を含む `TimelineMapperResult` を返します。後続のタスクはこの結果を参照して特定のタイムラインが構築されたかどうかを判定し、特定のタイムラインへの書き込みがない場合に別のログソースから代替のタイムラインを生成する、といった制御を行うことができます。
+
+#### `TimelineChangeSet` の操作
 
 - **`AddEvent(resourcePath)`**: タイムラインに特定の時点のイベントを追加します。
 - **`AddRevision(resourcePath, revision)`**: 特定の時間における状態を追加します。
@@ -731,21 +733,22 @@ type MyGroupData struct {
 
 type MyMapper struct {}
 
-// Implement LogToTimelineMapper interface
-func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevData MyGroupData) (MyGroupData, error) {
-    // Modify history via ChangeSet
+// Implement LogToTimelineMapperV2 interface
+func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
+    cs := khifilev6.NewTimelineChangeSet()
+    // Modify history via TimelineChangeSet
     cs.SetLogSeverity(enum.SeverityInfo)
 
     // Add an event to a resource timeline
     cs.AddEvent(resourcepath.NameLayerGeneralItem("v1", "Pod", "default", "my-pod"))
 
     // Pass updated state to the next log in the group
-    return MyGroupData{Count: prevData.Count + 1}, nil
+    return cs, MyGroupData{Count: prevData.Count + 1}, nil
 }
 
-// ... Implement other interface methods (Dependencies, LogIngesterTask, GroupedLogTask) ...
+// ... Implement other interface methods (Dependencies, LogIngesterTask, GroupedLogTask, PassCount, PreProcessLogByGroup) ...
 
-var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
     MyMapperTaskID,
     &MyMapper{},
     inspectioncore_contract.FeatureTaskLabel("my-mapper",/*rest of the other parameters*/)  // LogToTimelineMapper is usually labeled with FeatureTaskLabel.

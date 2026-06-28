@@ -51,7 +51,7 @@ var SchedulerLogFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.
 var SchedulerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-scheduler")
 
 // SchedulerLogToTimelineMapperTaskID is the task ID for adding events on history based on scheduler logs.
-var SchedulerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-scheduler")
+var SchedulerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-scheduler")
 
 // ControllerManagerLogFilterTaskID is the task ID for filtering controller manager logs.
 var ControllerManagerLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "controller-manager-log-filter")
@@ -63,7 +63,7 @@ var ControllerManagerLogFieldSetReaderTaskID = taskid.NewDefaultImplementationID
 var ControllerManagerLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-controller-manager")
 
 // ControllerManagerLogToTimelineMapperTaskID is the task ID for adding events on history based on controller manager logs.
-var ControllerManagerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-controller-manager")
+var ControllerManagerLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-controller-manager")
 
 // OtherLogFilterTaskID is the task ID for filtering logs from other control plane components.
 var OtherLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](K8sControlPlaneLogTaskIDPrefix + "other-log-filter")
@@ -75,7 +75,7 @@ var OtherLogFieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log]
 var OtherLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](K8sControlPlaneLogTaskIDPrefix + "grouper-other")
 
 // OtherLogToTimelineMapperTaskID is the task ID for adding events on history based on the other control plane components.
-var OtherLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-other")
+var OtherLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](K8sControlPlaneLogTaskIDPrefix + "timeline-mapper-other")
 
 // TailTaskID is the task ID for the final task in the control plane log processing pipeline.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](K8sControlPlaneLogTaskIDPrefix + "tail")
