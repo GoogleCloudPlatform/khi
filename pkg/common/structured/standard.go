@@ -103,7 +103,7 @@ func (n *StandardScalarNode[T]) MarshalYAML() (interface{}, error) {
 	return yamlNode, nil
 }
 
-// NewStandardScalarNode instantiate the value of StandardScalarNode from the given value.
+// NewStandardScalarNode instantiates the value of StandardScalarNode from the given value.
 func NewStandardScalarNode[T comparable](value T) *StandardScalarNode[T] {
 	return &StandardScalarNode[T]{
 		value: value,
