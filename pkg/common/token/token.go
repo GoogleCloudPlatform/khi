@@ -27,7 +27,7 @@ type Token struct {
 	ValidAtLeastUntil time.Time
 }
 
-// NewWithExpiry instantiate a new Token from the raw token string and expiration time.
+// NewWithExpiry instantiates a new Token from the raw token string and expiration time.
 func NewWithExpiry(rawToken string, validAtLeastUntil time.Time) *Token {
 	return &Token{
 		RawToken:          rawToken,
