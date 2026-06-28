@@ -14,7 +14,7 @@
 
 package index
 
-// IndexTagGenerator generate list of tags to be injected in the index.html.
+// IndexTagGenerator generates list of tags to be injected in the index.html.
 type IndexTagGenerator interface {
 	// GenerateTags returns the tags injected in the header.
 	GenerateTags() []string
