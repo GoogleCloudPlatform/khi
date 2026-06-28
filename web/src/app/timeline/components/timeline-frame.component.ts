@@ -1140,7 +1140,7 @@ export class TimelineFrameComponent implements AfterViewInit {
         Math.max(
           calculator.minPixelPerMs(vpWidth),
           currentPixelsPerMs *
-            Math.pow(1 + scaleSensitivity, -Math.sign(event.deltaY)), // Only checks the sign of deltaY because the amount is completely different by the platform. https://developer.mozilla.org/en-US/docs/Web/API/Element/mousewheel_event#chrome
+            Math.pow(1 + scaleSensitivity, -Math.sign(event.deltaY)), // Only checks the sign of deltaY because the amount is completely different depending on the platform. https://developer.mozilla.org/en-US/docs/Web/API/Element/mousewheel_event#chrome
         ),
       );
 
