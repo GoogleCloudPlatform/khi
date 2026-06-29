@@ -17,6 +17,7 @@ package googlecloudlogk8scontainer_impl
 import (
 	"context"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -179,18 +180,6 @@ type containerLogPodPhaseMapperState struct {
 	AuditLogFound bool
 }
 
-func mapsEqual(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if bv, ok := b[k]; !ok || v != bv {
-			return false
-		}
-	}
-	return true
-}
-
 func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, state *containerLogPodPhaseMapperState) (*khifilev6.TimelineChangeSet, *containerLogPodPhaseMapperState, error) {
 	if state != nil && state.AuditLogFound {
 		return nil, state, nil
@@ -231,7 +220,7 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 	}
 
 	nodeNameChanged := state == nil || state.LastNodeName != nodeFields.NodeName
-	labelsChanged := state == nil || !mapsEqual(state.LastLabels, nodeFields.PodLabels)
+	labelsChanged := state == nil || !maps.Equal(state.LastLabels, nodeFields.PodLabels)
 
 	if !nodeNameChanged && !labelsChanged {
 		return nil, state, nil
@@ -299,7 +288,9 @@ func (m *containerLogPodPhaseTimelineMapper) ProcessLogByGroup(ctx context.Conte
 			VerbType:     commonlogk8saudit_contract.VerbUnknown,
 			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
 		})
+	}
 
+	if nodeNameChanged {
 		cs.AddRevision(bindingPath, &khifilev6.StagingRevision{
 			ChangedTime:  time.Unix(0, 0),
 			ResourceBody: bindingNode,

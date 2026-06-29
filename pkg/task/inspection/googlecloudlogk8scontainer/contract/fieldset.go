@@ -125,7 +125,7 @@ func (g *GCPContainerLogNodeNameLabelFieldSetReader) Read(reader *structured.Nod
 	podLabels := make(map[string]string)
 	labelsReader, err := reader.GetReader("labels")
 	if err == nil {
-		labelsReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
+		for key, value := range labelsReader.Children() {
 			if strings.HasPrefix(key.Key, "k8s-pod/") {
 				valStr, err := value.ReadString("")
 				if err == nil {
@@ -133,8 +133,7 @@ func (g *GCPContainerLogNodeNameLabelFieldSetReader) Read(reader *structured.Nod
 					podLabels[trimmedKey] = valStr
 				}
 			}
-			return true
-		})
+		}
 	}
 
 	return &GCPContainerLogNodeNameLabelFieldSet{

@@ -431,7 +431,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 		},
 		{
-			name: "regenerate Pod and Binding when labels change",
+			name: "regenerate Pod when labels change",
 			inputLogs: []*log.Log{
 				log.NewLogWithFieldSetsForTest(
 					&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
@@ -497,7 +497,7 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
 
-				// Second log generates only Pod and Binding (labels changed, node remained same)
+				// Second log generates only Pod (labels changed, node remained same)
 				testchangeset.AssertTimeline(t, css[1]).
 					HasRevision(podPath, &khifilev6.StagingRevision{
 						ChangedTime:  time.Unix(0, 0),
@@ -505,14 +505,11 @@ func TestPodPhaseTimelineMapper_ProcessLogByGroup(t *testing.T) {
 						Principal:    "N/A",
 						VerbType:     commonlogk8saudit_contract.VerbUnknown,
 						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
-					}, nodeComparer).
-					HasRevision(bindingPath, &khifilev6.StagingRevision{
-						ChangedTime:  time.Unix(0, 0),
-						ResourceBody: makeBindingNode("test-node"),
-						Principal:    "N/A",
-						VerbType:     commonlogk8saudit_contract.VerbUnknown,
-						StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceExistingLogNotFound,
 					}, nodeComparer)
+
+				if css[1].Revisions[bindingPath] != nil {
+					t.Errorf("expected no revision on bindingPath in second changeset, but got one")
+				}
 
 				// Verify PodPhase timeline does NOT have a revision in the second changeset
 				if css[1].Revisions[expectedPath] != nil {
