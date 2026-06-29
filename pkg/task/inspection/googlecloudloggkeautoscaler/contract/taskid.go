@@ -36,4 +36,4 @@ var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogG
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](gkeAutoscalerTaskIDPrefix + "log-serializer")
 
 // LogToTimelineMapperTaskID is the task id for the task that modifies the history based on GKE autoscaler logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](gkeAutoscalerTaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](gkeAutoscalerTaskIDPrefix + "timeline-mapper")

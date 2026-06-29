@@ -123,7 +123,7 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 // ManifestLogToTimelineMapperV2 defines the interface for V2 manifest timeline mappers.
 type ManifestLogToTimelineMapperV2[T any] interface {
 	// TaskID returns the task ID.
-	TaskID() taskid.TaskImplementationID[struct{}]
+	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
 	// LogIngesterTask returns the task reference for the log ingester task.
 	LogIngesterTask() taskid.TaskReference[[]*log.Log]
 	// GroupedLogTask returns the task reference for the grouped log task.
@@ -167,14 +167,14 @@ func (ManifestStatelessMapperBaseV2) PreProcessLog(ctx context.Context, passInde
 }
 
 // NewManifestLogToTimelineMapperV2 creates a new timeline mapper task utilizing the V2 mapper interface.
-func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapperV2[T]) coretask.Task[struct{}] {
+func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapperV2[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
 	groupedLogTaskID := setting.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
 
-	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (struct{}, error) {
+	return inspectiontaskbase.NewProgressReportableInspectionTask(setting.TaskID(), dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (inspectiontaskbase.TimelineMapperResult, error) {
 		if taskMode == inspectioncore_contract.TaskModeDryRun {
 			slog.DebugContext(ctx, "Skipping task because this is dry run mode")
-			return struct{}{}, nil
+			return inspectiontaskbase.NewTimelineMapperResult(), nil
 		}
 
 		builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
@@ -183,7 +183,7 @@ func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapper
 		tp.MarkIndeterminate()
 		relatedGroupSets, err := setting.ResolveRelatedGroupSets(ctx, groupedLogs)
 		if err != nil {
-			return struct{}{}, err
+			return inspectiontaskbase.NewTimelineMapperResult(), err
 		}
 
 		var processedGroupCount atomic.Int32
@@ -215,6 +215,9 @@ func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapper
 			return sharedErr != nil
 		}
 
+		var resultMu sync.Mutex
+		finalResult := inspectiontaskbase.NewTimelineMapperResult()
+
 		pool := worker.NewPool(runtime.GOMAXPROCS(0))
 		passCount := setting.PassCount()
 
@@ -242,6 +245,8 @@ func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapper
 					}
 				}
 
+				localResult := inspectiontaskbase.NewTimelineMapperResult()
+
 				// 2. Final processing pass
 				for event := range iterateMultiGroupLog(groupSet) {
 					if hasErr() {
@@ -260,8 +265,21 @@ func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapper
 							setErr(err)
 							return
 						}
+						for p := range cs.Events {
+							localResult.Events[p]++
+						}
+						for p, revs := range cs.Revisions {
+							localResult.Revisions[p] += len(revs)
+						}
+						for alias, target := range cs.Aliases {
+							localResult.Aliases[alias] = target
+						}
 					}
 				}
+
+				resultMu.Lock()
+				finalResult.Merge(localResult)
+				resultMu.Unlock()
 			})
 		}
 
@@ -269,10 +287,10 @@ func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapper
 		updator.Done()
 
 		if sharedErr != nil {
-			return struct{}{}, sharedErr
+			return inspectiontaskbase.NewTimelineMapperResult(), sharedErr
 		}
 
-		return struct{}{}, nil
+		return finalResult, nil
 	})
 }
 

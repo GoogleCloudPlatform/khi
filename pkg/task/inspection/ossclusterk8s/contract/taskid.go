@@ -32,7 +32,7 @@ var EventAuditLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OS
 var OSSK8sEventFieldSetReadTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "event-fieldset-read")
 var OSSK8sEventLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OSSTaskPrefix + "event-log-ingester")
 var OSSK8sEventLogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](OSSTaskPrefix + "event-log-grouper")
-var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](OSSTaskPrefix + "event-timeline-mapper")
+var OSSK8sEventLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](OSSTaskPrefix + "event-timeline-mapper")
 
 var OSSK8sAuditLogProviderTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogProviderRef, "oss")
 var OSSK8sAuditLogParserTailTaskID = taskid.NewImplementationID(commonlogk8saudit_contract.K8sAuditLogParserTailRef, "oss")

@@ -122,7 +122,7 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPref
 
 // 5. Log Grouper & Timeline Mapper Task IDs
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "log-grouper")
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "timeline-mapper")
 ```
 
 #### `fieldset.go`
@@ -551,7 +551,7 @@ type MyManifestMapper struct {
  commonlogk8saudit_contract.ManifestSinglePassMapperBaseV2[*MyState]
 }
 
-func (m *MyManifestMapper) TaskID() taskid.TaskImplementationID[struct{}] {
+func (m *MyManifestMapper) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
  return mycontract.MyManifestMapperTaskID
 }
 

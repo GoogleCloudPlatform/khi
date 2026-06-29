@@ -46,4 +46,4 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPref
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "timeline-mapper")

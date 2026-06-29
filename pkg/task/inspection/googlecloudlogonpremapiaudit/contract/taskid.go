@@ -40,4 +40,4 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](OnPremClou
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](OnPremCloudAPITaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](OnPremCloudAPITaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](OnPremCloudAPITaskIDPrefix + "timeline-mapper")

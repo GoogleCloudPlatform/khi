@@ -40,7 +40,7 @@ var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](GKEK8sEven
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](GKEK8sEventLogTaskIDPrefix + "grouper")
 
 // LogToTimelineMapperTaskID is the task id for associating events/revisions with a given logs.
-var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[struct{}](GKEK8sEventLogTaskIDPrefix + "timeline-mapper")
+var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](GKEK8sEventLogTaskIDPrefix + "timeline-mapper")
 
 // NEGToBackendServiceDiscoveryTaskID is the task ID for the discovery task that extracts NEG to BackendService mappings from Kubernetes Event logs.
 var NEGToBackendServiceDiscoveryTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.NEGToBackendServiceMap](GKEK8sEventLogTaskIDPrefix + "neg-discovery")

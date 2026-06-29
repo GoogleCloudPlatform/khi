@@ -705,13 +705,15 @@ var IngestLogsTask = inspectiontaskbase.NewLogIngesterTask(
 )
 ```
 
-### NewLogToTimelineMapperTask
+### NewLogToTimelineMapperTaskV2
 
-`LogToTimelineMapperTask` associates logs to multiple resources or sometimes overrides log summary.
+`LogToTimelineMapperTaskV2` associates logs to multiple resources or sometimes overrides log summary.
 
-To modify the history, you use the `ChangeSet` object passed to `ProcessLogByGroup`.
+To modify the history, you use the `TimelineChangeSet` object returned by `ProcessLogByGroup`.
 
-#### `ChangeSet` Operations
+The task returns a `TimelineMapperResult` containing the summary of the performed writes (e.g., which timeline paths received events, revisions, or aliases). Subsequent tasks can inspect this result to determine if specific timelines were populated, allowing for conditional behaviors such as generating fallback timelines from other log sources.
+
+#### `TimelineChangeSet` Operations
 
 - **`AddEvent(resourcePath)`**: Adds a point-in-time event to the timeline.
 - **`AddRevision(resourcePath, revision)`**: Adds a state at a specific time.
@@ -730,21 +732,22 @@ type MyGroupData struct {
 
 type MyMapper struct {}
 
-// Implement LogToTimelineMapper interface
-func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, cs *history.ChangeSet, builder *history.Builder, prevData MyGroupData) (MyGroupData, error) {
-    // Modify history via ChangeSet
+// Implement LogToTimelineMapperV2 interface
+func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
+    cs := khifilev6.NewTimelineChangeSet()
+    // Modify history via TimelineChangeSet
     cs.SetLogSeverity(enum.SeverityInfo)
     
     // Add an event to a resource timeline
     cs.AddEvent(resourcepath.NameLayerGeneralItem("v1", "Pod", "default", "my-pod"))
 
     // Pass updated state to the next log in the group
-    return MyGroupData{Count: prevData.Count + 1}, nil
+    return cs, MyGroupData{Count: prevData.Count + 1}, nil
 }
 
-// ... Implement other interface methods (Dependencies, LogIngesterTask, GroupedLogTask) ...
+// ... Implement other interface methods (Dependencies, LogIngesterTask, GroupedLogTask, PassCount, PreProcessLogByGroup) ...
 
-var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
+var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
     MyMapperTaskID,
     &MyMapper{},
     inspectioncore_contract.FeatureTaskLabel("my-mapper",/*rest of the other parameters*/)  // LogToTimelineMapper is usually labeled with FeatureTaskLabel.

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -56,7 +57,7 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) LogIngesterTask() ta
 }
 
 // TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[struct{}] {
+func (r *resourceOwnerReferenceTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.ResourceOwnerReferenceTimelineMapperTaskID
 }
 
