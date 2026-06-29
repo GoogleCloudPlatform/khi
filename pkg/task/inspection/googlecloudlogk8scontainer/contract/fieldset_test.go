@@ -182,3 +182,61 @@ func TestK8sContainerLogFieldSet_GroupKey(t *testing.T) {
 		t.Errorf("GroupKey() = %q, want %q", got, want)
 	}
 }
+
+func TestGCPContainerLogNodeNameLabelFieldSetReader(t *testing.T) {
+	testCase := []struct {
+		desc  string
+		want  *GCPContainerLogNodeNameLabelFieldSet
+		input string
+	}{
+		{
+			desc: "from labels",
+			want: &GCPContainerLogNodeNameLabelFieldSet{
+				NodeName:  "test-node",
+				PodLabels: map[string]string{},
+			},
+			input: `labels:
+  compute.googleapis.com/resource_name: test-node`,
+		},
+		{
+			desc: "missing labels",
+			want: &GCPContainerLogNodeNameLabelFieldSet{
+				NodeName:  "",
+				PodLabels: map[string]string{},
+			},
+			input: `labels:
+  foo: bar`,
+		},
+		{
+			desc: "with k8s-pod labels",
+			want: &GCPContainerLogNodeNameLabelFieldSet{
+				NodeName: "test-node",
+				PodLabels: map[string]string{
+					"app":               "my-app",
+					"pod-template-hash": "12345",
+				},
+			},
+			input: `labels:
+  compute.googleapis.com/resource_name: test-node
+  k8s-pod/app: my-app
+  k8s-pod/pod-template-hash: "12345"
+  other-label: foo`,
+		},
+	}
+	for _, tc := range testCase {
+		t.Run(tc.desc, func(t *testing.T) {
+			l, err := log.NewLogFromYAMLString(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse log from yaml: %v", err)
+			}
+			l.SetFieldSetReader(&GCPContainerLogNodeNameLabelFieldSetReader{})
+			nodeFieldSet, err := log.GetFieldSet(l, &GCPContainerLogNodeNameLabelFieldSet{})
+			if err != nil {
+				t.Fatalf("failed to extract node field: %v", err)
+			}
+			if diff := cmp.Diff(tc.want, nodeFieldSet); diff != "" {
+				t.Errorf("GCPContainerLogNodeNameLabelFieldSetReader mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
