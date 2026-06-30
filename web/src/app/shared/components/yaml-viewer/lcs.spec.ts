@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-import { diffStrings, DiffStatus } from './lcs';
+import {
+  diffStrings,
+  DiffStatus,
+} from 'src/app/shared/components/yaml-viewer/lcs';
 
 describe('diffStrings', () => {
   it('should return unchanged segments for identical strings', () => {

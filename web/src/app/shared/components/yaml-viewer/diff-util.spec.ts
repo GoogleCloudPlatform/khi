@@ -19,8 +19,8 @@ import {
   buildMergeTree,
   shouldHighlightEntireValue,
   ValueType,
-} from './diff-util';
-import { DiffStatus } from './lcs';
+} from 'src/app/shared/components/yaml-viewer/diff-util';
+import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
 
 describe('shouldHighlightEntireValue', () => {
   it('should return true if either value is null', () => {

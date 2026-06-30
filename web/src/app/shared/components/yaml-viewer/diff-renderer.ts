@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-import { DiffStatus, ValueSegment, diffStrings } from './lcs';
+import {
+  DiffStatus,
+  ValueSegment,
+  diffStrings,
+} from 'src/app/shared/components/yaml-viewer/lcs';
 import {
   ValueType,
   MergeNode,
   getValueType,
   shouldHighlightEntireValue,
-} from './diff-util';
+} from 'src/app/shared/components/yaml-viewer/diff-util';
 
 /**
  * Represents a single rendered line of the YAML document.
@@ -102,17 +106,6 @@ export function renderNode(
   parentMovedTo?: string,
   parentMoveId?: string,
 ) {
-  if (node.key === 'foo') {
-    console.log('renderNode foo:', {
-      valueType: node.valueType,
-      oldValueType: node.oldValueType,
-      status: node.status,
-      childrenLen: node.children?.length,
-      isArrayElement,
-      indent,
-    });
-  }
-
   // Handle Type Modification (Type change)
   if (node.oldValueType !== undefined && node.oldValueType !== node.valueType) {
     const deletedNode: MergeNode = {
@@ -317,14 +310,7 @@ function renderScalarNode(
   parentMovedTo?: string,
   moveId?: string,
 ) {
-  const effectiveStatus =
-    parentStatus === DiffStatus.MovedIn || parentStatus === DiffStatus.MovedOut
-      ? parentStatus
-      : node.status === DiffStatus.Unchanged &&
-          parentStatus &&
-          parentStatus !== DiffStatus.Modified
-        ? parentStatus
-        : node.status;
+  const effectiveStatus = getEffectiveStatus(node.status, parentStatus);
 
   switch (effectiveStatus) {
     case DiffStatus.Modified: {
@@ -503,14 +489,7 @@ function renderCompositeNode(
   parentMovedTo?: string,
   moveId?: string,
 ) {
-  const effectiveStatus =
-    parentStatus === DiffStatus.MovedIn || parentStatus === DiffStatus.MovedOut
-      ? parentStatus
-      : node.status === DiffStatus.Unchanged &&
-          parentStatus &&
-          parentStatus !== DiffStatus.Modified
-        ? parentStatus
-        : node.status;
+  const effectiveStatus = getEffectiveStatus(node.status, parentStatus);
   const effectiveMovedFrom = node.movedFrom || parentMovedFrom;
   const effectiveMovedTo = node.movedTo || parentMovedTo;
 
@@ -560,14 +539,12 @@ function renderCompositeNode(
         node.valueType === ValueType.Array ||
         (propagateArrayElement && index === 0);
 
-      const childCollapsiblePath = index === 0 ? collapsiblePath : undefined;
-      const nextCollapsiblePath =
-        childCollapsiblePath ||
-        (node.valueType === ValueType.Array &&
-        (child.valueType === ValueType.Object ||
-          child.valueType === ValueType.Array)
-          ? child.path
-          : undefined);
+      const nextCollapsiblePath = getNextCollapsiblePath(
+        node.valueType,
+        child,
+        index === 0,
+        collapsiblePath,
+      );
 
       renderNode(
         child,
@@ -882,4 +859,52 @@ export function formatValue(value: unknown): string {
     return '{}';
   }
   return '';
+}
+
+/**
+ * Calculates the effective difference status of a node taking its parent's status into account.
+ */
+export function getEffectiveStatus(
+  nodeStatus: DiffStatus,
+  parentStatus?: DiffStatus,
+): DiffStatus {
+  if (
+    parentStatus === DiffStatus.MovedIn ||
+    parentStatus === DiffStatus.MovedOut
+  ) {
+    return parentStatus;
+  }
+  if (
+    nodeStatus === DiffStatus.Unchanged &&
+    parentStatus &&
+    parentStatus !== DiffStatus.Modified
+  ) {
+    return parentStatus;
+  }
+  return nodeStatus;
+}
+
+/**
+ * Determines the collapsible path for a child node during rendering.
+ */
+export function getNextCollapsiblePath(
+  nodeValueType: ValueType,
+  child: MergeNode,
+  isFirstChild: boolean,
+  currentCollapsiblePath?: string,
+): string | undefined {
+  const childCollapsiblePath = isFirstChild
+    ? currentCollapsiblePath
+    : undefined;
+  if (childCollapsiblePath) {
+    return childCollapsiblePath;
+  }
+  if (
+    nodeValueType === ValueType.Array &&
+    (child.valueType === ValueType.Object ||
+      child.valueType === ValueType.Array)
+  ) {
+    return child.path;
+  }
+  return undefined;
 }

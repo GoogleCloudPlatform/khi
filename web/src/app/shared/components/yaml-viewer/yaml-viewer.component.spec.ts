@@ -21,10 +21,10 @@ import {
   tick,
 } from '@angular/core/testing';
 import { ElementRef } from '@angular/core';
-import { YamlViewerComponent } from './yaml-viewer.component';
-import { YamlLine } from './diff-renderer';
-import { ValueType } from './diff-util';
-import { DiffStatus } from './lcs';
+import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
+import { YamlLine } from 'src/app/shared/components/yaml-viewer/diff-renderer';
+import { ValueType } from 'src/app/shared/components/yaml-viewer/diff-util';
+import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
 import * as yaml from 'js-yaml';
 
 describe('YamlViewerComponent', () => {

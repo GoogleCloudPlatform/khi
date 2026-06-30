@@ -15,7 +15,7 @@
  */
 
 import { Delta } from 'jsondiffpatch';
-import { DiffStatus } from './lcs';
+import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
 
 /**
  * Represents the data type of a YAML value.

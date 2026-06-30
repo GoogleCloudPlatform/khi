@@ -19,7 +19,7 @@ import {
   isModifiedDelta,
   isDeletedDelta,
   isMovedDelta,
-} from './jsondiffpatch-util';
+} from 'src/app/shared/components/yaml-viewer/jsondiffpatch-util';
 
 describe('jsondiffpatch-util', () => {
   describe('isAddedDelta', () => {

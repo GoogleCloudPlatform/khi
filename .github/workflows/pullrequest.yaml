@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@30a0e04f1870d58f8d717450cc6134995f993c63 # 19.1.0
+        uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # 23.2.0
 
   backend-tests:
     runs-on: ubuntu-latest

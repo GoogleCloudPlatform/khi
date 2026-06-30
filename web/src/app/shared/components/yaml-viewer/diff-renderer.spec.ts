@@ -20,9 +20,14 @@ import {
   formatValue,
   getRenderSegments,
   postRender,
-} from './diff-renderer';
-import { MergeNode, ValueType } from './diff-util';
-import { DiffStatus } from './lcs';
+  getEffectiveStatus,
+  getNextCollapsiblePath,
+} from 'src/app/shared/components/yaml-viewer/diff-renderer';
+import {
+  MergeNode,
+  ValueType,
+} from 'src/app/shared/components/yaml-viewer/diff-util';
+import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
 
 describe('diff-renderer', () => {
   function createTestNode(overrides: Partial<MergeNode>): MergeNode {
@@ -949,6 +954,102 @@ describe('diff-renderer', () => {
       postRender(lines);
 
       expect(lines[0].contentWidthCh).toBe(9);
+    });
+  });
+
+  describe('getEffectiveStatus', () => {
+    it('should return parentStatus if parentStatus is MovedIn or MovedOut', () => {
+      expect(getEffectiveStatus(DiffStatus.Unchanged, DiffStatus.MovedIn)).toBe(
+        DiffStatus.MovedIn,
+      );
+      expect(getEffectiveStatus(DiffStatus.Added, DiffStatus.MovedOut)).toBe(
+        DiffStatus.MovedOut,
+      );
+    });
+
+    it('should return parentStatus if nodeStatus is Unchanged and parentStatus is not Modified', () => {
+      expect(getEffectiveStatus(DiffStatus.Unchanged, DiffStatus.Added)).toBe(
+        DiffStatus.Added,
+      );
+      expect(getEffectiveStatus(DiffStatus.Unchanged, DiffStatus.Deleted)).toBe(
+        DiffStatus.Deleted,
+      );
+    });
+
+    it('should return nodeStatus if nodeStatus is Unchanged but parentStatus is Modified', () => {
+      expect(
+        getEffectiveStatus(DiffStatus.Unchanged, DiffStatus.Modified),
+      ).toBe(DiffStatus.Unchanged);
+    });
+
+    it('should return nodeStatus for other combinations', () => {
+      expect(getEffectiveStatus(DiffStatus.Added, DiffStatus.Unchanged)).toBe(
+        DiffStatus.Added,
+      );
+      expect(getEffectiveStatus(DiffStatus.Deleted, undefined)).toBe(
+        DiffStatus.Deleted,
+      );
+    });
+  });
+
+  describe('getNextCollapsiblePath', () => {
+    it('should return currentCollapsiblePath if isFirstChild is true and currentCollapsiblePath is defined', () => {
+      expect(
+        getNextCollapsiblePath(
+          ValueType.Array,
+          { path: 'child' } as MergeNode,
+          true,
+          'parent',
+        ),
+      ).toBe('parent');
+    });
+
+    it('should return undefined if isFirstChild is true but currentCollapsiblePath is undefined', () => {
+      expect(
+        getNextCollapsiblePath(
+          ValueType.Array,
+          { path: 'child' } as MergeNode,
+          true,
+          undefined,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('should return child.path if nodeValueType is Array and child valueType is Object or Array', () => {
+      const childObj = {
+        path: 'array[0]',
+        valueType: ValueType.Object,
+      } as MergeNode;
+      const childArr = {
+        path: 'array[0]',
+        valueType: ValueType.Array,
+      } as MergeNode;
+      expect(getNextCollapsiblePath(ValueType.Array, childObj, false)).toBe(
+        'array[0]',
+      );
+      expect(getNextCollapsiblePath(ValueType.Array, childArr, false)).toBe(
+        'array[0]',
+      );
+    });
+
+    it('should return undefined if nodeValueType is Array but child is scalar', () => {
+      const childScalar = {
+        path: 'array[0]',
+        valueType: ValueType.String,
+      } as MergeNode;
+      expect(
+        getNextCollapsiblePath(ValueType.Array, childScalar, false),
+      ).toBeUndefined();
+    });
+
+    it('should return undefined if nodeValueType is not Array', () => {
+      const childObj = {
+        path: 'obj.child',
+        valueType: ValueType.Object,
+      } as MergeNode;
+      expect(
+        getNextCollapsiblePath(ValueType.Object, childObj, false),
+      ).toBeUndefined();
     });
   });
 });

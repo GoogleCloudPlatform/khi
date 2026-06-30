@@ -31,8 +31,12 @@ import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as yaml from 'js-yaml';
 import * as jsondiffpatch from 'jsondiffpatch';
-import { DiffStatus } from './lcs';
-import { buildMergeTree, MergeNode, ValueType } from './diff-util';
+import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
+import {
+  buildMergeTree,
+  MergeNode,
+  ValueType,
+} from 'src/app/shared/components/yaml-viewer/diff-util';
 import {
   YamlLine,
   RenderSegment,
@@ -40,7 +44,7 @@ import {
   renderNode,
   postRender,
   getRenderSegments as diffGetRenderSegments,
-} from './diff-renderer';
+} from 'src/app/shared/components/yaml-viewer/diff-renderer';
 
 /**
  * Component for displaying YAML content with preview and diff capabilities.

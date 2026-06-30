@@ -106,11 +106,6 @@ export class LogContentComponent {
   public readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
 
   /**
-   * Initializes the component.
-   */
-  constructor() {}
-
-  /**
    * The aggregated view model containing the log entry, body, and resolved references.
    */
   public readonly vm = input<LogContentViewModel | null>(null);
