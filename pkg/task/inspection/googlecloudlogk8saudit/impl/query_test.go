@@ -153,7 +153,7 @@ func TestGenerateNamespaceFilter(t *testing.T) {
 		Input         *gcpqueryutil.SetFilterParseResult
 	}{
 		{
-			ExpectedQuery: `-- Invalid: none of the resources will be selected. Ignoreing namespace filter.`,
+			ExpectedQuery: `-- Invalid: none of the resources will be selected. Ignoring namespace filter.`,
 			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{},
 			},
@@ -240,7 +240,7 @@ func TestKindNameFilter(t *testing.T) {
 			},
 		},
 		{
-			ExpectedQuery: `-- Invalid: none of the resources will be selected. Ignoreing kind filter.`,
+			ExpectedQuery: `-- Invalid: none of the resources will be selected. Ignoring kind filter.`,
 			Input: &gcpqueryutil.SetFilterParseResult{
 				Additives: []string{},
 			},

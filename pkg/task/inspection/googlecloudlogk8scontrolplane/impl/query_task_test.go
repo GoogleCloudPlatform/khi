@@ -83,7 +83,7 @@ resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
 -sourceLocation.file="httplog.go" -- Ignoring the noisy log from scheduler. TODO: Support toggling this feature.
--- Invalid: none of the controlplane component will be selected. Ignoreing component name filter.`,
+-- Invalid: none of the controlplane components will be selected. Ignoring component name filter.`,
 		},
 		{
 			Cluster: googlecloudk8scommon_contract.GoogleCloudClusterIdentity{

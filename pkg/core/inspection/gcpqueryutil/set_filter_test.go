@@ -156,7 +156,7 @@ func TestParseSetFilter(t *testing.T) {
 			AllowAny:      true,
 			AllowSubtract: true,
 			ExpectedResult: &SetFilterParseResult{
-				ValidationError: "filter value must be whitespace splitted series of [a-zA-Z0-9\\-_]+",
+				ValidationError: "filter value must be whitespace split series of [a-zA-Z0-9\\-_]+",
 			},
 		},
 		{
