@@ -1,0 +1,194 @@
+<!--
+Copyright 2026 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<div class="yaml-viewer-root" (copy)="onCopy($event)">
+  <div class="yaml-code-container" style="position: relative">
+    <!-- SVG Overlay for relation arrows -->
+    <svg class="yaml-arrow-overlay">
+      <defs>
+        <marker
+          id="arrow-hovered"
+          class="arrow-marker hovered"
+          viewBox="0 0 10 10"
+          refX="6"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" />
+        </marker>
+      </defs>
+      @for (arrow of allArrows(); track arrow.moveId) {
+        <path
+          class="arrow-path"
+          [attr.d]="arrow.path"
+          [class.hovered]="hoveredMoveId() === arrow.moveId"
+          [attr.marker-end]="'url(#arrow-hovered)'"
+        />
+      }
+    </svg>
+
+    @for (line of lines(); track $index; let lineIndex = $index) {
+      <div
+        class="yaml-line-wrapper"
+        [class.status-added]="line.diffStatus === DiffStatus.Added"
+        [class.status-deleted]="line.diffStatus === DiffStatus.Deleted"
+        [class.status-moved-out]="line.diffStatus === DiffStatus.MovedOut"
+        [class.status-moved-in]="line.diffStatus === DiffStatus.MovedIn"
+        [class.move-block-start]="line.moveBlockStart"
+        [class.move-block-end]="line.moveBlockEnd"
+        [attr.data-move-id]="line.moveId || null"
+        [attr.data-move-type]="
+          line.diffStatus === DiffStatus.MovedIn
+            ? 'in'
+            : line.diffStatus === DiffStatus.MovedOut
+              ? 'out'
+              : null
+        "
+        (mouseenter)="line.moveId ? onMoveBlockMouseEnter(line.moveId) : null"
+        (mouseleave)="line.moveId ? onMoveBlockMouseLeave() : null"
+      >
+        <!-- Line Number Gutter -->
+        <span class="line-number-gutter">
+          <span class="line-number-text">{{
+            line.lineNumber !== undefined ? line.lineNumber : "-"
+          }}</span>
+          @if (line.isCollapsible) {
+            <span
+              class="toggle-triangle"
+              [class.collapsed]="isCollapsed(line)"
+              (click)="toggleCollapsed(line, $event)"
+            >
+              {{ isCollapsed(line) ? "▶" : "▼" }}
+            </span>
+          }
+        </span>
+
+        <!-- Diff Status Indicator -->
+        <span class="diff-indicator">
+          {{
+            line.diffStatus === DiffStatus.Added
+              ? "+"
+              : line.diffStatus === DiffStatus.Deleted
+                ? "-"
+                : " "
+          }}
+        </span>
+
+        <!-- Line Content Container -->
+        <span class="line-content">
+          <!-- Indentation Spacer -->
+          <span class="indent-spacer">{{ " ".repeat(line.indent) }}</span>
+
+          <!-- Array Start Indicator -->
+          @if (line.isArrayElementStart) {
+            <span class="yaml-array-indicator">-&nbsp;</span>
+          }
+
+          <!-- Wrap the actual content in a styled block -->
+          <span
+            class="yaml-object-content"
+            [class.status-moved-out]="line.diffStatus === DiffStatus.MovedOut"
+            [class.status-moved-in]="line.diffStatus === DiffStatus.MovedIn"
+            [class.move-block-start]="line.moveBlockStart"
+            [class.move-block-end]="line.moveBlockEnd"
+            [style.width.ch]="line.contentWidthCh"
+          >
+            <!-- Key and Value Content -->
+            @for (
+              seg of getRenderSegments(line, searchQuery(), lineIndex);
+              track $index
+            ) {
+              @if (seg.isKey) {
+                <span
+                  class="yaml-key"
+                  [matTooltip]="line.tooltip || ''"
+                  [matTooltipDisabled]="!line.tooltip"
+                  [class.has-tooltip]="!!line.tooltip"
+                >
+                  @if (seg.isMatch) {
+                    <mark class="search-highlight">{{ seg.text }}</mark>
+                  } @else {
+                    <span>{{ seg.text }}</span>
+                  }
+                </span>
+              } @else if (seg.isColon) {
+                <span class="yaml-colon">
+                  @if (seg.isMatch) {
+                    <mark class="search-highlight">{{ seg.text }}</mark>
+                  } @else {
+                    <span>{{ seg.text }}</span>
+                  }
+                </span>
+              } @else if (seg.isValue) {
+                <span class="yaml-value" [ngClass]="'yaml-' + line.valueType">
+                  <span
+                    [class.diff-char-added]="
+                      seg.diffStatus === DiffStatus.Added
+                    "
+                    [class.diff-char-deleted]="
+                      seg.diffStatus === DiffStatus.Deleted
+                    "
+                    class="yaml-value-segment"
+                  >
+                    @if (seg.isMatch) {
+                      <mark class="search-highlight">{{ seg.text }}</mark>
+                    } @else {
+                      <span>{{ seg.text }}</span>
+                    }
+                  </span>
+                </span>
+              }
+            }
+          </span>
+
+          <!-- Move Chip with Index Hint -->
+          @if (
+            line.moveBlockStart &&
+            (line.diffStatus === DiffStatus.MovedIn ||
+              line.diffStatus === DiffStatus.MovedOut)
+          ) {
+            <span
+              class="yaml-move-chip"
+              [ngClass]="
+                'status-' +
+                (line.diffStatus === DiffStatus.MovedIn
+                  ? 'moved-in'
+                  : 'moved-out')
+              "
+            >
+              {{
+                line.diffStatus === DiffStatus.MovedIn
+                  ? "Moved In"
+                  : "Moved Out"
+              }}
+              @if (line.movedFrom || line.movedTo) {
+                <span class="yaml-move-index">
+                  ({{
+                    line.diffStatus === DiffStatus.MovedIn
+                      ? "from " + line.movedFrom
+                      : "to " + line.movedTo
+                  }})
+                </span>
+              }
+            </span>
+          }
+        </span>
+      </div>
+    }
+  </div>
+</div>

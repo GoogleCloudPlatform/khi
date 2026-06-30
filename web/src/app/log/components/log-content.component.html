@@ -68,9 +68,12 @@ limitations under the License.
       </div>
     }
     <div class="log-body-container">
-      <div class="log-body">
-        <pre><code #codeElement [highlight]="viewModel.logBody" language="yaml" lineNumbers></code></pre>
-      </div>
+      <khi-yaml-viewer
+        [rightYaml]="viewModel.logBody"
+        [searchQuery]="searchQuery()"
+        [activeMatchIndex]="currentMatchIndex()"
+        (matchCount)="matchCount.set($event)"
+      ></khi-yaml-viewer>
     </div>
   } @else {
     <div class="empty-message">

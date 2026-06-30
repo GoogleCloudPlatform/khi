@@ -50,6 +50,16 @@ export class DiffToolbarComponent {
   showOpenInNewTabButton = input(true);
 
   /**
+   * The total number of diff blocks.
+   */
+  readonly diffCount = input<number>(0);
+
+  /**
+   * The current active diff block index (1-based).
+   */
+  readonly currentDiffIndex = input<number>(0);
+
+  /**
    * Emitted when the copy content button is clicked.
    */
   copyContent = output<void>();
@@ -63,4 +73,14 @@ export class DiffToolbarComponent {
    * Emitted when the open search button is clicked.
    */
   openSearch = output<void>();
+
+  /**
+   * Emitted when the previous diff button is clicked.
+   */
+  prevDiff = output<void>();
+
+  /**
+   * Emitted when the next diff button is clicked.
+   */
+  nextDiff = output<void>();
 }

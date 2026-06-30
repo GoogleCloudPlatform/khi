@@ -1,0 +1,382 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+
+$font-family-code: 'Google Sans Code', monospace;
+
+$diff-added-bg-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 50);
+$diff-deleted-bg-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 50);
+$diff-moved-out-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  50
+);
+$diff-moved-in-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-blue-palette,
+  50
+);
+$diff-added-char-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-green-palette,
+  600
+);
+$diff-deleted-char-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-red-palette,
+  600
+);
+$char-highlight-text-color: #fff;
+
+$gutter-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$gutter-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 500);
+$border-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 200);
+
+$syntax-key-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 800);
+$syntax-string-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 800);
+$syntax-number-color: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  800
+);
+$syntax-boolean-color: mat.m2-get-color-from-palette(
+  mat.$m2-purple-palette,
+  800
+);
+$syntax-null-color: mat.m2-get-color-from-palette(mat.$m2-pink-palette, 800);
+$syntax-colon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+
+$tooltip-border-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+
+$search-highlight-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-yellow-palette,
+  200
+);
+$search-highlight-active-bg-color: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  500
+);
+$search-highlight-active-text-color: mat.m2-get-color-from-palette(
+  mat.$m2-gray-palette,
+  50
+);
+
+:host {
+  display: block;
+  font-family: $font-family-code;
+  font-size: 11px;
+}
+
+.yaml-viewer-root {
+  overflow: auto;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+.yaml-code-container {
+  display: grid;
+  grid-template:
+    none
+    / [gutter] minmax(36px, auto) [indicator] 24px [content] 1fr;
+  line-height: 1.5;
+}
+
+.yaml-line-wrapper {
+  display: grid;
+  grid-column: gutter / span 3;
+  grid-template: none / subgrid;
+  align-items: stretch;
+  white-space: pre;
+
+  &.status-added {
+    background-color: $diff-added-bg-color;
+  }
+
+  &.status-deleted {
+    background-color: $diff-deleted-bg-color;
+  }
+
+  &.status-moved-out {
+    background-color: $diff-moved-out-bg-color;
+    color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
+
+    .yaml-key,
+    .yaml-value {
+      opacity: 0.8;
+    }
+  }
+
+  &.status-moved-in {
+    background-color: $diff-moved-in-bg-color;
+  }
+}
+
+.line-number-gutter {
+  grid-column: gutter;
+  display: grid;
+  grid-template:
+    'num tri' 1fr
+    / 1fr 10px;
+  align-items: center;
+  padding-right: 4px;
+  background-color: $gutter-bg-color;
+  color: $gutter-text-color;
+  user-select: none;
+  border-right: 1px solid $border-color;
+
+  /* Keep gutter sticky on the left during horizontal scroll */
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.line-number-text {
+  grid-area: num;
+  text-align: right;
+}
+
+.toggle-triangle {
+  grid-area: tri;
+  cursor: pointer;
+  font-size: 8px;
+  color: $gutter-text-color;
+  user-select: none;
+  text-align: center;
+
+  &:hover {
+    color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 800);
+  }
+}
+
+.diff-indicator {
+  grid-column: indicator;
+  text-align: center;
+  user-select: none;
+  font-weight: bold;
+}
+
+.line-content {
+  grid-column: content;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  padding-left: 4px;
+  width: 100%;
+}
+
+.yaml-object-content {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  padding-right: 8px;
+  box-sizing: content-box;
+
+  &.status-moved-out {
+    border-left: 1px dashed
+      mat.m2-get-color-from-palette(mat.$m2-orange-palette, 400);
+    border-right: 1px dashed
+      mat.m2-get-color-from-palette(mat.$m2-orange-palette, 400);
+
+    &.move-block-start {
+      border-top: 1px dashed
+        mat.m2-get-color-from-palette(mat.$m2-orange-palette, 400);
+    }
+
+    &.move-block-end {
+      border-bottom: 1px dashed
+        mat.m2-get-color-from-palette(mat.$m2-orange-palette, 400);
+    }
+  }
+
+  &.status-moved-in {
+    border-left: 1px dashed
+      mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+    border-right: 1px dashed
+      mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+
+    &.move-block-start {
+      border-top: 1px dashed
+        mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+    }
+
+    &.move-block-end {
+      border-bottom: 1px dashed
+        mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+    }
+  }
+}
+
+$moved-in-chip-bg: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 100);
+$moved-in-chip-text: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 800);
+$moved-out-chip-bg: mat.m2-get-color-from-palette(mat.$m2-orange-palette, 100);
+$moved-out-chip-text: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  800
+);
+
+.yaml-move-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  margin-left: 12px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: bold;
+  user-select: none;
+  align-self: center;
+  line-height: 1.2;
+
+  &.status-moved-in {
+    background-color: $moved-in-chip-bg;
+    color: $moved-in-chip-text;
+  }
+
+  &.status-moved-out {
+    background-color: $moved-out-chip-bg;
+    color: $moved-out-chip-text;
+  }
+}
+
+.yaml-move-index {
+  font-weight: normal;
+  opacity: 0.8;
+}
+
+.indent-spacer {
+  white-space: pre;
+}
+
+.yaml-array-indicator {
+  font-weight: bold;
+}
+
+.yaml-key {
+  color: $syntax-key-color;
+  font-weight: bold;
+  display: contents;
+  white-space: normal;
+
+  &.has-tooltip {
+    border-bottom: 1px dashed $tooltip-border-color;
+    cursor: help;
+  }
+
+  > * {
+    white-space: pre;
+  }
+}
+
+.yaml-colon {
+  color: $syntax-colon-color;
+  white-space: pre;
+}
+
+.yaml-value {
+  display: contents;
+  white-space: normal;
+
+  &.yaml-string {
+    color: $syntax-string-color;
+  }
+
+  &.yaml-number {
+    color: $syntax-number-color;
+  }
+
+  &.yaml-boolean {
+    color: $syntax-boolean-color;
+  }
+
+  &.yaml-null {
+    color: $syntax-null-color;
+    font-style: italic;
+  }
+
+  &.yaml-none {
+    color: $syntax-colon-color;
+    font-weight: bold;
+  }
+
+  &.yaml-array,
+  &.yaml-object {
+    color: $syntax-colon-color;
+  }
+
+  .yaml-value-segment {
+    display: inline;
+    white-space: normal;
+
+    > * {
+      white-space: pre;
+    }
+  }
+}
+
+.search-highlight {
+  background-color: $search-highlight-bg-color;
+
+  &.active {
+    background-color: $search-highlight-active-bg-color;
+    color: $search-highlight-active-text-color;
+  }
+}
+
+.diff-char-added {
+  background-color: $diff-added-char-bg-color;
+  color: $char-highlight-text-color;
+}
+
+.diff-char-deleted {
+  background-color: $diff-deleted-char-bg-color;
+  color: $char-highlight-text-color;
+}
+
+.yaml-arrow-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+
+  .arrow-path {
+    stroke: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 500);
+    stroke-width: 1.5px;
+    fill: none;
+    opacity: 0.5;
+    transition:
+      opacity 0.15s,
+      stroke 0.15s;
+
+    &.hovered {
+      opacity: 1;
+      stroke: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 700);
+    }
+  }
+
+  .arrow-marker {
+    path {
+      fill: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 500);
+      opacity: 0.5;
+    }
+
+    &.hovered {
+      path {
+        fill: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 700);
+        opacity: 1;
+      }
+    }
+  }
+}

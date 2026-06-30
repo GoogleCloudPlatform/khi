@@ -28,13 +28,27 @@
 }
 
 .left,
-.right {
+.right,
+.center {
   display: flex;
   align-items: center;
 }
 
 .left {
   flex: 1 1 auto;
+}
+
+.center {
+  gap: 8px;
+  justify-content: center;
+}
+
+.diff-counter {
+  font-size: 12px;
+  font-weight: 500;
+  user-select: none;
+  min-width: 40px;
+  text-align: center;
 }
 
 .toolbar-toggle {

@@ -19,9 +19,13 @@ limitations under the License.
   <div class="diff">
     <khi-diff-toolbar
       [(showManagedFields)]="showManagedFields"
+      [diffCount]="diffCount()"
+      [currentDiffIndex]="currentDiffIndex()"
       (openInNewTab)="_openInNewTab()"
       (copyContent)="copyContent()"
       (openSearch)="openSearch()"
+      (nextDiff)="nextDiff()"
+      (prevDiff)="prevDiff()"
     >
     </khi-diff-toolbar>
     @if (isSearchOpen()) {
@@ -38,28 +42,15 @@ limitations under the License.
       </div>
     }
     <div #diffContainer class="diff-inner">
-      @let currentContent = currentRevisionContent();
-      @let previousContent = previousRevisionContent();
-      @if (previousContent !== undefined && previousContent !== null) {
-        @if (currentContent !== previousContent) {
-          <ngx-unified-diff
-            class="ngx-diff-light-theme"
-            [before]="previousContent"
-            [after]="currentContent"
-          >
-          </ngx-unified-diff>
-        } @else {
-          <pre
-            class="log-body-container"
-          ><code [highlight]="currentContent" language="yaml" lineNumbers></code></pre>
-        }
-      } @else {
-        <ngx-unified-diff
-          class="ngx-diff-light-theme"
-          before=""
-          [after]="currentContent"
-        ></ngx-unified-diff>
-      }
+      <khi-yaml-viewer
+        [leftYaml]="previousRevisionContent() ?? ' '"
+        [rightYaml]="currentRevisionContent()"
+        [searchQuery]="searchQuery()"
+        [activeMatchIndex]="currentMatchIndex()"
+        [activeDiffIndex]="currentDiffIndex()"
+        (matchCount)="matchCount.set($event)"
+        (diffCount)="diffCount.set($event)"
+      ></khi-yaml-viewer>
     </div>
   </div>
 }

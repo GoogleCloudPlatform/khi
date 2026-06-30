@@ -17,8 +17,6 @@
 import {
   Component,
   computed,
-  effect,
-  ElementRef,
   HostListener,
   inject,
   input,
@@ -28,7 +26,6 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LogContentHeaderComponent } from 'src/app/log/components/log-content-header.component';
-import { HighlightModule } from 'ngx-highlightjs';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Log } from 'src/app/store/domain/log';
@@ -42,6 +39,7 @@ import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-reference-list.component';
 import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-bar.component';
 import { SearchScope } from 'src/app/services/view-state.service';
+import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
 
 /**
  * View model aggregating the full detailed data required to render the log content and header.
@@ -51,21 +49,6 @@ export interface LogContentViewModel {
   logBody: string;
   parsedLogBody: unknown;
   resourceRefs: ResourceRefAnnotationViewModel[];
-}
-
-interface TextNodeSpan {
-  node: Text;
-  start: number;
-  end: number;
-}
-
-interface TextRange {
-  start: number;
-  end: number;
-}
-
-interface MatchGroup {
-  marks: HTMLElement[];
 }
 
 /**
@@ -80,7 +63,6 @@ interface MatchGroup {
   imports: [
     CommonModule,
     LogContentHeaderComponent,
-    HighlightModule,
     MatIconModule,
     MatTooltip,
     KHIIconRegistrationModule,
@@ -88,6 +70,7 @@ interface MatchGroup {
     MatSnackBarModule,
     ClipboardModule,
     SearchBarComponent,
+    YamlViewerComponent,
   ],
 })
 export class LogContentComponent {
@@ -115,41 +98,12 @@ export class LogContentComponent {
   public readonly currentMatchIndex = signal<number>(0);
 
   /**
-   * Reference to the code element containing the highlighted log body.
-   */
-  public readonly codeElement =
-    viewChild<ElementRef<HTMLElement>>('codeElement');
-
-  /**
    * Reference to the search bar component for focus management.
    */
   public readonly searchBar = viewChild(SearchBarComponent);
 
   /** Holds the current active search scope. */
   public readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
-
-  private matchGroups: MatchGroup[] = [];
-
-  /**
-   * Initializes the component and registers an effect to sync highlights.
-   */
-  constructor() {
-    effect(() => {
-      const query = this.searchQuery();
-      const vm = this.vm();
-      const isOpen = this.isSearchOpen();
-      setTimeout(() => {
-        // applyHighlights read DOM contents that can be updated by the signals above.
-        // applyHighlights can update a signal and effects shouldn't update signals.
-        // This setTimeout is a workaround to avoid this issue.
-        if (isOpen && vm && query) {
-          this.applyHighlights(query);
-        } else {
-          this.removeHighlights();
-        }
-      });
-    });
-  }
 
   /**
    * The aggregated view model containing the log entry, body, and resolved references.
@@ -286,7 +240,6 @@ timestamp="${timestampString}"
     this.searchQuery.set('');
     this.matchCount.set(0);
     this.currentMatchIndex.set(0);
-    this.removeHighlights();
   }
 
   /**
@@ -307,7 +260,6 @@ timestamp="${timestampString}"
     }
     const next = (this.currentMatchIndex() % count) + 1;
     this.currentMatchIndex.set(next);
-    this.updateActiveHighlight();
   }
 
   /**
@@ -321,178 +273,6 @@ timestamp="${timestampString}"
     const current = this.currentMatchIndex();
     const prev = current - 1 > 0 ? current - 1 : count;
     this.currentMatchIndex.set(prev);
-    this.updateActiveHighlight();
-  }
-
-  /**
-   * Removes all search highlights and restores original text nodes.
-   */
-  private removeHighlights() {
-    const root = this.codeElement()?.nativeElement;
-    if (!root) {
-      return;
-    }
-    const marks = root.querySelectorAll('mark.search-highlight');
-    marks.forEach((mark) => {
-      const parent = mark.parentNode;
-      if (parent) {
-        while (mark.firstChild) {
-          parent.insertBefore(mark.firstChild, mark);
-        }
-        parent.removeChild(mark);
-      }
-    });
-    root.normalize();
-  }
-
-  /**
-   * Applies search highlights to the log body matching the given query across text nodes.
-   * @param query The search query string.
-   */
-  private applyHighlights(query: string) {
-    this.removeHighlights();
-    this.matchGroups = [];
-    if (!query) {
-      this.matchCount.set(0);
-      this.currentMatchIndex.set(0);
-      return;
-    }
-
-    const root = this.codeElement()?.nativeElement;
-    if (!root) {
-      return;
-    }
-
-    const { textNodes, fullText } = this.extractTextNodes(root);
-    const matchRanges = this.findMatchRanges(fullText, query);
-    const marksForMatch = this.applyHighlightsToNodes(textNodes, matchRanges);
-
-    this.matchGroups = marksForMatch.map((marks) => ({ marks }));
-    const count = this.matchGroups.length;
-    this.matchCount.set(count);
-    if (count > 0) {
-      this.currentMatchIndex.set(1);
-      this.updateActiveHighlight();
-    } else {
-      this.currentMatchIndex.set(0);
-    }
-  }
-
-  /**
-   * Extracts text nodes and their global offsets from the root element.
-   * @param root The root element to scan.
-   * @returns An object containing text nodes spans and cumulative full text.
-   */
-  private extractTextNodes(root: HTMLElement): {
-    textNodes: TextNodeSpan[];
-    fullText: string;
-  } {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    const textNodes: TextNodeSpan[] = [];
-    let fullText = '';
-
-    let node = walker.nextNode();
-    while (node) {
-      const text = node.nodeValue || '';
-      const start = fullText.length;
-      fullText += text;
-      textNodes.push({ node: node as Text, start, end: fullText.length });
-      node = walker.nextNode();
-    }
-
-    return { textNodes, fullText };
-  }
-
-  /**
-   * Finds all matching index ranges within the scanned text for the given query.
-   * @param text The full text string to search within.
-   * @param query The search query string.
-   * @returns An array of start and end match ranges.
-   */
-  private findMatchRanges(text: string, query: string): TextRange[] {
-    const lowerQuery = query.toLowerCase();
-    const queryLen = query.length;
-    const matchRanges: TextRange[] = [];
-    let matchPos = text.toLowerCase().indexOf(lowerQuery);
-
-    while (matchPos !== -1) {
-      matchRanges.push({ start: matchPos, end: matchPos + queryLen });
-      matchPos = text.toLowerCase().indexOf(lowerQuery, matchPos + queryLen);
-    }
-
-    return matchRanges;
-  }
-
-  /**
-   * Applies mark elements to matching text nodes and groups them by match index.
-   * @param textNodes The scanned text node spans.
-   * @param matchRanges The matched search query ranges.
-   * @returns A grouped array of created mark elements per match range.
-   */
-  private applyHighlightsToNodes(
-    textNodes: TextNodeSpan[],
-    matchRanges: TextRange[],
-  ): HTMLElement[][] {
-    const marksForMatch: HTMLElement[][] = matchRanges.map(() => []);
-
-    for (const item of textNodes) {
-      const highlights: {
-        localStart: number;
-        localEnd: number;
-        matchIdx: number;
-      }[] = [];
-
-      matchRanges.forEach((m, matchIdx) => {
-        const oStart = Math.max(item.start, m.start);
-        const oEnd = Math.min(item.end, m.end);
-        if (oStart < oEnd) {
-          highlights.push({
-            localStart: oStart - item.start,
-            localEnd: oEnd - item.start,
-            matchIdx,
-          });
-        }
-      });
-
-      highlights.sort((a, b) => b.localStart - a.localStart);
-
-      for (const h of highlights) {
-        const middleNode = item.node.splitText(h.localStart);
-        middleNode.splitText(h.localEnd - h.localStart);
-
-        const mark = document.createElement('mark');
-        mark.className = 'search-highlight';
-        mark.textContent = middleNode.nodeValue;
-
-        if (middleNode.parentNode) {
-          middleNode.parentNode.replaceChild(mark, middleNode);
-        }
-
-        marksForMatch[h.matchIdx].unshift(mark);
-      }
-    }
-
-    return marksForMatch;
-  }
-
-  /**
-   * Updates the visual active state of the current match and scrolls it into view.
-   */
-  private updateActiveHighlight() {
-    const index = this.currentMatchIndex() - 1;
-    this.matchGroups.forEach((group, idx) => {
-      const isActive = idx === index;
-      group.marks.forEach((mark) => {
-        if (isActive) {
-          mark.classList.add('active');
-        } else {
-          mark.classList.remove('active');
-        }
-      });
-      if (isActive && group.marks.length > 0) {
-        group.marks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
   }
 
   /**

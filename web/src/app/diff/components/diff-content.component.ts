@@ -17,40 +17,24 @@
 import {
   Component,
   effect,
-  ElementRef,
   HostListener,
   inject,
   input,
   model,
   output,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DiffToolbarComponent } from './diff-toolbar.component';
-import { UnifiedDiffComponent } from 'ngx-diff';
-import { HighlightModule } from 'ngx-highlightjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { Revision } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-bar.component';
 import { SearchScope } from 'src/app/services/view-state.service';
-
-interface TextNodeSpan {
-  node: Text;
-  start: number;
-  end: number;
-}
-
-interface TextRange {
-  start: number;
-  end: number;
-}
-
-interface MatchGroup {
-  marks: HTMLElement[];
-}
+import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
 
 /**
  * Component for displaying the unified diff of a resource revision.
@@ -62,9 +46,8 @@ interface MatchGroup {
   imports: [
     CommonModule,
     DiffToolbarComponent,
-    UnifiedDiffComponent,
-    HighlightModule,
     SearchBarComponent,
+    YamlViewerComponent,
   ],
 })
 export class DiffContentComponent {
@@ -85,7 +68,7 @@ export class DiffContentComponent {
   /**
    * The content string of the previous revision to diff against.
    */
-  readonly previousRevisionContent = input.required<string>();
+  readonly previousRevisionContent = input<string | null>(null);
 
   /**
    * Two-way bound state for showing managed fields in the diff.
@@ -101,12 +84,6 @@ export class DiffContentComponent {
    * Emitted when the mouse hovers over or focus enters/leaves the diff content area.
    */
   readonly scopeActiveChange = output<boolean>();
-
-  /**
-   * Reference to the diff inner container element to search within.
-   */
-  public readonly diffContainer =
-    viewChild<ElementRef<HTMLElement>>('diffContainer');
 
   /**
    * Reference to the search bar component for focus management.
@@ -136,26 +113,39 @@ export class DiffContentComponent {
   /** Holds the current active search scope. */
   public readonly activeSearchScope = input<SearchScope>(SearchScope.Global);
 
-  private matchGroups: MatchGroup[] = [];
+  /**
+   * Signal holding the total count of diff blocks.
+   */
+  public readonly diffCount = signal(0);
 
   /**
-   * Initializes the component and registers an effect to sync search highlights.
+   * Signal holding the 1-based index of the active diff block.
+   */
+  public readonly currentDiffIndex = signal(0);
+
+  /**
+   * Initializes the component.
    */
   constructor() {
     effect(() => {
-      const query = this.searchQuery();
-      this.currentRevisionContent();
-      this.previousRevisionContent();
-      const isOpen = this.isSearchOpen();
-      setTimeout(() => {
-        // applyHighlights read DOM contents that can be updated by the signals above.
-        // applyHighlights can update a signal and effects shouldn't update signals.
-        // This setTimeout is a workaround to avoid this issue.
-        if (isOpen && query) {
-          this.applyHighlights(query);
+      const count = this.diffCount();
+      untracked(() => {
+        const currentIdx = this.currentDiffIndex();
+        if (count > 0) {
+          if (currentIdx === 0 || currentIdx > count) {
+            this.currentDiffIndex.set(1);
+          }
         } else {
-          this.removeHighlights();
+          this.currentDiffIndex.set(0);
         }
+      });
+    });
+
+    effect(() => {
+      // Watch currentRevision changes to reset the active diff index.
+      this.currentRevision();
+      untracked(() => {
+        this.currentDiffIndex.set(this.diffCount() > 0 ? 1 : 0);
       });
     });
   }
@@ -214,7 +204,6 @@ export class DiffContentComponent {
     }
     const next = (this.currentMatchIndex() % count) + 1;
     this.currentMatchIndex.set(next);
-    this.updateActiveHighlight();
   }
 
   /**
@@ -230,7 +219,29 @@ export class DiffContentComponent {
       prev = count;
     }
     this.currentMatchIndex.set(prev);
-    this.updateActiveHighlight();
+  }
+
+  /**
+   * Navigates to the next diff block.
+   */
+  public nextDiff() {
+    const count = this.diffCount();
+    if (count === 0) {
+      return;
+    }
+    const next = Math.min(this.currentDiffIndex() + 1, count);
+    this.currentDiffIndex.set(next);
+  }
+
+  /**
+   * Navigates to the previous diff block.
+   */
+  public prevDiff() {
+    if (this.diffCount() === 0) {
+      return;
+    }
+    const prev = Math.max(this.currentDiffIndex() - 1, 1);
+    this.currentDiffIndex.set(prev);
   }
 
   /**
@@ -250,177 +261,6 @@ export class DiffContentComponent {
       snackbarMessage = 'Copied!';
     }
     this.snackBar.open(snackbarMessage, undefined, { duration: 1000 });
-  }
-
-  /**
-   * Removes all search highlights and restores original text nodes.
-   */
-  private removeHighlights() {
-    const root = this.diffContainer()?.nativeElement;
-    if (!root) {
-      return;
-    }
-    const marks = root.querySelectorAll('mark.search-highlight');
-    marks.forEach((mark) => {
-      const parent = mark.parentNode;
-      if (parent) {
-        while (mark.firstChild) {
-          parent.insertBefore(mark.firstChild, mark);
-        }
-        parent.removeChild(mark);
-      }
-    });
-    root.normalize();
-  }
-
-  /**
-   * Applies search highlights to the diff body matching the given query across text nodes.
-   * @param query The search query string.
-   */
-  private applyHighlights(query: string) {
-    this.removeHighlights();
-    this.matchGroups = [];
-    if (!query) {
-      this.matchCount.set(0);
-      this.currentMatchIndex.set(0);
-      return;
-    }
-
-    const root = this.diffContainer()?.nativeElement;
-    if (!root) {
-      return;
-    }
-
-    const { textNodes, fullText } = this.extractTextNodes(root);
-    const matchRanges = this.findMatchRanges(fullText, query);
-    const marksForMatch = this.applyHighlightsToNodes(textNodes, matchRanges);
-
-    this.matchGroups = marksForMatch.map((marks) => ({ marks }));
-    const count = this.matchGroups.length;
-    this.matchCount.set(count);
-    if (count > 0) {
-      this.currentMatchIndex.set(1);
-      this.updateActiveHighlight();
-    } else {
-      this.currentMatchIndex.set(0);
-    }
-  }
-
-  /**
-   * Extracts text nodes and their global offsets from the root element.
-   * @param root The root element to scan.
-   * @returns An object containing text nodes spans and cumulative full text.
-   */
-  private extractTextNodes(root: HTMLElement): {
-    textNodes: TextNodeSpan[];
-    fullText: string;
-  } {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    const textNodes: TextNodeSpan[] = [];
-    let fullText = '';
-
-    let node = walker.nextNode();
-    while (node) {
-      const text = node.nodeValue || '';
-      const start = fullText.length;
-      fullText += text;
-      textNodes.push({ node: node as Text, start, end: fullText.length });
-      node = walker.nextNode();
-    }
-
-    return { textNodes, fullText };
-  }
-
-  /**
-   * Finds all matching index ranges within the scanned text for the given query.
-   * @param text The full text string to search within.
-   * @param query The search query string.
-   * @returns An array of start and end match ranges.
-   */
-  private findMatchRanges(text: string, query: string): TextRange[] {
-    const lowerQuery = query.toLowerCase();
-    const queryLen = query.length;
-    const matchRanges: TextRange[] = [];
-    let matchPos = text.toLowerCase().indexOf(lowerQuery);
-
-    while (matchPos !== -1) {
-      matchRanges.push({ start: matchPos, end: matchPos + queryLen });
-      matchPos = text.toLowerCase().indexOf(lowerQuery, matchPos + queryLen);
-    }
-
-    return matchRanges;
-  }
-
-  /**
-   * Applies mark elements to matching text nodes and groups them by match index.
-   * @param textNodes The scanned text node spans.
-   * @param matchRanges The matched search query ranges.
-   * @returns A grouped array of created mark elements per match range.
-   */
-  private applyHighlightsToNodes(
-    textNodes: TextNodeSpan[],
-    matchRanges: TextRange[],
-  ): HTMLElement[][] {
-    const marksForMatch: HTMLElement[][] = matchRanges.map(() => []);
-
-    for (const item of textNodes) {
-      const highlights: {
-        localStart: number;
-        localEnd: number;
-        matchIdx: number;
-      }[] = [];
-
-      matchRanges.forEach((m, matchIdx) => {
-        const oStart = Math.max(item.start, m.start);
-        const oEnd = Math.min(item.end, m.end);
-        if (oStart < oEnd) {
-          highlights.push({
-            localStart: oStart - item.start,
-            localEnd: oEnd - item.start,
-            matchIdx,
-          });
-        }
-      });
-
-      highlights.sort((a, b) => b.localStart - a.localStart);
-
-      for (const h of highlights) {
-        const middleNode = item.node.splitText(h.localStart);
-        middleNode.splitText(h.localEnd - h.localStart);
-
-        const mark = document.createElement('mark');
-        mark.className = 'search-highlight';
-        mark.textContent = middleNode.nodeValue;
-
-        if (middleNode.parentNode) {
-          middleNode.parentNode.replaceChild(mark, middleNode);
-        }
-
-        marksForMatch[h.matchIdx].unshift(mark);
-      }
-    }
-
-    return marksForMatch;
-  }
-
-  /**
-   * Updates the visual active state of the current match and scrolls it into view.
-   */
-  private updateActiveHighlight() {
-    const index = this.currentMatchIndex() - 1;
-    this.matchGroups.forEach((group, idx) => {
-      const isActive = idx === index;
-      group.marks.forEach((mark) => {
-        if (isActive) {
-          mark.classList.add('active');
-        } else {
-          mark.classList.remove('active');
-        }
-      });
-      if (isActive && group.marks.length > 0) {
-        group.marks[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    });
   }
 
   /**
