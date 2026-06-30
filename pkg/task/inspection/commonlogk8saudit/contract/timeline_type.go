@@ -59,7 +59,7 @@ var (
 		style.ColorBlack,
 		true,
 		7000,
-		style.AlphabeticalSortPolicy(),
+		style.GroupedChronologicalSortPolicy("-"),
 	)
 	TimelineTypePodPhase = style.MustRegisterTimelineType(
 		"pod",
