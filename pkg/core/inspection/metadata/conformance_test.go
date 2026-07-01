@@ -77,3 +77,7 @@ func TestProgressConformance(t *testing.T) {
 func TestPlanMetadataConformance(t *testing.T) {
 	ConformanceMetadataTypeTest(t, &InspectionPlanMetadata{})
 }
+
+func TestJobModeCommandMetadataConformance(t *testing.T) {
+	ConformanceMetadataTypeTest(t, &JobModeCommandMetadata{})
+}

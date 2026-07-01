@@ -38,7 +38,10 @@ func (t *taskProgressReporter) ReportProgress(percentage float32, status string)
 
 // SerializeTask is a subsequent task that must be included in the task graph after tasks like TimelineMapper and LogIngester.
 // It retrieves the Builder instance populated by its preceding tasks and serializes its accumulated contents into the final KHI file.
-var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspectioncore_contract.SerializerTaskID, []taskid.UntypedTaskReference{}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*inspectioncore_contract.FileSystemStore, error) {
+var SerializeTask = inspectiontaskbase.NewProgressReportableInspectionTask(inspectioncore_contract.SerializerTaskID, []taskid.UntypedTaskReference{
+	JobModeCommandTaskID.Ref(),
+}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (*inspectioncore_contract.FileSystemStore, error) {
+
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		slog.DebugContext(ctx, "Skipping because this is in dryrun mode")
 		return nil, nil

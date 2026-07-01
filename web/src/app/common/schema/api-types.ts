@@ -27,6 +27,7 @@ import {
   InspectionMetadataPlan,
   InspectionMetadataProgress,
   InspectionMetadataQuery,
+  InspectionMetadataJobModeCommand,
 } from './metadata-types';
 
 /**
@@ -189,6 +190,11 @@ export type InspectionMetadataInDryrun = {
    * The inspection task graph in string representation.
    */
   plan: InspectionMetadataPlan;
+
+  /**
+   * The copy-pasteable CLI command to run this inspection in job mode.
+   */
+  jobCommand?: InspectionMetadataJobModeCommand;
 };
 
 /**

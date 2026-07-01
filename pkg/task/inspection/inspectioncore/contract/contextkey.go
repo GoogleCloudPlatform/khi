@@ -75,3 +75,9 @@ var TracingActive = typedmap.NewTypedKey[bool]("khi.google.com/inspection/tracin
 // InspectionContext is the context key to access the lifecycle context of the inspection.
 // This context persists across multiple executions of dryrun and run until the run finishes.
 var InspectionContext = typedmap.NewTypedKey[context.Context]("khi.google.com/inspection/context")
+
+// InspectionTaskType is the context key to access the inspection type ID (e.g. googlecloudclustergke).
+var InspectionTaskType = typedmap.NewTypedKey[string]("khi.google.com/inspection/type")
+
+// InspectionTaskEnabledFeatures is the context key to access the list of enabled features.
+var InspectionTaskEnabledFeatures = typedmap.NewTypedKey[[]string]("khi.google.com/inspection/enabled-features")

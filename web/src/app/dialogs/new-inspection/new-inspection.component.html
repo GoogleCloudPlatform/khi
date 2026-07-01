@@ -129,6 +129,11 @@ limitations under the License.
                 }
               </mat-card-content>
             </mat-card>
+            @if (parameterViewModel.job) {
+              <khi-job-command
+                [command]="parameterViewModel.job.command"
+              ></khi-job-command>
+            }
             <mat-card>
               <mat-card-header>
                 <mat-card-title>Inspection plan</mat-card-title>
