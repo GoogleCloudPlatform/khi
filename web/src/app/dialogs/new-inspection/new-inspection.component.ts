@@ -65,7 +65,7 @@ import {
   ParameterInputType,
 } from 'src/app/common/schema/form-types';
 import { GroupParameterComponent } from './components/group-parameter.component';
-import { JobCommandComponent } from './components/job-command.component';
+import { JobCommandComponent } from 'src/app/dialogs/new-inspection/components/job-command.component';
 import {
   InspectionMetadataPlan,
   InspectionMetadataQuery,

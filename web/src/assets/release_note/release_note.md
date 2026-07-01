@@ -1,4 +1,16 @@
-# 🚀 Kubernetes History Inspector v0.56.0
+These release notes only include featured changes. For other minor changes and bug fixes, please see the [GitHub Releases](https://github.com/GoogleCloudPlatform/khi/releases) page.
+
+# v0.56.6 (July 1 2026)
+
+## Job Mode Command Generator
+
+In the dialog to start a new inspection, KHI now generates a copy-pasteable CLI command based on your selected inspection target, enabled features, and parameter inputs. You can easily copy the command to execute KHI in job mode in automated environments.
+
+<img src="assets/release_note/job_mode.png" alt="Job mode command generation UI" width="512px">
+
+Copy the comand after filling out the parameters on the forms.
+
+# v0.56.0 (June 20 2026)
 
 ## Breaking changes on `.khi` File Schema
 

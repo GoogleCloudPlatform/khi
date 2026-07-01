@@ -74,6 +74,23 @@ func TestGenerateJobModeCommand(t *testing.T) {
   --job-export-destination="output.khi"`,
 			wantErr: false,
 		},
+		{
+			name:            "command with task inputs containing single quotes",
+			inspectionType:  "composer",
+			enabledFeatures: []string{"composer-logs"},
+			taskInput: map[string]any{
+				"project": "my'project",
+			},
+			want: `./khi \
+  --job-mode \
+  --job-inspection-type="composer" \
+  --job-inspection-features="composer-logs" \
+  --job-inspection-values='{
+  "project": "my'\''project"
+}' \
+  --job-export-destination="output.khi"`,
+			wantErr: false,
+		},
 	}
 
 	for _, tc := range testCases {

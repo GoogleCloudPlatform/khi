@@ -80,7 +80,7 @@ func GenerateJobModeCommand(inspectionType string, enabledFeatures []string, tas
 		if err != nil {
 			return "", fmt.Errorf("failed to marshal inspection values: %w", err)
 		}
-		valuesStr = string(valuesBytes)
+		valuesStr = strings.ReplaceAll(string(valuesBytes), "'", "'\\''")
 	}
 
 	command := fmt.Sprintf(`./khi \
