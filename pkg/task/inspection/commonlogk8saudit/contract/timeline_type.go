@@ -72,7 +72,7 @@ var (
 		style.ColorBlack,
 		true,
 		8000,
-		style.AlphabeticalSortPolicy(),
+		style.ChronologicalSortPolicy(1),
 	)
 	// TimelineTypeContainer is the timeline type style for Kubernetes containers.
 	TimelineTypeContainer = style.MustRegisterTimelineType(
