@@ -65,9 +65,11 @@ import {
   ParameterInputType,
 } from 'src/app/common/schema/form-types';
 import { GroupParameterComponent } from './components/group-parameter.component';
+import { JobCommandComponent } from './components/job-command.component';
 import {
   InspectionMetadataPlan,
   InspectionMetadataQuery,
+  InspectionMetadataJobModeCommand,
 } from 'src/app/common/schema/metadata-types';
 import {
   EXTENSION_STORE,
@@ -82,6 +84,7 @@ export interface ParameterPageViewModel {
   rootGroupForm: GroupParameterFormField;
   queries: InspectionMetadataQuery[];
   plan: InspectionMetadataPlan;
+  job?: InspectionMetadataJobModeCommand;
   errorFieldCount: number;
   fieldCount: number;
 }
@@ -111,6 +114,7 @@ export function openNewInspectionDialog(dialog: MatDialog) {
     MatFormFieldModule,
     MatAutocompleteModule,
     GroupParameterComponent,
+    JobCommandComponent,
   ],
   providers: [
     {
@@ -260,6 +264,7 @@ export class NewInspectionDialogComponent implements OnDestroy {
           },
           queries: metadata.query,
           plan: metadata.plan,
+          job: metadata.jobCommand,
           errorFieldCount: errorFieldCount,
           fieldCount: fieldCount,
         } as ParameterPageViewModel;

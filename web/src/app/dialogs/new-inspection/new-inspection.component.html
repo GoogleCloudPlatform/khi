@@ -143,6 +143,11 @@ limitations under the License.
                 }}</pre>
               </mat-card-content>
             </mat-card>
+            @if (parameterViewModel.job) {
+              <khi-job-command
+                [command]="parameterViewModel.job.command"
+              ></khi-job-command>
+            }
           </div>
           <div class="parameters-footer">
             @if (parameterViewModel.errorFieldCount !== 0) {

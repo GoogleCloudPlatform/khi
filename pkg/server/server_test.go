@@ -335,7 +335,7 @@ func TestApiResponses(t *testing.T) {
 			RequestGenerator: func(t *testing.T, stat map[string]string) any {
 				return map[string]any{}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"","hintType":"none","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text","validationTiming":"change"}],"query":[]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"","hintType":"none","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text","validationTiming":"change"}],"query":[]}}`, "plan", "jobCommand"),
 		},
 		{
 			// 008
@@ -348,7 +348,7 @@ func TestApiResponses(t *testing.T) {
 					"foo-input": "foo-input-value",
 				}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"","hintType":"none","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text","validationTiming":"change"}],"query":[]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"","hintType":"none","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text","validationTiming":"change"}],"query":[]}}`, "plan", "jobCommand"),
 		},
 		{
 			// 009
@@ -361,7 +361,7 @@ func TestApiResponses(t *testing.T) {
 					"foo-input": "foo-input-invalid-value",
 				}
 			},
-			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"invalid value","hintType":"error","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text","validationTiming":"change"}],"query":[]}}`, "plan"),
+			BodyValidator: metadataIgnoredBodyCompare(`{"metadata":{"form":[{"default":"","description":"","hint":"invalid value","hintType":"error","id":"foo-input","label":"A input field for foo","readonly":false,"suggestions":null,"type":"text","validationTiming":"change"}],"query":[]}}`, "plan", "jobCommand"),
 		},
 		{
 			// 010

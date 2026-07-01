@@ -275,6 +275,7 @@ func run() int {
 				exitCh <- 1
 				return
 			}
+			exitCh <- 0
 		}()
 	}
 	return <-exitCh

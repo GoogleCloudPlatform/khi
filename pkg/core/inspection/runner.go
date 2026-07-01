@@ -102,7 +102,20 @@ func NewInspectionRunner(server *InspectionTaskServer, ioConfig *inspectioncore_
 func (i *InspectionTaskRunner) addDefaultRunContextOptions() {
 	// Options common for any run from this runner.
 	defaultRunContextOptions := []RunContextOption{
+		RunContextOptionFromFunc(inspectioncore_contract.InspectionTaskType, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
+			return i.currentInspectionType, nil
+		}),
+		RunContextOptionFromFunc(inspectioncore_contract.InspectionTaskEnabledFeatures, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+			var enabledFeatures []string
+			for f, enabled := range i.enabledFeatures {
+				if enabled {
+					enabledFeatures = append(enabledFeatures, f)
+				}
+			}
+			return enabledFeatures, nil
+		}),
 		RunContextOptionFromValue(inspectioncore_contract.InspectionCreationTime, i.inspectionCreationTime),
+
 		RunContextOptionFromValue(inspectioncore_contract.InspectionContext, i.inspectionCtx),
 		RunContextOptionFromFunc(inspectioncore_contract.InspectionTaskRunID, func(ctx context.Context, mode inspectioncore_contract.InspectionTaskModeType) (string, error) {
 			return i.runIDGenerator.Generate(), nil
@@ -532,6 +545,7 @@ func (i *InspectionTaskRunner) addCommonMetadata(ctx context.Context, writableMe
 	typedmap.Set(writableMetadata, inspectionmetadata.FormFieldSetMetadataKey, inspectionmetadata.NewFormFieldSetMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.QueryMetadataKey, inspectionmetadata.NewQueryMetadata())
 	typedmap.Set(writableMetadata, inspectionmetadata.LogMetadataKey, inspectionmetadata.NewLogMetadata())
+	typedmap.Set(writableMetadata, inspectionmetadata.JobModeCommandMetadataKey, inspectionmetadata.NewJobModeCommandMetadata(""))
 
 	progressMeta := inspectionmetadata.NewProgress()
 	progressMeta.SetTotalTaskCount(len(coretask.Subset(taskGraph, filter.NewEnabledFilter(inspectioncore_contract.LabelKeyProgressReportable, false)).GetAll()))

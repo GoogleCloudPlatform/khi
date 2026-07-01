@@ -78,3 +78,10 @@ export type InspectionMetadataLog = {
   name: string;
   log: string;
 };
+
+/**
+ * Stores the job mode command example.
+ */
+export interface InspectionMetadataJobModeCommand {
+  readonly command: string;
+}

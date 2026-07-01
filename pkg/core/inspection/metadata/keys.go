@@ -26,3 +26,4 @@ var InspectionPlanMetadataKey = NewMetadataKey[*InspectionPlanMetadata]("plan")
 // from a context or metadata map.
 var ProgressMetadataKey = NewMetadataKey[*Progress]("progress")
 var QueryMetadataKey = NewMetadataKey[*QueryMetadata]("query")
+var JobModeCommandMetadataKey = NewMetadataKey[*JobModeCommandMetadata]("jobCommand")
