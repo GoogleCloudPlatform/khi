@@ -27,7 +27,7 @@ import (
 
 // standard.go contains types to hold structured data on memory as its field and implements Node interface.
 
-// StandardScalarNode is a leaf of structured data implemting Node interface.
+// StandardScalarNode is a leaf of structured data implementing Node interface.
 type StandardScalarNode[T comparable] struct {
 	value T
 }
@@ -103,7 +103,7 @@ func (n *StandardScalarNode[T]) MarshalYAML() (interface{}, error) {
 	return yamlNode, nil
 }
 
-// NewStandardScalarNode instanciate the value of StandardScalarNode from the given value.
+// NewStandardScalarNode instantiates the value of StandardScalarNode from the given value.
 func NewStandardScalarNode[T comparable](value T) *StandardScalarNode[T] {
 	return &StandardScalarNode[T]{
 		value: value,

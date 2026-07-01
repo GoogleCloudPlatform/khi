@@ -116,7 +116,7 @@ func (g *globalLoggerHandler) RegisterTaskLogger(inspectionId string, taskId tas
 	defer g.handlersLock.Unlock()
 	loggerId := fmt.Sprintf("%s-%s-%s", inspectionId, taskId.String(), runId)
 	if _, found := (*g.handlers)[loggerId]; found {
-		slog.Warn(fmt.Sprintf("duplicated logger found for %s. Ignoreing...", loggerId))
+		slog.Warn(fmt.Sprintf("duplicated logger found for %s. Ignoring...", loggerId))
 	} else {
 		(*g.handlers)[loggerId] = handler
 	}

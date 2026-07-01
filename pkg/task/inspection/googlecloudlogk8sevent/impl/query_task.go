@@ -68,7 +68,7 @@ func generateK8sEventNamespaceFilter(filter *gcpqueryutil.SetFilterParseResult) 
 			return fmt.Sprintf(`(jsonPayload.involvedObject.namespace=(%s) OR NOT (jsonPayload.involvedObject.namespace:""))`, strings.Join(namespaceContains, " OR "))
 		}
 		if len(filter.Additives) == 0 {
-			return `-- Invalid: none of the resources will be selected. Ignoreing namespace filter.`
+			return `-- Invalid: none of the resources will be selected. Ignoring namespace filter.`
 		}
 		return fmt.Sprintf(`jsonPayload.involvedObject.namespace=(%s)`, strings.Join(filter.Additives, " OR "))
 	}

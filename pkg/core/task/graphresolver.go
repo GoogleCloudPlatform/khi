@@ -305,7 +305,7 @@ func getMapOfReferenceIDs(tasks []UntypedTask) map[string]taskid.UntypedTaskRefe
 	taskReferenceMap := map[string]taskid.UntypedTaskReference{}
 	for _, task := range tasks {
 		refID := task.UntypedID().ReferenceIDString()
-		// A task graph can contain tasks shareing a same task reference. Duplication is safely ignored.
+		// A task graph can contain tasks sharing a same task reference. Duplication is safely ignored.
 		taskReferenceMap[refID] = task.UntypedID().GetUntypedReference()
 	}
 	return taskReferenceMap

@@ -39,7 +39,7 @@ func (a *AlphabeticalGoMapKeyOrderProvider) GetOrderedKeys(sourcePath []string, 
 	return keys, nil
 }
 
-// FromGoValue instanciate the Node interface from given Go map, slice or scalars.
+// FromGoValue instantiate the Node interface from given Go map, slice or scalars.
 func FromGoValue(source any, mapKeyOrderProvider GoMapKeyOrderProvider) (Node, error) {
 	return fromGoValue(make([]string, 0, defaultFieldPathCapacity), source, mapKeyOrderProvider)
 }

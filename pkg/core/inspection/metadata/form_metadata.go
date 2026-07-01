@@ -42,7 +42,7 @@ const (
 type ParameterHintType string
 
 const (
-	// None is a type of ParameterHintType. Frontend will supress hint when this type is given.
+	// None is a type of ParameterHintType. Frontend will suppress hint when this type is given.
 	None ParameterHintType = "none"
 	// Error is a type of ParameterHintType. Frontend will prevent user to click the button to go the next page when there is at least a field with a hint of this type.
 	Error ParameterHintType = "error"
@@ -76,7 +76,7 @@ type ParameterFormFieldBase struct {
 	Type ParameterInputType `json:"type"`
 	// Label is a short human readable title of this field. This is visible on the form.
 	Label string `json:"label"`
-	// Description is a human readable explaination of this field.
+	// Description is a human readable explanation of this field.
 	Description string `json:"description"`
 	// HintType is the ParameterHintType of the Hint field of this parameter field.
 	HintType ParameterHintType `json:"hintType"`

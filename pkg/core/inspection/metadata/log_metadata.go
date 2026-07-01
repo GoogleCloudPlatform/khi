@@ -29,7 +29,7 @@ type LogMetadata struct {
 	lock       sync.Mutex
 }
 
-// NewLogMetadata instanciates an empty LogMetadata.
+// NewLogMetadata instantiates an empty LogMetadata.
 func NewLogMetadata() *LogMetadata {
 	return &LogMetadata{
 		logBuffers: map[string]*bytes.Buffer{},

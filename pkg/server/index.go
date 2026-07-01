@@ -33,7 +33,7 @@ func replaceLocalDevServerOnlyTag(source string) string {
 // replaceDynamicPartOfIndex rewrites the given original HTML string with injecting several tags to be injected dynamatically.
 func replaceDynamicPartOfIndex(originalIndexHTML string) (string, error) {
 	if !strings.Contains(originalIndexHTML, IndexReplacePlaceholder) {
-		return "", fmt.Errorf("inject taregt string was not found")
+		return "", fmt.Errorf("inject target string was not found")
 	}
 
 	generatedTags := index.GenerateTags()

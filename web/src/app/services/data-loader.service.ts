@@ -128,7 +128,7 @@ export class InspectionDataLoaderService {
       this.loadInspectionDataDirect(await data.content.arrayBuffer());
     } catch (e) {
       console.error(e);
-      // Since the file size could be large, there could be a several reasons to fail including browser limtations.
+      // Since the file size could be large, there could be several reasons for failure, including browser limitations.
       // Smaller file size should always be an option.
       alert(
         `Failed to load the inspection data. Please try query with shorter duration.`,

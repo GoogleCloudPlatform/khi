@@ -38,7 +38,7 @@ type TextFormDefaultValueGenerator = func(ctx context.Context, previousValues []
 type TextFormReadonlyProvider = func(ctx context.Context) (bool, error)
 
 // TextFormSuggestionsProvider is a function to return the list of strings shown in the autocomplete.
-// Return nil instead of emptry string array means the autocomplete is disabled for the field.
+// Return nil instead of empty string array means the autocomplete is disabled for the field.
 type TextFormSuggestionsProvider = func(ctx context.Context, value string, previousValues []string) ([]string, error)
 
 // TextFormValueConverter is a function type to convert the given string value to another type stored in the variable set.
@@ -60,7 +60,7 @@ type TextFormTaskBuilder[T any] struct {
 	validatingTiming    inspectionmetadata.TextFormValidationTimingType
 }
 
-// NewTextFormTaskBuilder constructs an instace of TextFormDefinitionBuilder.
+// NewTextFormTaskBuilder constructs an instance of TextFormDefinitionBuilder.
 // id,prioirity and label will be initialized with the value given in the argument. The other values are initialized with the following values.
 // dependencies : Initialized with an empty string array indicating this task is not depending on anything.
 // description: Initialized with an empty string.
@@ -204,7 +204,7 @@ func (b *TextFormTaskBuilder[T]) Build(labelOpts ...common_task.LabelOpt) common
 
 		validationErr, err := b.validator(ctx, currentValue)
 		if err != nil {
-			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecovable error\n%v", b.id, err)
+			return *new(T), fmt.Errorf("validator for task `%s` returned an unrecoverable error\n%v", b.id, err)
 		}
 		if validationErr != "" {
 			// When the given string is invalid, it should be the default value.

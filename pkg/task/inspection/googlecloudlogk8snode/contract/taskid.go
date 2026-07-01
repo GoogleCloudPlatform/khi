@@ -47,7 +47,7 @@ var ContainerdLogFilterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](Ta
 // ContainerdLogGroupTaskID is the ID for a task to group containerd related logs based on instance names.
 var ContainerdLogGroupTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "containerd-log-group")
 
-// PodSandboxIDDiscoveryTaskID is the ID for a task to extract pod sandbox IDs for the other parsers to corelate a log to Pods.
+// PodSandboxIDDiscoveryTaskID is the ID for a task to extract pod sandbox IDs for the other parsers to correlate a log to Pods.
 var PodSandboxIDDiscoveryTaskID = taskid.NewDefaultImplementationID[patternfinder.PatternFinder[*PodSandboxIDInfo]](TaskIDPrefix + "containerd-id-discovery")
 
 // ContainerdLogLogToTimelineMapperTaskID is the ID for a task to add events or revisions based on containerd logs.

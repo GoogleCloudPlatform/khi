@@ -109,8 +109,8 @@ func TestUploadFileStore(t *testing.T) {
 		if err == nil {
 			t.Error("Expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), "unknown upload token specifed") {
-			t.Errorf("Expected error message to contain 'unknown upload token specifed', got '%v'", err)
+		if !strings.Contains(err.Error(), "unknown upload token specified") {
+			t.Errorf("Expected error message to contain 'unknown upload token specified', got '%v'", err)
 		}
 	})
 
@@ -121,8 +121,8 @@ func TestUploadFileStore(t *testing.T) {
 		if err == nil {
 			t.Error("Expected an error for nonexistent token")
 		}
-		if !strings.Contains(err.Error(), "unknown upload token specifed") {
-			t.Errorf("Expected 'unknown upload token specifed' in error, got: %v", err)
+		if !strings.Contains(err.Error(), "unknown upload token specified") {
+			t.Errorf("Expected 'unknown upload token specified' in error, got: %v", err)
 		}
 	})
 

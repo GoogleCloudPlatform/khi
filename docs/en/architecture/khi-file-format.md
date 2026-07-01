@@ -97,7 +97,7 @@ Each chunk is a Protobuf binary. The root message type of a chunk depends on the
     ```
 
     This data is serialized as `InternedStruct` as follows:
-    1. **Key Flattening**: Travesing the map key structure, `key` under `map` is joined as `map\x00key`. The root keys become a set with the order `["map\x00key", "list"]`, and a `FieldPathSetID` is allocated.
+    1. **Key Flattening**: Traversing the map key structure, `key` under `map` is joined as `map\x00key`. The root keys become a set with the order `["map\x00key", "list"]`, and a `FieldPathSetID` is allocated.
     2. **Value Listing**: Values are stored in the `Values` list in the order of the key set above.
        * Index 0 (corresponding to `map\x00key`): `BoolValue(true)`
        * Index 1 (corresponding to `list`): `ListValue` containing `[NullValue(), StringValue(ID of "hello" in the pool)]`

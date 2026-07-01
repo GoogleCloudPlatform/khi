@@ -14,7 +14,7 @@
 
 package coretask
 
-// TaskRegistry provides point to regsiter task.
+// TaskRegistry provides point to register task.
 type TaskRegistry interface {
 	// AddTask registers a type of a task.
 	AddTask(task UntypedTask) error
