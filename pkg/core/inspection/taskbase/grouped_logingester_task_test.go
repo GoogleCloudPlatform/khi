@@ -63,9 +63,9 @@ func (m *mockGroupedLogIngester) ProcessLogByGroup(ctx context.Context, l *log.L
 	return nil, prevGroupData, nil
 }
 
-var _ GroupedLogIngesterV2[testState] = (*mockGroupedLogIngester)(nil)
+var _ GroupedLogIngester[testState] = (*mockGroupedLogIngester)(nil)
 
-func TestNewGroupedLogIngesterTaskV2(t *testing.T) {
+func TestNewGroupedLogIngesterTask(t *testing.T) {
 	testCases := []struct {
 		name          string
 		rawLogs       []*log.Log
@@ -159,7 +159,7 @@ func TestNewGroupedLogIngesterTaskV2(t *testing.T) {
 			}
 
 			tid := taskid.NewDefaultImplementationID[[]*log.Log]("test-grouped-ingester")
-			task := NewGroupedLogIngesterTaskV2(tid, ingester)
+			task := NewGroupedLogIngesterTask(tid, ingester)
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
@@ -213,7 +213,7 @@ func TestNewGroupedLogIngesterTaskV2(t *testing.T) {
 	}
 }
 
-func TestNewGroupedLogIngesterTaskV2_ErrorHandling(t *testing.T) {
+func TestNewGroupedLogIngesterTask_ErrorHandling(t *testing.T) {
 	ctx := context.Background()
 	ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
 	rawLogs := []*log.Log{
@@ -236,7 +236,7 @@ func TestNewGroupedLogIngesterTaskV2_ErrorHandling(t *testing.T) {
 	}
 
 	tid := taskid.NewDefaultImplementationID[[]*log.Log]("test-grouped-ingester-error")
-	task := NewGroupedLogIngesterTaskV2(tid, ingester)
+	task := NewGroupedLogIngesterTask(tid, ingester)
 
 	builder := khifilev6.NewBuilder()
 	ctx = khictx.WithValue(ctx, inspectioncore_contract.Builder, builder)

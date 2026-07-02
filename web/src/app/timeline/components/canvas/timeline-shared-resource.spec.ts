@@ -16,7 +16,7 @@
 
 import { TimelineRendererSharedResource } from './timeline-shared-resource';
 import { SharedTmpBuffer, WebGLUtil } from './glutil';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 import { BMFontConfig, IconAtlas } from 'src/app/store/domain/style';
 
 describe('TimelineRendererSharedResource', () => {
@@ -100,7 +100,7 @@ describe('TimelineRendererSharedResource', () => {
 
   describe('updateIconAtlas', () => {
     it('should lazily load and configure MSDF icon texture and mappings from styleStore', async () => {
-      const mockData = await createMockInspectionDataV2();
+      const mockData = await createMockInspectionData();
       const styleStore = mockData.styleStore;
 
       // Set up a dummy self-contained IconAtlas in styleStore to avoid network requests
@@ -179,7 +179,7 @@ describe('TimelineRendererSharedResource', () => {
     });
 
     it('should avoid uploading icon texture again if the same icon atlas instance is updated', async () => {
-      const mockData = await createMockInspectionDataV2();
+      const mockData = await createMockInspectionData();
       const styleStore = mockData.styleStore;
 
       const nameToCodepoints = new Map<string, string>([
@@ -246,7 +246,7 @@ describe('TimelineRendererSharedResource', () => {
 
   describe('getIconUVSizes', () => {
     it('should return correct texture coordinates and scaling values for a valid icon', async () => {
-      const mockData = await createMockInspectionDataV2();
+      const mockData = await createMockInspectionData();
       const styleStore = mockData.styleStore;
 
       const nameToCodepoints = new Map<string, string>([
@@ -313,7 +313,7 @@ describe('TimelineRendererSharedResource', () => {
     });
 
     it('should throw an error if requested icon name is not registered in codepoints', async () => {
-      const mockData = await createMockInspectionDataV2();
+      const mockData = await createMockInspectionData();
       const styleStore = mockData.styleStore;
 
       const nameToCodepoints = new Map<string, string>();

@@ -16,8 +16,8 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { TypeSeverityComponent } from './type-severity.component';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 const meta: Meta<TypeSeverityComponent> = {
   title: 'Log/TypeSeverityComponent',
@@ -32,11 +32,11 @@ type Story = StoryObj<TypeSeverityComponent>;
 export const Info: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log =
       Array.from(data.logStore.logs()).find(
         (l) => l.severity.label === 'INFO',
@@ -54,11 +54,11 @@ export const Info: Story = {
 export const Warning: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log =
       Array.from(data.logStore.logs()).find(
         (l) => l.severity.label === 'WARNING',
@@ -76,11 +76,11 @@ export const Warning: Story = {
 export const ErrorSeverity: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log =
       Array.from(data.logStore.logs()).find(
         (l) => l.severity.label === 'ERROR',
@@ -98,11 +98,11 @@ export const ErrorSeverity: Story = {
 export const Unknown: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log =
       Array.from(data.logStore.logs()).find(
         (l) => l.severity.label === 'UNKNOWN',

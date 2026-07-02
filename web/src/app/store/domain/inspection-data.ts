@@ -27,9 +27,9 @@ import { MetadataStore } from 'src/app/store/domain/metadata-store';
  * It provides efficient memory layouts and high-speed in-memory searches on the frontend,
  * while absorbing differences in the Protobuf side.
  *
- * TODO: Remove "V2" suffix once this completely replaces the existing InspectionData.
+ 
  */
-export interface InspectionDataV2 {
+export interface InspectionData {
   /**
    * Interned storage provider providing efficient memory layout.
    */

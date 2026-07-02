@@ -59,14 +59,14 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudloggkeapiau
 )
 
 // LogToTimelineMapperTask is a task that maps GKE audit logs to timeline elements.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[*googlecloudcommon_contract.GCPOperationTracker](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabelV2(`GKE Audit Logs`,
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](googlecloudloggkeapiaudit_contract.LogToTimelineMapperTaskID, &gkeAuditLogLogToTimelineMapperSetting{},
+	inspectioncore_contract.FeatureTaskLabel(`GKE Audit Logs`,
 		`Gather GKE audit logs to visualize the creation, upgrade, and deletion of clusters and node pools on timelines.`,
 		5000,
 		true),
 )
 
-// gkeAuditLogLogToTimelineMapperSetting implements the LogToTimelineMapperV2 interface for GKE audit logs.
+// gkeAuditLogLogToTimelineMapperSetting implements the LogToTimelineMapper interface for GKE audit logs.
 type gkeAuditLogLogToTimelineMapperSetting struct {
 	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
 }
@@ -125,4 +125,4 @@ func (g *gkeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Co
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationTracker] = (*gkeAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*gkeAuditLogLogToTimelineMapperSetting)(nil)

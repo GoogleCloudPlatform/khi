@@ -33,7 +33,7 @@ import { Log } from 'src/app/store/domain/log';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
-import { generateDefaultRulerStyle } from './style-model-v2';
+import { generateDefaultRulerStyle } from 'src/app/timeline/components/style-model';
 
 @Component({
   selector: 'khi-rendering-loop-starter',

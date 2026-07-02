@@ -18,7 +18,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LogViewLogLineComponent } from './log-view-log-line.component';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TimestampFormatPipe } from 'src/app/common/timestamp-format.pipe';
 import { By } from '@angular/platform-browser';
@@ -29,7 +29,7 @@ describe('LogViewLogLineComponent', () => {
   let mockLog: ReadonlyDomainElement<Log>;
 
   beforeEach(async () => {
-    const mockData = await createMockInspectionDataV2();
+    const mockData = await createMockInspectionData();
     mockLog = Array.from(mockData.logStore.logs())[0];
 
     await TestBed.configureTestingModule({

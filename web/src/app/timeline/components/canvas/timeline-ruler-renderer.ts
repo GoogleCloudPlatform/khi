@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TimelineRulerStyle } from '../style-model-v2';
+import { TimelineRulerStyle } from 'src/app/timeline/components/style-model';
 import { TimelineRulerViewModel } from '../timeline-ruler.viewmodel';
 import { RendererConvertUtil } from './convertutil';
 

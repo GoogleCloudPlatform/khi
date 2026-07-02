@@ -43,7 +43,10 @@ import {
   TimelineChartItemHighlight,
   TimelineHighlight,
 } from './interaction-model';
-import { TimelineRulerStyle, TimelineChartStyle } from './style-model-v2';
+import {
+  TimelineRulerStyle,
+  TimelineChartStyle,
+} from 'src/app/timeline/components/style-model';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 /**

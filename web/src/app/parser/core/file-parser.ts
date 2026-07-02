@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import {
   KHIInvalidFileError,
   KHIVersionMismatchError,
@@ -61,7 +61,7 @@ export class KHIFileParser {
   async parse(
     buffer: ArrayBuffer,
     progressReporter?: ProgressReporter,
-  ): Promise<InspectionDataV2> {
+  ): Promise<InspectionData> {
     if (buffer.byteLength === 0) {
       throw new KHIInvalidFileError('Empty KHI file buffer was given');
     }

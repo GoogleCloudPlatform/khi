@@ -70,9 +70,9 @@ func (i *ProgressReportableTaskLabelOptImpl) Write(label *typedmap.TypedMap) {
 
 var _ coretask.LabelOpt = (*ProgressReportableTaskLabelOptImpl)(nil)
 
-// FeatureTaskLabelV2Impl is an implementation of task.LabelOpt.
+// FeatureTaskLabelImpl is an implementation of task.LabelOpt.
 // This annotates a task to be a feature in inspection for v6 format.
-type FeatureTaskLabelV2Impl struct {
+type FeatureTaskLabelImpl struct {
 	title            string
 	description      string
 	featureOrder     int
@@ -80,7 +80,7 @@ type FeatureTaskLabelV2Impl struct {
 }
 
 // Write implements task.LabelOpt.
-func (ftl *FeatureTaskLabelV2Impl) Write(label *typedmap.TypedMap) {
+func (ftl *FeatureTaskLabelImpl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyInspectionFeatureFlag, true)
 	typedmap.Set(label, LabelKeyFeatureTaskTitle, ftl.title)
 	typedmap.Set(label, LabelKeyFeatureTaskDescription, ftl.description)
@@ -88,11 +88,11 @@ func (ftl *FeatureTaskLabelV2Impl) Write(label *typedmap.TypedMap) {
 	typedmap.Set(label, LabelKeyInspectionDefaultFeatureFlag, ftl.isDefaultFeature)
 }
 
-var _ coretask.LabelOpt = (*FeatureTaskLabelV2Impl)(nil)
+var _ coretask.LabelOpt = (*FeatureTaskLabelImpl)(nil)
 
-// FeatureTaskLabelV2 returns a LabelOpt to mark the task as a feature in the inspection for v6 format.
-func FeatureTaskLabelV2(title string, description string, featureOrder int, isDefaultFeature bool) *FeatureTaskLabelV2Impl {
-	return &FeatureTaskLabelV2Impl{
+// FeatureTaskLabel returns a LabelOpt to mark the task as a feature in the inspection for v6 format.
+func FeatureTaskLabel(title string, description string, featureOrder int, isDefaultFeature bool) *FeatureTaskLabelImpl {
+	return &FeatureTaskLabelImpl{
 		title:            title,
 		description:      description,
 		featureOrder:     featureOrder,

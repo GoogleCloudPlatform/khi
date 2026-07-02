@@ -3,7 +3,7 @@
 #define SQRT2 1.414213562373095
 
 // ViewState containing the global viewport and time state.
-// This uniform block is shared across all V2 renderers.
+// This uniform block is shared across all renderers.
 layout(std140) uniform ViewState {
     vec2 canvasResolution; // The logical resolution of the canvas (width, height).
     float devicePixelRatio; // The ratio of physical pixels to logical pixels.

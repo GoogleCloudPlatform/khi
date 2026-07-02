@@ -48,46 +48,46 @@ type containerStatusIdentity struct {
 	containerType containerType
 }
 
-// ContainerLogToTimelineMapperTask is the V2 task to generate container history.
-var ContainerLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*containerLogToTimelineMapperTaskStateV2](&containerLogToTimelineMapperTaskSettingV2{})
+// ContainerLogToTimelineMapperTask is the task to generate container history.
+var ContainerLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](&containerLogToTimelineMapperTaskSetting{})
 
-type containerLogToTimelineMapperTaskStateV2 struct {
+type containerLogToTimelineMapperTaskState struct {
 	// containerIdentities is the map of container identities.
 	containerIdentities map[string]*containerStatusIdentity
 	// containerStateWalkers is the map of container state walkers.
-	containerStateWalkers map[string]*containerStateWalkerV2
+	containerStateWalkers map[string]*containerStateWalker
 }
 
-type containerLogToTimelineMapperTaskSettingV2 struct {
+type containerLogToTimelineMapperTaskSetting struct {
 }
 
-// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) PassCount() int {
+// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
 }
 
-// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.ContainerLogToTimelineMapperTaskID
 }
 
-// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
 	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	for _, group := range groupedLogs {
 		if group.Resource.Type() == commonlogk8saudit_contract.Resource && group.Resource.APIVersion == "core/v1" && group.Resource.Kind == "pod" {
@@ -101,12 +101,12 @@ func (c *containerLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx 
 	return result, nil
 }
 
-// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *containerLogToTimelineMapperTaskStateV2) (*containerLogToTimelineMapperTaskStateV2, error) {
+// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *containerLogToTimelineMapperTaskState) (*containerLogToTimelineMapperTaskState, error) {
 	if state == nil {
-		state = &containerLogToTimelineMapperTaskStateV2{
+		state = &containerLogToTimelineMapperTaskState{
 			containerIdentities:   map[string]*containerStatusIdentity{},
-			containerStateWalkers: map[string]*containerStateWalkerV2{},
+			containerStateWalkers: map[string]*containerStateWalker{},
 		}
 	}
 	if event.GroupRole != "pod" {
@@ -139,12 +139,12 @@ func (c *containerLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Co
 	return state, nil
 }
 
-// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *containerLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *containerLogToTimelineMapperTaskStateV2) (*khifilev6.TimelineChangeSet, *containerLogToTimelineMapperTaskStateV2, error) {
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *containerLogToTimelineMapperTaskState) (*khifilev6.TimelineChangeSet, *containerLogToTimelineMapperTaskState, error) {
 	if state == nil {
-		state = &containerLogToTimelineMapperTaskStateV2{
+		state = &containerLogToTimelineMapperTaskState{
 			containerIdentities:   map[string]*containerStatusIdentity{},
-			containerStateWalkers: map[string]*containerStateWalkerV2{},
+			containerStateWalkers: map[string]*containerStateWalker{},
 		}
 	}
 	if event.GroupRole != "pod" {
@@ -177,7 +177,7 @@ func (c *containerLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Conte
 
 	for _, identity := range state.containerIdentities {
 		if _, found := state.containerStateWalkers[identity.containerName]; !found {
-			state.containerStateWalkers[identity.containerName] = &containerStateWalkerV2{
+			state.containerStateWalkers[identity.containerName] = &containerStateWalker{
 				containerIdentity: identity,
 				podNamespace:      event.ResourceIdentity.Namespace,
 				podName:           event.ResourceIdentity.Name,
@@ -186,7 +186,7 @@ func (c *containerLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Conte
 		walker := state.containerStateWalkers[identity.containerName]
 		walker.CheckAndRecord(ctx, currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sAuditLogFieldSet)
 
-		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
 			containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLogFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, identity.containerName)
 			cs.AddRevision(containerPath, &khifilev6.StagingRevision{
 				VerbType:     k8sAuditLogFieldSet.Verb,
@@ -201,9 +201,9 @@ func (c *containerLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Conte
 	return cs, state, nil
 }
 
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*containerLogToTimelineMapperTaskStateV2] = (*containerLogToTimelineMapperTaskSettingV2)(nil)
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState] = (*containerLogToTimelineMapperTaskSetting)(nil)
 
-type containerStateWalkerV2 struct {
+type containerStateWalker struct {
 	// containerIdentity is the identity of the container.
 	containerIdentity *containerStatusIdentity
 	// podNamespace is the namespace of the pod.
@@ -219,7 +219,7 @@ type containerStateWalkerV2 struct {
 }
 
 // CheckAndRecord compares the current container state with the previous state and records a revision if there is a significant change.
-func (w *containerStateWalkerV2) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet) {
+func (w *containerStateWalker) CheckAndRecord(ctx context.Context, stateReader *structured.NodeReader, cs *khifilev6.TimelineChangeSet, commonLog *log.CommonFieldSet, k8sAuditLog *commonlogk8saudit_contract.K8sAuditLogFieldSet) {
 	containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLog.ClusterName, w.podNamespace, w.podName, w.containerIdentity.containerName)
 	if stateReader == nil {
 		if w.lastState != "no state" {

@@ -32,8 +32,8 @@ import {
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
-} from 'src/app/timeline/components/style-model-v2';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+} from 'src/app/timeline/components/style-model';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 
 function msToNs(ms: number): bigint {
   return BigInt(Math.floor(ms)) * 1000000n;
@@ -88,7 +88,7 @@ function filterTimelineHighlight(
 class TimelineFrameStoriesComponent {
   readonly khiInspectionData = resource({
     loader: async () => {
-      return await createMockInspectionDataV2();
+      return await createMockInspectionData();
     },
   });
 

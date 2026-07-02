@@ -34,7 +34,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogco
 	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
 })
 
-// LogIngesterTask is a V2 task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
+// LogIngesterTask is a task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID,
 	googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(),
@@ -52,8 +52,8 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcomputea
 	})
 
 // LogToTimelineMapperTask maps GCE API audit logs to timeline events and revisions in parallel.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[*googlecloudcommon_contract.GCPOperationTracker](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabelV2("Compute API Logs",
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](googlecloudlogcomputeapiaudit_contract.LogToTimelineMapperTaskID, &gcpComputeAuditLogLogToTimelineMapperSetting{},
+	inspectioncore_contract.FeatureTaskLabel("Compute API Logs",
 		"Gather Compute API audit logs to visualize the provisioning of infrastructure resources (e.g., GCE VM creation/deletion, Persistent Disk mounting) on associated timelines.",
 		6000,
 		true,
@@ -117,7 +117,7 @@ func (g *gcpComputeAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationTracker] = (*gcpComputeAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*gcpComputeAuditLogLogToTimelineMapperSetting)(nil)
 
 func getInstanceNameFromResourceName(resourceName string) string {
 	resourceNameSplitted := strings.Split(resourceName, "/")

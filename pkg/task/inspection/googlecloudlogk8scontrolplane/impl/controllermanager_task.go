@@ -90,7 +90,7 @@ var ControllerManagerGrouperTask = inspectiontaskbase.NewLogGrouperTask(
 	},
 )
 
-var ControllerManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID, &ControllerManagerTimelineMapper{})
+var ControllerManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontrolplane_contract.ControllerManagerLogToTimelineMapperTaskID, &ControllerManagerTimelineMapper{})
 
 // ControllerManagerTimelineMapper maps controller manager logs to timeline paths.
 type ControllerManagerTimelineMapper struct {
@@ -98,24 +98,24 @@ type ControllerManagerTimelineMapper struct {
 	uidPrefixTokenCandidates []rune
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8scontrolplane_contract.ControllerManagerLogGrouperTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	finder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref())
 	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
@@ -157,4 +157,4 @@ func (o *ControllerManagerTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*ControllerManagerTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*ControllerManagerTimelineMapper)(nil)

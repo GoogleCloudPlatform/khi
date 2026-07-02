@@ -16,16 +16,16 @@
 
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
 import { RevisionStateStyle } from 'src/app/store/domain/style';
 
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 describe('StyleOverrideService', () => {
   let service: StyleOverrideService;
-  let mockInspectionDataStore: jasmine.SpyObj<InspectionDataStoreV2>;
+  let mockInspectionDataStore: jasmine.SpyObj<InspectionDataStore>;
   let styleStore: StyleStore;
 
   const originalColor = { r: 1, g: 0, b: 0, a: 1 };
@@ -66,13 +66,13 @@ describe('StyleOverrideService', () => {
     styleStore.addTimelineTypes([mockTimelineType]);
     styleStore.addLogTypes([mockLogType]);
 
-    mockInspectionDataStore = jasmine.createSpyObj<InspectionDataStoreV2>(
-      'InspectionDataStoreV2',
+    mockInspectionDataStore = jasmine.createSpyObj<InspectionDataStore>(
+      'InspectionDataStore',
       [],
       {
         inspectionData: signal({
           styleStore,
-        } as unknown as InspectionDataV2),
+        } as unknown as InspectionData),
       },
     );
 
@@ -80,7 +80,7 @@ describe('StyleOverrideService', () => {
       providers: [
         StyleOverrideService,
         {
-          provide: InspectionDataStoreV2,
+          provide: InspectionDataStore,
           useValue: mockInspectionDataStore,
         },
       ],

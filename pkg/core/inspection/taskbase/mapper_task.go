@@ -68,9 +68,9 @@ func (r *TimelineMapperResult) Merge(other TimelineMapperResult) {
 	}
 }
 
-// LogToTimelineMapperV2 defines the interface for mapping logs to timeline elements (events or revisions) in KHI file v6 format.
-type LogToTimelineMapperV2[T any] interface {
-	// LogIngesterTask is one of prerequisite task of LogToTimelineMapperV2 ingesting logs before processing with this mapper.
+// LogToTimelineMapper defines the interface for mapping logs to timeline elements (events or revisions) in KHI file v6 format.
+type LogToTimelineMapper[T any] interface {
+	// LogIngesterTask is one of prerequisite task of LogToTimelineMapper ingesting logs before processing with this mapper.
 	LogIngesterTask() taskid.TaskReference[[]*log.Log]
 	// Dependencies are the additional references used in timeline mapper.
 	Dependencies() []taskid.UntypedTaskReference
@@ -86,7 +86,7 @@ type LogToTimelineMapperV2[T any] interface {
 	ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// SinglePassMapperBase provides a base implementation of LogToTimelineMapperV2
+// SinglePassMapperBase provides a base implementation of LogToTimelineMapper
 // for mappers that only require a single pass over the logs.
 type SinglePassMapperBase[T any] struct{}
 
@@ -100,7 +100,7 @@ func (SinglePassMapperBase[T]) PreProcessLogByGroup(ctx context.Context, passInd
 	return prevGroupData, nil
 }
 
-// StatelessMapperBase provides a base implementation of LogToTimelineMapperV2
+// StatelessMapperBase provides a base implementation of LogToTimelineMapper
 // for mappers that are both stateless and only require a single pass.
 type StatelessMapperBase struct{}
 
@@ -114,9 +114,9 @@ func (StatelessMapperBase) PreProcessLogByGroup(ctx context.Context, passIndex i
 	return struct{}{}, nil
 }
 
-// NewLogToTimelineMapperTaskV2 creates a task that modifies the KHI v6 TimelineRegistry based on grouped logs.
-// It processes logs in parallel and applies the logic from the provided LogToTimelineMapperV2.
-func NewLogToTimelineMapperTaskV2[T any](tid taskid.TaskImplementationID[TimelineMapperResult], mapper LogToTimelineMapperV2[T], labels ...coretask.LabelOpt) coretask.Task[TimelineMapperResult] {
+// NewLogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry based on grouped logs.
+// It processes logs in parallel and applies the logic from the provided LogToTimelineMapper.
+func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineMapperResult], mapper LogToTimelineMapper[T], labels ...coretask.LabelOpt) coretask.Task[TimelineMapperResult] {
 	groupedLogTaskID := mapper.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{mapper.LogIngesterTask(), mapper.GroupedLogTask()}, mapper.Dependencies()...)
 	return NewProgressReportableInspectionTask(tid, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (TimelineMapperResult, error) {
@@ -253,7 +253,7 @@ func NewLogToTimelineMapperTaskV2[T any](tid taskid.TaskImplementationID[Timelin
 			return NewTimelineMapperResult(), sharedErr
 		}
 
-		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTaskV2 %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
+		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 		if tracingActive {

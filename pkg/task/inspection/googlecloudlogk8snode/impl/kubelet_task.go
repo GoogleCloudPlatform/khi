@@ -40,7 +40,7 @@ type kubeletNodeLogLogToTimelineMapperSetting struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
@@ -50,17 +50,17 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.Untyp
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8snode_contract.KubeletLogGroupTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
@@ -145,10 +145,10 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*kubeletNodeLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*kubeletNodeLogLogToTimelineMapperSetting)(nil)
 
 // KubeletLogLogToTimelineMapperTask registers the mapper for kubelet component logs.
-var KubeletLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var KubeletLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogk8snode_contract.KubeletLogLogToTimelineMapperTaskID,
 	&kubeletNodeLogLogToTimelineMapperSetting{},
 )

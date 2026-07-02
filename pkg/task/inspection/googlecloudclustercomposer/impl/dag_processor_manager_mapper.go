@@ -144,10 +144,10 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 	return cs, prevGroupData, nil
 }
 
-var _ inspectiontaskbase.GroupedLogIngesterV2[*DagProcessorState] = (*dagProcessorManagerLogIngester)(nil)
+var _ inspectiontaskbase.GroupedLogIngester[*DagProcessorState] = (*dagProcessorManagerLogIngester)(nil)
 
 // AirflowDagProcessorManagerLogIngesterTask is the task that ingests Airflow DAG processor manager logs.
-var AirflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.NewGroupedLogIngesterTaskV2(
+var AirflowDagProcessorManagerLogIngesterTask = inspectiontaskbase.NewGroupedLogIngesterTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogIngesterTaskID,
 	&dagProcessorManagerLogIngester{},
 )
@@ -239,10 +239,10 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	return cs, prevGroupData, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*DagProcessorState] = (*dagProcessorManagerTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*DagProcessorState] = (*dagProcessorManagerTimelineMapper)(nil)
 
 // AirflowDagProcessorManagerLogToTimelineMapperTask is the task that maps Airflow DAG processor manager logs to timeline events.
-var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogToTimelineMapperTaskID,
 	&dagProcessorManagerTimelineMapper{
 		targetLogType: googlecloudclustercomposer_contract.LogTypeComposerEnvironment,

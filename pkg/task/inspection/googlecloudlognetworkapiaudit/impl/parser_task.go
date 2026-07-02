@@ -211,11 +211,11 @@ func (m *networkAPITimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	return cs, prevGroupData, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*perNEGHistoryModificationStatus] = (*networkAPITimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*perNEGHistoryModificationStatus] = (*networkAPITimelineMapper)(nil)
 
 // LogToTimelineMapperTask registers the mapper to resolve network status in timeline.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(googlecloudlognetworkapiaudit_contract.LogToTimelineMapperTaskID, &networkAPITimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(`GCE Network Logs`,
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(googlecloudlognetworkapiaudit_contract.LogToTimelineMapperTaskID, &networkAPITimelineMapper{},
+	inspectioncore_contract.FeatureTaskLabel(`GCE Network Logs`,
 		`Gather GCE Network API logs to visualize the provisioning and status transitions of Network Endpoint Groups (NEGs) on timelines.`,
 		7000,
 		true,

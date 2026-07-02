@@ -61,22 +61,22 @@ type OtherTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (o *OtherTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
 func (o *OtherTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8scontrolplane_contract.OtherLogGrouperTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
 func (o *OtherTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8scontrolplane_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	componentFieldSet, err := log.GetFieldSet(l, &googlecloudlogk8scontrolplane_contract.K8sControlplaneComponentFieldSet{})
 	if err != nil {
@@ -92,6 +92,6 @@ func (o *OtherTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*OtherTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*OtherTimelineMapper)(nil)
 
-var OtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](googlecloudlogk8scontrolplane_contract.OtherLogToTimelineMapperTaskID, &OtherTimelineMapper{})
+var OtherLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](googlecloudlogk8scontrolplane_contract.OtherLogToTimelineMapperTaskID, &OtherTimelineMapper{})

@@ -705,9 +705,9 @@ var IngestLogsTask = inspectiontaskbase.NewLogIngesterTask(
 )
 ```
 
-### NewLogToTimelineMapperTaskV2
+### NewLogToTimelineMapperTask
 
-`LogToTimelineMapperTaskV2` associates logs to multiple resources or sometimes overrides log summary.
+`LogToTimelineMapperTask` associates logs to multiple resources or sometimes overrides log summary.
 
 To modify the history, you use the `TimelineChangeSet` object returned by `ProcessLogByGroup`.
 
@@ -732,7 +732,7 @@ type MyGroupData struct {
 
 type MyMapper struct {}
 
-// Implement LogToTimelineMapperV2 interface
+// Implement LogToTimelineMapper interface
 func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
     cs := khifilev6.NewTimelineChangeSet()
     // Modify history via TimelineChangeSet
@@ -747,7 +747,7 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
 
 // ... Implement other interface methods (Dependencies, LogIngesterTask, GroupedLogTask, PassCount, PreProcessLogByGroup) ...
 
-var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
     MyMapperTaskID,
     &MyMapper{},
     inspectioncore_contract.FeatureTaskLabel("my-mapper",/*rest of the other parameters*/)  // LogToTimelineMapper is usually labeled with FeatureTaskLabel.

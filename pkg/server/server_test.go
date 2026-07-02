@@ -120,16 +120,16 @@ func createTestInspectionServer() (*coreinspection.InspectionTaskServer, error) 
 		formtask.NewTextFormTaskBuilder(taskid.NewDefaultImplementationID[string]("bar-input"), 1, "A input field for bar").Build(inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "bar"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo1"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabelV2("foo feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
+		}, inspectioncore_contract.FeatureTaskLabel("foo feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-foo2"), []taskid.UntypedTaskReference{debugRef("foo-input")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-foo2-value", nil
-		}, inspectioncore_contract.FeatureTaskLabelV2("foo feature2", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
+		}, inspectioncore_contract.FeatureTaskLabel("foo feature2", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "foo"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-bar"), []taskid.UntypedTaskReference{debugRef("bar-input"), debugRef("neverend")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabelV2("bar feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "bar"})),
+		}, inspectioncore_contract.FeatureTaskLabel("bar feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "bar"})),
 		inspectiontaskbase.NewProgressReportableInspectionTask(debugTaskImplID("feature-qux"), []taskid.UntypedTaskReference{debugRef("errorend")}, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, tp *inspectionmetadata.TaskProgressMetadata) (any, error) {
 			return "feature-bar1-value", nil
-		}, inspectioncore_contract.FeatureTaskLabelV2("qux feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "qux"})),
+		}, inspectioncore_contract.FeatureTaskLabel("qux feature1", "test-feature", 10, false), coretask.NewSubsequentTaskRefsTaskLabel(inspectioncore_contract.SerializerTaskID.Ref()), inspectioncore_contract.InspectionTypeLabelSelector(map[string]string{"name": "qux"})),
 	}
 
 	for _, task := range tasks {

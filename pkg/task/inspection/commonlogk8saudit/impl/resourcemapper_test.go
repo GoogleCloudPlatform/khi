@@ -30,7 +30,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.T) {
+func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T) {
 	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
 
 	// 1. Set up the mock Builder and construct comparison paths hierarchically.
@@ -70,12 +70,12 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 
 	testCases := []struct {
 		name       string
-		inputState *resourceRevisionLogToTimelineMapperStateV2
+		inputState *resourceRevisionLogToTimelineMapperState
 		verb       *pb.Verb
 		bodyYAML   string
 		role       string
-		eventType  commonlogk8saudit_contract.ChangeEventTypeV2
-		wantState  *resourceRevisionLogToTimelineMapperStateV2
+		eventType  commonlogk8saudit_contract.ChangeEventType
+		wantState  *resourceRevisionLogToTimelineMapperState
 		assert     func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node)
 	}{
 		{
@@ -85,8 +85,8 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 			bodyYAML: `metadata:
   uid: "test-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -104,14 +104,14 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 		},
 		{
 			name: "Delete event without body",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb:      commonlogk8saudit_contract.VerbDelete,
 			bodyYAML:  "",
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -129,7 +129,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 		},
 		{
 			name: "Delete event with graceful period > 0",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbDelete,
@@ -138,8 +138,8 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
   deletionGracePeriodSeconds: 30
   deletionTimestamp: "2023-10-26T10:00:00Z"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -157,7 +157,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 		},
 		{
 			name: "Delete event with graceful period = 0",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbDelete,
@@ -166,8 +166,8 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
   deletionGracePeriodSeconds: 0
   deletionTimestamp: "2023-10-26T10:00:00Z"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -185,7 +185,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 		},
 		{
 			name: "Pod deletion with Failed phase",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbDelete,
@@ -196,8 +196,8 @@ metadata:
 status:
   phase: Failed`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -215,7 +215,7 @@ status:
 		},
 		{
 			name: "Recreation of resource",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:              "old-uid",
 				WasCompletelyRemoved: true,
 			},
@@ -223,8 +223,8 @@ status:
 			bodyYAML: `metadata:
   uid: "new-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "new-uid",
@@ -242,7 +242,7 @@ status:
 		},
 		{
 			name: "DeleteCollection with phase=Failed",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbDeleteCollection,
@@ -251,8 +251,8 @@ status:
 status:
   phase: Failed`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -276,8 +276,8 @@ status:
   uid: "test-uid"
   creationTimestamp: "2023-10-26T09:59:00Z"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -307,8 +307,8 @@ status:
 			bodyYAML: `metadata:
   uid: "test-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -339,8 +339,8 @@ status:
   uid: "test-uid"
   creationTimestamp: "2023-10-26T09:59:00Z"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -358,15 +358,15 @@ status:
 		},
 		{
 			name: "Pod deletion without explicit signal",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbDelete,
 			bodyYAML: `metadata:
   uid: "test-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -384,7 +384,7 @@ status:
 		},
 		{
 			name: "Patch during deletion",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:         "test-uid",
 				DeletionStarted: true,
 			},
@@ -392,8 +392,8 @@ status:
 			bodyYAML: `metadata:
   uid: "test-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -411,7 +411,7 @@ status:
 		},
 		{
 			name: "Patch after deletion",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:              "test-uid",
 				WasCompletelyRemoved: true,
 			},
@@ -419,8 +419,8 @@ status:
 			bodyYAML: `metadata:
   uid: "test-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -438,7 +438,7 @@ status:
 		},
 		{
 			name: "deletionGracePeriodSeconds=0 but with finalizers",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbPatch,
@@ -448,8 +448,8 @@ status:
   finalizers:
     - test-finalizer`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -467,7 +467,7 @@ status:
 		},
 		{
 			name: "Deletion with finalizers",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID: "test-uid",
 			},
 			verb: commonlogk8saudit_contract.VerbDelete,
@@ -476,8 +476,8 @@ status:
   finalizers:
   - foregroundDeletion`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: false,
 				DeletionStarted:      true,
 				PrevUID:              "test-uid",
@@ -495,7 +495,7 @@ status:
 		},
 		{
 			name: "DeleteCollection on already deleted resource",
-			inputState: &resourceRevisionLogToTimelineMapperStateV2{
+			inputState: &resourceRevisionLogToTimelineMapperState{
 				PrevUID:              "test-uid",
 				WasCompletelyRemoved: true,
 			},
@@ -503,8 +503,8 @@ status:
 			bodyYAML: `metadata: 
 uid: "test-uid"`,
 			role:      "target",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			wantState: &resourceRevisionLogToTimelineMapperState{
 				WasCompletelyRemoved: true,
 				DeletionStarted:      false,
 				PrevUID:              "test-uid",
@@ -521,8 +521,8 @@ uid: "test-uid"`,
 			bodyYAML: `metadata:
   uid: "test-uid"`,
 			role:      "source",
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Deletion,
-			wantState: &resourceRevisionLogToTimelineMapperStateV2{},
+			eventType: commonlogk8saudit_contract.ChangeEventTypeDeletion,
+			wantState: &resourceRevisionLogToTimelineMapperState{},
 			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node) {
 				testchangeset.AssertTimeline(t, cs).
 					HasRevision(subresourcePath, &khifilev6.StagingRevision{
@@ -536,7 +536,7 @@ uid: "test-uid"`,
 		},
 	}
 
-	mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSettingV2{
+	mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{
 		kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 			"core/v1#pod": {},
 		},
@@ -635,7 +635,7 @@ uid: "test-uid"`,
 				t.Fatalf("ProcessLog() failed: %v", err)
 			}
 
-			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(resourceRevisionLogToTimelineMapperStateV2{}), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(resourceRevisionLogToTimelineMapperState{}), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("state mismatch (-want +got):\n%s", diff)
 			}
 
@@ -644,7 +644,7 @@ uid: "test-uid"`,
 	}
 }
 
-func TestResourceRevisionLogToTimelineMapperTaskSettingV2_PreProcessAndProcessLog(t *testing.T) {
+func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(t *testing.T) {
 	testTime1 := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
 	testTime2 := time.Date(2023, 10, 26, 10, 5, 0, 0, time.UTC)
 	testTime3 := time.Date(2023, 10, 26, 10, 10, 0, 0, time.UTC)
@@ -857,7 +857,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_PreProcessAndProcessLo
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSettingV2{}
+			mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{}
 
 			targetResource := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",
@@ -903,12 +903,12 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_PreProcessAndProcessLo
 					Log:              logObj,
 					GroupRole:        "target",
 					ResourceIdentity: targetResource,
-					EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					EventType:        commonlogk8saudit_contract.ChangeEventTypeCreation,
 					GroupSet:         groupSet,
 				})
 			}
 
-			var state *resourceRevisionLogToTimelineMapperStateV2
+			var state *resourceRevisionLogToTimelineMapperState
 			for _, ev := range events {
 				var err error
 				state, err = mapperSetting.PreProcessLog(ctx, 0, ev, state)
@@ -920,7 +920,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSettingV2_PreProcessAndProcessLo
 			var changeSets []*khifilev6.TimelineChangeSet
 			for idx, ev := range events {
 				if idx > 0 {
-					ev.EventType = commonlogk8saudit_contract.ChangeEventTypeV2Modification
+					ev.EventType = commonlogk8saudit_contract.ChangeEventTypeModification
 				}
 				cs, nextState, err := mapperSetting.ProcessLog(ctx, ev, state)
 				if err != nil {

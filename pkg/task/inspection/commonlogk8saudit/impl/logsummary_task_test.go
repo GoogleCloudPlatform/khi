@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestK8sAuditLogIngesterV2_ProcessLog(t *testing.T) {
+func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
@@ -81,7 +81,7 @@ func TestK8sAuditLogIngesterV2_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &k8sAuditLogIngesterV2{}
+	ingester := &k8sAuditLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			cs, err := ingester.ProcessLog(t.Context(), tc.input)

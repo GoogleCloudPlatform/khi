@@ -37,16 +37,16 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// ChangeEventTypeV2 is the type of the resource change event for V2 mappers.
-type ChangeEventTypeV2 int
+// ChangeEventType is the type of the resource change event for mappers.
+type ChangeEventType int
 
 const (
-	// ChangeEventTypeV2Creation is the event type when the resource is created or first observed.
-	ChangeEventTypeV2Creation ChangeEventTypeV2 = iota
-	// ChangeEventTypeV2Deletion is the event type when the resource is deleted.
-	ChangeEventTypeV2Deletion
-	// ChangeEventTypeV2Modification is the event type when the resource is modified.
-	ChangeEventTypeV2Modification
+	// ChangeEventTypeCreation is the event type when the resource is created or first observed.
+	ChangeEventTypeCreation ChangeEventType = iota
+	// ChangeEventTypeDeletion is the event type when the resource is deleted.
+	ChangeEventTypeDeletion
+	// ChangeEventTypeModification is the event type when the resource is modified.
+	ChangeEventTypeModification
 )
 
 // RelatedGroupSet is a set of log groups that should be processed together.
@@ -65,7 +65,7 @@ type MultiGroupLogEvent struct {
 	// ResourceIdentity is the identity of the resource this log belongs to.
 	ResourceIdentity *ResourceIdentity
 	// EventType is the type of the change event.
-	EventType ChangeEventTypeV2
+	EventType ChangeEventType
 	// GroupSet is the related group set this event belongs to.
 	GroupSet RelatedGroupSet
 }
@@ -120,8 +120,8 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 	return nil, false
 }
 
-// ManifestLogToTimelineMapperV2 defines the interface for V2 manifest timeline mappers.
-type ManifestLogToTimelineMapperV2[T any] interface {
+// ManifestLogToTimelineMapper defines the interface for manifest timeline mappers.
+type ManifestLogToTimelineMapper[T any] interface {
 	// TaskID returns the task ID.
 	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
 	// LogIngesterTask returns the task reference for the log ingester task.
@@ -140,34 +140,34 @@ type ManifestLogToTimelineMapperV2[T any] interface {
 	ProcessLog(ctx context.Context, event MultiGroupLogEvent, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// ManifestSinglePassMapperBaseV2 provides a base implementation for V2 mappers that require only a single pass.
-type ManifestSinglePassMapperBaseV2[T any] struct{}
+// ManifestSinglePassMapperBase provides a base implementation for mappers that require only a single pass.
+type ManifestSinglePassMapperBase[T any] struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
-func (ManifestSinglePassMapperBaseV2[T]) PassCount() int {
+func (ManifestSinglePassMapperBase[T]) PassCount() int {
 	return 0
 }
 
 // PreProcessLog is a no-op pre-processor that returns the state as-is.
-func (ManifestSinglePassMapperBaseV2[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
+func (ManifestSinglePassMapperBase[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
 	return prevGroupData, nil
 }
 
-// ManifestStatelessMapperBaseV2 provides a base implementation for V2 mappers that are both stateless and require a single pass.
-type ManifestStatelessMapperBaseV2 struct{}
+// ManifestStatelessMapperBase provides a base implementation for mappers that are both stateless and require a single pass.
+type ManifestStatelessMapperBase struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
-func (ManifestStatelessMapperBaseV2) PassCount() int {
+func (ManifestStatelessMapperBase) PassCount() int {
 	return 0
 }
 
 // PreProcessLog is a no-op pre-processor that returns an empty struct.
-func (ManifestStatelessMapperBaseV2) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData struct{}) (struct{}, error) {
+func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData struct{}) (struct{}, error) {
 	return struct{}{}, nil
 }
 
-// NewManifestLogToTimelineMapperV2 creates a new timeline mapper task utilizing the V2 mapper interface.
-func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapperV2[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
+// NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the mapper interface.
+func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
 	groupedLogTaskID := setting.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
 
@@ -344,11 +344,11 @@ func iterateMultiGroupLog(groupSet RelatedGroupSet) func(func(MultiGroupLogEvent
 			logEntry := targetGroup.Logs[idx]
 
 			// Map raw manifest-level lifetime flags to higher-level change event types.
-			eType := ChangeEventTypeV2Modification
+			eType := ChangeEventTypeModification
 			if logEntry.ResourceCreated {
-				eType = ChangeEventTypeV2Creation
+				eType = ChangeEventTypeCreation
 			} else if logEntry.ResourceDeleted {
-				eType = ChangeEventTypeV2Deletion
+				eType = ChangeEventTypeDeletion
 			}
 
 			event := MultiGroupLogEvent{

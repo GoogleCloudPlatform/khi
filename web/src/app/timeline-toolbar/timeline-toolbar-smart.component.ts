@@ -34,8 +34,8 @@ import {
   takeUntil,
 } from 'rxjs';
 import { ViewStateService } from 'src/app/services/view-state.service';
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import {
   CelTimelineFilter,
   CelTimelineExclusionFilter,
@@ -56,14 +56,14 @@ import { ToolbarFrameComponent } from './components/toolbar-frame.component';
 })
 export class TimelineToolbarSmartComponent implements OnDestroy {
   private readonly viewStateService = inject(ViewStateService);
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly celTimelineFilter = inject(CelTimelineFilter);
   private readonly celTimelineExclusionFilter = inject(
     CelTimelineExclusionFilter,
   );
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
-  private readonly selectionManager = inject(SelectionManagerV2);
+  private readonly selectionManager = inject(SelectionManager);
   private readonly breakpointObserver = inject(BreakpointObserver);
 
   private readonly destroyed = new Subject<void>();

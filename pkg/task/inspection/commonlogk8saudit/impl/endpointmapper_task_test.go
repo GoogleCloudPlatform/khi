@@ -31,7 +31,7 @@ import (
 )
 
 func TestEndpointLogToTimelineMapperTask_ProcessLog(t *testing.T) {
-	task := &endpointResourceLogToTimelineMapperTaskSettingV2{}
+	task := &endpointResourceLogToTimelineMapperTaskSetting{}
 	timestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
@@ -61,10 +61,10 @@ func TestEndpointLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		name         string
 		isPreProcess bool
 		yaml         string
-		eventType    commonlogk8saudit_contract.ChangeEventTypeV2
+		eventType    commonlogk8saudit_contract.ChangeEventType
 		verb         *pb.Verb
-		initialState *endpointResourceLogToTimelineMapperStateV2
-		wantState    *endpointResourceLogToTimelineMapperStateV2
+		initialState *endpointResourceLogToTimelineMapperState
+		wantState    *endpointResourceLogToTimelineMapperState
 		assert       func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder)
 	}{
 		{
@@ -76,14 +76,14 @@ metadata:
   - kind: Service
     name: my-service
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
@@ -105,14 +105,14 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {
@@ -142,16 +142,16 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
 				},
 				lastStates: map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -218,16 +218,16 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
 				},
 				lastStates: map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -268,16 +268,16 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
 				},
 				lastStates: map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -313,14 +313,14 @@ endpoints:
 - conditions:
     ready: true
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
@@ -352,14 +352,14 @@ endpoints:
 - conditions:
     terminating: true
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
@@ -391,14 +391,14 @@ endpoints:
 - conditions:
     ready: false
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
@@ -428,9 +428,9 @@ endpoints:
 			yaml: `
 endpoints: []
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -439,7 +439,7 @@ endpoints: []
 					"pod-uid-1": commonlogk8saudit_contract.RevisionStateEndpointReady,
 				},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -472,9 +472,9 @@ endpoints: []
 metadata:
   name: my-endpoint
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Deletion,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeDeletion,
 			verb:      commonlogk8saudit_contract.VerbDelete,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -483,7 +483,7 @@ metadata:
 					"pod-uid-1": commonlogk8saudit_contract.RevisionStateEndpointReady,
 				},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
 				foundPods: map[string]*podIdentity{
 					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
@@ -525,14 +525,14 @@ metadata:
 		{
 			name:         "Pass 0: No EndpointSlice body",
 			isPreProcess: true,
-			eventType:    commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType:    commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:         commonlogk8saudit_contract.VerbUpdate,
-			initialState: &endpointResourceLogToTimelineMapperStateV2{
+			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
 			},
-			wantState: &endpointResourceLogToTimelineMapperStateV2{
+			wantState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
 				foundPods:    map[string]*podIdentity{},
 				lastStates:   map[string]*pb.RevisionState{},
@@ -601,7 +601,7 @@ metadata:
 				if err != nil {
 					t.Fatalf("PreProcessLog failed: %v", err)
 				}
-				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(endpointResourceLogToTimelineMapperStateV2{}, podIdentity{}), protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(endpointResourceLogToTimelineMapperState{}, podIdentity{}), protocmp.Transform()); diff != "" {
 					t.Errorf("PreProcessLog state mismatch (-want +got):\n%s", diff)
 				}
 			} else {
@@ -609,7 +609,7 @@ metadata:
 				if err != nil {
 					t.Fatalf("ProcessLog failed: %v", err)
 				}
-				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(endpointResourceLogToTimelineMapperStateV2{}, podIdentity{}), protocmp.Transform()); diff != "" {
+				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(endpointResourceLogToTimelineMapperState{}, podIdentity{}), protocmp.Transform()); diff != "" {
 					t.Errorf("ProcessLog state mismatch (-want +got):\n%s", diff)
 				}
 				tc.assert(t, cs, builder)

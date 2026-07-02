@@ -1,6 +1,6 @@
 ---
-name: log-timeline-mapper-v2
-description: Guidelines for implementing and testing LogIngesterTaskV2 and LogToTimelineMapperV2 tasks in KHI.
+name: log-timeline-mapper
+description: Guidelines for implementing and testing LogIngesterTask and LogToTimelineMapper tasks in KHI.
 ---
 
 # KHI Log Ingestion & Timeline Mapping Guidelines
@@ -9,14 +9,14 @@ This guide outlines the patterns, best practices, and testing methodologies for 
 
 ---
 
-## 1. LogIngesterV2 & LogIngesterTaskV2
+## 1. LogIngester & LogIngesterTask
 
-`LogIngesterV2` is responsible for parsing raw logs and ingesting basic log metadata (summary, timestamp, severity, log type) into the KHI format.
+`LogIngester` is responsible for parsing raw logs and ingesting basic log metadata (summary, timestamp, severity, log type) into the KHI format.
 
 ### Interface Definition
 
 ```go
-type LogIngesterV2 interface {
+type LogIngester interface {
  // RawLogTask returns the task reference that provides the raw logs to ingest.
  RawLogTask() taskid.TaskReference[[]*log.Log]
  // Dependencies returns additional task dependencies of the ingester.
@@ -67,7 +67,7 @@ func (i *MyLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.
 }
 
 // Explicit interface compliance assertion is mandatory.
-var _ inspectiontaskbase.LogIngesterV2 = (*MyLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*MyLogIngester)(nil)
 ```
 
 ### Registering the LogIngester Task
@@ -76,28 +76,28 @@ var _ inspectiontaskbase.LogIngesterV2 = (*MyLogIngester)(nil)
 > **Package Boundaries:**
 >
 > - **TaskID** definitions (e.g., `LogIngesterTaskIDV2`) MUST be defined in the `contract` package.
-> - **Task Implementation** instantiations (e.g., `NewLogIngesterTaskV2`) MUST be placed in the `impl` package.
+> - **Task Implementation** instantiations (e.g., `NewLogIngesterTask`) MUST be placed in the `impl` package.
 
 ```go
 // Defined in 'contract' package:
 var MyLogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("my-log-ingester")
 
 // Instantiated in 'impl' package:
-task := NewLogIngesterTaskV2(mycontract.MyLogIngesterTaskID, &MyLogIngester{})
+task := NewLogIngesterTask(mycontract.MyLogIngesterTaskID, &MyLogIngester{})
 // Register task to core runner...
 ```
 
 ---
 
-## 2. LogToTimelineMapperV2
+## 2. LogToTimelineMapper
 
-`LogToTimelineMapperV2` maps grouped logs to timeline elements (events or resource revisions). Depending on the complexity, you should choose one of the following three implementation patterns.
+`LogToTimelineMapper` maps grouped logs to timeline elements (events or resource revisions). Depending on the complexity, you should choose one of the following three implementation patterns.
 
 ### Pattern 1: Multi-Pass with State
 
 Used for complex scenarios where you need to pre-collect information across all logs in a group before applying timeline changes (e.g., matching asynchronous request/response cycles).
 
-- **How to implement:** Implement the full `LogToTimelineMapperV2[T]` interface manually.
+- **How to implement:** Implement the full `LogToTimelineMapper[T]` interface manually.
 
 ```go
 type ComplexMapper struct {}
@@ -144,7 +144,7 @@ func (m *ComplexMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevG
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapperV2[MyState] = (*ComplexMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[MyState] = (*ComplexMapper)(nil)
 ```
 
 ---
@@ -193,7 +193,7 @@ func (m *StateTrackingMapper) ProcessLogByGroup(ctx context.Context, l *log.Log,
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapperV2[MyState] = (*StateTrackingMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[MyState] = (*StateTrackingMapper)(nil)
 ```
 
 ---
@@ -228,7 +228,7 @@ func (m *SimpleEventMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*SimpleEventMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*SimpleEventMapper)(nil)
 ```
 
 ### Registering the TimelineMapper Task
@@ -237,14 +237,14 @@ var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*SimpleEventMapper)(
 > **Package Boundaries:**
 >
 > - **TaskID** definitions (e.g., `LogToTimelineMapperTaskIDV2`) MUST be defined in the `contract` package.
-> - **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTaskV2`) MUST be placed in the `impl` package.
+> - **Task Implementation** instantiations (e.g., `NewLogToTimelineMapperTask`) MUST be placed in the `impl` package.
 
 ```go
 // Defined in 'contract' package:
 var MyTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult]("my-timeline-mapper")
 
 // Instantiated in 'impl' package:
-task := NewLogToTimelineMapperTaskV2(mycontract.MyTimelineMapperTaskID, &SimpleEventMapper{})
+task := NewLogToTimelineMapperTask(mycontract.MyTimelineMapperTaskID, &SimpleEventMapper{})
 // Register task to core runner...
 ```
 

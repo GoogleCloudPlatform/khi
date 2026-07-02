@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore } from 'src/app/store/domain/log-store';
@@ -38,14 +38,14 @@ import {
 } from 'src/app/store/mock/mock-util';
 
 /**
- * Creates a mock instance of InspectionDataV2 for debugging and testing purposes.
+ * Creates a mock instance of InspectionData for debugging and testing purposes.
  *
  * This function encapsulates standard dummy timelines, logs, and revisions
  * to quickly visualize and verify component interactions.
  *
  * @returns A promise resolving to a populated mock inspection data instance.
  */
-export async function createMockInspectionDataV2(): Promise<InspectionDataV2> {
+export async function createMockInspectionData(): Promise<InspectionData> {
   const internPool = InternPoolStore.create();
   const styleStore = new StyleStore();
   const logStore = LogStore.create(internPool, styleStore);

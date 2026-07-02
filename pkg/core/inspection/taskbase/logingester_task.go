@@ -36,8 +36,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// LogIngesterV2 defines the interface for ingesting log metadata into KHI v6 format.
-type LogIngesterV2 interface {
+// LogIngester defines the interface for ingesting log metadata into KHI v6 format.
+type LogIngester interface {
 	// RawLogTask returns the task reference that provides the raw logs to ingest.
 	RawLogTask() taskid.TaskReference[[]*log.Log]
 	// Dependencies returns additional task dependencies of the ingester.
@@ -46,8 +46,8 @@ type LogIngesterV2 interface {
 	ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
 }
 
-// NewLogIngesterTaskV2 returns a task that ingests log metadata into the KHI v6 builder.
-func NewLogIngesterTaskV2(taskID taskid.TaskImplementationID[[]*log.Log], ingester LogIngesterV2, labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
+// NewLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder.
+func NewLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
 	rawLogTaskID := ingester.RawLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID}, ingester.Dependencies()...)
 	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {
@@ -112,14 +112,14 @@ func NewLogIngesterTaskV2(taskID taskid.TaskImplementationID[[]*log.Log], ingest
 					cs, err := ingester.ProcessLog(ctx, l)
 					processedLogCount.Add(1)
 					if err != nil {
-						logTaskError(ctx, "failed to process log in V2 ingester", err, l)
+						logTaskError(ctx, "failed to process log in ingester", err, l)
 						setErr(err)
 						return
 					}
 					if cs != nil {
 						err = cs.Flush(builder.LogAccumulator)
 						if err != nil {
-							logTaskError(ctx, "failed to flush log changeset in V2 ingester", err, l)
+							logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
 							setErr(err)
 							return
 						}
@@ -140,7 +140,7 @@ func NewLogIngesterTaskV2(taskID taskid.TaskImplementationID[[]*log.Log], ingest
 			return nil, sharedErr
 		}
 
-		slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTaskV2 %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
+		slog.DebugContext(ctx, fmt.Sprintf("LogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), len(logs), skippedLogCount.Load()))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 		if tracingActive {

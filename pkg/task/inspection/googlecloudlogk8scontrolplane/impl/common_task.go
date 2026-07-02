@@ -34,7 +34,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Control Plane Component Logs",
 		"Gather logs from Kubernetes control plane components (e.g., kube-scheduler, kube-controller-manager, and kube-apiserver) to troubleshoot control plane behavior.",
 		9000,
@@ -45,17 +45,17 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8scontrolplan
 // K8sControlPlaneLogIngester is a log ingester for Kubernetes control plane component logs.
 type K8sControlPlaneLogIngester struct{}
 
-// RawLogTask implements inspectiontaskbase.LogIngesterV2.
+// RawLogTask implements inspectiontaskbase.LogIngester.
 func (i *K8sControlPlaneLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8scontrolplane_contract.CommonFieldSetReaderTaskID.Ref()
 }
 
-// Dependencies implements inspectiontaskbase.LogIngesterV2.
+// Dependencies implements inspectiontaskbase.LogIngester.
 func (i *K8sControlPlaneLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// ProcessLog implements inspectiontaskbase.LogIngesterV2.
+// ProcessLog implements inspectiontaskbase.LogIngester.
 func (i *K8sControlPlaneLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
@@ -78,7 +78,7 @@ func (i *K8sControlPlaneLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*K8sControlPlaneLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*K8sControlPlaneLogIngester)(nil)
 
 // LogIngesterTask serializes logs to history for timeline mappers to associate event or revisions in later tasks.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(googlecloudlogk8scontrolplane_contract.LogIngesterTaskID, &K8sControlPlaneLogIngester{})
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(googlecloudlogk8scontrolplane_contract.LogIngesterTaskID, &K8sControlPlaneLogIngester{})

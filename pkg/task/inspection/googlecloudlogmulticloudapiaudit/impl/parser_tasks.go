@@ -69,17 +69,17 @@ type multicloudAuditLogLogToTimelineMapperSetting struct {
 	inspectiontaskbase.SinglePassMapperBase[*googlecloudcommon_contract.GCPOperationTracker]
 }
 
-// Dependencies implements LogToTimelineMapperV2.
+// Dependencies implements LogToTimelineMapper.
 func (m *multicloudAuditLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements LogToTimelineMapperV2.
+// GroupedLogTask implements LogToTimelineMapper.
 func (m *multicloudAuditLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogmulticloudapiaudit_contract.LogGrouperTaskID.Ref()
 }
 
-// LogIngesterTask implements LogToTimelineMapperV2.
+// LogIngesterTask implements LogToTimelineMapper.
 func (m *multicloudAuditLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogmulticloudapiaudit_contract.LogIngesterTaskID.Ref()
 }
@@ -129,13 +129,13 @@ func (m *multicloudAuditLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx con
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationTracker] = (*multicloudAuditLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*multicloudAuditLogLogToTimelineMapperSetting)(nil)
 
 // LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[*googlecloudcommon_contract.GCPOperationTracker](
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*googlecloudcommon_contract.GCPOperationTracker](
 	googlecloudlogmulticloudapiaudit_contract.LogToTimelineMapperTaskID,
 	&multicloudAuditLogLogToTimelineMapperSetting{},
-	inspectioncore_contract.FeatureTaskLabelV2(`Multi-Cloud API Logs`,
+	inspectioncore_contract.FeatureTaskLabel(`Multi-Cloud API Logs`,
 		`Gather Anthos Multi-Cloud audit logs to visualize cluster lifecycle events (creation, deletion, and upgrades) on timelines.`,
 		5000,
 		true,

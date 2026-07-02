@@ -36,8 +36,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// GroupedLogIngesterV2 defines the interface for ingesting log metadata into KHI v6 format using group-sequential processing.
-type GroupedLogIngesterV2[T any] interface {
+// GroupedLogIngester defines the interface for ingesting log metadata into KHI v6 format using group-sequential processing.
+type GroupedLogIngester[T any] interface {
 	// RawLogTask returns the task reference that provides the raw logs to ingest.
 	RawLogTask() taskid.TaskReference[[]*log.Log]
 	// GroupedLogTask returns a reference to the task that provides the grouped logs.
@@ -54,7 +54,7 @@ type GroupedLogIngesterV2[T any] interface {
 	ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData T) (*khifilev6.LogChangeSet, T, error)
 }
 
-// SinglePassGroupedIngesterBase provides a base implementation of GroupedLogIngesterV2
+// SinglePassGroupedIngesterBase provides a base implementation of GroupedLogIngester
 // for ingesters that only require a single pass over the logs.
 type SinglePassGroupedIngesterBase[T any] struct{}
 
@@ -68,8 +68,8 @@ func (SinglePassGroupedIngesterBase[T]) PreProcessLogByGroup(ctx context.Context
 	return prevGroupData, nil
 }
 
-// NewGroupedLogIngesterTaskV2 returns a task that ingests log metadata into the KHI v6 builder using group-sequential processing.
-func NewGroupedLogIngesterTaskV2[T any](taskID taskid.TaskImplementationID[[]*log.Log], ingester GroupedLogIngesterV2[T], labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
+// NewGroupedLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder using group-sequential processing.
+func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[[]*log.Log], ingester GroupedLogIngester[T], labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
 	rawLogTaskID := ingester.RawLogTask()
 	groupedLogTaskID := ingester.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID, groupedLogTaskID}, ingester.Dependencies()...)
@@ -166,7 +166,7 @@ func NewGroupedLogIngesterTaskV2[T any](taskID taskid.TaskImplementationID[[]*lo
 					if cs != nil {
 						err = cs.Flush(builder.LogAccumulator)
 						if err != nil {
-							logTaskError(ctx, "failed to flush log changeset in V2 ingester", err, l)
+							logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
 							setErr(err)
 							return
 						}
@@ -187,7 +187,7 @@ func NewGroupedLogIngesterTaskV2[T any](taskID taskid.TaskImplementationID[[]*lo
 			return nil, sharedErr
 		}
 
-		slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTaskV2 %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
+		slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 		if tracingActive {

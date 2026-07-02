@@ -21,8 +21,8 @@ import {
   TimelineHoverOverlayRequest,
 } from 'src/app/timeline/components/timeline-frame.component';
 import { ViewStateService } from 'src/app/services/view-state.service';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
 
 import {
   TimelineChartItemHighlight,
@@ -32,7 +32,7 @@ import {
 } from 'src/app/timeline/components/interaction-model';
 import { Timeline, Event, Revision } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
 import {
@@ -40,7 +40,7 @@ import {
   TimelineRulerStyle,
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
-} from 'src/app/timeline/components/style-model-v2';
+} from 'src/app/timeline/components/style-model';
 import { TimelineChartMouseEvent } from 'src/app/timeline/components/timeline-chart.component';
 import { bisectLeft } from 'src/app/common/misc-util';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
@@ -51,7 +51,7 @@ import { CelTimelineExclusionFilter } from 'src/app/store/domain/filter/cel-filt
  * Smart component for the timeline view.
  *
  * It connects the presentational components (TimelineFrame, TimelineCornerIndicator, etc.)
- * with the V2 application state (InspectionDataStoreV2, SelectionManagerV2, ViewStateService).
+ * with the application state (InspectionDataStore, SelectionManager, ViewStateService).
  *
  * It is responsible for:
  * - Providing data to the timeline frame (logs, timelines, highlights).
@@ -69,9 +69,9 @@ export class TimelineSmartComponent {
 
   private readonly viewStateService = inject(ViewStateService);
 
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
 
-  private readonly selectionManager = inject(SelectionManagerV2);
+  private readonly selectionManager = inject(SelectionManager);
 
   private readonly styleOverrideService = inject(StyleOverrideService);
 
@@ -96,7 +96,7 @@ export class TimelineSmartComponent {
   );
 
   private readonly inspectionDataUniqueIDs = new WeakMap<
-    InspectionDataV2,
+    InspectionData,
     string
   >();
 

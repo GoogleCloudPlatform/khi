@@ -77,10 +77,10 @@ func (i *KubernetesEventLogIngester) ProcessLog(ctx context.Context, l *log.Log)
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*KubernetesEventLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*KubernetesEventLogIngester)(nil)
 
 // LogIngesterTask is the log ingester task for GKE Event Logs.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogk8sevent_contract.LogIngesterTaskID,
 	&KubernetesEventLogIngester{},
 )
@@ -135,13 +135,13 @@ func (m *KubernetesEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*KubernetesEventTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*KubernetesEventTimelineMapper)(nil)
 
 // LogToTimelineMapperTask is the task to map GKE Event Logs into timeline events.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogk8sevent_contract.LogToTimelineMapperTaskID,
 	&KubernetesEventTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Event Logs",
 		"Gather Kubernetes event logs to visualize cluster events on associated resource timelines.",
 		2000,
@@ -149,7 +149,7 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
 	),
 )
 
-// MustResolveK8sResourceTimelinePath resolves a KubernetesEventFieldSet to a V2 *khifilev6.TimelinePath.
+// MustResolveK8sResourceTimelinePath resolves a KubernetesEventFieldSet to a *khifilev6.TimelinePath.
 func MustResolveK8sResourceTimelinePath(ctx context.Context, event *googlecloudlogk8sevent_contract.KubernetesEventFieldSet) *khifilev6.TimelinePath {
 	if event.Resource == "" {
 		projectTimeline := googlecloudcommon_contract.MustGCPProjectTimeline(ctx, event.ProjectID)

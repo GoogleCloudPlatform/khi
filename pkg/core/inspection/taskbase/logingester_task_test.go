@@ -30,21 +30,21 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var mockLogIngesterV2PrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-v2-prev")
+var mockLogIngesterPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-prev")
 
-type mockLogIngesterV2 struct {
+type mockLogIngester struct {
 	cancel context.CancelFunc
 }
 
-func (m *mockLogIngesterV2) RawLogTask() taskid.TaskReference[[]*log.Log] {
-	return mockLogIngesterV2PrevTaskID.Ref()
+func (m *mockLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+	return mockLogIngesterPrevTaskID.Ref()
 }
 
-func (m *mockLogIngesterV2) Dependencies() []taskid.UntypedTaskReference {
+func (m *mockLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (m *mockLogIngesterV2) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+func (m *mockLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	shouldCancel := l.ReadBoolOrDefault("cancel", false)
 	if shouldCancel && m.cancel != nil {
 		m.cancel()
@@ -74,9 +74,9 @@ func (m *mockLogIngesterV2) ProcessLog(ctx context.Context, l *log.Log) (*khifil
 	return cs, nil
 }
 
-var _ LogIngesterV2 = (*mockLogIngesterV2)(nil)
+var _ LogIngester = (*mockLogIngester)(nil)
 
-func TestLogIngesterTaskV2(t *testing.T) {
+func TestLogIngesterTask(t *testing.T) {
 	type testLog struct {
 		yaml         string
 		shouldIngest bool
@@ -131,7 +131,7 @@ func TestLogIngesterTaskV2(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-v2")
+			tid := taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)
@@ -155,9 +155,9 @@ func TestLogIngesterTaskV2(t *testing.T) {
 				shouldIngestMap[l.ID] = tl.shouldIngest
 			}
 
-			task := NewLogIngesterTaskV2(tid, &mockLogIngesterV2{})
+			task := NewLogIngesterTask(tid, &mockLogIngester{})
 
-			_, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogIngesterV2PrevTaskID.Ref(), logs))
+			_, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogIngesterPrevTaskID.Ref(), logs))
 			if (err != nil) != tc.wantError {
 				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, tc.wantError)
 			}

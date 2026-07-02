@@ -72,10 +72,10 @@ func (i *workerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifil
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*workerLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*workerLogIngester)(nil)
 
 // AirflowWorkerLogIngesterTask is the task that ingests Airflow worker logs.
-var AirflowWorkerLogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var AirflowWorkerLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudclustercomposer_contract.AirflowWorkerLogIngesterTaskID,
 	&workerLogIngester{},
 )
@@ -151,10 +151,10 @@ func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*workerLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*workerLogToTimelineMapper)(nil)
 
 // AirflowWorkerLogToTimelineMapperTask is the task that maps Airflow worker logs to timeline events.
-var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var AirflowWorkerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudclustercomposer_contract.AirflowWorkerLogToTimelineMapperTaskID,
 	&workerLogToTimelineMapper{},
 )

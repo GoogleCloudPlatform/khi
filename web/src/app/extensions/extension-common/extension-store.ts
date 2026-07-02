@@ -20,7 +20,7 @@ import {
   LifecycleHookExtension,
   PageType,
 } from './extension-types/lifecycle-hook';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 /**
  * An injectio toke to get the instnce of ExtensionStore.
@@ -90,7 +90,7 @@ export class ExtensionStore {
    * Call the lifecycle hooks onInspectionDataOpen.
    */
   public notifyLifecycleOnInspectionDataOpen(
-    inspectionData: InspectionDataV2,
+    inspectionData: InspectionData,
     rawData: ArrayBuffer,
   ): void {
     return runInInjectionContext(this.injector, () => {

@@ -22,12 +22,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// TestFeatureTaskLabels tests FeatureTaskLabelV2.
+// TestFeatureTaskLabels tests FeatureTaskLabel.
 func TestFeatureTaskLabels(t *testing.T) {
-	t.Run("FeatureTaskLabelV2", func(t *testing.T) {
-		labelOpt := FeatureTaskLabelV2(
-			"v2 title",
-			"v2 description",
+	t.Run("FeatureTaskLabel", func(t *testing.T) {
+		labelOpt := FeatureTaskLabel(
+			"title",
+			"description",
 			100,
 			true,
 		)
@@ -51,14 +51,14 @@ func TestFeatureTaskLabels(t *testing.T) {
 
 		want := expectations{
 			FeatureFlag:        true,
-			Title:              "v2 title",
-			Description:        "v2 description",
+			Title:              "title",
+			Description:        "description",
 			Order:              100,
 			DefaultFeatureFlag: true,
 		}
 
 		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("FeatureTaskLabelV2 label mismatch (-want +got):\n%s", diff)
+			t.Errorf("FeatureTaskLabel label mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

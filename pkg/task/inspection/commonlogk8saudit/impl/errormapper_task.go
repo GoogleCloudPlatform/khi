@@ -25,10 +25,10 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// NonSuccessLogLogToTimelineMapperTask is the V2 task to generate history from non-success logs.
-var NonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](
+// NonSuccessLogLogToTimelineMapperTask is the task to generate history from non-success logs.
+var NonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
 	commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID,
-	&nonSuccessLogLogToTimelineMapperTaskSettingV2{
+	&nonSuccessLogLogToTimelineMapperTaskSetting{
 		subresourceMapToWriteToParent: map[string]struct{}{
 			"status":   {},
 			"finalize": {},
@@ -37,30 +37,30 @@ var NonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMa
 	},
 )
 
-type nonSuccessLogLogToTimelineMapperTaskSettingV2 struct {
+type nonSuccessLogLogToTimelineMapperTaskSetting struct {
 	inspectiontaskbase.StatelessMapperBase
 
 	// subresourceMapToWriteToParent is the map of subresources to write to the parent resource.
 	subresourceMapToWriteToParent map[string]struct{}
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
-func (e *nonSuccessLogLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
-func (e *nonSuccessLogLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return commonlogk8saudit_contract.NonSuccessLogGrouperTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
-func (e *nonSuccessLogLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
-func (e *nonSuccessLogLogToTimelineMapperTaskSettingV2) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
+func (e *nonSuccessLogLogToTimelineMapperTaskSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	fieldSet := log.MustGetFieldSet(l, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 
 	subresource := fieldSet.SubresourceName
@@ -91,4 +91,4 @@ func (e *nonSuccessLogLogToTimelineMapperTaskSettingV2) ProcessLogByGroup(ctx co
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSettingV2)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*nonSuccessLogLogToTimelineMapperTaskSetting)(nil)

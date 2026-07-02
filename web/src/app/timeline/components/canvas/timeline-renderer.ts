@@ -33,7 +33,10 @@ import {
 } from './timeline-events-renderer';
 import { TimelineChartViewModel } from '../timeline-chart.viewmodel';
 import { TimelineChartItemHighlight } from '../interaction-model';
-import { TimelineChartStyle, BASE_ROW_HEIGHT } from '../style-model-v2';
+import {
+  TimelineChartStyle,
+  BASE_ROW_HEIGHT,
+} from 'src/app/timeline/components/style-model';
 import { SharedTmpBuffer } from './glutil';
 
 /**

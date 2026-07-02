@@ -17,8 +17,8 @@
 import { Component, computed, inject, resource } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GraphLayoutComponent } from 'src/app/graph/components/graph-layout.component';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { GraphDataConverterService } from 'src/app/services/graph-converter.service';
 import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
 
@@ -32,8 +32,8 @@ import { GraphData, emptyGraphData } from 'src/app/common/schema/graph-schema';
   imports: [CommonModule, GraphLayoutComponent],
 })
 export class GraphSmartComponent {
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
-  private readonly selectionManager = inject(SelectionManagerV2);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
+  private readonly selectionManager = inject(SelectionManager);
   private readonly graphConverter = inject(GraphDataConverterService);
 
   private readonly graphResource = resource({

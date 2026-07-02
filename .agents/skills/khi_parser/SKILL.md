@@ -77,13 +77,13 @@ Reads structured log fields in parallel and attaches strongly-typed structs call
 
 Information linked to the log is parsed here into a writable format, receiving information from the FieldSets (e.g. Timestamp, Severity, and Summary are initialized and stage mutations).
 
-- **Utility:** `inspectiontaskbase.NewLogIngesterTaskV2`.
+- **Utility:** `inspectiontaskbase.NewLogIngesterTask`.
 
 ### Step 5: Timeline Mapping Tasks
 
 Maps the ingested logs to resource timelines as events or state revisions.
 
-- **Utility:** `inspectiontaskbase.NewLogToTimelineMapperTaskV2`.
+- **Utility:** `inspectiontaskbase.NewLogToTimelineMapperTask`.
 
 ---
 
@@ -437,7 +437,7 @@ func (i *CustomAppLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
  return cs, nil
 }
 
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
  customapp_contract.LogIngesterTaskID,
  &CustomAppLogIngester{},
 )
@@ -499,10 +499,10 @@ func (m *CustomAppTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.
  return cs, struct{}{}, nil
 }
 
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
  customapp_contract.LogToTimelineMapperTaskID,
  &CustomAppTimelineMapper{},
- inspectioncore_contract.FeatureTaskLabelV2(
+ inspectioncore_contract.FeatureTaskLabel(
   "Custom App Logs",
   "Parser and timeline mapping for Custom App logs.",
   9000,
@@ -510,12 +510,12 @@ var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
  ),
 )
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*CustomAppTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*CustomAppTimelineMapper)(nil)
 ```
 
-### C. Specialized Pattern: `ManifestLogToTimelineMapperV2` (Multi-Group Merge Mapper)
+### C. Specialized Pattern: `ManifestLogToTimelineMapper` (Multi-Group Merge Mapper)
 
-For advanced scenarios requiring the tracking and synchronization of **multiple related resource logs** chronologically (such as a parent `Pod` and its subresources like `Status` or `Binding`), KHI provides `NewManifestLogToTimelineMapperV2`.
+For advanced scenarios requiring the tracking and synchronization of **multiple related resource logs** chronologically (such as a parent `Pod` and its subresources like `Status` or `Binding`), KHI provides `NewManifestLogToTimelineMapper`.
 
 This mapper automatically merges logs from multiple roles into a single stream sorted strictly by timestamp, and passes the state `T` across all events.
 
@@ -548,7 +548,7 @@ type MyState struct {
 
 type MyManifestMapper struct {
  // Embeds single pass helper.
- commonlogk8saudit_contract.ManifestSinglePassMapperBaseV2[*MyState]
+ commonlogk8saudit_contract.ManifestSinglePassMapperBase[*MyState]
 }
 
 func (m *MyManifestMapper) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
@@ -593,7 +593,7 @@ func (m *MyManifestMapper) ProcessLog(ctx context.Context, event commonlogk8saud
  cs := khifilev6.NewTimelineChangeSet(event.Log)
 
  // Handle parent deletion event to propagate deletion to the subresource.
- if event.GroupRole == "source" && event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+ if event.GroupRole == "source" && event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
   targetGroup := event.GroupSet.Roles["target"]
   targetPath := MustResolveTimelinePath(ctx, targetGroup.Resource)
 
@@ -607,7 +607,7 @@ func (m *MyManifestMapper) ProcessLog(ctx context.Context, event commonlogk8saud
  return cs, state, nil
 }
 
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*MyState] = (*MyManifestMapper)(nil)
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*MyState] = (*MyManifestMapper)(nil)
 ```
 
 #### `registration.go`
@@ -640,11 +640,11 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 
 ## 4. Testing Log Parsers
 
-Refer to [log-timeline-mapper-v2](skill://log-timeline-mapper-v2) for detailed unit testing strategies of `LogIngesterV2` and `LogToTimelineMapperV2`.
+Refer to [log-timeline-mapper](skill://log-timeline-mapper) for detailed unit testing strategies of `LogIngester` and `LogToTimelineMapper`.
 
-### Testing `ManifestLogToTimelineMapperV2`
+### Testing `ManifestLogToTimelineMapper`
 
-Since `ManifestLogToTimelineMapperV2` coordinates chronologically merged streams and tracks previous states, testing it requires:
+Since `ManifestLogToTimelineMapper` coordinates chronologically merged streams and tracks previous states, testing it requires:
 
 1. **Chronological Merge Validation**: Testing that events from different roles are merged correctly.
 2. **Historical Snapshot Validation**: Testing that `GetLastBodyReader` or `GetLastBodyYAML` accurately yields the snapshot of other roles at the event's timestamp.
@@ -737,9 +737,9 @@ func TestGetLastBody(t *testing.T) {
 }
 ```
 
-### Testing Tasks Implemented with `ManifestLogToTimelineMapperV2`
+### Testing Tasks Implemented with `ManifestLogToTimelineMapper`
 
-To unit test a concrete mapper task implementing `ManifestLogToTimelineMapperV2[T]`, you should isolate and test its `ProcessLog` (and `PreProcessLog`) method using table-driven tests.
+To unit test a concrete mapper task implementing `ManifestLogToTimelineMapper[T]`, you should isolate and test its `ProcessLog` (and `PreProcessLog`) method using table-driven tests.
 
 The test setup requires:
 
@@ -776,7 +776,7 @@ func TestMyManifestMapper_ProcessLog(t *testing.T) {
      &log.CommonFieldSet{Timestamp: time.Date(2026, 5, 26, 10, 0, 0, 0, time.UTC)},
     ),
     GroupRole: "source", // Parent resource
-    EventType: ChangeEventTypeV2Deletion,
+    EventType: ChangeEventTypeDeletion,
     GroupSet: RelatedGroupSet{
      Roles: map[string]*ResourceManifestLogGroup{
       "target": {

@@ -71,7 +71,7 @@ import {
   BASE_ROW_HEIGHT,
   TimelineChartStyle,
   TimelineRulerStyle,
-} from './style-model-v2';
+} from 'src/app/timeline/components/style-model';
 import {
   getMinTimeSpanForHistogram,
   getTickTimeMS,

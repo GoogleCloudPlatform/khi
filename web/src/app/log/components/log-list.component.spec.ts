@@ -20,7 +20,7 @@ import { Log } from 'src/app/store/domain/log';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { ScrollingModule } from '@angular/cdk/scrolling';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 
 describe('LogListComponent', () => {
   let component: LogListComponent;
@@ -29,7 +29,7 @@ describe('LogListComponent', () => {
   let mockTimelines: readonly ReadonlyDomainElement<Timeline>[];
 
   beforeEach(async () => {
-    const mockData = await createMockInspectionDataV2();
+    const mockData = await createMockInspectionData();
     mockLogs = Array.from(mockData.logStore.logs());
     mockTimelines = mockData.timelineStore.timelines;
 
