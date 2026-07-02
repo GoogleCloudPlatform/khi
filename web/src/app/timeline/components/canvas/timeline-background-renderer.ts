@@ -23,7 +23,7 @@ import {
   BASE_ROW_HEIGHT,
   BASE_HORIZONTAL_BORDER_THICKNESS,
   HORIZONTAL_BORDER_THICKNESS_RANGE,
-} from '../style-model';
+} from 'src/app/timeline/components/style-model';
 import { RendererConvertUtil } from './convertutil';
 
 /**

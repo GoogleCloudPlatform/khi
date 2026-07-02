@@ -35,7 +35,7 @@ import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
-} from './style-model';
+} from 'src/app/timeline/components/style-model';
 import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 import { HistogramCache } from 'src/app/timeline/components/misc/histogram-cache';
 import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculator/human-friendly-tick';

@@ -23,9 +23,12 @@ import {
   model,
 } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
-import { InspectionDataStore } from '../services/inspection-data-store.service';
-import { SelectionManager } from '../services/selection-manager.service';
-import { SearchScope, ViewStateService } from '../services/view-state.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
+import {
+  SearchScope,
+  ViewStateService,
+} from 'src/app/services/view-state.service';
 import { DiffListHeaderComponent } from './components/diff-list-header.component';
 import { DiffListComponent } from './components/diff-list.component';
 import { DiffContentComponent } from './components/diff-content.component';
