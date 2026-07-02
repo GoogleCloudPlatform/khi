@@ -34,7 +34,7 @@ var ComposerLogsTailTask = coretask.NewTask(
 	func(ctx context.Context) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"Managed Service for Apache Airflow Logs",
 		"Gather Managed Service for Apache Airflow logs, including airflow-worker, airflow-scheduler, and airflow-dag-processor-manager, to visualize general environment operations on timelines.",
 		2500,

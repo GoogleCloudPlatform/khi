@@ -40,7 +40,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8
 	&googlecloudlogk8scontainer_contract.GCPContainerLogNodeNameLabelFieldSetReader{},
 })
 
-// containerLogIngester implements inspectiontaskbase.LogIngesterV2.
+// containerLogIngester implements inspectiontaskbase.LogIngester.
 type containerLogIngester struct{}
 
 // RawLogTask returns the task reference that provides the raw logs to ingest.
@@ -77,10 +77,10 @@ func (i *containerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*containerLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*containerLogIngester)(nil)
 
 // LogIngesterTask is the task that ingests log metadata into KHI v6 builder.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogk8scontainer_contract.LogIngesterTaskID,
 	&containerLogIngester{},
 )
@@ -147,10 +147,10 @@ func (m *containerLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*containerLogLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*containerLogLogToTimelineMapper)(nil)
 
 // LogToTimelineMapperTask creates a task that modifies the KHI v6 TimelineRegistry.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[struct{}](
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
 	googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID,
 	&containerLogLogToTimelineMapper{},
 )
@@ -321,10 +321,10 @@ func mustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 	})
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*containerLogPodPhaseMapperState] = (*containerLogPodPhaseTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*containerLogPodPhaseMapperState] = (*containerLogPodPhaseTimelineMapper)(nil)
 
 // PodPhaseTimelineMapperTask maps container logs to Pod phase timelines.
-var PodPhaseTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2[*containerLogPodPhaseMapperState](
+var PodPhaseTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[*containerLogPodPhaseMapperState](
 	googlecloudlogk8scontainer_contract.PodPhaseTimelineMapperTaskID,
 	&containerLogPodPhaseTimelineMapper{},
 )
@@ -339,7 +339,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Container Logs",
 		"Gather stdout/stderr logs of containers to visualize application runtime behaviors under associated Pod timelines. Note: The log volume can be very large if the cluster contains many Pods.",
 		4000,

@@ -36,8 +36,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// LogIngesterV2 defines the interface for ingesting log metadata into KHI v6 format.
-type LogIngesterV2 interface {
+// LogIngester defines the interface for ingesting log metadata into KHI v6 format.
+type LogIngester interface {
 	// RawLogTask returns the task reference that provides the raw logs to ingest.
 	RawLogTask() taskid.TaskReference[[]*log.Log]
 	// Dependencies returns additional task dependencies of the ingester.
@@ -46,8 +46,8 @@ type LogIngesterV2 interface {
 	ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error)
 }
 
-// NewLogIngesterTaskV2 returns a task that ingests log metadata into the KHI v6 builder.
-func NewLogIngesterTaskV2(taskID taskid.TaskImplementationID[[]*log.Log], ingester LogIngesterV2, labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
+// NewLogIngesterTask returns a task that ingests log metadata into the KHI v6 builder.
+func NewLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], ingester LogIngester, labels ...coretask.LabelOpt) coretask.Task[[]*log.Log] {
 	rawLogTaskID := ingester.RawLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{rawLogTaskID}, ingester.Dependencies()...)
 	return NewProgressReportableInspectionTask(taskID, dependencies, func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*log.Log, error) {

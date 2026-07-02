@@ -27,25 +27,25 @@ import (
 )
 
 // K8sAuditLogIngesterTask is the V2 task to serialize and ingest k8s audit logs.
-var K8sAuditLogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var K8sAuditLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	commonlogk8saudit_contract.K8sAuditLogIngesterTaskID,
-	&k8sAuditLogIngesterV2{},
+	&k8sAuditLogIngester{},
 )
 
-type k8sAuditLogIngesterV2 struct{}
+type k8sAuditLogIngester struct{}
 
-// RawLogTask implements inspectiontaskbase.LogIngesterV2.
-func (i *k8sAuditLogIngesterV2) RawLogTask() taskid.TaskReference[[]*log.Log] {
+// RawLogTask implements inspectiontaskbase.LogIngester.
+func (i *k8sAuditLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogProviderRef
 }
 
-// Dependencies implements inspectiontaskbase.LogIngesterV2.
-func (i *k8sAuditLogIngesterV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements inspectiontaskbase.LogIngester.
+func (i *k8sAuditLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
 // ProcessLog parses raw log entry and populates the LogChangeSet.
-func (i *k8sAuditLogIngesterV2) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -74,4 +74,4 @@ func (i *k8sAuditLogIngesterV2) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*k8sAuditLogIngesterV2)(nil)
+var _ inspectiontaskbase.LogIngester = (*k8sAuditLogIngester)(nil)

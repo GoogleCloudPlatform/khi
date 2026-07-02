@@ -31,7 +31,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// K8sNodeLogIngester implements LogIngesterV2 for GKE Node component logs.
+// K8sNodeLogIngester implements LogIngester for GKE Node component logs.
 type K8sNodeLogIngester struct{}
 
 // RawLogTask returns the raw log provider task.
@@ -163,10 +163,10 @@ func (i *K8sNodeLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifi
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*K8sNodeLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*K8sNodeLogIngester)(nil)
 
-// LogIngesterTask registers the LogIngesterV2 for GKE Node logs.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+// LogIngesterTask registers the LogIngester for GKE Node logs.
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogk8snode_contract.LogIngesterTaskID,
 	&K8sNodeLogIngester{},
 )
@@ -195,7 +195,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contra
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil
 	},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"Kubernetes Node Logs",
 		"Gather logs from Kubernetes node components (e.g., Docker, containerd, or Kubelet) to troubleshoot node-level issues. Note: The log volume can be very large if the cluster contains many nodes.",
 		3000,

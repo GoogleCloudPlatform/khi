@@ -247,7 +247,7 @@ func TestConditionWalkerV2(t *testing.T) {
 }
 
 func TestConditionLogToTimelineMapperTask_ProcessLog(t *testing.T) {
-	taskSetting := &conditionLogToTimelineMapperTaskSettingV2{
+	taskSetting := &conditionLogToTimelineMapperTaskSetting{
 		minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
 	}
 
@@ -426,9 +426,9 @@ status:
 			GroupSet:         groupSet,
 		}
 
-		initialState := &conditionLogToTimelineMapperTaskStateV2{
+		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
-			ConditionWalkers: map[string]*conditionWalkerV2{
+			ConditionWalkers: map[string]*conditionWalker{
 				"Ready": newConditionWalkerV2(conditionPath, "Ready"),
 			},
 			uidToCreationTimestampMap: map[string]time.Time{
@@ -527,7 +527,7 @@ status:
 			GroupSet:         groupSet,
 		}
 
-		var state *conditionLogToTimelineMapperTaskStateV2
+		var state *conditionLogToTimelineMapperTaskState
 		var err error
 
 		// Run PreProcessLog
@@ -613,9 +613,9 @@ status:
 			GroupSet:         groupSet,
 		}
 
-		initialState := &conditionLogToTimelineMapperTaskStateV2{
+		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
-			ConditionWalkers: map[string]*conditionWalkerV2{
+			ConditionWalkers: map[string]*conditionWalker{
 				"Ready": newConditionWalkerV2(conditionPath, "Ready"),
 			},
 		}

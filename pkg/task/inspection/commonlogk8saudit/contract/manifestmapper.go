@@ -120,8 +120,8 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 	return nil, false
 }
 
-// ManifestLogToTimelineMapperV2 defines the interface for V2 manifest timeline mappers.
-type ManifestLogToTimelineMapperV2[T any] interface {
+// ManifestLogToTimelineMapper defines the interface for V2 manifest timeline mappers.
+type ManifestLogToTimelineMapper[T any] interface {
 	// TaskID returns the task ID.
 	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
 	// LogIngesterTask returns the task reference for the log ingester task.
@@ -140,34 +140,34 @@ type ManifestLogToTimelineMapperV2[T any] interface {
 	ProcessLog(ctx context.Context, event MultiGroupLogEvent, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// ManifestSinglePassMapperBaseV2 provides a base implementation for V2 mappers that require only a single pass.
-type ManifestSinglePassMapperBaseV2[T any] struct{}
+// ManifestSinglePassMapperBase provides a base implementation for V2 mappers that require only a single pass.
+type ManifestSinglePassMapperBase[T any] struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
-func (ManifestSinglePassMapperBaseV2[T]) PassCount() int {
+func (ManifestSinglePassMapperBase[T]) PassCount() int {
 	return 0
 }
 
 // PreProcessLog is a no-op pre-processor that returns the state as-is.
-func (ManifestSinglePassMapperBaseV2[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
+func (ManifestSinglePassMapperBase[T]) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData T) (T, error) {
 	return prevGroupData, nil
 }
 
-// ManifestStatelessMapperBaseV2 provides a base implementation for V2 mappers that are both stateless and require a single pass.
-type ManifestStatelessMapperBaseV2 struct{}
+// ManifestStatelessMapperBase provides a base implementation for V2 mappers that are both stateless and require a single pass.
+type ManifestStatelessMapperBase struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
-func (ManifestStatelessMapperBaseV2) PassCount() int {
+func (ManifestStatelessMapperBase) PassCount() int {
 	return 0
 }
 
 // PreProcessLog is a no-op pre-processor that returns an empty struct.
-func (ManifestStatelessMapperBaseV2) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData struct{}) (struct{}, error) {
+func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex int, event MultiGroupLogEvent, prevGroupData struct{}) (struct{}, error) {
 	return struct{}{}, nil
 }
 
-// NewManifestLogToTimelineMapperV2 creates a new timeline mapper task utilizing the V2 mapper interface.
-func NewManifestLogToTimelineMapperV2[T any](setting ManifestLogToTimelineMapperV2[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
+// NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the V2 mapper interface.
+func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
 	groupedLogTaskID := setting.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
 

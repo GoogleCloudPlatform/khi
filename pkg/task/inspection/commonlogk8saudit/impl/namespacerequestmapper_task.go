@@ -25,33 +25,33 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// namespaceRequestLogToTimelineMapperTaskSettingV2 maps namespace-wide requests to namespace timelines under the V2 model.
-type namespaceRequestLogToTimelineMapperTaskSettingV2 struct {
-	commonlogk8saudit_contract.ManifestStatelessMapperBaseV2
+// namespaceRequestLogToTimelineMapperTaskSetting maps namespace-wide requests to namespace timelines under the V2 model.
+type namespaceRequestLogToTimelineMapperTaskSetting struct {
+	commonlogk8saudit_contract.ManifestStatelessMapperBase
 }
 
-// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.NamespaceRequestLogToTimelineMapperTaskID
 }
 
-// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
 	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	for _, group := range groupedLogs {
 		if group.Resource.Type() == commonlogk8saudit_contract.Namespace {
@@ -65,8 +65,8 @@ func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSe
 	return result, nil
 }
 
-// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (n *namespaceRequestLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
 	k8sFieldSet, err := log.GetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
@@ -85,7 +85,7 @@ func (n *namespaceRequestLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 }
 
 // Explicit interface compliance assertion.
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[struct{}] = (*namespaceRequestLogToTimelineMapperTaskSettingV2)(nil)
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[struct{}] = (*namespaceRequestLogToTimelineMapperTaskSetting)(nil)
 
 // NamespaceRequestLogToTimelineMapperTask is the V2 task to generate events of requests against namespace wide by deletecollection.
-var NamespaceRequestLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[struct{}](&namespaceRequestLogToTimelineMapperTaskSettingV2{})
+var NamespaceRequestLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[struct{}](&namespaceRequestLogToTimelineMapperTaskSetting{})

@@ -56,7 +56,7 @@ func TestNamespaceRequestLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 		},
 	}
 
-	mapperSetting := &namespaceRequestLogToTimelineMapperTaskSettingV2{}
+	mapperSetting := &namespaceRequestLogToTimelineMapperTaskSetting{}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

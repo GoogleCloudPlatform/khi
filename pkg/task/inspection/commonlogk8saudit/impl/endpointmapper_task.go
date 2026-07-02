@@ -39,8 +39,8 @@ type podIdentity struct {
 	namespace string
 }
 
-// endpointResourceLogToTimelineMapperStateV2 tracks the status of an EndpointSlice resource during V2 timeline generation.
-type endpointResourceLogToTimelineMapperStateV2 struct {
+// endpointResourceLogToTimelineMapperState tracks the status of an EndpointSlice resource during V2 timeline generation.
+type endpointResourceLogToTimelineMapperState struct {
 	// serviceNames is the set of service names.
 	serviceNames map[string]struct{}
 	// foundPods is the map of found pods.
@@ -50,38 +50,38 @@ type endpointResourceLogToTimelineMapperStateV2 struct {
 }
 
 // EndpointResourceLogToTimelineMapperTask is the V2 task to generate endpoint resource history.
-var EndpointResourceLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*endpointResourceLogToTimelineMapperStateV2](&endpointResourceLogToTimelineMapperTaskSettingV2{})
+var EndpointResourceLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](&endpointResourceLogToTimelineMapperTaskSetting{})
 
-type endpointResourceLogToTimelineMapperTaskSettingV2 struct {
+type endpointResourceLogToTimelineMapperTaskSetting struct {
 }
 
-// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) PassCount() int {
+// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
 }
 
-// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.EndpointResourceLogToTimelineMapperTaskID
 }
 
-// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
 	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	for _, group := range groupedLogs {
 		if group.Resource.APIVersion == "discovery.k8s.io/v1" && group.Resource.Kind == "endpointslice" {
@@ -95,10 +95,10 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSe
 	return result, nil
 }
 
-// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *endpointResourceLogToTimelineMapperStateV2) (*endpointResourceLogToTimelineMapperStateV2, error) {
+// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *endpointResourceLogToTimelineMapperState) (*endpointResourceLogToTimelineMapperState, error) {
 	if state == nil {
-		state = &endpointResourceLogToTimelineMapperStateV2{
+		state = &endpointResourceLogToTimelineMapperState{
 			serviceNames: map[string]struct{}{},
 			foundPods:    map[string]*podIdentity{},
 			lastStates:   map[string]*pb.RevisionState{},
@@ -163,10 +163,10 @@ func (e *endpointResourceLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx con
 	return state, nil
 }
 
-// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (e *endpointResourceLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *endpointResourceLogToTimelineMapperStateV2) (*khifilev6.TimelineChangeSet, *endpointResourceLogToTimelineMapperStateV2, error) {
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, state *endpointResourceLogToTimelineMapperState) (*khifilev6.TimelineChangeSet, *endpointResourceLogToTimelineMapperState, error) {
 	if state == nil {
-		state = &endpointResourceLogToTimelineMapperStateV2{
+		state = &endpointResourceLogToTimelineMapperState{
 			serviceNames: map[string]struct{}{},
 			foundPods:    map[string]*podIdentity{},
 			lastStates:   map[string]*pb.RevisionState{},
@@ -426,4 +426,4 @@ func MustResolveEndpointSliceChildPodTimelinePath(ctx context.Context, clusterNa
 	})
 }
 
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*endpointResourceLogToTimelineMapperStateV2] = (*endpointResourceLogToTimelineMapperTaskSettingV2)(nil)
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState] = (*endpointResourceLogToTimelineMapperTaskSetting)(nil)

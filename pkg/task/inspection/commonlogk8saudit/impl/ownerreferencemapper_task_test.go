@@ -30,7 +30,7 @@ import (
 
 // TestResourceOwnerReferenceTimelineMapperTaskV2_ProcessLog verifies that owner references in the resource body are mapped correctly to timeline aliases.
 func TestResourceOwnerReferenceTimelineMapperTaskV2_ProcessLog(t *testing.T) {
-	task := &resourceOwnerReferenceTimelineMapperTaskSettingV2{
+	task := &resourceOwnerReferenceTimelineMapperTaskSetting{
 		nonNamespacedOwnerTypes: map[string]struct{}{
 			"core/v1#node": {},
 		},

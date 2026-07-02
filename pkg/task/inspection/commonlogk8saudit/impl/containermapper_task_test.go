@@ -345,7 +345,7 @@ state:
 
 			containerPath := MustResolveContainerTimelinePath(ctx, "k8s", podNamespace, podName, containerName)
 
-			walker := &containerStateWalkerV2{
+			walker := &containerStateWalker{
 				containerIdentity: &containerStatusIdentity{
 					containerName: containerName,
 					containerType: ContainerTypeContainer,
@@ -391,7 +391,7 @@ state:
 }
 
 func TestContainerLogToTimelineMapperTaskV2_ProcessLog(t *testing.T) {
-	taskSetting := &containerLogToTimelineMapperTaskSettingV2{}
+	taskSetting := &containerLogToTimelineMapperTaskSetting{}
 	podNamespace := "default"
 	podName := "nginx"
 	testTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -426,8 +426,8 @@ func TestContainerLogToTimelineMapperTaskV2_ProcessLog(t *testing.T) {
 		nilBody       bool
 		eventType     commonlogk8saudit_contract.ChangeEventTypeV2
 		verb          *pb.Verb
-		initialState  *containerLogToTimelineMapperTaskStateV2
-		wantState     *containerLogToTimelineMapperTaskStateV2
+		initialState  *containerLogToTimelineMapperTaskState
+		wantState     *containerLogToTimelineMapperTaskState
 		wantRevisions []*khifilev6.StagingRevision
 	}{
 		{
@@ -443,7 +443,7 @@ status:
   - name: debug-container
 `,
 			initialState: nil,
-			wantState: &containerLogToTimelineMapperTaskStateV2{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
@@ -458,7 +458,7 @@ status:
 						containerType: ContainerTypeEphemeral,
 					},
 				},
-				containerStateWalkers: map[string]*containerStateWalkerV2{},
+				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			wantRevisions: []*khifilev6.StagingRevision{},
 		},
@@ -466,9 +466,9 @@ status:
 			name:    "Pass 0: Nil Body",
 			pass:    0,
 			nilBody: true,
-			wantState: &containerLogToTimelineMapperTaskStateV2{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities:   map[string]*containerStatusIdentity{},
-				containerStateWalkers: map[string]*containerStateWalkerV2{},
+				containerStateWalkers: map[string]*containerStateWalker{},
 			},
 			wantRevisions: []*khifilev6.StagingRevision{},
 		},
@@ -484,23 +484,23 @@ status:
         startedAt: "2024-01-01T00:00:00Z"
     ready: true
 `,
-			initialState: &containerLogToTimelineMapperTaskStateV2{
+			initialState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
 					},
 				},
-				containerStateWalkers: map[string]*containerStateWalkerV2{},
+				containerStateWalkers: map[string]*containerStateWalker{},
 			},
-			wantState: &containerLogToTimelineMapperTaskStateV2{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
 					},
 				},
-				containerStateWalkers: map[string]*containerStateWalkerV2{
+				containerStateWalkers: map[string]*containerStateWalker{
 					"main-container": {
 						containerIdentity: &containerStatusIdentity{
 							containerName: "main-container",
@@ -531,23 +531,23 @@ status:
 status:
   containerStatuses: []
 `,
-			initialState: &containerLogToTimelineMapperTaskStateV2{
+			initialState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
 					},
 				},
-				containerStateWalkers: map[string]*containerStateWalkerV2{},
+				containerStateWalkers: map[string]*containerStateWalker{},
 			},
-			wantState: &containerLogToTimelineMapperTaskStateV2{
+			wantState: &containerLogToTimelineMapperTaskState{
 				containerIdentities: map[string]*containerStatusIdentity{
 					"main-container": {
 						containerName: "main-container",
 						containerType: ContainerTypeContainer,
 					},
 				},
-				containerStateWalkers: map[string]*containerStateWalkerV2{
+				containerStateWalkers: map[string]*containerStateWalker{
 					"main-container": {
 						containerIdentity: &containerStatusIdentity{
 							containerName: "main-container",
@@ -636,7 +636,7 @@ status:
 				if err != nil {
 					t.Fatalf("PreProcessLog failed: %v", err)
 				}
-				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerLogToTimelineMapperTaskStateV2{}, containerStatusIdentity{}, containerStateWalkerV2{})); diff != "" {
+				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerLogToTimelineMapperTaskState{}, containerStatusIdentity{}, containerStateWalker{})); diff != "" {
 					t.Errorf("state mismatch (-want +got):\n%s", diff)
 				}
 			} else {
@@ -644,7 +644,7 @@ status:
 				if err != nil {
 					t.Fatalf("ProcessLog failed: %v", err)
 				}
-				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerLogToTimelineMapperTaskStateV2{}, containerStatusIdentity{}, containerStateWalkerV2{})); diff != "" {
+				if diff := cmp.Diff(tc.wantState, nextState, cmp.AllowUnexported(containerLogToTimelineMapperTaskState{}, containerStatusIdentity{}, containerStateWalker{})); diff != "" {
 					t.Errorf("state mismatch (-want +got):\n%s", diff)
 				}
 

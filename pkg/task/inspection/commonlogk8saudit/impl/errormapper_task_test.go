@@ -59,7 +59,7 @@ func TestNonSuccessLogLogToTimelineMapperTaskSettingV2_ProcessLogByGroup(t *test
 		},
 	}
 
-	mapperSetting := &nonSuccessLogLogToTimelineMapperTaskSettingV2{
+	mapperSetting := &nonSuccessLogLogToTimelineMapperTaskSetting{
 		subresourceMapToWriteToParent: map[string]struct{}{
 			"status":   {},
 			"finalize": {},

@@ -65,43 +65,43 @@ func newPodPhaseTaskState() *podPhaseTaskState {
 	}
 }
 
-// podPhaseLogToTimelineMapperTaskSettingV2 handles pod phase timeline generation.
+// podPhaseLogToTimelineMapperTaskSetting handles pod phase timeline generation.
 // This mapper runs in 2 passes during PreProcessLog to associate pod UIDs with node names,
 // even when scheduling (binding) logs and pod status logs appear out of order or when pod logs are missing:
 //   - Pass 0 (podPhasePassCollectUID): Collects the mapping from parent pod path to its UID from "pod" role logs.
 //   - Pass 1 (podPhasePassCollectNodeName): Resolves the node name from either "pod" or "binding" logs and
 //     stores the mapping from UID to node name. A 2-pass approach is necessary because a chronological log stream
 //     might process "binding" logs (which lack pod UID) before "pod" logs (where the UID is first observed).
-type podPhaseLogToTimelineMapperTaskSettingV2 struct {
+type podPhaseLogToTimelineMapperTaskSetting struct {
 }
 
-// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) PassCount() int {
+// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) PassCount() int {
 	return 2
 }
 
-// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.PodPhaseLogToTimelineMapperTaskID
 }
 
-// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
 	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	processedPods := map[string]struct{}{}
 
@@ -140,7 +140,7 @@ func (c *podPhaseLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx c
 }
 
 // resolveUID returns the active pod UID at time t.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
+func (c *podPhaseLogToTimelineMapperTaskSetting) resolveUID(ts *common.TimeSeries[string], t time.Time) string {
 	uid, ok := ts.Get(t)
 	if ok && uid != "" {
 		return uid
@@ -148,8 +148,8 @@ func (c *podPhaseLogToTimelineMapperTaskSettingV2) resolveUID(ts *common.TimeSer
 	return ""
 }
 
-// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*podPhaseTaskState, error) {
+// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*podPhaseTaskState, error) {
 	if prevGroupData == nil {
 		prevGroupData = newPodPhaseTaskState()
 	}
@@ -221,8 +221,8 @@ func (c *podPhaseLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Con
 	return prevGroupData, nil
 }
 
-// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (c *podPhaseLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*khifilev6.TimelineChangeSet, *podPhaseTaskState, error) {
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *podPhaseTaskState) (*khifilev6.TimelineChangeSet, *podPhaseTaskState, error) {
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
@@ -337,7 +337,7 @@ func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 }
 
 // Explicit interface compliance assertion.
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSettingV2)(nil)
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
 
 // PodPhaseLogToTimelineMapperTask is the V2 task to generate pod phase history.
-var PodPhaseLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSettingV2{})
+var PodPhaseLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSetting{})

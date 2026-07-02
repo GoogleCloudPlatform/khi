@@ -130,13 +130,13 @@ func (m *OnPremAPIAuditTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 	return cs, tracker, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationTracker] = (*OnPremAPIAuditTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*OnPremAPIAuditTimelineMapper)(nil)
 
 // LogToTimelineMapperTask is a task that adds revisions/events regarding logs.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogonpremapiaudit_contract.LogToTimelineMapperTaskID,
 	&OnPremAPIAuditTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"On-Premises API Logs",
 		"Gather Anthos On-Premises audit logs to visualize cluster lifecycle events (creation, deletion, enrollment, unenrollment, and upgrades) on timelines.",
 		9500,

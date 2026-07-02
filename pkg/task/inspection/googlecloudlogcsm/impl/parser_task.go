@@ -83,10 +83,10 @@ func (i *CSMAccessLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*CSMAccessLogLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*CSMAccessLogLogIngester)(nil)
 
 // LogIngesterTask is the task that executes CSMAccessLogLogIngester.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogcsm_contract.LogIngesterTaskID,
 	&CSMAccessLogLogIngester{},
 )
@@ -155,13 +155,13 @@ func (m *CSMAccessLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*CSMAccessLogLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*CSMAccessLogLogToTimelineMapper)(nil)
 
 // LogToTimelineMapperTask maps CSM access logs to timelines.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogcsm_contract.LogToTimelineMapperTaskID,
 	&CSMAccessLogLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"CSM Access Logs",
 		"Gather CSM access logs to visualize network traffic flows and latency under client or server Pod timelines.",
 		10000,

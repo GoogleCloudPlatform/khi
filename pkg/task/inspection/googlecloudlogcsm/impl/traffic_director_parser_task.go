@@ -156,13 +156,13 @@ func parseGCPResource(resourceName string) (string, string) {
 	return resourceType, name
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[*googlecloudcommon_contract.GCPOperationTracker] = (*CSMTrafficDirectorLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[*googlecloudcommon_contract.GCPOperationTracker] = (*CSMTrafficDirectorLogToTimelineMapper)(nil)
 
 // CSMTrafficDirectorLogToTimelineMapperTask maps CSM Traffic Director logs to timelines.
-var CSMTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var CSMTrafficDirectorLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogToTimelineMapperTaskID,
 	&CSMTrafficDirectorLogToTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"CSM Resource Audit Logs",
 		"Gather audit logs for Traffic Director resources created by the TD-based CSM to map them to timelines alongside associated Kubernetes resource logs.",
 		10100,

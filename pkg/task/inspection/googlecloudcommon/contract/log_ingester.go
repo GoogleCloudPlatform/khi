@@ -27,14 +27,14 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// GCPOperationLogIngester is a common LogIngesterV2 implementation for GCP Operation audit logs.
+// GCPOperationLogIngester is a common LogIngester implementation for GCP Operation audit logs.
 type GCPOperationLogIngester struct {
 	rawLogTask taskid.TaskReference[[]*log.Log]
 	logType    *pb.LogType
 }
 
 // NewGCPOperationLogIngester creates a new GCPOperationLogIngester.
-func NewGCPOperationLogIngester(rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) inspectiontaskbase.LogIngesterV2 {
+func NewGCPOperationLogIngester(rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) inspectiontaskbase.LogIngester {
 	return &GCPOperationLogIngester{
 		rawLogTask: rawLogTask,
 		logType:    logType,
@@ -96,9 +96,9 @@ func (i *GCPOperationLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 }
 
 // Explicit interface compliance assertion.
-var _ inspectiontaskbase.LogIngesterV2 = (*GCPOperationLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*GCPOperationLogIngester)(nil)
 
 // NewGCPOperationLogIngesterTask returns a new log ingester task for GCP Operation audit logs.
 func NewGCPOperationLogIngesterTask(taskID taskid.TaskImplementationID[[]*log.Log], rawLogTask taskid.TaskReference[[]*log.Log], logType *pb.LogType) coretask.Task[[]*log.Log] {
-	return inspectiontaskbase.NewLogIngesterTaskV2(taskID, NewGCPOperationLogIngester(rawLogTask, logType))
+	return inspectiontaskbase.NewLogIngesterTask(taskID, NewGCPOperationLogIngester(rawLogTask, logType))
 }

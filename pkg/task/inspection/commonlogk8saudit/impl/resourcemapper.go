@@ -29,8 +29,8 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// resourceRevisionLogToTimelineMapperStateV2 tracks the status of a resource during V2 timeline generation.
-type resourceRevisionLogToTimelineMapperStateV2 struct {
+// resourceRevisionLogToTimelineMapperState tracks the status of a resource during V2 timeline generation.
+type resourceRevisionLogToTimelineMapperState struct {
 	// WasCompletelyRemoved is true if the resource was completely removed.
 	WasCompletelyRemoved bool
 	// DeletionStarted is true if the deletion started.
@@ -45,31 +45,31 @@ type resourceRevisionLogToTimelineMapperStateV2 struct {
 	hasFallbackCreationTime bool
 }
 
-// newResourceRevisionLogToTimelineMapperStateV2 returns a new instance of resourceRevisionLogToTimelineMapperStateV2.
-func newResourceRevisionLogToTimelineMapperStateV2() *resourceRevisionLogToTimelineMapperStateV2 {
-	return &resourceRevisionLogToTimelineMapperStateV2{
+// newResourceRevisionLogToTimelineMapperStateV2 returns a new instance of resourceRevisionLogToTimelineMapperState.
+func newResourceRevisionLogToTimelineMapperStateV2() *resourceRevisionLogToTimelineMapperState {
+	return &resourceRevisionLogToTimelineMapperState{
 		creationTimePerUID: make(map[string]time.Time),
 	}
 }
 
-// ResourceRevisionLogToTimelineMapperTaskSettingV2 is the setting for the V2 resource revision timeline mapper task.
-type ResourceRevisionLogToTimelineMapperTaskSettingV2 struct {
+// ResourceRevisionLogToTimelineMapperTaskSetting is the setting for the V2 resource revision timeline mapper task.
+type ResourceRevisionLogToTimelineMapperTaskSetting struct {
 	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
 }
 
-// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) Dependencies() []taskid.UntypedTaskReference {
+// Dependencies implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PassCount() int {
+// PassCount implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) PassCount() int {
 	return 1
 }
 
-// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*resourceRevisionLogToTimelineMapperStateV2, error) {
+// PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	if prevGroupData == nil {
 		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
@@ -96,23 +96,23 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) PreProcessLog(ctx con
 	return prevGroupData, nil
 }
 
-// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
+// GroupedLogTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) GroupedLogTask() taskid.TaskReference[commonlogk8saudit_contract.ResourceManifestLogGroupMap] {
 	return commonlogk8saudit_contract.ResourceLifetimeTrackerTaskID.Ref()
 }
 
-// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+// LogIngesterTask implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return commonlogk8saudit_contract.K8sAuditLogIngesterTaskID.Ref()
 }
 
-// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
+// TaskID implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult] {
 	return commonlogk8saudit_contract.ResourceRevisionLogToTimelineMapperTaskID
 }
 
-// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
+// ResolveRelatedGroupSets implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx context.Context, groupedLogs commonlogk8saudit_contract.ResourceManifestLogGroupMap) ([]commonlogk8saudit_contract.RelatedGroupSet, error) {
 	result := []commonlogk8saudit_contract.RelatedGroupSet{}
 	for _, group := range groupedLogs {
 		switch group.Resource.Type() {
@@ -140,8 +140,8 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ResolveRelatedGroupSe
 	return result, nil
 }
 
-// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapperV2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperStateV2, error) {
+// ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperState, error) {
 	if prevGroupData == nil {
 		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
 	}
@@ -159,14 +159,14 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) ProcessLog(ctx contex
 }
 
 // ResourceRevisionLogToTimelineMapperTask is the V2 task to generate resource revision history.
-var ResourceRevisionLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapperV2[*resourceRevisionLogToTimelineMapperStateV2](&ResourceRevisionLogToTimelineMapperTaskSettingV2{
+var ResourceRevisionLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState](&ResourceRevisionLogToTimelineMapperTaskSetting{
 	kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 		"core/v1#pod": {},
 	},
 })
 
 // handleParentChangeForSubresource handles the parent change for subresource V2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleParentChangeForSubresource(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet) error {
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSubresource(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet) error {
 	switch event.EventType {
 	case commonlogk8saudit_contract.ChangeEventTypeV2Deletion:
 		targetGroup, found := event.GroupSet.Roles["target"]
@@ -202,7 +202,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleParentChangeFor
 }
 
 // handleTargetChange handles the target change V2.
-func (r *ResourceRevisionLogToTimelineMapperTaskSettingV2) handleTargetChange(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperStateV2) (*resourceRevisionLogToTimelineMapperStateV2, error) {
+func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
@@ -388,4 +388,4 @@ func MustResolveTimelinePath(ctx context.Context, clusterName string, identity *
 }
 
 // Explicit interface compliance assertion.
-var _ commonlogk8saudit_contract.ManifestLogToTimelineMapperV2[*resourceRevisionLogToTimelineMapperStateV2] = (*ResourceRevisionLogToTimelineMapperTaskSettingV2)(nil)
+var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState] = (*ResourceRevisionLogToTimelineMapperTaskSetting)(nil)

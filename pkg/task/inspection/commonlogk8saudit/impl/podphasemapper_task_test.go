@@ -458,7 +458,7 @@ status:
 		t.Run(tc.name, func(t *testing.T) {
 			builder := khifilev6.NewBuilder()
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			mapperSetting := &podPhaseLogToTimelineMapperTaskSettingV2{}
+			mapperSetting := &podPhaseLogToTimelineMapperTaskSetting{}
 
 			podResource := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",

@@ -256,7 +256,7 @@ type containerdNodeLogLogToTimelineMapperSetting struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
@@ -265,17 +265,17 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.Un
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
 func (c *containerdNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8snode_contract.ContainerdLogGroupTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
 func (c *containerdNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	podSandboxIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
@@ -315,10 +315,10 @@ func (c *containerdNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx cont
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*containerdNodeLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*containerdNodeLogLogToTimelineMapperSetting)(nil)
 
 // ContainerdNodeLogLogToTimelineMapperTask registers the mapper for containerd node component logs.
-var ContainerdNodeLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var ContainerdNodeLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogk8snode_contract.ContainerdLogLogToTimelineMapperTaskID,
 	&containerdNodeLogLogToTimelineMapperSetting{},
 )

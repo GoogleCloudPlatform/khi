@@ -82,10 +82,10 @@ func (i *autoscalerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*autoscalerLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*autoscalerLogIngester)(nil)
 
 // LogIngesterTask serializes the ingested log metadata into the builder.
-var LogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudloggkeautoscaler_contract.LogIngesterTaskID,
 	&autoscalerLogIngester{},
 )
@@ -150,13 +150,13 @@ func (m *autoscalerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*autoscalerTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*autoscalerTimelineMapper)(nil)
 
 // LogToTimelineMapperTask maps the autoscaler logs to respective resource timelines.
-var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudloggkeautoscaler_contract.LogToTimelineMapperTaskID,
 	&autoscalerTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		`GKE Autoscaler Logs`,
 		`Gather Cluster Autoscaler logs to visualize autoscaling decisions and actions on the timelines of the affected resources.`,
 		8000,

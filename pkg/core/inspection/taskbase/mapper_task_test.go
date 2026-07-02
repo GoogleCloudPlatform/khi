@@ -31,48 +31,48 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-var mockLogToTimelineMapperV2PrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-v2-prev")
+var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-v2-prev")
 var mockLogSerializerV2PrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-timeline-mapper-v2-prev-log-serializer")
 
-type mockLogToTimelineMapperV2GroupData struct {
+type mockLogToTimelineMapperGroupData struct {
 	ProcessedLogs int
 }
 
-type mockLogToTimelineMapperV2 struct {
+type mockLogToTimelineMapper struct {
 	passCount int
 	path      *khifilev6.TimelinePath
 }
 
-func (m *mockLogToTimelineMapperV2) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
-	return mockLogToTimelineMapperV2PrevTaskID.Ref()
+func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroupMap] {
+	return mockLogToTimelineMapperPrevTaskID.Ref()
 }
 
-func (m *mockLogToTimelineMapperV2) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return mockLogSerializerV2PrevTaskID.Ref()
 }
 
-func (m *mockLogToTimelineMapperV2) Dependencies() []taskid.UntypedTaskReference {
+func (m *mockLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
-func (m *mockLogToTimelineMapperV2) PassCount() int {
+func (m *mockLogToTimelineMapper) PassCount() int {
 	return m.passCount
 }
 
-func (m *mockLogToTimelineMapperV2) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData mockLogToTimelineMapperV2GroupData) (mockLogToTimelineMapperV2GroupData, error) {
-	return mockLogToTimelineMapperV2GroupData{
+func (m *mockLogToTimelineMapper) PreProcessLogByGroup(ctx context.Context, passIndex int, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (mockLogToTimelineMapperGroupData, error) {
+	return mockLogToTimelineMapperGroupData{
 		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
 	}, nil
 }
 
-func (m *mockLogToTimelineMapperV2) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperV2GroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperV2GroupData, error) {
+func (m *mockLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData mockLogToTimelineMapperGroupData) (*khifilev6.TimelineChangeSet, mockLogToTimelineMapperGroupData, error) {
 	shouldErr := l.ReadBoolOrDefault("error", false)
 	if shouldErr {
 		return nil, prevGroupData, fmt.Errorf("test error")
 	}
 	shouldSkip := l.ReadBoolOrDefault("skip", false)
 	if shouldSkip {
-		return nil, mockLogToTimelineMapperV2GroupData{
+		return nil, mockLogToTimelineMapperGroupData{
 			ProcessedLogs: prevGroupData.ProcessedLogs + 1,
 		}, nil
 	}
@@ -80,14 +80,14 @@ func (m *mockLogToTimelineMapperV2) ProcessLogByGroup(ctx context.Context, l *lo
 	cs := khifilev6.NewTimelineChangeSet(l)
 	cs.AddEvent(m.path)
 
-	return cs, mockLogToTimelineMapperV2GroupData{
+	return cs, mockLogToTimelineMapperGroupData{
 		ProcessedLogs: prevGroupData.ProcessedLogs + 1,
 	}, nil
 }
 
-var _ LogToTimelineMapperV2[mockLogToTimelineMapperV2GroupData] = (*mockLogToTimelineMapperV2)(nil)
+var _ LogToTimelineMapper[mockLogToTimelineMapperGroupData] = (*mockLogToTimelineMapper)(nil)
 
-func TestLogToTimelineMapperV2Task(t *testing.T) {
+func TestLogToTimelineMapperTask(t *testing.T) {
 	type testLog struct {
 		yaml         string
 		shouldIngest bool
@@ -246,11 +246,11 @@ func TestLogToTimelineMapperV2Task(t *testing.T) {
 			timelineType := &pb.TimelineType{Id: &timelineTypeID}
 			path := pathPool.Get(nil, khifilev6.PathSegment{Name: "test-path", Type: timelineType})
 
-			mapper := &mockLogToTimelineMapperV2{
+			mapper := &mockLogToTimelineMapper{
 				passCount: tc.passCount,
 				path:      path,
 			}
-			task := NewLogToTimelineMapperTaskV2(tid, mapper)
+			task := NewLogToTimelineMapperTask(tid, mapper)
 
 			if tc.cancelContext {
 				var cancel context.CancelFunc
@@ -258,7 +258,7 @@ func TestLogToTimelineMapperV2Task(t *testing.T) {
 				cancel()
 			}
 
-			gotResult, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogToTimelineMapperV2PrevTaskID.Ref(), prevGroupMap))
+			gotResult, _, err := inspectiontest.RunInspectionTask(ctx, task, tc.taskMode, map[string]any{}, tasktest.NewTaskDependencyValuePair(mockLogToTimelineMapperPrevTaskID.Ref(), prevGroupMap))
 			if (err != nil) != tc.wantError {
 				t.Fatalf("RunInspectionTask() error = %v, wantError %v", err, tc.wantError)
 			}

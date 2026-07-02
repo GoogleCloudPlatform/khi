@@ -72,10 +72,10 @@ func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*k
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngesterV2 = (*OSSK8sEventLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*OSSK8sEventLogIngester)(nil)
 
 // OSSK8sEventLogIngesterTask is the V2 log ingester task.
-var OSSK8sEventLogIngesterTask = inspectiontaskbase.NewLogIngesterTaskV2(
+var OSSK8sEventLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	ossclusterk8s_contract.OSSK8sEventLogIngesterTaskID,
 	&OSSK8sEventLogIngester{},
 )
@@ -128,13 +128,13 @@ func (m *OSSK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*OSSK8sEventTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*OSSK8sEventTimelineMapper)(nil)
 
 // OSSK8sEventLogToTimelineMapperTask is the V2 log to timeline mapper task.
-var OSSK8sEventLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(
+var OSSK8sEventLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	ossclusterk8s_contract.OSSK8sEventLogToTimelineMapperTaskID,
 	&OSSK8sEventTimelineMapper{},
-	inspectioncore_contract.FeatureTaskLabelV2(
+	inspectioncore_contract.FeatureTaskLabel(
 		"OSS Kubernetes Event Logs",
 		"Gather and parse Kubernetes event logs from OSS Kubernetes JSONL audit logs to visualize resource lifecycle and operational events.",
 		2000,

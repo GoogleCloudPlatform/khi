@@ -38,24 +38,24 @@ type otherNodeLogLogToTimelineMapperSetting struct {
 	TerminatingMessagesByComponent map[string]string
 }
 
-// Dependencies implements inspectiontaskbase.LogToTimelineMapperV2.
+// Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (o *otherNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
 	}
 }
 
-// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// GroupedLogTask implements inspectiontaskbase.LogToTimelineMapper.
 func (o *otherNodeLogLogToTimelineMapperSetting) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogk8snode_contract.OtherLogGroupTaskID.Ref()
 }
 
-// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapperV2.
+// LogIngesterTask implements inspectiontaskbase.LogToTimelineMapper.
 func (o *otherNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogk8snode_contract.LogIngesterTaskID.Ref()
 }
 
-// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapperV2.
+// ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
@@ -80,10 +80,10 @@ func (o *otherNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.C
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapperV2[struct{}] = (*otherNodeLogLogToTimelineMapperSetting)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*otherNodeLogLogToTimelineMapperSetting)(nil)
 
 // OtherLogLogToTimelineMapperTask registers the mapper for other node component logs.
-var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTaskV2(googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID, &otherNodeLogLogToTimelineMapperSetting{
+var OtherLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID, &otherNodeLogLogToTimelineMapperSetting{
 	StartingMessagesByComponent: map[string]string{
 		"dockerd":             "Starting up",
 		"configure.sh":        "Start to install kubernetes files",
