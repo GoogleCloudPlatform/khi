@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestNonSuccessLogLogToTimelineMapperTaskSettingV2_ProcessLogByGroup(t *testing.T) {
+func TestNonSuccessLogLogToTimelineMapperTaskSetting_ProcessLogByGroup(t *testing.T) {
 	// 1. Set up the mock Builder and construct comparison paths hierarchically.
 	builder := khifilev6.NewBuilder()
 	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})

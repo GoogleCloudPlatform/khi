@@ -34,7 +34,7 @@ var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogco
 	&googlecloudcommon_contract.GCPOperationAuditLogFieldSetReader{},
 })
 
-// LogIngesterTask is a V2 task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
+// LogIngesterTask is a task that ingests log metadata (timestamp, severity, summary, log type) into KHI v6 format.
 var LogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogcomputeapiaudit_contract.LogIngesterTaskID,
 	googlecloudlogcomputeapiaudit_contract.FieldSetReaderTaskID.Ref(),

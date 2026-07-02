@@ -88,7 +88,7 @@ func (i *serialPortLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*kh
 
 var _ inspectiontaskbase.LogIngester = (*serialPortLogIngester)(nil)
 
-// LogIngesterTask is the V2 log ingester task.
+// LogIngesterTask is the log ingester task.
 var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogserialport_contract.LogIngesterTaskID,
 	&serialPortLogIngester{},
@@ -151,7 +151,7 @@ func (s *serialportLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l
 
 var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*serialportLogToTimelineMapper)(nil)
 
-// LogToTimelineMapperTask is the V2 timeline mapper task.
+// LogToTimelineMapperTask is the timeline mapper task.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogserialport_contract.LogToTimelineMapperTaskID,
 	&serialportLogToTimelineMapper{},

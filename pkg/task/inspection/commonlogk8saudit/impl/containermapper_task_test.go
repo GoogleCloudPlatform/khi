@@ -29,7 +29,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestContainerStateWalkerV2(t *testing.T) {
+func TestContainerStateWalker(t *testing.T) {
 	podNamespace := "default"
 	podName := "nginx"
 	containerName := "nginx-container"
@@ -390,7 +390,7 @@ state:
 	}
 }
 
-func TestContainerLogToTimelineMapperTaskV2_ProcessLog(t *testing.T) {
+func TestContainerLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 	taskSetting := &containerLogToTimelineMapperTaskSetting{}
 	podNamespace := "default"
 	podName := "nginx"
@@ -424,7 +424,7 @@ func TestContainerLogToTimelineMapperTaskV2_ProcessLog(t *testing.T) {
 		pass          int
 		yaml          string
 		nilBody       bool
-		eventType     commonlogk8saudit_contract.ChangeEventTypeV2
+		eventType     commonlogk8saudit_contract.ChangeEventType
 		verb          *pb.Verb
 		initialState  *containerLogToTimelineMapperTaskState
 		wantState     *containerLogToTimelineMapperTaskState

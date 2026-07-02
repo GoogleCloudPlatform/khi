@@ -19,7 +19,7 @@ import { InspectionListComponent } from './inspection-list.component';
 import { InspectionListItemViewModel } from '../types/inspection-activity.model';
 
 /**
- * Content component for the Startup Dialog V2.
+ * Content component for the Startup Dialog.
  * Displays the inspection list.
  */
 @Component({

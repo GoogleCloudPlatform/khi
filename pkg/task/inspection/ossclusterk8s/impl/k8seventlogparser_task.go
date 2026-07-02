@@ -74,7 +74,7 @@ func (i *OSSK8sEventLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*k
 
 var _ inspectiontaskbase.LogIngester = (*OSSK8sEventLogIngester)(nil)
 
-// OSSK8sEventLogIngesterTask is the V2 log ingester task.
+// OSSK8sEventLogIngesterTask is the log ingester task.
 var OSSK8sEventLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	ossclusterk8s_contract.OSSK8sEventLogIngesterTaskID,
 	&OSSK8sEventLogIngester{},
@@ -130,7 +130,7 @@ func (m *OSSK8sEventTimelineMapper) ProcessLogByGroup(ctx context.Context, l *lo
 
 var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*OSSK8sEventTimelineMapper)(nil)
 
-// OSSK8sEventLogToTimelineMapperTask is the V2 log to timeline mapper task.
+// OSSK8sEventLogToTimelineMapperTask is the log to timeline mapper task.
 var OSSK8sEventLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	ossclusterk8s_contract.OSSK8sEventLogToTimelineMapperTaskID,
 	&OSSK8sEventTimelineMapper{},

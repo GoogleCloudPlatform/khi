@@ -28,8 +28,8 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-// TestResourceOwnerReferenceTimelineMapperTaskV2_ProcessLog verifies that owner references in the resource body are mapped correctly to timeline aliases.
-func TestResourceOwnerReferenceTimelineMapperTaskV2_ProcessLog(t *testing.T) {
+// TestResourceOwnerReferenceTimelineMapperTask_ProcessLog verifies that owner references in the resource body are mapped correctly to timeline aliases.
+func TestResourceOwnerReferenceTimelineMapperTask_ProcessLog(t *testing.T) {
 	task := &resourceOwnerReferenceTimelineMapperTaskSetting{
 		nonNamespacedOwnerTypes: map[string]struct{}{
 			"core/v1#node": {},
@@ -263,7 +263,7 @@ metadata:
 				Log:              logObj,
 				GroupRole:        "target",
 				ResourceIdentity: targetResource,
-				EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+				EventType:        commonlogk8saudit_contract.ChangeEventTypeModification,
 				GroupSet:         groupSet,
 			}
 

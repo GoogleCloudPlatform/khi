@@ -25,7 +25,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// namespaceRequestLogToTimelineMapperTaskSetting maps namespace-wide requests to namespace timelines under the V2 model.
+// namespaceRequestLogToTimelineMapperTaskSetting maps namespace-wide requests to namespace timelines under the model.
 type namespaceRequestLogToTimelineMapperTaskSetting struct {
 	commonlogk8saudit_contract.ManifestStatelessMapperBase
 }
@@ -87,5 +87,5 @@ func (n *namespaceRequestLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 // Explicit interface compliance assertion.
 var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[struct{}] = (*namespaceRequestLogToTimelineMapperTaskSetting)(nil)
 
-// NamespaceRequestLogToTimelineMapperTask is the V2 task to generate events of requests against namespace wide by deletecollection.
+// NamespaceRequestLogToTimelineMapperTask is the task to generate events of requests against namespace wide by deletecollection.
 var NamespaceRequestLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[struct{}](&namespaceRequestLogToTimelineMapperTaskSetting{})

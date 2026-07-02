@@ -29,7 +29,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestConditionWalkerV2(t *testing.T) {
+func TestConditionWalker(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
 	api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
@@ -228,7 +228,7 @@ func TestConditionWalkerV2(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			walker := newConditionWalkerV2(conditionPath, "Ready")
+			walker := newConditionWalker(conditionPath, "Ready")
 			for _, tt := range scenario.steps {
 				t.Run(tt.name, func(t *testing.T) {
 					l := log.NewLogWithFieldSetsForTest()
@@ -327,7 +327,7 @@ status:
 			Log:              logObj,
 			GroupRole:        "target",
 			ResourceIdentity: resIdentity,
-			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeModification,
 			GroupSet:         groupSet,
 		}
 
@@ -422,14 +422,14 @@ status:
 			Log:              logObj,
 			GroupRole:        "target",
 			ResourceIdentity: resIdentity,
-			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeCreation,
 			GroupSet:         groupSet,
 		}
 
 		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
 			ConditionWalkers: map[string]*conditionWalker{
-				"Ready": newConditionWalkerV2(conditionPath, "Ready"),
+				"Ready": newConditionWalker(conditionPath, "Ready"),
 			},
 			uidToCreationTimestampMap: map[string]time.Time{
 				"uid-1": time.Date(2023, 12, 31, 23, 59, 0, 0, time.UTC),
@@ -516,14 +516,14 @@ status:
 			Log:              logObj2,
 			GroupRole:        "target",
 			ResourceIdentity: resIdentity,
-			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeCreation,
 			GroupSet:         groupSet,
 		}
 		event2 := commonlogk8saudit_contract.MultiGroupLogEvent{
 			Log:              logObj1,
 			GroupRole:        "target",
 			ResourceIdentity: resIdentity,
-			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeModification,
 			GroupSet:         groupSet,
 		}
 
@@ -609,14 +609,14 @@ status:
 			Log:              logObj,
 			GroupRole:        "target",
 			ResourceIdentity: resIdentity,
-			EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Deletion,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeDeletion,
 			GroupSet:         groupSet,
 		}
 
 		initialState := &conditionLogToTimelineMapperTaskState{
 			AvailableTypes: map[string]struct{}{"Ready": {}},
 			ConditionWalkers: map[string]*conditionWalker{
-				"Ready": newConditionWalkerV2(conditionPath, "Ready"),
+				"Ready": newConditionWalker(conditionPath, "Ready"),
 			},
 		}
 

@@ -26,8 +26,8 @@ import (
 func TestFeatureTaskLabels(t *testing.T) {
 	t.Run("FeatureTaskLabel", func(t *testing.T) {
 		labelOpt := FeatureTaskLabel(
-			"v2 title",
-			"v2 description",
+			"title",
+			"description",
 			100,
 			true,
 		)
@@ -51,8 +51,8 @@ func TestFeatureTaskLabels(t *testing.T) {
 
 		want := expectations{
 			FeatureFlag:        true,
-			Title:              "v2 title",
-			Description:        "v2 description",
+			Title:              "title",
+			Description:        "description",
 			Order:              100,
 			DefaultFeatureFlag: true,
 		}

@@ -29,7 +29,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// resourceRevisionLogToTimelineMapperState tracks the status of a resource during V2 timeline generation.
+// resourceRevisionLogToTimelineMapperState tracks the status of a resource during timeline generation.
 type resourceRevisionLogToTimelineMapperState struct {
 	// WasCompletelyRemoved is true if the resource was completely removed.
 	WasCompletelyRemoved bool
@@ -45,14 +45,14 @@ type resourceRevisionLogToTimelineMapperState struct {
 	hasFallbackCreationTime bool
 }
 
-// newResourceRevisionLogToTimelineMapperStateV2 returns a new instance of resourceRevisionLogToTimelineMapperState.
-func newResourceRevisionLogToTimelineMapperStateV2() *resourceRevisionLogToTimelineMapperState {
+// newResourceRevisionLogToTimelineMapperState returns a new instance of resourceRevisionLogToTimelineMapperState.
+func newResourceRevisionLogToTimelineMapperState() *resourceRevisionLogToTimelineMapperState {
 	return &resourceRevisionLogToTimelineMapperState{
 		creationTimePerUID: make(map[string]time.Time),
 	}
 }
 
-// ResourceRevisionLogToTimelineMapperTaskSetting is the setting for the V2 resource revision timeline mapper task.
+// ResourceRevisionLogToTimelineMapperTaskSetting is the setting for the resource revision timeline mapper task.
 type ResourceRevisionLogToTimelineMapperTaskSetting struct {
 	// kindsToWaitExactDeletionToDeterminDeletion is the map of kinds to wait exact deletion to determine deletion.
 	kindsToWaitExactDeletionToDeterminDeletion map[string]struct{}
@@ -71,7 +71,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) PassCount() int {
 // PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	if prevGroupData == nil {
-		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
+		prevGroupData = newResourceRevisionLogToTimelineMapperState()
 	}
 	if event.GroupRole != "target" {
 		return prevGroupData, nil
@@ -143,7 +143,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets
 // ProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, prevGroupData *resourceRevisionLogToTimelineMapperState) (*khifilev6.TimelineChangeSet, *resourceRevisionLogToTimelineMapperState, error) {
 	if prevGroupData == nil {
-		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
+		prevGroupData = newResourceRevisionLogToTimelineMapperState()
 	}
 
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
@@ -158,17 +158,17 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 	}
 }
 
-// ResourceRevisionLogToTimelineMapperTask is the V2 task to generate resource revision history.
+// ResourceRevisionLogToTimelineMapperTask is the task to generate resource revision history.
 var ResourceRevisionLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*resourceRevisionLogToTimelineMapperState](&ResourceRevisionLogToTimelineMapperTaskSetting{
 	kindsToWaitExactDeletionToDeterminDeletion: map[string]struct{}{
 		"core/v1#pod": {},
 	},
 })
 
-// handleParentChangeForSubresource handles the parent change for subresource V2.
+// handleParentChangeForSubresource handles the parent change for subresource.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSubresource(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet) error {
 	switch event.EventType {
-	case commonlogk8saudit_contract.ChangeEventTypeV2Deletion:
+	case commonlogk8saudit_contract.ChangeEventTypeDeletion:
 		targetGroup, found := event.GroupSet.Roles["target"]
 		if !found || targetGroup == nil {
 			return nil
@@ -191,9 +191,9 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 			StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 		})
 		return nil
-	case commonlogk8saudit_contract.ChangeEventTypeV2Modification:
+	case commonlogk8saudit_contract.ChangeEventTypeModification:
 		return nil
-	case commonlogk8saudit_contract.ChangeEventTypeV2Creation:
+	case commonlogk8saudit_contract.ChangeEventTypeCreation:
 		return nil
 	default:
 		slog.WarnContext(ctx, "unknown event type", "eventType", event.EventType)
@@ -201,14 +201,14 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 	}
 }
 
-// handleTargetChange handles the target change V2.
+// handleTargetChange handles the target change.
 func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx context.Context, event commonlogk8saudit_contract.MultiGroupLogEvent, cs *khifilev6.TimelineChangeSet, prevGroupData *resourceRevisionLogToTimelineMapperState) (*resourceRevisionLogToTimelineMapperState, error) {
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
 	targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	if prevGroupData == nil {
-		prevGroupData = newResourceRevisionLogToTimelineMapperStateV2()
+		prevGroupData = newResourceRevisionLogToTimelineMapperState()
 	}
 
 	if k8sFieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection && prevGroupData.WasCompletelyRemoved {
@@ -331,7 +331,7 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 
 	// For the initial observation of a resource without an explicit creation log (e.g. starting with patch),
 	// prepend an inferred creation revision indicating that the resource already existed prior to the logs.
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate {
+	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeCreation && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate {
 		if hasCreationTime {
 			cs.AddRevision(targetPath, &khifilev6.StagingRevision{
 				ChangedTime:  creationTime,

@@ -1,6 +1,6 @@
-# Common Log K8s Audit v2 Inspection Tasks
+# Common Log K8s Audit Inspection Tasks
 
-This package contains inspection tasks for processing Kubernetes Audit Logs (v2).
+This package contains inspection tasks for processing Kubernetes Audit Logs.
 It constructs a timeline of resource changes by analyzing audit logs, generating manifests, and tracking resource states.
 
 ## Task Graph

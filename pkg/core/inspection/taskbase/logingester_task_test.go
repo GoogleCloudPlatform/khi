@@ -30,7 +30,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-var mockLogIngesterPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-v2-prev")
+var mockLogIngesterPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-prev")
 
 type mockLogIngester struct {
 	cancel context.CancelFunc
@@ -76,7 +76,7 @@ func (m *mockLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev
 
 var _ LogIngester = (*mockLogIngester)(nil)
 
-func TestLogIngesterTaskV2(t *testing.T) {
+func TestLogIngesterTask(t *testing.T) {
 	type testLog struct {
 		yaml         string
 		shouldIngest bool
@@ -131,7 +131,7 @@ func TestLogIngesterTaskV2(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester-v2")
+			tid := taskid.NewDefaultImplementationID[[]*log.Log]("mock-log-ingester")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)

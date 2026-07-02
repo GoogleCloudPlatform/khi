@@ -26,7 +26,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// K8sAuditLogIngesterTask is the V2 task to serialize and ingest k8s audit logs.
+// K8sAuditLogIngesterTask is the task to serialize and ingest k8s audit logs.
 var K8sAuditLogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	commonlogk8saudit_contract.K8sAuditLogIngesterTaskID,
 	&k8sAuditLogIngester{},

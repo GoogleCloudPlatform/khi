@@ -26,14 +26,14 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// ResourceOwnerReferenceTimelineMapperTask is the V2 task to map logs into resource owner reference aliases.
+// ResourceOwnerReferenceTimelineMapperTask is the task to map logs into resource owner reference aliases.
 var ResourceOwnerReferenceTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[struct{}](&resourceOwnerReferenceTimelineMapperTaskSetting{
 	nonNamespacedOwnerTypes: map[string]struct{}{
 		"core/v1#node": {},
 	},
 })
 
-// resourceOwnerReferenceTimelineMapperTaskSetting maps resource owner references to timeline aliases under the V2 model.
+// resourceOwnerReferenceTimelineMapperTaskSetting maps resource owner references to timeline aliases under the model.
 type resourceOwnerReferenceTimelineMapperTaskSetting struct {
 	commonlogk8saudit_contract.ManifestStatelessMapperBase
 

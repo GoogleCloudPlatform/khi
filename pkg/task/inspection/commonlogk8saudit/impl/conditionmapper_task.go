@@ -39,7 +39,7 @@ var ConditionLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLog
 	minimumDeltaTimeToCreateInferredCreationRevision: 10 * time.Second,
 })
 
-// conditionLogToTimelineMapperTaskState tracks the status of all conditions of a resource during V2 timeline generation.
+// conditionLogToTimelineMapperTaskState tracks the status of all conditions of a resource during timeline generation.
 type conditionLogToTimelineMapperTaskState struct {
 	// AvailableTypes is the set of available condition types.
 	AvailableTypes map[string]struct{}
@@ -51,7 +51,7 @@ type conditionLogToTimelineMapperTaskState struct {
 	parentPathToUIDMap map[string]*common.TimeSeries[string]
 }
 
-func newConditionLogToTimelineMapperTaskStateV2() *conditionLogToTimelineMapperTaskState {
+func newConditionLogToTimelineMapperTaskState() *conditionLogToTimelineMapperTaskState {
 	return &conditionLogToTimelineMapperTaskState{
 		AvailableTypes:            map[string]struct{}{},
 		ConditionWalkers:          map[string]*conditionWalker{},
@@ -60,7 +60,7 @@ func newConditionLogToTimelineMapperTaskStateV2() *conditionLogToTimelineMapperT
 	}
 }
 
-// conditionLogToTimelineMapperTaskSetting maps resource status conditions to timeline revisions under the V2 model.
+// conditionLogToTimelineMapperTaskSetting maps resource status conditions to timeline revisions under the model.
 type conditionLogToTimelineMapperTaskSetting struct {
 	// minimumDeltaTimeToCreateInferredCreationRevision is the minimum duration to controls if KHI should create an inferred creation revision.
 	minimumDeltaTimeToCreateInferredCreationRevision time.Duration
@@ -109,7 +109,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ResolveRelatedGroupSets(ctx co
 // PreProcessLog implements commonlogk8saudit_contract.ManifestLogToTimelineMapper.
 func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Context, passIndex int, event commonlogk8saudit_contract.MultiGroupLogEvent, state *conditionLogToTimelineMapperTaskState) (*conditionLogToTimelineMapperTaskState, error) {
 	if state == nil {
-		state = newConditionLogToTimelineMapperTaskStateV2()
+		state = newConditionLogToTimelineMapperTaskState()
 	}
 
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
@@ -125,7 +125,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 			state.parentPathToUIDMap[path] = ts
 		}
 
-		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
 			ts.Set(commonFieldSet.Timestamp, "")
 		} else if hasBody && bodyReader != nil {
 			uid, _ := GetUID(bodyReader)
@@ -157,7 +157,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Cont
 			walker := state.ConditionWalkers[conditionType]
 			if walker == nil {
 				conditionPath := MustK8sConditionTimeline(ctx, ownerPath, conditionType)
-				walker = newConditionWalkerV2(conditionPath, conditionType)
+				walker = newConditionWalker(conditionPath, conditionType)
 				state.ConditionWalkers[conditionType] = walker
 			}
 			var condition model.K8sResourceStatusCondition
@@ -223,7 +223,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 		}
 	}
 
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation {
+	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeCreation {
 		var creationTime time.Time
 		var hasCreationTime bool
 		if uid != "" {
@@ -236,7 +236,7 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 				walker := state.ConditionWalkers[key]
 				if walker == nil {
 					conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-					walker = newConditionWalkerV2(conditionPath, key)
+					walker = newConditionWalker(conditionPath, key)
 					state.ConditionWalkers[key] = walker
 				}
 				cs.AddRevision(walker.conditionPath, &khifilev6.StagingRevision{
@@ -254,18 +254,18 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 		walker := state.ConditionWalkers[key]
 		if walker == nil {
 			conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-			walker = newConditionWalkerV2(conditionPath, key)
+			walker = newConditionWalker(conditionPath, key)
 			state.ConditionWalkers[key] = walker
 		}
 		walker.CheckAndRecord(ctx, commonFieldSet, k8sFieldSet, currentConditions[key], cs)
 	}
 
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
 		for _, key := range sortedKeys {
 			walker := state.ConditionWalkers[key]
 			if walker == nil {
 				conditionPath := MustK8sConditionTimeline(ctx, ownerPath, key)
-				walker = newConditionWalkerV2(conditionPath, key)
+				walker = newConditionWalker(conditionPath, key)
 				state.ConditionWalkers[key] = walker
 			}
 			walker.RecordDeletion(commonFieldSet.Timestamp.Add(time.Nanosecond))
@@ -320,8 +320,8 @@ type conditionWalker struct {
 	lastTransitionTimeSorted []*time.Time
 }
 
-// newConditionWalkerV2 creates a new conditionWalker for a specific condition type.
-func newConditionWalkerV2(conditionPath *khifilev6.TimelinePath, conditionType string) *conditionWalker {
+// newConditionWalker creates a new conditionWalker for a specific condition type.
+func newConditionWalker(conditionPath *khifilev6.TimelinePath, conditionType string) *conditionWalker {
 	return &conditionWalker{
 		conditionPath:            conditionPath,
 		conditionType:            conditionType,

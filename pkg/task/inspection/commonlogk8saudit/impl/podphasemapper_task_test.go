@@ -30,7 +30,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestPodPhaseLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.T) {
+func TestPodPhaseLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T) {
 	baseTime := time.Date(2026, 6, 26, 12, 0, 0, 0, time.UTC)
 
 	nodeComparer := cmp.Comparer(func(a, b structured.Node) bool {
@@ -59,7 +59,7 @@ func TestPodPhaseLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.T) {
 	type step struct {
 		role      string
 		yaml      string
-		eventType commonlogk8saudit_contract.ChangeEventTypeV2
+		eventType commonlogk8saudit_contract.ChangeEventType
 		verb      *pb.Verb
 		time      time.Time
 	}
@@ -109,7 +109,7 @@ spec: {}
 status:
   phase: Pending
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbCreate,
 					time:      baseTime.Add(5 * time.Second),
 				},
@@ -122,7 +122,7 @@ metadata:
 target:
   name: node-1
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbCreate,
 					time:      baseTime.Add(10 * time.Second),
 				},
@@ -137,7 +137,7 @@ spec:
 status:
   phase: Succeeded
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 					verb:      commonlogk8saudit_contract.VerbUpdate,
 					time:      baseTime.Add(20 * time.Second),
 				},
@@ -218,7 +218,7 @@ metadata:
 target:
   name: node-1
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbCreate,
 					time:      baseTime.Add(10 * time.Second),
 				},
@@ -233,7 +233,7 @@ spec:
 status:
   phase: Failed
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbUpdate,
 					time:      baseTime.Add(20 * time.Second),
 				},
@@ -295,7 +295,7 @@ metadata:
 target:
   name: node-1
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbCreate,
 					time:      baseTime.Add(10 * time.Second),
 				},
@@ -305,7 +305,7 @@ target:
 status:
   phase: Running
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbPatch,
 					time:      baseTime.Add(20 * time.Second),
 				},
@@ -320,7 +320,7 @@ spec:
 status:
   phase: Succeeded
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 					verb:      commonlogk8saudit_contract.VerbUpdate,
 					time:      baseTime.Add(30 * time.Second),
 				},
@@ -400,7 +400,7 @@ metadata:
 target:
   name: node-1
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbCreate,
 					time:      baseTime.Add(10 * time.Second),
 				},
@@ -412,7 +412,7 @@ metadata:
 status:
   phase: Running
 `,
-					eventType: commonlogk8saudit_contract.ChangeEventTypeV2Creation,
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
 					verb:      commonlogk8saudit_contract.VerbPatch,
 					time:      baseTime.Add(20 * time.Second),
 				},
@@ -487,7 +487,7 @@ status:
 				manifestLog *commonlogk8saudit_contract.ResourceManifestLog
 				role        string
 				identity    *commonlogk8saudit_contract.ResourceIdentity
-				eventType   commonlogk8saudit_contract.ChangeEventTypeV2
+				eventType   commonlogk8saudit_contract.ChangeEventType
 				verb        *pb.Verb
 			}
 			var stepInfos []stepLogInfo

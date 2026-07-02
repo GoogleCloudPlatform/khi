@@ -51,7 +51,7 @@ import { CelTimelineExclusionFilter } from 'src/app/store/domain/filter/cel-filt
  * Smart component for the timeline view.
  *
  * It connects the presentational components (TimelineFrame, TimelineCornerIndicator, etc.)
- * with the V2 application state (InspectionDataStore, SelectionManager, ViewStateService).
+ * with the application state (InspectionDataStore, SelectionManager, ViewStateService).
  *
  * It is responsible for:
  * - Providing data to the timeline frame (logs, timelines, highlights).

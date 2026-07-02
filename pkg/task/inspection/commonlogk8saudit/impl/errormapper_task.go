@@ -25,7 +25,7 @@ import (
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
 )
 
-// NonSuccessLogLogToTimelineMapperTask is the V2 task to generate history from non-success logs.
+// NonSuccessLogLogToTimelineMapperTask is the task to generate history from non-success logs.
 var NonSuccessLogLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask[struct{}](
 	commonlogk8saudit_contract.NonSuccessLogLogToTimelineMapperTaskID,
 	&nonSuccessLogLogToTimelineMapperTaskSetting{

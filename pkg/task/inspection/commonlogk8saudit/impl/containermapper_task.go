@@ -48,7 +48,7 @@ type containerStatusIdentity struct {
 	containerType containerType
 }
 
-// ContainerLogToTimelineMapperTask is the V2 task to generate container history.
+// ContainerLogToTimelineMapperTask is the task to generate container history.
 var ContainerLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*containerLogToTimelineMapperTaskState](&containerLogToTimelineMapperTaskSetting{})
 
 type containerLogToTimelineMapperTaskState struct {
@@ -186,7 +186,7 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 		walker := state.containerStateWalkers[identity.containerName]
 		walker.CheckAndRecord(ctx, currentStateReaders[identity.containerName], cs, commonLogFieldSet, k8sAuditLogFieldSet)
 
-		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
 			containerPath := MustResolveContainerTimelinePath(ctx, k8sAuditLogFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, identity.containerName)
 			cs.AddRevision(containerPath, &khifilev6.StagingRevision{
 				VerbType:     k8sAuditLogFieldSet.Verb,

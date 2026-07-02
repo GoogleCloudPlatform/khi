@@ -31,8 +31,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-v2-prev")
-var mockLogSerializerV2PrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-timeline-mapper-v2-prev-log-serializer")
+var mockLogToTimelineMapperPrevTaskID = taskid.NewDefaultImplementationID[LogGroupMap]("mock-timeline-mapper-prev")
+var mockLogSerializerPrevTaskID = taskid.NewDefaultImplementationID[[]*log.Log]("mock-timeline-mapper-prev-log-serializer")
 
 type mockLogToTimelineMapperGroupData struct {
 	ProcessedLogs int
@@ -48,7 +48,7 @@ func (m *mockLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[LogGroup
 }
 
 func (m *mockLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
-	return mockLogSerializerV2PrevTaskID.Ref()
+	return mockLogSerializerPrevTaskID.Ref()
 }
 
 func (m *mockLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
@@ -202,7 +202,7 @@ func TestLogToTimelineMapperTask(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			tid := taskid.NewDefaultImplementationID[TimelineMapperResult]("mock-timeline-mapper-v2")
+			tid := taskid.NewDefaultImplementationID[TimelineMapperResult]("mock-timeline-mapper")
 
 			ctx := context.Background()
 			ctx = inspectiontest.WithDefaultTestInspectionTaskContext(ctx)

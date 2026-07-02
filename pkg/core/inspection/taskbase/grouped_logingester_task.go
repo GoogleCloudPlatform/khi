@@ -166,7 +166,7 @@ func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[[]*log.
 					if cs != nil {
 						err = cs.Flush(builder.LogAccumulator)
 						if err != nil {
-							logTaskError(ctx, "failed to flush log changeset in V2 ingester", err, l)
+							logTaskError(ctx, "failed to flush log changeset in ingester", err, l)
 							setErr(err)
 							return
 						}
@@ -187,7 +187,7 @@ func NewGroupedLogIngesterTask[T any](taskID taskid.TaskImplementationID[[]*log.
 			return nil, sharedErr
 		}
 
-		slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTaskV2 %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
+		slog.DebugContext(ctx, fmt.Sprintf("GroupedLogIngesterTask %s finished: processed %d logs (skipped %d logs)", taskID.String(), totalLogCount, skippedLogCount.Load()))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 		if tracingActive {

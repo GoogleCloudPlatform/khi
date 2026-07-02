@@ -27,9 +27,9 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-// TestNamespaceRequestLogToTimelineMapperTaskSettingV2_ProcessLog tests that namespace-wide request logs
+// TestNamespaceRequestLogToTimelineMapperTaskSetting_ProcessLog tests that namespace-wide request logs
 // stage timeline events directly on the namespace timeline.
-func TestNamespaceRequestLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.T) {
+func TestNamespaceRequestLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T) {
 	testTime := time.Date(2023, 10, 26, 10, 0, 0, 0, time.UTC)
 
 	// Set up the mock Builder and construct comparison paths hierarchically at the top of the test.
@@ -96,7 +96,7 @@ func TestNamespaceRequestLogToTimelineMapperTaskSettingV2_ProcessLog(t *testing.
 				Log:              logObj,
 				GroupRole:        "target",
 				ResourceIdentity: targetResource,
-				EventType:        commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+				EventType:        commonlogk8saudit_contract.ChangeEventTypeModification,
 				GroupSet:         groupSet,
 			}
 

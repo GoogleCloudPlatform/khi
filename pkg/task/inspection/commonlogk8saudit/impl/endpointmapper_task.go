@@ -39,7 +39,7 @@ type podIdentity struct {
 	namespace string
 }
 
-// endpointResourceLogToTimelineMapperState tracks the status of an EndpointSlice resource during V2 timeline generation.
+// endpointResourceLogToTimelineMapperState tracks the status of an EndpointSlice resource during timeline generation.
 type endpointResourceLogToTimelineMapperState struct {
 	// serviceNames is the set of service names.
 	serviceNames map[string]struct{}
@@ -49,7 +49,7 @@ type endpointResourceLogToTimelineMapperState struct {
 	lastStates map[string]*pb.RevisionState
 }
 
-// EndpointResourceLogToTimelineMapperTask is the V2 task to generate endpoint resource history.
+// EndpointResourceLogToTimelineMapperTask is the task to generate endpoint resource history.
 var EndpointResourceLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*endpointResourceLogToTimelineMapperState](&endpointResourceLogToTimelineMapperTaskSetting{})
 
 type endpointResourceLogToTimelineMapperTaskSetting struct {
@@ -179,7 +179,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 
 	bodyReader, _ := event.GetLastBodyReader("target")
 
-	if event.GroupRole == "target" && event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate {
+	if event.GroupRole == "target" && event.EventType == commonlogk8saudit_contract.ChangeEventTypeCreation && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate {
 		creationTime, found := GetCreationTimestamp(bodyReader)
 		if found {
 			for service := range state.serviceNames {
@@ -316,7 +316,7 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 		}
 	}
 
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
 		for touchedUID := range state.lastStates {
 			if podIdentity, found := state.foundPods[touchedUID]; found {
 				rp1 := MustResolvePodEndpointSliceTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, podIdentity.namespace, podIdentity.name)

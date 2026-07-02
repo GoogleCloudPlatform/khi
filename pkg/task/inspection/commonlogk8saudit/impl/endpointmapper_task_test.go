@@ -61,7 +61,7 @@ func TestEndpointLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		name         string
 		isPreProcess bool
 		yaml         string
-		eventType    commonlogk8saudit_contract.ChangeEventTypeV2
+		eventType    commonlogk8saudit_contract.ChangeEventType
 		verb         *pb.Verb
 		initialState *endpointResourceLogToTimelineMapperState
 		wantState    *endpointResourceLogToTimelineMapperState
@@ -76,7 +76,7 @@ metadata:
   - kind: Service
     name: my-service
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
@@ -105,7 +105,7 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},
@@ -142,7 +142,7 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -218,7 +218,7 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -268,7 +268,7 @@ endpoints:
     namespace: default
     uid: pod-uid-1
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -313,7 +313,7 @@ endpoints:
 - conditions:
     ready: true
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -352,7 +352,7 @@ endpoints:
 - conditions:
     terminating: true
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -391,7 +391,7 @@ endpoints:
 - conditions:
     ready: false
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -428,7 +428,7 @@ endpoints:
 			yaml: `
 endpoints: []
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:      commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -472,7 +472,7 @@ endpoints: []
 metadata:
   name: my-endpoint
 `,
-			eventType: commonlogk8saudit_contract.ChangeEventTypeV2Deletion,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeDeletion,
 			verb:      commonlogk8saudit_contract.VerbDelete,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{"my-service": {}},
@@ -525,7 +525,7 @@ metadata:
 		{
 			name:         "Pass 0: No EndpointSlice body",
 			isPreProcess: true,
-			eventType:    commonlogk8saudit_contract.ChangeEventTypeV2Modification,
+			eventType:    commonlogk8saudit_contract.ChangeEventTypeModification,
 			verb:         commonlogk8saudit_contract.VerbUpdate,
 			initialState: &endpointResourceLogToTimelineMapperState{
 				serviceNames: map[string]struct{}{},

@@ -37,16 +37,16 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// ChangeEventTypeV2 is the type of the resource change event for V2 mappers.
-type ChangeEventTypeV2 int
+// ChangeEventType is the type of the resource change event for mappers.
+type ChangeEventType int
 
 const (
-	// ChangeEventTypeV2Creation is the event type when the resource is created or first observed.
-	ChangeEventTypeV2Creation ChangeEventTypeV2 = iota
-	// ChangeEventTypeV2Deletion is the event type when the resource is deleted.
-	ChangeEventTypeV2Deletion
-	// ChangeEventTypeV2Modification is the event type when the resource is modified.
-	ChangeEventTypeV2Modification
+	// ChangeEventTypeCreation is the event type when the resource is created or first observed.
+	ChangeEventTypeCreation ChangeEventType = iota
+	// ChangeEventTypeDeletion is the event type when the resource is deleted.
+	ChangeEventTypeDeletion
+	// ChangeEventTypeModification is the event type when the resource is modified.
+	ChangeEventTypeModification
 )
 
 // RelatedGroupSet is a set of log groups that should be processed together.
@@ -65,7 +65,7 @@ type MultiGroupLogEvent struct {
 	// ResourceIdentity is the identity of the resource this log belongs to.
 	ResourceIdentity *ResourceIdentity
 	// EventType is the type of the change event.
-	EventType ChangeEventTypeV2
+	EventType ChangeEventType
 	// GroupSet is the related group set this event belongs to.
 	GroupSet RelatedGroupSet
 }
@@ -120,7 +120,7 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 	return nil, false
 }
 
-// ManifestLogToTimelineMapper defines the interface for V2 manifest timeline mappers.
+// ManifestLogToTimelineMapper defines the interface for manifest timeline mappers.
 type ManifestLogToTimelineMapper[T any] interface {
 	// TaskID returns the task ID.
 	TaskID() taskid.TaskImplementationID[inspectiontaskbase.TimelineMapperResult]
@@ -140,7 +140,7 @@ type ManifestLogToTimelineMapper[T any] interface {
 	ProcessLog(ctx context.Context, event MultiGroupLogEvent, prevGroupData T) (*khifilev6.TimelineChangeSet, T, error)
 }
 
-// ManifestSinglePassMapperBase provides a base implementation for V2 mappers that require only a single pass.
+// ManifestSinglePassMapperBase provides a base implementation for mappers that require only a single pass.
 type ManifestSinglePassMapperBase[T any] struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
@@ -153,7 +153,7 @@ func (ManifestSinglePassMapperBase[T]) PreProcessLog(ctx context.Context, passIn
 	return prevGroupData, nil
 }
 
-// ManifestStatelessMapperBase provides a base implementation for V2 mappers that are both stateless and require a single pass.
+// ManifestStatelessMapperBase provides a base implementation for mappers that are both stateless and require a single pass.
 type ManifestStatelessMapperBase struct{}
 
 // PassCount returns 0 as no pre-processing pass is required.
@@ -166,7 +166,7 @@ func (ManifestStatelessMapperBase) PreProcessLog(ctx context.Context, passIndex 
 	return struct{}{}, nil
 }
 
-// NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the V2 mapper interface.
+// NewManifestLogToTimelineMapper creates a new timeline mapper task utilizing the mapper interface.
 func NewManifestLogToTimelineMapper[T any](setting ManifestLogToTimelineMapper[T]) coretask.Task[inspectiontaskbase.TimelineMapperResult] {
 	groupedLogTaskID := setting.GroupedLogTask()
 	dependencies := append([]taskid.UntypedTaskReference{setting.LogIngesterTask(), setting.GroupedLogTask()}, setting.Dependencies()...)
@@ -344,11 +344,11 @@ func iterateMultiGroupLog(groupSet RelatedGroupSet) func(func(MultiGroupLogEvent
 			logEntry := targetGroup.Logs[idx]
 
 			// Map raw manifest-level lifetime flags to higher-level change event types.
-			eType := ChangeEventTypeV2Modification
+			eType := ChangeEventTypeModification
 			if logEntry.ResourceCreated {
-				eType = ChangeEventTypeV2Creation
+				eType = ChangeEventTypeCreation
 			} else if logEntry.ResourceDeleted {
-				eType = ChangeEventTypeV2Deletion
+				eType = ChangeEventTypeDeletion
 			}
 
 			event := MultiGroupLogEvent{

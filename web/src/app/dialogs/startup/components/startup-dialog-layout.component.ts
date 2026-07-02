@@ -22,7 +22,7 @@ import { SidebarLink } from '../types/startup-side-menu.types';
 import { InspectionListItemViewModel } from '../types/inspection-activity.model';
 
 /**
- * Layout component for the Startup Dialog V2.
+ * Layout component for the Startup Dialog.
  * Directly arranges the side menu and the content area.
  */
 @Component({

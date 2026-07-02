@@ -253,7 +253,7 @@ func NewLogToTimelineMapperTask[T any](tid taskid.TaskImplementationID[TimelineM
 			return NewTimelineMapperResult(), sharedErr
 		}
 
-		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTaskV2 %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
+		slog.DebugContext(ctx, fmt.Sprintf("LogToTimelineMapperTask %s finished: processed %d logs (skipped %d logs)", tid.String(), totalLogCount, skippedLogCount.Load()))
 
 		tracingActive, _ := khictx.GetValue(ctx, inspectioncore_contract.TracingActive)
 		if tracingActive {

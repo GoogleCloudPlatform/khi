@@ -36,7 +36,7 @@ export class InspectionDataLoaderService {
   private readonly progress = inject<ProgressDialogStatusUpdator>(
     PROGRESS_DIALOG_STATUS_UPDATOR,
   );
-  private readonly inspectionDataStoreV2 = inject(InspectionDataStore);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly backendService = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 
@@ -90,7 +90,7 @@ export class InspectionDataLoaderService {
         rawInspectionData,
         progressReporter,
       );
-      this.inspectionDataStoreV2.setNewInspectionData(parsedData);
+      this.inspectionDataStore.setNewInspectionData(parsedData);
       this.extension.notifyLifecycleOnInspectionDataOpen(
         parsedData,
         rawInspectionData,

@@ -168,7 +168,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 				prevGroupData.parentPathToUIDMap[path] = ts
 			}
 
-			if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Deletion {
+			if event.EventType == commonlogk8saudit_contract.ChangeEventTypeDeletion {
 				ts.Set(eventTime, "")
 			} else {
 				bodyReader, ok := event.GetLastBodyReader("pod")
@@ -256,7 +256,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 	}
 
 	// Place the first revision into the changeset.
-	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation {
+	if event.EventType == commonlogk8saudit_contract.ChangeEventTypeCreation {
 		nonCreationForPod := event.GroupRole == "pod" && k8sFieldSet.Verb != commonlogk8saudit_contract.VerbCreate
 		if nonCreationForPod {
 			creationTime, found := prevGroupData.uidToCreationTimestampMap[uid]
@@ -279,7 +279,7 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 
 	switch event.GroupRole {
 	case "binding":
-		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeV2Creation {
+		if event.EventType == commonlogk8saudit_contract.ChangeEventTypeCreation {
 			targetPath := MustPodPhaseTimelinePath(ctx, k8sFieldSet.ClusterName, nodeName, event.ResourceIdentity.Namespace, event.ResourceIdentity.Name, uid)
 			var bodyNode structured.Node
 			if targetBodyReader != nil {
@@ -339,5 +339,5 @@ func MustPodPhaseTimelinePath(ctx context.Context, clusterName, nodeName, namesp
 // Explicit interface compliance assertion.
 var _ commonlogk8saudit_contract.ManifestLogToTimelineMapper[*podPhaseTaskState] = (*podPhaseLogToTimelineMapperTaskSetting)(nil)
 
-// PodPhaseLogToTimelineMapperTask is the V2 task to generate pod phase history.
+// PodPhaseLogToTimelineMapperTask is the task to generate pod phase history.
 var PodPhaseLogToTimelineMapperTask = commonlogk8saudit_contract.NewManifestLogToTimelineMapper[*podPhaseTaskState](&podPhaseLogToTimelineMapperTaskSetting{})
