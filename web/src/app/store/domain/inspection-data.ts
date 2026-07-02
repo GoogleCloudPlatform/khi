@@ -29,7 +29,7 @@ import { MetadataStore } from 'src/app/store/domain/metadata-store';
  *
  * TODO: Remove "V2" suffix once this completely replaces the existing InspectionData.
  */
-export interface InspectionDataV2 {
+export interface InspectionData {
   /**
    * Interned storage provider providing efficient memory layout.
    */

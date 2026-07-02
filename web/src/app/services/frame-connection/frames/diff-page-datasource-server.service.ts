@@ -21,7 +21,7 @@ import {
   UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
   UpdateSelectedResourceMessage,
 } from 'src/app/common/schema/inter-window-messages';
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
 
 /**
  * DiffPageDataSourceServer sends data needed to show the diff page in the other tab.
@@ -29,7 +29,7 @@ import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.servic
 @Injectable()
 export class DiffPageDataSourceServer {
   private connector = inject(WindowConnectorService);
-  private selectionManager = inject(SelectionManagerV2);
+  private selectionManager = inject(SelectionManager);
 
   public activate() {
     // Send the current selected revision and timeline to newly activated diff page

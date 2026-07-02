@@ -24,7 +24,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { TimelineHighlight, TimelineHighlightType } from './interaction-model';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
-import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model-v2';
+import { BASE_ROW_HEIGHT } from 'src/app/timeline/components/style-model';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 export interface TreeGuideViewModel {

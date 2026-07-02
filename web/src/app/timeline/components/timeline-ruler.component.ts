@@ -35,7 +35,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
 import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import { TimelineRulerViewModel } from './timeline-ruler.viewmodel';
-import { TimelineRulerStyle } from './style-model-v2';
+import { TimelineRulerStyle } from './style-model';
 import { calculateDateLabels } from './calculator/date-label-calculator';
 
 /**

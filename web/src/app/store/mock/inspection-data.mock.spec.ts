@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 
 describe('inspection-data.mock', () => {
-  describe('createMockInspectionDataV2', () => {
-    it('should create a valid mock instance of InspectionDataV2 with timeline hierarchy and loaded icons', async () => {
-      const mockData = await createMockInspectionDataV2();
+  describe('createMockInspectionData', () => {
+    it('should create a valid mock instance of InspectionData with timeline hierarchy and loaded icons', async () => {
+      const mockData = await createMockInspectionData();
 
       expect(mockData).toBeDefined();
       expect(mockData.internPool).toBeDefined();

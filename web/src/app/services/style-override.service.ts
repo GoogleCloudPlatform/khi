@@ -15,7 +15,7 @@
  */
 
 import { inject, Injectable, computed, signal } from '@angular/core';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import {
   IconAtlas,
   LogType,
@@ -29,13 +29,13 @@ import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
 /**
  * Service to override timeline element style configurations dynamically.
- * Injects InspectionDataStoreV2 to fetch baseline StyleStore settings.
+ * Injects InspectionDataStore to fetch baseline StyleStore settings.
  */
 @Injectable({
   providedIn: 'root',
 })
 export class StyleOverrideService implements StyleStoreLike {
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
 
   /** Map of overridden revision states. Key is the state ID. */
   private readonly _revisionStateOverrides = signal<Map<number, RevisionState>>(

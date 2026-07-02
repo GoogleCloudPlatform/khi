@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { Log } from 'src/app/store/domain/log';
 import { Timeline, Revision, Event } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 
 /**
- * SelectionManagerV2 provides selected/highlighted list of logs, timelines, revisions or events from the received user interaction.
+ * SelectionManager provides selected/highlighted list of logs, timelines, revisions or events from the received user interaction.
  * Signal-based modern version of SelectionManagerService.
  */
 @Injectable({ providedIn: 'root' })
-export class SelectionManagerV2 {
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
+export class SelectionManager {
+  private readonly inspectionDataStore = inject(InspectionDataStore);
 
   // Writable signals representing internal state.
   private readonly selectedLogId = signal<number | null>(null);

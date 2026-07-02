@@ -35,8 +35,8 @@ import { RenderingLoopManager } from './canvas/rendering-loop-manager';
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
-} from './style-model-v2';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+} from './style-model';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 import { HistogramCache } from 'src/app/timeline/components/misc/histogram-cache';
 import { getMinTimeSpanForHistogram } from 'src/app/timeline/components/calculator/human-friendly-tick';
 import { RulerViewModelBuilder } from './timeline-ruler.viewmodel';
@@ -80,7 +80,7 @@ class TimelineChartStoriesComponent {
 
   readonly khiInspectionData = resource({
     loader: async () => {
-      return await createMockInspectionDataV2();
+      return await createMockInspectionData();
     },
   });
 

@@ -23,8 +23,8 @@ import {
   model,
 } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
-import { InspectionDataStoreV2 } from '../services/inspection-data-store-v2.service';
-import { SelectionManagerV2 } from '../services/selection-manager-v2.service';
+import { InspectionDataStore } from '../services/inspection-data-store.service';
+import { SelectionManager } from '../services/selection-manager.service';
 import { SearchScope, ViewStateService } from '../services/view-state.service';
 import { DiffListHeaderComponent } from './components/diff-list-header.component';
 import { DiffListComponent } from './components/diff-list.component';
@@ -58,8 +58,8 @@ interface DiffSmartSelectionMoveCommand {
   ],
 })
 export class DiffSmartComponent implements OnInit, OnDestroy {
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
-  private readonly selectionManager = inject(SelectionManagerV2);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
+  private readonly selectionManager = inject(SelectionManager);
   private readonly viewState = inject(ViewStateService);
   private destroyed = new Subject<void>();
 
@@ -78,7 +78,7 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
   });
 
   /**
-   * Signal containing the locally selected log index managed by SelectionManagerV2.
+   * Signal containing the locally selected log index managed by SelectionManager.
    */
   protected readonly selectedLogIndex = this.selectionManager.selectedLogIndex;
 

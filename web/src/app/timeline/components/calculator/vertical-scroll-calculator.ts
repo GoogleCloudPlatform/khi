@@ -22,7 +22,7 @@ import {
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
-import { BASE_ROW_HEIGHT } from '../style-model-v2';
+import { BASE_ROW_HEIGHT } from '../style-model';
 
 /**
  * Enum for layer of a timeline.

@@ -15,8 +15,8 @@
  */
 
 import { Component, computed, inject, signal } from '@angular/core';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
 import { Log } from 'src/app/store/domain/log';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { CommonModule } from '@angular/common';
@@ -54,8 +54,8 @@ import jsyaml from 'js-yaml';
   ],
 })
 export class LogSmartComponent {
-  private readonly selectionManager = inject(SelectionManagerV2);
-  private readonly inspectionDataStore = inject(InspectionDataStoreV2);
+  private readonly selectionManager = inject(SelectionManager);
+  private readonly inspectionDataStore = inject(InspectionDataStore);
   private readonly viewState = inject(ViewStateService);
   private readonly styleOverrideService = inject(StyleOverrideService);
 
@@ -186,7 +186,7 @@ export class LogSmartComponent {
 
   /**
    * Internal click handler invoked when a log is selected from the list.
-   * Updates the global selection state via `SelectionManagerV2`.
+   * Updates the global selection state via `SelectionManager`.
    */
   protected onLogSelected(logEntry: ReadonlyDomainElement<Log>) {
     this.selectionManager.onSelectLog(logEntry);
@@ -194,7 +194,7 @@ export class LogSmartComponent {
 
   /**
    * Internal hover handler invoked when a user hovers over a log in the list.
-   * Updates the global highlight state via `SelectionManagerV2`.
+   * Updates the global highlight state via `SelectionManager`.
    */
   protected onLogHovered(logEntry: ReadonlyDomainElement<Log>) {
     this.selectionManager.onHighlightLog(logEntry);
@@ -202,7 +202,7 @@ export class LogSmartComponent {
 
   /**
    * Internal change handler invoked when the "include timeline children" toggle is toggled.
-   * Updates the global setting in the `SelectionManagerV2`.
+   * Updates the global setting in the `SelectionManager`.
    */
   protected onIncludeTimelineChildrenChange(value: boolean) {
     this.selectionManager.timelineSelectionShouldIncludeChildren.set(value);

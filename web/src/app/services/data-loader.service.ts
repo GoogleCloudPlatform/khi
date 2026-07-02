@@ -28,7 +28,7 @@ import {
 import { ProgressUtil } from './progress/progress-util';
 import { KHIFileParser } from 'src/app/parser/core/file-parser';
 import { V6_BLUEPRINT } from 'src/app/parser/v6/blueprint';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 import { ProgressReporter } from 'src/app/services/progress/progress-interface';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class InspectionDataLoaderService {
   private readonly progress = inject<ProgressDialogStatusUpdator>(
     PROGRESS_DIALOG_STATUS_UPDATOR,
   );
-  private readonly inspectionDataStoreV2 = inject(InspectionDataStoreV2);
+  private readonly inspectionDataStoreV2 = inject(InspectionDataStore);
   private readonly backendService = inject<BackendAPI>(BACKEND_API);
   private readonly extension = inject<ExtensionStore>(EXTENSION_STORE);
 

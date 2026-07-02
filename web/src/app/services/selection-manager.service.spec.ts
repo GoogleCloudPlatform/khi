@@ -15,27 +15,27 @@
  */
 
 import { TestBed } from '@angular/core/testing';
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
 
-describe('SelectionManagerV2', () => {
-  let service: SelectionManagerV2;
-  let dataStore: InspectionDataStoreV2;
+describe('SelectionManager', () => {
+  let service: SelectionManager;
+  let dataStore: InspectionDataStore;
   let logStore: LogStore;
   let timelineStore: TimelineStore;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [InspectionDataStoreV2, SelectionManagerV2],
+      providers: [InspectionDataStore, SelectionManager],
     });
 
-    dataStore = TestBed.inject(InspectionDataStoreV2);
-    service = TestBed.inject(SelectionManagerV2);
+    dataStore = TestBed.inject(InspectionDataStore);
+    service = TestBed.inject(SelectionManager);
 
     const internPool = InternPoolStore.create();
     const styleStore = new StyleStore();
@@ -217,7 +217,7 @@ describe('SelectionManagerV2', () => {
       1,
     );
 
-    const mockData: InspectionDataV2 = {
+    const mockData: InspectionData = {
       internPool,
       styleStore,
       logStore,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 import {
   InternPoolStore,
@@ -209,7 +209,7 @@ export class InspectionDataBuilder {
   /**
    * Instantiates data store contexts returning root inspection model.
    */
-  public async build(): Promise<InspectionDataV2> {
+  public async build(): Promise<InspectionData> {
     this.logStore.initialize(this.rawLogs, this.rawLogs.length);
     this.timelineStore.initialize(
       this.rawTimelines,

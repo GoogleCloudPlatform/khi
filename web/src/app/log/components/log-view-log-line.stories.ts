@@ -16,8 +16,8 @@
 
 import { Meta, StoryObj, componentWrapperDecorator } from '@storybook/angular';
 import { LogViewLogLineComponent } from './log-view-log-line.component';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 const meta: Meta<LogViewLogLineComponent> = {
   title: 'Log/LogViewLogLineComponent',
@@ -41,11 +41,11 @@ type Story = StoryObj<LogViewLogLineComponent>;
 export const Warning: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log =
       Array.from(data.logStore.logs()).find(
         (l) => l.severity.label === 'WARNING',
@@ -62,11 +62,11 @@ export const Warning: Story = {
 export const ErrorLog: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log =
       Array.from(data.logStore.logs()).find(
         (l) => l.severity.label === 'ERROR',
@@ -83,11 +83,11 @@ export const ErrorLog: Story = {
 export const Highlighted: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log = Array.from(data.logStore.logs())[0];
     return {
       props: {
@@ -102,11 +102,11 @@ export const Highlighted: Story = {
 export const Selected: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {
-    const data = mockData as InspectionDataV2;
+    const data = mockData as InspectionData;
     const log = Array.from(data.logStore.logs())[0];
     return {
       props: {

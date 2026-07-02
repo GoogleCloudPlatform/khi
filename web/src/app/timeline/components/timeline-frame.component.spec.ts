@@ -30,7 +30,7 @@ import { StyleStoreLike } from 'src/app/store/domain/style-store';
 import {
   generateDefaultChartStyle,
   generateDefaultRulerStyle,
-} from 'src/app/timeline/components/style-model-v2';
+} from 'src/app/timeline/components/style-model';
 
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 

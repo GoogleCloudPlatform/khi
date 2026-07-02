@@ -23,16 +23,16 @@ import { WindowConnectorService } from 'src/app/services/frame-connection/window
 import { Injectable, inject } from '@angular/core';
 import { UpdateGraphMessage } from 'src/app/services/frame-connection/frames/graph-page-datasource.service';
 
-import { InspectionDataStoreV2 } from 'src/app/services/inspection-data-store-v2.service';
+import { InspectionDataStore } from 'src/app/services/inspection-data-store.service';
 
-import { SelectionManagerV2 } from 'src/app/services/selection-manager-v2.service';
+import { SelectionManager } from 'src/app/services/selection-manager.service';
 
 @Injectable()
 export class GraphPageDataSourceServer {
   private readonly graphConverter = inject(GraphDataConverterService);
   private readonly connector = inject(WindowConnectorService);
-  private readonly store = inject(InspectionDataStoreV2);
-  private readonly selectionManager = inject(SelectionManagerV2);
+  private readonly store = inject(InspectionDataStore);
+  private readonly selectionManager = inject(SelectionManager);
 
   private abortController?: AbortController;
 

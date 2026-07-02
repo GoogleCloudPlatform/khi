@@ -15,7 +15,7 @@
  */
 
 import { Injectable, signal, inject } from '@angular/core';
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 import { TimelineView } from 'src/app/store/domain/timeline-view';
 import {
   CelTimelineFilter,
@@ -30,12 +30,12 @@ import {
 import { SearchWorkerManager } from 'src/app/services/search-worker-manager.service';
 
 /**
- * Service to store and manage the active InspectionDataV2 domain model.
+ * Service to store and manage the active InspectionData domain model.
  * Provides access to the parsed data and derived timeline views.
  */
 @Injectable({ providedIn: 'root' })
-export class InspectionDataStoreV2 {
-  private readonly _inspectionData = signal<InspectionDataV2 | null>(null);
+export class InspectionDataStore {
+  private readonly _inspectionData = signal<InspectionData | null>(null);
   private readonly _timelineView = signal<TimelineView | null>(null);
   private readonly celTimelineFilter = inject(CelTimelineFilter);
   private readonly celTimelineExclusionFilter = inject(
@@ -61,11 +61,11 @@ export class InspectionDataStoreV2 {
    *
    * @param data The new inspection data instance to set.
    */
-  public setNewInspectionData(data: InspectionDataV2): void {
+  public setNewInspectionData(data: InspectionData): void {
     this.updateStoreData(data);
   }
 
-  private updateStoreData(data: InspectionDataV2 | null): void {
+  private updateStoreData(data: InspectionData | null): void {
     this._inspectionData.set(data);
     if (!data) {
       this._timelineView.set(null);

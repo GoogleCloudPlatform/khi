@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InspectionDataV2 } from 'src/app/store/domain/inspection-data';
+import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 /**
  * LifecycleExtension is an interface with set of event handlers.
@@ -30,7 +30,7 @@ export interface LifecycleHookExtension {
    * onInspectionDataOpen called when any data load is completed.
    */
   onInspectionDataOpen?: (
-    inspectionData: InspectionDataV2,
+    inspectionData: InspectionData,
     rawData: ArrayBuffer,
   ) => void;
 

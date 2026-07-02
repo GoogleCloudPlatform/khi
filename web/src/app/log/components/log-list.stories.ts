@@ -16,7 +16,7 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { LogListComponent } from './log-list.component';
-import { createMockInspectionDataV2 } from 'src/app/store/mock/inspection-data.mock';
+import { createMockInspectionData } from 'src/app/store/mock/inspection-data.mock';
 
 const meta: Meta<LogListComponent> = {
   title: 'Log/LogList',
@@ -38,7 +38,7 @@ type Story = StoryObj<LogListComponent>;
 export const Default: Story = {
   loaders: [
     async () => ({
-      mockData: await createMockInspectionDataV2(),
+      mockData: await createMockInspectionData(),
     }),
   ],
   render: (args, { loaded: { mockData } }) => {

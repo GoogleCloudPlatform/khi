@@ -27,7 +27,7 @@ import {
   TimelineChartStyle,
   BASE_ROW_HEIGHT,
   getRevisionStyleForHeight,
-} from '../style-model-v2';
+} from '../style-model';
 import { RendererConvertUtil } from './convertutil';
 import { StyleStoreLike } from 'src/app/store/domain/style-store';
 
