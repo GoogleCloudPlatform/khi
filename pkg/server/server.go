@@ -68,7 +68,7 @@ func coepCoopMiddleware() gin.HandlerFunc {
 	// COOP and COEP headers are required for SharedArrayBuffer to work.
 	// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer#api_availability
 	return func(ctx *gin.Context) {
-		ctx.Header("Cross-Origin-Opener-Policy", "same-origin")
+		ctx.Header("Cross-Origin-Opener-Policy", "same-origin-allow-popups")
 		ctx.Header("Cross-Origin-Embedder-Policy", "require-corp")
 		ctx.Next()
 	}

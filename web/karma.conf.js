@@ -21,28 +21,41 @@ module.exports = function (config) {
   config.set({
     customHeaders: [
       {
-        match: '.*',
-        name: 'Cross-Origin-Opener-Policy',
-        value: 'same-origin',
+        match: ".*",
+        name: "Cross-Origin-Opener-Policy",
+        value: "same-origin-allow-popups",
       },
       {
-        match: '.*',
-        name: 'Cross-Origin-Embedder-Policy',
-        value: 'require-corp',
+        match: ".*",
+        name: "Cross-Origin-Embedder-Policy",
+        value: "require-corp",
       },
     ],
-    basePath: '',
-    frameworks: ['jasmine', '@angular-devkit/build-angular'],
+    basePath: "",
+    frameworks: ["jasmine", "@angular-devkit/build-angular"],
     plugins: [
-      require('karma-jasmine'),
-      require('karma-chrome-launcher'),
-      require('karma-jasmine-html-reporter'),
-      require('karma-coverage'),
-
+      require("karma-jasmine"),
+      require("karma-chrome-launcher"),
+      require("karma-jasmine-html-reporter"),
+      require("karma-coverage"),
     ],
     files: [
-      { pattern: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap', type: "css", included: true, served: false, watched: false },
-      { pattern: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0', type: "css", included: true, served: false, watched: false },
+      {
+        pattern:
+          "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap",
+        type: "css",
+        included: true,
+        served: false,
+        watched: false,
+      },
+      {
+        pattern:
+          "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,1,0",
+        type: "css",
+        included: true,
+        served: false,
+        watched: false,
+      },
     ],
     client: {
       jasmine: {
@@ -51,25 +64,22 @@ module.exports = function (config) {
         // for example, you can disable the random execution with `random: false`
         // or set a specific seed with `seed: 4321`
       },
-      clearContext: true
+      clearContext: true,
     },
     jasmineHtmlReporter: {
-      suppressAll: true // removes the duplicated traces
+      suppressAll: true, // removes the duplicated traces
     },
     coverageReporter: {
-      dir: require('path').join(__dirname, './coverage/frontend'),
-      subdir: '.',
-      reporters: [
-        { type: 'html' },
-        { type: 'text-summary' }
-      ]
+      dir: require("path").join(__dirname, "./coverage/frontend"),
+      subdir: ".",
+      reporters: [{ type: "html" }, { type: "text-summary" }],
     },
-    reporters: ['progress', 'kjhtml'],
+    reporters: ["progress", "kjhtml"],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
     autoWatch: true,
-    browsers: ['Chrome'],
+    browsers: ["Chrome"],
     singleRun: false,
     restartOnFileChange: false,
     captureTimeout: 60 * 60 * 1000,
@@ -78,14 +88,14 @@ module.exports = function (config) {
     browserNoActivityTimeout: 60 * 60 * 1000,
     customLaunchers: {
       ChromeHeadlessNoSandbox: {
-        base: 'ChromeHeadless',
+        base: "ChromeHeadless",
         flags: [
-          '--no-sandbox',
-          '--enable-unsafe-swiftshader',
-          '--enable-webgl',
-          '--disable-gpu'
-        ]
-      }
+          "--no-sandbox",
+          "--enable-unsafe-swiftshader",
+          "--enable-webgl",
+          "--disable-gpu",
+        ],
+      },
     },
   });
 };
