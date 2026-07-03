@@ -92,7 +92,7 @@ func ConformanceTestForInspectionTypes(t *testing.T) {
 			if err := runner.SetFeatureList(allFeatureIds); err != nil {
 				t.Fatalf("unexpected error setting feature list: %v", err)
 			}
-			_, err = runner.DryRun(t.Context(), &inspectioncore_contract.InspectionRequest{})
+			_, err = runner.ResolveTaskGraph()
 			if err != nil {
 				t.Errorf("failed to resolve task graph with all features enabled: %v", err)
 			}
