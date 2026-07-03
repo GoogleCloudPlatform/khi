@@ -300,7 +300,7 @@ func (i *InspectionTaskRunner) Run(ctx context.Context, req *inspectioncore_cont
 		return fmt.Errorf("this task is already started")
 	}
 	currentInspectionType := i.inspectionServer.GetInspectionType(i.currentInspectionType)
-	runnableTaskGraph, err := i.resolveTaskGraph()
+	runnableTaskGraph, err := i.ResolveTaskGraph()
 	if err != nil {
 		return err
 	}
@@ -435,7 +435,7 @@ func (i *InspectionTaskRunner) Metadata() (map[string]any, error) {
 // DryRun performs a dry run of the inspection.
 // It resolves the task graph and runs it in dry-run mode to collect metadata without executing tasks.
 func (i *InspectionTaskRunner) DryRun(ctx context.Context, req *inspectioncore_contract.InspectionRequest) (*InspectionDryRunResult, error) {
-	runnableTaskGraph, err := i.resolveTaskGraph()
+	runnableTaskGraph, err := i.ResolveTaskGraph()
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return nil, err
@@ -511,7 +511,8 @@ func (i *InspectionTaskRunner) Wait() <-chan struct{} {
 	return i.runComplete
 }
 
-func (i *InspectionTaskRunner) resolveTaskGraph() (*coretask.TaskSet, error) {
+// ResolveTaskGraph resolves the task graph for the current inspection runner and returns the runnable TaskSet.
+func (i *InspectionTaskRunner) ResolveTaskGraph() (*coretask.TaskSet, error) {
 	if i.featureTasks == nil || i.availableTasks == nil {
 		return nil, fmt.Errorf("this runner is not ready for resolving graph")
 	}
