@@ -24,6 +24,7 @@ import (
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	common_task "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
+	"github.com/GoogleCloudPlatform/khi/pkg/parameters"
 	"github.com/GoogleCloudPlatform/khi/pkg/server/upload"
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
@@ -58,11 +59,12 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 
 		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
-		if pathValue, ok := req[b.FormTaskBuilderBase.id.ReferenceIDString()].(string); ok && pathValue != "" {
-			token := &upload.LocalFileUploadToken{FilePath: pathValue}
-			return upload.DefaultUploadFileStore.LoadLocalFileResult(token, b.verifier), nil
+		if *parameters.Job.JobMode {
+			if pathValue, ok := req[b.FormTaskBuilderBase.id.ReferenceIDString()].(string); ok && pathValue != "" {
+				token := &upload.LocalFileUploadToken{FilePath: pathValue}
+				return upload.DefaultUploadFileStore.LoadLocalFileResult(token, b.verifier), nil
+			}
 		}
-
 		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
 		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
 		if err != nil {
