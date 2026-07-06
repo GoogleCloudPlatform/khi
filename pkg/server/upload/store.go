@@ -137,8 +137,11 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 		}
 	}
 	if uploadError == nil {
+		s.verifierLock.RLock()
+		verifier := s.verifiers[token.GetID()]
+		s.verifierLock.RUnlock()
 		go func() {
-			err := s.verifiers[token.GetID()].Verify(s.providerForToken(token), token)
+			err := verifier.Verify(s.providerForToken(token), token)
 			s.resultLock.Lock()
 			defer s.resultLock.Unlock()
 			current, ok := s.results[token.GetID()]
