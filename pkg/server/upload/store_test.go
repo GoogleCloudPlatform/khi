@@ -16,10 +16,14 @@ package upload
 
 import (
 	"errors"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // Mock UploadFileVerifier for testing.
@@ -258,4 +262,53 @@ func TestUploadFileStore(t *testing.T) {
 			t.Errorf("Want Completed status, got %v", result2.Status)
 		}
 	})
+}
+
+func TestLoadLocalFileResult(t *testing.T) {
+	content := "hello world"
+
+	testCases := []struct {
+		name            string
+		verifierError   error
+		wantVerifyError bool
+	}{
+		{name: "verification passes", verifierError: nil, wantVerifyError: false},
+		{name: "verification fails", verifierError: errors.New("bad file"), wantVerifyError: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			path := filepath.Join(tempDir, "audit.jsonl")
+			if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			store := NewUploadFileStore(NewLocalUploadFileStoreProvider(tempDir))
+			store.RegisterProvider((&LocalFileUploadToken{}).GetType(), &InPlaceUploadFileStoreProvider{})
+
+			token := &LocalFileUploadToken{FilePath: path}
+			result := store.LoadLocalFileResult(token, &NopWaitUploadFileVerifier{Error: tc.verifierError})
+			if result.Status != UploadStatusCompleted {
+				t.Errorf("Status = %v, want %v", result.Status, UploadStatusCompleted)
+			}
+
+			if (result.VerificationError != nil) != tc.wantVerifyError {
+				t.Errorf("Verification Error = %v, wantVerifyError = %v", result.VerificationError, tc.wantVerifyError)
+			}
+
+			if !tc.wantVerifyError {
+				reader, err := result.GetReader()
+				if err != nil {
+					t.Fatalf("GetReader failed: %v", err)
+				}
+				defer reader.Close()
+				readContent, err := io.ReadAll(reader)
+				if err != nil {
+					t.Fatalf("ReadAll failed: %v", err)
+				}
+				if diff := cmp.Diff(content, string(readContent)); diff != "" {
+					t.Errorf("Read() content mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
 }

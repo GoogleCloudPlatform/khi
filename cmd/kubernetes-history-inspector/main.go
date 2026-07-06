@@ -147,6 +147,16 @@ func run() int {
 	// Start signal handler
 	go handleTerminateSignal(exitCh)
 
+	uploadFileStoreFolder := "/tmp"
+
+	if parameters.Common.UploadFileStoreFolder != nil {
+		uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
+	}
+
+	upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+
+	upload.DefaultUploadFileStore.RegisterProvider((&upload.LocalFileUploadToken{}).GetType(), &upload.InPlaceUploadFileStoreProvider{})
+
 	if !*parameters.Job.JobMode {
 		slog.Info("Starting Kubernetes History Inspector server...")
 
@@ -156,14 +166,6 @@ func run() int {
 		if *parameters.Debug.Verbose {
 			serverMode = gin.DebugMode
 		}
-
-		uploadFileStoreFolder := "/tmp"
-
-		if parameters.Common.UploadFileStoreFolder != nil {
-			uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
-		}
-
-		upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
 
 		err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
 			return e.ConfigureKHIWebServerFactory(server.DefaultServerFactory)

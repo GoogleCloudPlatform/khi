@@ -46,6 +46,7 @@ type UploadFileStore struct {
 	verifiers     map[string]UploadFileVerifier
 	tokenHashes   map[string]interface{}
 	tokenHashLock sync.RWMutex
+	providers     map[string]UploadFileStoreProvider
 }
 
 // GetUploadToken returns the token to upload it from frontend.
@@ -99,7 +100,7 @@ func (s *UploadFileStore) SetResultOnStartingUpload(token UploadToken) error {
 	}
 	s.results[token.GetID()] = UploadResult{
 		Token:         token,
-		StoreProvider: s.StoreProvider,
+		StoreProvider: s.providerForToken(token),
 		Status:        UploadStatusUploading,
 	}
 	return nil
@@ -121,7 +122,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 	if uploadError == nil {
 		s.results[token.GetID()] = UploadResult{
 			Token:             token,
-			StoreProvider:     s.StoreProvider,
+			StoreProvider:     s.providerForToken(token),
 			Status:            UploadStatusVerifying,
 			UploadError:       uploadError,
 			VerificationCount: nextVerificationIndex,
@@ -129,7 +130,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 	} else {
 		s.results[token.GetID()] = UploadResult{
 			Token:             token,
-			StoreProvider:     s.StoreProvider,
+			StoreProvider:     s.providerForToken(token),
 			Status:            UploadStatusWaiting,
 			UploadError:       uploadError,
 			VerificationCount: prev.VerificationCount,
@@ -137,7 +138,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 	}
 	if uploadError == nil {
 		go func() {
-			err := s.verifiers[token.GetID()].Verify(s.StoreProvider, token)
+			err := s.verifiers[token.GetID()].Verify(s.providerForToken(token), token)
 			s.resultLock.Lock()
 			defer s.resultLock.Unlock()
 			current, ok := s.results[token.GetID()]
@@ -151,7 +152,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 			}
 			s.results[token.GetID()] = UploadResult{
 				Token:             token,
-				StoreProvider:     s.StoreProvider,
+				StoreProvider:     s.providerForToken(token),
 				Status:            UploadStatusCompleted,
 				UploadError:       current.UploadError,
 				VerificationError: err,
@@ -180,5 +181,41 @@ func NewUploadFileStore(storeProvider UploadFileStoreProvider) *UploadFileStore 
 		results:       make(map[string]UploadResult),
 		verifiers:     make(map[string]UploadFileVerifier),
 		tokenHashes:   make(map[string]interface{}),
+		providers:     make(map[string]UploadFileStoreProvider),
 	}
+}
+
+// RegisterProvider registers a provider to handle tokens of the given type.
+func (s *UploadFileStore) RegisterProvider(tokenType string, provider UploadFileStoreProvider) {
+	s.providers[tokenType] = provider
+}
+
+// providerForToken returns the provider registered for the token's type,
+// or the default StoreProvider when no provider is registered for that type.
+func (s *UploadFileStore) providerForToken(token UploadToken) UploadFileStoreProvider {
+	provider, ok := s.providers[token.GetType()]
+	if !ok {
+		return s.StoreProvider
+	}
+	return provider
+}
+
+// LoadLocalFileResult verifies a local file in place and returns a completed UploadResult.
+// Used in job mode, where the file already exists locally instead of being uploaded.
+func (s *UploadFileStore) LoadLocalFileResult(token UploadToken, verifier UploadFileVerifier) UploadResult {
+	provider := s.providerForToken(token)
+	verificationError := verifier.Verify(provider, token)
+	result := UploadResult{
+		Token:             token,
+		StoreProvider:     provider,
+		Status:            UploadStatusCompleted,
+		VerificationError: verificationError,
+	}
+	s.resultLock.Lock()
+	s.tokenHashLock.Lock()
+	defer s.resultLock.Unlock()
+	defer s.tokenHashLock.Unlock()
+	s.tokenHashes[token.GetHash()] = struct{}{}
+	s.results[token.GetID()] = result
+	return result
 }
