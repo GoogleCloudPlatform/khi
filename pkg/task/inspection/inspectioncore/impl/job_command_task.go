@@ -55,7 +55,13 @@ var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
 			taskInput = input
 		}
 
-		command, err := GenerateJobModeCommand(inspectionType, enabledFeatures, taskInput)
+		formFields, found := typedmap.Get(metadataSet, inspectionmetadata.FormFieldSetMetadataKey)
+		if !found {
+			return nil, fmt.Errorf("form field metadata not found")
+		}
+		fileFieldIDs := formFields.GetFileFieldIDs()
+
+		command, err := GenerateJobModeCommand(inspectionType, enabledFeatures, taskInput, fileFieldIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -67,16 +73,28 @@ var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
 )
 
 // GenerateJobModeCommand formats a copy-pasteable command to execute KHI in job mode.
-func GenerateJobModeCommand(inspectionType string, enabledFeatures []string, taskInput any) (string, error) {
+func GenerateJobModeCommand(inspectionType string, enabledFeatures []string, taskInput any, fileFieldIDs []string) (string, error) {
 	// Create a copy to avoid mutating the original features array.
 	featuresCopy := make([]string, len(enabledFeatures))
 	copy(featuresCopy, enabledFeatures)
 	slices.Sort(featuresCopy)
 	featuresStr := strings.Join(featuresCopy, ",")
 
+	values, _ := taskInput.(map[string]any)
+	if len(fileFieldIDs) > 0 {
+		merged := make(map[string]any, len(values)+len(fileFieldIDs))
+		for k, v := range values {
+			merged[k] = v
+		}
+		for _, id := range fileFieldIDs {
+			merged[id] = "path/to/file"
+		}
+		values = merged
+	}
+
 	var valuesStr string
-	if taskInput != nil {
-		valuesBytes, err := json.MarshalIndent(taskInput, "", "  ")
+	if len(values) > 0 {
+		valuesBytes, err := json.MarshalIndent(values, "", "  ")
 		if err != nil {
 			return "", fmt.Errorf("failed to marshal inspection values: %w", err)
 		}

@@ -199,6 +199,20 @@ func (f *FormFieldSetMetadata) DangerouslyGetField(id string) ParameterFormField
 	return ParameterFormFieldBase{}
 }
 
+// GetFileFieldIDs returns the IDs of all file-type form fields.
+func (f *FormFieldSetMetadata) GetFileFieldIDs() []string {
+	f.fieldsLock.RLock()
+	defer f.fieldsLock.RUnlock()
+	var returnIDs []string
+	for _, field := range f.fields {
+		base := GetParameterFormFieldBase(field)
+		if base.Type == File {
+			returnIDs = append(returnIDs, base.ID)
+		}
+	}
+	return returnIDs
+}
+
 // GetParameterFormFieldBase returns the ParameterFormFieldBase from the given ParameterFormField.
 func GetParameterFormFieldBase(parameter ParameterFormField) ParameterFormFieldBase {
 	switch v := parameter.(type) {

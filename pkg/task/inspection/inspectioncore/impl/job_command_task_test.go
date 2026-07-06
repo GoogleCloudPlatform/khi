@@ -26,6 +26,7 @@ func TestGenerateJobModeCommand(t *testing.T) {
 		inspectionType  string
 		enabledFeatures []string
 		taskInput       any
+		fileFieldIDs    []string
 		want            string
 		wantErr         bool
 	}{
@@ -91,11 +92,27 @@ func TestGenerateJobModeCommand(t *testing.T) {
   --job-export-destination="output.khi"`,
 			wantErr: false,
 		},
+		{
+			name:            "command with a file input field",
+			inspectionType:  "oss",
+			enabledFeatures: []string{"oss-audit"},
+			taskInput:       nil,
+			fileFieldIDs:    []string{"audit-log-files"},
+			want: `./khi \
+  --job-mode \
+  --job-inspection-type="oss" \
+  --job-inspection-features="oss-audit" \
+  --job-inspection-values='{
+  "audit-log-files": "path/to/file"
+}' \
+  --job-export-destination="output.khi"`,
+			wantErr: false,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := GenerateJobModeCommand(tc.inspectionType, tc.enabledFeatures, tc.taskInput)
+			got, err := GenerateJobModeCommand(tc.inspectionType, tc.enabledFeatures, tc.taskInput, tc.fileFieldIDs)
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("GenerateJobModeCommand() error = %v, wantErr %v", err, tc.wantErr)
 			}
