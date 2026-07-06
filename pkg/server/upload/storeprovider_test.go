@@ -17,8 +17,11 @@ package upload
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // MockLocalUploadFileStoreProvider is a mock implementation of LocalUploadFileStoreProvider for testing purposes.
@@ -113,4 +116,59 @@ func TestLocalUploadFileStoreProvider_Essential(t *testing.T) {
 			t.Errorf("Expected content: %q, got: %q", content2, string(readContent))
 		}
 	})
+}
+
+func TestInPlaceUploadFileStoreProvider_Read(t *testing.T) {
+	provider := &InPlaceUploadFileStoreProvider{}
+
+	// The table: each row is one scenario.
+	tests := []struct {
+		name        string
+		createFile  bool   // should we create the file before reading?
+		content     string // what to write into it (when createFile is true)
+		wantMissing bool   // do we expect an os.ErrNotExist?
+	}{
+		{name: "reads existing file", createFile: true, content: "hello world", wantMissing: false},
+		{name: "missing file returns not-exist error", createFile: false, wantMissing: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Give each case its own temp dir so cases cannot see each other's files.
+			// t.TempDir creates a unique directory and removes it when the subtest ends.
+			tempDir := t.TempDir()
+			path := filepath.Join(tempDir, "testfile")
+
+			// Create the file only when the case requires it.
+			if tc.createFile {
+				if err := os.WriteFile(path, []byte(tc.content), 0600); err != nil {
+					t.Fatalf("Failed to write test file: %v", err)
+				}
+			}
+
+			readCloser, err := provider.Read(&LocalFileUploadToken{FilePath: path})
+
+			// The missing-file case expects an error and has no reader to read.
+			if tc.wantMissing {
+				if !os.IsNotExist(err) {
+					t.Errorf("Expected os.ErrNotExist, got: %v", err)
+				}
+				return
+			}
+
+			// The existing-file case expects no error and matching content.
+			if err != nil {
+				t.Fatalf("Read failed: %v", err)
+			}
+			defer readCloser.Close()
+
+			readContent, err := io.ReadAll(readCloser)
+			if err != nil {
+				t.Fatalf("ReadAll failed: %v", err)
+			}
+			if diff := cmp.Diff(tc.content, string(readContent)); diff != "" {
+				t.Errorf("Read() content mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }
