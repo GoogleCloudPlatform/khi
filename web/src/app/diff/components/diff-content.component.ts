@@ -16,6 +16,7 @@
 
 import {
   Component,
+  computed,
   effect,
   HostListener,
   inject,
@@ -35,6 +36,8 @@ import { ReadonlyDomainElement } from 'src/app/store/domain/types';
 import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-bar.component';
 import { SearchScope } from 'src/app/services/view-state.service';
 import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
+import { ManagedFieldsAnnotationProvider } from 'src/app/shared/components/yaml-viewer/managed-fields-annotation.provider';
+import * as yaml from 'js-yaml';
 
 /**
  * Component for displaying the unified diff of a resource revision.
@@ -122,6 +125,49 @@ export class DiffContentComponent {
    * Signal holding the 1-based index of the active diff block.
    */
   public readonly currentDiffIndex = signal(0);
+
+  /**
+   * The timezone shift in hours from UTC.
+   */
+  readonly timezoneShift = input.required<number>();
+
+  /**
+   * Providers for YAML annotations like tooltips.
+   */
+  public readonly annotationProviders = computed(() => {
+    // If showManagedFields is true, the YAML viewer's parsed yaml will contain metadata.managedFields,
+    // so the provider can extract it naturally.
+    if (this.showManagedFields()) {
+      return [new ManagedFieldsAnnotationProvider(this.timezoneShift())];
+    }
+
+    // If showManagedFields is false, the managedFields are stripped from the displayed YAML.
+    // To still show tooltips on other fields, we extract the managedFields from the original unstripped YAML
+    // and provide them explicitly to the provider.
+    const revision = this.currentRevision();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let overrideFields: any[] | undefined = undefined;
+
+    if (revision && revision.bodyYAML) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const yamlData = yaml.load(revision.bodyYAML) as any;
+        if (
+          yamlData &&
+          yamlData['metadata'] &&
+          yamlData['metadata']['managedFields']
+        ) {
+          overrideFields = yamlData['metadata']['managedFields'];
+        }
+      } catch (e) {
+        console.warn('Failed to parse original YAML for managedFields:', e);
+      }
+    }
+
+    return [
+      new ManagedFieldsAnnotationProvider(this.timezoneShift(), overrideFields),
+    ];
+  });
 
   /**
    * Initializes the component.

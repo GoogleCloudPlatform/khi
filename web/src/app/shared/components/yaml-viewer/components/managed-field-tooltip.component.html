@@ -1,0 +1,11 @@
+<div class="tooltip-header">
+  <mat-icon>history</mat-icon>
+  <span>Managed by:</span>
+</div>
+<div class="tooltip-body">
+  <div><strong>Manager:</strong> {{ manager() }}</div>
+  <div>
+    <strong>Time:</strong>
+    {{ timeMs() | date: "yyyy-MM-dd HH:mm:ss" : timezoneString() }}
+  </div>
+</div>

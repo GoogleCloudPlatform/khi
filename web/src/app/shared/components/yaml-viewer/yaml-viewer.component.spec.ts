@@ -117,17 +117,29 @@ describe('YamlViewerComponent', () => {
     expect(nsLine?.lineNumber).toBe(3); // Line number 3: namespace
   });
 
-  it('should bind tooltips to specified JSON paths', () => {
+  it('should bind annotations to specified JSON paths', () => {
     fixture.componentRef.setInput('rightYaml', 'metadata:\n  name: my-pod');
-    fixture.componentRef.setInput('tooltips', {
-      'metadata.name': 'Specifies resource name',
-    });
+    
+    class FakeProvider {
+      getAnnotations() {
+        return [
+          {
+            path: ['metadata', 'name'],
+            component: {} as any,
+            inputs: { testData: 'Specifies resource name' },
+          }
+        ];
+      }
+    }
+    
+    fixture.componentRef.setInput('annotationProviders', [new FakeProvider()]);
     fixture.detectChanges();
 
     const lines = component.lines();
     const nameLine = lines.find((l) => l.key === 'name');
     expect(nameLine).toBeTruthy();
-    expect(nameLine?.tooltip).toBe('Specifies resource name');
+    expect(nameLine?.annotation).toBeTruthy();
+    expect(nameLine?.annotation?.inputs?.['testData']).toBe('Specifies resource name');
   });
 
   it('should split text into highlighted segments matching the query across key and value', () => {
