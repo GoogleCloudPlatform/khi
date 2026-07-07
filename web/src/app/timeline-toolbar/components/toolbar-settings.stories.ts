@@ -20,7 +20,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarSettingsComponent } from 'src/app/timeline-toolbar/components/toolbar-settings.component';
 
 const meta: Meta<ToolbarSettingsComponent> = {
-  title: 'Timeline/Components/ToolbarSettings',
+  title: 'Timeline/Toolbar/ToolbarSettings',
   component: ToolbarSettingsComponent,
   tags: ['autodocs'],
   decorators: [

@@ -104,7 +104,7 @@ sharedStyleStore.addLogTypes([
 ]);
 
 const meta: Meta<TimelineRulerComponent> = {
-  title: 'Timeline/TimelineRuler',
+  title: 'Timeline/Main/TimelineRuler',
   component: TimelineRulerComponent,
   tags: ['autodocs'],
   decorators: [

@@ -26,7 +26,7 @@ import { Timeline, Revision, Event } from 'src/app/store/domain/timeline';
 import { Log } from 'src/app/store/domain/log';
 
 const meta: Meta<TimelineHoverOverlayComponent> = {
-  title: 'Timeline/Hover Overlay',
+  title: 'Timeline/Main/TimelineHoverOverlay',
   component: TimelineHoverOverlayComponent,
   tags: ['autodocs'],
 };

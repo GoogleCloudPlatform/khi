@@ -18,7 +18,7 @@ import { Meta, StoryObj } from '@storybook/angular';
 import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-bar.component';
 
 export default {
-  title: 'shared/SearchBar',
+  title: 'Shared/SearchBar',
   component: SearchBarComponent,
 } as Meta<SearchBarComponent>;
 

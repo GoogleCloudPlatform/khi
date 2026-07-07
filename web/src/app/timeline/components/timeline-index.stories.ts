@@ -25,7 +25,7 @@ import { LogStore } from 'src/app/store/domain/log-store';
 import { Timeline } from 'src/app/store/domain/timeline';
 
 const meta: Meta<TimelineIndexComponent> = {
-  title: 'Timeline/Index',
+  title: 'Timeline/Main/TimelineIndex',
   component: TimelineIndexComponent,
   tags: ['autodocs'],
   parameters: {

@@ -18,7 +18,7 @@ import { Meta, StoryObj } from '@storybook/angular';
 import { IconToggleButtonComponent } from './icon-toggle-button.component';
 
 const meta: Meta<IconToggleButtonComponent> = {
-  title: 'Shared/Components/IconToggleButton',
+  title: 'Shared/IconToggleButton',
   component: IconToggleButtonComponent,
   tags: ['autodocs'],
   args: {

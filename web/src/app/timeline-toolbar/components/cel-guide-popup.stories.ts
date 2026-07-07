@@ -24,7 +24,7 @@ import {
 } from 'src/app/timeline-toolbar/components/cel-guide-popup.component';
 
 const meta: Meta<CelGuidePopupComponent> = {
-  title: 'Timeline/Components/CelGuidePopup',
+  title: 'Timeline/Toolbar/CelGuidePopup',
   component: CelGuidePopupComponent,
   tags: ['autodocs'],
   decorators: [
