@@ -35,7 +35,7 @@ Welcome to the latest version of KHI! This update significantly improves the eff
 `;
 
 export default {
-  title: 'Dialogs/ReleaseNotesLayout',
+  title: 'Dialogs/ReleaseNotes/ReleaseNotesLayout',
   component: ReleaseNotesLayoutComponent,
   decorators: [
     moduleMetadata({

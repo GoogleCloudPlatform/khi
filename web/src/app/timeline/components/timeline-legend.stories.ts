@@ -24,7 +24,7 @@ import { LogStore } from 'src/app/store/domain/log-store';
 import { RevisionStateStyle } from 'src/app/store/domain/style';
 
 const meta: Meta<TimelineLegendComponent> = {
-  title: 'Timeline/Legend',
+  title: 'Timeline/Main/TimelineLegend',
   component: TimelineLegendComponent,
   tags: ['autodocs'],
   args: {

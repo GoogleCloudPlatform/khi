@@ -20,7 +20,7 @@ import { createMockInspectionData } from 'src/app/store/mock/inspection-data.moc
 import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 const meta: Meta<LogViewLogLineComponent> = {
-  title: 'Log/LogViewLogLineComponent',
+  title: 'Log/LogViewLogLine',
   component: LogViewLogLineComponent,
   tags: ['autodocs'],
   decorators: [

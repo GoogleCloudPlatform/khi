@@ -19,7 +19,7 @@ import { InspectionListComponent } from './inspection-list.component';
 import { InspectionListItemViewModel } from '../types/inspection-activity.model';
 
 const meta: Meta<InspectionListComponent> = {
-  title: 'Dialogs/Startup/InspectionListComponent',
+  title: 'Dialogs/Startup/InspectionList',
   component: InspectionListComponent,
   tags: ['autodocs'],
 };

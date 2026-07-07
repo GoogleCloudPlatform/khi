@@ -55,7 +55,7 @@ const MOCK_TIMELINE_TYPES: TimelineType[] = [
 ];
 
 const meta: Meta<TimelineFilterBuilderComponent> = {
-  title: 'Timeline/Components/TimelineFilterBuilder',
+  title: 'Timeline/Toolbar/TimelineFilterBuilder',
   component: TimelineFilterBuilderComponent,
   tags: ['autodocs'],
   decorators: [

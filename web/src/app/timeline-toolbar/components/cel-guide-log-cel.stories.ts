@@ -20,7 +20,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { CelGuideLogCelComponent } from 'src/app/timeline-toolbar/components/cel-guide-log-cel.component';
 
 const meta: Meta<CelGuideLogCelComponent> = {
-  title: 'Timeline/Components/CelGuideLogCel',
+  title: 'Timeline/Toolbar/CelGuideLogCel',
   component: CelGuideLogCelComponent,
   tags: ['autodocs'],
   decorators: [

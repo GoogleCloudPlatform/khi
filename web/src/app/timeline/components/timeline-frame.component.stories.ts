@@ -304,7 +304,7 @@ class TimelineFrameStoriesComponent {
 }
 
 const meta: Meta<TimelineFrameStoriesComponent> = {
-  title: 'Timeline/Frame',
+  title: 'Timeline/Main/TimelineFrame',
   component: TimelineFrameStoriesComponent,
   tags: ['autodocs'],
   parameters: {

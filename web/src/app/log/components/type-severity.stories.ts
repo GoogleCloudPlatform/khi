@@ -20,7 +20,7 @@ import { createMockInspectionData } from 'src/app/store/mock/inspection-data.moc
 import { InspectionData } from 'src/app/store/domain/inspection-data';
 
 const meta: Meta<TypeSeverityComponent> = {
-  title: 'Log/TypeSeverityComponent',
+  title: 'Log/TypeSeverity',
   component: TypeSeverityComponent,
   tags: ['autodocs'],
   args: {},

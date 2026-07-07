@@ -20,7 +20,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { CelInputComponent } from 'src/app/timeline-toolbar/components/cel-input.component';
 
 const meta: Meta<CelInputComponent> = {
-  title: 'Timeline/Components/CelInput',
+  title: 'Timeline/Toolbar/CelInput',
   component: CelInputComponent,
   tags: ['autodocs'],
   decorators: [
