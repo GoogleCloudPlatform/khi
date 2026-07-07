@@ -17,6 +17,15 @@
 import { Type } from '@angular/core';
 
 /**
+ * Severity level of the annotation to determine the underline color.
+ */
+export enum AnnotationSeverity {
+  Low = 1,
+  Medium = 2,
+  High = 3,
+}
+
+/**
  * Represents a visual annotation attached to a specific YAML path.
  *
  * This architecture guarantees that a dynamic component is always rendered.
@@ -30,6 +39,9 @@ export interface YamlFieldAnnotation {
 
   /** Provides the data to bind to the dynamically instantiated component's inputs. */
   readonly inputs?: Record<string, unknown>;
+
+  /** Severity of this annotation */
+  readonly severity: AnnotationSeverity;
 }
 
 /**

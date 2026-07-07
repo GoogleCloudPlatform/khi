@@ -356,12 +356,30 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 		bodyNode = bodyReader.Node
 	}
 
+	var fieldAnnotations []*khifilev6.StagingFieldAnnotation
+	for _, hook := range k8sFieldSet.MutatingWebhookResults {
+		if hook.Mutated {
+			for _, p := range hook.Patch {
+				fieldAnnotations = append(fieldAnnotations, &khifilev6.StagingFieldAnnotation{
+					FieldPath: p.Path,
+					MutatingWebhook: &khifilev6.StagingMutatingWebhook{
+						Configuration: hook.Configuration,
+						Webhook:       hook.Webhook,
+						Round:         int32(hook.Round),
+						Index:         int32(hook.Index),
+					},
+				})
+			}
+		}
+	}
+
 	cs.AddRevision(targetPath, &khifilev6.StagingRevision{
-		ChangedTime:  commonFieldSet.Timestamp,
-		ResourceBody: bodyNode,
-		Principal:    k8sFieldSet.Principal,
-		VerbType:     k8sFieldSet.Verb,
-		StateType:    state,
+		ChangedTime:      commonFieldSet.Timestamp,
+		ResourceBody:     bodyNode,
+		Principal:        k8sFieldSet.Principal,
+		VerbType:         k8sFieldSet.Verb,
+		StateType:        state,
+		FieldAnnotations: fieldAnnotations,
 	})
 	return prevGroupData, nil
 }

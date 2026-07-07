@@ -15,6 +15,8 @@
 package googlecloudlogk8saudit_contract
 
 import (
+	"encoding/json"
+	"strconv"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -55,6 +57,81 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	result.IsError = result.StatusCode != 0
 	result.Request, _ = reader.GetReader("protoPayload.request")
 	result.Response, _ = reader.GetReader("protoPayload.response")
+
+	type roundIndex struct{ round, index int }
+	webhookResults := make(map[roundIndex]*commonlogk8saudit_contract.MutatingWebhookResult)
+
+	getOrCreateResult := func(round, index int) *commonlogk8saudit_contract.MutatingWebhookResult {
+		ri := roundIndex{round, index}
+		if res, ok := webhookResults[ri]; ok {
+			return res
+		}
+		res := &commonlogk8saudit_contract.MutatingWebhookResult{
+			Round: round,
+			Index: index,
+		}
+		webhookResults[ri] = res
+		return res
+	}
+
+	labelsReader, _ := reader.GetReader("labels")
+	if labelsReader != nil {
+		labelsReader.Children()(func(key structured.NodeChildrenKey, value structured.NodeReader) bool {
+			keyStr := key.Key
+			var prefix string
+			switch {
+			case strings.HasPrefix(keyStr, commonlogk8saudit_contract.MutatingWebhookMutationPrefix+"round_"):
+				prefix = commonlogk8saudit_contract.MutatingWebhookMutationPrefix
+			case strings.HasPrefix(keyStr, commonlogk8saudit_contract.MutatingWebhookPatchPrefix+"round_"):
+				prefix = commonlogk8saudit_contract.MutatingWebhookPatchPrefix
+			case strings.HasPrefix(keyStr, commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix+"round_"):
+				prefix = commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix
+			}
+
+			if prefix != "" {
+				suffix := strings.TrimPrefix(keyStr, prefix+"round_")
+				parts := strings.Split(suffix, "_index_")
+				if len(parts) == 2 {
+					round, err1 := strconv.Atoi(parts[0])
+					index, err2 := strconv.Atoi(parts[1])
+					if err1 == nil && err2 == nil {
+						res := getOrCreateResult(round, index)
+						valStr, err := value.ReadString("")
+						if err == nil {
+							switch prefix {
+							case commonlogk8saudit_contract.MutatingWebhookMutationPrefix:
+								var mutationInfo commonlogk8saudit_contract.MutatingWebhookMutationInfo
+								if json.Unmarshal([]byte(valStr), &mutationInfo) == nil {
+									res.Configuration = mutationInfo.Configuration
+									res.Webhook = mutationInfo.Webhook
+									res.Mutated = mutationInfo.Mutated
+								}
+							case commonlogk8saudit_contract.MutatingWebhookPatchPrefix:
+								var patchInfo commonlogk8saudit_contract.MutatingWebhookPatchInfo
+								if json.Unmarshal([]byte(valStr), &patchInfo) == nil {
+									res.Patch = patchInfo.Patch
+									if res.Configuration == "" {
+										res.Configuration = patchInfo.Configuration
+									}
+									if res.Webhook == "" {
+										res.Webhook = patchInfo.Webhook
+									}
+								}
+							case commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix:
+								res.FailedOpen = true
+							}
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+
+	for _, res := range webhookResults {
+		result.MutatingWebhookResults = append(result.MutatingWebhookResults, res)
+	}
+
 	return &result, nil
 }
 

@@ -171,6 +171,13 @@ export declare type Revision = Message<'khifile.v6.Revision'> & {
    * @generated from field: uint32 state_type = 6;
    */
   stateType: number;
+
+  /**
+   * Annotations providing metadata for specific fields in this revision.
+   *
+   * @generated from field: repeated khifile.v6.FieldAnnotation field_annotations = 7;
+   */
+  fieldAnnotations: FieldAnnotation[];
 };
 
 /**
@@ -198,3 +205,85 @@ export declare type Event = Message<'khifile.v6.Event'> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export declare const EventSchema: GenMessage<Event>;
+
+/**
+ * FieldAnnotation represents UI-rendered metadata (like tooltips or chips)
+ * attached to a specific field path in the resource body.
+ *
+ * @generated from message khifile.v6.FieldAnnotation
+ */
+export declare type FieldAnnotation = Message<'khifile.v6.FieldAnnotation'> & {
+  /**
+   * ID of the InternString message for the JSONPatch path of the field
+   * (e.g., "/metadata/annotations/cloud.google.com~1neg").
+   *
+   * @generated from field: uint32 field_path_string_id = 1;
+   */
+  fieldPathStringId: number;
+
+  /**
+   * The actual payload for this field annotation.
+   *
+   * @generated from oneof khifile.v6.FieldAnnotation.payload
+   */
+  payload:
+    | {
+        /**
+         * Information about a mutating webhook that modified this field.
+         *
+         * @generated from field: khifile.v6.MutatingWebhookTooltip mutating_webhook = 2;
+         */
+        value: MutatingWebhookTooltip;
+        case: 'mutatingWebhook';
+      }
+    | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message khifile.v6.FieldAnnotation.
+ * Use `create(FieldAnnotationSchema)` to create a new message.
+ */
+export declare const FieldAnnotationSchema: GenMessage<FieldAnnotation>;
+
+/**
+ * MutatingWebhookTooltip contains information about a mutating webhook
+ * parsed from audit log annotations.
+ *
+ * @generated from message khifile.v6.MutatingWebhookTooltip
+ */
+export declare type MutatingWebhookTooltip =
+  Message<'khifile.v6.MutatingWebhookTooltip'> & {
+    /**
+     * ID of the InternString message representing the MutatingWebhookConfiguration name.
+     *
+     * @generated from field: uint32 configuration_string_id = 1;
+     */
+    configurationStringId: number;
+
+    /**
+     * ID of the InternString message representing the Webhook name.
+     *
+     * @generated from field: uint32 webhook_string_id = 2;
+     */
+    webhookStringId: number;
+
+    /**
+     * The round number of the mutating webhook evaluation.
+     *
+     * @generated from field: int32 round = 3;
+     */
+    round: number;
+
+    /**
+     * The index of the mutating webhook evaluation within the round.
+     *
+     * @generated from field: int32 index = 4;
+     */
+    index: number;
+  };
+
+/**
+ * Describes the message khifile.v6.MutatingWebhookTooltip.
+ * Use `create(MutatingWebhookTooltipSchema)` to create a new message.
+ */
+export declare const MutatingWebhookTooltipSchema: GenMessage<MutatingWebhookTooltip>;

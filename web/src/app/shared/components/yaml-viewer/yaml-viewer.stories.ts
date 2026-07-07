@@ -19,14 +19,17 @@ import { YamlViewerComponent } from './yaml-viewer.component';
 import {
   YamlAnnotationProvider,
   YamlFieldAnnotation,
+  AnnotationSeverity,
 } from 'src/app/shared/components/yaml-viewer/yaml-annotation';
 import { ManagedFieldTooltipComponent } from 'src/app/shared/components/yaml-viewer/components/managed-field-tooltip.component';
 
 class MockAnnotationProvider implements YamlAnnotationProvider {
-  constructor(private readonly tooltipMap: Record<string, string>) {}
+  constructor(
+    private readonly tooltipMap: Record<string, AnnotationSeverity>,
+  ) {}
   getAnnotations(): YamlFieldAnnotation[] {
     const annotations: YamlFieldAnnotation[] = [];
-    for (const [pathStr] of Object.entries(this.tooltipMap)) {
+    for (const [pathStr, severity] of Object.entries(this.tooltipMap)) {
       const path = pathStr.split('.');
       annotations.push({
         path: path,
@@ -36,6 +39,7 @@ class MockAnnotationProvider implements YamlAnnotationProvider {
           operation: 'Update',
           time: '2026-06-29T11:00:00Z',
         },
+        severity: severity,
       });
     }
     return annotations;
@@ -159,8 +163,9 @@ export const TooltipsDemo: Story = {
     rightYaml: rightYamlMock,
     annotationProviders: [
       new MockAnnotationProvider({
-        'metadata.name': 'This is the unique name of the Kubernetes resource.',
-        'spec.replicas': 'Defines the number of desired pod replicas.',
+        'metadata.name': AnnotationSeverity.Low,
+        'spec.replicas': AnnotationSeverity.Medium,
+        'status.conditions': AnnotationSeverity.High,
       }),
     ],
   },

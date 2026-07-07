@@ -17,8 +17,12 @@ package googlecloudlogk8saudit_contract
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	commonlogk8saudit_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/commonlogk8saudit/contract"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestParseKubernetesOperation(t *testing.T) {
@@ -99,6 +103,141 @@ func TestParseKubernetesOperation(t *testing.T) {
 			}
 			if verb != tc.wantVerb {
 				t.Errorf("verb mismatch: want %v, got %v", tc.wantVerb, verb)
+			}
+		})
+	}
+}
+
+func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
+	testCases := []struct {
+		name  string
+		input string
+		want  *commonlogk8saudit_contract.K8sAuditLogFieldSet
+	}{
+		{
+			name: "basic fields",
+			input: `{
+				"operation": {
+					"id": "test-op-1",
+					"first": true,
+					"last": false
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods/nginx",
+					"methodName": "io.k8s.core.v1.pods.create",
+					"authenticationInfo": {
+						"principalEmail": "admin@example.com"
+					},
+					"status": {
+						"code": 0
+					}
+				}
+			}`,
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				OperationID:  "test-op-1",
+				IsFirst:      true,
+				IsLast:       false,
+				RequestURI:   "core/v1/namespaces/default/pods/nginx",
+				APIVersion:   "core/v1",
+				PluralKind:   "pods",
+				Namespace:    "default",
+				ResourceName: "nginx",
+				ClusterName:  "unknown",
+				Verb:         commonlogk8saudit_contract.VerbCreate,
+				Principal:    "admin@example.com",
+				StatusCode:   0,
+				IsError:      false,
+			},
+		},
+		{
+			name: "with mutating webhook annotations",
+			input: `{
+				"labels": {
+					"mutation.webhook.admission.k8s.io/round_0_index_0": "{\"configuration\":\"my-config\",\"webhook\":\"my-webhook\",\"mutated\":true}",
+					"patch.webhook.admission.k8s.io/round_0_index_0": "{\"configuration\":\"my-config\",\"webhook\":\"my-webhook\",\"patch\":[{\"op\":\"add\",\"path\":\"/metadata/annotations/my-annotation\",\"value\":\"foo\"}],\"patchType\":\"JSONPatch\"}",
+					"mutation.webhook.admission.k8s.io/round_1_index_0": "{\"configuration\":\"my-config-2\",\"webhook\":\"my-webhook-2\",\"mutated\":false}",
+					"failed-open.mutation.webhook.admission.k8s.io/round_2_index_0": "my-webhook-3"
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods/nginx",
+					"methodName": "io.k8s.core.v1.pods.create"
+				}
+			}`,
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				RequestURI:   "core/v1/namespaces/default/pods/nginx",
+				APIVersion:   "core/v1",
+				PluralKind:   "pods",
+				Namespace:    "default",
+				ResourceName: "nginx",
+				ClusterName:  "unknown",
+				Verb:         commonlogk8saudit_contract.VerbCreate,
+				MutatingWebhookResults: []*commonlogk8saudit_contract.MutatingWebhookResult{
+					{
+						Round:         0,
+						Index:         0,
+						Configuration: "my-config",
+						Webhook:       "my-webhook",
+						Mutated:       true,
+						Patch: []commonlogk8saudit_contract.MutatingWebhookPatch{
+							{
+								Op:    "add",
+								Path:  "/metadata/annotations/my-annotation",
+								Value: "foo",
+							},
+						},
+						FailedOpen: false,
+					},
+					{
+						Round:         1,
+						Index:         0,
+						Configuration: "my-config-2",
+						Webhook:       "my-webhook-2",
+						Mutated:       false,
+						Patch:         nil,
+						FailedOpen:    false,
+					},
+					{
+						Round:         2,
+						Index:         0,
+						Configuration: "",
+						Webhook:       "",
+						Mutated:       false,
+						Patch:         nil,
+						FailedOpen:    true,
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node, err := structured.FromYAML(tc.input)
+			if err != nil {
+				t.Fatalf("failed to parse test input: %v", err)
+			}
+			reader := &GCPK8sAuditLogFieldSetReader{}
+			got, err := reader.Read(structured.NewNodeReader(node))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			gotFieldSet, ok := got.(*commonlogk8saudit_contract.K8sAuditLogFieldSet)
+			if !ok {
+				t.Fatalf("returned field set is not *K8sAuditLogFieldSet")
+			}
+
+			// Clear uncomparable fields
+			gotFieldSet.Request = nil
+			gotFieldSet.Response = nil
+
+			if diff := cmp.Diff(tc.want, gotFieldSet, cmpopts.SortSlices(func(a, b *commonlogk8saudit_contract.MutatingWebhookResult) bool {
+				if a.Round != b.Round {
+					return a.Round < b.Round
+				}
+				return a.Index < b.Index
+			}), protocmp.Transform()); diff != "" {
+				t.Errorf("Read() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

@@ -116,8 +116,18 @@ limitations under the License.
               @if (seg.isKey) {
                 <span
                   class="yaml-key"
-                  [khiDynamicTooltip]="line.annotation"
-                  [class.has-tooltip]="!!line.annotation"
+                  [khiDynamicTooltip]="
+                    line.annotations?.length ? line.annotations : undefined
+                  "
+                  [class.has-tooltip-low]="
+                    line.maxSeverity === AnnotationSeverity.Low
+                  "
+                  [class.has-tooltip-medium]="
+                    line.maxSeverity === AnnotationSeverity.Medium
+                  "
+                  [class.has-tooltip-high]="
+                    line.maxSeverity === AnnotationSeverity.High
+                  "
                 >
                   @if (seg.isMatch) {
                     <mark class="search-highlight">{{ seg.text }}</mark>
@@ -137,8 +147,18 @@ limitations under the License.
                 <span
                   class="yaml-value"
                   [ngClass]="'yaml-' + line.valueType"
-                  [khiDynamicTooltip]="line.annotation"
-                  [class.has-tooltip]="!!line.annotation"
+                  [khiDynamicTooltip]="
+                    line.annotations?.length ? line.annotations : undefined
+                  "
+                  [class.has-tooltip-low]="
+                    line.maxSeverity === AnnotationSeverity.Low
+                  "
+                  [class.has-tooltip-medium]="
+                    line.maxSeverity === AnnotationSeverity.Medium
+                  "
+                  [class.has-tooltip-high]="
+                    line.maxSeverity === AnnotationSeverity.High
+                  "
                 >
                   <span
                     [class.diff-char-added]="

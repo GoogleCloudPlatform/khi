@@ -1,0 +1,87 @@
+/**
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@use '@angular/material' as mat;
+@use '../../../../common.scss' as common;
+
+$tooltip-bg: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
+$tooltip-text: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$tooltip-label-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 300);
+
+:host {
+  display: inline-block;
+  width: max-content;
+  pointer-events: none;
+  max-width: 400px;
+}
+
+.tooltip-container {
+  display: grid;
+  background-color: $tooltip-bg;
+  color: $tooltip-text;
+  padding: 8px 12px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  gap: 4px 8px;
+  grid-template:
+    'title title' auto
+    'config-label config-value' auto
+    'webhook-label webhook-value' auto
+    'order-label order-value' auto
+    / auto 1fr;
+}
+
+.tooltip-title {
+  grid-area: title;
+  font-weight: bold;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.tooltip-label {
+  color: $tooltip-label-color;
+  font-size: 11px;
+}
+
+.tooltip-value {
+  font-family: monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.config-label {
+  grid-area: config-label;
+}
+
+.config-value {
+  grid-area: config-value;
+}
+
+.webhook-label {
+  grid-area: webhook-label;
+}
+
+.webhook-value {
+  grid-area: webhook-value;
+}
+
+.order-label {
+  grid-area: order-label;
+}
+
+.order-value {
+  grid-area: order-value;
+}

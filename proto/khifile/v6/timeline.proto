@@ -62,10 +62,39 @@ message Revision {
   uint32 verb_type = 5;
   // The state type after this revision. ID of StateType in TimelineStyleChunk.
   uint32 state_type = 6;
+  // Annotations providing metadata for specific fields in this revision.
+  repeated FieldAnnotation field_annotations = 7;
 }
 
 // Event represents a log associated on specific timeline.
 message Event {
   // ID of a Log defined in LogChunk.
   uint32 log_id = 1;
+}
+
+// FieldAnnotation represents UI-rendered metadata (like tooltips or chips) 
+// attached to a specific field path in the resource body.
+message FieldAnnotation {
+  // ID of the InternString message for the JSONPatch path of the field 
+  // (e.g., "/metadata/annotations/cloud.google.com~1neg").
+  uint32 field_path_string_id = 1;
+
+  // The actual payload for this field annotation.
+  oneof payload {
+    // Information about a mutating webhook that modified this field.
+    MutatingWebhookTooltip mutating_webhook = 2;
+  }
+}
+
+// MutatingWebhookTooltip contains information about a mutating webhook 
+// parsed from audit log annotations.
+message MutatingWebhookTooltip {
+  // ID of the InternString message representing the MutatingWebhookConfiguration name.
+  uint32 configuration_string_id = 1;
+  // ID of the InternString message representing the Webhook name.
+  uint32 webhook_string_id = 2;
+  // The round number of the mutating webhook evaluation.
+  int32 round = 3;
+  // The index of the mutating webhook evaluation within the round.
+  int32 index = 4;
 }

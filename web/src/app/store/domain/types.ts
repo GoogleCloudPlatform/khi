@@ -55,3 +55,21 @@ export function isSharedBuffer(
 ): boolean {
   return isSharedArrayBufferSupported() && buffer instanceof SharedArrayBuffer;
 }
+
+/**
+ * Information about a mutating webhook parsed from audit log annotations.
+ */
+export interface MutatingWebhookAnnotation {
+  readonly configuration: string;
+  readonly webhook: string;
+  readonly round: number;
+  readonly index: number;
+}
+
+/**
+ * Represents a field annotation on a revision.
+ */
+export interface DomainFieldAnnotation {
+  readonly fieldPath: string;
+  readonly mutatingWebhook?: MutatingWebhookAnnotation;
+}

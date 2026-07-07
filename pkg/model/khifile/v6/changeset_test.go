@@ -100,6 +100,18 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 
 	stagingRev := &khifilev6.StagingRevision{
 		ChangedTime: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
+		FieldAnnotations: []*khifilev6.StagingFieldAnnotation{
+			{
+				FieldPath: "spec.containers",
+			},
+			{
+				FieldPath: "metadata.annotations",
+				MutatingWebhook: &khifilev6.StagingMutatingWebhook{
+					Configuration: "test-config",
+					Webhook:       "test-webhook",
+				},
+			},
+		},
 	}
 	cs.AddRevision(path, stagingRev)
 
@@ -116,5 +128,39 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 	builder := accumulator.GetBuilder(path)
 	if !builder.HasItems() {
 		t.Error("expected TimelineBuilder to have items")
+	}
+
+	protoItems := builder.ToProto()
+	revisions := protoItems.GetRevisions()
+	if len(revisions) != 1 {
+		t.Fatalf("expected 1 revision, got %d", len(revisions))
+	}
+
+	annotations := revisions[0].GetFieldAnnotations()
+	if len(annotations) != 2 {
+		t.Fatalf("expected 2 field annotations, got %d", len(annotations))
+	}
+
+	ann1 := annotations[0]
+	if ann1.GetFieldPathStringId() != pool.InternString("spec.containers").ToProto().GetId() {
+		t.Errorf("expected spec.containers ID")
+	}
+	if ann1.GetMutatingWebhook() != nil {
+		t.Errorf("expected no mutating webhook, got %v", ann1.GetMutatingWebhook())
+	}
+
+	ann2 := annotations[1]
+	if ann2.GetFieldPathStringId() != pool.InternString("metadata.annotations").ToProto().GetId() {
+		t.Errorf("expected metadata.annotations ID")
+	}
+	if ann2.GetMutatingWebhook() == nil {
+		t.Fatalf("expected mutating webhook, got nil")
+	}
+	mw := ann2.GetMutatingWebhook()
+	if mw.GetConfigurationStringId() != pool.InternString("test-config").ToProto().GetId() {
+		t.Errorf("expected test-config ID")
+	}
+	if mw.GetWebhookStringId() != pool.InternString("test-webhook").ToProto().GetId() {
+		t.Errorf("expected test-webhook ID")
 	}
 }

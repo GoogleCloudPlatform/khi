@@ -47,6 +47,7 @@ import {
 import {
   YamlAnnotationProvider,
   YamlFieldAnnotation,
+  AnnotationSeverity,
 } from 'src/app/shared/components/yaml-viewer/yaml-annotation';
 import { DynamicTooltipDirective } from 'src/app/shared/components/yaml-viewer/dynamic-tooltip.directive';
 
@@ -61,6 +62,7 @@ import { DynamicTooltipDirective } from 'src/app/shared/components/yaml-viewer/d
   imports: [CommonModule, DynamicTooltipDirective],
 })
 export class YamlViewerComponent implements AfterViewInit, OnDestroy {
+  protected readonly AnnotationSeverity = AnnotationSeverity;
   protected readonly DiffStatus = DiffStatus;
   protected readonly ValueType = ValueType;
 
@@ -191,26 +193,23 @@ export class YamlViewerComponent implements AfterViewInit, OnDestroy {
     let currentLineNumber = 1;
 
     // Compute annotations from rightObj.
-    const annotationMap = new Map<string, YamlFieldAnnotation>();
+    const annotationMap = new Map<string, YamlFieldAnnotation[]>();
     for (const provider of providers) {
       if (rightObj) {
         for (const ann of provider.getAnnotations(rightObj)) {
           // Join the path array to match diff-util's string format (e.g. "metadata.name")
-          const pathStr = (() => {
-            let pStr = '';
-            for (const p of ann.path) {
-              if (
-                typeof p === 'number' ||
-                (typeof p === 'string' && p.startsWith('['))
-              ) {
-                pStr += `[${p}]`;
-              } else {
-                pStr = pStr ? `${pStr}.${p}` : String(p);
-              }
-            }
-            return pStr;
-          })();
-          annotationMap.set(pathStr, ann);
+          const pathStr = ann.path
+            .map((p) =>
+              typeof p === 'number' ||
+              (typeof p === 'string' && p.startsWith('['))
+                ? `[${p}]`
+                : p,
+            )
+            .join('.');
+          if (!annotationMap.has(pathStr)) {
+            annotationMap.set(pathStr, []);
+          }
+          annotationMap.get(pathStr)!.push(ann);
         }
       }
     }
@@ -218,7 +217,17 @@ export class YamlViewerComponent implements AfterViewInit, OnDestroy {
     return flatLines.map((line) => {
       const lineCopy = { ...line };
       if (lineCopy.path && annotationMap.has(lineCopy.path)) {
-        lineCopy.annotation = annotationMap.get(lineCopy.path);
+        const annotations = annotationMap.get(lineCopy.path)!;
+        lineCopy.annotations = annotations;
+
+        let maxSeverity = AnnotationSeverity.Low;
+        for (const ann of annotations) {
+          const sev = ann.severity ?? AnnotationSeverity.Low;
+          if (sev > maxSeverity) {
+            maxSeverity = sev;
+          }
+        }
+        lineCopy.maxSeverity = maxSeverity;
       }
       if (
         lineCopy.diffStatus !== DiffStatus.Deleted &&
