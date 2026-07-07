@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -50,10 +51,7 @@ var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
 
 		inspectionType := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskType)
 
-		var taskInput any
-		if input, err := khictx.GetValue(ctx, inspectioncore_contract.InspectionTaskInput); err == nil {
-			taskInput = input
-		}
+		taskInput := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
 
 		formFields, found := typedmap.Get(metadataSet, inspectionmetadata.FormFieldSetMetadataKey)
 		if !found {
@@ -73,25 +71,23 @@ var JobModeCommandTask = inspectiontaskbase.NewInspectionTask(
 )
 
 // GenerateJobModeCommand formats a copy-pasteable command to execute KHI in job mode.
-func GenerateJobModeCommand(inspectionType string, enabledFeatures []string, taskInput any, fileFieldIDs []string) (string, error) {
+func GenerateJobModeCommand(inspectionType string, enabledFeatures []string, taskInput map[string]any, fileFieldIDs []string) (string, error) {
 	// Create a copy to avoid mutating the original features array.
 	featuresCopy := make([]string, len(enabledFeatures))
 	copy(featuresCopy, enabledFeatures)
 	slices.Sort(featuresCopy)
 	featuresStr := strings.Join(featuresCopy, ",")
 
-	values, _ := taskInput.(map[string]any)
+	values := taskInput
 	if len(fileFieldIDs) > 0 {
-		merged := make(map[string]any, len(values)+len(fileFieldIDs))
-		for k, v := range values {
-			merged[k] = v
+		values = maps.Clone(taskInput)
+		if values == nil {
+			values = map[string]any{}
 		}
 		for _, id := range fileFieldIDs {
-			merged[id] = "path/to/file"
+			values[id] = "path/to/file"
 		}
-		values = merged
 	}
-
 	var valuesStr string
 	if len(values) > 0 {
 		valuesBytes, err := json.MarshalIndent(values, "", "  ")

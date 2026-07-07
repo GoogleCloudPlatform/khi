@@ -25,7 +25,7 @@ func TestGenerateJobModeCommand(t *testing.T) {
 		name            string
 		inspectionType  string
 		enabledFeatures []string
-		taskInput       any
+		taskInput       map[string]any
 		fileFieldIDs    []string
 		want            string
 		wantErr         bool
