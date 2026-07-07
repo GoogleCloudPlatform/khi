@@ -65,8 +65,9 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 				return upload.DefaultUploadFileStore.LoadLocalFileResult(token, b.verifier), nil
 			}
 		}
-		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
-		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
+		fieldID := b.FormTaskBuilderBase.id.ReferenceIDString()
+		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, fieldID), b.verifier, fieldID)
+		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token, req)
 		if err != nil {
 			return upload.UploadResult{}, err
 		}

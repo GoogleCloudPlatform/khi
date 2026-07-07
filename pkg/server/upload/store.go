@@ -47,17 +47,22 @@ type UploadFileStore struct {
 	tokenHashes   map[string]interface{}
 	tokenHashLock sync.RWMutex
 	providers     map[string]UploadFileStoreProvider
+	fieldIDLock   sync.RWMutex
+	fieldIDs      map[string]string
 }
 
 // GetUploadToken returns the token to upload it from frontend.
 // The ID must be combination of a known string and random string to make it harder to guess it from outside.
-func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier) UploadToken {
+// It also records the form field ID issuing this token so mode-specific stores can look up the field's request value later.
+func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier, fieldID string) UploadToken {
 	s.resultLock.Lock()
 	s.verifierLock.Lock()
 	s.tokenHashLock.Lock()
+	s.fieldIDLock.Lock()
 	defer s.resultLock.Unlock()
 	defer s.verifierLock.Unlock()
 	defer s.tokenHashLock.Unlock()
+	defer s.fieldIDLock.Unlock()
 	token := s.StoreProvider.GetUploadToken(id)
 	s.tokenHashes[token.GetHash()] = struct{}{}
 	_, ok := s.results[token.GetID()]
@@ -68,11 +73,14 @@ func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier)
 		}
 	}
 	s.verifiers[token.GetID()] = verifier
+	s.fieldIDs[token.GetID()] = fieldID
 	return token
 }
 
 // GetResult returns the result of the upload with given token.
-func (s *UploadFileStore) GetResult(token UploadToken) (UploadResult, error) {
+// The req parameter is unused in this implementation; it exists
+// so job-mode stores can read local file paths from the request values.
+func (s *UploadFileStore) GetResult(token UploadToken, req map[string]any) (UploadResult, error) {
 	err := s.ensureIssuedToken(token)
 	if err != nil {
 		return UploadResult{}, err
@@ -185,6 +193,7 @@ func NewUploadFileStore(storeProvider UploadFileStoreProvider) *UploadFileStore 
 		verifiers:     make(map[string]UploadFileVerifier),
 		tokenHashes:   make(map[string]interface{}),
 		providers:     make(map[string]UploadFileStoreProvider),
+		fieldIDs:      make(map[string]string),
 	}
 }
 

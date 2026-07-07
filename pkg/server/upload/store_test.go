@@ -53,9 +53,9 @@ func TestUploadFileStore(t *testing.T) {
 		store := NewUploadFileStore(provider)
 		verifier := &MockUploadFileVerifier{}
 
-		token := store.GetUploadToken("test-id-1", verifier)
+		token := store.GetUploadToken("test-id-1", verifier, "test-field")
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -68,14 +68,14 @@ func TestUploadFileStore(t *testing.T) {
 		store := NewUploadFileStore(provider)
 		verifier := &MockUploadFileVerifier{}
 
-		token := store.GetUploadToken("test-id-2", verifier)
+		token := store.GetUploadToken("test-id-2", verifier, "test-field")
 
 		err := store.SetResultOnStartingUpload(token)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -88,7 +88,7 @@ func TestUploadFileStore(t *testing.T) {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		result, err = store.GetResult(token)
+		result, err = store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -97,7 +97,7 @@ func TestUploadFileStore(t *testing.T) {
 		}
 
 		<-time.After(100 * time.Microsecond)
-		result, err = store.GetResult(token)
+		result, err = store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -140,7 +140,7 @@ func TestUploadFileStore(t *testing.T) {
 			},
 		}
 
-		token := store.GetUploadToken("uploaderror-id", verifier)
+		token := store.GetUploadToken("uploaderror-id", verifier, "test-field")
 
 		err := store.SetResultOnStartingUpload(token) // Set initial status
 		if err != nil {
@@ -155,7 +155,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -180,7 +180,7 @@ func TestUploadFileStore(t *testing.T) {
 			},
 		}
 
-		token := store.GetUploadToken("verifyerror-id", verifier)
+		token := store.GetUploadToken("verifyerror-id", verifier, "test-field")
 		err := store.SetResultOnStartingUpload(token)
 		if err != nil {
 			t.Fatalf("Unexpected error on SetResultOnStartingUpload: %v", err)
@@ -193,7 +193,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond) // Allow verification goroutine to run.
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -217,7 +217,7 @@ func TestUploadFileStore(t *testing.T) {
 			},
 		}
 
-		token := store.GetUploadToken("test-id-4", verifier)
+		token := store.GetUploadToken("test-id-4", verifier, "test-field")
 
 		err := store.SetResultOnStartingUpload(token)
 		if err != nil {
@@ -244,7 +244,7 @@ func TestUploadFileStore(t *testing.T) {
 			t.Fatalf("SetResultOnCompletedUpload 2 error: %v", err)
 		}
 
-		result1, err := store.GetResult(token)
+		result1, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Fatalf("GetResult returns error: %v", err)
 		}
@@ -254,7 +254,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		<-time.After(500 * time.Millisecond)
 
-		result2, err := store.GetResult(token)
+		result2, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Fatalf("GetResult returns error: %v", err)
 		}
