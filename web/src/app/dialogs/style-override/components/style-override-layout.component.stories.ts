@@ -19,7 +19,7 @@ import { StyleOverrideLayoutComponent } from 'src/app/dialogs/style-override/com
 import { RevisionStateStyle } from 'src/app/store/domain/style';
 
 const meta: Meta<StyleOverrideLayoutComponent> = {
-  title: 'Dialogs/StyleOverrideLayout',
+  title: 'Dialogs/StyleOverride/StyleOverrideLayout',
   component: StyleOverrideLayoutComponent,
   tags: ['autodocs'],
 };

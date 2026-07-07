@@ -157,7 +157,7 @@ class TimelineChartStoriesComponent {
 }
 
 const meta: Meta<TimelineChartStoriesComponent> = {
-  title: 'Timeline/TimelineChart',
+  title: 'Timeline/Main/TimelineChart',
   component: TimelineChartStoriesComponent,
   tags: ['autodocs'],
   decorators: [

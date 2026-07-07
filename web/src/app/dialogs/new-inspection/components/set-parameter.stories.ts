@@ -30,7 +30,7 @@ const createParameterStoreMock = (initialValue: string[] = []) => ({
 });
 
 const meta: Meta<SetParameterComponent> = {
-  title: 'Dialogs/NewInspection/Components/SetParameter',
+  title: 'Dialogs/NewInspection/SetParameter',
   component: SetParameterComponent,
   tags: ['autodocs'],
   decorators: [

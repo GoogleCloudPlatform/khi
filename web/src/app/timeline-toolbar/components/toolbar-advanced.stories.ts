@@ -20,7 +20,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToolbarAdvancedComponent } from 'src/app/timeline-toolbar/components/toolbar-advanced.component';
 
 const meta: Meta<ToolbarAdvancedComponent> = {
-  title: 'Timeline/Components/ToolbarAdvanced',
+  title: 'Timeline/Toolbar/ToolbarAdvanced',
   component: ToolbarAdvancedComponent,
   tags: ['autodocs'],
   decorators: [

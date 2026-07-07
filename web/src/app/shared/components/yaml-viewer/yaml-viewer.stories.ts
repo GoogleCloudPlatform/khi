@@ -74,7 +74,7 @@ status:
       lastTransitionTime: "2026-06-29T11:15:00Z"`;
 
 const meta: Meta<YamlViewerComponent> = {
-  title: 'Shared/Components/YamlViewer',
+  title: 'Shared/YamlViewer',
   component: YamlViewerComponent,
   tags: ['autodocs'],
   argTypes: {

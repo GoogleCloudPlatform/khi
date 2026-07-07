@@ -35,7 +35,7 @@ const createProgressDecorator = (progress: CurrentProgress) =>
   });
 
 const meta: Meta<ProgressDialogComponent> = {
-  title: 'Dialogs/ProgressDialog',
+  title: 'Dialogs/Progress/Progress',
   component: ProgressDialogComponent,
   tags: ['autodocs'],
   decorators: [

@@ -20,7 +20,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { CelGuideOverviewComponent } from 'src/app/timeline-toolbar/components/cel-guide-overview.component';
 
 const meta: Meta<CelGuideOverviewComponent> = {
-  title: 'Timeline/Components/CelGuideOverview',
+  title: 'Timeline/Toolbar/CelGuideOverview',
   component: CelGuideOverviewComponent,
   tags: ['autodocs'],
   decorators: [

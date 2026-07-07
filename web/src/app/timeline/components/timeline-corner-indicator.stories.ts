@@ -18,7 +18,7 @@ import { componentWrapperDecorator, Meta, StoryObj } from '@storybook/angular';
 import { TimelineCornerIndicatorComponent } from './timeline-corner-indicator.component';
 
 const meta: Meta<TimelineCornerIndicatorComponent> = {
-  title: 'Timeline/CornerIndicator',
+  title: 'Timeline/Main/TimelineCornerIndicator',
   component: TimelineCornerIndicatorComponent,
   tags: ['autodocs'],
   parameters: {

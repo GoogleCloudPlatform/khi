@@ -18,7 +18,7 @@ import { Meta, moduleMetadata, StoryObj } from '@storybook/angular';
 import { MarkdownPopupComponent } from 'src/app/timeline/components/markdown-popup.component';
 
 export default {
-  title: 'Timeline/MarkdownPopup',
+  title: 'Timeline/Main/MarkdownPopup',
   component: MarkdownPopupComponent,
   decorators: [
     moduleMetadata({

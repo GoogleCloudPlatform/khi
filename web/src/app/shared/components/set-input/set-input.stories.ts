@@ -18,7 +18,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { SetInputComponent, SetInputItem } from './set-input.component';
 
 const meta: Meta<SetInputComponent> = {
-  title: 'Shared/Components/SetInput',
+  title: 'Shared/SetInput',
   component: SetInputComponent,
   tags: ['autodocs'],
   decorators: [
