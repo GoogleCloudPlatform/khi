@@ -154,9 +154,7 @@ func run() int {
 	}
 
 	upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
-	if *parameters.Job.JobMode {
-		upload.DefaultUploadFileStore.RegisterProvider((&upload.LocalFileUploadToken{}).GetType(), &upload.InPlaceUploadFileStoreProvider{})
-	}
+
 	if !*parameters.Job.JobMode {
 		slog.Info("Starting Kubernetes History Inspector server...")
 
@@ -202,6 +200,7 @@ func run() int {
 
 		displayStartMessage(*parameters.Server.Host, *parameters.Server.Port)
 	} else {
+		upload.DefaultUploadFileStore.RegisterProvider((&upload.LocalFileUploadToken{}).GetType(), &upload.InPlaceUploadFileStoreProvider{})
 		slog.Info("Starting Kubernetes History Inspector as job mode...")
 
 		go func() {
