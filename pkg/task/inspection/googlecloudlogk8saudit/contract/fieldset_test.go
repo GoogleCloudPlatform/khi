@@ -200,7 +200,7 @@ func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
 						Round:         2,
 						Index:         0,
 						Configuration: "",
-						Webhook:       "",
+						Webhook:       "my-webhook-3",
 						Mutated:       false,
 						Patch:         nil,
 						FailedOpen:    true,

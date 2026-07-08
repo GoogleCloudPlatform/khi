@@ -231,9 +231,9 @@ export declare type FieldAnnotation = Message<'khifile.v6.FieldAnnotation'> & {
         /**
          * Information about a mutating webhook that modified this field.
          *
-         * @generated from field: khifile.v6.MutatingWebhookTooltip mutating_webhook = 2;
+         * @generated from field: khifile.v6.MutatingWebhookInfo mutating_webhook = 2;
          */
-        value: MutatingWebhookTooltip;
+        value: MutatingWebhookInfo;
         case: 'mutatingWebhook';
       }
     | { case: undefined; value?: undefined };
@@ -246,13 +246,13 @@ export declare type FieldAnnotation = Message<'khifile.v6.FieldAnnotation'> & {
 export declare const FieldAnnotationSchema: GenMessage<FieldAnnotation>;
 
 /**
- * MutatingWebhookTooltip contains information about a mutating webhook
+ * MutatingWebhookInfo contains information about a mutating webhook
  * parsed from audit log annotations.
  *
- * @generated from message khifile.v6.MutatingWebhookTooltip
+ * @generated from message khifile.v6.MutatingWebhookInfo
  */
-export declare type MutatingWebhookTooltip =
-  Message<'khifile.v6.MutatingWebhookTooltip'> & {
+export declare type MutatingWebhookInfo =
+  Message<'khifile.v6.MutatingWebhookInfo'> & {
     /**
      * ID of the InternString message representing the MutatingWebhookConfiguration name.
      *
@@ -283,7 +283,7 @@ export declare type MutatingWebhookTooltip =
   };
 
 /**
- * Describes the message khifile.v6.MutatingWebhookTooltip.
- * Use `create(MutatingWebhookTooltipSchema)` to create a new message.
+ * Describes the message khifile.v6.MutatingWebhookInfo.
+ * Use `create(MutatingWebhookInfoSchema)` to create a new message.
  */
-export declare const MutatingWebhookTooltipSchema: GenMessage<MutatingWebhookTooltip>;
+export declare const MutatingWebhookInfoSchema: GenMessage<MutatingWebhookInfo>;

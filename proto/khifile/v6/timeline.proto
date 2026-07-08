@@ -82,13 +82,13 @@ message FieldAnnotation {
   // The actual payload for this field annotation.
   oneof payload {
     // Information about a mutating webhook that modified this field.
-    MutatingWebhookTooltip mutating_webhook = 2;
+    MutatingWebhookInfo mutating_webhook = 2;
   }
 }
 
-// MutatingWebhookTooltip contains information about a mutating webhook 
+// MutatingWebhookInfo contains information about a mutating webhook 
 // parsed from audit log annotations.
-message MutatingWebhookTooltip {
+message MutatingWebhookInfo {
   // ID of the InternString message representing the MutatingWebhookConfiguration name.
   uint32 configuration_string_id = 1;
   // ID of the InternString message representing the Webhook name.

@@ -219,7 +219,7 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 					var round int32 = int32(fa.MutatingWebhook.Round)
 					var index int32 = int32(fa.MutatingWebhook.Index)
 					pbAnn.Payload = &pb.FieldAnnotation_MutatingWebhook{
-						MutatingWebhook: &pb.MutatingWebhookTooltip{
+						MutatingWebhook: &pb.MutatingWebhookInfo{
 							ConfigurationStringId: &configRef.id,
 							WebhookStringId:       &webhookRef.id,
 							Round:                 &round,

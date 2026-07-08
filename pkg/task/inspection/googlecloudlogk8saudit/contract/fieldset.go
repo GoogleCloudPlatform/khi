@@ -119,6 +119,9 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 								}
 							case commonlogk8saudit_contract.MutatingWebhookFailedOpenPrefix:
 								res.FailedOpen = true
+								if res.Webhook == "" {
+									res.Webhook = valStr
+								}
 							}
 						}
 					}

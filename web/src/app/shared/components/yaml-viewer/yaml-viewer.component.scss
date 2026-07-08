@@ -383,35 +383,25 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
   }
 }
 
-.has-tooltip-low {
-  border-bottom: $tooltip-border-thickness dashed $tooltip-low-color;
+@mixin tooltip-style($color) {
+  border-bottom: $tooltip-border-thickness dashed $color;
   margin-bottom: -1 * $tooltip-border-thickness;
   cursor: help;
 
   &:hover {
-    border-bottom: 2 * $tooltip-border-thickness solid $tooltip-low-color;
+    border-bottom: 2 * $tooltip-border-thickness solid $color;
     margin-bottom: -2 * $tooltip-border-thickness;
   }
+}
+
+.has-tooltip-low {
+  @include tooltip-style($tooltip-low-color);
 }
 
 .has-tooltip-medium {
-  border-bottom: $tooltip-border-thickness dashed $tooltip-medium-color;
-  margin-bottom: -1 * $tooltip-border-thickness;
-  cursor: help;
-
-  &:hover {
-    border-bottom: 2 * $tooltip-border-thickness solid $tooltip-medium-color;
-    margin-bottom: -2 * $tooltip-border-thickness;
-  }
+  @include tooltip-style($tooltip-medium-color);
 }
 
 .has-tooltip-high {
-  border-bottom: $tooltip-border-thickness dashed $tooltip-high-color;
-  margin-bottom: -1 * $tooltip-border-thickness;
-  cursor: help;
-
-  &:hover {
-    border-bottom: 2 * $tooltip-border-thickness solid $tooltip-high-color;
-    margin-bottom: -2 * $tooltip-border-thickness;
-  }
+  @include tooltip-style($tooltip-high-color);
 }

@@ -102,10 +102,10 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 		ChangedTime: time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC),
 		FieldAnnotations: []*khifilev6.StagingFieldAnnotation{
 			{
-				FieldPath: "spec.containers",
+				FieldPath: "/spec/containers",
 			},
 			{
-				FieldPath: "metadata.annotations",
+				FieldPath: "/metadata/annotations",
 				MutatingWebhook: &khifilev6.StagingMutatingWebhook{
 					Configuration: "test-config",
 					Webhook:       "test-webhook",
@@ -142,16 +142,16 @@ func TestTimelineChangeSet_Flush(t *testing.T) {
 	}
 
 	ann1 := annotations[0]
-	if ann1.GetFieldPathStringId() != pool.InternString("spec.containers").ToProto().GetId() {
-		t.Errorf("expected spec.containers ID")
+	if ann1.GetFieldPathStringId() != pool.InternString("/spec/containers").ToProto().GetId() {
+		t.Errorf("expected /spec/containers ID")
 	}
 	if ann1.GetMutatingWebhook() != nil {
 		t.Errorf("expected no mutating webhook, got %v", ann1.GetMutatingWebhook())
 	}
 
 	ann2 := annotations[1]
-	if ann2.GetFieldPathStringId() != pool.InternString("metadata.annotations").ToProto().GetId() {
-		t.Errorf("expected metadata.annotations ID")
+	if ann2.GetFieldPathStringId() != pool.InternString("/metadata/annotations").ToProto().GetId() {
+		t.Errorf("expected /metadata/annotations ID")
 	}
 	if ann2.GetMutatingWebhook() == nil {
 		t.Fatalf("expected mutating webhook, got nil")
