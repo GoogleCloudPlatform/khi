@@ -153,11 +153,11 @@ func run() int {
 		uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
 	}
 
-	upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+	uploadFileStore := upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
 
 	if !*parameters.Job.JobMode {
 		slog.Info("Starting Kubernetes History Inspector server...")
-
+		upload.DefaultUploadFileStore = uploadFileStore
 		// Setting up options or parameters needed to instanciate gin.Engine
 		serverMode := gin.ReleaseMode
 
@@ -178,7 +178,7 @@ func run() int {
 			StaticFolderPath: *parameters.Server.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *parameters.Server.BasePath,
-			UploadFileStore:  upload.DefaultUploadFileStore,
+			UploadFileStore:  uploadFileStore,
 		}
 		engine, err := server.DefaultServerFactory.CreateInstance(serverMode)
 		if err != nil {
@@ -200,7 +200,7 @@ func run() int {
 
 		displayStartMessage(*parameters.Server.Host, *parameters.Server.Port)
 	} else {
-		upload.DefaultUploadFileStore.RegisterProvider((&upload.LocalFileUploadToken{}).GetType(), &upload.InPlaceUploadFileStoreProvider{})
+		upload.DefaultUploadFileStore = upload.NewJobModeUploadFileStore(uploadFileStore)
 		slog.Info("Starting Kubernetes History Inspector as job mode...")
 
 		go func() {

@@ -14,4 +14,11 @@
 
 package upload
 
-var DefaultUploadFileStore *UploadFileStore = nil
+// Store is the store interface form tasks depend on. Server mode and job mode
+// inject different implementations of it.
+type Store interface {
+	GetUploadToken(id string, verifier UploadFileVerifier, fieldID string) UploadToken
+	GetResult(token UploadToken, req map[string]any) (UploadResult, error)
+}
+
+var DefaultUploadFileStore Store = nil

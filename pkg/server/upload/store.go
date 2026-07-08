@@ -211,23 +211,3 @@ func (s *UploadFileStore) providerForToken(token UploadToken) UploadFileStorePro
 	}
 	return provider
 }
-
-// LoadLocalFileResult verifies a local file in place and returns a completed UploadResult.
-// Used in job mode, where the file already exists locally instead of being uploaded.
-func (s *UploadFileStore) LoadLocalFileResult(token UploadToken, verifier UploadFileVerifier) UploadResult {
-	provider := s.providerForToken(token)
-	verificationError := verifier.Verify(provider, token)
-	result := UploadResult{
-		Token:             token,
-		StoreProvider:     provider,
-		Status:            UploadStatusCompleted,
-		VerificationError: verificationError,
-	}
-	s.resultLock.Lock()
-	s.tokenHashLock.Lock()
-	defer s.resultLock.Unlock()
-	defer s.tokenHashLock.Unlock()
-	s.tokenHashes[token.GetHash()] = struct{}{}
-	s.results[token.GetID()] = result
-	return result
-}

@@ -264,16 +264,18 @@ func TestUploadFileStore(t *testing.T) {
 	})
 }
 
-func TestLoadLocalFileResult(t *testing.T) {
+func TestJobModeUploadFileStoreGetResult(t *testing.T) {
 	content := "hello world"
 
 	testCases := []struct {
 		name            string
+		pathInReq       bool
 		verifierError   error
 		wantVerifyError bool
 	}{
-		{name: "verification passes", verifierError: nil, wantVerifyError: false},
-		{name: "verification fails", verifierError: errors.New("bad file"), wantVerifyError: true},
+		{name: "verification passes", pathInReq: true, verifierError: nil, wantVerifyError: false},
+		{name: "verification fails", pathInReq: true, verifierError: errors.New("bad file"), wantVerifyError: true},
+		{name: "no path falls back to the upload flow", pathInReq: false},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -282,20 +284,30 @@ func TestLoadLocalFileResult(t *testing.T) {
 			if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 				t.Fatal(err)
 			}
-			store := NewUploadFileStore(NewLocalUploadFileStoreProvider(tempDir))
-			store.RegisterProvider((&LocalFileUploadToken{}).GetType(), &InPlaceUploadFileStoreProvider{})
+			store := NewJobModeUploadFileStore(NewUploadFileStore(NewLocalUploadFileStoreProvider(tempDir)))
 
-			token := &LocalFileUploadToken{FilePath: path}
-			result := store.LoadLocalFileResult(token, &NopWaitUploadFileVerifier{Error: tc.verifierError})
-			if result.Status != UploadStatusCompleted {
-				t.Errorf("Status = %v, want %v", result.Status, UploadStatusCompleted)
+			token := store.GetUploadToken("test-upload-id", &NopWaitUploadFileVerifier{Error: tc.verifierError}, "test-field")
+			req := map[string]any{}
+			if tc.pathInReq {
+				req["test-field"] = path
+			}
+			result, err := store.GetResult(token, req)
+			if err != nil {
+				t.Fatalf("GetResult returned an unexpected error: %v", err)
 			}
 
-			if (result.VerificationError != nil) != tc.wantVerifyError {
-				t.Errorf("Verification Error = %v, wantVerifyError = %v", result.VerificationError, tc.wantVerifyError)
+			if tc.pathInReq {
+				if result.Status != UploadStatusCompleted {
+					t.Errorf("Status = %v, want %v", result.Status, UploadStatusCompleted)
+				}
+				if (result.VerificationError != nil) != tc.wantVerifyError {
+					t.Errorf("VerificationError = %v, wantVerifyError = %v", result.VerificationError, tc.wantVerifyError)
+				}
+			} else if result.Status != UploadStatusWaiting {
+				t.Errorf("Status = %v, want %v", result.Status, UploadStatusWaiting)
 			}
 
-			if !tc.wantVerifyError {
+			if tc.pathInReq && !tc.wantVerifyError {
 				reader, err := result.GetReader()
 				if err != nil {
 					t.Fatalf("GetReader failed: %v", err)
@@ -306,7 +318,7 @@ func TestLoadLocalFileResult(t *testing.T) {
 					t.Fatalf("ReadAll failed: %v", err)
 				}
 				if diff := cmp.Diff(content, string(readContent)); diff != "" {
-					t.Errorf("Read() content mismatch (-want +got):\n%s", diff)
+					t.Errorf("content mismatch (-want +got):\n%s", diff)
 				}
 			}
 		})
