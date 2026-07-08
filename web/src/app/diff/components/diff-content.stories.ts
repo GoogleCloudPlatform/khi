@@ -86,6 +86,7 @@ const meta: Meta<DiffContentComponent> = {
     currentRevision: mockCurrentRevision,
     currentRevisionContent: currentContent,
     previousRevisionContent: previousContent,
+    timezoneShift: 9,
     showManagedFields: false,
   },
 };
@@ -104,6 +105,7 @@ export const Default: Story = {
           [currentRevision]="currentRevision"
           [currentRevisionContent]="currentRevisionContent"
           [previousRevisionContent]="previousRevisionContent"
+          [timezoneShift]="timezoneShift"
           [(showManagedFields)]="showManagedFields"
           (openInNewTab)="openInNewTab($event)"></khi-diff-content>
       </div>

@@ -55,7 +55,7 @@ $syntax-boolean-color: mat.m2-get-color-from-palette(
 $syntax-null-color: mat.m2-get-color-from-palette(mat.$m2-pink-palette, 800);
 $syntax-colon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
 
-$tooltip-border-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 400);
+$tooltip-border-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 100);
 
 $search-highlight-bg-color: mat.m2-get-color-from-palette(
   mat.$m2-yellow-palette,
@@ -69,6 +69,8 @@ $search-highlight-active-text-color: mat.m2-get-color-from-palette(
   mat.$m2-gray-palette,
   50
 );
+
+$tooltip-border-thickness: 0.5px;
 
 :host {
   display: block;
@@ -264,11 +266,10 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
 .yaml-key {
   color: $syntax-key-color;
   font-weight: bold;
-  display: contents;
   white-space: normal;
 
   &.has-tooltip {
-    border-bottom: 1px dashed $tooltip-border-color;
+    border-bottom: $tooltip-border-thickness dashed $tooltip-border-color;
     cursor: help;
   }
 
@@ -283,8 +284,12 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
 }
 
 .yaml-value {
-  display: contents;
   white-space: normal;
+
+  &.has-tooltip {
+    border-bottom: $tooltip-border-thickness dashed $tooltip-border-color;
+    cursor: help;
+  }
 
   &.yaml-string {
     color: $syntax-string-color;

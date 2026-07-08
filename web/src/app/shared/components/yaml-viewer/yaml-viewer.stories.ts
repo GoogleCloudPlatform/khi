@@ -16,6 +16,31 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { YamlViewerComponent } from './yaml-viewer.component';
+import {
+  YamlAnnotationProvider,
+  YamlFieldAnnotation,
+} from 'src/app/shared/components/yaml-viewer/yaml-annotation';
+import { ManagedFieldTooltipComponent } from 'src/app/shared/components/yaml-viewer/components/managed-field-tooltip.component';
+
+class MockAnnotationProvider implements YamlAnnotationProvider {
+  constructor(private readonly tooltipMap: Record<string, string>) {}
+  getAnnotations(): YamlFieldAnnotation[] {
+    const annotations: YamlFieldAnnotation[] = [];
+    for (const [pathStr] of Object.entries(this.tooltipMap)) {
+      const path = pathStr.split('.');
+      annotations.push({
+        path: path,
+        component: ManagedFieldTooltipComponent,
+        inputs: {
+          manager: 'mock-manager',
+          operation: 'Update',
+          time: '2026-06-29T11:00:00Z',
+        },
+      });
+    }
+    return annotations;
+  }
+}
 
 const leftYamlMock = `apiVersion: v1
 kind: Pod
@@ -94,7 +119,7 @@ const meta: Meta<YamlViewerComponent> = {
   args: {
     leftYaml: null,
     rightYaml: rightYamlMock,
-    tooltips: {},
+    annotationProviders: [],
     searchQuery: '',
   },
 };
@@ -132,10 +157,12 @@ export const TooltipsDemo: Story = {
     leftYaml:
       'apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-pod\n  namespace: default\n  annotations:\n    description: |\n      This is a pod description.\n      It has multiple lines.\n      Old content here.\nspec:\n  replicas: 1\n  containers:\n    - name: nginx\n      image: nginx:1.14.22',
     rightYaml: rightYamlMock,
-    tooltips: {
-      'metadata.name': 'This is the unique name of the Kubernetes resource.',
-      'spec.replicas': 'Defines the number of desired pod replicas.',
-    },
+    annotationProviders: [
+      new MockAnnotationProvider({
+        'metadata.name': 'This is the unique name of the Kubernetes resource.',
+        'spec.replicas': 'Defines the number of desired pod replicas.',
+      }),
+    ],
   },
 };
 
