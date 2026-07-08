@@ -1,4 +1,4 @@
-export NODE_OPTIONS ?= --max-old-space-size=4096
+export NODE_OPTIONS := $(NODE_OPTIONS) --max-old-space-size=6144
 
 .PHONY: pre-commit
 pre-commit: ## Run pre-commit checks (internal)
