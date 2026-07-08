@@ -196,14 +196,20 @@ export class YamlViewerComponent implements AfterViewInit, OnDestroy {
       if (rightObj) {
         for (const ann of provider.getAnnotations(rightObj)) {
           // Join the path array to match diff-util's string format (e.g. "metadata.name")
-          const pathStr = ann.path
-            .map((p) =>
-              typeof p === 'number' ||
-              (typeof p === 'string' && p.startsWith('['))
-                ? `[${p}]`
-                : p,
-            )
-            .join('.');
+          const pathStr = (() => {
+            let pStr = '';
+            for (const p of ann.path) {
+              if (
+                typeof p === 'number' ||
+                (typeof p === 'string' && p.startsWith('['))
+              ) {
+                pStr += `[${p}]`;
+              } else {
+                pStr = pStr ? `${pStr}.${p}` : String(p);
+              }
+            }
+            return pStr;
+          })();
           annotationMap.set(pathStr, ann);
         }
       }

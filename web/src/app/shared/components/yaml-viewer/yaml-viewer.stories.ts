@@ -16,12 +16,15 @@
 
 import { Meta, StoryObj } from '@storybook/angular';
 import { YamlViewerComponent } from './yaml-viewer.component';
-import { YamlAnnotationProvider, YamlFieldAnnotation } from './yaml-annotation';
+import {
+  YamlAnnotationProvider,
+  YamlFieldAnnotation,
+} from 'src/app/shared/components/yaml-viewer/yaml-annotation';
 import { ManagedFieldTooltipComponent } from 'src/app/shared/components/yaml-viewer/components/managed-field-tooltip.component';
 
 class MockAnnotationProvider implements YamlAnnotationProvider {
   constructor(private readonly tooltipMap: Record<string, string>) {}
-  getAnnotations(rightObj: any): YamlFieldAnnotation[] {
+  getAnnotations(): YamlFieldAnnotation[] {
     const annotations: YamlFieldAnnotation[] = [];
     for (const [pathStr] of Object.entries(this.tooltipMap)) {
       const path = pathStr.split('.');
