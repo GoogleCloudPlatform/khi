@@ -28,7 +28,6 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import * as yaml from 'js-yaml';
 import * as jsondiffpatch from 'jsondiffpatch';
 import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
@@ -45,6 +44,11 @@ import {
   postRender,
   getRenderSegments as diffGetRenderSegments,
 } from 'src/app/shared/components/yaml-viewer/diff-renderer';
+import {
+  YamlAnnotationProvider,
+  YamlFieldAnnotation,
+} from 'src/app/shared/components/yaml-viewer/yaml-annotation';
+import { DynamicTooltipDirective } from 'src/app/shared/components/yaml-viewer/dynamic-tooltip.directive';
 
 /**
  * Component for displaying YAML content with preview and diff capabilities.
@@ -54,7 +58,7 @@ import {
   selector: 'khi-yaml-viewer',
   templateUrl: './yaml-viewer.component.html',
   styleUrls: ['./yaml-viewer.component.scss'],
-  imports: [CommonModule, MatTooltipModule],
+  imports: [CommonModule, DynamicTooltipDirective],
 })
 export class YamlViewerComponent implements AfterViewInit, OnDestroy {
   protected readonly DiffStatus = DiffStatus;
@@ -94,10 +98,9 @@ export class YamlViewerComponent implements AfterViewInit, OnDestroy {
   readonly rightYaml = input.required<string>();
 
   /**
-   * Map of JSON paths to tooltip messages.
-   * e.g., { 'metadata.name': 'Unique name of this resource' }
+   * Providers to generate field-level annotations (like tooltips).
    */
-  readonly tooltips = input<{ [path: string]: string }>({});
+  readonly annotationProviders = input<YamlAnnotationProvider[]>([]);
 
   /**
    * Search query string. Occurrences of this query in the rendered YAML
@@ -128,7 +131,7 @@ export class YamlViewerComponent implements AfterViewInit, OnDestroy {
   readonly rawLines = computed<YamlLine[]>(() => {
     const leftRaw = this.leftYaml();
     const rightRaw = this.rightYaml();
-    const tooltipsMap = this.tooltips();
+    const providers = this.annotationProviders();
 
     let leftObj: unknown = null;
     let rightObj: unknown = null;
@@ -184,12 +187,38 @@ export class YamlViewerComponent implements AfterViewInit, OnDestroy {
     renderNode(mergeTree, 0, false, flatLines);
     postRender(flatLines);
 
-    // Apply tooltips and line numbers
+    // Apply annotations and line numbers
     let currentLineNumber = 1;
+
+    // Compute annotations from rightObj.
+    const annotationMap = new Map<string, YamlFieldAnnotation>();
+    for (const provider of providers) {
+      if (rightObj) {
+        for (const ann of provider.getAnnotations(rightObj)) {
+          // Join the path array to match diff-util's string format (e.g. "metadata.name")
+          const pathStr = (() => {
+            let pStr = '';
+            for (const p of ann.path) {
+              if (
+                typeof p === 'number' ||
+                (typeof p === 'string' && p.startsWith('['))
+              ) {
+                pStr += `[${p}]`;
+              } else {
+                pStr = pStr ? `${pStr}.${p}` : String(p);
+              }
+            }
+            return pStr;
+          })();
+          annotationMap.set(pathStr, ann);
+        }
+      }
+    }
+
     return flatLines.map((line) => {
       const lineCopy = { ...line };
-      if (lineCopy.path && tooltipsMap[lineCopy.path]) {
-        lineCopy.tooltip = tooltipsMap[lineCopy.path];
+      if (lineCopy.path && annotationMap.has(lineCopy.path)) {
+        lineCopy.annotation = annotationMap.get(lineCopy.path);
       }
       if (
         lineCopy.diffStatus !== DiffStatus.Deleted &&

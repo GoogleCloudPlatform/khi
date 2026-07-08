@@ -116,9 +116,8 @@ limitations under the License.
               @if (seg.isKey) {
                 <span
                   class="yaml-key"
-                  [matTooltip]="line.tooltip || ''"
-                  [matTooltipDisabled]="!line.tooltip"
-                  [class.has-tooltip]="!!line.tooltip"
+                  [khiDynamicTooltip]="line.annotation"
+                  [class.has-tooltip]="!!line.annotation"
                 >
                   @if (seg.isMatch) {
                     <mark class="search-highlight">{{ seg.text }}</mark>
@@ -135,7 +134,12 @@ limitations under the License.
                   }
                 </span>
               } @else if (seg.isValue) {
-                <span class="yaml-value" [ngClass]="'yaml-' + line.valueType">
+                <span
+                  class="yaml-value"
+                  [ngClass]="'yaml-' + line.valueType"
+                  [khiDynamicTooltip]="line.annotation"
+                  [class.has-tooltip]="!!line.annotation"
+                >
                   <span
                     [class.diff-char-added]="
                       seg.diffStatus === DiffStatus.Added

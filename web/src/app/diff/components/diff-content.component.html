@@ -48,6 +48,7 @@ limitations under the License.
         [searchQuery]="searchQuery()"
         [activeMatchIndex]="currentMatchIndex()"
         [activeDiffIndex]="currentDiffIndex()"
+        [annotationProviders]="annotationProviders()"
         (matchCount)="matchCount.set($event)"
         (diffCount)="diffCount.set($event)"
       ></khi-yaml-viewer>
