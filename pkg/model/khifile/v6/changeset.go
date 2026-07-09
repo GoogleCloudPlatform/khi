@@ -38,6 +38,22 @@ type StagingRevision struct {
 	VerbType *pb.Verb
 	// StateType is the styled representation of the revision state.
 	StateType *pb.RevisionState
+	// FieldAnnotations stores field-specific annotations to be displayed in the UI.
+	FieldAnnotations []*StagingFieldAnnotation
+}
+
+// StagingFieldAnnotation represents a staged metadata annotation for a specific field.
+type StagingFieldAnnotation struct {
+	FieldPath       string
+	MutatingWebhook *StagingMutatingWebhook
+}
+
+// StagingMutatingWebhook represents the payload for a mutating webhook annotation.
+type StagingMutatingWebhook struct {
+	Configuration string
+	Webhook       string
+	Round         int32
+	Index         int32
 }
 
 // LogChangeSet accumulates metadata updates for a specific log during parsing.
@@ -191,6 +207,29 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 				changedTime = timestamppb.New(r.ChangedTime)
 			}
 
+			var pbAnnotations []*pb.FieldAnnotation
+			for _, fa := range r.FieldAnnotations {
+				fieldPathRef := pool.InternString(fa.FieldPath)
+				pbAnn := &pb.FieldAnnotation{
+					FieldPathStringId: &fieldPathRef.id,
+				}
+				if fa.MutatingWebhook != nil {
+					configRef := pool.InternString(fa.MutatingWebhook.Configuration)
+					webhookRef := pool.InternString(fa.MutatingWebhook.Webhook)
+					var round int32 = int32(fa.MutatingWebhook.Round)
+					var index int32 = int32(fa.MutatingWebhook.Index)
+					pbAnn.Payload = &pb.FieldAnnotation_MutatingWebhook{
+						MutatingWebhook: &pb.MutatingWebhookInfo{
+							ConfigurationStringId: &configRef.id,
+							WebhookStringId:       &webhookRef.id,
+							Round:                 &round,
+							Index:                 &index,
+						},
+					}
+				}
+				pbAnnotations = append(pbAnnotations, pbAnn)
+			}
+
 			builder.AddRevision(&pb.Revision{
 				LogId:             &resolvedLogID,
 				ChangedTime:       changedTime,
@@ -198,6 +237,7 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 				PrincipalStringId: principalID,
 				VerbType:          verbID,
 				StateType:         stateID,
+				FieldAnnotations:  pbAnnotations,
 			})
 		}
 	}

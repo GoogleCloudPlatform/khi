@@ -16,6 +16,7 @@
 
 import { ManagedFieldsAnnotationProvider } from 'src/app/shared/components/yaml-viewer/managed-fields-annotation.provider';
 import { ManagedFieldTooltipComponent } from 'src/app/shared/components/yaml-viewer/components/managed-field-tooltip.component';
+import { AnnotationSeverity } from 'src/app/shared/components/yaml-viewer/yaml-annotation';
 
 describe('ManagedFieldsAnnotationProvider', () => {
   let provider: ManagedFieldsAnnotationProvider;
@@ -60,6 +61,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
       {
         path: ['spec', 'replicas'],
@@ -69,6 +71,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
     ]);
   });
@@ -108,6 +111,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
       {
         path: ['metadata', 'labels', 'app'],
@@ -117,6 +121,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
     ]);
   });
@@ -161,6 +166,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
       {
         path: ['status', 'conditions', 1, 'status'],
@@ -170,6 +176,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
     ]);
   });
@@ -209,6 +216,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
       {
         path: ['spec', 'podCIDRs', 1],
@@ -218,6 +226,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
     ]);
   });
@@ -257,6 +266,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
     ]);
   });
@@ -303,6 +313,7 @@ describe('ManagedFieldsAnnotationProvider', () => {
           time: TIME_NS,
           timezoneShift: TIMEZONE_SHIFT,
         },
+        severity: AnnotationSeverity.Low,
       },
     ]);
   });

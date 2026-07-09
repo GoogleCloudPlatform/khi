@@ -15,6 +15,7 @@
  */
 
 import {
+  AnnotationSeverity,
   YamlAnnotationProvider,
   YamlFieldAnnotation,
 } from 'src/app/shared/components/yaml-viewer/yaml-annotation';
@@ -130,6 +131,7 @@ export class ManagedFieldsAnnotationProvider implements YamlAnnotationProvider {
             time: time,
             timezoneShift: this.timezoneShift,
           },
+          severity: AnnotationSeverity.Low,
         });
         continue;
       }
@@ -208,6 +210,7 @@ export class ManagedFieldsAnnotationProvider implements YamlAnnotationProvider {
             time: time,
             timezoneShift: this.timezoneShift,
           },
+          severity: AnnotationSeverity.Low,
         });
       } else {
         this.extractPaths(

@@ -338,6 +338,22 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
           body: r.resourceBody
             ? toBinary(InternedStructSchema, r.resourceBody)
             : undefined,
+          fieldAnnotations: r.fieldAnnotations.map((fa) => {
+            if (fa.payload.case === 'mutatingWebhook') {
+              return {
+                fieldPathStringId: fa.fieldPathStringId,
+                mutatingWebhook: {
+                  configurationStringId: fa.payload.value.configurationStringId,
+                  webhookStringId: fa.payload.value.webhookStringId,
+                  round: fa.payload.value.round,
+                  index: fa.payload.value.index,
+                },
+              };
+            }
+            return {
+              fieldPathStringId: fa.fieldPathStringId,
+            };
+          }),
         });
         revisionIds.push(id);
       }

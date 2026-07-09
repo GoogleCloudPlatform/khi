@@ -50,6 +50,47 @@ func GetSingularKindName(pluralKind string) string {
 	return pluralKind
 }
 
+// MutatingWebhookPatch represents a single JSON patch operation from a webhook.
+type MutatingWebhookPatch struct {
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value any    `json:"value"`
+}
+
+const (
+	// MutatingWebhookMutationPrefix is the prefix for mutating webhook mutation labels.
+	MutatingWebhookMutationPrefix = "mutation.webhook.admission.k8s.io/"
+	// MutatingWebhookPatchPrefix is the prefix for mutating webhook patch labels.
+	MutatingWebhookPatchPrefix = "patch.webhook.admission.k8s.io/"
+	// MutatingWebhookFailedOpenPrefix is the prefix for mutating webhook failed-open labels.
+	MutatingWebhookFailedOpenPrefix = "failed-open.mutation.webhook.admission.k8s.io/"
+)
+
+// MutatingWebhookMutationInfo contains information about webhook mutation configuration.
+type MutatingWebhookMutationInfo struct {
+	Configuration string `json:"configuration"`
+	Webhook       string `json:"webhook"`
+	Mutated       bool   `json:"mutated"`
+}
+
+// MutatingWebhookPatchInfo contains information about webhook mutation patch.
+type MutatingWebhookPatchInfo struct {
+	Configuration string                 `json:"configuration"`
+	Webhook       string                 `json:"webhook"`
+	Patch         []MutatingWebhookPatch `json:"patch"`
+}
+
+// MutatingWebhookResult holds the results of a mutating webhook invocation.
+type MutatingWebhookResult struct {
+	Round         int
+	Index         int
+	Configuration string
+	Webhook       string
+	Mutated       bool
+	Patch         []MutatingWebhookPatch
+	FailedOpen    bool
+}
+
 // K8sAuditLogFieldSet is the field set for k8s audit log.
 type K8sAuditLogFieldSet struct {
 	// OperationID is the ID of the operation.
@@ -88,6 +129,8 @@ type K8sAuditLogFieldSet struct {
 	Request *structured.NodeReader
 	// Response is the response body.
 	Response *structured.NodeReader
+	// MutatingWebhookResults are the assembled webhook results from audit annotations.
+	MutatingWebhookResults []*MutatingWebhookResult
 }
 
 // Kind implements log.FieldSet.

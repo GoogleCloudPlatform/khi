@@ -32,6 +32,7 @@ import {
 } from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
 import {
+  DomainFieldAnnotation,
   ReadonlyDomainElement,
   allocateBuffer,
   isSharedBuffer,
@@ -58,6 +59,10 @@ export interface TimelineStoreSharedData {
   readonly eventCount: number;
   readonly timelineRevisionIds: Uint32Array[];
   readonly timelineEventIds: Uint32Array[];
+  readonly revisionFieldAnnotations: (
+    | readonly FieldAnnotationDTO[]
+    | undefined
+  )[];
   readonly timelineIdToIndex: { readonly [tid: number]: number };
   readonly revisionIdToIndex: { readonly [rid: number]: number };
   readonly eventIdToIndex: { readonly [eid: number]: number };
@@ -75,6 +80,16 @@ export interface TimelineDTO {
   readonly eventIds: readonly number[];
 }
 
+export interface FieldAnnotationDTO {
+  readonly fieldPathStringId: number;
+  readonly mutatingWebhook?: {
+    readonly configurationStringId: number;
+    readonly webhookStringId: number;
+    readonly round: number;
+    readonly index: number;
+  };
+}
+
 /**
  * Raw revision object interface from the assembler.
  */
@@ -86,6 +101,7 @@ export interface RevisionDTO {
   readonly verbTypeId: number;
   readonly stateTypeId: number;
   readonly body?: Uint8Array;
+  readonly fieldAnnotations?: readonly FieldAnnotationDTO[];
 }
 
 /**
@@ -124,6 +140,10 @@ export class TimelineStore {
   private revisionPrincipalStringIds!: Uint32Array;
   private revisionVerbTypeIds!: Uint32Array;
   private revisionStateTypeIds!: Uint32Array;
+  private revisionFieldAnnotations: (
+    | readonly FieldAnnotationDTO[]
+    | undefined
+  )[] = [];
 
   // Packed revision bodies
   private revisionBodyBufferIndices!: Uint16Array;
@@ -172,6 +192,9 @@ export class TimelineStore {
 
       this.timelineRevisionIds = sharedData.timelineRevisionIds;
       this.timelineEventIds = sharedData.timelineEventIds;
+      this.revisionFieldAnnotations = Array.from(
+        sharedData.revisionFieldAnnotations,
+      );
 
       this.timelineIdToIndex = sharedData.timelineIdToIndex;
       this.revisionIdToIndex = sharedData.revisionIdToIndex;
@@ -429,6 +452,7 @@ export class TimelineStore {
     this.revisionBodyBuffers.length = 0;
     this.timelinesList.length = 0;
     this.timelineChildrenIds.length = 0;
+    this.revisionFieldAnnotations.length = revisionCount;
     this.timelineIdToIndex = {};
     this.revisionIdToIndex = {};
     this.eventIdToIndex = {};
@@ -472,6 +496,7 @@ export class TimelineStore {
       this.revisionPrincipalStringIds[rIndex] = r.principalStringId;
       this.revisionVerbTypeIds[rIndex] = r.verbTypeId;
       this.revisionStateTypeIds[rIndex] = r.stateTypeId;
+      this.revisionFieldAnnotations[rIndex] = r.fieldAnnotations;
 
       if (r.body !== undefined && r.body.length > 0) {
         this.addRevisionBody(rIndex, r.body);
@@ -785,6 +810,38 @@ export class TimelineStore {
     return decoded;
   }
 
+  /**
+   * Gets the field annotations associated with this revision.
+   * @note Intended solely for internal retrieval inside the {@link Revision} domain adapter.
+   */
+  public _getRevisionFieldAnnotations(
+    id: number,
+  ): readonly DomainFieldAnnotation[] {
+    const raw = this.revisionFieldAnnotations[this.getRevisionIndex(id)];
+    if (!raw) {
+      return [];
+    }
+    return raw.map((fa: FieldAnnotationDTO) => {
+      const fieldPath = this.internPool.getString(fa.fieldPathStringId);
+      if (fa.mutatingWebhook) {
+        return {
+          fieldPath,
+          mutatingWebhook: {
+            configuration: this.internPool.getString(
+              fa.mutatingWebhook.configurationStringId,
+            ),
+            webhook: this.internPool.getString(
+              fa.mutatingWebhook.webhookStringId,
+            ),
+            round: fa.mutatingWebhook.round,
+            index: fa.mutatingWebhook.index,
+          },
+        };
+      }
+      return { fieldPath };
+    });
+  }
+
   private getRevisionIndex(id: number): number {
     const index = this.revisionIdToIndex[id];
     if (index === undefined) {
@@ -823,6 +880,7 @@ export class TimelineStore {
       eventCount: this.eventIds.length,
       timelineRevisionIds: this.timelineRevisionIds,
       timelineEventIds: this.timelineEventIds,
+      revisionFieldAnnotations: this.revisionFieldAnnotations,
       timelineIdToIndex: this.timelineIdToIndex,
       revisionIdToIndex: this.revisionIdToIndex,
       eventIdToIndex: this.eventIdToIndex,

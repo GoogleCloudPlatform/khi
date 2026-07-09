@@ -20,12 +20,13 @@ import {
   fakeAsync,
   tick,
 } from '@angular/core/testing';
-import { ElementRef } from '@angular/core';
+import { ElementRef, Type } from '@angular/core';
 import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
 import { YamlLine } from 'src/app/shared/components/yaml-viewer/diff-renderer';
 import { ValueType } from 'src/app/shared/components/yaml-viewer/diff-util';
 import { DiffStatus } from 'src/app/shared/components/yaml-viewer/lcs';
 import * as yaml from 'js-yaml';
+import { AnnotationSeverity } from './yaml-annotation';
 
 describe('YamlViewerComponent', () => {
   let component: YamlViewerComponent;
@@ -125,9 +126,9 @@ describe('YamlViewerComponent', () => {
         return [
           {
             path: ['metadata', 'name'],
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            component: {} as any,
+            component: {} as Type<unknown>,
             inputs: { testData: 'Specifies resource name' },
+            severity: AnnotationSeverity.Low,
           },
         ];
       }
@@ -139,10 +140,8 @@ describe('YamlViewerComponent', () => {
     const lines = component.lines();
     const nameLine = lines.find((l) => l.key === 'name');
     expect(nameLine).toBeTruthy();
-    expect(nameLine?.annotation).toBeTruthy();
-    expect(nameLine?.annotation?.inputs?.['testData']).toBe(
-      'Specifies resource name',
-    );
+    expect(nameLine?.annotations?.length).toBe(1);
+    expect(nameLine?.maxSeverity).toBe(AnnotationSeverity.Low);
   });
 
   it('should split text into highlighted segments matching the query across key and value', () => {
