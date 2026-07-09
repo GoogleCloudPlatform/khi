@@ -46,23 +46,17 @@ type UploadFileStore struct {
 	verifiers     map[string]UploadFileVerifier
 	tokenHashes   map[string]interface{}
 	tokenHashLock sync.RWMutex
-	providers     map[string]UploadFileStoreProvider
-	fieldIDLock   sync.RWMutex
-	fieldIDs      map[string]string
 }
 
 // GetUploadToken returns the token to upload it from frontend.
 // The ID must be combination of a known string and random string to make it harder to guess it from outside.
-// It also records the form field ID issuing this token so mode-specific stores can look up the field's request value later.
 func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier, fieldID string) UploadToken {
 	s.resultLock.Lock()
 	s.verifierLock.Lock()
 	s.tokenHashLock.Lock()
-	s.fieldIDLock.Lock()
 	defer s.resultLock.Unlock()
 	defer s.verifierLock.Unlock()
 	defer s.tokenHashLock.Unlock()
-	defer s.fieldIDLock.Unlock()
 	token := s.StoreProvider.GetUploadToken(id)
 	s.tokenHashes[token.GetHash()] = struct{}{}
 	_, ok := s.results[token.GetID()]
@@ -73,7 +67,6 @@ func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier,
 		}
 	}
 	s.verifiers[token.GetID()] = verifier
-	s.fieldIDs[token.GetID()] = fieldID
 	return token
 }
 
@@ -108,7 +101,7 @@ func (s *UploadFileStore) SetResultOnStartingUpload(token UploadToken) error {
 	}
 	s.results[token.GetID()] = UploadResult{
 		Token:         token,
-		StoreProvider: s.providerForToken(token),
+		StoreProvider: s.StoreProvider,
 		Status:        UploadStatusUploading,
 	}
 	return nil
@@ -130,7 +123,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 	if uploadError == nil {
 		s.results[token.GetID()] = UploadResult{
 			Token:             token,
-			StoreProvider:     s.providerForToken(token),
+			StoreProvider:     s.StoreProvider,
 			Status:            UploadStatusVerifying,
 			UploadError:       uploadError,
 			VerificationCount: nextVerificationIndex,
@@ -138,7 +131,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 	} else {
 		s.results[token.GetID()] = UploadResult{
 			Token:             token,
-			StoreProvider:     s.providerForToken(token),
+			StoreProvider:     s.StoreProvider,
 			Status:            UploadStatusWaiting,
 			UploadError:       uploadError,
 			VerificationCount: prev.VerificationCount,
@@ -149,7 +142,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 		verifier := s.verifiers[token.GetID()]
 		s.verifierLock.RUnlock()
 		go func() {
-			err := verifier.Verify(s.providerForToken(token), token)
+			err := verifier.Verify(s.StoreProvider, token)
 			s.resultLock.Lock()
 			defer s.resultLock.Unlock()
 			current, ok := s.results[token.GetID()]
@@ -163,7 +156,7 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 			}
 			s.results[token.GetID()] = UploadResult{
 				Token:             token,
-				StoreProvider:     s.providerForToken(token),
+				StoreProvider:     s.StoreProvider,
 				Status:            UploadStatusCompleted,
 				UploadError:       current.UploadError,
 				VerificationError: err,
@@ -192,22 +185,5 @@ func NewUploadFileStore(storeProvider UploadFileStoreProvider) *UploadFileStore 
 		results:       make(map[string]UploadResult),
 		verifiers:     make(map[string]UploadFileVerifier),
 		tokenHashes:   make(map[string]interface{}),
-		providers:     make(map[string]UploadFileStoreProvider),
-		fieldIDs:      make(map[string]string),
 	}
-}
-
-// RegisterProvider registers a provider to handle tokens of the given type.
-func (s *UploadFileStore) RegisterProvider(tokenType string, provider UploadFileStoreProvider) {
-	s.providers[tokenType] = provider
-}
-
-// providerForToken returns the provider registered for the token's type,
-// or the default StoreProvider when no provider is registered for that type.
-func (s *UploadFileStore) providerForToken(token UploadToken) UploadFileStoreProvider {
-	provider, ok := s.providers[token.GetType()]
-	if !ok {
-		return s.StoreProvider
-	}
-	return provider
 }

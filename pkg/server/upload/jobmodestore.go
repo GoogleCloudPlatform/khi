@@ -14,52 +14,65 @@
 
 package upload
 
-// JobModeUploadFileStore is an UploadFileStore variant for job mode.
-// It resolves file inputs from local file paths in the inspection request
-// values instead of waiting for browser uploads.
-type JobModeUploadFileStore struct {
-	*UploadFileStore
+import (
+	"fmt"
+	"sync"
+)
+
+// JobModeStore is a Store implementation for job mode. Job mode does not run
+// the web server, so files cannot be uploaded from a browser; instead this
+// store resolves file form inputs from local file paths given in the
+// inspection request values.
+type JobModeStore struct {
+	provider  UploadFileStoreProvider
+	lock      sync.RWMutex
+	fieldIDs  map[string]string
+	verifiers map[string]UploadFileVerifier
 }
 
-// NewJobModeUploadFileStore wraps the given store for use in job mode.
-func NewJobModeUploadFileStore(base *UploadFileStore) *JobModeUploadFileStore {
-	base.RegisterProvider((&LocalFileUploadToken{}).GetType(), &InPlaceUploadFileStoreProvider{})
-	return &JobModeUploadFileStore{UploadFileStore: base}
-}
-
-// GetResult returns the upload result for the given token, resolving file
-// inputs from local file paths in the request values when running in job mode.
-func (s *JobModeUploadFileStore) GetResult(token UploadToken, req map[string]any) (UploadResult, error) {
-	s.fieldIDLock.RLock()
-	fieldID := s.fieldIDs[token.GetID()]
-	s.fieldIDLock.RUnlock()
-
-	pathValue, ok := req[fieldID].(string)
-	// No local path in the request values: fall back to the normal upload flow.
-	if !ok || pathValue == "" {
-		return s.UploadFileStore.GetResult(token, req)
+// NewJobModeStore creates a new JobModeStore.
+func NewJobModeStore() *JobModeStore {
+	return &JobModeStore{
+		verifiers: make(map[string]UploadFileVerifier),
+		fieldIDs:  make(map[string]string),
+		provider:  &InPlaceUploadFileStoreProvider{},
 	}
-	localToken := &LocalFileUploadToken{FilePath: pathValue}
+}
 
-	s.verifierLock.RLock()
+// GetUploadToken issues a token for the given ID and records the form field ID
+// and verifier so that GetResult can resolve the file later.
+func (s *JobModeStore) GetUploadToken(id string, verifier UploadFileVerifier, fieldID string) UploadToken {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	token := s.provider.GetUploadToken(id)
+	s.verifiers[token.GetID()] = verifier
+	s.fieldIDs[token.GetID()] = fieldID
+	return token
+}
+
+// GetResult resolves the file for the given token from the local file path in
+// the request values, verifies it, and returns a completed UploadResult.
+// It returns an error when the token is unknown or no path was provided.
+func (s *JobModeStore) GetResult(token UploadToken, req map[string]any) (UploadResult, error) {
+	s.lock.RLock()
 	verifier, found := s.verifiers[token.GetID()]
-	s.verifierLock.RUnlock()
+	fieldID := s.fieldIDs[token.GetID()]
+	s.lock.RUnlock()
 	if !found {
-		return s.UploadFileStore.GetResult(token, req)
+		return UploadResult{}, fmt.Errorf("unknown upload token specified: %s", token.GetID())
 	}
-	provider := s.providerForToken(localToken)
-	verificationError := verifier.Verify(provider, localToken)
-	result := UploadResult{
+	path, ok := req[fieldID].(string)
+	if !ok || path == "" {
+		return UploadResult{}, fmt.Errorf("no local file path was provided for the form field %q in job mode", fieldID)
+	}
+	localToken := &LocalFileUploadToken{FilePath: path}
+	verificationError := verifier.Verify(s.provider, localToken)
+	return UploadResult{
 		Token:             localToken,
-		StoreProvider:     provider,
+		StoreProvider:     s.provider,
 		Status:            UploadStatusCompleted,
 		VerificationError: verificationError,
-	}
-	s.resultLock.Lock()
-	s.tokenHashLock.Lock()
-	defer s.resultLock.Unlock()
-	defer s.tokenHashLock.Unlock()
-	s.tokenHashes[localToken.GetHash()] = struct{}{}
-	s.results[localToken.GetID()] = result
-	return result, nil
+	}, nil
 }
+
+var _ Store = (*JobModeStore)(nil)

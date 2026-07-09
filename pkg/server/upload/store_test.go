@@ -264,7 +264,7 @@ func TestUploadFileStore(t *testing.T) {
 	})
 }
 
-func TestJobModeUploadFileStoreGetResult(t *testing.T) {
+func TestJobModeStoreGetResult(t *testing.T) {
 	content := "hello world"
 
 	testCases := []struct {
@@ -272,10 +272,11 @@ func TestJobModeUploadFileStoreGetResult(t *testing.T) {
 		pathInReq       bool
 		verifierError   error
 		wantVerifyError bool
+		wantErr         bool
 	}{
 		{name: "verification passes", pathInReq: true, verifierError: nil, wantVerifyError: false},
 		{name: "verification fails", pathInReq: true, verifierError: errors.New("bad file"), wantVerifyError: true},
-		{name: "no path falls back to the upload flow", pathInReq: false},
+		{name: "no path returns an error", pathInReq: false, wantErr: true},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -284,7 +285,7 @@ func TestJobModeUploadFileStoreGetResult(t *testing.T) {
 			if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 				t.Fatal(err)
 			}
-			store := NewJobModeUploadFileStore(NewUploadFileStore(NewLocalUploadFileStoreProvider(tempDir)))
+			store := NewJobModeStore()
 
 			token := store.GetUploadToken("test-upload-id", &NopWaitUploadFileVerifier{Error: tc.verifierError}, "test-field")
 			req := map[string]any{}
@@ -292,6 +293,12 @@ func TestJobModeUploadFileStoreGetResult(t *testing.T) {
 				req["test-field"] = path
 			}
 			result, err := store.GetResult(token, req)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("GetResult returned nil error, want an error")
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("GetResult returned an unexpected error: %v", err)
 			}
@@ -322,5 +329,14 @@ func TestJobModeUploadFileStoreGetResult(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestJobModeStoreGetResultWithUnknownToken(t *testing.T) {
+	store := NewJobModeStore()
+	token := &LocalFileUploadToken{FilePath: "never-issued"}
+	_, err := store.GetResult(token, map[string]any{})
+	if err == nil {
+		t.Error("GetResult returned nil error, want an error")
 	}
 }
