@@ -37,6 +37,7 @@ import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-
 import { SearchScope } from 'src/app/services/view-state.service';
 import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
 import { ManagedFieldsAnnotationProvider } from 'src/app/shared/components/yaml-viewer/managed-fields-annotation.provider';
+import { RevisionFieldAnnotationProvider } from 'src/app/shared/components/yaml-viewer/revision-field-annotation.provider';
 import * as yaml from 'js-yaml';
 
 /**
@@ -166,6 +167,7 @@ export class DiffContentComponent {
 
     return [
       new ManagedFieldsAnnotationProvider(this.timezoneShift(), overrideFields),
+      ...(revision ? [new RevisionFieldAnnotationProvider(revision)] : []),
     ];
   });
 

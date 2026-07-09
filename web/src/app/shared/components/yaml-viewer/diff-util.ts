@@ -54,6 +54,26 @@ import {
 } from 'src/app/shared/components/yaml-viewer/jsondiffpatch-util';
 
 /**
+ * Converts a JSON Patch path (e.g. /metadata/annotations/cloud.google.com~1neg)
+ * to an array of path segments.
+ */
+export function convertJsonPatchPathToArray(path: string): string[] {
+  if (!path) {
+    return [];
+  }
+
+  // Remove leading slash
+  if (path.startsWith('/')) {
+    path = path.slice(1);
+  }
+
+  // Split by slash and decode JSON Pointer escape sequences
+  return path
+    .split('/')
+    .map((segment) => segment.replace(/~1/g, '/').replace(/~0/g, '~'));
+}
+
+/**
  * Checks if the given ValueType is a scalar type (not Object or Array).
  */
 export function isScalarType(type: ValueType): boolean {

@@ -24,7 +24,10 @@ import { TimelineStore } from 'src/app/store/domain/timeline-store';
 import * as yaml from 'js-yaml';
 
 import { Log } from 'src/app/store/domain/log';
-import { ReadonlyDomainElement } from 'src/app/store/domain/types';
+import {
+  DomainFieldAnnotation,
+  ReadonlyDomainElement,
+} from 'src/app/store/domain/types';
 import { BigIntTimeUtil } from 'src/app/utils/bigint-time-util';
 import { bisectLeft } from 'src/app/common/misc-util';
 
@@ -159,6 +162,13 @@ export class Revision {
    */
   get logIndex(): number {
     return this.log.logIndex;
+  }
+
+  /**
+   * Gets the field annotations associated with this revision.
+   */
+  get fieldAnnotations(): readonly DomainFieldAnnotation[] {
+    return this.timelineStore._getRevisionFieldAnnotations(this.id);
   }
 }
 

@@ -30,6 +30,7 @@ import {
 } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { YamlFieldAnnotation } from 'src/app/shared/components/yaml-viewer/yaml-annotation';
+import { DynamicTooltipListContainerComponent } from 'src/app/shared/components/yaml-viewer/components/dynamic-tooltip-list-container.component';
 
 /**
  * A directive to display a dynamic component as a tooltip.
@@ -38,8 +39,8 @@ import { YamlFieldAnnotation } from 'src/app/shared/components/yaml-viewer/yaml-
   selector: '[khiDynamicTooltip]',
 })
 export class DynamicTooltipDirective implements OnDestroy {
-  /** The annotation definition containing the component to render and its inputs. */
-  readonly khiDynamicTooltip = input<YamlFieldAnnotation | undefined>();
+  /** The annotations definition containing the components to render and their inputs. */
+  readonly khiDynamicTooltip = input<YamlFieldAnnotation[] | undefined>();
 
   private _overlayRef: OverlayRef | null = null;
   private readonly _overlay = inject(Overlay);
@@ -48,8 +49,8 @@ export class DynamicTooltipDirective implements OnDestroy {
 
   @HostListener('mouseenter')
   show() {
-    const annotation = this.khiDynamicTooltip();
-    if (!annotation) {
+    const annotations = this.khiDynamicTooltip();
+    if (!annotations || annotations.length === 0) {
       return;
     }
 
@@ -69,6 +70,13 @@ export class DynamicTooltipDirective implements OnDestroy {
           overlayY: 'center',
           offsetX: -20,
         },
+        {
+          originX: 'center',
+          originY: 'bottom',
+          overlayX: 'center',
+          overlayY: 'top',
+          offsetY: 20,
+        },
       ]);
 
     this._overlayRef = this._overlay.create({
@@ -76,15 +84,11 @@ export class DynamicTooltipDirective implements OnDestroy {
       scrollStrategy: this._overlay.scrollStrategies.close(),
     });
 
-    const portal = new ComponentPortal(annotation.component);
+    const portal = new ComponentPortal(DynamicTooltipListContainerComponent);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const componentRef: ComponentRef<any> = this._overlayRef.attach(portal);
 
-    if (annotation.inputs) {
-      for (const [key, value] of Object.entries(annotation.inputs)) {
-        componentRef.setInput(key, value);
-      }
-    }
+    componentRef.setInput('annotations', annotations);
 
     // Force change detection so that the component renders its content and acquires actual dimensions.
     // This is required before updating the position, otherwise the overlay is positioned assuming 0x0 size.

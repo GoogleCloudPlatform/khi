@@ -25,7 +25,10 @@ import {
   getValueType,
   shouldHighlightEntireValue,
 } from 'src/app/shared/components/yaml-viewer/diff-util';
-import { YamlFieldAnnotation } from 'src/app/shared/components/yaml-viewer/yaml-annotation';
+import {
+  AnnotationSeverity,
+  YamlFieldAnnotation,
+} from 'src/app/shared/components/yaml-viewer/yaml-annotation';
 
 /**
  * Represents a single rendered line of the YAML document.
@@ -47,8 +50,10 @@ export interface YamlLine {
   diffStatus: DiffStatus;
   /** The full JSON path of this property (e.g., "metadata.name"). */
   path: string;
-  /** Optional annotation to display on hover (e.g., custom tooltip component). */
-  annotation?: YamlFieldAnnotation;
+  /** Optional annotations to display on hover (e.g., custom tooltip components). */
+  annotations?: YamlFieldAnnotation[];
+  /** The highest severity among all annotations on this line. */
+  maxSeverity?: AnnotationSeverity;
   /** For moved items, the original path or index before the move. */
   movedFrom?: string;
   /** For moved items, the destination path or index after the move. */

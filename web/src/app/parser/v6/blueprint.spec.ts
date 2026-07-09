@@ -198,6 +198,7 @@ describe('V6TimelineAssembler', () => {
               principalStringId: 5,
               verbType: 2,
               stateType: 3,
+              fieldAnnotations: [],
             }),
           ],
           events: [
@@ -235,6 +236,7 @@ describe('V6TimelineAssembler', () => {
         verbTypeId: 2,
         stateTypeId: 3,
         body: undefined,
+        fieldAnnotations: [],
       },
     ]);
     expect(builder.addEvents).toHaveBeenCalledWith([

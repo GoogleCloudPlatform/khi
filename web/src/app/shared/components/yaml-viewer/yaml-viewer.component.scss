@@ -55,7 +55,14 @@ $syntax-boolean-color: mat.m2-get-color-from-palette(
 $syntax-null-color: mat.m2-get-color-from-palette(mat.$m2-pink-palette, 800);
 $syntax-colon-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 700);
 
-$tooltip-border-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 100);
+$tooltip-low-color: mat.m2-get-color-from-palette(mat.$m2-blue-palette, 200);
+$tooltip-medium-color: mat.m2-get-color-from-palette(
+  mat.$m2-orange-palette,
+  400
+);
+$tooltip-high-color: mat.m2-get-color-from-palette(mat.$m2-red-palette, 500);
+
+$tooltip-border-thickness: 1px;
 
 $search-highlight-bg-color: mat.m2-get-color-from-palette(
   mat.$m2-yellow-palette,
@@ -268,11 +275,6 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
   font-weight: bold;
   white-space: normal;
 
-  &.has-tooltip {
-    border-bottom: $tooltip-border-thickness dashed $tooltip-border-color;
-    cursor: help;
-  }
-
   > * {
     white-space: pre;
   }
@@ -285,11 +287,6 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
 
 .yaml-value {
   white-space: normal;
-
-  &.has-tooltip {
-    border-bottom: $tooltip-border-thickness dashed $tooltip-border-color;
-    cursor: help;
-  }
 
   &.yaml-string {
     color: $syntax-string-color;
@@ -384,4 +381,27 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
       }
     }
   }
+}
+
+@mixin tooltip-style($color) {
+  border-bottom: $tooltip-border-thickness dashed $color;
+  margin-bottom: -1 * $tooltip-border-thickness;
+  cursor: help;
+
+  &:hover {
+    border-bottom: 2 * $tooltip-border-thickness solid $color;
+    margin-bottom: -2 * $tooltip-border-thickness;
+  }
+}
+
+.has-tooltip-low {
+  @include tooltip-style($tooltip-low-color);
+}
+
+.has-tooltip-medium {
+  @include tooltip-style($tooltip-medium-color);
+}
+
+.has-tooltip-high {
+  @include tooltip-style($tooltip-high-color);
 }
