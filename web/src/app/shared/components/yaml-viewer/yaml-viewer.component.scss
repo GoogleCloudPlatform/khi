@@ -384,13 +384,12 @@ $moved-out-chip-text: mat.m2-get-color-from-palette(
 }
 
 @mixin tooltip-style($color) {
+  box-sizing: border-box;
   border-bottom: $tooltip-border-thickness dashed $color;
-  margin-bottom: -1 * $tooltip-border-thickness;
   cursor: help;
 
   &:hover {
     border-bottom: 2 * $tooltip-border-thickness solid $color;
-    margin-bottom: -2 * $tooltip-border-thickness;
   }
 }
 

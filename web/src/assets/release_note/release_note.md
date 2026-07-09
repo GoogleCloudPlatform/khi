@@ -1,5 +1,23 @@
 These release notes only include featured changes. For other minor changes and bug fixes, please see the [GitHub Releases](https://github.com/GoogleCloudPlatform/khi/releases) page.
 
+# v0.57.0 (July 9 2026)
+
+## Enhanced Diff View Tooltips
+
+We have added new tooltips to the Diff view to provide more context about changes.
+
+><img src="assets/release_note/diff-managed-field.png" alt="Managed fields tooltip showing editor information" width="512px">
+>
+> **Field Editor Information**
+>
+> You can now see who edited each field by hovering your mouse over it in the Diff view. This information is extracted from `metadata.managedFields`, which would be almost impossible to read manually.
+
+> <img src="assets/release_note/diff-mutating-webhook.png" alt="Mutating webhook tooltip showing mutation source" width="512px">
+>
+> **Mutating Webhook Identification**
+>
+> If a change was made by a `MutatingWebhookConfiguration`, a tooltip will now show this information. This is parsed from the JSONPatch payload log label in the audit log, which would be practically impossible to read manually. This feature helps you easily identify which change was caused by which webhook, even when original requests and multiple webhook mutations are mixed.
+
 # v0.56.6 (July 1 2026)
 
 ## Job Mode Command Generator
