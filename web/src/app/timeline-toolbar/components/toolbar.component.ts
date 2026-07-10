@@ -40,6 +40,7 @@ import { SearchScope } from 'src/app/services/view-state.service';
 import { TimelineFilterConfig } from '../types/filter-config';
 import { TimelineType } from 'src/app/store/domain/style';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
+import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 
 /**
  * Visual theme representation for a timeline type chip and row.
@@ -336,7 +337,10 @@ export class ToolbarComponent {
    */
   @HostListener('window:keydown', ['$event'])
   public onKeyDown(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+    if (isEventFromOverlay(event)) {
+      return;
+    }
+    if (isSearchShortcut(event)) {
       if (event.defaultPrevented) {
         return;
       }

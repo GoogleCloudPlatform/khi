@@ -39,6 +39,7 @@ import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-
 import { ManagedFieldsAnnotationProvider } from 'src/app/shared/components/yaml-viewer/managed-fields-annotation.provider';
 import { RevisionFieldAnnotationProvider } from 'src/app/shared/components/yaml-viewer/revision-field-annotation.provider';
 import * as yaml from 'js-yaml';
+import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 
 /**
  * Component for displaying the unified diff of a resource revision.
@@ -204,10 +205,13 @@ export class DiffContentComponent {
    */
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
+    if (isEventFromOverlay(event)) {
+      return;
+    }
     if (this.activeSearchScope() !== SearchScope.Diff) {
       return;
     }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+    if (isSearchShortcut(event)) {
       event.preventDefault();
       this.openSearch();
     } else if (event.key === 'Escape' && this.isSearchOpen()) {

@@ -40,6 +40,7 @@ import { ResourceRefAnnotationViewModel } from 'src/app/log/components/resource-
 import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-bar.component';
 import { SearchScope } from 'src/app/services/view-state.service';
 import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
+import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 
 /**
  * View model aggregating the full detailed data required to render the log content and header.
@@ -210,10 +211,13 @@ timestamp="${timestampString}"
    */
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
+    if (isEventFromOverlay(event)) {
+      return;
+    }
     if (this.activeSearchScope() !== SearchScope.Log) {
       return;
     }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+    if (isSearchShortcut(event)) {
       event.preventDefault();
       this.openSearch();
     } else if (event.key === 'Escape' && this.isSearchOpen()) {

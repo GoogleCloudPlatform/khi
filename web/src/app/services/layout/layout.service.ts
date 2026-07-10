@@ -37,6 +37,7 @@ import {
   MenuItemType,
 } from 'src/app/services/menu/menu-manager.service';
 import { StyleOverrideSmartComponent } from 'src/app/dialogs/style-override/style-override-smart.component';
+import { isEventFromOverlay } from 'src/app/common/dom-util';
 
 /**
  * LayoutService manages the GoldenLayout instance and component registration.
@@ -287,6 +288,9 @@ export class LayoutService implements OnDestroy {
    * Handles keyboard shortcuts for switching layout mode.
    */
   private readonly handleKeyDown = (event: KeyboardEvent) => {
+    if (isEventFromOverlay(event)) {
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
       if (event.key === '1') {
         event.preventDefault();
