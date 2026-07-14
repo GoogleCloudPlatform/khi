@@ -35,6 +35,7 @@ import {
   CelGuidePopupComponent,
   CelGuideTab,
 } from 'src/app/timeline-toolbar/components/cel-guide-popup.component';
+import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
 
 /**
  * Provides an advanced toolbar for the timeline view featuring two-row CEL expression text fields.
@@ -176,7 +177,10 @@ export class ToolbarAdvancedComponent {
    */
   @HostListener('window:keydown', ['$event'])
   public onKeyDown(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+    if (isEventFromOverlay(event)) {
+      return;
+    }
+    if (isSearchShortcut(event)) {
       if (event.defaultPrevented) {
         return;
       }
