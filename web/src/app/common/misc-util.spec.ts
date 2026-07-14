@@ -19,7 +19,7 @@ import {
   bisectLeft,
   bisectRight,
   defaultNumberComparator,
-} from './misc-util';
+} from 'src/app/common/misc-util';
 
 describe('misc-util', () => {
   describe('bisectLeft', () => {

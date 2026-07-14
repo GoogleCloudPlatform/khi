@@ -19,6 +19,9 @@
  * @returns true if the platform is macOS.
  */
 export function isMac(): boolean {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
   return (
     navigator.userAgent.includes('Mac OS X') ||
     navigator.userAgent.includes('Macintosh')

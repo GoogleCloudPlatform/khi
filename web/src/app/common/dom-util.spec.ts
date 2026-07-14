@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { isMac, isSearchShortcut, isEventFromOverlay } from './dom-util';
+import {
+  isMac,
+  isSearchShortcut,
+  isEventFromOverlay,
+} from 'src/app/common/dom-util';
 
 describe('dom-util', () => {
   describe('isMac', () => {
@@ -44,6 +48,22 @@ describe('dom-util', () => {
         configurable: true,
       });
       expect(isMac()).toBeFalse();
+    });
+
+    it('should return false if navigator is undefined', () => {
+      const originalNavigator = globalThis.navigator;
+      try {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: undefined,
+          configurable: true,
+        });
+        expect(isMac()).toBeFalse();
+      } finally {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: originalNavigator,
+          configurable: true,
+        });
+      }
     });
   });
 
