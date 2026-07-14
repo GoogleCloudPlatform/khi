@@ -50,7 +50,7 @@ type UploadFileStore struct {
 
 // GetUploadToken returns the token to upload it from frontend.
 // The ID must be combination of a known string and random string to make it harder to guess it from outside.
-func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier) UploadToken {
+func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier, fieldID string) UploadToken {
 	s.resultLock.Lock()
 	s.verifierLock.Lock()
 	s.tokenHashLock.Lock()
@@ -71,7 +71,9 @@ func (s *UploadFileStore) GetUploadToken(id string, verifier UploadFileVerifier)
 }
 
 // GetResult returns the result of the upload with given token.
-func (s *UploadFileStore) GetResult(token UploadToken) (UploadResult, error) {
+// The req parameter is unused in this implementation; it exists
+// so job-mode stores can read local file paths from the request values.
+func (s *UploadFileStore) GetResult(token UploadToken, req map[string]any) (UploadResult, error) {
 	err := s.ensureIssuedToken(token)
 	if err != nil {
 		return UploadResult{}, err
@@ -136,8 +138,11 @@ func (s *UploadFileStore) SetResultOnCompletedUpload(token UploadToken, uploadEr
 		}
 	}
 	if uploadError == nil {
+		s.verifierLock.RLock()
+		verifier := s.verifiers[token.GetID()]
+		s.verifierLock.RUnlock()
 		go func() {
-			err := s.verifiers[token.GetID()].Verify(s.StoreProvider, token)
+			err := verifier.Verify(s.StoreProvider, token)
 			s.resultLock.Lock()
 			defer s.resultLock.Unlock()
 			current, ok := s.results[token.GetID()]

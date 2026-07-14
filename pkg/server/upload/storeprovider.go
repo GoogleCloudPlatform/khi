@@ -109,3 +109,27 @@ func (l *LocalUploadFileStoreProvider) validateTokenFormat(token UploadToken) er
 
 var _ UploadFileStoreProvider = &LocalUploadFileStoreProvider{}
 var _ DirectWritableUploadFileStoreProvider = &LocalUploadFileStoreProvider{}
+
+// InPlaceUploadFileStoreProvider is an implementation of UploadFileStore that
+// reads the file in place.
+type InPlaceUploadFileStoreProvider struct{}
+
+// GetUploadToken implements UploadFileStoreProvider.
+func (i *InPlaceUploadFileStoreProvider) GetUploadToken(id string) UploadToken {
+	return &LocalFileUploadToken{FilePath: id}
+}
+
+// Read implements UploadFileStoreProvider.
+func (i *InPlaceUploadFileStoreProvider) Read(token UploadToken) (io.ReadCloser, error) {
+	filePath := token.GetID()
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, os.ErrNotExist
+		}
+		return nil, err
+	}
+	return file, nil // os.File implements io.ReadCloser
+}
+
+var _ UploadFileStoreProvider = &InPlaceUploadFileStoreProvider{}

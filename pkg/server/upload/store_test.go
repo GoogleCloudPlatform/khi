@@ -16,10 +16,14 @@ package upload
 
 import (
 	"errors"
+	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // Mock UploadFileVerifier for testing.
@@ -49,9 +53,9 @@ func TestUploadFileStore(t *testing.T) {
 		store := NewUploadFileStore(provider)
 		verifier := &MockUploadFileVerifier{}
 
-		token := store.GetUploadToken("test-id-1", verifier)
+		token := store.GetUploadToken("test-id-1", verifier, "test-field")
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -64,14 +68,14 @@ func TestUploadFileStore(t *testing.T) {
 		store := NewUploadFileStore(provider)
 		verifier := &MockUploadFileVerifier{}
 
-		token := store.GetUploadToken("test-id-2", verifier)
+		token := store.GetUploadToken("test-id-2", verifier, "test-field")
 
 		err := store.SetResultOnStartingUpload(token)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -84,7 +88,7 @@ func TestUploadFileStore(t *testing.T) {
 			t.Errorf("Unexpected error: %v", err)
 		}
 
-		result, err = store.GetResult(token)
+		result, err = store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -93,7 +97,7 @@ func TestUploadFileStore(t *testing.T) {
 		}
 
 		<-time.After(100 * time.Microsecond)
-		result, err = store.GetResult(token)
+		result, err = store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -136,7 +140,7 @@ func TestUploadFileStore(t *testing.T) {
 			},
 		}
 
-		token := store.GetUploadToken("uploaderror-id", verifier)
+		token := store.GetUploadToken("uploaderror-id", verifier, "test-field")
 
 		err := store.SetResultOnStartingUpload(token) // Set initial status
 		if err != nil {
@@ -151,7 +155,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -176,7 +180,7 @@ func TestUploadFileStore(t *testing.T) {
 			},
 		}
 
-		token := store.GetUploadToken("verifyerror-id", verifier)
+		token := store.GetUploadToken("verifyerror-id", verifier, "test-field")
 		err := store.SetResultOnStartingUpload(token)
 		if err != nil {
 			t.Fatalf("Unexpected error on SetResultOnStartingUpload: %v", err)
@@ -189,7 +193,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond) // Allow verification goroutine to run.
 
-		result, err := store.GetResult(token)
+		result, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
@@ -213,7 +217,7 @@ func TestUploadFileStore(t *testing.T) {
 			},
 		}
 
-		token := store.GetUploadToken("test-id-4", verifier)
+		token := store.GetUploadToken("test-id-4", verifier, "test-field")
 
 		err := store.SetResultOnStartingUpload(token)
 		if err != nil {
@@ -240,7 +244,7 @@ func TestUploadFileStore(t *testing.T) {
 			t.Fatalf("SetResultOnCompletedUpload 2 error: %v", err)
 		}
 
-		result1, err := store.GetResult(token)
+		result1, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Fatalf("GetResult returns error: %v", err)
 		}
@@ -250,7 +254,7 @@ func TestUploadFileStore(t *testing.T) {
 
 		<-time.After(500 * time.Millisecond)
 
-		result2, err := store.GetResult(token)
+		result2, err := store.GetResult(token, nil)
 		if err != nil {
 			t.Fatalf("GetResult returns error: %v", err)
 		}
@@ -258,4 +262,81 @@ func TestUploadFileStore(t *testing.T) {
 			t.Errorf("Want Completed status, got %v", result2.Status)
 		}
 	})
+}
+
+func TestJobModeStoreGetResult(t *testing.T) {
+	content := "hello world"
+
+	testCases := []struct {
+		name            string
+		pathInReq       bool
+		verifierError   error
+		wantVerifyError bool
+		wantErr         bool
+	}{
+		{name: "verification passes", pathInReq: true, verifierError: nil, wantVerifyError: false},
+		{name: "verification fails", pathInReq: true, verifierError: errors.New("bad file"), wantVerifyError: true},
+		{name: "no path returns an error", pathInReq: false, wantErr: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			path := filepath.Join(tempDir, "audit.jsonl")
+			if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+				t.Fatal(err)
+			}
+			store := NewJobModeStore()
+
+			token := store.GetUploadToken("test-upload-id", &NopWaitUploadFileVerifier{Error: tc.verifierError}, "test-field")
+			req := map[string]any{}
+			if tc.pathInReq {
+				req["test-field"] = path
+			}
+			result, err := store.GetResult(token, req)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("GetResult returned nil error, want an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetResult returned an unexpected error: %v", err)
+			}
+
+			if tc.pathInReq {
+				if result.Status != UploadStatusCompleted {
+					t.Errorf("Status = %v, want %v", result.Status, UploadStatusCompleted)
+				}
+				if (result.VerificationError != nil) != tc.wantVerifyError {
+					t.Errorf("VerificationError = %v, wantVerifyError = %v", result.VerificationError, tc.wantVerifyError)
+				}
+			} else if result.Status != UploadStatusWaiting {
+				t.Errorf("Status = %v, want %v", result.Status, UploadStatusWaiting)
+			}
+
+			if tc.pathInReq && !tc.wantVerifyError {
+				reader, err := result.GetReader()
+				if err != nil {
+					t.Fatalf("GetReader failed: %v", err)
+				}
+				defer reader.Close()
+				readContent, err := io.ReadAll(reader)
+				if err != nil {
+					t.Fatalf("ReadAll failed: %v", err)
+				}
+				if diff := cmp.Diff(content, string(readContent)); diff != "" {
+					t.Errorf("content mismatch (-want +got):\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestJobModeStoreGetResultWithUnknownToken(t *testing.T) {
+	store := NewJobModeStore()
+	token := &LocalFileUploadToken{FilePath: "never-issued"}
+	_, err := store.GetResult(token, map[string]any{})
+	if err == nil {
+		t.Error("GetResult returned nil error, want an error")
+	}
 }

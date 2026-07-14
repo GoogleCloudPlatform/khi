@@ -49,3 +49,26 @@ func (d *DirectUploadToken) GetType() string {
 }
 
 var _ UploadToken = &DirectUploadToken{}
+
+// LocalFileUploadToken is a UploadToken for uploading local files via file path.
+type LocalFileUploadToken struct {
+	// FilePath identifies the file location uploaded to this server locally.
+	FilePath string `json:"filepath"`
+}
+
+// GetHash implements UploadToken.
+func (l *LocalFileUploadToken) GetHash() string {
+	return l.FilePath
+}
+
+// GetID implements UploadToken.
+func (l *LocalFileUploadToken) GetID() string {
+	return l.FilePath
+}
+
+// GetType implements UploadToken.
+func (l *LocalFileUploadToken) GetType() string {
+	return "local-file"
+}
+
+var _ UploadToken = &LocalFileUploadToken{}

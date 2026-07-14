@@ -57,8 +57,11 @@ func (b *FileFormTaskBuilder) Build(labelOpts ...common_task.LabelOpt) common_ta
 	return common_task.NewTask(b.FormTaskBuilderBase.id, b.FormTaskBuilderBase.dependencies, func(ctx context.Context) (upload.UploadResult, error) {
 		metadata := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionRunMetadata)
 
-		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, b.FormTaskBuilderBase.id.ReferenceIDString()), b.verifier)
-		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token)
+		req := khictx.MustGetValue(ctx, inspectioncore_contract.InspectionTaskInput)
+
+		fieldID := b.FormTaskBuilderBase.id.ReferenceIDString()
+		token := upload.DefaultUploadFileStore.GetUploadToken(GenerateUploadIDWithTaskContext(ctx, fieldID), b.verifier, fieldID)
+		uploadResult, err := upload.DefaultUploadFileStore.GetResult(token, req)
 		if err != nil {
 			return upload.UploadResult{}, err
 		}

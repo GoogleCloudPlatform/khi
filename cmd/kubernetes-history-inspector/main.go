@@ -149,21 +149,20 @@ func run() int {
 
 	if !*parameters.Job.JobMode {
 		slog.Info("Starting Kubernetes History Inspector server...")
-
-		// Setting up options or parameters needed to instanciate gin.Engine
-		serverMode := gin.ReleaseMode
-
-		if *parameters.Debug.Verbose {
-			serverMode = gin.DebugMode
-		}
-
 		uploadFileStoreFolder := "/tmp"
 
 		if parameters.Common.UploadFileStoreFolder != nil {
 			uploadFileStoreFolder = *parameters.Common.UploadFileStoreFolder
 		}
 
-		upload.DefaultUploadFileStore = upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+		uploadFileStore := upload.NewUploadFileStore(upload.NewLocalUploadFileStoreProvider(uploadFileStoreFolder))
+		upload.DefaultUploadFileStore = uploadFileStore
+		// Setting up options or parameters needed to instanciate gin.Engine
+		serverMode := gin.ReleaseMode
+
+		if *parameters.Debug.Verbose {
+			serverMode = gin.DebugMode
+		}
 
 		err = coreinit.CallInitExtension(func(e coreinit.InitExtension) error {
 			return e.ConfigureKHIWebServerFactory(server.DefaultServerFactory)
@@ -178,7 +177,7 @@ func run() int {
 			StaticFolderPath: *parameters.Server.FrontendAssetFolder,
 			ResourceMonitor:  &server.ResourceMonitorImpl{},
 			ServerBasePath:   *parameters.Server.BasePath,
-			UploadFileStore:  upload.DefaultUploadFileStore,
+			UploadFileStore:  uploadFileStore,
 		}
 		engine, err := server.DefaultServerFactory.CreateInstance(serverMode)
 		if err != nil {
@@ -201,7 +200,7 @@ func run() int {
 		displayStartMessage(*parameters.Server.Host, *parameters.Server.Port)
 	} else {
 		slog.Info("Starting Kubernetes History Inspector as job mode...")
-
+		upload.DefaultUploadFileStore = upload.NewJobModeStore()
 		go func() {
 			queryParametersInJson := *parameters.Job.InspectionValues
 			var values map[string]any
