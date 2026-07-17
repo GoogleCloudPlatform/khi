@@ -7,7 +7,29 @@ Read [Contribution Guide](contributing.md) and then follow this guide to set up 
 
 ## Run your first build
 
-Follow [the "Run from source code" section](/README.md#run-from-source-code) on README.
+### Prerequisites
+
+- Go 1.25.\*
+- Node.js environment 22.13.\*
+- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
+- [`jq` command](https://jqlang.org/)
+
+### Initialization (one-time setup)
+
+1. Download or clone this repository  
+   e.g. `git clone https://github.com/GoogleCloudPlatform/khi.git`
+1. Move to the project root  
+   e.g. `cd khi`
+1. Run `make setup` from the project root  
+   (This make target installs npm packages, generates auto generated code, and sets up git hooks)
+
+### Build KHI from source and run
+
+1. [Authorize yourself with `gcloud`](https://cloud.google.com/docs/authentication/gcloud)  
+   e.g. `gcloud auth login` if you use your user account credentials
+1. Run `make build`
+1. Run the generated executable with `./khi`
+1. Open `localhost:8080` and start working with KHI!
 
 ## Setup environment for development
 
@@ -37,11 +59,11 @@ We maintain `GEMINI.md` files in various directories and rule definitions inside
 
 This repository contains VSCode setting files and it includes how the Go backend server runs and open Chrome with enabling the breakpoints configured on the frontend code.
 
-* `launch.json`:
-  * `Start KHI Backend`: Starts KHI backend server on port 8080.
-  * `Launch KHI Frontend (Chrome)`: Starts KHI frontend server on port 4200 and opens Chrome. Requests to `localhost:4200/api` are proxied to `localhost:8080`.
-  * `Launch Storybook (Chrome)`: Starts KHI Storybook on port 6006 and opens Chrome.
-  * `Launch Karma (Chrome)`: Starts KHI frontend test environment Karma on port 9876 and opens Chrome.
+- `launch.json`:
+  - `Start KHI Backend`: Starts KHI backend server on port 8080.
+  - `Launch KHI Frontend (Chrome)`: Starts KHI frontend server on port 4200 and opens Chrome. Requests to `localhost:4200/api` are proxied to `localhost:8080`.
+  - `Launch Storybook (Chrome)`: Starts KHI Storybook on port 6006 and opens Chrome.
+  - `Launch Karma (Chrome)`: Starts KHI frontend test environment Karma on port 9876 and opens Chrome.
 
 ### Run frontend server for development
 
@@ -84,8 +106,8 @@ Storybook automatically builds and serves the new build when you change the fron
 
 Several frontend codes are automatically generated from backend codes.
 
-* `/web/src/app/generated.scss`
-* `/web/src/app/generated.ts`
+- `/web/src/app/generated.scss`
+- `/web/src/app/generated.ts`
 
 These files are generated with [`scripts/frontend-codegen/main.go` Golang codes](/scripts/frontend-codegen/main.go). It reads several Golang constant arrays and generate frontend codes with templates.
 
@@ -119,14 +141,14 @@ KHI automates the container image deployment process.
 After creating a dedicated tag by creating a release on GitHub, the container will be built automatically and pushed on the repository.
 These tag creations are restricted only for our repository admins.
 
-* Pre-release
-  * Name tag with `vx.y.z-beta` then it will be deployed at the following addresses:
-    * `gcr.io/kubernetes-history-inspector/release:beta`
-    * `gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
-* Release
-  * Name tag with `vx.y.z` then it will be deployed at the following address:
-    * `gcr.io/kubernetes-history-inspector/release:vx.y.z`
-    * `gcr.io/kubernetes-history-inspector/release:latest`
+- Pre-release
+  - Name tag with `vx.y.z-beta` then it will be deployed at the following addresses:
+    - `gcr.io/kubernetes-history-inspector/release:beta`
+    - `gcr.io/kubernetes-history-inspector/release:vx.y.z-beta`
+- Release
+  - Name tag with `vx.y.z` then it will be deployed at the following address:
+    - `gcr.io/kubernetes-history-inspector/release:vx.y.z`
+    - `gcr.io/kubernetes-history-inspector/release:latest`
 
 > [!NOTE]
 > The deployment process begins after the release entry being created. It may take an hour to push the image on the repository.
