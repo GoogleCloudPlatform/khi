@@ -7,6 +7,8 @@
 
 Language: English | [日本語](./README.ja.md)
 
+https://github.com/user-attachments/assets/20ef8099-1fa2-46ff-b0b3-ce809098767a
+
 <hr/>
 
 # Kubernetes History Inspector
