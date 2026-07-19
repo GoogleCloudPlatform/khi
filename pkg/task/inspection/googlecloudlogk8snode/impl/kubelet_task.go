@@ -43,7 +43,7 @@ type kubeletNodeLogLogToTimelineMapperSetting struct {
 // Dependencies implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(),
+		googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(),
 		commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(),
 		commonlogk8saudit_contract.ResourceUIDPatternFinderTaskID.Ref(),
@@ -62,7 +62,8 @@ func (k *kubeletNodeLogLogToTimelineMapperSetting) LogIngesterTask() taskid.Task
 
 // ProcessLogByGroup implements inspectiontaskbase.LogToTimelineMapper.
 func (k *kubeletNodeLogLogToTimelineMapperSetting) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterName := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref())
+	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref())
+	clusterName := clusterIdentity.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster)
 	componentFieldSet := log.MustGetFieldSet(l, &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{})
 	containerIDPatternFinder := coretask.GetTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref())
 	podIDFinder := coretask.GetTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref())
