@@ -64,15 +64,13 @@ The easiest way to try KHI is using [Cloud Shell](https://shell.cloud.google.com
 
 3. Click the link `http://localhost:8080` on the terminal and start working with KHI!
 
-> [!NOTE]
-> To build KHI from source code, please see the [Development Guide](/docs/en/development-contribution/development-guide.md).
+### Running in environment without a metadata server (Local PC, etc.)
 
 <details>
-<summary>Running in environments without a metadata server (Local PC, etc.)</summary>
 
 If you want to run KHI in an environment where the metadata server is not available, you can use Application Default Credentials (ADC) by mounting your ADC file from your host filesystem to the container.
 
-### For Linux, MacOS or WSL
+#### For Linux, MacOS or WSL
 
 ```bash
 gcloud auth application-default login
@@ -82,7 +80,7 @@ docker run \
  gcr.io/kubernetes-history-inspector/release:latest
 ```
 
-### For Windows PowerShell
+#### For Windows PowerShell
 
 ```bash
 gcloud auth application-default login
@@ -94,8 +92,10 @@ gcr.io/kubernetes-history-inspector/release:latest
 
 </details>
 
+---
+
 - For running KHI in automated workflows (CI/CD, alert triggers, etc.) without starting the web server, see the [Job Mode Guide](/docs/en/setup-guide/job-mode.md).
-- For permissions required on Google Cloud, see [Google Cloud Permissions](/docs/en/setup-guide/google-cloud-permissions.md).
+- To build KHI from source code, see the [Development Guide](/docs/en/development-contribution/development-guide.md).
 - For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
 ## Supported Products & Environments
