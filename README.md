@@ -19,7 +19,7 @@
   </tr>
 </table>
 
-https://github.com/user-attachments/assets/591357d0-9402-4dd1-b30f-6ae7e25b5cc9
+[![Kubernetes History Inspector Demo](./docs/images/thumbnail.png)](https://github.com/user-attachments/assets/591357d0-9402-4dd1-b30f-6ae7e25b5cc9)
 
 <hr/>
 
@@ -51,6 +51,10 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 
 ## Getting started
 
+The easiest way to try KHI is using [Cloud Shell](https://shell.cloud.google.com), where the metadata server is available without requiring initial credential setup.
+
+### Running in Cloud Shell
+
 1. Open [Cloud Shell](https://shell.cloud.google.com)
 2. Run the following command:
 
@@ -64,7 +68,7 @@ This makes it an invaluable tool for troubleshooting complex issues that span mu
 > To build KHI from source code, please see the [Development Guide](/docs/en/development-contribution/development-guide.md).
 
 <details>
-<summary>Running outside of Cloud Shell (Local / Non-CloudShell environment)</summary>
+<summary>Running in environments without a metadata server (Local PC, etc.)</summary>
 
 If you want to run KHI in an environment where the metadata server is not available, you can use Application Default Credentials (ADC) by mounting your ADC file from your host filesystem to the container.
 
@@ -90,9 +94,9 @@ gcr.io/kubernetes-history-inspector/release:latest
 
 </details>
 
-For permissions required on Google Cloud, see [Google Cloud Permissions](/docs/en/setup-guide/google-cloud-permissions.md).
-
-For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
+- For running KHI in automated workflows (CI/CD, alert triggers, etc.) without starting the web server, see the [Job Mode Guide](/docs/en/setup-guide/job-mode.md).
+- For permissions required on Google Cloud, see [Google Cloud Permissions](/docs/en/setup-guide/google-cloud-permissions.md).
+- For more details, try [Getting started](/docs/en/tutorial/getting-started.md).
 
 ## Supported Products & Environments
 
