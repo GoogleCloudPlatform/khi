@@ -55,7 +55,7 @@ func (k *K8sNodeLogCommonFieldSet) Kind() string {
 var _ log.FieldSet = (*K8sNodeLogCommonFieldSet)(nil)
 
 type K8sNodeLogCommonFieldSetReader struct {
-	StructuredLogParser logutil.StructuredLogParser
+	StructuredLogParser *logutil.SelectorLogParser[NodeLogContext]
 }
 
 // FieldSetKind implements log.FieldSetReader.
@@ -70,7 +70,6 @@ func (k *K8sNodeLogCommonFieldSetReader) Read(reader *structured.NodeReader) (lo
 	if message == "" {
 		message = reader.ReadStringOrDefault("jsonPayload.message", "")
 	}
-	result.Message = k.StructuredLogParser.TryParse(message)
 
 	result.Component = reader.ReadStringOrDefault("jsonPayload.SYSLOG_IDENTIFIER", "")
 	if result.Component == "" { // static pod log doesn't have SYSLOG_IDENTIFIER, use the name included in logName in the case.
@@ -82,6 +81,18 @@ func (k *K8sNodeLogCommonFieldSetReader) Read(reader *structured.NodeReader) (lo
 	}
 	result.Component = strings.Trim(result.Component, "()") // Some component can have () around SYSLOG_IDENTIFIER. Remove them for consistency.
 	result.NodeName = reader.ReadStringOrDefault("resource.labels.node_name", "")
+
+	parser := k.StructuredLogParser
+	if parser == nil {
+		parser = DefaultNodeLogParser
+	}
+
+	ctx := NodeLogContext{
+		SyslogIdentifier: result.Component,
+		NodeName:         result.NodeName,
+	}
+	result.Message = parser.TryParse(ctx, message)
+
 	return &result, nil
 }
 

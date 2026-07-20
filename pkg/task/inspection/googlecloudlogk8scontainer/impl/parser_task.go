@@ -71,7 +71,16 @@ func (i *containerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 	}
 
 	if containerFields, err := log.GetFieldSet(l, &googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{}); err == nil {
-		cs.SetSummary(containerFields.Message)
+		summary := containerFields.Message
+		if containerFields.ParsedMessage != nil {
+			if sev, err := containerFields.ParsedMessage.Severity(); err == nil {
+				cs.SetSeverity(sev)
+			}
+			if msg, err := containerFields.ParsedMessage.MainMessage(); err == nil && msg != "" {
+				summary = msg
+			}
+		}
+		cs.SetSummary(summary)
 	}
 
 	return cs, nil

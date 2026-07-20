@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 )
 
@@ -35,6 +36,7 @@ type K8sContainerLogFieldSet struct {
 	PodName       string
 	ContainerName string
 	Message       string
+	ParsedMessage *logutil.ParseStructuredLogResult
 }
 
 // Kind implements log.FieldSet.
@@ -50,6 +52,7 @@ func (k *K8sContainerLogFieldSet) GroupKey() string {
 var _ log.FieldSet = (*K8sContainerLogFieldSet)(nil)
 
 type K8sContainerLogFieldSetReader struct {
+	StructuredLogParser *logutil.SelectorLogParser[ContainerLogContext]
 }
 
 // FieldSetKind implements log.FieldSetReader.
@@ -64,17 +67,19 @@ func (k *K8sContainerLogFieldSetReader) Read(reader *structured.NodeReader) (log
 	result.Namespace = reader.ReadStringOrDefault("resource.labels.namespace_name", "unknown")
 	result.PodName = reader.ReadStringOrDefault("resource.labels.pod_name", "unknown")
 	result.ContainerName = reader.ReadStringOrDefault("resource.labels.container_name", "unknown")
+
+	rawMessage := ""
 	switch {
 	case reader.Has("protoPayload"):
 		return &result, nil
 	case reader.Has("textPayload"):
-		result.Message = reader.ReadStringOrDefault("textPayload", "")
+		rawMessage = reader.ReadStringOrDefault("textPayload", "")
 	case reader.Has("jsonPayload"):
 		foundMessageField := false
 		for _, fieldName := range jsonPayloadMessageFieldNames {
 			jsonPayloadMessage, err := reader.ReadString(fmt.Sprintf("jsonPayload.%s", fieldName))
 			if err == nil {
-				result.Message = jsonPayloadMessage
+				rawMessage = jsonPayloadMessage
 				foundMessageField = true
 				break
 			}
@@ -84,15 +89,30 @@ func (k *K8sContainerLogFieldSetReader) Read(reader *structured.NodeReader) (log
 			if err != nil {
 				return nil, err
 			}
-			result.Message = string(serialized)
+			rawMessage = string(serialized)
 		}
 	case reader.Has("labels"):
 		serialized, err := reader.Serialize("labels", &structured.JSONNodeSerializer{})
 		if err != nil {
 			return nil, err
 		}
-		result.Message = string(serialized)
+		rawMessage = string(serialized)
 	}
+
+	result.Message = rawMessage
+
+	parser := k.StructuredLogParser
+	if parser == nil {
+		parser = DefaultContainerLogParser
+	}
+
+	ctx := ContainerLogContext{
+		Namespace:     result.Namespace,
+		PodName:       result.PodName,
+		ContainerName: result.ContainerName,
+	}
+	result.ParsedMessage = parser.TryParse(ctx, rawMessage)
+
 	return &result, nil
 }
 

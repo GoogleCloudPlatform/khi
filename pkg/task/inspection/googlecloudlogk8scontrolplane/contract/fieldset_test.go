@@ -156,9 +156,7 @@ jsonPayload:
 			if err != nil {
 				t.Fatalf("failed to parse test input YAML: %v", err)
 			}
-			err = l.SetFieldSetReader(&K8sSchedulerComponentFieldSetReader{
-				KLogParser: logutil.NewKLogTextParser(false),
-			})
+			err = l.SetFieldSetReader(&K8sSchedulerComponentFieldSetReader{})
 			if err != nil {
 				t.Errorf("failed to set fieldset reader: %v", err)
 			}

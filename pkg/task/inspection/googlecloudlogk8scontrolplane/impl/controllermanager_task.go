@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -77,7 +76,6 @@ var ControllerManagerLogFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadT
 				kindToKLogFieldPair("core/v1", "pod", "pod", true),
 				kindToKLogFieldPair("core/v1", "namespace", "namespace", false),
 			},
-			KLogParser: logutil.NewKLogTextParser(false),
 		},
 	},
 )

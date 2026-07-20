@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/patternfinder"
-	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -173,14 +172,7 @@ var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 
 // CommonFieldSetReaderTask parses the common fieldset used by GKE Node component logs.
 var CommonFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogk8snode_contract.CommonFieldsetReaderTaskID, googlecloudlogk8snode_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
-	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{
-		StructuredLogParser: logutil.NewMultiTextLogParser(
-			logutil.NewJsonlTextParser(),
-			logutil.NewKLogTextParser(true),
-			logutil.NewLogfmtTextParser(),
-			&logutil.FallbackRawTextLogParser{},
-		),
-	},
+	&googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSetReader{},
 })
 
 // TailTask is a nop task that depends on all node component mappers and other child tasks to group them.

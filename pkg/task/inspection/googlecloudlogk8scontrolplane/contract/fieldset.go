@@ -126,7 +126,7 @@ func (k *K8sSchedulerComponentFieldSet) HasPodField() bool {
 var _ log.FieldSet = (*K8sSchedulerComponentFieldSet)(nil)
 
 type K8sSchedulerComponentFieldSetReader struct {
-	KLogParser *logutil.KLogTextParser
+	StructuredLogParser *logutil.SelectorLogParser[ControlplaneLogContext]
 }
 
 // FieldSetKind implements log.FieldSetReader.
@@ -139,7 +139,15 @@ func (k *K8sSchedulerComponentFieldSetReader) Read(reader *structured.NodeReader
 	var result K8sSchedulerComponentFieldSet
 	message := reader.ReadStringOrDefault("jsonPayload.message", "")
 
-	structured := k.KLogParser.TryParse(message)
+	parser := k.StructuredLogParser
+	if parser == nil {
+		parser = DefaultControlplaneLogParser
+	}
+	ctx := ControlplaneLogContext{
+		ComponentName: "scheduler",
+	}
+
+	structured := parser.TryParse(ctx, message)
 	if structured != nil {
 		if podFQDN, err := structured.StringField("pod"); err == nil && podFQDN != "" {
 			podNameFragments := strings.Split(podFQDN, "/")
@@ -186,7 +194,7 @@ type KindToKLogFieldPairData struct {
 type K8sControllerManagerComponentFieldSetReader struct {
 	WellKnownSourceLocationToControllerMap map[string]string
 	WellKnownKindToKLogFieldPairs          []*KindToKLogFieldPairData
-	KLogParser                             *logutil.KLogTextParser
+	StructuredLogParser                    *logutil.SelectorLogParser[ControlplaneLogContext]
 }
 
 // FieldSetKind implements log.FieldSetReader.
@@ -194,13 +202,21 @@ func (k *K8sControllerManagerComponentFieldSetReader) FieldSetKind() string {
 	return (&K8sControllerManagerComponentFieldSet{}).Kind()
 }
 
-// c Read implements log.FieldSetReader.
+// Read implements log.FieldSetReader.
 func (k *K8sControllerManagerComponentFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
 	var result K8sControllerManagerComponentFieldSet
 	message := reader.ReadStringOrDefault("jsonPayload.message", "")
 	sourceFile := reader.ReadStringOrDefault("sourceLocation.file", "")
 
-	structured := k.KLogParser.TryParse(message)
+	parser := k.StructuredLogParser
+	if parser == nil {
+		parser = DefaultControlplaneLogParser
+	}
+	ctx := ControlplaneLogContext{
+		ComponentName: "controller-manager",
+	}
+
+	structured := parser.TryParse(ctx, message)
 	controller, _ := k.readController(structured, sourceFile)
 	result.Controller = controller
 	if structured != nil {

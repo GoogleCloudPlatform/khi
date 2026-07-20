@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
-
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -63,6 +63,54 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 					HasSeverity(inspectioncore_contract.SeverityInfo).
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer).
 					HasTimestamp(time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC))
+			},
+		},
+		{
+			name: "container log with structured klog error",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+					Namespace:     "kube-system",
+					PodName:       "kube-apiserver-pod",
+					ContainerName: "kube-apiserver",
+					Message:       `E0929 08:20:24.205299    1949 server.go:100] "Failed to reconcile" error="timeout"`,
+					ParsedMessage: logutil.NewKLogTextParser(true).TryParse(`E0929 08:20:24.205299    1949 server.go:100] "Failed to reconcile" error="timeout"`),
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("Failed to reconcile").
+					HasSeverity(inspectioncore_contract.SeverityError).
+					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
+			},
+		},
+		{
+			name: "container log with structured jsonl warning",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: time.Date(2026, 5, 26, 12, 0, 0, 0, time.UTC),
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+					Namespace:     "app-namespace",
+					PodName:       "app-pod",
+					ContainerName: "app-container",
+					Message:       `{"level":"warn","msg":"cache degraded"}`,
+					ParsedMessage: logutil.NewJsonlTextParser().TryParse(`{"level":"warn","msg":"cache degraded"}`),
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("cache degraded").
+					HasSeverity(inspectioncore_contract.SeverityWarning).
+					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
 			},
 		},
 	}
