@@ -301,6 +301,7 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		desc                 string
 		inputMessage         string
 		inputNodeLogFieldSet *googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet
+		inputClusterIdentity *googlecloudk8scommon_contract.GoogleCloudClusterIdentity
 		inputPodIDInfo       map[string]*googlecloudlogk8snode_contract.PodSandboxIDInfo
 		inputContainerIDInfo map[string]*commonlogk8saudit_contract.ContainerIdentity
 		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
@@ -404,6 +405,30 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					HasEvent(wantContainerPath)
 			},
 		},
+		{
+			desc:         "applies cluster prefix policy for GKE on AWS/Azure",
+			inputMessage: `time="2025-09-29T06:34:07.973711745Z" level=info msg="starting containerd"`,
+			inputNodeLogFieldSet: &googlecloudlogk8snode_contract.K8sNodeLogCommonFieldSet{
+				Component: "containerd",
+				NodeName:  "node-1",
+			},
+			inputClusterIdentity: &googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "awsClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sCluster,
+					},
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "awsClusters/test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "containerd")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -421,8 +446,15 @@ func TestContainerdLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				}
 			}
 
+			clusterIdent := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			}
+			if tc.inputClusterIdentity != nil {
+				clusterIdent = *tc.inputClusterIdentity
+			}
+
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster")
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(), clusterIdent)
 			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.PodSandboxIDDiscoveryTaskID.Ref(), podIDFinder)
 			ctx = tasktest.WithTaskResult(ctx, commonlogk8saudit_contract.ContainerIDPatternFinderTaskID.Ref(), containerIDFinder)
 

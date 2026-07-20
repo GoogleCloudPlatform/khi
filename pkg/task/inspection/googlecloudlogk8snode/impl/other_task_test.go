@@ -46,11 +46,12 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 
 	testCases := []struct {
-		desc         string
-		inputMessage string
-		component    string
-		nodeName     string
-		assert       func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
+		desc                 string
+		inputMessage         string
+		component            string
+		nodeName             string
+		inputClusterIdentity *googlecloudk8scommon_contract.GoogleCloudClusterIdentity
+		assert               func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet)
 	}{
 		{
 			desc:         "starting log for component-A adds Create revision and event",
@@ -90,6 +91,28 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					})
 			},
 		},
+		{
+			desc:         "applies cluster prefix policy for GKE on AWS/Azure",
+			inputMessage: "component-A start",
+			component:    "component-A",
+			nodeName:     "node-1",
+			inputClusterIdentity: &googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+				PrefixPolicy: googlecloudk8scommon_contract.ClusterPrefixPolicy{
+					Prefix: "awsClusters/",
+					RequiredUsages: []googlecloudk8scommon_contract.ClusterNameUsage{
+						googlecloudk8scommon_contract.ClusterNameUsageK8sCluster,
+					},
+				},
+			},
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				wantNodePath := MustK8sNodeTimeline(ctx, "awsClusters/test-cluster", "node-1")
+				wantComponentPath := googlecloudlogk8snode_contract.MustNodeComponentTimeline(ctx, wantNodePath, "component-A")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(wantComponentPath)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -106,9 +129,16 @@ func TestOtherLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 				},
 			)
 
+			clusterIdent := googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+				ClusterName: "test-cluster",
+			}
+			if tc.inputClusterIdentity != nil {
+				clusterIdent = *tc.inputClusterIdentity
+			}
+
 			// 2. Setup context with SAME builder and mock tasks
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-			ctx = tasktest.WithTaskResult(ctx, googlecloudk8scommon_contract.InputClusterNameTaskID.Ref(), "test-cluster")
+			ctx = tasktest.WithTaskResult(ctx, googlecloudlogk8snode_contract.ClusterIdentityTaskID.Ref(), clusterIdent)
 
 			cs, _, err := mapper.ProcessLogByGroup(ctx, l, struct{}{})
 			if err != nil {
