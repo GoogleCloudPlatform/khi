@@ -30,7 +30,12 @@ $highlight-bg-color: rgba(
 );
 $ts-color: mat.m2-get-color-from-palette(cp.$khi-menu-palette, 500);
 $selected-bg-color: rgba($ts-color, 0.2);
-$ts-bg-color: rgba($ts-color, 0.05);
+$row-bg-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 50);
+$ts-solid-bg-color: color-mix(in srgb, $ts-color 5%, $row-bg-color);
+$ts-shadow-color: rgba(
+  mat.m2-get-color-from-palette(mat.$m2-gray-palette, 900),
+  0.5
+);
 
 :host {
   display: grid;
@@ -48,6 +53,19 @@ $ts-bg-color: rgba($ts-color, 0.05);
   border-bottom: 0.2px solid $border-color;
   line-height: 12px;
   font-size: 10px;
+  background-color: $row-bg-color;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
 
   div {
     overflow: hidden;
@@ -56,11 +74,14 @@ $ts-bg-color: rgba($ts-color, 0.05);
   }
 
   &.highlight {
-    background-color: $highlight-bg-color;
     cursor: pointer;
+
+    &::after {
+      background-color: $highlight-bg-color;
+    }
   }
 
-  &.selected {
+  &.selected::after {
     background-color: $selected-bg-color;
   }
 
@@ -70,9 +91,13 @@ $ts-bg-color: rgba($ts-color, 0.05);
   }
 
   .ts {
+    position: sticky;
+    left: 19px;
+    z-index: 1;
     padding: 0 3px;
     color: $ts-color;
-    background-color: $ts-bg-color;
+    background-color: $ts-solid-bg-color;
+    box-shadow: 1px 0 3px $ts-shadow-color;
   }
 
   .message {
@@ -80,15 +105,24 @@ $ts-bg-color: rgba($ts-color, 0.05);
     white-space: pre;
     text-overflow: ellipsis;
     font-family: common.$font-code;
+    padding-left: 3px;
   }
 
   .type-indicator {
+    position: sticky;
+    left: 0;
+    z-index: 1;
     min-width: 5px;
     max-width: 5px;
     width: 5px;
   }
 
   .severity-indicator-wrap {
+    position: sticky;
+    left: 5px;
+    z-index: 1;
+    background-color: $row-bg-color;
+
     .severity-indicator {
       width: 14px;
       color: $text-white;

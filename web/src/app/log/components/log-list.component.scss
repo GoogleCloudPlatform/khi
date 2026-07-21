@@ -67,7 +67,9 @@ $toolbar-shadow-color: rgba(0, 0, 0, 0.15);
 
 .log-list {
   display: grid;
-  grid-template: 'type severity ts message' / auto auto auto 1fr;
+  grid-template:
+    'type severity ts message' 1fr
+    / auto auto auto 1fr;
   width: max-content;
   min-width: 100%;
 }
