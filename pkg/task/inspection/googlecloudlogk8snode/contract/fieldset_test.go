@@ -96,9 +96,7 @@ resource:
 				t.Errorf("failed to parse test YAML data: %v", err)
 			}
 
-			err = l.SetFieldSetReader(&K8sNodeLogCommonFieldSetReader{
-				StructuredLogParser: &logutil.FallbackRawTextLogParser{},
-			})
+			err = l.SetFieldSetReader(&K8sNodeLogCommonFieldSetReader{})
 			if err != nil {
 				t.Fatalf("K8sNodeLogCommonFieldSetReader returned an unexpected error:%v", err)
 			}

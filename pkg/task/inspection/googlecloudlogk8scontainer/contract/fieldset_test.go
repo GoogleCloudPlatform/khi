@@ -67,7 +67,7 @@ func TestK8sContainerLogFieldSetReader_ResourceLabels(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to extract message field: %v", err)
 			}
-			if diff := cmp.Diff(tc.want, containerFieldSet, cmpopts.IgnoreFields(K8sContainerLogFieldSet{}, "Message")); diff != "" {
+			if diff := cmp.Diff(tc.want, containerFieldSet, cmpopts.IgnoreFields(K8sContainerLogFieldSet{}, "Message", "ParsedMessage")); diff != "" {
 				t.Errorf("K8sContainerLogFieldSetReader mismatch (-want +got):\n%s", diff)
 			}
 		})

@@ -130,6 +130,9 @@ func (w *logfmtTextParserWorker) parse(message string) (*ParseStructuredLogResul
 		result.Fields[lastKey] = w.builder.String()
 		w.builder.Reset()
 	}
+	if len(result.Fields) <= 1 {
+		return nil, khierrors.ErrInvalidInput
+	}
 	if msg, ok := result.Fields["msg"]; ok {
 		result.Fields[MainMessageStructuredFieldKey] = msg
 	}

@@ -1,0 +1,47 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package googlecloudlogk8snode_contract
+
+import (
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
+)
+
+// NodeLogContext defines the contextual metadata of a node log used for parser routing.
+type NodeLogContext struct {
+	SyslogIdentifier string
+	NodeName         string
+}
+
+// DefaultNodeLogParser is the default SelectorLogParser for GKE node logs.
+var DefaultNodeLogParser = logutil.NewSelectorLogParser[NodeLogContext](
+	logutil.NewMultiTextLogParser(
+		logutil.NewJsonlTextParser(),
+		logutil.NewKLogTextParser(true),
+		logutil.NewLogfmtTextParser(),
+		&logutil.FallbackRawTextLogParser{},
+	),
+	logutil.ParserRule[NodeLogContext]{
+		Match: func(ctx NodeLogContext) bool {
+			return ctx.SyslogIdentifier == "kubelet"
+		},
+		Parser: logutil.NewKLogTextParser(true),
+	},
+	logutil.ParserRule[NodeLogContext]{
+		Match: func(ctx NodeLogContext) bool {
+			return ctx.SyslogIdentifier == "containerd"
+		},
+		Parser: logutil.NewLogfmtTextParser(),
+	},
+)
