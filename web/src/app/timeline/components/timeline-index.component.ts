@@ -19,6 +19,7 @@ import { Timeline } from 'src/app/store/domain/timeline';
 import { CommonModule } from '@angular/common';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { RendererConvertUtil } from 'src/app/timeline/components/canvas/convertutil';
 import { MatIconModule } from '@angular/material/icon';
 import { KHIIconRegistrationModule } from 'src/app/shared/module/icon-registration.module';
@@ -59,6 +60,10 @@ interface TimelineIndexViewModel {
    * This is used to render a drop shadow or visual grouping indicator.
    */
   isNextChildren: boolean;
+  /** Whether this timeline has child timelines. */
+  hasChildren: boolean;
+  /** Whether this timeline is currently collapsed. */
+  isCollapsed: boolean;
   /** CSS classes to apply to the row container. */
   containerClasses: string[];
   /** Custom style values mapped to CSS custom properties (variables) for inline styling. */
@@ -77,6 +82,7 @@ interface TimelineIndexViewModel {
     CommonModule,
     MatTooltipModule,
     MatMenuModule,
+    MatDividerModule,
     MatIconModule,
     KHIIconRegistrationModule,
   ],
@@ -84,6 +90,9 @@ interface TimelineIndexViewModel {
 export class TimelineIndexComponent {
   /** The list of resource timelines to display in the index. */
   timelines = input<ReadonlyDomainElement<Timeline[]>>([]);
+
+  /** Current set of collapsed timeline IDs. */
+  collapsedTimelineIds = input<ReadonlySet<number>>(new Set());
 
   /** Current highlight state for timelines, keyed by timeline ID. */
   highlights = input<TimelineHighlight>({});
@@ -102,6 +111,15 @@ export class TimelineIndexComponent {
 
   /** Emits the timeline when the user clicks on a row. */
   clickOnTimeline = output<Timeline>();
+
+  /** Emits the timeline when requesting to toggle its collapse state. */
+  toggleCollapseTimeline = output<Timeline>();
+
+  /** Emits the timeline when requesting to expand its direct children timelines. */
+  expandChildren = output<Timeline>();
+
+  /** Emits the timeline when requesting to collapse its direct children timelines. */
+  collapseChildren = output<Timeline>();
 
   /** Emits the timeline when requesting to exclude it. */
   excludeTimeline = output<Timeline>();
@@ -137,6 +155,7 @@ export class TimelineIndexComponent {
   ): TimelineIndexViewModel[] {
     const highlights = this.highlights();
     const styleStore = this.styleStore();
+    const collapsedSet = this.collapsedTimelineIds();
     return timelines.map((timeline, i, arr) => {
       const timelineType =
         styleStore?.getTimelineType(timeline.type.id) ?? timeline.type;
@@ -227,6 +246,8 @@ export class TimelineIndexComponent {
         levels: levels,
         isLastChild: isLastChild,
         isNextChildren: isNextChildren,
+        hasChildren: timeline.childrenCount > 0,
+        isCollapsed: collapsedSet.has(timeline.id),
         containerClasses: containerClasses,
         style: style,
       } as TimelineIndexViewModel;
