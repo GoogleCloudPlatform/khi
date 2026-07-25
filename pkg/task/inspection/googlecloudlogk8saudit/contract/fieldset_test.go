@@ -25,6 +25,31 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
+func TestGCPK8sAuditLogFieldSetReader_Truncated(t *testing.T) {
+	node, err := structured.FromGoValue(map[string]any{
+		"labels": map[string]any{
+			"audit.k8s.io/truncated": "true",
+		},
+		"protoPayload": map[string]any{
+			"methodName":   "io.k8s.core.v1.pods.update",
+			"resourceName": "core/v1/namespaces/default/pods/nginx",
+		},
+	}, &structured.AlphabeticalGoMapKeyOrderProvider{})
+	if err != nil {
+		t.Fatalf("failed to create node: %v", err)
+	}
+
+	got, err := (&GCPK8sAuditLogFieldSetReader{}).Read(structured.NewNodeReader(node))
+	if err != nil {
+		t.Fatalf("Read() error = %v", err)
+	}
+
+	fieldSet := got.(*commonlogk8saudit_contract.K8sAuditLogFieldSet)
+	if !fieldSet.Truncated {
+		t.Fatalf("Truncated = false, want true")
+	}
+}
+
 func TestParseKubernetesOperation(t *testing.T) {
 	testCases := []struct {
 		desc                string
