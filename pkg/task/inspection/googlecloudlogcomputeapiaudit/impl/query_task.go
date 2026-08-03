@@ -34,7 +34,7 @@ import (
 func GenerateComputeAPIQuery(taskMode inspectioncore_contract.InspectionTaskModeType, nodeNames []string) []string {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return []string{
-			generateComputeAPIQueryWithInstanceNameFilter("-- instance name filters to be determined after audit log query"),
+			generateComputeAPIQueryWithInstanceNameFilter("-- instance name filters to be determined after node name discovery"),
 		}
 	} else {
 		result := []string{}

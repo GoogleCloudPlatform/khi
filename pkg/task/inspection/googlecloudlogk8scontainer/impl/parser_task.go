@@ -335,6 +335,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(
 	[]taskid.UntypedTaskReference{
 		googlecloudlogk8scontainer_contract.LogToTimelineMapperTaskID.Ref(),
 		googlecloudlogk8scontainer_contract.PodPhaseTimelineMapperTaskID.Ref(),
+		googlecloudlogk8scontainer_contract.NodeNameDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

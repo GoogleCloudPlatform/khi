@@ -191,6 +191,7 @@ var TailTask = inspectiontaskbase.NewInspectionTask(googlecloudlogk8snode_contra
 		googlecloudlogk8snode_contract.OtherLogLogToTimelineMapperTaskID.Ref(),
 
 		googlecloudlogk8snode_contract.ContainerIDDiscoveryTaskID.Ref(),
+		googlecloudlogk8snode_contract.NodeNameDiscoveryTaskID.Ref(),
 	},
 	func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) (struct{}, error) {
 		return struct{}{}, nil

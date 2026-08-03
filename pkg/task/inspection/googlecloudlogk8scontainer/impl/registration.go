@@ -50,5 +50,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		LogToTimelineMapperTask,
 		PodPhaseTimelineMapperTask,
 		TailTask,
+		NodeNameDiscoveryTask,
 	)
 }

@@ -42,7 +42,7 @@ LOG_ID("serialconsole.googleapis.com%2Fserial_port_2_output") OR
 LOG_ID("serialconsole.googleapis.com%2Fserial_port_3_output") OR
 LOG_ID("serialconsole.googleapis.com%2Fserial_port_debug_output")
 
--- instance name filters to be determined after audit log query
+-- instance name filters to be determined after node name discovery
 
 -- No node name substring filters are specified.`,
 		},
