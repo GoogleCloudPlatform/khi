@@ -151,8 +151,8 @@ export class SelectionManager {
   public readonly previousOfSelectedRevision =
     computed<ReadonlyDomainElement<Revision> | null>(() => {
       const revision = this.selectedRevision();
-      const timeline = this.selectedTimeline();
-      if (revision === null || timeline === null) return null;
+      if (revision === null) return null;
+      const timeline = revision.timeline;
       const revisionIndex = timeline.revisions.indexOf(revision);
       return revisionIndex > 0 ? timeline.revisions[revisionIndex - 1] : null;
     });
@@ -193,8 +193,9 @@ export class SelectionManager {
    * If the timeline is missing or null, the selection is cleared.
    */
   public onSelectTimeline(timeline?: ReadonlyDomainElement<Timeline> | null) {
-    this.selectedTimeline.set(timeline ?? null);
-    this.synchronizeSelection();
+    const nextTimeline = timeline ?? null;
+    this.selectedTimeline.set(nextTimeline);
+    this.validateSelectionAgainstTimeline(nextTimeline);
   }
 
   /**
@@ -218,16 +219,61 @@ export class SelectionManager {
    * Selects a log entry and updates dependent selections.
    */
   public onSelectLog(log: ReadonlyDomainElement<Log> | null) {
-    this.changeSelectionByLogInternal(log, false);
-    this.synchronizeSelection();
+    if (!log) {
+      this.selectedLogId.set(null);
+      this.selectedRevision.set(null);
+      return;
+    }
+
+    const currentTimelines = this.selectedTimelinesWithChildren();
+
+    // When a timeline is already selected, prioritize searching within that timeline and its children.
+    if (currentTimelines.length > 0) {
+      for (const timeline of currentTimelines) {
+        const revision = timeline.lookupRevisionFromLog(log);
+        if (revision) {
+          this.selectedLogId.set(log.id);
+          this.selectedRevision.set(revision);
+          return;
+        }
+        const event = timeline.lookupEventFromLog(log);
+        if (event) {
+          this.selectedLogId.set(log.id);
+          this.selectedRevision.set(null);
+          return;
+        }
+      }
+      this.selectedLogId.set(null);
+      this.selectedRevision.set(null);
+      return;
+    }
+
+    // When no timeline is selected, automatically select the first timeline containing the log.
+    this.selectedLogId.set(log.id);
+    for (const timeline of this.filteredTimelines()) {
+      const revision = timeline.lookupRevisionFromLog(log);
+      if (revision) {
+        this.selectedTimeline.set(timeline);
+        this.selectedRevision.set(revision);
+        return;
+      }
+      const event = timeline.lookupEventFromLog(log);
+      if (event) {
+        this.selectedTimeline.set(timeline);
+        this.selectedRevision.set(null);
+        return;
+      }
+    }
+    this.selectedRevision.set(null);
   }
 
   /**
    * Selects an event and updates timeline and log selections.
    */
   public onSelectEvent(event: ReadonlyDomainElement<Event>) {
-    this.changeSelectionByEventInternal(event.timeline, event, false);
-    this.synchronizeSelection();
+    this.selectedTimeline.set(event.timeline);
+    this.selectedLogId.set(event.log.id);
+    this.selectedRevision.set(null);
   }
 
   /**
@@ -236,105 +282,43 @@ export class SelectionManager {
   public onSelectRevision(revision: ReadonlyDomainElement<Revision> | null) {
     if (revision === null) {
       this.selectedRevision.set(null);
-      this.synchronizeSelection();
       return;
     }
-    this.changeSelectionByRevisionInternal(revision.timeline, revision, false);
-    this.synchronizeSelection();
+    this.selectedTimeline.set(revision.timeline);
+    this.selectedLogId.set(revision.log.id);
+    this.selectedRevision.set(revision);
   }
 
   /**
-   * Synchronizes and validates selection status when any dependent signals change.
-   *
-   * Clears the log or revision selection if they are not part of the currently selected timeline.
+   * Validates that the current log/revision selection is within the target timeline or its children.
    */
-  private synchronizeSelection() {
-    const timeline = this.selectedTimeline();
-    if (!timeline) return;
+  private validateSelectionAgainstTimeline(
+    timeline: ReadonlyDomainElement<Timeline> | null,
+  ) {
+    if (!timeline) {
+      this.selectedLogId.set(null);
+      this.selectedRevision.set(null);
+      return;
+    }
 
     const log = this.selectedLog();
     const revision = this.selectedRevision();
+    const validTimelines = this.selectedTimelinesWithChildren();
 
-    if (
-      log &&
-      timeline.lookupEventFromLog(log) === null &&
-      timeline.lookupRevisionFromLog(log) === null
-    ) {
-      // Clear log selection if it is not part of the newly selected timeline.
-      this.onSelectLog(null);
-    }
+    const isLogValid =
+      !log ||
+      validTimelines.some(
+        (t) => t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log),
+      );
+    const isRevisionValid =
+      !revision ||
+      validTimelines.some((t) => t.lookupRevisionFromLog(revision.log));
 
-    if (revision && timeline.lookupRevisionFromLog(revision.log) === null) {
+    if (!isLogValid) {
+      this.selectedLogId.set(null);
+      this.selectedRevision.set(null);
+    } else if (!isRevisionValid) {
       this.selectedRevision.set(null);
     }
-  }
-
-  private changeSelectionByLogInternal(
-    log: ReadonlyDomainElement<Log> | null,
-    ignoreResourceSelect: boolean,
-  ) {
-    this.selectedLogId.set(log ? log.id : null);
-    if (ignoreResourceSelect || !log) return;
-
-    const timelines = this.filteredTimelines();
-
-    // Find the timeline and the matching revision or event in a single pass using binary search
-    let relatedRevision: ReadonlyDomainElement<Revision> | null = null;
-    let relatedEvent: ReadonlyDomainElement<Event> | null = null;
-    let targetTimeline: ReadonlyDomainElement<Timeline> | null = null;
-    for (const timeline of timelines) {
-      relatedRevision = timeline.lookupRevisionFromLog(log);
-      if (relatedRevision !== null) {
-        targetTimeline = timeline;
-        break;
-      }
-      relatedEvent = timeline.lookupEventFromLog(log);
-      if (relatedEvent !== null) {
-        targetTimeline = timeline;
-        break;
-      }
-    }
-    if (!targetTimeline) return;
-
-    if (relatedRevision) {
-      this.changeSelectionByRevisionInternal(
-        targetTimeline,
-        relatedRevision,
-        true,
-        true,
-      );
-      return;
-    }
-
-    if (relatedEvent) {
-      this.changeSelectionByEventInternal(
-        targetTimeline,
-        relatedEvent,
-        true,
-        true,
-      );
-      return;
-    }
-  }
-
-  private changeSelectionByEventInternal(
-    timeline: ReadonlyDomainElement<Timeline>,
-    event: ReadonlyDomainElement<Event>,
-    ignoreLogSelect: boolean,
-    ignoreTimelineSelect: boolean = false,
-  ) {
-    if (!ignoreTimelineSelect) this.selectedTimeline.set(timeline);
-    if (!ignoreLogSelect) this.changeSelectionByLogInternal(event.log, true);
-  }
-
-  private changeSelectionByRevisionInternal(
-    timeline: ReadonlyDomainElement<Timeline>,
-    revision: ReadonlyDomainElement<Revision>,
-    ignoreLogSelect: boolean,
-    ignoreTimelineSelect: boolean = false,
-  ) {
-    this.selectedRevision.set(revision);
-    if (!ignoreTimelineSelect) this.selectedTimeline.set(timeline);
-    if (!ignoreLogSelect) this.changeSelectionByLogInternal(revision.log, true);
   }
 }

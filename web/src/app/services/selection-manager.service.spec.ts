@@ -277,8 +277,8 @@ describe('SelectionManager', () => {
     service.onSelectLog(targetLog);
 
     expect(service.selectedLog()?.id).toBe(targetLog.id);
-    // Under new spec, log selection does not automatically select the timeline
-    expect(service.selectedTimeline()).toBeNull();
+    // When no timeline is initially selected, selecting a log automatically selects its corresponding timeline
+    expect(service.selectedTimeline()?.id).toBe(4);
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
 
@@ -289,6 +289,7 @@ describe('SelectionManager', () => {
     const timeline4 = timelines.find((t) => t.id === 4)!;
     const unrelatedTimeline = timelines.find((t) => t.id === 1)!;
 
+    service.timelineSelectionShouldIncludeChildren.set(false);
     // Select log (will select Log 1, Revision 1)
     service.onSelectLog(targetLog);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
@@ -307,5 +308,48 @@ describe('SelectionManager', () => {
     // Since Log 1 is not in Timeline 1, selections must be cleared
     expect(service.selectedLog()).toBeNull();
     expect(service.selectedRevision()).toBeNull();
+  });
+
+  it('should prioritize currently selected timeline when selecting a log present in that timeline', () => {
+    const logs = Array.from(logStore.logs());
+    const targetLog = logs[0];
+    const timelines = timelineStore.timelines;
+    const timeline4 = timelines.find((t) => t.id === 4)!;
+
+    service.onSelectTimeline(timeline4);
+    service.onSelectLog(targetLog);
+
+    expect(service.selectedTimeline()?.id).toBe(4);
+    expect(service.selectedLog()?.id).toBe(targetLog.id);
+    expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
+  });
+
+  it('should clear log and revision selection when timeline is set to null', () => {
+    const logs = Array.from(logStore.logs());
+    const targetLog = logs[0];
+
+    service.onSelectLog(targetLog);
+    expect(service.selectedLog()?.id).toBe(targetLog.id);
+
+    service.onSelectTimeline(null);
+
+    expect(service.selectedTimeline()).toBeNull();
+    expect(service.selectedLog()).toBeNull();
+    expect(service.selectedRevision()).toBeNull();
+  });
+
+  it('should allow selecting a log belonging to a child timeline when parent timeline is selected and shouldIncludeChildren is true', () => {
+    const logs = Array.from(logStore.logs());
+    const targetLog = logs[0]; // Log 1 belongs to Timeline 4
+    const timelines = timelineStore.timelines;
+    const timeline3 = timelines.find((t) => t.id === 3)!; // Timeline 3 is parent of Timeline 4
+
+    service.timelineSelectionShouldIncludeChildren.set(true);
+    service.onSelectTimeline(timeline3);
+    service.onSelectLog(targetLog);
+
+    expect(service.selectedTimeline()?.id).toBe(3);
+    expect(service.selectedLog()?.id).toBe(targetLog.id);
+    expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
 });

@@ -92,9 +92,23 @@ export class DiffSmartComponent implements OnInit, OnDestroy {
     this.selectionManager.highlightLogIndices;
 
   /**
-   * Signal containing the currently selected resource timeline.
+   * Signal containing the timeline of the currently selected revision/log, or the selected timeline if none is selected.
    */
-  protected readonly selectedTimeline = this.selectionManager.selectedTimeline;
+  protected readonly selectedTimeline = computed(() => {
+    const revision = this.currentRevision();
+    if (revision) {
+      return revision.timeline;
+    }
+    const log = this.selectionManager.selectedLog();
+    if (log) {
+      for (const t of this.selectionManager.selectedTimelinesWithChildren()) {
+        if (t.lookupRevisionFromLog(log) || t.lookupEventFromLog(log)) {
+          return t;
+        }
+      }
+    }
+    return this.selectionManager.selectedTimeline();
+  });
 
   /**
    * Signal containing the currently selected resource revision.
