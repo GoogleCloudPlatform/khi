@@ -24,9 +24,16 @@ graph TD
     NonSuccessGrouper[NonSuccessLogGrouperTask]
     ChangeTargetGrouper[ChangeTargetGrouperTask]
     
-    %% Manifest & Lifetime
+    %% Manifest, Lifetime & Inventory
     ManifestGenerator[ManifestGeneratorTask]
     LifetimeTracker[ResourceLifetimeTrackerTask]
+
+    NodeNameDiscovery[NodeNameDiscoveryTask]
+    ResourceUIDDiscovery[ResourceUIDDiscoveryTask]
+    ResourceUIDPF[ResourceUIDPatternFinderTask]
+    ContainerIDDiscovery[ContainerIDDiscoveryTask]
+    ContainerIDPF[ContainerIDPatternFinderTask]
+    IPLeaseDiscovery[IPLeaseHistoryDiscoveryTask]
     
     %% History Modifiers
     NamespaceRequestHM[NamespaceRequestHistoryModifierTask]
@@ -44,6 +51,13 @@ graph TD
     Provider --> SuccessFilter
     Provider --> NonSuccessFilter
     Provider --> LogSummaryGrouper
+    Provider --> NodeNameDiscovery
+    Provider --> ResourceUIDDiscovery
+    Provider --> ContainerIDDiscovery
+    Provider --> IPLeaseDiscovery
+
+    ResourceUIDDiscovery --> ResourceUIDPF
+    ContainerIDDiscovery --> ContainerIDPF
     
     SuccessFilter --> LogSorter
     NonSuccessFilter --> NonSuccessGrouper
@@ -102,6 +116,15 @@ graph TD
 
 - **`ManifestGeneratorTask`**: Reconstructs the resource manifest at each point in time by applying the changes from the audit logs. It uses `K8sResourceMergeConfigTask` to handle specific merge strategies for different Kubernetes resources.
 - **`ResourceLifetimeTrackerTask`**: Tracks the lifetime of each resource (creation and deletion). It determines when a resource is created or deleted based on the audit logs and manifest changes.
+
+### Discovery & Inventory Tasks
+
+- **`NodeNameDiscoveryTask`**: Scans audit logs to discover and collect cluster node names.
+- **`ResourceUIDDiscoveryTask`**: Collects mappings between resource UIDs and their identity (Kind, Namespace, Name).
+- **`ResourceUIDPatternFinderTask`**: Builds a pattern finder (`PatternFinder`) from aggregated UIDs for efficient reference resolution.
+- **`ContainerIDDiscoveryTask`**: Collects mappings between container IDs and container identities from pod creation logs.
+- **`ContainerIDPatternFinderTask`**: Builds a pattern finder from aggregated container IDs.
+- **`IPLeaseHistoryDiscoveryTask`**: Discovers IP lease histories from audit logs to resolve IP-to-Pod associations at any timestamp.
 
 ### History Modifiers
 
