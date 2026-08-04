@@ -634,4 +634,77 @@ status:
 				StateType:    commonlogk8saudit_contract.RevisionStateK8sResourceDeleted,
 			}, nodeComparer)
 	})
+
+	t.Run("DryRun log should be ignored", func(t *testing.T) {
+		builder := khifilev6.NewBuilder()
+		cluster := builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{Name: "k8s", Type: inspectioncore_contract.TimelineTypeK8sCluster})
+		api := builder.TimelineAccumulator.GetPath(cluster, khifilev6.PathSegment{Name: "core/v1", Type: inspectioncore_contract.TimelineTypeAPIVersion})
+		kind := builder.TimelineAccumulator.GetPath(api, khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind})
+		ns := builder.TimelineAccumulator.GetPath(kind, khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace})
+		parentPath := builder.TimelineAccumulator.GetPath(ns, khifilev6.PathSegment{Name: "nginx", Type: inspectioncore_contract.TimelineTypeResource})
+		conditionPath := builder.TimelineAccumulator.GetPath(parentPath, khifilev6.PathSegment{Name: "Ready", Type: commonlogk8saudit_contract.TimelineTypeResourceCondition})
+
+		ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+		commonFieldSet := &log.CommonFieldSet{
+			Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		}
+		k8sFieldSet := &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+			Verb:        commonlogk8saudit_contract.VerbUpdate,
+			Principal:   "user-1",
+			ClusterName: "k8s",
+			IsDryRun:    true,
+		}
+		logObj := log.NewLogWithFieldSetsForTest(commonFieldSet, k8sFieldSet)
+
+		bodyYAML := `
+status:
+  conditions:
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2024-01-01T00:00:00Z"
+`
+		bodyReader := structured.NewNodeReader(parseYAML(bodyYAML))
+
+		resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
+			APIVersion: "core/v1",
+			Kind:       "pod",
+			Namespace:  "default",
+			Name:       "nginx",
+		}
+
+		groupSet := commonlogk8saudit_contract.RelatedGroupSet{
+			Roles: map[string]*commonlogk8saudit_contract.ResourceManifestLogGroup{
+				"target": {
+					Resource: resIdentity,
+					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
+						{Log: logObj, ResourceBodyReader: bodyReader, ResourceBodyYAML: bodyYAML},
+					},
+				},
+			},
+		}
+
+		event := commonlogk8saudit_contract.MultiGroupLogEvent{
+			Log:              logObj,
+			GroupRole:        "target",
+			ResourceIdentity: resIdentity,
+			EventType:        commonlogk8saudit_contract.ChangeEventTypeModification,
+			GroupSet:         groupSet,
+		}
+
+		initialState := &conditionLogToTimelineMapperTaskState{
+			AvailableTypes: map[string]struct{}{"Ready": {}},
+			ConditionWalkers: map[string]*conditionWalker{
+				"Ready": newConditionWalker(conditionPath, "Ready"),
+			},
+		}
+
+		cs, _, err := taskSetting.ProcessLog(ctx, event, initialState)
+		if err != nil {
+			t.Fatalf("ProcessLog failed: %v", err)
+		}
+
+		testchangeset.AssertTimeline(t, cs).
+			HasNoRevision(conditionPath)
+	})
 }

@@ -63,13 +63,18 @@ func (i *k8sAuditLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khif
 		return nil, err
 	}
 
+	var summary string
 	if k8sFieldSet.IsError {
 		cs.SetSeverity(inspectioncore_contract.SeverityError)
-		cs.SetSummary(fmt.Sprintf("【%s(%d)】%s %s", k8sFieldSet.StatusMessage, k8sFieldSet.StatusCode, k8sFieldSet.VerbString(), k8sFieldSet.RequestURI))
+		summary = fmt.Sprintf("【%s(%d)】%s %s", k8sFieldSet.StatusMessage, k8sFieldSet.StatusCode, k8sFieldSet.VerbString(), k8sFieldSet.RequestURI)
 	} else {
 		cs.SetSeverity(inspectioncore_contract.SeverityInfo)
-		cs.SetSummary(fmt.Sprintf("%s %s", k8sFieldSet.VerbString(), k8sFieldSet.RequestURI))
+		summary = fmt.Sprintf("%s %s", k8sFieldSet.VerbString(), k8sFieldSet.RequestURI)
 	}
+	if k8sFieldSet.IsDryRun {
+		summary = "【DryRun】" + summary
+	}
+	cs.SetSummary(summary)
 
 	return cs, nil
 }

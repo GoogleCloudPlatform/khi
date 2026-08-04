@@ -93,6 +93,9 @@ func (r *resourceOwnerReferenceTimelineMapperTaskSetting) ProcessLog(ctx context
 	if err != nil {
 		return cs, struct{}{}, err
 	}
+	if k8sFieldSet.IsDryRun {
+		return cs, struct{}{}, nil
+	}
 
 	aliasPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 

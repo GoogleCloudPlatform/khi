@@ -115,6 +115,21 @@ status:
 			wantResourceDeleted: true,
 		},
 		{
+			desc: "dry run create should not mark resource created",
+			inputK8sAuditLogFieldSet: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				Verb:         commonlogk8saudit_contract.VerbCreate,
+				APIVersion:   "core/v1",
+				PluralKind:   "pods",
+				Namespace:    "default",
+				ResourceName: "test",
+				IsDryRun:     true,
+			},
+			prevState:           nil,
+			wantState:           nil,
+			wantResourceCreated: false,
+			wantResourceDeleted: false,
+		},
+		{
 			desc:                     "update with finalizers (deletion started)",
 			inputK8sAuditLogFieldSet: newTestK8sAuditLogFieldSet(commonlogk8saudit_contract.VerbUpdate, "core/v1", "pods"),
 			resourceBodyYAML: `

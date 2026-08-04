@@ -176,6 +176,9 @@ func (e *endpointResourceLogToTimelineMapperTaskSetting) ProcessLog(ctx context.
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if k8sFieldSet.IsDryRun {
+		return cs, state, nil
+	}
 
 	bodyReader, _ := event.GetLastBodyReader("target")
 

@@ -426,6 +426,7 @@ func TestContainerLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		nilBody       bool
 		eventType     commonlogk8saudit_contract.ChangeEventType
 		verb          *pb.Verb
+		isDryRun      bool
 		initialState  *containerLogToTimelineMapperTaskState
 		wantState     *containerLogToTimelineMapperTaskState
 		wantRevisions []*khifilev6.StagingRevision
@@ -571,6 +572,59 @@ status:
 				},
 			},
 		},
+		{
+			name:     "DryRun log should be ignored",
+			pass:     1,
+			isDryRun: true,
+			yaml: `
+status:
+  containerStatuses:
+  - name: main-container
+    state:
+      running:
+        startedAt: "2024-01-01T00:00:00Z"
+    ready: true
+`,
+			initialState: &containerLogToTimelineMapperTaskState{
+				containerIdentities: map[string]*containerStatusIdentity{
+					"main-container": {
+						containerName: "main-container",
+						containerType: ContainerTypeContainer,
+					},
+				},
+				containerStateWalkers: map[string]*containerStateWalker{
+					"main-container": {
+						containerIdentity: &containerStatusIdentity{
+							containerName: "main-container",
+							containerType: ContainerTypeContainer,
+						},
+						podNamespace: podNamespace,
+						podName:      podName,
+						lastState:    "no state",
+					},
+				},
+			},
+			wantState: &containerLogToTimelineMapperTaskState{
+				containerIdentities: map[string]*containerStatusIdentity{
+					"main-container": {
+						containerName: "main-container",
+						containerType: ContainerTypeContainer,
+					},
+				},
+				containerStateWalkers: map[string]*containerStateWalker{
+					"main-container": {
+						containerIdentity: &containerStatusIdentity{
+							containerName: "main-container",
+							containerType: ContainerTypeContainer,
+						},
+						podNamespace: podNamespace,
+						podName:      podName,
+						lastState:    "no state",
+					},
+				},
+			},
+			wantRevisions: []*khifilev6.StagingRevision{},
+		},
 	}
 
 	for _, tc := range tests {
@@ -604,6 +658,7 @@ status:
 			k8sFieldSet.Verb = verb
 			k8sFieldSet.Principal = "user-1"
 			k8sFieldSet.ClusterName = "k8s"
+			k8sFieldSet.IsDryRun = tc.isDryRun
 
 			resIdentity := &commonlogk8saudit_contract.ResourceIdentity{
 				APIVersion: "core/v1",

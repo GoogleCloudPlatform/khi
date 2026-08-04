@@ -29,6 +29,7 @@ type testGroupManifestGeneratorInput struct {
 	verb         *pb.Verb
 	requestYAML  string
 	responseYAML string
+	isDryRun     bool
 }
 
 func TestGroupManifestGenerator(t *testing.T) {
@@ -294,6 +295,42 @@ metadata:
 				"# Resource data is unavailable. Audit logs for this resource is recorded at metadata level.",
 			},
 		},
+		{
+			desc: "dry run log should not override existing values",
+			inputs: []*testGroupManifestGeneratorInput{
+				{
+					verb: commonlogk8saudit_contract.VerbCreate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar`,
+				},
+				{
+					verb: commonlogk8saudit_contract.VerbUpdate,
+					responseYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    qux: quux`,
+					isDryRun: true,
+				},
+			},
+			wantBodies: []string{
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+`,
+				`apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    foo: bar
+`,
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -320,6 +357,7 @@ metadata:
 					Verb:        verb,
 					Request:     request,
 					Response:    response,
+					IsDryRun:    input.isDryRun,
 				}))
 			}
 

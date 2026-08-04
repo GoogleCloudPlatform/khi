@@ -75,6 +75,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T)
 		bodyYAML   string
 		role       string
 		eventType  commonlogk8saudit_contract.ChangeEventType
+		isDryRun   bool
 		wantState  *resourceRevisionLogToTimelineMapperState
 		assert     func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node)
 	}{
@@ -534,6 +535,22 @@ uid: "test-uid"`,
 					}, nodeComparer)
 			},
 		},
+		{
+			name:       "DryRun create event recorded as event instead of revision",
+			inputState: nil,
+			verb:       commonlogk8saudit_contract.VerbCreate,
+			bodyYAML: `metadata:
+  uid: "test-uid"`,
+			role:      "target",
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			isDryRun:  true,
+			wantState: &resourceRevisionLogToTimelineMapperState{},
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, node structured.Node) {
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(parentPath).
+					HasNoRevision(parentPath)
+			},
+		},
 	}
 
 	mapperSetting := &ResourceRevisionLogToTimelineMapperTaskSetting{
@@ -564,6 +581,7 @@ uid: "test-uid"`,
 				Namespace:    "default",
 				ClusterName:  "k8s",
 				Verb:         tc.verb,
+				IsDryRun:     tc.isDryRun,
 			}
 			commonFs := &log.CommonFieldSet{
 				Timestamp: testTime,

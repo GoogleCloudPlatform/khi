@@ -186,6 +186,9 @@ func (c *conditionLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 
 	commonFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if k8sFieldSet.IsDryRun {
+		return cs, state, nil
+	}
 	ownerPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, event.ResourceIdentity)
 
 	bodyReader, hasBody := event.GetLastBodyReader("target")

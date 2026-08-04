@@ -62,6 +62,7 @@ func TestPodPhaseLogToTimelineMapperTaskSetting_ProcessLog(t *testing.T) {
 		eventType commonlogk8saudit_contract.ChangeEventType
 		verb      *pb.Verb
 		time      time.Time
+		isDryRun  bool
 	}
 
 	type wantRevision struct {
@@ -452,6 +453,28 @@ status:
 				},
 			},
 		},
+		{
+			name:        "dry run log should be ignored",
+			namespace:   "default",
+			podName:     "test-pod",
+			clusterName: "k8s",
+			steps: []step{
+				{
+					role:      "pod",
+					eventType: commonlogk8saudit_contract.ChangeEventTypeCreation,
+					verb:      commonlogk8saudit_contract.VerbCreate,
+					time:      baseTime,
+					isDryRun:  true,
+					yaml: `
+metadata:
+  uid: uid-1
+status:
+  phase: Running
+`,
+				},
+			},
+			wantRevisions: []wantRevision{},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -501,6 +524,7 @@ status:
 					Namespace:    tc.namespace,
 					ClusterName:  tc.clusterName,
 					Verb:         step.verb,
+					IsDryRun:     step.isDryRun,
 				}
 				commonFs := &log.CommonFieldSet{
 					Timestamp: step.time,

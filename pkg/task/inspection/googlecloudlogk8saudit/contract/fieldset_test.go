@@ -208,6 +208,28 @@ func TestGCPK8sAuditLogFieldSetReader_Read(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "with dry run label",
+			input: `{
+				"labels": {
+					"command.gke.io/dryRun": "All"
+				},
+				"protoPayload": {
+					"resourceName": "core/v1/namespaces/default/pods/nginx",
+					"methodName": "io.k8s.core.v1.pods.create"
+				}
+			}`,
+			want: &commonlogk8saudit_contract.K8sAuditLogFieldSet{
+				RequestURI:   "core/v1/namespaces/default/pods/nginx",
+				APIVersion:   "core/v1",
+				PluralKind:   "pods",
+				Namespace:    "default",
+				ResourceName: "nginx",
+				ClusterName:  "unknown",
+				Verb:         commonlogk8saudit_contract.VerbCreate,
+				IsDryRun:     true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

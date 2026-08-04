@@ -147,11 +147,14 @@ func (c *containerLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context
 			containerStateWalkers: map[string]*containerStateWalker{},
 		}
 	}
-	if event.GroupRole != "pod" {
-		return nil, state, nil
-	}
-
 	cs := khifilev6.NewTimelineChangeSet(event.Log)
+	if event.GroupRole != "pod" {
+		return cs, state, nil
+	}
+	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if k8sFieldSet.IsDryRun {
+		return cs, state, nil
+	}
 	bodyReader, hasBody := event.GetLastBodyReader("pod")
 
 	currentStateReaders := map[string]*structured.NodeReader{}

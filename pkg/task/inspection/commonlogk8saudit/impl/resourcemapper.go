@@ -174,6 +174,9 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleParentChangeForSu
 			return nil
 		}
 		k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+		if k8sFieldSet.IsDryRun {
+			return nil
+		}
 		targetPath := MustResolveTimelinePath(ctx, k8sFieldSet.ClusterName, targetGroup.Resource)
 
 		commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
@@ -209,6 +212,11 @@ func (r *ResourceRevisionLogToTimelineMapperTaskSetting) handleTargetChange(ctx 
 
 	if prevGroupData == nil {
 		prevGroupData = newResourceRevisionLogToTimelineMapperState()
+	}
+
+	if k8sFieldSet.IsDryRun {
+		cs.AddEvent(targetPath)
+		return prevGroupData, nil
 	}
 
 	if k8sFieldSet.Verb == commonlogk8saudit_contract.VerbDeleteCollection && prevGroupData.WasCompletelyRemoved {

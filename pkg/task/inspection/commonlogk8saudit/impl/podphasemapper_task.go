@@ -155,6 +155,10 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) PreProcessLog(ctx context.Conte
 	}
 
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
+	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if k8sFieldSet.IsDryRun {
+		return prevGroupData, nil
+	}
 	eventTime := commonLogFieldSet.Timestamp
 
 	switch passIndex {
@@ -227,6 +231,9 @@ func (c *podPhaseLogToTimelineMapperTaskSetting) ProcessLog(ctx context.Context,
 
 	commonLogFieldSet := log.MustGetFieldSet(event.Log, &log.CommonFieldSet{})
 	k8sFieldSet := log.MustGetFieldSet(event.Log, &commonlogk8saudit_contract.K8sAuditLogFieldSet{})
+	if k8sFieldSet.IsDryRun {
+		return cs, prevGroupData, nil
+	}
 	eventTime := commonLogFieldSet.Timestamp
 
 	var targetBodyReader *structured.NodeReader

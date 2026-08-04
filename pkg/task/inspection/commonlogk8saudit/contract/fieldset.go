@@ -99,6 +99,8 @@ type K8sAuditLogFieldSet struct {
 	IsFirst bool
 	// IsLast is true if the log is the last log of the operation.
 	IsLast bool
+	// IsDryRun is true if the request was a dry run.
+	IsDryRun bool
 
 	// APIVersion is the API version of the resource (e.g., "apps/v1").
 	APIVersion string

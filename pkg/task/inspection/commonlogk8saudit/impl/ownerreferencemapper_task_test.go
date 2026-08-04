@@ -48,9 +48,10 @@ func TestResourceOwnerReferenceTimelineMapperTask_ProcessLog(t *testing.T) {
 	}
 
 	tests := []struct {
-		name   string
-		yaml   string
-		assert func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context)
+		name     string
+		yaml     string
+		isDryRun bool
+		assert   func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context)
 	}{
 		{
 			name: "No Owner References",
@@ -219,6 +220,32 @@ metadata:
 					HasNoAlias(expectedTargetPath)
 			},
 		},
+		{
+			name:     "DryRun log should be ignored",
+			isDryRun: true,
+			yaml: `
+metadata:
+  name: nginx
+  namespace: default
+  ownerReferences:
+  - apiVersion: apps/v1
+    kind: ReplicaSet
+    name: nginx-replicaset
+    uid: uid-1
+`,
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, ctx context.Context) {
+				ownerPath := MustResolveTimelinePath(ctx, "k8s", &commonlogk8saudit_contract.ResourceIdentity{
+					APIVersion: "apps/v1",
+					Kind:       "replicaset",
+					Namespace:  "default",
+					Name:       "nginx-replicaset",
+				})
+				expectedTargetPath := commonlogk8saudit_contract.MustOwnedResourceTimeline(ctx, ownerPath, "nginx[kind:pod]")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasNoAlias(expectedTargetPath)
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -235,6 +262,7 @@ metadata:
 				Namespace:    "default",
 				ClusterName:  "k8s",
 				Verb:         commonlogk8saudit_contract.VerbUpdate,
+				IsDryRun:     tc.isDryRun,
 			}
 			commonFs := &log.CommonFieldSet{
 				Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),

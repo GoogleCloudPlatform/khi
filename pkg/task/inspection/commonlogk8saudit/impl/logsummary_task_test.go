@@ -79,6 +79,54 @@ func TestK8sAuditLogIngester_ProcessLog(t *testing.T) {
 					HasSummary("【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
 			},
 		},
+		{
+			name: "dry run info log ingestion",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: testTime},
+				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:   "core/v1",
+					PluralKind:   "pods",
+					Namespace:    "default",
+					ResourceName: "test-pod",
+					RequestURI:   "/api/v1/namespaces/default/pods/test-pod",
+					Verb:         commonlogk8saudit_contract.VerbCreate,
+					IsError:      false,
+					IsDryRun:     true,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
+					HasSummary("【DryRun】Create /api/v1/namespaces/default/pods/test-pod")
+			},
+		},
+		{
+			name: "dry run error log ingestion",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: testTime},
+				&commonlogk8saudit_contract.K8sAuditLogFieldSet{
+					APIVersion:    "core/v1",
+					PluralKind:    "pods",
+					Namespace:     "default",
+					ResourceName:  "test-pod",
+					RequestURI:    "/api/v1/namespaces/default/pods/test-pod",
+					Verb:          commonlogk8saudit_contract.VerbCreate,
+					IsError:       true,
+					StatusCode:    409,
+					StatusMessage: "Conflict",
+					IsDryRun:      true,
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasTimestamp(testTime).
+					HasSeverity(inspectioncore_contract.SeverityError).
+					HasLogType(commonlogk8saudit_contract.LogTypeAudit).
+					HasSummary("【DryRun】【Conflict(409)】Create /api/v1/namespaces/default/pods/test-pod")
+			},
+		},
 	}
 
 	ingester := &k8sAuditLogIngester{}

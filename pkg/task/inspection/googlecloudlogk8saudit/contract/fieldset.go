@@ -42,6 +42,7 @@ func (g *GCPK8sAuditLogFieldSetReader) Read(reader *structured.NodeReader) (log.
 	methodName := reader.ReadStringOrDefault("protoPayload.methodName", "")
 	result.ClusterName = reader.ReadStringOrDefault("resource.labels.cluster_name", "unknown")
 	result.RequestURI = resourceName
+	result.IsDryRun = reader.ReadStringOrDefault("labels.command\\.gke\\.io/dryRun", "") != ""
 
 	apiVersion, pluralKind, namespace, name, subResourceName, verb := parseKubernetesOperation(resourceName, methodName)
 	result.APIVersion = apiVersion

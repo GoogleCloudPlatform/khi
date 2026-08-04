@@ -63,6 +63,7 @@ func TestEndpointLogToTimelineMapperTask_ProcessLog(t *testing.T) {
 		yaml         string
 		eventType    commonlogk8saudit_contract.ChangeEventType
 		verb         *pb.Verb
+		isDryRun     bool
 		initialState *endpointResourceLogToTimelineMapperState
 		wantState    *endpointResourceLogToTimelineMapperState
 		assert       func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder)
@@ -543,6 +544,43 @@ metadata:
 				}
 			},
 		},
+		{
+			name:         "Pass 1: DryRun log should be ignored",
+			isPreProcess: false,
+			isDryRun:     true,
+			yaml: `
+endpoints:
+- conditions:
+    ready: true
+  targetRef:
+    kind: Pod
+    name: my-pod
+    namespace: default
+    uid: pod-uid-1
+`,
+			eventType: commonlogk8saudit_contract.ChangeEventTypeModification,
+			verb:      commonlogk8saudit_contract.VerbUpdate,
+			initialState: &endpointResourceLogToTimelineMapperState{
+				serviceNames: map[string]struct{}{"my-service": {}},
+				foundPods: map[string]*podIdentity{
+					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
+				},
+				lastStates: map[string]*pb.RevisionState{},
+			},
+			wantState: &endpointResourceLogToTimelineMapperState{
+				serviceNames: map[string]struct{}{"my-service": {}},
+				foundPods: map[string]*podIdentity{
+					"pod-uid-1": {uid: "pod-uid-1", name: "my-pod", namespace: "default"},
+				},
+				lastStates: map[string]*pb.RevisionState{},
+			},
+			assert: func(t *testing.T, cs *khifilev6.TimelineChangeSet, builder *khifilev6.Builder) {
+				ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+				expectedPodPath := MustResolvePodEndpointSliceTimelinePath(ctx, "k8s", "default", "my-endpoint", "default", "my-pod")
+				testchangeset.AssertTimeline(t, cs).
+					HasNoRevision(expectedPodPath)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -567,6 +605,7 @@ metadata:
 					Verb:        tc.verb,
 					Principal:   "user-1",
 					ClusterName: "k8s",
+					IsDryRun:    tc.isDryRun,
 				},
 			)
 
