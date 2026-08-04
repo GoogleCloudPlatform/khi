@@ -4,7 +4,7 @@
 
 ---
 
-本ドキュメントでは、KHI におけるログ解析の全体パイプラインと、開発者が新しいログのパースやタイムライン変換を実装するために使用する **6 種類の高レベルタスク作成ユーティリティの実践的なクックブック** を提供します。
+本ドキュメントでは、KHI におけるログ解析の全体パイプラインと、開発者が新しいログのパースやタイムライン変換を実装するために使用する **5 種類の高レベルタスク作成ユーティリティの実践的なクックブック** を提供します。
 
 ## 1. ログ解析パイプラインの全体像
 
@@ -68,10 +68,10 @@ var MyFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
 )
 ```
 
-このユーティリティを使用するタスクでは、`log.GetFieldSet(l, MyFieldSetReadTaskID)` を使用してログから特定のフィールドセットを読み取ることができます。
+このユーティリティを使用するタスクでは、`log.GetFieldSet(l, &MyFieldSet{})` を使用してログから特定のフィールドセットを読み取ることができます。
 
 ```go
-fieldSet := log.GetFieldSet(l, MyFieldSetReadTaskID)
+fieldSet := log.GetFieldSet(l, &MyFieldSet{})
 ```
 
 > [!TIP]
@@ -90,7 +90,7 @@ var MyGrouperTask = inspectiontaskbase.NewLogGrouperTask(
     SourceLogsTaskID.Ref(),
     func(ctx context.Context, l *log.Log) (string, error) {
         // ログ l からグループ化キーとなる文字列を返す
-        fieldSet := log.GetFieldSet(l, MyFieldSetReadTaskID)
+        fieldSet := log.GetFieldSet(l, &MyFieldSet{})
         return fieldSet.foo, nil
     },
 )
@@ -110,7 +110,7 @@ var MyFilterTask = inspectiontaskbase.NewLogFilterTask(
     SourceLogsTaskID.Ref(),
     func(ctx context.Context, l *log.Log) (bool, error) {
         // true を返したログのみが維持され、false を返したログは除外されます
-        fieldSet := log.GetFieldSet(l, MyFieldSetReadTaskID)
+        fieldSet := log.GetFieldSet(l, &MyFieldSet{})
         return fieldSet.bar > 0, nil
     },
 )
@@ -193,18 +193,33 @@ func (m *MyMapper) Dependencies() []taskid.UntypedTaskReference {
 }
 ```
 
-### 6.2 ツリー構造を保持したタイムラインパスの構築
+### 6.2 タイムラインパス生成ユーティリティの作成と利用
 
-現在のタイムライン API では、リソース名や文字列を `#` や `/` で単純連結するレガシーな文字列パスは廃止され、リソースの階層関係（ツリー構造）を明確に型で表現する **`*khifilev6.TimelinePath`** を用いてイベントを追加・解決します。
+現在の KHI 実装では、マッパー内で生の文字列からパスを直接構築するのではなく、リソースの階層関係（ツリー構造）を明確に型で表現する **`*khifilev6.TimelinePath`** を用いてイベントを追加・解決します。
+さらに、同一の親パスから子セグメントへ結合する処理をカプセル化した**タイムラインパス生成ユーティリティ（ヘルパー関数）**を作成し、`TimelinePathPool` を通じてオブジェクト再利用を行う一般的な実装パターンを採用しています。
+
+#### 1. タイムラインパス生成ヘルパーの作成例 (`contract` パッケージ等に定義)
+
+```go
+// KHI における標準的な TimelinePath ヘルパー関数の作成例
+func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
+    // 1. 親階層となるクラスタの TimelinePath を取得・構築
+    clusterPath := MustK8sClusterTimeline(ctx, clusterName)
+    // 2. TimelinePathPool を使用して子セグメントを安全に結合し、重複生成を抑止
+    pathPool := khictx.MustGetValue(ctx, inspectioncore_contract.TimelinePathPool)
+    return pathPool.MustGet(clusterPath, namespace, podName)
+}
+```
+
+#### 2. マッパーからのタイムラインパスヘルパーの利用
 
 ```go
 // メッセージを処理し、タイムラインイベントを追加するロジック
 func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
     cs := khifilev6.NewTimelineChangeSet()
 
-    // パスプールの使用により同一パスのオブジェクト生成を抑止し最適化
-    pathPool := khictx.MustGetValue(ctx, inspectioncore_contract.TimelinePathPool)
-    podPath := pathPool.Get("test-cluster", "default", "my-pod")
+    // 作成したタイムラインパス生成ヘルパーを呼び出してパスを安全に取得
+    podPath := commonlogk8saudit_contract.MustK8sPodTimeline(ctx, "test-cluster", "default", "my-pod")
 
     // イベント追加
     cs.AddEvent(podPath)
@@ -217,7 +232,7 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
 var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
     MyMapperTaskID,
     &MyMapper{},
-    inspectioncore_contract.FeatureTaskLabel("my-mapper", /* その他パラメータ */),
+    inspectioncore_contract.FeatureTaskLabel("my-feature", "Feature label", "Detailed description of the feature", true, "gcp-gke"),
 )
 ```
 

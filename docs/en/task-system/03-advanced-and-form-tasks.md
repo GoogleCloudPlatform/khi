@@ -72,7 +72,7 @@ The FeatureTask label is a special label that exposes a task as a toggleable fea
 By specifying this label on main feature tasks such as mappers, you allow users to enable or disable the feature.
 
 ```go
-inspectioncore_contract.FeatureTaskLabel("my-feature", "Feature label", "Detailed description of the feature", true, 0)
+inspectioncore_contract.FeatureTaskLabel("my-feature", "Feature label", "Detailed description of the feature", true, "gcp-gke")
 ```
 
 ## 3. Task Utilities for Discovering Information from Logs (`Inventory` and `Discovery` Tasks)
@@ -125,7 +125,7 @@ var containerInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder(Conta
 var NodeLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
     NodeLogContainerIDDiscoveryTaskID,
     []taskid.UntypedTaskReference{NodeLogParserTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*ContainerIdentity, error) {
+    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
         logs := coretask.GetTaskResult(ctx, NodeLogParserTaskID.Ref())
         return extractContainersFromNodeLogs(logs), nil
     },
@@ -135,7 +135,7 @@ var NodeLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
 var AuditLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
     AuditLogContainerIDDiscoveryTaskID,
     []taskid.UntypedTaskReference{AuditLogParserTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*ContainerIdentity, error) {
+    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
         logs := coretask.GetTaskResult(ctx, AuditLogParserTaskID.Ref())
         return extractContainersFromAuditLogs(logs), nil
     },
@@ -292,9 +292,9 @@ var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(
 When you want to dynamically report task progress to the frontend, such as during log fetching or large file parsing, create your task using `NewProgressReportableInspectionTask`.
 This task receives `TaskProgressMetadata` in its logic and can notify the frontend of specific completion percentages or indeterminate states as execution proceeds.
 
-#### 1. Example of Periodically Updating Quantitative Progress (`progressutil.NewProgressUpdator`)
+#### 1. Example of Periodically Updating Quantitative Progress (`progressutil.NewProgressUpdater`)
 
-When the total work amount (item count or byte size) is known, use `progressutil.NewProgressUpdator` to periodically update the progress ratio and status message at regular timer intervals (e.g., every second):
+When the total work amount (item count or byte size) is known, use `progressutil.NewProgressUpdater` to periodically update the progress ratio and status message at regular timer intervals (e.g., every second):
 
 ```go
 var HeavyProcessingTask = inspectiontaskbase.NewProgressReportableInspectionTask(
@@ -309,8 +309,8 @@ var HeavyProcessingTask = inspectiontaskbase.NewProgressReportableInspectionTask
         total := len(logs)
         processed := 0
 
-        // Create a ProgressUpdator that updates progress every second
-        updater := progressutil.NewProgressUpdator(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
+        // Create a ProgressUpdater that updates progress every second
+        updater := progressutil.NewProgressUpdater(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
             tp.Percentage = float32(processed) / float32(total)
             tp.Message = fmt.Sprintf("Processed %d/%d logs", processed, total)
         })

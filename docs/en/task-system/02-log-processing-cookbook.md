@@ -4,7 +4,7 @@
 
 ---
 
-This document explains the overall log processing pipeline in KHI and provides **practical cookbooks for 6 high-level task utilities** that developers use to implement new log parsers and timeline mappers.
+This document explains the overall log processing pipeline in KHI and provides **practical cookbooks for 5 high-level task utilities** that developers use to implement new log parsers and timeline mappers.
 
 ## 1. Overview of the Log Processing Pipeline
 
@@ -68,10 +68,10 @@ var MyFieldSetReadTask = inspectiontaskbase.NewFieldSetReadTask(
 )
 ```
 
-In tasks that use this utility, you can read the specific field set from a log using `log.GetFieldSet(l, MyFieldSetReadTaskID)`.
+In tasks that use this utility, you can read the specific field set from a log using `log.GetFieldSet(l, &MyFieldSet{})`.
 
 ```go
-fieldSet := log.GetFieldSet(l, MyFieldSetReadTaskID)
+fieldSet := log.GetFieldSet(l, &MyFieldSet{})
 ```
 
 > [!TIP]
@@ -90,7 +90,7 @@ var MyGrouperTask = inspectiontaskbase.NewLogGrouperTask(
     SourceLogsTaskID.Ref(),
     func(ctx context.Context, l *log.Log) (string, error) {
         // Return a string as the grouping key from log l
-        fieldSet := log.GetFieldSet(l, MyFieldSetReadTaskID)
+        fieldSet := log.GetFieldSet(l, &MyFieldSet{})
         return fieldSet.foo, nil
     },
 )
@@ -110,7 +110,7 @@ var MyFilterTask = inspectiontaskbase.NewLogFilterTask(
     SourceLogsTaskID.Ref(),
     func(ctx context.Context, l *log.Log) (bool, error) {
         // Keep logs that return true, and filter out logs that return false
-        fieldSet := log.GetFieldSet(l, MyFieldSetReadTaskID)
+        fieldSet := log.GetFieldSet(l, &MyFieldSet{})
         return fieldSet.bar > 0, nil
     },
 )
@@ -193,18 +193,33 @@ func (m *MyMapper) Dependencies() []taskid.UntypedTaskReference {
 }
 ```
 
-### 6.2 Building Timeline Paths with Tree Structures
+### 6.2 Creating and Using Timeline Path Helper Utilities
 
-In the current timeline API, legacy string paths that simply concatenate resource names with `#` or `/` are deprecated. Instead, use **`*khifilev6.TimelinePath`**, which clearly expresses resource hierarchies (tree structures) with types, to add and resolve events.
+In current KHI implementations, mappers do not construct raw string paths directly. Instead, they use **`*khifilev6.TimelinePath`**, which clearly expresses resource hierarchies (tree structures) with types, to add and resolve events.
+Furthermore, KHI uses a common implementation pattern where you create a **timeline path helper utility** that encapsulates joining child segments to parent paths, and reuses objects through `TimelinePathPool`.
+
+#### 1. Example of Creating a Timeline Path Helper (defined in `contract` package, etc.)
+
+```go
+// Example of a standard TimelinePath helper function in KHI
+func MustK8sPodTimeline(ctx context.Context, clusterName string, namespace string, podName string) *khifilev6.TimelinePath {
+    // 1. Get or construct the parent cluster TimelinePath
+    clusterPath := MustK8sClusterTimeline(ctx, clusterName)
+    // 2. Use TimelinePathPool to safely join child segments and avoid duplicate allocations
+    pathPool := khictx.MustGetValue(ctx, inspectioncore_contract.TimelinePathPool)
+    return pathPool.MustGet(clusterPath, namespace, podName)
+}
+```
+
+#### 2. Using the Timeline Path Helper from a Mapper
 
 ```go
 // Process messages and add timeline events
 func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData MyGroupData) (*khifilev6.TimelineChangeSet, MyGroupData, error) {
     cs := khifilev6.NewTimelineChangeSet()
 
-    // Use a path pool to avoid creating duplicate path objects and optimize performance
-    pathPool := khictx.MustGetValue(ctx, inspectioncore_contract.TimelinePathPool)
-    podPath := pathPool.Get("test-cluster", "default", "my-pod")
+    // Call your timeline path helper utility to safely get the path
+    podPath := commonlogk8saudit_contract.MustK8sPodTimeline(ctx, "test-cluster", "default", "my-pod")
 
     // Add event
     cs.AddEvent(podPath)
@@ -217,7 +232,7 @@ func (m *MyMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevData M
 var MyMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
     MyMapperTaskID,
     &MyMapper{},
-    inspectioncore_contract.FeatureTaskLabel("my-mapper", /* other parameters */),
+    inspectioncore_contract.FeatureTaskLabel("my-feature", "Feature label", "Detailed description of the feature", true, "gcp-gke"),
 )
 ```
 

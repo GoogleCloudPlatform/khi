@@ -72,7 +72,7 @@ FeatureTask ラベルは、そのタスクを KHI の「New Inspection」画面�
 マッパータスクなどの主機能となるタスクに指定することで、ユーザーは機能の有効/無効を選択できます。
 
 ```go
-inspectioncore_contract.FeatureTaskLabel("my-feature", "機能ラベル", "機能詳細の説明文", true, 0)
+inspectioncore_contract.FeatureTaskLabel("my-feature", "機能ラベル", "機能詳細の説明文", true, "gcp-gke")
 ```
 
 ## 3. ログから情報を発見するためのタスクユーティリティ (`Inventory` と `Discovery` タスク)
@@ -125,7 +125,7 @@ var containerInventoryBuilder = inspectiontaskbase.NewInventoryTaskBuilder(Conta
 var NodeLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
     NodeLogContainerIDDiscoveryTaskID,
     []taskid.UntypedTaskReference{NodeLogParserTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*ContainerIdentity, error) {
+    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
         logs := coretask.GetTaskResult(ctx, NodeLogParserTaskID.Ref())
         return extractContainersFromNodeLogs(logs), nil
     },
@@ -135,7 +135,7 @@ var NodeLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
 var AuditLogContainerIDDiscoveryTask = containerInventoryBuilder.DiscoveryTask(
     AuditLogContainerIDDiscoveryTaskID,
     []taskid.UntypedTaskReference{AuditLogParserTaskID.Ref()},
-    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) ([]*ContainerIdentity, error) {
+    func(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType, progress *inspectionmetadata.TaskProgressMetadata) (commonlogk8saudit_contract.ContainerIDToContainerIdentity, error) {
         logs := coretask.GetTaskResult(ctx, AuditLogParserTaskID.Ref())
         return extractContainersFromAuditLogs(logs), nil
     },
@@ -292,9 +292,9 @@ var ClusterIdentityTask = inspectiontaskbase.NewInspectionTask(
 ログフェッチや大容量ファイルの解析など、タスクの進捗状況を動的にフロントエンドへ報告したい場合は、`NewProgressReportableInspectionTask` を使用してタスクを作成します。
 このタスクはロジック内に `TaskProgressMetadata` を受け取り、実行の進み具合に応じて具体的なパーセンテージや不定状態をフロントエンドへ通知できます。
 
-#### 1. 定量的な進捗を定期更新する例 (`progressutil.NewProgressUpdator`)
+#### 1. 定量的な進捗を定期更新する例 (`progressutil.NewProgressUpdater`)
 
-処理総量（件数やバイト数）が既知である場合、`progressutil.NewProgressUpdator` を利用してタイマー間隔（例: 1秒ごと）で進行度とステータスメッセージを定期反映させる実装が標準的です:
+処理総量（件数やバイト数）が既知である場合、`progressutil.NewProgressUpdater` を利用してタイマー間隔（例: 1秒ごと）で進行度とステータスメッセージを定期反映させる実装が標準的です:
 
 ```go
 var HeavyProcessingTask = inspectiontaskbase.NewProgressReportableInspectionTask(
@@ -309,8 +309,8 @@ var HeavyProcessingTask = inspectiontaskbase.NewProgressReportableInspectionTask
         total := len(logs)
         processed := 0
 
-        // 1秒ごとに progress を更新する ProgressUpdator を生成
-        updater := progressutil.NewProgressUpdator(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
+        // 1秒ごとに progress を更新する ProgressUpdater を生成
+        updater := progressutil.NewProgressUpdater(progress, time.Second, func(tp *inspectionmetadata.TaskProgressMetadata) {
             tp.Percentage = float32(processed) / float32(total)
             tp.Message = fmt.Sprintf("Processed %d/%d logs", processed, total)
         })
