@@ -243,12 +243,10 @@ export class SelectionManager {
           return;
         }
       }
-      this.selectedLogId.set(null);
-      this.selectedRevision.set(null);
-      return;
     }
 
-    // When no timeline is selected, automatically select the first timeline containing the log.
+    // When no timeline is selected or the log is not found in the currently selected timelines,
+    // automatically select the first timeline containing the log.
     this.selectedLogId.set(log.id);
     for (const timeline of this.filteredTimelines()) {
       const revision = timeline.lookupRevisionFromLog(log);

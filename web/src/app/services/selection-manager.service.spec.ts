@@ -195,8 +195,16 @@ describe('SelectionManager', () => {
           revisionIds: [1],
           eventIds: [1],
         },
+        {
+          id: 5,
+          timelineTypeId: 1,
+          nameStringId: 1,
+          parentTimelineId: 0,
+          revisionIds: [],
+          eventIds: [],
+        },
       ],
-      4,
+      5,
       [
         {
           id: 1,
@@ -349,6 +357,20 @@ describe('SelectionManager', () => {
     service.onSelectLog(targetLog);
 
     expect(service.selectedTimeline()?.id).toBe(3);
+    expect(service.selectedLog()?.id).toBe(targetLog.id);
+    expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
+  });
+
+  it('should update selected timeline when selecting an unrelated log while another timeline is selected', () => {
+    const logs = Array.from(logStore.logs());
+    const targetLog = logs[0]; // Log 1 belongs to Timeline 4
+    const timelines = timelineStore.timelines;
+    const unrelatedTimeline = timelines.find((t) => t.id === 5)!; // Timeline 5 is unrelated to Timeline 4
+
+    service.onSelectTimeline(unrelatedTimeline);
+    service.onSelectLog(targetLog);
+
+    expect(service.selectedTimeline()?.id).toBe(4);
     expect(service.selectedLog()?.id).toBe(targetLog.id);
     expect(service.selectedRevision()?.logIndex).toBe(targetLog.logIndex);
   });
