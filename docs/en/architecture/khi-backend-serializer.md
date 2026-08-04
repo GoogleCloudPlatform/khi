@@ -14,21 +14,18 @@ flowchart TD
     subgraph AccumulatorLayer ["Accumulator layer"]
         TimelineAccumulator
         LogAccumulator
-        TimelineStyleAccumulator
+        MetadataAccumulator
         OtherAccumulators["Other Accumulators"]
     end
-
-    Register["Register()"]
 
     %% Inflow to Accumulators
     TimelineMapper -->|TimelineChangeSet| TimelineAccumulator
     LogIngestor -->|LogChangeSet| LogAccumulator
-    Register --> TimelineStyleAccumulator
 
     %% Outflow from Accumulators to Pools/Generators
     TimelineAccumulator --> IDGenerator
     LogAccumulator --> IDGenerator
-    TimelineStyleAccumulator --> IDGenerator
+    MetadataAccumulator --> IDGenerator
     OtherAccumulators --> IDGenerator
 
     TimelineAccumulator --> InternPool
@@ -37,7 +34,7 @@ flowchart TD
 
     TimelineAccumulator --> FileBuilder
     LogAccumulator --> FileBuilder
-    TimelineStyleAccumulator --> FileBuilder
+    MetadataAccumulator --> FileBuilder
     IDGenerator --> FileBuilder
     InternPool --> FileBuilder
     OtherAccumulators --> FileBuilder
@@ -46,8 +43,8 @@ flowchart TD
     ChunkGenerator -.-> FinalFile[(".khi file")]
 ```
 
-- **Tasks**: Each task adds analyzed elements and logs to the Accumulator layer. TimelineStyle does not change from startup, so various styles are appended in the Register function during initialization.
-- **Accumulator Layer**: Generates IDs, handles deduplication, and converts data to Proto types.
+- **Tasks**: Each task adds analyzed elements and logs to the Accumulator layer.
+- **Accumulator Layer**: Generates IDs, handles deduplication, and converts data to Proto types (`LogAccumulator`, `TimelineAccumulator`, `MetadataAccumulator`, etc.). Timeline styles are registered separately via the registry during initialization.
 - **IDGenerator / InternPool**: Centrally handles ID allocation, string interning, and structured data flattening. These are called from the Accumulator side.
 - **FileBuilder / ChunkGenerator**: Builds the Protobuf chunk binaries based on the aggregated data and pools, then writes them to the final `.khi` file.
 

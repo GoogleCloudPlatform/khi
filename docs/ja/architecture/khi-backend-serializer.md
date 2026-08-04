@@ -14,21 +14,18 @@ flowchart TD
     subgraph AccumulatorLayer ["Accumulator layer"]
         TimelineAccumulator
         LogAccumulator
-        TimelineStyleAccumulator
+        MetadataAccumulator
         OtherAccumulators["他の Accumulator"]
     end
-
-    Register["Register()"]
 
     %% 入力からAccumulatorへの流れ
     TimelineMapper -->|TimelineChangeSet| TimelineAccumulator
     LogIngestor -->|LogChangeSet| LogAccumulator
-    Register --> TimelineStyleAccumulator
 
     %% Accumulatorからプール/ジェネレータへの流れ
     TimelineAccumulator --> IDGenerator
     LogAccumulator --> IDGenerator
-    TimelineStyleAccumulator --> IDGenerator
+    MetadataAccumulator --> IDGenerator
     OtherAccumulators --> IDGenerator
 
     TimelineAccumulator --> InternPool
@@ -37,7 +34,7 @@ flowchart TD
 
     TimelineAccumulator --> FileBuilder
     LogAccumulator --> FileBuilder
-    TimelineStyleAccumulator --> FileBuilder
+    MetadataAccumulator --> FileBuilder
     IDGenerator --> FileBuilder
     InternPool --> FileBuilder
     OtherAccumulators --> FileBuilder
@@ -46,8 +43,8 @@ flowchart TD
     ChunkGenerator -.-> FinalFile[(".khi file")]
 ```
 
-- **Tasks**: 各タスクが解析した要素やログを Accumulator 層に追加します。TimelineStyle は起動時から変化がないため、初期化時に Register 関数内で各種スタイルを追記します。
-- **Accumulator Layer**: ID を生成し、重複排除処理や Proto 型への変換を行います。
+- **Tasks**: 各タスクが解析した要素やログを Accumulator 層に追加します。
+- **Accumulator Layer**: ID を生成し、重複排除処理や Proto 型への変換を行います (`LogAccumulator`, `TimelineAccumulator`, `MetadataAccumulator` 等)。タイムラインスタイルなどは初期化時に別途レジストリから構築されます。
 - **IDGenerator / InternPool**: ID の割り当て、文字列のインターン化、および構造化データのフラット化を一元的に行います。 Accumulator 側から呼び出されます。
 - **FileBuilder / ChunkGenerator**: 集約されたデータとプール群を元に Protobuf の各チャンクバイナリを構築し、最終的な `.khi` ファイルへ書き出します。
 

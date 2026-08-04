@@ -45,18 +45,18 @@ flowchart TD
 
 ネストしたファクトリに依存するのではなく、ファイルバージョンごとに `ParserBlueprint` を登録し、チャンクタイプとそれを処理するアセンブラーをマッピングします。
 
-### 1.1 DataAssembler
+### 1.1 IDataAssembler
 
-ParserBlueprintはproto型ごとにDataAssemblerインターフェースを実装を登録しています。まず各DataAssemblerは新しいProtoがデコードされるごとにingestでデータが追加され、最終的にassembleIntoがInspectionDataとともに呼ばれるのでDTOに変換した値をInspectionDataに付加します。
+ParserBlueprint は proto 型ごとに IDataAssembler インターフェース実装を登録しています。まず各 IDataAssembler は新しい Proto がデコードされるごとに ingest でデータが追加され、最終的に assembleInto が InspectionDataBuilder とともに呼ばれ、DTO から変換した値をビルダーのドメインストアに統合します。
 
 ```typescript
 // デコードされたProtobufを収集し、最終モデルを構築する状態を持つアセンブラー
-interface DataAssembler<TProto> {
+interface IDataAssembler<TProto = unknown> {
     // デコードされたチャンクを受け取ります。チャンク分割により複数回呼ばれる可能性があります。
     ingest(proto: TProto): void;
     
-    // 収集したデータを最終的な InspectionData へ統合します。
-    assembleInto(model: InspectionData): void;
+    // 収集したデータを InspectionDataBuilder を通じて最終的なモデルへ統合します。
+    assembleInto(builder: InspectionDataBuilder): void;
 }
 ```
 
@@ -66,14 +66,16 @@ interface DataAssembler<TProto> {
 
 ```typescript
 // 特定のチャンクタイプの処理方法の定義
-interface ChunkDefinition<TProto = any> {
-    typeId: number;
+interface ChunkDefinition<TProto = unknown> {
+    readonly typeId: number;
+    // 進捗表示等で利用する人間が読みやすいラベル文字列
+    readonly label: string;
     // 生のバイト配列をProtobufオブジェクトへデコードする純粋関数
-    decode: (bytes: Uint8Array) => TProto; 
+    readonly decode: (bytes: Uint8Array) => TProto; 
     // 状態を持つアセンブラーのファクトリメソッド
-    createAssembler: () => DataAssembler<TProto>;
+    readonly createAssembler: () => IDataAssembler<TProto>;
     // 依存関係解決のための実行優先度。数値が低いほど先に assembleInto が呼ばれます。
-    priority: number; 
+    readonly priority: number; 
 }
 
 // バージョン固有のチャンク定義のレジストリ

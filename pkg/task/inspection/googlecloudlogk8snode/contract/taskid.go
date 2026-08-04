@@ -75,3 +75,6 @@ var OtherLogLogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspec
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
 
 var ContainerIDDiscoveryTaskID = taskid.NewDefaultImplementationID[commonlogk8saudit_contract.ContainerIDToContainerIdentity](TaskIDPrefix + "container-id-discovery")
+
+// NodeNameDiscoveryTaskID is the task ID for extracting node names from Kubernetes node logs.
+var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-discovery")

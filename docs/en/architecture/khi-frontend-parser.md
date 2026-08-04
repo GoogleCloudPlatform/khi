@@ -45,18 +45,18 @@ flowchart TD
 
 Instead of depending on nested factories, KHI registers a `ParserBlueprint` for each file version, mapping chunk types to their respective assemblers.
 
-### 1.1 DataAssembler
+### 1.1 IDataAssembler
 
-The ParserBlueprint registers a DataAssembler interface implementation for each Proto type. First, each DataAssembler receives data via `ingest` whenever a new Proto message is decoded. Finally, `assembleInto` is called with InspectionData, attaching the converted DTO values to InspectionData.
+The ParserBlueprint registers an IDataAssembler interface implementation for each Proto type. First, each IDataAssembler receives data via `ingest` whenever a new Proto message is decoded. Finally, `assembleInto` is called with InspectionDataBuilder, integrating the converted DTO values into the builder's domain stores.
 
 ```typescript
-// Assembler holding states to collect decoded Protobuf and build the final model
-interface DataAssembler<TProto> {
+// Stateful assembler that collects decoded Protobufs and mutates the final model via builder
+interface IDataAssembler<TProto = unknown> {
     // Receive a decoded chunk (may be called multiple times due to chunk splitting)
     ingest(proto: TProto): void;
     
-    // Integrate the collected data into the final InspectionData
-    assembleInto(model: InspectionData): void;
+    // Integrate the collected data into the final model through InspectionDataBuilder
+    assembleInto(builder: InspectionDataBuilder): void;
 }
 ```
 
@@ -66,14 +66,16 @@ Defines chunk parsing strategies for each file version.
 
 ```typescript
 // Definition of the processing method for a specific chunk type
-interface ChunkDefinition<TProto = any> {
-    typeId: number;
+interface ChunkDefinition<TProto = unknown> {
+    readonly typeId: number;
+    // Human-readable label/name for the chunk type (used in progress reports)
+    readonly label: string;
     // Pure function to decode raw byte arrays into Protobuf objects
-    decode: (bytes: Uint8Array) => TProto; 
+    readonly decode: (bytes: Uint8Array) => TProto; 
     // Factory method for stateful assemblers
-    createAssembler: () => DataAssembler<TProto>;
+    readonly createAssembler: () => IDataAssembler<TProto>;
     // Execution priority for dependency resolution (smaller values assemble earlier)
-    priority: number; 
+    readonly priority: number; 
 }
 
 // Registry of chunk definitions specific to each version

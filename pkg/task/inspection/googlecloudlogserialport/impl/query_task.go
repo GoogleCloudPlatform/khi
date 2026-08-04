@@ -35,7 +35,7 @@ const MaxNodesPerQuery = 30
 func GenerateSerialPortQuery(taskMode inspectioncore_contract.InspectionTaskModeType, foundNodeNames []string, nodeNameSubstrings []string) []string {
 	if taskMode == inspectioncore_contract.TaskModeDryRun {
 		return []string{
-			generateSerialPortQueryWithInstanceNameFilter("-- instance name filters to be determined after audit log query", generateNodeNameSubstringLogFilter(nodeNameSubstrings)),
+			generateSerialPortQueryWithInstanceNameFilter("-- instance name filters to be determined after node name discovery", generateNodeNameSubstringLogFilter(nodeNameSubstrings)),
 		}
 	} else {
 		result := []string{}

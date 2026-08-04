@@ -53,3 +53,6 @@ var PodPhaseTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiont
 
 // TailTaskID is a nop task just to require all container log mappers.
 var TailTaskID = taskid.NewDefaultImplementationID[struct{}](TaskIDPrefix + "tail")
+
+// NodeNameDiscoveryTaskID is the discovery task ID for extracting node names from Container log labels.
+var NodeNameDiscoveryTaskID = taskid.NewDefaultImplementationID[[]string](TaskIDPrefix + "node-name-discovery")

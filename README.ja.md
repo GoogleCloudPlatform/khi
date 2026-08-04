@@ -114,7 +114,7 @@ gcr.io/kubernetes-history-inspector/release:latest
   - [GDCV for VMWare](https://cloud.google.com/kubernetes-engine/distributed-cloud/vmware/docs/overview)
 
 - その他環境
-  - JSONlines 形式の kube-apiserver 監査ログ ([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](/docs/en/setup-guide/oss-kubernetes-clusters.md))
+  - JSONlines 形式の kube-apiserver 監査ログ ([チュートリアル (OSS Kubernetesクラスタのログの可視化（Loki）)](/docs/ja/setup-guide/oss-kubernetes-clusters.md))
 
 ### ログバックエンド
 
@@ -123,7 +123,7 @@ gcr.io/kubernetes-history-inspector/release:latest
   - Cloud Logging（Google Cloud 上のすべてのクラスタ）
 
 - その他環境
-  - ファイルによるログアップロード([チュートリアル (Using KHI with OSS Kubernetes Clusters - Example with Loki | 英語のみ)](/docs/en/setup-guide/oss-kubernetes-clusters.md))
+  - ファイルによるログアップロード([チュートリアル (OSS Kubernetesクラスタのログの可視化（Loki）)](/docs/ja/setup-guide/oss-kubernetes-clusters.md))
 
 ### 動作環境
 
