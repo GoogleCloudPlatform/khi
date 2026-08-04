@@ -25,6 +25,7 @@ import {
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
 import { Subscription } from 'rxjs';
+import { CollapseTimelineFilter } from 'src/app/store/domain/filter/collapse-filter';
 
 /**
  * Holds the progress information of a specific filter step.
@@ -45,6 +46,7 @@ export interface FilteringProgressInfo {
 export class TimelineView {
   private readonly filters = new Set<LogTimelineFilter>();
   private readonly subscriptions = new Map<LogTimelineFilter, Subscription>();
+  private readonly collapseFilter = new CollapseTimelineFilter();
 
   private readonly _context = signal<LogTimelineFilterContext>({
     timelineIds: new Set(),
@@ -52,7 +54,16 @@ export class TimelineView {
   });
   private readonly _isFiltering = signal<boolean>(false);
   private readonly _progress = signal<FilteringProgressInfo | null>(null);
+  private readonly _collapsedTimelineIds = signal<ReadonlySet<number>>(
+    new Set(),
+  );
   private activeAbortController?: AbortController;
+
+  /**
+   * Exposes the set of currently collapsed timeline IDs.
+   */
+  public readonly collapsedTimelineIds =
+    this._collapsedTimelineIds.asReadonly();
 
   /**
    * Exposes whether a filtering task is currently executing.
@@ -115,6 +126,69 @@ export class TimelineView {
       timelineIds: allTimelineIds,
       logIds: allLogIds,
     });
+    this.addFilter(this.collapseFilter);
+  }
+
+  /**
+   * Expands all collapsed timelines.
+   */
+  public expandAllTimelines(): void {
+    this.collapseFilter.expandAll();
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
+  }
+
+  /**
+   * Expands direct children timelines of a parent timeline.
+   * @param parentTimeline - The parent timeline whose direct children will be expanded.
+   */
+  public expandChildren(parentTimeline: Timeline): void {
+    this.collapseFilter.expandChildren(parentTimeline);
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
+  }
+
+  /**
+   * Collapses direct children timelines of a parent timeline.
+   * @param parentTimeline - The parent timeline whose direct children will be collapsed.
+   */
+  public collapseChildren(parentTimeline: Timeline): void {
+    this.collapseFilter.collapseChildren(parentTimeline);
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
+  }
+
+  /**
+   * Expands a parent timeline and all of its descendants recursively.
+   * @param parentTimeline - The parent timeline to expand recursively.
+   */
+  public expandDescendants(parentTimeline: Timeline): void {
+    this.collapseFilter.expandDescendants(parentTimeline);
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
+  }
+
+  /**
+   * Collapses a parent timeline and all of its descendants recursively.
+   * @param parentTimeline - The parent timeline to collapse recursively.
+   */
+  public collapseDescendants(parentTimeline: Timeline): void {
+    this.collapseFilter.collapseDescendants(parentTimeline);
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
+  }
+
+  /**
+   * Collapses a specific timeline.
+   * @param timelineId - The ID of the timeline to collapse.
+   */
+  public collapseTimeline(timelineId: number): void {
+    this.collapseFilter.collapseTimeline(timelineId);
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
+  }
+
+  /**
+   * Toggles the collapse state of a specific timeline.
+   * @param timelineId - The ID of the timeline to toggle collapse.
+   */
+  public toggleTimelineCollapse(timelineId: number): void {
+    this.collapseFilter.toggleTimelineCollapse(timelineId);
+    this._collapsedTimelineIds.set(this.collapseFilter.collapsedTimelineIds);
   }
 
   private pipelineScheduled = false;

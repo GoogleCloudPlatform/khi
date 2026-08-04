@@ -35,7 +35,7 @@ func TestGenerateComputeAPIQuery(t *testing.T) {
 			NodeNames: []string{}, // No nodes specified for dry run
 			Expected: []string{`resource.type="gce_instance"
 -protoPayload.methodName:("list" OR "get" OR "watch")
--- instance name filters to be determined after audit log query
+-- instance name filters to be determined after node name discovery
 `},
 		},
 		{

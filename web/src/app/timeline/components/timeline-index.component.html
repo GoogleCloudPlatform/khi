@@ -34,6 +34,20 @@
           [style.--guide-level]="level.level"
         ></div>
       }
+      @if (t.hasChildren) {
+        <button
+          type="button"
+          class="collapse-toggle-btn"
+          [matTooltip]="t.isCollapsed ? 'Expand' : 'Collapse'"
+          (click)="
+            toggleCollapseTimeline.emit(t.timeline); $event.stopPropagation()
+          "
+        >
+          <mat-icon class="toggle-icon">{{
+            t.isCollapsed ? "chevron_right" : "expand_more"
+          }}</mat-icon>
+        </button>
+      }
       @if (t.legendVisible && t.legendIcon) {
         <mat-icon class="icon" [matTooltip]="t.layerName">{{
           t.legendIcon
@@ -60,6 +74,17 @@
         <mat-icon class="menu-icon">more_vert</mat-icon>
       </button>
       <mat-menu #itemMenu="matMenu">
+        @if (t.hasChildren) {
+          <button mat-menu-item (click)="collapseChildren.emit(t.timeline)">
+            <mat-icon>unfold_less</mat-icon>
+            <span>Collapse children</span>
+          </button>
+          <button mat-menu-item (click)="expandChildren.emit(t.timeline)">
+            <mat-icon>unfold_more</mat-icon>
+            <span>Expand children</span>
+          </button>
+          <mat-divider></mat-divider>
+        }
         <button mat-menu-item (click)="excludeTimeline.emit(t.timeline)">
           <mat-icon>filter_alt_off</mat-icon>
           <span>Exclude this timeline</span>

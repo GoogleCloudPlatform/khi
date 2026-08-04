@@ -54,8 +54,8 @@ $tint-border-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 600);
   border-left: 5px dashed transparent;
 
   grid-template:
-    'icon label menu' 1fr
-    / var(--icon-size) 1fr auto;
+    'toggle icon label menu' 1fr
+    / var(--icon-size) var(--icon-size) 1fr auto;
   gap: 0 4px;
 
   .tree-guide {
@@ -104,6 +104,35 @@ $tint-border-color: mat.m2-get-color-from-palette(mat.$m2-green-palette, 600);
 
   &:not(.is-next-children) {
     border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+  }
+
+  .collapse-toggle-btn {
+    grid-area: toggle;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--timeline-fg-color);
+    opacity: 0.7;
+    outline: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--timeline-fg-color);
+      outline-offset: 2px;
+      opacity: 1;
+    }
+
+    &:hover {
+      opacity: 1;
+    }
+
+    .toggle-icon {
+      @include common.adjust-mat-icon-size(var(--icon-size));
+    }
   }
 
   .icon {

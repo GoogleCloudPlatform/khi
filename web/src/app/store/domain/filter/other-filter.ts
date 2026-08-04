@@ -79,7 +79,7 @@ export class IncludeDescendantsFilter implements LogTimelineFilter {
  */
 export class IncludeAncestorsFilter implements LogTimelineFilter {
   readonly displayName = 'Include ancestors';
-  readonly priority = Number.MAX_VALUE; // Ancestors must be included at the last to generate meaningful result.
+  readonly priority = Number.MAX_SAFE_INTEGER - 100000;
 
   /**
    * Processes the context by expanding matching timeline IDs to include their ancestors and extracts their related log IDs.

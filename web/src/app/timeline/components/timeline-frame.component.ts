@@ -167,6 +167,11 @@ export class TimelineFrameComponent implements AfterViewInit {
   readonly timelines = input<ReadonlyDomainElement<Timeline>[]>([]);
 
   /**
+   * Current set of collapsed timeline IDs.
+   */
+  readonly collapsedTimelineIds = input<ReadonlySet<number>>(new Set());
+
+  /**
    * The unique ID of the inspection data.
    * This is used to detect when the inspection data has changed to refresh timeline renderer cache.
    */
@@ -454,6 +459,18 @@ export class TimelineFrameComponent implements AfterViewInit {
    * Emitted when the user clicks on a timeline (row).
    */
   readonly clickOnTimeline = output<Timeline>();
+  /**
+   * Emitted when requesting to toggle collapse state for a timeline.
+   */
+  readonly toggleCollapseTimeline = output<Timeline>();
+  /**
+   * Emitted when requesting to expand children timelines for a timeline.
+   */
+  readonly expandChildren = output<Timeline>();
+  /**
+   * Emitted when requesting to collapse children timelines for a timeline.
+   */
+  readonly collapseChildren = output<Timeline>();
   /**
    * Emitted when toggling timeline registration in the CEL debugger.
    */

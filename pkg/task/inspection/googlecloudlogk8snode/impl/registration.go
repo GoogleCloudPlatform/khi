@@ -138,5 +138,6 @@ func Register(registry coreinspection.InspectionTaskRegistry) error {
 		OtherLogLogToTimelineMapperTask,
 		TailTask,
 		ContainerIDDiscoveryTask,
+		NodeNameDiscoveryTask,
 	)
 }

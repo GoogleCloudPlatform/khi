@@ -90,6 +90,18 @@ export class TimelineSmartComponent {
     return this.inspectionDataStore.timelineView()?.filteredTimelines() ?? [];
   });
 
+  private static readonly EMPTY_SET = new Set<number>();
+
+  /**
+   * Set of timeline IDs that are currently collapsed in the timeline view.
+   */
+  protected readonly collapsedTimelineIds = computed(() => {
+    return (
+      this.inspectionDataStore.timelineView()?.collapsedTimelineIds() ??
+      TimelineSmartComponent.EMPTY_SET
+    );
+  });
+
   protected readonly pixelsPerMs = toSignal(
     this.viewStateService.pixelPerTime,
     { initialValue: 0.01 },
@@ -539,6 +551,32 @@ export class TimelineSmartComponent {
    */
   protected clickOnTimeline(event: ReadonlyDomainElement<Timeline>): void {
     this.selectionManager.onSelectTimeline(event);
+  }
+
+  /**
+   * Handles toggling collapse state of a timeline.
+   * @param timeline - The timeline to toggle.
+   */
+  protected onToggleCollapseTimeline(timeline: Timeline): void {
+    this.inspectionDataStore
+      .timelineView()
+      ?.toggleTimelineCollapse(timeline.id);
+  }
+
+  /**
+   * Handles expanding direct children timelines for a parent timeline.
+   * @param timeline - The parent timeline whose direct children will be expanded.
+   */
+  protected onExpandChildren(timeline: Timeline): void {
+    this.inspectionDataStore.timelineView()?.expandChildren(timeline);
+  }
+
+  /**
+   * Handles collapsing direct children timelines for a parent timeline.
+   * @param timeline - The parent timeline whose direct children will be collapsed.
+   */
+  protected onCollapseChildren(timeline: Timeline): void {
+    this.inspectionDataStore.timelineView()?.collapseChildren(timeline);
   }
 
   /**

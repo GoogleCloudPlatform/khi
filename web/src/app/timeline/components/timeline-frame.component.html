@@ -82,6 +82,7 @@
         <khi-timeline-index
           class="index-content"
           [timelines]="visibleTimelines()"
+          [collapsedTimelineIds]="collapsedTimelineIds()"
           [styleStore]="styleStore()"
           (hoverOnTimeline)="
             handleTimelineEventForIndex($event, hoverOnTimeline)
@@ -89,6 +90,9 @@
           (clickOnTimeline)="
             handleTimelineEventForIndex($event, clickOnTimeline)
           "
+          (toggleCollapseTimeline)="toggleCollapseTimeline.emit($event)"
+          (expandChildren)="expandChildren.emit($event)"
+          (collapseChildren)="collapseChildren.emit($event)"
           (excludeTimeline)="excludeTimeline.emit($event)"
           (excludeTimelineType)="excludeTimelineType.emit($event)"
           [highlights]="timelineHighlights()"
@@ -165,6 +169,7 @@
           <khi-timeline-index
             class="index-content"
             [timelines]="stickyTimelines()"
+            [collapsedTimelineIds]="collapsedTimelineIds()"
             [styleStore]="styleStore()"
             (hoverOnTimeline)="
               handleTimelineEventForIndex($event, hoverOnTimeline)
@@ -172,6 +177,9 @@
             (clickOnTimeline)="
               handleTimelineEventForIndex($event, clickOnTimeline)
             "
+            (toggleCollapseTimeline)="toggleCollapseTimeline.emit($event)"
+            (expandChildren)="expandChildren.emit($event)"
+            (collapseChildren)="collapseChildren.emit($event)"
             (excludeTimeline)="excludeTimeline.emit($event)"
             (excludeTimelineType)="excludeTimelineType.emit($event)"
             [highlights]="timelineHighlights()"
