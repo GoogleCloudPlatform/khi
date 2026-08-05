@@ -29,7 +29,6 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
@@ -106,7 +105,7 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 				},
 				func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
 					// Data line
-					envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, "test-project", "test-environment")
+					envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, "test-environment")
 					timelinePath := googlecloudclustercomposer_contract.MustAirflowDAGProcessorManagerInstanceTimeline(ctx, envPath, "/home/airflow/gcs/dags/airflow_monitoring.py", "unknown-parser")
 					testchangeset.AssertTimeline(t, cs).
 						HasRevision(timelinePath, &khifilev6.StagingRevision{
@@ -136,7 +135,6 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			taskDependentValues := typedmap.NewTypedMap()
-			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "test-project"})
 			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), "test-environment")
 			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 

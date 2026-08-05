@@ -23,61 +23,41 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestMustComposerEnvironmentTimeline(t *testing.T) {
+func TestMustAirflowTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 	testCases := []struct {
 		name            string
-		projectID       string
 		environmentName string
-		wantProject     string
 		wantEnv         string
 	}{
 		{
 			name:            "valid input",
-			projectID:       "my-project",
 			environmentName: "my-env",
-			wantProject:     "my-project",
-			wantEnv:         "my-env",
-		},
-		{
-			name:            "empty project",
-			projectID:       "",
-			environmentName: "my-env",
-			wantProject:     "unknown",
 			wantEnv:         "my-env",
 		},
 		{
 			name:            "empty env",
-			projectID:       "my-project",
 			environmentName: "",
-			wantProject:     "my-project",
-			wantEnv:         "unknown",
-		},
-		{
-			name:            "both empty",
-			projectID:       "",
-			environmentName: "",
-			wantProject:     "unknown",
 			wantEnv:         "unknown",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := MustComposerEnvironmentTimeline(ctx, tc.projectID, tc.environmentName)
+			got := MustAirflowTimeline(ctx, tc.environmentName)
 			if got == nil {
 				t.Fatal("expected timeline path to be not nil")
 			}
 			if diff := cmp.Diff(tc.wantEnv, got.Name.Resolve()); diff != "" {
-				t.Errorf("MustComposerEnvironmentTimeline() environmentName mismatch (-want +got):\n%s", diff)
+				t.Errorf("MustAirflowTimeline() environmentName mismatch (-want +got):\n%s", diff)
 			}
-			if got.Parent == nil {
-				t.Fatal("expected parent timeline path to be not nil")
+			if got.Parent != nil {
+				t.Errorf("MustAirflowTimeline() expected root timeline (nil parent), got %v", got.Parent)
 			}
-			if diff := cmp.Diff(tc.wantProject, got.Parent.Name.Resolve()); diff != "" {
-				t.Errorf("MustComposerEnvironmentTimeline() projectID mismatch (-want +got):\n%s", diff)
+			if diff := cmp.Diff(TimelineTypeAirflow.GetId(), got.Type.GetId()); diff != "" {
+				t.Errorf("MustAirflowTimeline() type ID mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -86,7 +66,7 @@ func TestMustComposerEnvironmentTimeline(t *testing.T) {
 func TestMustAirflowDAGTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
+	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
 		name    string
@@ -121,7 +101,7 @@ func TestMustAirflowDAGTimeline(t *testing.T) {
 func TestMustAirflowDAGRunTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
+	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
 		name    string
@@ -182,7 +162,7 @@ func TestMustAirflowDAGRunTimeline(t *testing.T) {
 func TestMustAirflowTaskInstanceTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
+	envPath := MustAirflowTimeline(ctx, "my-env")
 	runPath := MustAirflowDAGRunTimeline(ctx, envPath, "my-dag", "my-run")
 
 	testCases := []struct {
@@ -218,7 +198,7 @@ func TestMustAirflowTaskInstanceTimeline(t *testing.T) {
 func TestMustAirflowComponentTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
+	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
 		name          string
@@ -239,9 +219,12 @@ func TestMustAirflowComponentTimeline(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := MustAirflowComponentTimeline(ctx, envPath, TimelineTypeAirflowScheduler, tc.componentName)
+			got := MustAirflowComponentTimeline(ctx, envPath, tc.componentName)
 			if got == nil {
 				t.Fatal("expected timeline path to be not nil")
+			}
+			if diff := cmp.Diff(TimelineTypeAirflowComponent.GetId(), got.Type.GetId()); diff != "" {
+				t.Errorf("MustAirflowComponentTimeline() timeline type mismatch (-want +got):\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.wantName, got.Name.Resolve()); diff != "" {
 				t.Errorf("MustAirflowComponentTimeline() componentName mismatch (-want +got):\n%s", diff)
@@ -250,45 +233,10 @@ func TestMustAirflowComponentTimeline(t *testing.T) {
 	}
 }
 
-func TestMustAirflowWorkerTimeline(t *testing.T) {
-	builder := khifilev6.NewBuilder()
-	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
-
-	testCases := []struct {
-		name       string
-		workerHost string
-		wantHost   string
-	}{
-		{
-			name:       "valid input",
-			workerHost: "worker-1",
-			wantHost:   "worker-1",
-		},
-		{
-			name:       "empty worker host",
-			workerHost: "",
-			wantHost:   "unknown",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := MustAirflowWorkerTimeline(ctx, envPath, tc.workerHost)
-			if got == nil {
-				t.Fatal("expected timeline path to be not nil")
-			}
-			if diff := cmp.Diff(tc.wantHost, got.Name.Resolve()); diff != "" {
-				t.Errorf("MustAirflowWorkerTimeline() workerHost mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestMustAirflowDAGFileTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
+	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
 		name     string
@@ -333,7 +281,7 @@ func TestMustAirflowDAGFileTimeline(t *testing.T) {
 func TestMustAirflowDAGProcessorManagerInstanceTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
-	envPath := MustComposerEnvironmentTimeline(ctx, "my-project", "my-env")
+	envPath := MustAirflowTimeline(ctx, "my-env")
 
 	testCases := []struct {
 		name         string

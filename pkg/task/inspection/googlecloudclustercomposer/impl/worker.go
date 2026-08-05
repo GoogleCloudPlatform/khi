@@ -92,7 +92,6 @@ func (m *workerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*lo
 // Dependencies returns additional task dependencies of the mapper.
 func (m *workerLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }
@@ -104,16 +103,15 @@ func (m *workerLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspec
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *workerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
-	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
+	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
 	workerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
 	cs := khifilev6.NewTimelineChangeSet(l)
 
 	if err == nil {
 		if workerField.WorkerID != "" {
-			workerTimelinePath := googlecloudclustercomposer_contract.MustAirflowWorkerTimeline(ctx, envPath, workerField.WorkerID)
+			workerTimelinePath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, workerField.WorkerID)
 			cs.AddEvent(workerTimelinePath)
 		}
 	}

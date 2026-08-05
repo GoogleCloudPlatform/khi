@@ -92,7 +92,6 @@ func (m *schedulerLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]
 // Dependencies returns additional task dependencies of the mapper.
 func (m *schedulerLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }
@@ -104,16 +103,15 @@ func (m *schedulerLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[ins
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
-	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
+	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
 	schedulerField, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
 	cs := khifilev6.NewTimelineChangeSet(l)
 
 	if err == nil {
 		if schedulerField.SchedulerID != "" {
-			schedulerTimelinePath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, schedulerField.SchedulerID)
+			schedulerTimelinePath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, schedulerField.SchedulerID)
 			cs.AddEvent(schedulerTimelinePath)
 		}
 	}
@@ -149,7 +147,7 @@ func (m *schedulerLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l 
 
 	// If the ti status is zombie, record it on worker
 	if ti.Status() == googlecloudclustercomposer_contract.TASKINSTANCE_ZOMBIE && ti.Host() != "" {
-		workerTimelinePath := googlecloudclustercomposer_contract.MustAirflowWorkerTimeline(ctx, envPath, ti.Host())
+		workerTimelinePath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, ti.Host())
 		cs.AddEvent(workerTimelinePath)
 	}
 

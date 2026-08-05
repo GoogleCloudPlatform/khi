@@ -166,7 +166,6 @@ func (m *dagProcessorManagerTimelineMapper) LogIngesterTask() taskid.TaskReferen
 // Dependencies returns additional task dependencies of the mapper.
 func (m *dagProcessorManagerTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }
@@ -178,9 +177,8 @@ func (m *dagProcessorManagerTimelineMapper) GroupedLogTask() taskid.TaskReferenc
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, prevGroupData *DagProcessorState) (*khifilev6.TimelineChangeSet, *DagProcessorState, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
-	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
+	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
 	commonField, _ := log.GetFieldSet(l, &log.CommonFieldSet{})
 	mainMessage, err := log.GetFieldSet(l, &googlecloudcommon_contract.GCPMainMessageFieldSet{})
@@ -192,10 +190,10 @@ func (m *dagProcessorManagerTimelineMapper) ProcessLogByGroup(ctx context.Contex
 	parserID := "unknown-parser"
 	if err == nil {
 		if dpmField.SchedulerID != "" {
-			cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, dpmField.SchedulerID))
+			cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, dpmField.SchedulerID))
 			parserID = dpmField.SchedulerID
 		} else if dpmField.DagProcessorManagerID != "" {
-			cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowDagProcessorManager, dpmField.DagProcessorManagerID))
+			cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, dpmField.DagProcessorManagerID))
 			parserID = dpmField.DagProcessorManagerID
 		}
 	}

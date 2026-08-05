@@ -28,7 +28,6 @@ import (
 	core_contract "github.com/GoogleCloudPlatform/khi/pkg/task/core/contract"
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudcommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudcommon/contract"
-	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 	"github.com/google/go-cmp/cmp"
@@ -57,8 +56,8 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, "test-project", "test-environment")
-				workerPath := googlecloudclustercomposer_contract.MustAirflowWorkerTimeline(ctx, envPath, "airflow-worker-abc")
+				envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, "test-environment")
+				workerPath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, "airflow-worker-abc")
 				ti := googlecloudclustercomposer_contract.NewAirflowTaskInstance("my_dag", "task_id_1", "2023-01-01T00:00:00Z", "1", "airflow-worker-abc", googlecloudclustercomposer_contract.TASKINSTANCE_RUNNING)
 				runPath := googlecloudclustercomposer_contract.MustAirflowDAGRunTimeline(ctx, envPath, ti.DagId(), ti.RunId())
 				tiPath := googlecloudclustercomposer_contract.MustAirflowTaskInstanceTimeline(ctx, runPath, "task_id_1+1")
@@ -90,8 +89,8 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 				},
 			),
 			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
-				envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, "test-project", "test-environment")
-				workerPath := googlecloudclustercomposer_contract.MustAirflowWorkerTimeline(ctx, envPath, "airflow-worker-abc")
+				envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, "test-environment")
+				workerPath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, "airflow-worker-abc")
 
 				testchangeset.AssertTimeline(t, cs).
 					HasEvent(workerPath)
@@ -106,7 +105,6 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 			ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
 
 			taskDependentValues := typedmap.NewTypedMap()
-			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: "test-project"})
 			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), "test-environment")
 			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
 

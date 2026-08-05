@@ -91,7 +91,6 @@ func (m *otherLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log
 // Dependencies returns additional task dependencies of the mapper.
 func (m *otherLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
-		googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	}
 }
@@ -103,9 +102,8 @@ func (m *otherLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspect
 
 // ProcessLogByGroup is called for each log entry to stage mutations via TimelineChangeSet.
 func (m *otherLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
-	clusterIdentity := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ClusterIdentityTaskID.Ref())
 	environmentName := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
-	envPath := googlecloudclustercomposer_contract.MustComposerEnvironmentTimeline(ctx, clusterIdentity.ProjectID, environmentName)
+	envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, environmentName)
 
 	composerFieldSet, err := log.GetFieldSet(l, &googlecloudclustercomposer_contract.ComposerFieldSet{})
 	if err != nil {
@@ -120,27 +118,27 @@ func (m *otherLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 
 	mappedToTimeline := false
 	if composerFieldSet.WorkerID != "" {
-		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowWorker, composerFieldSet.WorkerID))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, composerFieldSet.WorkerID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.SchedulerID != "" {
-		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowScheduler, composerFieldSet.SchedulerID))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, composerFieldSet.SchedulerID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.DagProcessorManagerID != "" {
-		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowDagProcessorManager, composerFieldSet.DagProcessorManagerID))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, composerFieldSet.DagProcessorManagerID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.TriggererID != "" {
-		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowTriggerer, composerFieldSet.TriggererID))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, composerFieldSet.TriggererID))
 		mappedToTimeline = true
 	}
 
 	if composerFieldSet.WebserverID != "" {
-		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowWebserver, composerFieldSet.WebserverID))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, composerFieldSet.WebserverID))
 		mappedToTimeline = true
 	}
 
@@ -148,7 +146,7 @@ func (m *otherLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log
 		if composerFieldSet.Subservice != "" {
 			componentName = composerFieldSet.Subservice
 		}
-		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, googlecloudclustercomposer_contract.TimelineTypeAirflowComponent, componentName))
+		cs.AddEvent(googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, componentName))
 	}
 
 	return cs, struct{}{}, nil
