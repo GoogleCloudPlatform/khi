@@ -22,9 +22,9 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
-	TimelineTypeCSMAccessLog = style.MustRegisterTimelineType(
+	TimelineTypeCSMTrafficLog = style.MustRegisterTimelineType(
 		"csm",
-		"CSM Access logs related to this resource",
+		"CSM Traffic logs related to this resource",
 		"shuffle",
 		0.6,
 		style.ColorWhite,

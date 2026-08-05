@@ -43,7 +43,7 @@ func MustCSMServerAccessTimeline(ctx context.Context, clusterName string, podNam
 	}
 	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
 		Name: suffix,
-		Type: TimelineTypeCSMAccessLog,
+		Type: TimelineTypeCSMTrafficLog,
 	})
 }
 
@@ -54,7 +54,7 @@ func MustCSMClientAccessTimeline(ctx context.Context, clusterName string, podNam
 
 	return builder.TimelineAccumulator.GetPath(podPath, khifilev6.PathSegment{
 		Name: "client",
-		Type: TimelineTypeCSMAccessLog,
+		Type: TimelineTypeCSMTrafficLog,
 	})
 }
 
@@ -65,7 +65,7 @@ func MustCSMServiceServerAccessTimeline(ctx context.Context, clusterName string,
 
 	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
 		Name: "server",
-		Type: TimelineTypeCSMAccessLog,
+		Type: TimelineTypeCSMTrafficLog,
 	})
 }
 
@@ -76,6 +76,6 @@ func MustCSMServiceClientAccessTimeline(ctx context.Context, clusterName string,
 
 	return builder.TimelineAccumulator.GetPath(servicePath, khifilev6.PathSegment{
 		Name: "client",
-		Type: TimelineTypeCSMAccessLog,
+		Type: TimelineTypeCSMTrafficLog,
 	})
 }

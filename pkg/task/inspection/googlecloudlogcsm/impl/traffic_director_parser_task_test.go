@@ -68,7 +68,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMAccessLog)
+	ingester := googlecloudcommon_contract.NewGCPOperationLogIngester(googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(), googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(
@@ -81,7 +81,7 @@ func TestCSMTrafficDirectorLogIngester_ProcessLog(t *testing.T) {
 			}
 			testchangeset.AssertLog(t, cs).
 				HasSummary(tc.wantSummary).
-				HasLogType(googlecloudlogcsm_contract.LogTypeCSMAccessLog)
+				HasLogType(googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 		})
 	}
 }

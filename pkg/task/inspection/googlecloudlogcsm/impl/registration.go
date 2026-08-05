@@ -22,7 +22,7 @@ import (
 
 /*
  graph TD
-  subgraph "CSM Access Log"
+  subgraph "CSM Traffic Log"
     direction LR
     InputCSMResponseFlagsTask(Input CSM Response Flags)
     ListLogEntriesTask(List Log Entries)

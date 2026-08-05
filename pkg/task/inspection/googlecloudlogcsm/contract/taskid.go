@@ -22,15 +22,15 @@ import (
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 )
 
-const TaskIDPrefix = "cloud.google.com/log/csm-accesslog/"
+const TaskIDPrefix = "cloud.google.com/log/csm-trafficlog/"
 
 // ClusterIdentityTaskID is the task id for aliasing the cluster identity.
 var ClusterIdentityTaskID = taskid.NewDefaultImplementationID[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](TaskIDPrefix + "cluster-identity")
 
-// InputCSMResponseFlagsTaskID is the task ID for the form input that specifies which Envoy response flags to filter CSM access logs by.
+// InputCSMResponseFlagsTaskID is the task ID for the form input that specifies which Envoy response flags to filter CSM traffic logs by.
 var InputCSMResponseFlagsTaskID = taskid.NewDefaultImplementationID[*gcpqueryutil.SetFilterParseResult](TaskIDPrefix + "input/response-flags")
 
-// ListLogEntriesTaskID is the task ID for the task that queries CSM access logs from Cloud Logging.
+// ListLogEntriesTaskID is the task ID for the task that queries CSM traffic logs from Cloud Logging.
 var ListLogEntriesTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "list-log-entries")
 
 // FieldSetReaderTaskID is the task id to read the CSM related fieldset for processing the log in the later task.
@@ -39,10 +39,10 @@ var FieldSetReaderTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDP
 // LogIngesterTaskID is the task id to finalize the logs to be included in the final output.
 var LogIngesterTaskID = taskid.NewDefaultImplementationID[[]*log.Log](TaskIDPrefix + "log-ingester")
 
-// LogGrouperTaskID is the task ID to group CSM access logs by their reporter pod for parallel processing.
+// LogGrouperTaskID is the task ID to group CSM traffic logs by their reporter pod for parallel processing.
 var LogGrouperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.LogGroupMap](TaskIDPrefix + "grouper")
 
-// LogToTimelineMapperTaskID is the task ID for associating CSM access log events with resource timelines.
+// LogToTimelineMapperTaskID is the task ID for associating CSM traffic log events with resource timelines.
 var LogToTimelineMapperTaskID = taskid.NewDefaultImplementationID[inspectiontaskbase.TimelineMapperResult](TaskIDPrefix + "timeline-mapper")
 
 // InputFleetProjectIDTaskID is the task ID for the form input that specifies the Fleet Project ID where CSM control plane logs are stored.

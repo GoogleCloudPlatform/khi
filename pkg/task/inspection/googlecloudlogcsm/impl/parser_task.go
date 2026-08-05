@@ -27,28 +27,28 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-// FieldSetReaderTask is a task that reads CSM access logs field sets.
+// FieldSetReaderTask is a task that reads CSM traffic logs field sets.
 var FieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTask(googlecloudlogcsm_contract.FieldSetReaderTaskID, googlecloudlogcsm_contract.ListLogEntriesTaskID.Ref(), []log.FieldSetReader{
 	&googlecloudcommon_contract.GCPAccessLogFieldSetReader{},
 	&googlecloudlogcsm_contract.IstioAccessLogFieldSetReader{},
 	&googlecloudcommon_contract.GCPDefaultSeverityFieldSetReader{},
 })
 
-// CSMAccessLogLogIngester ingests CSM access logs.
-type CSMAccessLogLogIngester struct{}
+// CSMTrafficLogLogIngester ingests CSM traffic logs.
+type CSMTrafficLogLogIngester struct{}
 
 // RawLogTask returns the task reference that provides raw logs.
-func (i *CSMAccessLogLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
+func (i *CSMTrafficLogLogIngester) RawLogTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogcsm_contract.FieldSetReaderTaskID.Ref()
 }
 
 // Dependencies returns the task dependencies.
-func (i *CSMAccessLogLogIngester) Dependencies() []taskid.UntypedTaskReference {
+func (i *CSMTrafficLogLogIngester) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{}
 }
 
 // ProcessLog parses raw log entry and populates the LogChangeSet.
-func (i *CSMAccessLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
+func (i *CSMTrafficLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khifilev6.LogChangeSet, error) {
 	cs, err := khifilev6.NewLogChangeSet(l)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (i *CSMAccessLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 		summary = fmt.Sprintf("【%s(%s)】", istioAccessLog.ResponseFlagMessage(), istioAccessLog.ResponseFlag) + summary
 	}
 	cs.SetSummary(summary)
-	cs.SetLogType(googlecloudlogcsm_contract.LogTypeCSMAccessLog)
+	cs.SetLogType(googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 
 	if severityFS, err := log.GetFieldSet(l, &inspectioncore_contract.DefaultSeverityFieldSet{}); err == nil {
 		cs.SetSeverity(severityFS.Severity)
@@ -83,15 +83,15 @@ func (i *CSMAccessLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*
 	return cs, nil
 }
 
-var _ inspectiontaskbase.LogIngester = (*CSMAccessLogLogIngester)(nil)
+var _ inspectiontaskbase.LogIngester = (*CSMTrafficLogLogIngester)(nil)
 
-// LogIngesterTask is the task that executes CSMAccessLogLogIngester.
+// LogIngesterTask is the task that executes CSMTrafficLogLogIngester.
 var LogIngesterTask = inspectiontaskbase.NewLogIngesterTask(
 	googlecloudlogcsm_contract.LogIngesterTaskID,
-	&CSMAccessLogLogIngester{},
+	&CSMTrafficLogLogIngester{},
 )
 
-// LogGrouperTask groups CSM access logs by their reporter pod.
+// LogGrouperTask groups CSM traffic logs by their reporter pod.
 var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcsm_contract.LogGrouperTaskID, googlecloudlogcsm_contract.FieldSetReaderTaskID.Ref(),
 	func(ctx context.Context, l *log.Log) string {
 		istioAccessLogFieldSet := log.MustGetFieldSet(l, &googlecloudlogcsm_contract.IstioAccessLogFieldSet{})
@@ -99,30 +99,30 @@ var LogGrouperTask = inspectiontaskbase.NewLogGrouperTask(googlecloudlogcsm_cont
 	},
 )
 
-// CSMAccessLogLogToTimelineMapper maps CSM access logs to resource timelines.
-type CSMAccessLogLogToTimelineMapper struct {
+// CSMTrafficLogLogToTimelineMapper maps CSM traffic logs to resource timelines.
+type CSMTrafficLogLogToTimelineMapper struct {
 	inspectiontaskbase.StatelessMapperBase
 }
 
 // LogIngesterTask returns a reference to the task that provides ingested logs.
-func (m *CSMAccessLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
+func (m *CSMTrafficLogLogToTimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log.Log] {
 	return googlecloudlogcsm_contract.LogIngesterTaskID.Ref()
 }
 
 // Dependencies returns additional task dependencies.
-func (m *CSMAccessLogLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
+func (m *CSMTrafficLogLogToTimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(),
 	}
 }
 
 // GroupedLogTask returns a reference to the task that provides the grouped logs.
-func (m *CSMAccessLogLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
+func (m *CSMTrafficLogLogToTimelineMapper) GroupedLogTask() taskid.TaskReference[inspectiontaskbase.LogGroupMap] {
 	return googlecloudlogcsm_contract.LogGrouperTaskID.Ref()
 }
 
 // ProcessLogByGroup maps each log inside a group to one or more timeline events.
-func (m *CSMAccessLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
+func (m *CSMTrafficLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context, l *log.Log, _ struct{}) (*khifilev6.TimelineChangeSet, struct{}, error) {
 	istioAccessLog, err := log.GetFieldSet(l, &googlecloudlogcsm_contract.IstioAccessLogFieldSet{})
 	if err != nil {
 		return nil, struct{}{}, err
@@ -155,15 +155,15 @@ func (m *CSMAccessLogLogToTimelineMapper) ProcessLogByGroup(ctx context.Context,
 	return cs, struct{}{}, nil
 }
 
-var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*CSMAccessLogLogToTimelineMapper)(nil)
+var _ inspectiontaskbase.LogToTimelineMapper[struct{}] = (*CSMTrafficLogLogToTimelineMapper)(nil)
 
-// LogToTimelineMapperTask maps CSM access logs to timelines.
+// LogToTimelineMapperTask maps CSM traffic logs to timelines.
 var LogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudlogcsm_contract.LogToTimelineMapperTaskID,
-	&CSMAccessLogLogToTimelineMapper{},
+	&CSMTrafficLogLogToTimelineMapper{},
 	inspectioncore_contract.FeatureTaskLabel(
-		"CSM Access Logs",
-		"Gather CSM access logs to visualize network traffic flows and latency under client or server Pod timelines.",
+		"CSM Traffic Logs",
+		"Gather CSM traffic logs to visualize network traffic flows and latency under client or server Pod timelines.",
 		10000,
 		false,
 	),

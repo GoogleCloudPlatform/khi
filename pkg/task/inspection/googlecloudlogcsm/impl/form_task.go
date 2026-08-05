@@ -53,7 +53,7 @@ var InputCSMResponseFlagsTask = formtask.NewSetFormTaskBuilder(googlecloudlogcsm
 	WithAllowAddAll(false).
 	WithAllowRemoveAll(false).
 	WithAllowCustomValue(true).
-	WithDescription("Response flags used for filtering CSM access logs. Note '-' in response flags is corresponded to 'OK' in this form.").
+	WithDescription("Response flags used for filtering CSM traffic logs. Note '-' in response flags is corresponded to 'OK' in this form.").
 	WithOptionsFunc(func(ctx context.Context, previousValues []string) ([]inspectionmetadata.SetParameterFormFieldOptionItem, error) {
 		result := []inspectionmetadata.SetParameterFormFieldOptionItem{
 			{ID: "@any", Description: "[Alias] Matches any response flag"},

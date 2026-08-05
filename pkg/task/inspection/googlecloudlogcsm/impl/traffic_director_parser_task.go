@@ -44,7 +44,7 @@ var CSMTrafficDirectorFieldSetReaderTask = inspectiontaskbase.NewFieldSetReadTas
 var CSMTrafficDirectorLogIngesterTask = googlecloudcommon_contract.NewGCPOperationLogIngesterTask(
 	googlecloudlogcsm_contract.CSMTrafficDirectorLogIngesterTaskID,
 	googlecloudlogcsm_contract.CSMTrafficDirectorFieldSetReaderTaskID.Ref(),
-	googlecloudlogcsm_contract.LogTypeCSMAccessLog,
+	googlecloudlogcsm_contract.LogTypeCSMTrafficLog,
 )
 
 // CSMTrafficDirectorLogGrouperTask is a task that groups CSM Traffic Director logs by their resource name.

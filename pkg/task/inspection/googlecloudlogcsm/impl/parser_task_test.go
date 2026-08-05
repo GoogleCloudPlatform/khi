@@ -29,7 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/testutil/testchangeset"
 )
 
-func TestCSMAccessLogLogIngester_ProcessLog(t *testing.T) {
+func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputGCPAccessLog   *googlecloudcommon_contract.GCPAccessLogFieldSet
@@ -77,7 +77,7 @@ func TestCSMAccessLogLogIngester_ProcessLog(t *testing.T) {
 		},
 	}
 
-	ingester := &CSMAccessLogLogIngester{}
+	ingester := &CSMTrafficLogLogIngester{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			l := log.NewLogWithFieldSetsForTest(
@@ -91,12 +91,12 @@ func TestCSMAccessLogLogIngester_ProcessLog(t *testing.T) {
 			}
 			testchangeset.AssertLog(t, cs).
 				HasSummary(tc.wantSummary).
-				HasLogType(googlecloudlogcsm_contract.LogTypeCSMAccessLog)
+				HasLogType(googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 		})
 	}
 }
 
-func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
+func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		inputGCPAccessLog   *googlecloudcommon_contract.GCPAccessLogFieldSet
@@ -129,7 +129,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
 					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
 					khifilev6.PathSegment{Name: "istio-ingressgateway", Type: inspectioncore_contract.TimelineTypeResource},
-					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMAccessLog},
+					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantProductpagePath := builder.TimelineAccumulator.GetPath(nil,
 					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
@@ -137,7 +137,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
 					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
 					khifilev6.PathSegment{Name: "productpage-v1", Type: inspectioncore_contract.TimelineTypeResource},
-					khifilev6.PathSegment{Name: "server:istio-proxy", Type: googlecloudlogcsm_contract.TimelineTypeCSMAccessLog},
+					khifilev6.PathSegment{Name: "server:istio-proxy", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantServicePath := builder.TimelineAccumulator.GetPath(nil,
 					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
@@ -145,7 +145,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind},
 					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
 					khifilev6.PathSegment{Name: "productpage", Type: inspectioncore_contract.TimelineTypeResource},
-					khifilev6.PathSegment{Name: "server", Type: googlecloudlogcsm_contract.TimelineTypeCSMAccessLog},
+					khifilev6.PathSegment{Name: "server", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 
 				testchangeset.AssertTimeline(t, cs).
@@ -180,7 +180,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
 					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
 					khifilev6.PathSegment{Name: "details-v1", Type: inspectioncore_contract.TimelineTypeResource},
-					khifilev6.PathSegment{Name: "server", Type: googlecloudlogcsm_contract.TimelineTypeCSMAccessLog},
+					khifilev6.PathSegment{Name: "server", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantProductpagePath := builder.TimelineAccumulator.GetPath(nil,
 					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
@@ -188,7 +188,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "pod", Type: inspectioncore_contract.TimelineTypeKind},
 					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
 					khifilev6.PathSegment{Name: "productpage-v1", Type: inspectioncore_contract.TimelineTypeResource},
-					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMAccessLog},
+					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 				wantDetailsServicePath := builder.TimelineAccumulator.GetPath(nil,
 					khifilev6.PathSegment{Name: "test-cluster", Type: inspectioncore_contract.TimelineTypeK8sCluster},
@@ -196,7 +196,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 					khifilev6.PathSegment{Name: "service", Type: inspectioncore_contract.TimelineTypeKind},
 					khifilev6.PathSegment{Name: "default", Type: inspectioncore_contract.TimelineTypeNamespace},
 					khifilev6.PathSegment{Name: "details", Type: inspectioncore_contract.TimelineTypeResource},
-					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMAccessLog},
+					khifilev6.PathSegment{Name: "client", Type: googlecloudlogcsm_contract.TimelineTypeCSMTrafficLog},
 				)
 
 				testchangeset.AssertTimeline(t, cs).
@@ -207,7 +207,7 @@ func TestCSMAccessLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 		},
 	}
 
-	mapper := &CSMAccessLogLogToTimelineMapper{}
+	mapper := &CSMTrafficLogLogToTimelineMapper{}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			builder := khifilev6.NewBuilder()

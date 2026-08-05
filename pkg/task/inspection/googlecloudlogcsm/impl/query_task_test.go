@@ -34,7 +34,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestCsmAccessLogsFilter(t *testing.T) {
+func TestCsmTrafficLogsFilter(t *testing.T) {
 	testCases := []struct {
 		desc                string
 		cluster             googlecloudk8scommon_contract.GoogleCloudClusterIdentity
@@ -98,7 +98,7 @@ resource.labels.cluster_name="test-cluster"`,
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
-resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM access log.
+resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM traffic log.
 resource.labels.project_id="test-project"
 resource.labels.location="test-location"
 resource.labels.cluster_name="test-cluster"`,
@@ -166,9 +166,9 @@ resource.labels.cluster_name="test-cluster"`,
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			got := csmAccessLogsFilter(tc.cluster, tc.responseFlagsFilter, tc.namespaceFilter)
+			got := csmTrafficLogsFilter(tc.cluster, tc.responseFlagsFilter, tc.namespaceFilter)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("csmAccessLogsFilter() mismatch (-want +got):\n%s", diff)
+				t.Errorf("csmTrafficLogsFilter() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -241,10 +241,10 @@ resource.labels.cluster_name="azureClusters/test-cluster"`,
 				t.Fatalf("unexpected error running cluster identity task: %v", err)
 			}
 
-			got := csmAccessLogsFilter(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}})
+			got := csmTrafficLogsFilter(idRes, &gcpqueryutil.SetFilterParseResult{Additives: []string{"UH"}}, &gcpqueryutil.SetFilterParseResult{Additives: []string{"default"}})
 
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("csmAccessLogsFilter() mismatch (-want +got):\n%s", diff)
+				t.Errorf("csmTrafficLogsFilter() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

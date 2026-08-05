@@ -29,7 +29,7 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
-func csmAccessLogsFilter(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) string {
+func csmTrafficLogsFilter(cluster googlecloudk8scommon_contract.GoogleCloudClusterIdentity, responseFlagsSetFilter *gcpqueryutil.SetFilterParseResult, namespaceSetFilter *gcpqueryutil.SetFilterParseResult) string {
 	responseFlagsFilterStr := responseFlagsFilter(responseFlagsSetFilter)
 	namespaceFilterStr := namespaceFilter(namespaceSetFilter)
 	return fmt.Sprintf(`LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
@@ -75,22 +75,22 @@ func namespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 			selectedNamespaces = append(selectedNamespaces, fmt.Sprintf(`"%s"`, additive))
 		}
 		if len(selectedNamespaces) == 0 {
-			return `resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM access log.`
+			return `resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM traffic log.`
 		}
 		return fmt.Sprintf(`resource.labels.namespace_name:(%s)`, strings.Join(selectedNamespaces, " OR "))
 	}
 }
 
-type CSMAccessLogListLogEntryTaskSetting struct{}
+type CSMTrafficLogListLogEntryTaskSetting struct{}
 
 // DefaultResourceNames implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *CSMAccessLogListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
+func (c *CSMTrafficLogListLogEntryTaskSetting) DefaultResourceNames(ctx context.Context) ([]string, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref())
 	return []string{fmt.Sprintf("projects/%s", cluster.ProjectID)}, nil
 }
 
 // Dependencies implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *CSMAccessLogListLogEntryTaskSetting) Dependencies() []taskid.UntypedTaskReference {
+func (c *CSMTrafficLogListLogEntryTaskSetting) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref(),
 		googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref(),
@@ -99,11 +99,11 @@ func (c *CSMAccessLogListLogEntryTaskSetting) Dependencies() []taskid.UntypedTas
 }
 
 // Description implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *CSMAccessLogListLogEntryTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
+func (c *CSMTrafficLogListLogEntryTaskSetting) Description() *googlecloudcommon_contract.ListLogEntriesTaskDescription {
 	return &googlecloudcommon_contract.ListLogEntriesTaskDescription{
 
-		QueryName: "CSM access logs",
-		ExampleQuery: csmAccessLogsFilter(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+		QueryName: "CSM Traffic logs",
+		ExampleQuery: csmTrafficLogsFilter(googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
 			ProjectID:   "test-project",
 			Location:    "test-location",
 			ClusterName: "test-cluster",
@@ -112,23 +112,23 @@ func (c *CSMAccessLogListLogEntryTaskSetting) Description() *googlecloudcommon_c
 }
 
 // LogFilters implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *CSMAccessLogListLogEntryTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
+func (c *CSMTrafficLogListLogEntryTaskSetting) LogFilters(ctx context.Context, taskMode inspectioncore_contract.InspectionTaskModeType) ([]string, error) {
 	cluster := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.ClusterIdentityTaskID.Ref())
 	namespaceFilter := coretask.GetTaskResult(ctx, googlecloudk8scommon_contract.InputNamespaceFilterTaskID.Ref())
 	responseFlagsFilter := coretask.GetTaskResult(ctx, googlecloudlogcsm_contract.InputCSMResponseFlagsTaskID.Ref())
-	return []string{csmAccessLogsFilter(cluster, responseFlagsFilter, namespaceFilter)}, nil
+	return []string{csmTrafficLogsFilter(cluster, responseFlagsFilter, namespaceFilter)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *CSMAccessLogListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
+func (c *CSMTrafficLogListLogEntryTaskSetting) TaskID() taskid.TaskImplementationID[[]*log.Log] {
 	return googlecloudlogcsm_contract.ListLogEntriesTaskID
 }
 
 // TimePartitionCount implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
-func (c *CSMAccessLogListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
+func (c *CSMTrafficLogListLogEntryTaskSetting) TimePartitionCount(ctx context.Context) (int, error) {
 	return 10, nil
 }
 
-var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*CSMAccessLogListLogEntryTaskSetting)(nil)
+var _ googlecloudcommon_contract.ListLogEntriesTaskSetting = (*CSMTrafficLogListLogEntryTaskSetting)(nil)
 
-var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&CSMAccessLogListLogEntryTaskSetting{})
+var ListLogEntriesTask = googlecloudcommon_contract.NewListLogEntriesTask(&CSMTrafficLogListLogEntryTaskSetting{})
