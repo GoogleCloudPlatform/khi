@@ -35,6 +35,8 @@ func GenerateK8sContainerQuery(cluster googlecloudk8scommon_contract.GoogleCloud
 resource.labels.project_id="%s"
 resource.labels.location="%s"
 resource.labels.cluster_name="%s"
+-LOG_ID("server-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
+-LOG_ID("client-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
 %s
 %s`, cluster.ProjectID, cluster.Location, cluster.NameFor(googlecloudk8scommon_contract.ClusterNameUsageK8sCluster), generateNamespacesFilter(namespacesFilter), generatePodNamesFilter(podNamesFilter))
 }

@@ -43,6 +43,8 @@ func TestGenerateK8sContainerQueryIsValid(t *testing.T) {
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-LOG_ID("server-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
+-LOG_ID("client-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
 -- Invalid: none of the resources will be selected. Ignoring namespace filter.
 -- Invalid: none of the resources will be selected. Ignoring pod name filter.`,
 		},
@@ -59,6 +61,8 @@ resource.labels.cluster_name="foo-cluster"
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-LOG_ID("server-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
+-LOG_ID("client-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
 resource.labels.namespace_name=("kube-system")
 -- Invalid: none of the resources will be selected. Ignoring pod name filter.`,
 		},
@@ -75,6 +79,8 @@ resource.labels.namespace_name=("kube-system")
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-LOG_ID("server-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
+-LOG_ID("client-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
 -- Invalid: none of the resources will be selected. Ignoring namespace filter.
 resource.labels.pod_name:("nginx-pod")`,
 		},
@@ -91,6 +97,8 @@ resource.labels.pod_name:("nginx-pod")`,
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-LOG_ID("server-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
+-LOG_ID("client-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
 resource.labels.namespace_name=("kube-system")
 resource.labels.pod_name:("nginx-pod")`,
 		},
@@ -107,6 +115,8 @@ resource.labels.pod_name:("nginx-pod")`,
 resource.labels.project_id="foo-project"
 resource.labels.location="foo-location"
 resource.labels.cluster_name="foo-cluster"
+-LOG_ID("server-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
+-LOG_ID("client-accesslog-stackdriver") -- Use CSM Traffic log parser for CSM traffic log
 resource.labels.namespace_name=("kube-system" OR "istio-system")
 resource.labels.pod_name:("nginx-pod" OR "apache-pod")`,
 		},
