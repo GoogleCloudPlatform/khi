@@ -98,7 +98,7 @@ resource.labels.cluster_name="test-cluster"`,
 			},
 			want: `LOG_ID("server-accesslog-stackdriver") OR LOG_ID("client-accesslog-stackdriver") 
 labels.response_flag:("UH")
-resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM traffic log.
+resource.labels.namespace_name="" -- Invalid: No namespaces remain to filter for CSM traffic logs.
 resource.labels.project_id="test-project"
 resource.labels.location="test-location"
 resource.labels.cluster_name="test-cluster"`,

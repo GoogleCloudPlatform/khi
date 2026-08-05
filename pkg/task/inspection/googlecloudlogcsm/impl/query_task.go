@@ -75,7 +75,7 @@ func namespaceFilter(filter *gcpqueryutil.SetFilterParseResult) string {
 			selectedNamespaces = append(selectedNamespaces, fmt.Sprintf(`"%s"`, additive))
 		}
 		if len(selectedNamespaces) == 0 {
-			return `resource.labels.namespace_name="" -- Invalid: No namespaces are remained to filter for CSM traffic log.`
+			return `resource.labels.namespace_name="" -- Invalid: No namespaces remain to filter for CSM traffic logs.`
 		}
 		return fmt.Sprintf(`resource.labels.namespace_name:(%s)`, strings.Join(selectedNamespaces, " OR "))
 	}
