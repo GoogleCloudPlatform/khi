@@ -14,7 +14,6 @@ The `scripts/` directory contains shell scripts and other automation tools used 
 - **`frontend-codegen/`**: Contains scripts related to frontend code generation.
 - **`make/`**: Contains scripts that are primarily invoked by the root `Makefile`.
 - **`backend-codegen/`**: Contains scripts related to backend code generation.
-- **`depguard-generator/`**: Contains the tool for generating dependency guard rules.
 
 ## 2. Development Guidelines
 
