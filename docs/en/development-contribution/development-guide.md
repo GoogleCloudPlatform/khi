@@ -9,8 +9,8 @@ Read [Contribution Guide](contributing.md) and then follow this guide to set up 
 
 ### Prerequisites
 
-- Go 1.25.\*
-- Node.js environment 22.13.\*
+- Go 1.26.\*
+- Node.js environment 26.\*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq` command](https://jqlang.org/)
 

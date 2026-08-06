@@ -31,6 +31,7 @@ linters:
       disable:
         - fieldalignment
         - shadow
+        - inline
       enable-all: true
     staticcheck:
       checks:

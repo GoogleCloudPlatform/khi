@@ -9,8 +9,8 @@ Language: [English](/docs/en/development-contribution/development-guide.md) | �
 
 ### ビルドに必要な依存関係
 
-- Go 1.25.\*
-- Node.js 環境 22.13.\*
+- Go 1.26.\*
+- Node.js 環境 26.\*
 - [`gcloud` CLI](https://cloud.google.com/sdk/docs/install)
 - [`jq`コマンド](https://jqlang.org/)
 
@@ -73,7 +73,7 @@ make watch-web
 ```
 
 KHIの開発環境のAngularサーバーはリクエストを `localhost:4200/api` から`localhost:8080`にプロキシします([the proxy config](../../../web/proxy.conf.mjs))。
- `localhost:8080`ではなく `localhost:4200` にてKHIにアクセスできます。 開発環境のAngularサーバーは自動的にビルドされ、フロントエンドのコードの変更が自動で適用されます。
+`localhost:8080`ではなく `localhost:4200` にてKHIにアクセスできます。 開発環境のAngularサーバーは自動的にビルドされ、フロントエンドのコードの変更が自動で適用されます。
 
 ### テストの実行
 
@@ -157,4 +157,4 @@ GitHubでリリースを作成すると、専用のタグが自動的に生成�
 
 > [!NOTE]
 > このイメージは、最後のチェックのためだけのものです。まず、あなたの環境でコードが正しいことを確認してください。
-ビルドには1時間かかる場合があります。
+> ビルドには1時間かかる場合があります。

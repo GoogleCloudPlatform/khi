@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOLANGCILINT_VERSION := v2.7.1
+GOLANGCILINT_VERSION := v2.12.2
 GOLANGCILINT_CMD ?= $(shell command -v golangci-lint)
 CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 
@@ -38,16 +38,12 @@ endif
 
 .PHONY: format-go
 format-go: ## Format backend source code
-	gofmt -s -w .
+	golangci-lint run --fix
 
 .PHONY: format-web
 format-web: $(GENERATE_FRONTEND_DUMMY) ## Format frontend source code
 	cd web && npx prettier --ignore-path .gitignore --write "./**/*.+(ts|json|html|scss|mjs)"
 	cd web && npx stylelint "src/**/*.scss" --fix
-
-.PHONY: check-format-go
-check-format-go: ## Check backend source code format
-	test -z `gofmt -l .`
 
 .PHONY: check-format-web
 check-format-web: $(GENERATE_FRONTEND_DUMMY) ## Check frontend source code format
