@@ -96,6 +96,31 @@ func TestAirflowWorkerMapperTask_ProcessLogByGroup(t *testing.T) {
 					HasEvent(workerPath)
 			},
 		},
+		{
+			name: "Worker TaskInstance with none status generates event",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{Timestamp: timestamp},
+				&googlecloudcommon_contract.GCPMainMessageFieldSet{MainMessage: "Any user task log"},
+				&googlecloudclustercomposer_contract.ComposerFieldSet{
+					WorkerID: "airflow-worker-abc",
+				},
+				&googlecloudclustercomposer_contract.ComposerWorkerTaskInstanceFieldSet{
+					TaskInstance: googlecloudclustercomposer_contract.NewAirflowTaskInstance(
+						"my_dag", "task_id_1", "2023-01-01T00:00:00Z", "-1", "airflow-worker-abc", googlecloudclustercomposer_contract.TASKINSTANCE_NONE,
+					),
+				},
+			),
+			assert: func(t *testing.T, ctx context.Context, cs *khifilev6.TimelineChangeSet) {
+				envPath := googlecloudclustercomposer_contract.MustAirflowTimeline(ctx, "test-environment")
+				workerPath := googlecloudclustercomposer_contract.MustAirflowComponentTimeline(ctx, envPath, "airflow-worker-abc")
+				runPath := googlecloudclustercomposer_contract.MustAirflowDAGRunTimeline(ctx, envPath, "my_dag", "2023-01-01T00:00:00Z")
+				tiPath := googlecloudclustercomposer_contract.MustAirflowTaskInstanceTimeline(ctx, runPath, "task_id_1")
+
+				testchangeset.AssertTimeline(t, cs).
+					HasEvent(workerPath).
+					HasEvent(tiPath)
+			},
+		},
 	}
 
 	mapper := &workerLogToTimelineMapper{}

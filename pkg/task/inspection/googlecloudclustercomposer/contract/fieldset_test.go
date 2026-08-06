@@ -262,6 +262,113 @@ func TestComposerWorkerTaskInstanceFieldSetReader_Read(t *testing.T) {
 				),
 			},
 		},
+		{
+			name:        "running with labels (Airflow 2/3 on Cloud Composer)",
+			textPayload: `Running <TaskInstance: sample_khi_multi_step_dag.step2_process scheduled__2026-08-05T16:36:00+00:00 [running]> on host airflow-worker-mwtx5`,
+			labels: map[string]string{
+				"worker_id": "airflow-worker-mwtx5",
+				"run-id":    "scheduled__2026-08-05T16:36:00+00:00",
+				"workflow":  "sample_khi_multi_step_dag",
+				"task-id":   "step2_process",
+				"map-index": "-1",
+			},
+			want: &ComposerWorkerTaskInstanceFieldSet{
+				TaskInstance: NewAirflowTaskInstance(
+					"sample_khi_multi_step_dag",
+					"step2_process",
+					"scheduled__2026-08-05T16:36:00+00:00",
+					"-1",
+					"airflow-worker-mwtx5",
+					TASKINSTANCE_RUNNING,
+				),
+			},
+		},
+		{
+			name:        "final state skipped with labels (Airflow 3)",
+			textPayload: `Task finished [task_instance_id=019d10e4-71f5-7016-b412-aa1fbcfd16fc] [exit_code=0] [duration=0.41656468300061533] [final_state=skipped]`,
+			labels: map[string]string{
+				"worker_id": "airflow-worker-test",
+				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
+				"workflow":  "airflow_monitoring",
+				"task-id":   "echo",
+				"map-index": "2",
+			},
+			want: &ComposerWorkerTaskInstanceFieldSet{
+				TaskInstance: NewAirflowTaskInstance(
+					"airflow_monitoring",
+					"echo",
+					"scheduled__2025-04-14T01:30:00+00:00",
+					"2",
+					"airflow-worker-test",
+					TASKINSTANCE_SKIPPED,
+				),
+			},
+		},
+		{
+			name:        "marking status with labels",
+			textPayload: `Marking task as SUCCESS. dag_id=airflow_monitoring, task_id=echo, run_id=scheduled__2025-04-14T01:30:00+00:00, map_index=2, execution_date=20250414T013000, start_date=20250414T014000, end_date=20250414T014001`,
+			labels: map[string]string{
+				"worker_id": "airflow-worker-5fqxd",
+				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
+				"workflow":  "airflow_monitoring",
+				"task-id":   "echo",
+				"map-index": "2",
+			},
+			want: &ComposerWorkerTaskInstanceFieldSet{
+				TaskInstance: NewAirflowTaskInstance(
+					"airflow_monitoring",
+					"echo",
+					"scheduled__2025-04-14T01:30:00+00:00",
+					"2",
+					"airflow-worker-5fqxd",
+					TASKINSTANCE_SUCCESS,
+				),
+			},
+		},
+		{
+			name:        "missing worker_id with generic payload",
+			textPayload: `Any text payload`,
+			labels: map[string]string{
+				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
+				"workflow":  "airflow_monitoring",
+				"task-id":   "echo",
+				"map-index": "2",
+			},
+			wantErr: true,
+		},
+		{
+			name:        "missing run-id with generic payload",
+			textPayload: `Any text payload`,
+			labels: map[string]string{
+				"worker_id": "airflow-worker-test",
+				"workflow":  "airflow_monitoring",
+				"task-id":   "echo",
+				"map-index": "2",
+			},
+			wantErr: true,
+		},
+		{
+			name:        "missing workflow with generic payload",
+			textPayload: `Any text payload`,
+			labels: map[string]string{
+				"worker_id": "airflow-worker-test",
+				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
+				"task-id":   "echo",
+				"map-index": "2",
+			},
+			wantErr: true,
+		},
+		{
+			name:        "missing task-id with generic payload",
+			textPayload: `Any text payload`,
+			labels: map[string]string{
+				"worker_id": "airflow-worker-test",
+				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
+				"workflow":  "airflow_monitoring",
+				"map-index": "2",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -309,109 +416,80 @@ func TestComposerWorkerTaskInstanceFieldSetReader_Read(t *testing.T) {
 	}
 }
 
-func TestComposerWorkerTaskInstanceFieldSetReader_tryReadFromLabels(t *testing.T) {
+func TestComposerWorkerTaskInstanceFieldSetReader_parsePayload(t *testing.T) {
 	reader := &ComposerWorkerTaskInstanceFieldSetReader{}
 
-	tests := []struct {
-		name    string
-		labels  map[string]string
-		want    *AirflowTaskInstance
-		wantErr bool
+	testCases := []struct {
+		name        string
+		textPayload string
+		wantInfo    workerTaskInstanceInfo
 	}{
 		{
-			name: "valid labels",
-			labels: map[string]string{
-				"worker_id": "airflow-worker-abc",
-				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
-				"workflow":  "airflow_monitoring",
-				"task-id":   "echo",
-				"map-index": "2",
+			name:        "running without mapIndex",
+			textPayload: `Running <TaskInstance: example.query3 scheduled__2024-04-22T05:30:00+00:00 [queued]> on host airflow-worker-dpvl7`,
+			wantInfo: workerTaskInstanceInfo{
+				dagId:    "example",
+				taskId:   "query3",
+				runId:    "scheduled__2024-04-22T05:30:00+00:00",
+				workerId: "airflow-worker-dpvl7",
+				mapIndex: "",
+				state:    TASKINSTANCE_QUEUED,
 			},
-			want: NewAirflowTaskInstance(
-				"airflow_monitoring",
-				"echo",
-				"scheduled__2025-04-14T01:30:00+00:00",
-				"2",
-				"airflow-worker-abc",
-				TASKINSTANCE_NONE,
-			),
 		},
 		{
-			name: "missing worker_id",
-			labels: map[string]string{
-				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
-				"workflow":  "airflow_monitoring",
-				"task-id":   "echo",
-				"map-index": "2",
+			name:        "running with mapIndex",
+			textPayload: `Running <TaskInstance: example.query3 scheduled__2024-04-22T05:30:00+00:00 map_index=2 [running]> on host airflow-worker-dpvl7`,
+			wantInfo: workerTaskInstanceInfo{
+				dagId:    "example",
+				taskId:   "query3",
+				runId:    "scheduled__2024-04-22T05:30:00+00:00",
+				workerId: "airflow-worker-dpvl7",
+				mapIndex: "2",
+				state:    TASKINSTANCE_RUNNING,
 			},
-			wantErr: true,
 		},
 		{
-			name: "missing run-id",
-			labels: map[string]string{
-				"worker_id": "airflow-worker-abc",
-				"workflow":  "airflow_monitoring",
-				"task-id":   "echo",
-				"map-index": "2",
+			name:        "running with unknown state",
+			textPayload: `Running <TaskInstance: example.query3 scheduled__2024-04-22T05:30:00+00:00 [unknown_status]> on host airflow-worker-dpvl7`,
+			wantInfo: workerTaskInstanceInfo{
+				dagId:    "example",
+				taskId:   "query3",
+				runId:    "scheduled__2024-04-22T05:30:00+00:00",
+				workerId: "airflow-worker-dpvl7",
+				mapIndex: "",
+				state:    "",
 			},
-			wantErr: true,
 		},
 		{
-			name: "missing workflow",
-			labels: map[string]string{
-				"worker_id": "airflow-worker-abc",
-				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
-				"task-id":   "echo",
-				"map-index": "2",
+			name:        "marking status success",
+			textPayload: `Marking task as SUCCESS. dag_id=airflow_monitoring, task_id=echo, run_id=scheduled__2025-04-14T01:30:00+00:00, execution_date=20250414T013000, start_date=20250414T014000, end_date=20250414T014001`,
+			wantInfo: workerTaskInstanceInfo{
+				dagId:    "airflow_monitoring",
+				taskId:   "echo",
+				runId:    "scheduled__2025-04-14T01:30:00+00:00",
+				mapIndex: "",
+				state:    TASKINSTANCE_SUCCESS,
 			},
-			wantErr: true,
 		},
 		{
-			name: "missing task-id",
-			labels: map[string]string{
-				"worker_id": "airflow-worker-abc",
-				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
-				"workflow":  "airflow_monitoring",
-				"map-index": "2",
+			name:        "final state skipped",
+			textPayload: `Task finished [task_instance_id=019d10e4-71f5-7016-b412-aa1fbcfd16fc] [exit_code=0] [duration=0.41656468300061533] [final_state=skipped]`,
+			wantInfo: workerTaskInstanceInfo{
+				state: TASKINSTANCE_SKIPPED,
 			},
-			wantErr: true,
 		},
 		{
-			name: "missing map-index",
-			labels: map[string]string{
-				"worker_id": "airflow-worker-abc",
-				"run-id":    "scheduled__2025-04-14T01:30:00+00:00",
-				"workflow":  "airflow_monitoring",
-				"task-id":   "echo",
-			},
-			wantErr: true,
+			name:        "unmatched payload",
+			textPayload: `Some generic log line without task instance state`,
+			wantInfo:    workerTaskInstanceInfo{},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			yamlStr := `textPayload: "task is running"
-labels:`
-			for k, v := range tt.labels {
-				yamlStr += fmt.Sprintf("\n  \"%s\": '%s'", k, v)
-			}
-			if len(tt.labels) == 0 {
-				yamlStr = "{}"
-			}
-			yamlNode, err := structured.FromYAML(yamlStr)
-			if err != nil {
-				t.Fatalf("failed to parse yaml: %v", err)
-			}
-			nodeReader := structured.NewNodeReader(yamlNode)
-
-			got, err := reader.tryReadFromLabels(nodeReader)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("tryReadFromLabels() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.want != nil {
-				if diff := cmp.Diff(tt.want, got, cmp.AllowUnexported(AirflowTaskInstance{})); diff != "" {
-					t.Errorf("tryReadFromLabels() mismatch (-want +got):\n%s", diff)
-				}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotInfo := reader.parsePayload(tc.textPayload)
+			if diff := cmp.Diff(tc.wantInfo, gotInfo, cmp.AllowUnexported(workerTaskInstanceInfo{})); diff != "" {
+				t.Errorf("parsePayload() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

@@ -16,6 +16,7 @@ package googlecloudclustercomposer_contract
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -70,7 +71,7 @@ var (
 )
 
 func stringToTiState(stateStr string) (Tistate, error) {
-	switch stateStr {
+	switch strings.ToLower(stateStr) {
 	case "scheduled":
 		return TASKINSTANCE_SCHEDULED, nil
 	case "queued":
@@ -261,108 +262,134 @@ var (
 	airflowWorkerFinalStateExtractTemplate = regexp.MustCompile(`\[final_state=(?P<state>[a-z_]*)\]`)
 )
 
-func (c *ComposerWorkerTaskInstanceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
-	if ti, err := c.tryReadFromLabels(reader); err == nil {
-		return &ComposerWorkerTaskInstanceFieldSet{TaskInstance: ti}, nil
-	}
-	textPayload, err := reader.ReadString("textPayload")
-	if err != nil {
-		return nil, fmt.Errorf("textPayload not found")
-	}
+type workerTaskInstanceInfo struct {
+	dagId    string
+	taskId   string
+	runId    string
+	mapIndex string
+	workerId string
+	state    Tistate
+}
 
+// merge returns a new workerTaskInstanceInfo where empty fields in i are filled from other,
+// and state is updated if other.state is specified.
+func (i workerTaskInstanceInfo) merge(other workerTaskInstanceInfo) workerTaskInstanceInfo {
+	res := i
+	if res.dagId == "" {
+		res.dagId = other.dagId
+	}
+	if res.taskId == "" {
+		res.taskId = other.taskId
+	}
+	if res.runId == "" {
+		res.runId = other.runId
+	}
+	if (res.mapIndex == "" || res.mapIndex == "-1") && other.mapIndex != "" {
+		res.mapIndex = other.mapIndex
+	}
+	if other.workerId != "" {
+		res.workerId = other.workerId
+	}
+	if other.state != TASKINSTANCE_NONE && other.state != "" {
+		res.state = other.state
+	}
+	return res
+}
+
+func (c *ComposerWorkerTaskInstanceFieldSetReader) readLabels(reader *structured.NodeReader) workerTaskInstanceInfo {
 	workerId, _ := reader.ReadString("labels.worker_id")
+	runId, _ := reader.ReadString("labels.run-id")
+	workflow, _ := reader.ReadString("labels.workflow")
+	taskId, _ := reader.ReadString("labels.task-id")
+	mapIndex, _ := reader.ReadString("labels.map-index")
 
+	return workerTaskInstanceInfo{
+		dagId:    workflow,
+		taskId:   taskId,
+		runId:    runId,
+		mapIndex: mapIndex,
+		workerId: workerId,
+		state:    TASKINSTANCE_NONE,
+	}
+}
+
+// parsePayload attempts to parse Airflow task instance details from the log text payload.
+func (c *ComposerWorkerTaskInstanceFieldSetReader) parsePayload(textPayload string) workerTaskInstanceInfo {
 	if strings.HasPrefix(textPayload, "Running ") {
-		matches := airflowWorkerRunningHostTemplate.FindStringSubmatch(textPayload)
-		if matches != nil {
-			dagid := matches[airflowWorkerRunningHostTemplate.SubexpIndex("dagid")]
-			taskid := matches[airflowWorkerRunningHostTemplate.SubexpIndex("taskid")]
-			runid := matches[airflowWorkerRunningHostTemplate.SubexpIndex("runid")]
-			host := matches[airflowWorkerRunningHostTemplate.SubexpIndex("host")]
-			stateStr := matches[airflowWorkerRunningHostTemplate.SubexpIndex("state")]
-			state, err := stringToTiState(stateStr)
-			if err != nil {
-				return nil, err
-			}
-			mapIndex := "-1"
+		if matches := airflowWorkerRunningHostTemplate.FindStringSubmatch(textPayload); matches != nil {
+			mapIndex := ""
 			if i := airflowWorkerRunningHostTemplate.SubexpIndex("mapIndex"); i >= 0 && matches[i] != "" {
 				mapIndex = matches[i]
 			}
-			return &ComposerWorkerTaskInstanceFieldSet{
-				TaskInstance: NewAirflowTaskInstance(dagid, taskid, runid, mapIndex, host, state),
-			}, nil
+			stateStr := matches[airflowWorkerRunningHostTemplate.SubexpIndex("state")]
+			state, err := stringToTiState(stateStr)
+			if err != nil {
+				slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err))
+			}
+			return workerTaskInstanceInfo{
+				dagId:    matches[airflowWorkerRunningHostTemplate.SubexpIndex("dagid")],
+				taskId:   matches[airflowWorkerRunningHostTemplate.SubexpIndex("taskid")],
+				runId:    matches[airflowWorkerRunningHostTemplate.SubexpIndex("runid")],
+				workerId: matches[airflowWorkerRunningHostTemplate.SubexpIndex("host")],
+				mapIndex: mapIndex,
+				state:    state,
+			}
 		}
 	}
-
-	matches := airflowWorkerMarkingStatusTemplate.FindStringSubmatch(textPayload)
-	if matches != nil {
-		if workerId == "" {
-			return nil, fmt.Errorf("worker_id not found")
-		}
-
-		dagid := matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("dagid")]
-		taskid := matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("taskid")]
-		runid := matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("runid")]
-		// Need strings.ToLower because it might be capitalized depending on the version
-		stateStr := strings.ToLower(matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("state")])
-		state, err := stringToTiState(stateStr)
-		if err != nil {
-			return nil, err
-		}
-		mapIndex := "-1"
+	if matches := airflowWorkerMarkingStatusTemplate.FindStringSubmatch(textPayload); matches != nil {
+		mapIndex := ""
 		if i := airflowWorkerMarkingStatusTemplate.SubexpIndex("mapIndex"); i >= 0 && matches[i] != "" {
 			mapIndex = matches[i]
 		}
-		return &ComposerWorkerTaskInstanceFieldSet{
-			TaskInstance: NewAirflowTaskInstance(dagid, taskid, runid, mapIndex, workerId, state),
-		}, nil
+		stateStr := matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("state")]
+		state, err := stringToTiState(stateStr)
+		if err != nil {
+			slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err))
+		}
+		return workerTaskInstanceInfo{
+			dagId:    matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("dagid")],
+			taskId:   matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("taskid")],
+			runId:    matches[airflowWorkerMarkingStatusTemplate.SubexpIndex("runid")],
+			mapIndex: mapIndex,
+			state:    state,
+		}
 	}
-
-	return nil, fmt.Errorf("not an Airflow Worker TaskInstance log")
+	if matches := airflowWorkerFinalStateExtractTemplate.FindStringSubmatch(textPayload); matches != nil {
+		stateStr := matches[airflowWorkerFinalStateExtractTemplate.SubexpIndex("state")]
+		state, err := stringToTiState(stateStr)
+		if err != nil {
+			slog.Warn(fmt.Sprintf("failed to parse task instance state %q: %v", stateStr, err))
+		}
+		return workerTaskInstanceInfo{
+			state: state,
+		}
+	}
+	return workerTaskInstanceInfo{}
 }
 
-// tryReadFromLabels reads task instance info from labels if available.
-// This is effective only when airflow 3.x is used.
-func (c *ComposerWorkerTaskInstanceFieldSetReader) tryReadFromLabels(reader *structured.NodeReader) (*AirflowTaskInstance, error) {
-	workerId, err := reader.ReadString("labels.worker_id")
-	if err != nil {
-		return nil, fmt.Errorf("worker_id not found")
-	}
-	runid, err := reader.ReadString("labels.run-id")
-	if err != nil {
-		return nil, fmt.Errorf("run-id not found")
-	}
-
-	workflow, err := reader.ReadString("labels.workflow")
-	if err != nil {
-		return nil, fmt.Errorf("workflow not found")
-	}
-
-	taskid, err := reader.ReadString("labels.task-id")
-	if err != nil {
-		return nil, fmt.Errorf("task-id not found")
-	}
-
-	mapIndex, err := reader.ReadString("labels.map-index")
-	if err != nil {
-		return nil, fmt.Errorf("map-index not found")
-	}
+// Read parses structured log data to extract worker TaskInstance information.
+func (c *ComposerWorkerTaskInstanceFieldSetReader) Read(reader *structured.NodeReader) (log.FieldSet, error) {
+	labelInfo := c.readLabels(reader)
 
 	textPayload, err := reader.ReadString("textPayload")
 	if err != nil {
 		return nil, fmt.Errorf("textPayload not found")
 	}
 
-	matches := airflowWorkerFinalStateExtractTemplate.FindStringSubmatch(textPayload)
-	state := TASKINSTANCE_NONE
-	if matches != nil {
-		stateStr := strings.ToLower(matches[airflowWorkerFinalStateExtractTemplate.SubexpIndex("state")])
-		if finalState, err := stringToTiState(stateStr); err == nil {
-			state = finalState
-		}
+	payloadInfo := c.parsePayload(textPayload)
+	info := labelInfo.merge(payloadInfo)
+
+	if info.mapIndex == "" {
+		info.mapIndex = "-1"
 	}
 
-	return NewAirflowTaskInstance(workflow, taskid, runid, mapIndex, workerId, state), nil
+	if info.dagId == "" || info.taskId == "" || info.runId == "" || info.workerId == "" {
+		return nil, fmt.Errorf("not an Airflow Worker TaskInstance log")
+	}
+
+	return &ComposerWorkerTaskInstanceFieldSet{
+		TaskInstance: NewAirflowTaskInstance(info.dagId, info.taskId, info.runId, info.mapIndex, info.workerId, info.state),
+	}, nil
 }
 
 var _ log.FieldSetReader = &ComposerWorkerTaskInstanceFieldSetReader{}
