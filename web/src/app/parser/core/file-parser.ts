@@ -141,8 +141,8 @@ export class KHIFileParser {
     // 4. Priority-Based Assembly Phase
     progressReporter?.reportProgress(KHIFileParser.PROGRESS_ASSEMBLY_START);
     progressReporter?.reportMessage('Preparing data assembly...');
-    const executedDefinitions = Array.from(executedTypeIds).map(
-      (typeId) => blueprint.get(typeId)!,
+    const executedDefinitions = Array.from(executedTypeIds).map((typeId) =>
+      blueprint.get(typeId)!,
     );
     executedDefinitions.sort((a, b) => a.priority - b.priority);
 

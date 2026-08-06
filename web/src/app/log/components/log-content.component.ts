@@ -139,8 +139,7 @@ export class LogContentComponent {
 
   private readonly timestampString = computed(() => {
     const parsed = this.vm()?.parsedLogBody as
-      | { [key: string]: string }
-      | undefined;
+      { [key: string]: string } | undefined;
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return parsed['timestamp'] ?? null;
     }

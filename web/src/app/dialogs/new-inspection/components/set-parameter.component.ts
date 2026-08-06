@@ -66,9 +66,10 @@ export class SetParameterComponent implements OnInit, OnDestroy {
   readonly stagingInput = signal<string[]>([]);
 
   choices = computed(() => {
-    return this.parameter().options.map(
-      (opt): SetInputItem => ({ id: opt.id, value: opt }),
-    );
+    return this.parameter().options.map((opt): SetInputItem => ({
+      id: opt.id,
+      value: opt,
+    }));
   });
 
   ngOnInit(): void {

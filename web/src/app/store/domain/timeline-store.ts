@@ -60,8 +60,7 @@ export interface TimelineStoreSharedData {
   readonly timelineRevisionIds: Uint32Array[];
   readonly timelineEventIds: Uint32Array[];
   readonly revisionFieldAnnotations: (
-    | readonly FieldAnnotationDTO[]
-    | undefined
+    readonly FieldAnnotationDTO[] | undefined
   )[];
   readonly timelineIdToIndex: { readonly [tid: number]: number };
   readonly revisionIdToIndex: { readonly [rid: number]: number };
@@ -141,8 +140,7 @@ export class TimelineStore {
   private revisionVerbTypeIds!: Uint32Array;
   private revisionStateTypeIds!: Uint32Array;
   private revisionFieldAnnotations: (
-    | readonly FieldAnnotationDTO[]
-    | undefined
+    readonly FieldAnnotationDTO[] | undefined
   )[] = [];
 
   // Packed revision bodies

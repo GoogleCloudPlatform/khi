@@ -34,7 +34,7 @@ import {
   ViewStateService,
 } from 'src/app/services/view-state.service';
 import { StyleOverrideService } from 'src/app/services/style-override.service';
-import jsyaml from 'js-yaml';
+import * as jsyaml from 'js-yaml';
 
 /**
  * `LogSmartComponent` is the main container for the log viewing interface.

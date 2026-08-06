@@ -54,10 +54,7 @@ export type InspectionMetadataHeader = {
 };
 
 export type InspectionMetadataProgressPhase =
-  | 'RUNNING'
-  | 'ERROR'
-  | 'CANCELLED'
-  | 'DONE';
+  'RUNNING' | 'ERROR' | 'CANCELLED' | 'DONE';
 
 export type InspectionMetadataProgress = {
   phase: InspectionMetadataProgressPhase;

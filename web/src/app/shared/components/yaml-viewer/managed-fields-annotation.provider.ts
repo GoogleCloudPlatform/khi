@@ -58,8 +58,7 @@ export class ManagedFieldsAnnotationProvider implements YamlAnnotationProvider {
 
     const yamlRecord = parsedYaml as Record<string, unknown>;
     const metadata = yamlRecord['metadata'] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
 
     const managedFields =
       this.overrideManagedFields ??

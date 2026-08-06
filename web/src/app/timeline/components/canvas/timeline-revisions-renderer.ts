@@ -520,21 +520,21 @@ export class TimelineRevisionsSharedResources {
             revisionStyle.fontPaddingInPx[1],
             revisionStyle.fontSizeInPx,
             STD140_PADDING_FLOAT,
-            revisionStyle.fontThicknessBySelectionType[ // 32
-              TimelineChartItemHighlightType.None
-            ],
+            revisionStyle
+              .fontThicknessBySelectionType // 32
+            [TimelineChartItemHighlightType.None],
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
-            revisionStyle.fontThicknessBySelectionType[ // 48
-              TimelineChartItemHighlightType.Hovered
-            ],
+            revisionStyle
+              .fontThicknessBySelectionType // 48
+            [TimelineChartItemHighlightType.Hovered],
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
-            revisionStyle.fontThicknessBySelectionType[ // 64
-              TimelineChartItemHighlightType.Selected
-            ],
+            revisionStyle
+              .fontThicknessBySelectionType // 64
+            [TimelineChartItemHighlightType.Selected],
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
@@ -554,21 +554,21 @@ export class TimelineRevisionsSharedResources {
             STD140_PADDING_FLOAT,
             revisionStyle.iconPaddingInPx[0], // 136
             revisionStyle.iconPaddingInPx[1],
-            revisionStyle.iconThicknessBySelectionType[ // 144
-              TimelineChartItemHighlightType.None
-            ],
+            revisionStyle
+              .iconThicknessBySelectionType // 144
+            [TimelineChartItemHighlightType.None],
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
-            revisionStyle.iconThicknessBySelectionType[ // 160
-              TimelineChartItemHighlightType.Hovered
-            ],
+            revisionStyle
+              .iconThicknessBySelectionType // 160
+            [TimelineChartItemHighlightType.Hovered],
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
-            revisionStyle.iconThicknessBySelectionType[ // 176
-              TimelineChartItemHighlightType.Selected
-            ],
+            revisionStyle
+              .iconThicknessBySelectionType // 176
+            [TimelineChartItemHighlightType.Selected],
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
             STD140_PADDING_FLOAT,
