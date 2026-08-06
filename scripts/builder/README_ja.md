@@ -5,8 +5,8 @@
 ## 含まれる依存関係
 
 - Debian Trixie (ベース OS)
-- Go 1.25.x (`golang:1.25-trixie` からコピー)
-- Node.js 22.x, npm, npx (`node:22-trixie` のベース環境)
+- Go 1.26.x (`golang:1.26-trixie` からコピー)
+- Node.js 26.x, npm, npx (`node:26-trixie` のベース環境)
 - システムユーティリティ: `jq`, `make`, `git`, `curl`
 
 ## ビルドとプッシュ

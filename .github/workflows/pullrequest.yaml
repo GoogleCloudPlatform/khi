@@ -29,10 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Run markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # 23.2.0
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # 24.2.0
 
   backend-tests:
     runs-on: ubuntu-latest
@@ -41,10 +41,10 @@ jobs:
       id-token: "write"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: "./go.mod"
       - name: Install jq
@@ -65,18 +65,18 @@ jobs:
           make check-format-go
           make check-format-misc
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.7.1
+          version: v2.11.4
           args: --config=.golangci.yaml
       - name: Prepare depguard config for golangci-lint
         run: make generate-depguard-rules
       - name: Check for diff in depguard config
         run: git diff --exit-code .generated-golangci-depguard.yaml
       - name: Run golangci-lint for depguard
-        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.7.1
+          version: v2.11.4
           args: --config=.generated-golangci-depguard.yaml --issues-exit-code=0 # This check is currently optional. Remove `--issues-exit-code=0` once issues are fixed.
 
   frontend-tests:
@@ -85,15 +85,15 @@ jobs:
       contents: "read"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: "./.node-version"
 
       - name: Set up Go # Go dependency is needed for `make generate-frontend`
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: "./go.mod"
 
@@ -129,15 +129,15 @@ jobs:
         configuration: [prod, dev]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: "./.node-version"
 
       - name: Set up Go # Go dependency is needed for `make generate-frontend`
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: "./go.mod"
 
@@ -161,14 +161,14 @@ jobs:
       contents: "read"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: "./go.mod"
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: "./.node-version"
       - name: npm install
@@ -183,10 +183,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: "./go.mod"
 
@@ -203,15 +203,15 @@ jobs:
       contents: "read"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: "./.node-version"
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: "./go.mod"
 

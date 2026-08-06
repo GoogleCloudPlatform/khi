@@ -26,7 +26,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v11
         with:
           stale-pr-label: "stale"
           days-before-pr-stale: 28

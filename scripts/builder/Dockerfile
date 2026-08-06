@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.25-trixie AS golang
-FROM node:22-trixie
+FROM golang:1.26-trixie AS golang
+FROM node:26-trixie
 
 COPY --from=golang /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
