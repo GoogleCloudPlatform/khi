@@ -72,6 +72,39 @@ func TestGCPAuditLogFieldSetReader(t *testing.T) {
 				Status:         0,
 			},
 		},
+		{
+			name: "audit log with principalSubject",
+			input: map[string]any{
+				"resource": map[string]any{
+					"labels": map[string]any{
+						"project_id": "p1",
+					},
+				},
+				"operation": map[string]any{
+					"id":    "op-2",
+					"first": true,
+					"last":  false,
+				},
+				"protoPayload": map[string]any{
+					"methodName":   "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
+					"resourceName": "projects/p1/locations/us-central1/environments/env-1",
+					"authenticationInfo": map[string]any{
+						"principalSubject": "serviceAccount:khi-sa@proj.iam.gserviceaccount.com",
+					},
+					"status": map[string]any{},
+				},
+			},
+			want: &GCPAuditLogFieldSet{
+				ProjectID:      "p1",
+				OperationID:    "op-2",
+				OperationFirst: true,
+				OperationLast:  false,
+				MethodName:     "google.cloud.orchestration.airflow.service.v1.Environments.CreateEnvironment",
+				ResourceName:   "projects/p1/locations/us-central1/environments/env-1",
+				PrincipalEmail: "serviceAccount:khi-sa@proj.iam.gserviceaccount.com",
+				Status:         -1,
+			},
+		},
 	}
 
 	for _, tc := range tests {

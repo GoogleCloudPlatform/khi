@@ -46,6 +46,11 @@ func (t *GCPOperationTracker) HasStarted(operationID string) bool {
 	return hasStarted
 }
 
+// MarkStarted records that the operation start log for the given operation ID was observed.
+func (t *GCPOperationTracker) MarkStarted(operationID string) {
+	t.startedOperations[operationID] = struct{}{}
+}
+
 // HasResourceRevision returns true if any revision has been added to the given resource timeline path.
 func (t *GCPOperationTracker) HasResourceRevision(path *khifilev6.TimelinePath) bool {
 	_, has := t.hasResourceRevision[path.ID]
@@ -221,7 +226,7 @@ func (t *GCPOperationTracker) ProcessOperationLog(ctx context.Context, cs *khifi
 	}
 
 	if audit.Starting() {
-		t.startedOperations[audit.OperationID] = struct{}{}
+		t.MarkStarted(audit.OperationID)
 	}
 
 	_, hasStarted := t.startedOperations[audit.OperationID]

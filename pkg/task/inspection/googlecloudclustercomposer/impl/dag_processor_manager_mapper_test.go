@@ -126,7 +126,7 @@ func TestDagProcessorMapperTask_ProcessLogByGroup(t *testing.T) {
 	}
 
 	mapper := &dagProcessorManagerTimelineMapper{
-		targetLogType: googlecloudclustercomposer_contract.LogTypeComposerEnvironment,
+		targetLogType: googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment,
 		dagFilePath:   "/home/airflow/gcs/dags",
 	}
 	for _, tc := range testCases {

@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package googlecloudclustercomposer_contract
+package googlecloudlogcomposerapiaudit_contract
 
 import (
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
 
-// The following block defines the registered timeline style LogTypes.
-// These are registered as package-level variables so they are initialized immediately
-// when this package is imported.
 var (
-	LogTypeManagedAirflowEnvironment = style.MustRegisterLogType("managed airflow", "Managed Airflow Environment Logs", style.MustForceConvertSRGBHex("#88AA55"), style.ColorWhite)
+	// LogTypeManagedAirflowAPI is the log type style for Cloud Composer API audit logs.
+	LogTypeManagedAirflowAPI = style.MustRegisterLogType(
+		"Managed Airflow API",
+		"Managed Airflow API Logs",
+		style.MustForceConvertSRGBHex("#4285F4"),
+		style.ColorWhite,
+	)
 )

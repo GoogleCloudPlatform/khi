@@ -25,6 +25,75 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestMustComposerEnvironmentTimeline(t *testing.T) {
+	builder := khifilev6.NewBuilder()
+	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)
+
+	projectTimeline := MustGCPProjectTimeline(ctx, "test-project")
+
+	testCases := []struct {
+		name            string
+		parent          *khifilev6.TimelinePath
+		environmentName string
+		wantPanic       bool
+		panicMsg        string
+		wantName        string
+	}{
+		{
+			name:            "valid environment name",
+			parent:          projectTimeline,
+			environmentName: "my-composer-environment",
+			wantPanic:       false,
+			wantName:        "my-composer-environment",
+		},
+		{
+			name:            "empty environment name",
+			parent:          projectTimeline,
+			environmentName: "",
+			wantPanic:       false,
+			wantName:        "unknown",
+		},
+		{
+			name:            "nil project path",
+			parent:          nil,
+			environmentName: "my-composer-environment",
+			wantPanic:       true,
+			panicMsg:        "parent timeline path must be GCP Project type",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.wantPanic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("MustComposerEnvironmentTimeline() did not panic, want panic: %s", tc.panicMsg)
+					} else if !strings.Contains(fmt.Sprint(r), tc.panicMsg) {
+						t.Errorf("MustComposerEnvironmentTimeline() panic = %v, want panic containing %q", r, tc.panicMsg)
+					}
+				}()
+			}
+
+			got := MustManagedAirflowEnvironmentTimeline(ctx, tc.parent, tc.environmentName)
+			if !tc.wantPanic {
+				if got == nil {
+					t.Fatal("expected timeline path to be not nil")
+				}
+				if diff := cmp.Diff(tc.wantName, got.Name.Resolve()); diff != "" {
+					t.Errorf("MustComposerEnvironmentTimeline() mismatch (-want +got):\n%s", diff)
+				}
+				if got.Type.GetId() != TimelineTypeManagedAirflowEnvironment.GetId() {
+					t.Errorf("MustComposerEnvironmentTimeline().Type = %v, want %v", got.Type, TimelineTypeManagedAirflowEnvironment)
+				}
+				if got.Parent == nil || got.Parent.Type.GetId() != TimelineTypeGCPProject.GetId() {
+					t.Errorf("MustComposerEnvironmentTimeline().Parent = %v, want GCP Project timeline", got.Parent)
+				}
+			}
+		})
+	}
+}
+
 func TestMustGKEClusterTimeline(t *testing.T) {
 	builder := khifilev6.NewBuilder()
 	ctx := khictx.WithValue(t.Context(), inspectioncore_contract.Builder, builder)

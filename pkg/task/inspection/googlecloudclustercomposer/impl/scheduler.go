@@ -55,7 +55,7 @@ func (i *schedulerLogIngester) ProcessLog(ctx context.Context, l *log.Log) (*khi
 	if err != nil {
 		return nil, err
 	}
-	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeComposerEnvironment)
+	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment)
 
 	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
 		cs.SetTimestamp(commonFS.Timestamp)

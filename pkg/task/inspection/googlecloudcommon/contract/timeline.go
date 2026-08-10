@@ -24,6 +24,23 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 )
 
+// MustManagedAirflowEnvironmentTimeline returns the timeline path for a Cloud Composer Environment under a GCP Project.
+func MustManagedAirflowEnvironmentTimeline(ctx context.Context, projectPath *khifilev6.TimelinePath, environmentName string) *khifilev6.TimelinePath {
+	if projectPath == nil || projectPath.Type.GetId() != TimelineTypeGCPProject.GetId() {
+		panic("parent timeline path must be GCP Project type")
+	}
+	if environmentName == "" {
+		environmentName = "unknown"
+		slog.WarnContext(ctx, "environmentName is empty, using unknown instead")
+	}
+
+	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
+	return builder.TimelineAccumulator.GetPath(projectPath, khifilev6.PathSegment{
+		Name: environmentName,
+		Type: TimelineTypeManagedAirflowEnvironment,
+	})
+}
+
 // MustGKEClusterTimeline returns the timeline path for a GKE Cluster under a GCP Project.
 func MustGKEClusterTimeline(ctx context.Context, projectPath *khifilev6.TimelinePath, clusterName string) *khifilev6.TimelinePath {
 	if projectPath == nil || projectPath.Type.GetId() != TimelineTypeGCPProject.GetId() {

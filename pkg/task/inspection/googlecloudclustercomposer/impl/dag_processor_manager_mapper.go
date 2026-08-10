@@ -94,7 +94,7 @@ func (i *dagProcessorManagerLogIngester) ProcessLogByGroup(ctx context.Context, 
 	if err != nil {
 		return nil, prevGroupData, err
 	}
-	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeComposerEnvironment)
+	cs.SetLogType(googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment)
 
 	if commonFS, err := log.GetFieldSet(l, &log.CommonFieldSet{}); err == nil {
 		cs.SetTimestamp(commonFS.Timestamp)
@@ -243,7 +243,7 @@ var _ inspectiontaskbase.LogToTimelineMapper[*DagProcessorState] = (*dagProcesso
 var AirflowDagProcessorManagerLogToTimelineMapperTask = inspectiontaskbase.NewLogToTimelineMapperTask(
 	googlecloudclustercomposer_contract.AirflowDagProcessorManagerLogToTimelineMapperTaskID,
 	&dagProcessorManagerTimelineMapper{
-		targetLogType: googlecloudclustercomposer_contract.LogTypeComposerEnvironment,
+		targetLogType: googlecloudclustercomposer_contract.LogTypeManagedAirflowEnvironment,
 		dagFilePath:   "/home/airflow/gcs/dags",
 	},
 )

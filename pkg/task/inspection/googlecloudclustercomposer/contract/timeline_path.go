@@ -16,6 +16,7 @@ package googlecloudclustercomposer_contract
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
@@ -27,6 +28,7 @@ import (
 func MustAirflowTimeline(ctx context.Context, environmentName string) *khifilev6.TimelinePath {
 	if environmentName == "" {
 		environmentName = "unknown"
+		slog.WarnContext(ctx, "environmentName is empty, using unknown instead")
 	}
 	builder := khictx.MustGetValue(ctx, inspectioncore_contract.Builder)
 	return builder.TimelineAccumulator.GetPath(nil, khifilev6.PathSegment{

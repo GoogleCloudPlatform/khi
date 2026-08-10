@@ -22,6 +22,20 @@ import (
 // These are registered as package-level variables so they are initialized immediately
 // when this package is imported.
 var (
+	// TimelineTypeManagedAirflowEnvironment is the timeline style for a Managed Airflow environment under a GCP project.
+	TimelineTypeManagedAirflowEnvironment = style.MustRegisterTimelineType(
+		"Managed Airflow",
+		"Timeline for Managed Airflow",
+		"cloud",
+		1.0,
+		style.Color{R: 0.780, G: 0.863, B: 1.000, A: 1.0},
+		style.ColorBlack,
+		style.Color{R: 0.780, G: 0.863, B: 1.000, A: 1.0},
+		style.ColorWhite,
+		true,
+		40,
+		style.AlphabeticalSortPolicy(),
+	)
 	TimelineTypeGKE = style.MustRegisterTimelineType(
 		"gke",
 		"Control plane operations and lifecycle logs of the GKE cluster",
@@ -112,7 +126,7 @@ var (
 		style.Color{R: 0.102, G: 0.451, B: 0.910, A: 1.0},
 		style.ColorWhite,
 		style.Color{R: 0.102, G: 0.451, B: 0.910, A: 1.0},
-		style.ColorWhite,
+		style.ColorBlack,
 		true,
 		30,
 		style.AlphabeticalSortPolicy(),

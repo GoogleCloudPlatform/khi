@@ -125,7 +125,10 @@ func (g *GCPOperationAuditLogFieldSetReader) Read(reader *structured.NodeReader)
 	result.OperationLast = reader.ReadBoolOrDefault("operation.last", false)
 	result.MethodName = reader.ReadStringOrDefault("protoPayload.methodName", "unknown")
 	result.ResourceName = reader.ReadStringOrDefault("protoPayload.resourceName", "unknown")
-	result.PrincipalEmail = reader.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "unknown")
+	result.PrincipalEmail = reader.ReadStringOrDefault("protoPayload.authenticationInfo.principalEmail", "")
+	if result.PrincipalEmail == "" {
+		result.PrincipalEmail = reader.ReadStringOrDefault("protoPayload.authenticationInfo.principalSubject", "unknown")
+	}
 	result.Status = reader.ReadIntOrDefault("protoPayload.status.code", -1)
 	result.StatusMessage = reader.ReadStringOrDefault("protoPayload.status.message", "")
 	result.Request, _ = reader.GetReader("protoPayload.request")
