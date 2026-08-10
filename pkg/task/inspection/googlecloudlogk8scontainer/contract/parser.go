@@ -33,4 +33,13 @@ var DefaultContainerLogParser = logutil.NewSelectorLogParser[ContainerLogContext
 		logutil.NewLogfmtTextParser(),
 		&logutil.FallbackRawTextLogParser{},
 	),
+	logutil.ParserRule[ContainerLogContext]{
+		Match: func(ctx ContainerLogContext) bool {
+			return ctx.ContainerName == "istio-proxy"
+		},
+		Parser: logutil.NewMultiTextLogParser(
+			logutil.NewEnvoyAccessLogTextParser(),
+			&logutil.FallbackRawTextLogParser{},
+		),
+	},
 )

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
 	khifilev6 "github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
@@ -44,8 +45,21 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 				RequestURL: "/productpage",
 			},
 			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
-				Type:         googlecloudlogcsm_contract.AccessLogTypeServer,
-				ResponseFlag: googlecloudlogcsm_contract.ResponseFlagNoError,
+				Type:          googlecloudlogcsm_contract.AccessLogTypeServer,
+				ResponseFlags: logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoError},
+			},
+			wantSummary: "200 GET /productpage",
+		},
+		{
+			desc: "server access log with missing response flags",
+			inputGCPAccessLog: &googlecloudcommon_contract.GCPAccessLogFieldSet{
+				Status:     200,
+				Method:     "GET",
+				RequestURL: "/productpage",
+			},
+			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
+				Type:          googlecloudlogcsm_contract.AccessLogTypeServer,
+				ResponseFlags: logutil.EnvoyResponseFlags{},
 			},
 			wantSummary: "200 GET /productpage",
 		},
@@ -57,8 +71,8 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 				RequestURL: "/productpage",
 			},
 			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
-				Type:         googlecloudlogcsm_contract.AccessLogTypeServer,
-				ResponseFlag: googlecloudlogcsm_contract.ResponseFlagNoHealthyUpstream,
+				Type:          googlecloudlogcsm_contract.AccessLogTypeServer,
+				ResponseFlags: logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoHealthyUpstream},
 			},
 			wantSummary: "【No healthy upstream(UH)】503 GET /productpage",
 		},
@@ -70,8 +84,8 @@ func TestCSMTrafficLogLogIngester_ProcessLog(t *testing.T) {
 				RequestURL: "/productpage",
 			},
 			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
-				Type:         googlecloudlogcsm_contract.AccessLogTypeServer,
-				ResponseFlag: "UH,URX",
+				Type:          googlecloudlogcsm_contract.AccessLogTypeServer,
+				ResponseFlags: logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoHealthyUpstream, logutil.EnvoyResponseFlagUpstreamRetryLimitExceeded},
 			},
 			wantSummary: "【No healthy upstream, Upstream retry limit exceeded(UH,URX)】503 GET /productpage",
 		},
@@ -112,7 +126,7 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
 				Type:                        googlecloudlogcsm_contract.AccessLogTypeServer,
-				ResponseFlag:                googlecloudlogcsm_contract.ResponseFlagNoError,
+				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoError},
 				ReporterPodNamespace:        "default",
 				ReporterPodName:             "productpage-v1",
 				ReporterContainerName:       "istio-proxy",
@@ -163,7 +177,7 @@ func TestCSMTrafficLogLogToTimelineMapper_ProcessLogByGroup(t *testing.T) {
 			},
 			inputIstioAccessLog: &googlecloudlogcsm_contract.IstioAccessLogFieldSet{
 				Type:                        googlecloudlogcsm_contract.AccessLogTypeClient,
-				ResponseFlag:                googlecloudlogcsm_contract.ResponseFlagNoError,
+				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoError},
 				ReporterPodNamespace:        "default",
 				ReporterPodName:             "productpage-v1",
 				SourceNamespace:             "default",

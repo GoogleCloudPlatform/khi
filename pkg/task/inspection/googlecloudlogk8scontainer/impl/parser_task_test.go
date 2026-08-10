@@ -113,6 +113,55 @@ func TestLogIngester_ProcessLog(t *testing.T) {
 					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
 			},
 		},
+		{
+			name: "container log with istio envoy access log with error response flag",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: time.Date(2026, 8, 10, 8, 50, 55, 0, time.UTC),
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+					Namespace:     "default",
+					PodName:       "frontend-pod",
+					ContainerName: "istio-proxy",
+					Message:       `[2026-08-10T08:50:55.958Z] "GET / HTTP/1.1" 503 UF - - "-" 0 0 6 - "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "10.4.0.5" "10.4.0.5:80" outbound|80||foo.default.svc.cluster.local - - 10.4.1.8:59778 - -`,
+					ParsedMessage: logutil.NewEnvoyAccessLogTextParser().TryParse(`[2026-08-10T08:50:55.958Z] "GET / HTTP/1.1" 503 UF - - "-" 0 0 6 - "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "10.4.0.5" "10.4.0.5:80" outbound|80||foo.default.svc.cluster.local - - 10.4.1.8:59778 - -`),
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("【Upstream connection failure(UF)】503 GET http://10.4.0.5/").
+					HasSeverity(inspectioncore_contract.SeverityError).
+					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer)
+			},
+		},
+		{
+			name: "istio-proxy non-access-log control plane log",
+			input: log.NewLogWithFieldSetsForTest(
+				&log.CommonFieldSet{
+					Timestamp: time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC),
+				},
+				&inspectioncore_contract.DefaultSeverityFieldSet{
+					Severity: inspectioncore_contract.SeverityInfo,
+				},
+				&googlecloudlogk8scontainer_contract.K8sContainerLogFieldSet{
+					Namespace:     "default",
+					PodName:       "nginx-server-8646bbcd65-6d969",
+					ContainerName: "istio-proxy",
+					Message:       "2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream XDS server: meshconfig.googleapis.com:443",
+					ParsedMessage: (&logutil.FallbackRawTextLogParser{}).TryParse("2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream XDS server: meshconfig.googleapis.com:443"),
+				},
+			),
+			assert: func(t *testing.T, cs *khifilev6.LogChangeSet) {
+				testchangeset.AssertLog(t, cs).
+					HasSummary("2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream XDS server: meshconfig.googleapis.com:443").
+					HasSeverity(inspectioncore_contract.SeverityInfo).
+					HasLogType(googlecloudlogk8scontainer_contract.LogTypeContainer).
+					HasTimestamp(time.Date(2026, 8, 20, 4, 46, 31, 353884563, time.UTC))
+			},
+		},
 	}
 
 	ingester := &containerLogIngester{}

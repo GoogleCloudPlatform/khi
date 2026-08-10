@@ -17,6 +17,7 @@ package googlecloudlogcsm_contract
 import (
 	"testing"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"github.com/google/go-cmp/cmp"
 )
@@ -46,7 +47,7 @@ resource:
 `,
 			want: &IstioAccessLogFieldSet{
 				Type:                        AccessLogTypeServer,
-				ResponseFlag:                ResponseFlagNoHealthyUpstream,
+				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoHealthyUpstream},
 				SourceNamespace:             "default",
 				SourceName:                  "istio-ingressgateway",
 				DestinationNamespace:        "default",
@@ -76,7 +77,7 @@ resource:
 `,
 			want: &IstioAccessLogFieldSet{
 				Type:                        AccessLogTypeClient,
-				ResponseFlag:                ResponseFlagNoError,
+				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoError},
 				SourceNamespace:             "default",
 				SourceName:                  "productpage-v1",
 				DestinationNamespace:        "default",
@@ -86,6 +87,36 @@ resource:
 				ReporterPodName:             "productpage-v1",
 				ReporterPodNamespace:        "default",
 				ReporterContainerName:       "",
+			},
+		},
+		{
+			desc: "server access log with multiple response flags",
+			input: `
+logName: "projects/test-project/logs/server-accesslog-stackdriver"
+labels:
+  response_flag: "UH,URX"
+  source_namespace: "default"
+  source_name: "istio-ingressgateway"
+  destination_namespace: "default"
+  destination_service_name: "productpage"
+  destination_service_host: productpage.default.svc.cluster.local
+resource:
+  labels:
+    pod_name: "productpage-v1"
+    namespace_name: "default"
+    container_name: "istio-proxy"
+`,
+			want: &IstioAccessLogFieldSet{
+				Type:                        AccessLogTypeServer,
+				ResponseFlags:               logutil.EnvoyResponseFlags{logutil.EnvoyResponseFlagNoHealthyUpstream, logutil.EnvoyResponseFlagUpstreamRetryLimitExceeded},
+				SourceNamespace:             "default",
+				SourceName:                  "istio-ingressgateway",
+				DestinationNamespace:        "default",
+				DestinationServiceName:      "productpage",
+				DestinationServiceNamespace: "default",
+				ReporterPodName:             "productpage-v1",
+				ReporterPodNamespace:        "default",
+				ReporterContainerName:       "istio-proxy",
 			},
 		},
 		{
@@ -99,7 +130,7 @@ resource:
 `,
 			want: &IstioAccessLogFieldSet{
 				Type:                   AccessLogTypeClient,
-				ResponseFlag:           ResponseFlagInvalid,
+				ResponseFlags:          logutil.EnvoyResponseFlags{},
 				SourceNamespace:        "",
 				SourceName:             "",
 				DestinationNamespace:   "",
@@ -124,45 +155,6 @@ resource:
 			got := log.MustGetFieldSet(l, &IstioAccessLogFieldSet{})
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IstioAccessLogLabelsFieldSet mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestIstioAccessLogFieldSet_ResponseFlagMessage(t *testing.T) {
-	testCases := []struct {
-		desc string
-		flag ResponseFlag
-		want string
-	}{
-		{
-			desc: "known flag",
-			flag: ResponseFlagNoHealthyUpstream,
-			want: "No healthy upstream",
-		},
-		{
-			desc: "unknown flag",
-			flag: "SOME_UNKNOWN_FLAG",
-			want: "SOME_UNKNOWN_FLAG",
-		},
-		{
-			desc: "comma separated known flags",
-			flag: "UH,URX",
-			want: "No healthy upstream, Upstream retry limit exceeded",
-		},
-		{
-			desc: "comma separated containing unknown flags",
-			flag: "UH,UNKNOWN,URX",
-			want: "No healthy upstream, UNKNOWN, Upstream retry limit exceeded",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			fs := &IstioAccessLogFieldSet{ResponseFlag: tc.flag}
-			got := fs.ResponseFlagMessage()
-			if got != tc.want {
-				t.Errorf("ResponseFlagMessage() got = %v, want %v", got, tc.want)
 			}
 		})
 	}

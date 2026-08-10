@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectiontaskbase "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/taskbase"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -69,10 +70,7 @@ func (i *CSMTrafficLogLogIngester) ProcessLog(ctx context.Context, l *log.Log) (
 		return nil, err
 	}
 
-	summary := fmt.Sprintf("%d %s %s", gcpCommonAccessLog.Status, gcpCommonAccessLog.Method, gcpCommonAccessLog.RequestURL)
-	if istioAccessLog.ResponseFlag != googlecloudlogcsm_contract.ResponseFlagNoError {
-		summary = fmt.Sprintf("【%s(%s)】", istioAccessLog.ResponseFlagMessage(), istioAccessLog.ResponseFlag) + summary
-	}
+	summary := logutil.FormatEnvoySummary(gcpCommonAccessLog.Status, gcpCommonAccessLog.Method, gcpCommonAccessLog.RequestURL, istioAccessLog.ResponseFlags)
 	cs.SetSummary(summary)
 	cs.SetLogType(googlecloudlogcsm_contract.LogTypeCSMTrafficLog)
 

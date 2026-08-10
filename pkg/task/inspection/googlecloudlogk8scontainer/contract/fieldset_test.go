@@ -171,6 +171,88 @@ labels:
 
 }
 
+func TestK8sContainerLogFieldSetReader_IstioProxyParsedMessage(t *testing.T) {
+	inputYAML := `resource:
+  labels:
+    cluster_name: test-cluster
+    namespace_name: default
+    pod_name: frontend-pod
+    container_name: istio-proxy
+textPayload: '[2026-08-10T08:50:55.958Z] "HEAD / HTTP/1.1" 502 - via_upstream - "-" 0 0 6 5 "-" "curl/8.21.0" "55667739-e394-4814-91b2-2cdd90744892" "123.45.167.189" "123.45.167.189:80" PassthroughCluster 10.4.1.8:33606 123.45.167.189:80 10.4.1.8:59778 - allow_any'`
+
+	l, err := log.NewLogFromYAMLString(inputYAML)
+	if err != nil {
+		t.Fatalf("failed to parse log from yaml: %v", err)
+	}
+	l.SetFieldSetReader(&K8sContainerLogFieldSetReader{})
+	containerFieldSet, err := log.GetFieldSet(l, &K8sContainerLogFieldSet{})
+	if err != nil {
+		t.Fatalf("failed to extract container field set: %v", err)
+	}
+	if containerFieldSet.ParsedMessage == nil {
+		t.Fatalf("expected ParsedMessage not to be nil for istio-proxy")
+	}
+	mainMsg, err := containerFieldSet.ParsedMessage.MainMessage()
+	if err != nil {
+		t.Fatalf("MainMessage() failed: %v", err)
+	}
+	wantMsg := "502 HEAD http://123.45.167.189/"
+	if mainMsg != wantMsg {
+		t.Errorf("MainMessage() = %q, want %q", mainMsg, wantMsg)
+	}
+}
+
+func TestK8sContainerLogFieldSetReader_IstioProxyNonAccessLog(t *testing.T) {
+	inputYAML := `insertId: d041l2rc48z6lx5t
+logName: projects/tse-kakeru/logs/stdout
+labels:
+  compute.googleapis.com/resource_name: gke-keigof-0804-clus-keigof-0804-node-dc914732-d5fd
+  k8s-pod/app: nginx-server
+  k8s-pod/pod-template-hash: 8646bbcd65
+  k8s-pod/security_istio_io/tlsMode: istio
+  k8s-pod/service_istio_io/canonical-name: nginx-server
+  k8s-pod/service_istio_io/canonical-revision: latest
+  logging.gke.io/top_level_controller_name: nginx-server
+  logging.gke.io/top_level_controller_type: Deployment
+textPayload: "2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream XDS server: meshconfig.googleapis.com:443"
+resource:
+  type: k8s_container
+  labels:
+    cluster_name: keigof-0804-cluster
+    container_name: istio-proxy
+    location: asia-northeast1
+    namespace_name: default
+    pod_name: nginx-server-8646bbcd65-6d969
+    project_id: tse-kakeru
+severity: INFO
+receiveTimestamp: '2026-08-20T04:46:34.341075649Z'
+timestamp: '2026-08-20T04:46:31.353884563Z'`
+
+	l, err := log.NewLogFromYAMLString(inputYAML)
+	if err != nil {
+		t.Fatalf("failed to parse log from yaml: %v", err)
+	}
+	l.SetFieldSetReader(&K8sContainerLogFieldSetReader{})
+	containerFieldSet, err := log.GetFieldSet(l, &K8sContainerLogFieldSet{})
+	if err != nil {
+		t.Fatalf("failed to extract container field set: %v", err)
+	}
+	wantMsg := "2026-08-20T04:46:31.353537Z\tinfo\txdsproxy\tconnected to upstream XDS server: meshconfig.googleapis.com:443"
+	if containerFieldSet.Message != wantMsg {
+		t.Errorf("Message = %q, want %q", containerFieldSet.Message, wantMsg)
+	}
+	if containerFieldSet.ParsedMessage == nil {
+		t.Fatalf("expected ParsedMessage not to be nil")
+	}
+	mainMsg, err := containerFieldSet.ParsedMessage.MainMessage()
+	if err != nil {
+		t.Fatalf("MainMessage() failed: %v", err)
+	}
+	if mainMsg != wantMsg {
+		t.Errorf("MainMessage() = %q, want %q", mainMsg, wantMsg)
+	}
+}
+
 func TestK8sContainerLogFieldSet_GroupKey(t *testing.T) {
 	fs := &K8sContainerLogFieldSet{
 		Namespace: "test-namespace",

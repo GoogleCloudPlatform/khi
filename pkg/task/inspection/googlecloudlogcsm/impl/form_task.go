@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khierrors"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/formtask"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/gcpqueryutil"
+	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/logutil"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/task/taskid"
@@ -58,13 +59,13 @@ var InputCSMResponseFlagsTask = formtask.NewSetFormTaskBuilder(googlecloudlogcsm
 		result := []inspectionmetadata.SetParameterFormFieldOptionItem{
 			{ID: "@any", Description: "[Alias] Matches any response flag"},
 		}
-		ids := make([]string, 0, len(googlecloudlogcsm_contract.HumanReadableErrorMessage))
-		for flag := range googlecloudlogcsm_contract.HumanReadableErrorMessage {
+		ids := make([]string, 0, len(logutil.EnvoyResponseFlagDescriptions))
+		for flag := range logutil.EnvoyResponseFlagDescriptions {
 			ids = append(ids, string(flag))
 		}
 		sort.Strings(ids)
 		for _, id := range ids {
-			message := googlecloudlogcsm_contract.HumanReadableErrorMessage[googlecloudlogcsm_contract.ResponseFlag(id)]
+			message := logutil.EnvoyResponseFlagDescriptions[logutil.EnvoyResponseFlag(id)]
 			if id == "-" {
 				id = "OK"
 				message = "It's '-' in the response flag field because '-' means subtracting operator in this form."
@@ -108,7 +109,7 @@ func convertInputOnlyResponseFlagToActualFlag(flags []string) []string {
 	result := make([]string, 0, len(flags))
 	for _, flag := range flags {
 		if flag == "ok" {
-			result = append(result, string(googlecloudlogcsm_contract.ResponseFlagNoError))
+			result = append(result, string(logutil.EnvoyResponseFlagNoError))
 		} else {
 			result = append(result, strings.ToUpper(flag))
 		}
@@ -118,7 +119,7 @@ func convertInputOnlyResponseFlagToActualFlag(flags []string) []string {
 
 func verifyResponseFlags(flags []string) error {
 	for _, flag := range flags {
-		if _, found := googlecloudlogcsm_contract.HumanReadableErrorMessage[googlecloudlogcsm_contract.ResponseFlag(flag)]; !found {
+		if _, found := logutil.EnvoyResponseFlagDescriptions[logutil.EnvoyResponseFlag(flag)]; !found {
 			return fmt.Errorf("unknown response flag: %q: %w", flag, khierrors.ErrInvalidInput)
 		}
 	}
