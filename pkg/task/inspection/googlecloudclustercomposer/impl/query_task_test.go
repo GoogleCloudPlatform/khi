@@ -24,39 +24,71 @@ import (
 	googlecloudclustercomposer_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudclustercomposer/contract"
 	googlecloudk8scommon_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/googlecloudk8scommon/contract"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestLogFiltersGeneratesComposerQuery(t *testing.T) {
-	ctx := context.Background()
-	projectId := "test-project"
-	environmentName := "test-environment"
-	taskDependentValues := typedmap.NewTypedMap()
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: projectId, Location: "test-location"})
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), environmentName)
-	typedmap.Set(taskDependentValues, typedmap.NewTypedKey[[]string](googlecloudclustercomposer_contract.InputComposerComponentsTaskID.ReferenceIDString()), []string{"scheduler"})
-	ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
-
-	expected := `(log_id("scheduler"))
+	testCases := []struct {
+		name               string
+		selectedComponents []string
+		wantQuery          string
+	}{
+		{
+			name:               "specific component selected",
+			selectedComponents: []string{"scheduler"},
+			wantQuery: `(LOG_ID("scheduler"))
 resource.type="cloud_composer_environment"
 resource.labels.project_id="test-project"
 resource.labels.location="test-location"
-resource.labels.environment_name="test-environment"`
+resource.labels.environment_name="test-environment"
 
-	setting := &composerListLogEntriesTaskSetting{
-		taskId:    googlecloudclustercomposer_contract.ComposerLogsQueryTaskID,
-		queryName: "Composer Logs",
+-LOG_ID("cloudaudit.googleapis.com/activity")
+-LOG_ID("cloudaudit.googleapis.com/data_access")
+`,
+		},
+		{
+			name:               "any component selected",
+			selectedComponents: []string{"@any"},
+			wantQuery: `-- no component filter specified. fetching all logs.
+resource.type="cloud_composer_environment"
+resource.labels.project_id="test-project"
+resource.labels.location="test-location"
+resource.labels.environment_name="test-environment"
+
+-LOG_ID("cloudaudit.googleapis.com/activity")
+-LOG_ID("cloudaudit.googleapis.com/data_access")
+`,
+		},
 	}
 
-	taskMode := inspectioncore_contract.TaskModeDryRun // any int is fine
-	actual, err := setting.LogFilters(ctx, taskMode)
-	if err != nil {
-		t.Fatalf("LogFilters: %v", err)
-	}
-	if len(actual) != 1 {
-		t.Errorf("Unexpected query count %d", len(actual))
-	}
-	if actual[0] != expected {
-		t.Errorf("LogFilters: expected %q, got %q", expected, actual[0])
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			projectId := "test-project"
+			environmentName := "test-environment"
+			taskDependentValues := typedmap.NewTypedMap()
+			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[googlecloudk8scommon_contract.GoogleCloudClusterIdentity](googlecloudclustercomposer_contract.ClusterIdentityTaskID.ReferenceIDString()), googlecloudk8scommon_contract.GoogleCloudClusterIdentity{ProjectID: projectId, Location: "test-location"})
+			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[string](googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.ReferenceIDString()), environmentName)
+			typedmap.Set(taskDependentValues, typedmap.NewTypedKey[[]string](googlecloudclustercomposer_contract.InputComposerComponentsTaskID.ReferenceIDString()), tc.selectedComponents)
+			ctx = khictx.WithValue(ctx, core_contract.TaskResultMapContextKey, taskDependentValues)
+
+			setting := &composerListLogEntriesTaskSetting{
+				taskId:    googlecloudclustercomposer_contract.ComposerLogsQueryTaskID,
+				queryName: "Composer Logs",
+			}
+
+			taskMode := inspectioncore_contract.TaskModeDryRun
+			actual, err := setting.LogFilters(ctx, taskMode)
+			if err != nil {
+				t.Fatalf("LogFilters() returned unexpected error: %v", err)
+			}
+			if len(actual) != 1 {
+				t.Fatalf("LogFilters() returned unexpected query count %d", len(actual))
+			}
+			if diff := cmp.Diff(tc.wantQuery, actual[0]); diff != "" {
+				t.Errorf("LogFilters() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -80,5 +112,27 @@ func TestDependenciesAndDefaultResourceNames(t *testing.T) {
 	}
 	if len(resourceNames) != 1 || resourceNames[0] != "projects/test-project" {
 		t.Errorf("Unexpected resource names: %v", resourceNames)
+	}
+}
+
+func TestDescription(t *testing.T) {
+	setting := &composerListLogEntriesTaskSetting{
+		queryName: "Test Query",
+	}
+	desc := setting.Description()
+	if desc.QueryName != "Test Query" {
+		t.Errorf("Description().QueryName mismatch (-want +got): -%s +%s", "Test Query", desc.QueryName)
+	}
+
+	wantExampleQuery := `(LOG_ID("airflow-worker") OR LOG_ID("worker") OR LOG_ID("airflow-scheduler") OR LOG_ID("scheduler"))
+resource.type="cloud_composer_environment"
+resource.labels.project_id="test-project"
+resource.labels.environment_name="sample-composer-environment"
+
+-LOG_ID("cloudaudit.googleapis.com/activity")
+-LOG_ID("cloudaudit.googleapis.com/data_access")`
+
+	if diff := cmp.Diff(wantExampleQuery, desc.ExampleQuery); diff != "" {
+		t.Errorf("Description().ExampleQuery mismatch (-want +got):\n%s", diff)
 	}
 }

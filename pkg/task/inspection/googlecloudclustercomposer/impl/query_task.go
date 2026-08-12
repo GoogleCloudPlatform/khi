@@ -68,7 +68,7 @@ func (c *composerListLogEntriesTaskSetting) LogFilters(ctx context.Context, task
 	if !slices.Contains(selectedComponents, "@any") {
 		logIds = append(logIds, selectedComponents...)
 		for i := range logIds {
-			logIds[i] = fmt.Sprintf(`log_id("%s")`, logIds[i])
+			logIds[i] = fmt.Sprintf(`LOG_ID("%s")`, logIds[i])
 		}
 		logIDSelector = fmt.Sprintf("(%s)", strings.Join(logIds, " OR "))
 	}
@@ -77,7 +77,11 @@ func (c *composerListLogEntriesTaskSetting) LogFilters(ctx context.Context, task
 resource.type="cloud_composer_environment"
 resource.labels.project_id="%s"
 resource.labels.location="%s"
-resource.labels.environment_name="%s"`, logIDSelector, clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
+resource.labels.environment_name="%s"
+
+-LOG_ID("cloudaudit.googleapis.com/activity")
+-LOG_ID("cloudaudit.googleapis.com/data_access")
+`, logIDSelector, clusterIdentity.ProjectID, clusterIdentity.Location, environmentName)}, nil
 }
 
 // TaskID implements googlecloudcommon_contract.ListLogEntriesTaskSetting.
@@ -100,8 +104,11 @@ var ComposerLogsQueryTask = googlecloudcommon_contract.NewListLogEntriesTask(&co
 
 func generateExampleQuery(projectId string, environmentName string) string {
 	composerFilter := composerEnvironmentLog(projectId, environmentName)
-	return fmt.Sprintf(`(log_id("airflow-worker") OR log_id("worker") OR log_id("airflow-scheduler") OR log_id("scheduler"))
-%s`, composerFilter)
+	return fmt.Sprintf(`(LOG_ID("airflow-worker") OR LOG_ID("worker") OR LOG_ID("airflow-scheduler") OR LOG_ID("scheduler"))
+%s
+
+-LOG_ID("cloudaudit.googleapis.com/activity")
+-LOG_ID("cloudaudit.googleapis.com/data_access")`, composerFilter)
 }
 
 func composerEnvironmentLog(projectId string, environmentName string) string {
