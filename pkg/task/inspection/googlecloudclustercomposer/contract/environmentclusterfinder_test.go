@@ -20,6 +20,64 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestExtractEnvironmentPrefixCandidate(t *testing.T) {
+	testCases := []struct {
+		name        string
+		clusterName string
+		location    string
+		wantCand    string
+		wantOK      bool
+	}{
+		{
+			name:        "valid environment candidate",
+			clusterName: "asia-northeast1-my-env-12345678-gke",
+			location:    "asia-northeast1",
+			wantCand:    "my-env",
+			wantOK:      true,
+		},
+		{
+			name:        "valid truncated environment candidate",
+			clusterName: "asia-northeast1-very-long-comp-12345678-gke",
+			location:    "asia-northeast1",
+			wantCand:    "very-long-comp",
+			wantOK:      true,
+		},
+		{
+			name:        "missing gke suffix",
+			clusterName: "asia-northeast1-my-env-12345678-aks",
+			location:    "asia-northeast1",
+			wantCand:    "",
+			wantOK:      false,
+		},
+		{
+			name:        "location mismatch",
+			clusterName: "us-central1-my-env-12345678-gke",
+			location:    "asia-northeast1",
+			wantCand:    "",
+			wantOK:      false,
+		},
+		{
+			name:        "no hyphen after location prefix in rest",
+			clusterName: "asia-northeast1-12345678-gke",
+			location:    "asia-northeast1",
+			wantCand:    "",
+			wantOK:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotCand, gotOK := extractEnvironmentPrefixCandidate(tc.clusterName, tc.location)
+			if gotOK != tc.wantOK {
+				t.Fatalf("extractEnvironmentPrefixCandidate() ok mismatch: want %v, got %v", tc.wantOK, gotOK)
+			}
+			if diff := cmp.Diff(tc.wantCand, gotCand); diff != "" {
+				t.Errorf("extractEnvironmentPrefixCandidate() candidate mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestFilterAndMatchComposerGKEClusterNames(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -72,22 +130,6 @@ func TestFilterAndMatchComposerGKEClusterNames(t *testing.T) {
 			want:        nil,
 		},
 		{
-			name: "ignores invalid hash length",
-			metricsLabels: []map[string]string{
-				{
-					"cluster_name": "asia-northeast1-my-env-1234567-gke",
-					"location":     "asia-northeast1",
-				},
-				{
-					"cluster_name": "asia-northeast1-my-env-123456789-gke",
-					"location":     "asia-northeast1",
-				},
-			},
-			location:    "asia-northeast1",
-			environment: "my-env",
-			want:        nil,
-		},
-		{
 			name: "ignores missing gke suffix",
 			metricsLabels: []map[string]string{
 				{
@@ -100,20 +142,16 @@ func TestFilterAndMatchComposerGKEClusterNames(t *testing.T) {
 			want:        nil,
 		},
 		{
-			name: "deduplicates cluster names",
+			name: "matches truncated environment name",
 			metricsLabels: []map[string]string{
 				{
-					"cluster_name": "asia-northeast1-my-env-12345678-gke",
-					"location":     "asia-northeast1",
-				},
-				{
-					"cluster_name": "asia-northeast1-my-env-12345678-gke",
+					"cluster_name": "asia-northeast1-very-long-comp-12345678-gke",
 					"location":     "asia-northeast1",
 				},
 			},
 			location:    "asia-northeast1",
-			environment: "my-env",
-			want:        []string{"asia-northeast1-my-env-12345678-gke"},
+			environment: "very-long-composer-environment-name",
+			want:        []string{"asia-northeast1-very-long-comp-12345678-gke"},
 		},
 	}
 

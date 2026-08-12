@@ -41,6 +41,9 @@ func (m *mockComposerClusterFinder) GetGKEClusterNames(ctx context.Context, proj
 	}
 	key := fmt.Sprintf("%s/%s/%s", projectID, location, environment)
 	if clusterNames, ok := m.clusterMapping[key]; ok {
+		if len(clusterNames) == 0 {
+			return nil, googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound
+		}
 		return clusterNames, nil
 	}
 	return nil, googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound
@@ -180,8 +183,8 @@ Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernete
 				projectIDInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
 				environmentNameInput := tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(), tc.environments[i])
 				locationInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLocationsTaskID.Ref(), tc.locations[i])
-				startTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), time.Now())
-				endTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Now())
+				startTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), time.Unix(1700000000, 0))
+				endTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Unix(1700003600, 0))
 				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, locationInput, startTimeInput, endTimeInput, mockComposerClusterFinderInput)
 				if err != nil {
 					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)

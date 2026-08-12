@@ -17,7 +17,6 @@ package googlecloudclustercomposer_contract
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -59,28 +58,46 @@ func (e *EnvironmentClusterFinderImpl) GetGKEClusterNames(ctx context.Context, p
 	return matchedClusters, nil
 }
 
+// extractEnvironmentPrefixCandidate extracts the environment prefix candidate from a GKE cluster name created by Cloud Composer.
+// Expected cluster name format: <location>-<candidate>-<hash>-gke.
+// Returns the extracted candidate environment string and a boolean indicating whether the cluster name matches the Cloud Composer naming convention.
+func extractEnvironmentPrefixCandidate(clusterName, location string) (string, bool) {
+	if !strings.HasSuffix(clusterName, "-gke") {
+		return "", false
+	}
+	body := strings.TrimSuffix(clusterName, "-gke")
+	if !strings.HasPrefix(body, location+"-") {
+		return "", false
+	}
+	rest := strings.TrimPrefix(body, location+"-")
+	lastDashIdx := strings.LastIndex(rest, "-")
+	if lastDashIdx == -1 {
+		return "", false
+	}
+	return rest[:lastDashIdx], true
+}
+
 // filterAndMatchComposerGKEClusterNames extracts and deduplicates GKE cluster names matching the Cloud Composer naming convention.
-// A Composer GKE cluster name follows the pattern: <location>-<environment>-<hash (8 chars)>-gke.
+// A Composer GKE cluster name follows the pattern: <location>-<candidate>-<hash>-gke.
+// Note that <candidate> may be a truncated prefix of the full environment name to stay within GKE length limits.
 func filterAndMatchComposerGKEClusterNames(metricsLabels []map[string]string, location, environment string) []string {
-	if environment == "" {
+	if location == "" {
 		return nil
 	}
-	expectedPrefix := fmt.Sprintf("%s-%s-", location, environment)
 	seen := make(map[string]struct{})
 	var result []string
 
 	for _, labels := range metricsLabels {
 		cName := labels["cluster_name"]
 		cLoc := labels["location"]
-		if location != "" && cLoc != "" && cLoc != location {
+		if cLoc != "" && cLoc != location {
 			continue
 		}
-		if !strings.HasPrefix(cName, expectedPrefix) || !strings.HasSuffix(cName, "-gke") {
+		candidate, ok := extractEnvironmentPrefixCandidate(cName, location)
+		if !ok {
 			continue
 		}
-		body := strings.TrimSuffix(cName, "-gke")
-		hashPart := strings.TrimPrefix(body, expectedPrefix)
-		if len(hashPart) == 8 {
+		if environment != "" && strings.HasPrefix(environment, candidate) {
 			if _, exists := seen[cName]; !exists {
 				seen[cName] = struct{}{}
 				result = append(result, cName)
