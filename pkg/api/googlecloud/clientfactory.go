@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	compute "cloud.google.com/go/compute/apiv1"
-	container "cloud.google.com/go/container/apiv1"
 	logging "cloud.google.com/go/logging/apiv2"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
 	"google.golang.org/api/composer/v1"
@@ -46,29 +45,26 @@ type ClientFactory struct {
 	ClientOptions    []ClientFactoryOptionsModifiers
 	ContextModifiers []ClientFactoryContextModifiers
 
-	ContainerClusterManagerClientOptions []ClientFactoryOptionsModifiers
-	LoggingClientOptions                 []ClientFactoryOptionsModifiers
-	RegionsClientOptions                 []ClientFactoryOptionsModifiers
-	ComposerServiceOptions               []ClientFactoryOptionsModifiers
-	MonitoringMetricClientOptions        []ClientFactoryOptionsModifiers
+	LoggingClientOptions          []ClientFactoryOptionsModifiers
+	RegionsClientOptions          []ClientFactoryOptionsModifiers
+	ComposerServiceOptions        []ClientFactoryOptionsModifiers
+	MonitoringMetricClientOptions []ClientFactoryOptionsModifiers
 
-	mu                                  sync.Mutex
-	containerClusterManagerClientsCache map[string]*container.ClusterManagerClient
-	loggingClientsCache                 map[string]*logging.Client
-	regionsClientsCache                 map[string]*compute.RegionsClient
-	composerServicesCache               map[string]*composer.Service
-	monitoringMetricClientsCache        map[string]*monitoring.MetricClient
+	mu                           sync.Mutex
+	loggingClientsCache          map[string]*logging.Client
+	regionsClientsCache          map[string]*compute.RegionsClient
+	composerServicesCache        map[string]*composer.Service
+	monitoringMetricClientsCache map[string]*monitoring.MetricClient
 }
 
 // NewClientFactory creates a new ClientFactory with the given options.
 // It applies each option to the factory and returns an error if any option fails.
 func NewClientFactory(options ...ClientFactoryOption) (*ClientFactory, error) {
 	var factory = &ClientFactory{
-		containerClusterManagerClientsCache: make(map[string]*container.ClusterManagerClient),
-		loggingClientsCache:                 make(map[string]*logging.Client),
-		regionsClientsCache:                 make(map[string]*compute.RegionsClient),
-		composerServicesCache:               make(map[string]*composer.Service),
-		monitoringMetricClientsCache:        make(map[string]*monitoring.MetricClient),
+		loggingClientsCache:          make(map[string]*logging.Client),
+		regionsClientsCache:          make(map[string]*compute.RegionsClient),
+		composerServicesCache:        make(map[string]*composer.Service),
+		monitoringMetricClientsCache: make(map[string]*monitoring.MetricClient),
 	}
 	for _, opt := range options {
 		err := opt(factory)
@@ -119,11 +115,6 @@ func (s *ClientFactory) prepareServiceInput(ctx context.Context, c ResourceConta
 	return ctx, options, err
 }
 
-// ContainerClusterManagerClient returns the ClusterManagerClient of container.googleapis.com from given context and the resource container.
-func (s *ClientFactory) ContainerClusterManagerClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*container.ClusterManagerClient, error) {
-	return getOrInitClient(s, ctx, c, s.containerClusterManagerClientsCache, s.ContainerClusterManagerClientOptions, opts, container.NewClusterManagerClient)
-}
-
 // LoggingClient returns the client for logging.googleapis.com from given context and the resource container.
 func (s *ClientFactory) LoggingClient(ctx context.Context, c ResourceContainer, opts ...option.ClientOption) (*logging.Client, error) {
 	return getOrInitClient(s, ctx, c, s.loggingClientsCache, s.LoggingClientOptions, opts, logging.NewClient)
@@ -156,12 +147,6 @@ func (s *ClientFactory) Close() error {
 			errs = append(errs, fmt.Errorf("failed to close logging client for %s: %w", k, err))
 		}
 		delete(s.loggingClientsCache, k)
-	}
-	for k, client := range s.containerClusterManagerClientsCache {
-		if err := client.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("failed to close container cluster manager client for %s: %w", k, err))
-		}
-		delete(s.containerClusterManagerClientsCache, k)
 	}
 	for k, client := range s.regionsClientsCache {
 		if err := client.Close(); err != nil {

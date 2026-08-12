@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	inspectiontest "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/test"
 	tasktest "github.com/GoogleCloudPlatform/khi/pkg/core/task/test"
@@ -29,19 +30,20 @@ import (
 )
 
 type mockComposerClusterFinder struct {
-	clusterMapping map[string]string // {projectID}/{environment} -> clusterName
+	clusterMapping map[string][]string // {projectID}/{location}/{environment} -> []string
 	wantError      bool
 }
 
-// GetGKEClusterName implements googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinder.
-func (m *mockComposerClusterFinder) GetGKEClusterName(ctx context.Context, projectID string, environment string) (string, error) {
+// GetGKEClusterNames implements googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinder.
+func (m *mockComposerClusterFinder) GetGKEClusterNames(ctx context.Context, projectID, location, environment string, startTime, endTime time.Time) ([]string, error) {
 	if m.wantError {
-		return "", fmt.Errorf("test error")
+		return nil, fmt.Errorf("test error")
 	}
-	if clusterName, ok := m.clusterMapping[projectID+"/"+environment]; ok {
-		return clusterName, nil
+	key := fmt.Sprintf("%s/%s/%s", projectID, location, environment)
+	if clusterNames, ok := m.clusterMapping[key]; ok {
+		return clusterNames, nil
 	}
-	return "", googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound
+	return nil, googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound
 }
 
 var _ googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinder = (*mockComposerClusterFinder)(nil)
@@ -49,7 +51,7 @@ var _ googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinder = (*m
 func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 	testCases := []struct {
 		desc           string
-		clusterMapping map[string]string
+		clusterMapping map[string][]string
 		finderError    bool
 		projectIDs     []string
 		environments   []string
@@ -58,7 +60,7 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 	}{
 		{
 			desc:           "project id is empty",
-			clusterMapping: map[string]string{},
+			clusterMapping: map[string][]string{},
 			finderError:    false,
 			projectIDs:     []string{""},
 			environments:   []string{"env1"},
@@ -70,7 +72,7 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 		},
 		{
 			desc:           "environment name is empty",
-			clusterMapping: map[string]string{},
+			clusterMapping: map[string][]string{},
 			finderError:    false,
 			projectIDs:     []string{"foo-project"},
 			environments:   []string{""},
@@ -83,32 +85,61 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 			},
 		},
 		{
-			desc:           "using cache",
-			clusterMapping: map[string]string{"foo-project/env1": "cluster1"},
+			desc:           "location is empty returns hint",
+			clusterMapping: map[string][]string{},
+			finderError:    false,
+			projectIDs:     []string{"foo-project"},
+			environments:   []string{"env1"},
+			locations:      []string{""},
+			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+				{
+					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
+					Error:  "",
+					Hint:   "Cluster names are suggested after the location is provided.",
+				},
+			},
+		},
+		{
+			desc:           "using cache with multiple clusters",
+			clusterMapping: map[string][]string{"foo-project/us-central1/env1": {"cluster1", "cluster2"}},
 			finderError:    false,
 			projectIDs:     []string{"foo-project", "foo-project"},
 			environments:   []string{"env1", "env1"},
 			locations:      []string{"us-central1", "us-central1"},
 			want: []*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
 				{
-					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{{
-						ClusterName: "cluster1",
-						ProjectID:   "foo-project",
-						Location:    "us-central1",
-					}},
+					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+						{
+							ClusterName: "cluster1",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+						{
+							ClusterName: "cluster2",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+					},
 				},
 				{
-					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{{
-						ClusterName: "cluster1",
-						ProjectID:   "foo-project",
-						Location:    "us-central1",
-					}},
+					Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+						{
+							ClusterName: "cluster1",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+						{
+							ClusterName: "cluster2",
+							ProjectID:   "foo-project",
+							Location:    "us-central1",
+						},
+					},
 				},
 			},
 		},
 		{
 			desc:           "with error",
-			clusterMapping: map[string]string{},
+			clusterMapping: map[string][]string{},
 			finderError:    true,
 			projectIDs:     []string{"foo-project"},
 			environments:   []string{"env1"},
@@ -120,7 +151,7 @@ func TestAutocompleteComposerClusterNamesTask(t *testing.T) {
 		},
 		{
 			desc:           "environment not found",
-			clusterMapping: map[string]string{},
+			clusterMapping: map[string][]string{},
 			finderError:    false,
 			projectIDs:     []string{"foo-project"},
 			environments:   []string{"non-existent-env"},
@@ -149,7 +180,9 @@ Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernete
 				projectIDInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputProjectIdTaskID.Ref(), tc.projectIDs[i])
 				environmentNameInput := tasktest.NewTaskDependencyValuePair(googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(), tc.environments[i])
 				locationInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputLocationsTaskID.Ref(), tc.locations[i])
-				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, locationInput, mockComposerClusterFinderInput)
+				startTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputStartTimeTaskID.Ref(), time.Now())
+				endTimeInput := tasktest.NewTaskDependencyValuePair(googlecloudcommon_contract.InputEndTimeTaskID.Ref(), time.Now())
+				result, _, err := inspectiontest.RunInspectionTask(ctx, AutocompleteComposerClusterNamesTask, inspectioncore_contract.TaskModeDryRun, map[string]any{}, projectIDInput, environmentNameInput, locationInput, startTimeInput, endTimeInput, mockComposerClusterFinderInput)
 				if err != nil {
 					t.Fatalf("failed to run inspection task in loop %d: %v", i, err)
 				}

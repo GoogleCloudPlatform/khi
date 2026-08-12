@@ -36,13 +36,17 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTas
 	googlecloudcommon_contract.InputLocationsTaskID.Ref(),
 	googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref(),
 	googlecloudclustercomposer_contract.AutocompleteComposerEnvironmentIdentityTaskID.Ref(),
+	googlecloudcommon_contract.InputStartTimeTaskID.Ref(),
+	googlecloudcommon_contract.InputEndTimeTaskID.Ref(),
 }, func(ctx context.Context, prevValue inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]) (inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]], error) {
 
 	projectID := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputProjectIdTaskID.Ref())
 	environment := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.InputComposerEnvironmentNameTaskID.Ref())
 	location := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputLocationsTaskID.Ref())
+	startTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputStartTimeTaskID.Ref())
+	endTime := coretask.GetTaskResult(ctx, googlecloudcommon_contract.InputEndTimeTaskID.Ref())
 
-	dependencyDigest := fmt.Sprintf("%s-%s-%s", projectID, environment, location)
+	dependencyDigest := fmt.Sprintf("%s-%s-%s-%d-%d", projectID, environment, location, startTime.Unix(), endTime.Unix())
 
 	// when the user is inputing these information, abort
 	isWIP := projectID == "" || environment == ""
@@ -56,12 +60,23 @@ var AutocompleteComposerClusterNamesTask = inspectiontaskbase.NewGlobalCachedTas
 		}, nil
 	}
 
+	if location == "" {
+		return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
+			DependencyDigest: dependencyDigest,
+			Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
+				Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{},
+				Error:  "",
+				Hint:   "Cluster names are suggested after the location is provided.",
+			},
+		}, nil
+	}
+
 	if environment != "" && dependencyDigest == prevValue.DependencyDigest {
 		return prevValue, nil
 	}
 
 	clusterFinder := coretask.GetTaskResult(ctx, googlecloudclustercomposer_contract.ComposerEnvironmentClusterFinderTaskID.Ref())
-	clusterName, err := clusterFinder.GetGKEClusterName(ctx, projectID, environment)
+	clusterNames, err := clusterFinder.GetGKEClusterNames(ctx, projectID, location, environment, startTime, endTime)
 	if err != nil {
 		if errors.Is(err, googlecloudclustercomposer_contract.ErrEnvironmentClusterNotFound) {
 			return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
@@ -82,16 +97,19 @@ Note: Composer 3 is not running on your GKE cluster. Please remove all Kubernete
 		}, nil
 	}
 
+	identities := make([]googlecloudk8scommon_contract.GoogleCloudClusterIdentity, len(clusterNames))
+	for i, clusterName := range clusterNames {
+		identities[i] = googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
+			ClusterName: clusterName,
+			ProjectID:   projectID,
+			Location:    location,
+		}
+	}
+
 	return inspectiontaskbase.CacheableTaskResult[*inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]]{
 		DependencyDigest: dependencyDigest,
 		Value: &inspectioncore_contract.AutocompleteResult[googlecloudk8scommon_contract.GoogleCloudClusterIdentity]{
-			Values: []googlecloudk8scommon_contract.GoogleCloudClusterIdentity{
-				{
-					ClusterName: clusterName,
-					ProjectID:   projectID,
-					Location:    location,
-				},
-			},
+			Values: identities,
 		},
 	}, nil
 },
