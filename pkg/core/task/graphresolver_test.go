@@ -176,14 +176,15 @@ func newMockTask(idStr string, implID string, opts mockTaskOptions) UntypedTask 
 }
 
 func TestDependencyResolverGraphResolverRule_Resolve(t *testing.T) {
-	providerRef := taskid.NewTaskReference[any]("provider")
+	providerRefA := taskid.NewTaskReference[any]("provider-a")
+	providerRefB := taskid.NewTaskReference[any]("provider-b")
 	unresolvableRef := taskid.NewTaskReference[any]("unresolvable")
 
-	providerTask := newMockTask("provider", "default", mockTaskOptions{priority: 10})
-	providerTaskLowPrio := newMockTask("provider", "low", mockTaskOptions{priority: 5})
-	providerTaskHighPrio := newMockTask("provider", "high", mockTaskOptions{priority: 20})
+	providerTaskA := newMockTask("provider-a", "default", mockTaskOptions{})
+	providerTaskB := newMockTask("provider-b", "default", mockTaskOptions{})
 
-	consumerTask := newMockTask("consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{providerRef}})
+	consumerTask := newMockTask("consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{providerRefA}})
+	multiConsumerTask := newMockTask("multi-consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{providerRefA, providerRefB}})
 	unresolvableConsumerTask := newMockTask("unresolvable-consumer", "default", mockTaskOptions{dependencies: []taskid.UntypedTaskReference{unresolvableRef}})
 
 	testCases := []struct {
@@ -197,40 +198,40 @@ func TestDependencyResolverGraphResolverRule_Resolve(t *testing.T) {
 		{
 			name:              "should resolve a simple dependency",
 			currentGraphTasks: []UntypedTask{consumerTask},
-			availableTasks:    []UntypedTask{providerTask, consumerTask},
-			expectedTasks:     []string{"consumer#default", "provider#default"},
+			availableTasks:    []UntypedTask{consumerTask, providerTaskA},
+			expectedTasks:     []string{"consumer#default", "provider-a#default"},
 			expectedChanged:   true,
 			expectErr:         false,
 		},
 		{
 			name:              "should do nothing if dependency is already satisfied",
-			currentGraphTasks: []UntypedTask{consumerTask, providerTask},
-			availableTasks:    []UntypedTask{providerTask, consumerTask},
-			expectedTasks:     []string{"consumer#default", "provider#default"},
+			currentGraphTasks: []UntypedTask{consumerTask, providerTaskA},
+			availableTasks:    []UntypedTask{consumerTask, providerTaskA},
+			expectedTasks:     []string{"consumer#default", "provider-a#default"},
 			expectedChanged:   false,
 			expectErr:         false,
 		},
 		{
 			name:              "should return an error for unresolvable dependency",
 			currentGraphTasks: []UntypedTask{unresolvableConsumerTask},
-			availableTasks:    []UntypedTask{providerTask},
+			availableTasks:    []UntypedTask{providerTaskA},
 			expectedTasks:     nil,
 			expectedChanged:   false,
 			expectErr:         true,
 		},
 		{
-			name:              "should select the highest priority task",
-			currentGraphTasks: []UntypedTask{consumerTask},
-			availableTasks:    []UntypedTask{consumerTask, providerTask, providerTaskLowPrio, providerTaskHighPrio},
-			expectedTasks:     []string{"consumer#default", "provider#high"},
+			name:              "should resolve multiple dependencies",
+			currentGraphTasks: []UntypedTask{multiConsumerTask},
+			availableTasks:    []UntypedTask{multiConsumerTask, providerTaskA, providerTaskB},
+			expectedTasks:     []string{"multi-consumer#default", "provider-a#default", "provider-b#default"},
 			expectedChanged:   true,
 			expectErr:         false,
 		},
 		{
 			name:              "should do nothing if there are no dependencies",
-			currentGraphTasks: []UntypedTask{providerTask},
-			availableTasks:    []UntypedTask{providerTask, consumerTask},
-			expectedTasks:     []string{"provider#default"},
+			currentGraphTasks: []UntypedTask{providerTaskA},
+			availableTasks:    []UntypedTask{consumerTask, providerTaskA},
+			expectedTasks:     []string{"provider-a#default"},
 			expectedChanged:   false,
 			expectErr:         false,
 		},

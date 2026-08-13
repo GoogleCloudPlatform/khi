@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,6 +163,7 @@ func (i *InspectionTaskRunner) SetInspectionType(inspectionType string) error {
 			filteredTasks = append(filteredTasks, task)
 		}
 	}
+	filteredTasks = deduplicateTasksByPriority(filteredTasks)
 
 	var err error
 	i.availableTasks, err = coretask.NewTaskSet(filteredTasks)
@@ -197,6 +199,39 @@ func (i *InspectionTaskRunner) isTaskCompatible(task coretask.UntypedTask, curre
 
 	// 3. Defaults to true if neither is defined (global tasks)
 	return true
+}
+
+// deduplicateTasksByPriority retains only the task with the highest LabelKeyTaskSelectionPriority for each TaskRef, sorted by reference name.
+func deduplicateTasksByPriority(tasks []coretask.UntypedTask) []coretask.UntypedTask {
+	bestTaskForRef := map[string]coretask.UntypedTask{}
+	for _, task := range tasks {
+		refID := task.UntypedID().ReferenceIDString()
+		existing, found := bestTaskForRef[refID]
+		if !found {
+			bestTaskForRef[refID] = task
+			continue
+		}
+
+		priorityExisting := typedmap.GetOrDefault(existing.Labels(), coretask.LabelKeyTaskSelectionPriority, 0)
+		priorityNew := typedmap.GetOrDefault(task.Labels(), coretask.LabelKeyTaskSelectionPriority, 0)
+		if priorityNew > priorityExisting {
+			bestTaskForRef[refID] = task
+		} else if priorityNew == priorityExisting {
+			if strings.Compare(task.UntypedID().String(), existing.UntypedID().String()) > 0 {
+				slog.Warn("Multiple tasks for same RefID. Choosing the lexicographically larger task ID.", "refID", refID, "taskID1", task.UntypedID().String(), "taskID2", existing.UntypedID().String())
+				bestTaskForRef[refID] = task
+			}
+		}
+	}
+
+	deduplicated := make([]coretask.UntypedTask, 0, len(bestTaskForRef))
+	for _, task := range bestTaskForRef {
+		deduplicated = append(deduplicated, task)
+	}
+	slices.SortFunc(deduplicated, func(a, b coretask.UntypedTask) int {
+		return strings.Compare(a.UntypedID().ReferenceIDString(), b.UntypedID().ReferenceIDString())
+	})
+	return deduplicated
 }
 
 // FeatureList returns the list of available features for the current inspection type.

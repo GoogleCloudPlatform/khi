@@ -70,10 +70,12 @@ func NewGraphResolver(maxIteration int, rules ...GraphResolverRule) *GraphResolv
 // or the `MaxIteration` limit is reached.
 func (r *GraphResolver) Resolve(requiredTasks []UntypedTask, availableTasks []UntypedTask) ([]UntypedTask, error) {
 	currentTasks := slices.Clone(requiredTasks)
+	sortedAvailableTasks := slices.Clone(availableTasks)
+	slices.SortFunc(sortedAvailableTasks, compareTaskByReference)
 	for iter := 0; iter < r.MaxIteration; iter++ {
 		stabled := true
 		for _, rule := range r.Rules {
-			result, err := rule.Resolve(currentTasks, availableTasks)
+			result, err := rule.Resolve(currentTasks, sortedAvailableTasks)
 			if err != nil {
 				return nil, fmt.Errorf("failed to call Resolve function for the rule %s\n%s", rule.Name(), err.Error())
 			}
@@ -87,6 +89,10 @@ func (r *GraphResolver) Resolve(requiredTasks []UntypedTask, availableTasks []Un
 		}
 	}
 	return nil, fmt.Errorf("failed to complete the resolution of tasks included in the task graph in given iteration count %d ", r.MaxIteration)
+}
+
+func compareTaskByReference(a, b UntypedTask) int {
+	return strings.Compare(a.UntypedID().ReferenceIDString(), b.UntypedID().ReferenceIDString())
 }
 
 // RequiredTaskLabelGraphResolverRule is a resolver rule that adds tasks to the graph
@@ -159,11 +165,11 @@ func (d *TaskDependencyGraphResolverRule) Resolve(currentGraphTasks []UntypedTas
 	if len(missingReferences) > 0 {
 		result.Changed = true
 		for _, ref := range missingReferences {
-			highest, err := findHighestPriorityUntypedTaskForTaskReference(ref, availableTasks)
+			task, err := findUntypedTaskForTaskReference(ref, availableTasks)
 			if err != nil {
 				return GraphResolverRuleResult{}, err
 			}
-			result.Tasks = append(result.Tasks, highest)
+			result.Tasks = append(result.Tasks, task)
 		}
 	}
 	return result, nil
@@ -268,15 +274,15 @@ func (s *SubsequentTaskRefsGraphResolverRule) Resolve(currentGraphTasks []Untype
 	}
 
 	for idStr, taskRef := range missingSubsequentTaskReferences {
-		highest, err := findHighestPriorityUntypedTaskForTaskReference(taskRef, availableTasks)
+		task, err := findUntypedTaskForTaskReference(taskRef, availableTasks)
 		if err != nil {
 			return GraphResolverRuleResult{}, err
 		}
-		overridenHighest := newDependencyOverridenUntypedTask(highest)
+		overridenTask := newDependencyOverridenUntypedTask(task)
 		for _, requestedSuccessor := range missingSubsequentTaskReqquestedBy[idStr] {
-			overridenHighest.AddDependency(requestedSuccessor.UntypedID().GetUntypedReference())
+			overridenTask.AddDependency(requestedSuccessor.UntypedID().GetUntypedReference())
 		}
-		result.Tasks = append(result.Tasks, overridenHighest)
+		result.Tasks = append(result.Tasks, overridenTask)
 		result.Changed = true
 	}
 	return result, nil
@@ -311,32 +317,21 @@ func getMapOfReferenceIDs(tasks []UntypedTask) map[string]taskid.UntypedTaskRefe
 	return taskReferenceMap
 }
 
-// findHighestPriorityUntypedTaskForTaskReference searches the list of available tasks for all tasks
-// matching the given reference and returns the one with the highest `LabelKeyTaskSelectionPriority`.
+// findUntypedTaskForTaskReference searches the sorted list of available tasks for a task
+// matching the given reference using binary search and returns it.
 // It returns an error if no matching task is found.
-func findHighestPriorityUntypedTaskForTaskReference(ref taskid.UntypedTaskReference, availableTasks []UntypedTask) (UntypedTask, error) {
-	var matched []UntypedTask
-	for _, candidateTask := range availableTasks {
-		candidateRefID := candidateTask.UntypedID().GetUntypedReference()
-		if ref.ReferenceIDString() == candidateRefID.ReferenceIDString() {
-			matched = append(matched, candidateTask)
-		}
-	}
-
-	if len(matched) == 0 {
-		var availableTaskIDs []string
-		for _, task := range availableTasks {
-			availableTaskIDs = append(availableTaskIDs, "*"+task.UntypedID().String())
-		}
-		return nil, fmt.Errorf("failed to resolve task dependency. No available task can be referenced as '%s'.\nAvailable tasks:\n%s", ref.ReferenceIDString(), strings.Join(availableTaskIDs, "\n"))
-	}
-
-	// pick one of matched task with the highest priority
-	slices.SortFunc(matched, func(a, b UntypedTask) int {
-		priorityA := typedmap.GetOrDefault(a.Labels(), LabelKeyTaskSelectionPriority, 0)
-		priorityB := typedmap.GetOrDefault(b.Labels(), LabelKeyTaskSelectionPriority, 0)
-		return priorityA - priorityB
+func findUntypedTaskForTaskReference(ref taskid.UntypedTaskReference, availableTasks []UntypedTask) (UntypedTask, error) {
+	target := ref.ReferenceIDString()
+	idx, found := slices.BinarySearchFunc(availableTasks, target, func(t UntypedTask, target string) int {
+		return strings.Compare(t.UntypedID().ReferenceIDString(), target)
 	})
+	if found {
+		return availableTasks[idx], nil
+	}
 
-	return matched[len(matched)-1], nil
+	var availableTaskIDs []string
+	for _, task := range availableTasks {
+		availableTaskIDs = append(availableTaskIDs, "*"+task.UntypedID().String())
+	}
+	return nil, fmt.Errorf("failed to resolve task dependency. No available task can be referenced as '%s'.\nAvailable tasks:\n%s", ref.ReferenceIDString(), strings.Join(availableTaskIDs, "\n"))
 }
