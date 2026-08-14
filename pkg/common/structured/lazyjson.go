@@ -21,6 +21,7 @@ import (
 	"strings"
 	"unicode/utf16"
 	"unicode/utf8"
+	"unsafe"
 )
 
 // ErrInvalidJSON indicates that invalid JSON syntax was encountered during scanning.
@@ -287,7 +288,10 @@ stringScanLoop:
 			escaped = true
 		case c == '"':
 			if !hasEscapes {
-				return string(data[start:idx]), idx + 1, nil
+				if start == idx {
+					return "", idx + 1, nil
+				}
+				return unsafe.String(&data[start], idx-start), idx + 1, nil
 			}
 			break stringScanLoop
 		}
@@ -300,6 +304,7 @@ stringScanLoop:
 
 	// Unescape string with escape sequences
 	var sb strings.Builder
+	sb.Grow(idx - start)
 	idx = start
 	for idx < len(data) {
 		c := data[idx]
@@ -372,11 +377,21 @@ stringScanLoop:
 }
 
 func parseHex4(b []byte) (rune, error) {
-	val, err := strconv.ParseUint(string(b), 16, 16)
-	if err != nil {
-		return 0, ErrInvalidJSON
+	var val rune
+	for _, c := range b {
+		val <<= 4
+		switch {
+		case c >= '0' && c <= '9':
+			val |= rune(c - '0')
+		case c >= 'a' && c <= 'f':
+			val |= rune(c - 'a' + 10)
+		case c >= 'A' && c <= 'F':
+			val |= rune(c - 'A' + 10)
+		default:
+			return 0, ErrInvalidJSON
+		}
 	}
-	return rune(val), nil
+	return val, nil
 }
 
 func parseJSONScalar(data []byte, index int) (any, int, error) {
@@ -389,17 +404,17 @@ func parseJSONScalar(data []byte, index int) (any, int, error) {
 	case '"':
 		return parseJSONString(data, idx)
 	case 't':
-		if idx+4 <= len(data) && string(data[idx:idx+4]) == "true" {
+		if idx+4 <= len(data) && data[idx] == 't' && data[idx+1] == 'r' && data[idx+2] == 'u' && data[idx+3] == 'e' {
 			return true, idx + 4, nil
 		}
 		return nil, idx, ErrInvalidJSON
 	case 'f':
-		if idx+5 <= len(data) && string(data[idx:idx+5]) == "false" {
+		if idx+5 <= len(data) && data[idx] == 'f' && data[idx+1] == 'a' && data[idx+2] == 'l' && data[idx+3] == 's' && data[idx+4] == 'e' {
 			return false, idx + 5, nil
 		}
 		return nil, idx, ErrInvalidJSON
 	case 'n':
-		if idx+4 <= len(data) && string(data[idx:idx+4]) == "null" {
+		if idx+4 <= len(data) && data[idx] == 'n' && data[idx+1] == 'u' && data[idx+2] == 'l' && data[idx+3] == 'l' {
 			return nil, idx + 4, nil
 		}
 		return nil, idx, ErrInvalidJSON
@@ -423,7 +438,7 @@ func parseJSONScalar(data []byte, index int) (any, int, error) {
 		if start == idx {
 			return nil, idx, ErrInvalidJSON
 		}
-		numStr := string(data[start:idx])
+		numStr := unsafe.String(&data[start], idx-start)
 		if hasFloatChar {
 			floatVal, err := strconv.ParseFloat(numStr, 64)
 			if err != nil {

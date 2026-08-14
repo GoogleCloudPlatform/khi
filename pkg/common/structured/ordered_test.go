@@ -100,20 +100,26 @@ func TestNodeReaderWithKeyOrder(t *testing.T) {
 	}
 }
 
-func TestYAMLNodeSerializerPriorityKeys(t *testing.T) {
-	jsonBytes := []byte(`{"logName":"projects/p/logs/l","insertId":"ins-123","severity":"INFO"}`)
+func TestWithKeyOrderNested(t *testing.T) {
+	jsonBytes := []byte(`{"a": 1, "b": 2, "c": 3}`)
 	node := NewLazyJSONNodeFromBytes(jsonBytes)
+	ordered1 := WithKeyOrder(node, "b")
+	ordered2 := WithKeyOrder(ordered1, "c")
 
-	serializer := &YAMLNodeSerializer{
-		PriorityKeys: []string{"insertId", "logName"},
+	orderedMap, ok := ordered2.(*orderedMapNode)
+	if !ok {
+		t.Fatalf("expected *orderedMapNode, got %T", ordered2)
 	}
-	yamlBytes, err := serializer.Serialize(node)
-	if err != nil {
-		t.Fatalf("Serialize failed: %v", err)
+	if _, isNested := orderedMap.inner.(*orderedMapNode); isNested {
+		t.Errorf("expected inner node not to be *orderedMapNode, but got nested *orderedMapNode")
 	}
 
-	wantYAML := "insertId: ins-123\nlogName: projects/p/logs/l\nseverity: INFO\n"
-	if diff := cmp.Diff(wantYAML, string(yamlBytes)); diff != "" {
-		t.Errorf("Serialize mismatch (-want +got):\n%s", diff)
+	var gotKeys []string
+	for k := range ordered2.Children() {
+		gotKeys = append(gotKeys, k.Key)
+	}
+	wantKeys := []string{"c", "a", "b"}
+	if diff := cmp.Diff(wantKeys, gotKeys); diff != "" {
+		t.Errorf("WithKeyOrder nested keys mismatch (-want +got):\n%s", diff)
 	}
 }

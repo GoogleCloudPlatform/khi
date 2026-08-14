@@ -32,7 +32,7 @@ import (
 )
 
 func TestLogEntryToNode(t *testing.T) {
-	now := time.Now()
+	now := time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)
 	nowpb := timestamppb.New(now)
 	nowFormatted := now.UTC().Format(time.RFC3339Nano)
 
@@ -242,10 +242,9 @@ func TestLogEntryWithKeyOrder(t *testing.T) {
 		t.Fatalf("LogEntryToNode() failed: %v", err)
 	}
 
-	serializer := &structured.YAMLNodeSerializer{
-		PriorityKeys: GCPLogEntryKeyOrder,
-	}
-	yamlBytes, err := serializer.Serialize(node)
+	orderedNode := structured.WithKeyOrder(node, GCPLogEntryKeyOrder...)
+	serializer := &structured.YAMLNodeSerializer{}
+	yamlBytes, err := serializer.Serialize(orderedNode)
 	if err != nil {
 		t.Fatalf("Serialize() failed: %v", err)
 	}

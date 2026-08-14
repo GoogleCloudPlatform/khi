@@ -19,6 +19,7 @@ import (
 	"io"
 	"slices"
 	"strings"
+	"unsafe"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -64,7 +65,7 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 				return nil
 			}
 
-			node := structured.NewLazyJSONNodeFromBytes([]byte(trimmed))
+			node := structured.NewLazyJSONNodeFromBytes(unsafe.Slice(unsafe.StringData(trimmed), len(trimmed)))
 			l := log.NewLog(structured.NewNodeReader(node))
 
 			err := l.SetFieldSetReader(&ossclusterk8s_contract.OSSK8sAuditLogCommonFieldSetReader{})

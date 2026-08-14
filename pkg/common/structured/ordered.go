@@ -28,6 +28,12 @@ func WithKeyOrder(node Node, priorityKeys ...string) Node {
 	if node == nil || node.Type() != MapNodeType || len(priorityKeys) == 0 {
 		return node
 	}
+	if ordered, ok := node.(*orderedMapNode); ok {
+		return &orderedMapNode{
+			inner:        ordered.inner,
+			priorityKeys: priorityKeys,
+		}
+	}
 	return &orderedMapNode{
 		inner:        node,
 		priorityKeys: priorityKeys,

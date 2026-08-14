@@ -24,16 +24,10 @@ type NodeSerializer interface {
 	Serialize(node Node) ([]byte, error)
 }
 
-type YAMLNodeSerializer struct {
-	// PriorityKeys specifies keys that should appear first in map nodes, in the given order.
-	PriorityKeys []string
-}
+type YAMLNodeSerializer struct{}
 
 // Serialize implements NodeSerializer.
 func (y *YAMLNodeSerializer) Serialize(node Node) ([]byte, error) {
-	if len(y.PriorityKeys) > 0 {
-		node = WithKeyOrder(node, y.PriorityKeys...)
-	}
 	serializable, err := getYAMLMarshaler(node)
 	if err != nil {
 		return nil, err
