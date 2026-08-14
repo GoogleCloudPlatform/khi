@@ -128,7 +128,8 @@ func LogEntryToNode(l *loggingpb.LogEntry) (structured.Node, error) {
 		}
 	}
 
-	return structured.NewStandardMap(keys, values), nil
+	standardMap := structured.NewStandardMap(keys, values)
+	return structured.NewLazyJSONNode(standardMap)
 }
 
 // getLogLabelsMap converts a map of string labels into a structured.Node representing a map.

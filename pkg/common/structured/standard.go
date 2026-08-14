@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 	"unique"
 
@@ -264,8 +263,11 @@ func (n *StandardMapNode) MarshalJSON() ([]byte, error) {
 		if i.Index > 0 {
 			buf.WriteString(",")
 		}
-		key := fmt.Sprintf("\"%s\"", escapeJSONString(i.Key))
-		buf.WriteString(key)
+		keyBytes, err := json.Marshal(i.Key)
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(keyBytes)
 		buf.WriteString(":")
 		marshaller, ok := child.(json.Marshaler)
 		if !ok {
@@ -280,7 +282,6 @@ func (n *StandardMapNode) MarshalJSON() ([]byte, error) {
 	buf.WriteString("}")
 
 	return buf.Bytes(), nil
-
 }
 
 var _ Node = (*StandardMapNode)(nil)
@@ -433,8 +434,4 @@ func WithScalarField[T comparable](node Node, fieldPath []string, value T) (Node
 		}
 	}
 	return &newMapNode, nil
-}
-
-func escapeJSONString(rawString string) string {
-	return strings.ReplaceAll(rawString, "\"", "\\\"")
 }

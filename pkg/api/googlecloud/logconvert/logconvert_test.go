@@ -200,6 +200,11 @@ func TestLogEntryToNode(t *testing.T) {
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("LogEntryToNode() error = %v, wantErr %v", err, tc.wantErr)
 			}
+			if !tc.wantErr {
+				if _, ok := got.(*structured.LazyJSONNode); !ok {
+					t.Errorf("LogEntryToNode() returned type %T, want *structured.LazyJSONNode", got)
+				}
+			}
 
 			serializer := structured.YAMLNodeSerializer{}
 			gotYAML, err := serializer.Serialize(got)
