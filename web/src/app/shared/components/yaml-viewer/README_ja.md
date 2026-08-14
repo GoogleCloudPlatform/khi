@@ -40,14 +40,14 @@ graph TD
 
 ## 各ファイルの役割
 
-| ファイル名                                                 | 役割                                                                                                                                                                                                                               |
-| :--------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [yaml-viewer.component.ts](./yaml-viewer.component.ts)     | コンポーネントのロジックを制御するメインクラス。Angular 信号（Signals）を用いた状態管理、検索クエリの一致処理、スクロール制御、SVG による移動元・移動先のコネクション矢印の描画ロジックなどを持ちます。                            |
-| [yaml-viewer.component.html](./yaml-viewer.component.html) | YAML 表示のテンプレート。行番号、折りたたみ用の展開ボタン、キー、コロン、値、差分ハイライト、ホバー時のツールチップ、および移動関係を示す SVG 矢印のコンテナを定義しています。                                                     |
-| [yaml-viewer.component.scss](./yaml-viewer.component.scss) | シンタックスハイライト（キー、文字列、数値、Boolean 等）、差分ステータス（Added, Deleted, Modified, Moved）に応じた背景色・ボーダー、およびスクロール同期や矢印描画のためのスタイル。                                              |
-| [diff-util.ts](./diff-util.ts)                             | 2つのオブジェクトを比較し、共通のツリー構造 `MergeNode` を構築するユーティリティ。配列要素の対応付け（オブジェクト内の `name` や `type` プロパティを用いたオブジェクトの同定と位置移動の検出）など、高度な比較ロジックを含みます。 |
-| [diff-renderer.ts](./diff-renderer.ts)                     | `MergeNode` ツリーを探索し、人間が読める YAML テキスト形式の行（`YamlLine`）のリストにフラット化します。各行の中のキー、コロン、値、および文字レベルの差分セグメント（`RenderSegment`）を組み立てます。                            |
-| [jsondiffpatch-util.ts](./jsondiffpatch-util.ts)           | `jsondiffpatch` が生成するデルタ（Delta）配列の形式を型安全に判定するためのヘルパー関数群（追加、変更、削除、移動の判定）。                                                                                                        |
-| [lcs.ts](./lcs.ts)                                         | 最長共通部分系列 (Longest Common Subsequence) アルゴリズムの実装。主に `Modified`（変更）された値の文字列に対して、文字単位での追加・削除を特定し、ハイライト用のセグメントに分割するために使用されます。                          |
-| `*.spec.ts`                                                | 各モジュール（`yaml-viewer.component`, `diff-util`, `diff-renderer`, `jsondiffpatch-util`, `lcs`）に対応するユニットテストコード。                                                                                                 |
-| `yaml-viewer.stories.ts`                                   | Storybook 用のストーリー定義。単一表示、差分表示、移動（Move）を含む複雑な差分など、様々な表示パターンを確認できます。                                                                                                             |
+| ファイル名 | 役割 |
+| :--- | :--- |
+| [yaml-viewer.component.ts](./yaml-viewer.component.ts) | コンポーネントのロジックを制御するメインクラス。Angular 信号（Signals）を用いた状態管理、検索クエリの一致処理、スクロール制御、SVG による移動元・移動先のコネクション矢印の描画ロジックなどを持ちます。 |
+| [yaml-viewer.component.html](./yaml-viewer.component.html) | YAML 表示のテンプレート。行番号、折りたたみ用の展開ボタン、キー、コロン、値、差分ハイライト、ホバー時のツールチップ、および移動関係を示す SVG 矢印のコンテナを定義しています。 |
+| [yaml-viewer.component.scss](./yaml-viewer.component.scss) | シンタックスハイライト（キー、文字列、数値、Boolean 等）、差分ステータス（Added, Deleted, Modified, Moved）に応じた背景色・ボーダー、およびスクロール同期や矢印描画のためのスタイル。 |
+| [diff-util.ts](./diff-util.ts) | 2つのオブジェクトを比較し、共通のツリー構造 `MergeNode` を構築するユーティリティ。配列要素の対応付け（オブジェクト内の `name` や `type` プロパティを用いたオブジェクトの同定と位置移動の検出）など、高度な比較ロジックを含みます。 |
+| [diff-renderer.ts](./diff-renderer.ts) | `MergeNode` ツリーを探索し、人間が読める YAML テキスト形式の行（`YamlLine`）のリストにフラット化します。各行の中のキー、コロン、値、および文字レベルの差分セグメント（`RenderSegment`）を組み立てます。 |
+| [jsondiffpatch-util.ts](./jsondiffpatch-util.ts) | `jsondiffpatch` が生成するデルタ（Delta）配列の形式を型安全に判定するためのヘルパー関数群（追加、変更、削除、移動の判定）。 |
+| [lcs.ts](./lcs.ts) | 最長共通部分系列 (Longest Common Subsequence) アルゴリズムの実装。主に `Modified`（変更）された値の文字列に対して、文字単位での追加・削除を特定し、ハイライト用のセグメントに分割するために使用されます。 |
+| `*.spec.ts` | 各モジュール（`yaml-viewer.component`, `diff-util`, `diff-renderer`, `jsondiffpatch-util`, `lcs`）に対応するユニットテストコード。 |
+| `yaml-viewer.stories.ts` | Storybook 用のストーリー定義。単一表示、差分表示、移動（Move）を含む複雑な差分など、様々な表示パターンを確認できます。 |
