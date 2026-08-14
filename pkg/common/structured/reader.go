@@ -80,6 +80,13 @@ func (n *NodeReader) Children() NodeReaderChildrenIterator {
 	}
 }
 
+// WithKeyOrder returns a new NodeReader wrapping the node with the specified key order.
+func (n *NodeReader) WithKeyOrder(priorityKeys ...string) *NodeReader {
+	return &NodeReader{
+		Node: WithKeyOrder(n.Node, priorityKeys...),
+	}
+}
+
 // ReadBool retrieves a boolean value from the specified field path.
 // Returns an error if the field doesn't exist or cannot be cast to a boolean.
 func (n *NodeReader) ReadBool(fieldPath string) (bool, error) {

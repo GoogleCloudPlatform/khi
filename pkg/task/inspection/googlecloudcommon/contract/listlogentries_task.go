@@ -123,7 +123,7 @@ func convertLogsArray(ctx context.Context, wg *sync.WaitGroup, source <-chan *lo
 					slog.WarnContext(ctx, fmt.Sprintf("failed to convert loggingpb.LogEntry (insertId: %s, timestamp: %v) to structured.Node %v", l.InsertId, l.Timestamp, err))
 					continue
 				}
-				khiLog := log.NewLog(structured.NewNodeReader(node))
+				khiLog := log.NewLog(structured.NewNodeReader(structured.WithKeyOrder(node, logconvert.GCPLogEntryKeyOrder...)))
 				*dest = append(*dest, khiLog)
 			}
 		}

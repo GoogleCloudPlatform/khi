@@ -281,7 +281,7 @@ metadata:
 					"target": {
 						Resource: targetResource,
 						Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-							{Log: logObj, ResourceBodyReader: nodeReader, ResourceBodyYAML: tc.yaml},
+							{Log: logObj, ResourceBodyReader: nodeReader},
 						},
 					},
 				},

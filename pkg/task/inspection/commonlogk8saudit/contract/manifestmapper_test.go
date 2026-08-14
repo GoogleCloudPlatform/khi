@@ -103,13 +103,13 @@ func TestGetLastBody(t *testing.T) {
 		Roles: map[string]*ResourceManifestLogGroup{
 			"roleA": {
 				Logs: []*ResourceManifestLog{
-					{Log: logA1, ResourceBodyYAML: "value: A1", ResourceBodyReader: structured.NewNodeReader(nodeA1)},
-					{Log: logA2, ResourceBodyYAML: "value: A2", ResourceBodyReader: structured.NewNodeReader(nodeA2)},
+					{Log: logA1, ResourceBodyReader: structured.NewNodeReader(nodeA1)},
+					{Log: logA2, ResourceBodyReader: structured.NewNodeReader(nodeA2)},
 				},
 			},
 			"roleB": {
 				Logs: []*ResourceManifestLog{
-					{Log: logB1, ResourceBodyYAML: "value: B1", ResourceBodyReader: structured.NewNodeReader(nodeB1)},
+					{Log: logB1, ResourceBodyReader: structured.NewNodeReader(nodeB1)},
 				},
 			},
 		},
@@ -130,7 +130,6 @@ func TestGetLastBody(t *testing.T) {
 		expectedRole string
 		roleToCheck  string
 		wantFound    bool
-		wantYAML     string
 		wantValue    string
 	}{
 		{
@@ -139,7 +138,6 @@ func TestGetLastBody(t *testing.T) {
 			expectedRole: "roleA",
 			roleToCheck:  "roleA",
 			wantFound:    true,
-			wantYAML:     "value: A1",
 			wantValue:    "A1",
 		},
 		{
@@ -155,7 +153,6 @@ func TestGetLastBody(t *testing.T) {
 			expectedRole: "roleB",
 			roleToCheck:  "roleA",
 			wantFound:    true,
-			wantYAML:     "value: A1",
 			wantValue:    "A1",
 		},
 		{
@@ -164,7 +161,6 @@ func TestGetLastBody(t *testing.T) {
 			expectedRole: "roleB",
 			roleToCheck:  "roleB",
 			wantFound:    true,
-			wantYAML:     "value: B1",
 			wantValue:    "B1",
 		},
 		{
@@ -173,7 +169,6 @@ func TestGetLastBody(t *testing.T) {
 			expectedRole: "roleA",
 			roleToCheck:  "roleA",
 			wantFound:    true,
-			wantYAML:     "value: A2",
 			wantValue:    "A2",
 		},
 		{
@@ -182,7 +177,6 @@ func TestGetLastBody(t *testing.T) {
 			expectedRole: "roleA",
 			roleToCheck:  "roleB",
 			wantFound:    true,
-			wantYAML:     "value: B1",
 			wantValue:    "B1",
 		},
 	}
@@ -196,14 +190,6 @@ func TestGetLastBody(t *testing.T) {
 
 			if e.GroupRole != tc.expectedRole {
 				t.Errorf("expected group role %q, got %q", tc.expectedRole, e.GroupRole)
-			}
-
-			yaml, ok := e.GetLastBodyYAML(tc.roleToCheck)
-			if ok != tc.wantFound {
-				t.Errorf("GetLastBodyYAML(%q) ok = %t, want %t", tc.roleToCheck, ok, tc.wantFound)
-			}
-			if ok && yaml != tc.wantYAML {
-				t.Errorf("GetLastBodyYAML(%q) = %q, want %q", tc.roleToCheck, yaml, tc.wantYAML)
 			}
 
 			if tc.wantFound {

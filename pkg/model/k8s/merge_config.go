@@ -21,6 +21,15 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 )
 
+// K8sManifestKeyOrder defines the canonical top-level field order for Kubernetes resource manifests when serializing to YAML.
+var K8sManifestKeyOrder = []string{
+	"apiVersion",
+	"kind",
+	"metadata",
+	"spec",
+	"status",
+}
+
 // K8sManifestMergeConfigRegistry holds merge configurations for Kubernetes manifests.
 type K8sManifestMergeConfigRegistry struct {
 	defaultResolver      *structured.MergeConfigResolver

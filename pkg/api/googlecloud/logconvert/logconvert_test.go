@@ -15,9 +15,10 @@
 package logconvert
 
 import (
-	"reflect"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"cloud.google.com/go/logging/apiv2/loggingpb"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
@@ -215,93 +216,69 @@ func TestLogEntryToNode(t *testing.T) {
 			if err != nil {
 				t.Fatalf("yaml serialization failed for want node: %v", err)
 			}
-			if diff := cmp.Diff(gotYAML, wantYAML); diff != "" {
-				t.Errorf("LogEntryToNode() mismatch (-got +want):\n%s", diff)
+			var gotMap, wantMap any
+			if err := yaml.Unmarshal(gotYAML, &gotMap); err != nil {
+				t.Fatalf("yaml unmarshal failed for got: %v", err)
+			}
+			if err := yaml.Unmarshal(wantYAML, &wantMap); err != nil {
+				t.Fatalf("yaml unmarshal failed for want: %v", err)
+			}
+			if diff := cmp.Diff(wantMap, gotMap); diff != "" {
+				t.Errorf("LogEntryToNode() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestGetLogLabelsMap(t *testing.T) {
-	testCases := []struct {
-		name   string
-		labels map[string]string
-		want   structured.Node
-	}{
-		{
-			name:   "empty map",
-			labels: map[string]string{},
-			want:   structured.NewStandardMap([]string{}, []structured.Node{}),
-		},
-		{
-			name:   "single entry",
-			labels: map[string]string{"key": "value"},
-			want: structured.NewStandardMap(
-				[]string{"key"},
-				[]structured.Node{structured.NewStandardScalarNode("value")},
-			),
-		},
-		{
-			name: "multiple entries, should be sorted",
-			labels: map[string]string{
-				"zeta":  "3",
-				"beta":  "2",
-				"alpha": "1",
-			},
-			want: structured.NewStandardMap(
-				[]string{"alpha", "beta", "zeta"},
-				[]structured.Node{
-					structured.NewStandardScalarNode("1"),
-					structured.NewStandardScalarNode("2"),
-					structured.NewStandardScalarNode("3"),
-				},
-			),
-		},
+func TestLogEntryWithKeyOrder(t *testing.T) {
+	entry := &loggingpb.LogEntry{
+		LogName:  "projects/p/logs/l",
+		InsertId: "ins-123",
+		Severity: ltype.LogSeverity_INFO,
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := getLogLabelsMap(tc.labels)
-			if err != nil {
-				t.Fatalf("getLogLabelsMap() failed: %v", err)
-			}
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("getLogLabelsMap() got = %v, want %v", got, tc.want)
-			}
-		})
+	node, err := LogEntryToNode(entry)
+	if err != nil {
+		t.Fatalf("LogEntryToNode() failed: %v", err)
+	}
+
+	serializer := &structured.YAMLNodeSerializer{
+		PriorityKeys: GCPLogEntryKeyOrder,
+	}
+	yamlBytes, err := serializer.Serialize(node)
+	if err != nil {
+		t.Fatalf("Serialize() failed: %v", err)
+	}
+
+	wantYAML := "insertId: ins-123\nlogName: projects/p/logs/l\nseverity: INFO\n"
+	if diff := cmp.Diff(wantYAML, string(yamlBytes)); diff != "" {
+		t.Errorf("Serialize() with GCPLogEntryKeyOrder mismatch (-want +got):\n%s", diff)
 	}
 }
 
-func TestProtoTimestampToScalar(t *testing.T) {
-	testCases := []struct {
-		desc string
-		ts   time.Time
-		want structured.Node
-	}{
-		{
-			desc: "simple",
-			ts:   time.Date(2025, time.January, 2, 3, 4, 5, 0, time.UTC),
-			want: structured.NewStandardScalarNode("2025-01-02T03:04:05Z"),
+func BenchmarkLogEntryToNode(b *testing.B) {
+	now := time.Now()
+	nowpb := timestamppb.New(now)
+	entry := &loggingpb.LogEntry{
+		InsertId: "bench-entry",
+		Labels: map[string]string{
+			"app":  "khi",
+			"tier": "backend",
 		},
-		{
-			desc: "with nano sec",
-			ts:   time.Date(2025, time.January, 2, 3, 4, 5, 500000000, time.UTC),
-			want: structured.NewStandardScalarNode("2025-01-02T03:04:05.5Z"),
+		LogName: "projects/p/logs/l",
+		Payload: &loggingpb.LogEntry_TextPayload{
+			TextPayload: "benchmark payload message",
 		},
-		{
-			desc: "with full nano sec precision",
-			ts:   time.Date(2025, time.January, 2, 3, 4, 5, 123456789, time.UTC),
-			want: structured.NewStandardScalarNode("2025-01-02T03:04:05.123456789Z"),
-		},
+		Severity:  ltype.LogSeverity_INFO,
+		Timestamp: nowpb,
 	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			ts := timestamppb.New(tc.ts)
-			got := protoTimestampToScalar(ts)
 
-			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(structured.StandardScalarNode[string]{})); diff != "" {
-				t.Errorf("protoTimestampToScalar() mismatch (-want +got):\n%s", diff)
-			}
-		})
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		_, err := LogEntryToNode(entry)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

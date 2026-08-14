@@ -16,12 +16,12 @@ package ossclusterk8s_impl
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"slices"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/khictx"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	inspectionmetadata "github.com/GoogleCloudPlatform/khi/pkg/core/inspection/metadata"
 	"github.com/GoogleCloudPlatform/khi/pkg/core/inspection/progressutil"
@@ -59,16 +59,15 @@ var AuditLogFileReaderTask = inspectiontaskbase.NewProgressReportableInspectionT
 		var logs []*log.Log
 
 		progressutil.ReportProgressFromArraySync(tp, logLines, func(i int, line string) error {
-			if strings.TrimSpace(line) == "" {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
 				return nil
 			}
 
-			l, err := log.NewLogFromYAMLString(line)
-			if err != nil {
-				return fmt.Errorf("failed to read a log: %w", err)
-			}
+			node := structured.NewLazyJSONNodeFromBytes([]byte(trimmed))
+			l := log.NewLog(structured.NewNodeReader(node))
 
-			err = l.SetFieldSetReader(&ossclusterk8s_contract.OSSK8sAuditLogCommonFieldSetReader{})
+			err := l.SetFieldSetReader(&ossclusterk8s_contract.OSSK8sAuditLogCommonFieldSetReader{})
 			if err != nil {
 				return err
 			}

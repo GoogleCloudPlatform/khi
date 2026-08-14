@@ -187,7 +187,6 @@ metadata:
 			resourceLog := &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
 				ResourceBodyReader: reader,
-				ResourceBodyYAML:   tc.resourceBodyYAML,
 				ResourceCreated:    false,
 				ResourceDeleted:    false,
 			}
@@ -495,7 +494,6 @@ metadata:
 				resourceLog := &commonlogk8saudit_contract.ResourceManifestLog{
 					Log:                logObj,
 					ResourceBodyReader: reader,
-					ResourceBodyYAML:   s.resourceBodyYAML,
 				}
 				var err error
 				state, err = tracker.DetectLifetimeLogEvent(t.Context(), resourceLog, state)

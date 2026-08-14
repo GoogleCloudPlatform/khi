@@ -291,8 +291,8 @@ metadata:
 				},
 			},
 			wantBodies: []string{
-				"# Resource data is unavailable. Audit logs for this resource is recorded at metadata level.",
-				"# Resource data is unavailable. Audit logs for this resource is recorded at metadata level.",
+				"",
+				"",
 			},
 		},
 		{
@@ -375,9 +375,8 @@ metadata:
 				if err != nil {
 					t.Errorf("failed to generate manifest:%v", err)
 				}
-				gotManifests = append(gotManifests, rl.ResourceBodyYAML)
-
 				if rl.ResourceBodyReader == nil {
+					gotManifests = append(gotManifests, "")
 					continue
 				}
 
@@ -385,12 +384,161 @@ metadata:
 				if err != nil {
 					t.Errorf("failed to serialize resource body to yaml\n%s", err.Error())
 				}
-				if diff := cmp.Diff(rl.ResourceBodyYAML, string(yamlFromReader)); diff != "" {
-					t.Errorf("YAML mismatch between reader and string (-want +got):%s", diff)
-				}
+				gotManifests = append(gotManifests, string(yamlFromReader))
 			}
 			if diff := cmp.Diff(tc.wantBodies, gotManifests); diff != "" {
 				t.Errorf("mismatch (-want +got):%s", diff)
+			}
+		})
+	}
+}
+
+func TestConstructResourceBodyFromListItem(t *testing.T) {
+	testCases := []struct {
+		name         string
+		itemYAML     string
+		prevYAML     string
+		wantYAML     string
+		wantAPIVer   string
+		wantKind     string
+		wantMetaName string
+		wantErr      bool
+	}{
+		{
+			name: "injects apiVersion and kind from prevRevision",
+			itemYAML: `metadata:
+  name: test-pod
+  namespace: default
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest`,
+			prevYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod`,
+			wantYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+  namespace: default
+spec:
+  containers:
+    - name: nginx
+      image: nginx:latest
+`,
+			wantAPIVer:   "v1",
+			wantKind:     "Pod",
+			wantMetaName: "test-pod",
+		},
+		{
+			name: "prevRevision is empty without apiVersion or kind",
+			itemYAML: `metadata:
+  name: test-cm
+data:
+  key: value`,
+			prevYAML: ``,
+			wantYAML: `metadata:
+  name: test-cm
+data:
+  key: value
+`,
+			wantAPIVer:   "",
+			wantKind:     "",
+			wantMetaName: "test-cm",
+		},
+		{
+			name: "prevRevision has only apiVersion",
+			itemYAML: `metadata:
+  name: test-res`,
+			prevYAML: `apiVersion: apps/v1`,
+			wantYAML: `apiVersion: apps/v1
+metadata:
+  name: test-res
+`,
+			wantAPIVer:   "apps/v1",
+			wantKind:     "",
+			wantMetaName: "test-res",
+		},
+		{
+			name: "prevRevision has only kind",
+			itemYAML: `metadata:
+  name: test-res`,
+			prevYAML: `kind: Deployment`,
+			wantYAML: `kind: Deployment
+metadata:
+  name: test-res
+`,
+			wantAPIVer:   "",
+			wantKind:     "Deployment",
+			wantMetaName: "test-res",
+		},
+		{
+			name: "nested array and mapping fields preserved in key order",
+			itemYAML: `status:
+  phase: Running
+metadata:
+  name: complex-pod
+spec:
+  nodeName: node-1`,
+			prevYAML: `apiVersion: v1
+kind: Pod`,
+			wantYAML: `apiVersion: v1
+kind: Pod
+metadata:
+  name: complex-pod
+spec:
+  nodeName: node-1
+status:
+  phase: Running
+`,
+			wantAPIVer:   "v1",
+			wantKind:     "Pod",
+			wantMetaName: "complex-pod",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			itemNode, err := structured.FromYAML(tc.itemYAML)
+			if err != nil {
+				t.Fatalf("failed to parse itemYAML: %v", err)
+			}
+			itemReader := structured.NewNodeReader(itemNode)
+
+			var prevReader *structured.NodeReader
+			if tc.prevYAML != "" {
+				prevNode, err := structured.FromYAML(tc.prevYAML)
+				if err != nil {
+					t.Fatalf("failed to parse prevYAML: %v", err)
+				}
+				prevReader = structured.NewNodeReader(prevNode)
+			}
+
+			gotReader, err := constructResourceBodyFromListItem(itemReader, prevReader)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("constructResourceBodyFromListItem() error = %v, wantErr %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+
+			if got := gotReader.ReadStringOrDefault("apiVersion", ""); got != tc.wantAPIVer {
+				t.Errorf("apiVersion mismatch (-want +got):\n%s", cmp.Diff(tc.wantAPIVer, got))
+			}
+			if got := gotReader.ReadStringOrDefault("kind", ""); got != tc.wantKind {
+				t.Errorf("kind mismatch (-want +got):\n%s", cmp.Diff(tc.wantKind, got))
+			}
+			if got := gotReader.ReadStringOrDefault("metadata.name", ""); got != tc.wantMetaName {
+				t.Errorf("metadata.name mismatch (-want +got):\n%s", cmp.Diff(tc.wantMetaName, got))
+			}
+
+			yamlBytes, err := gotReader.Serialize("", &structured.YAMLNodeSerializer{})
+			if err != nil {
+				t.Fatalf("Serialize() failed: %v", err)
+			}
+			if diff := cmp.Diff(tc.wantYAML, string(yamlBytes)); diff != "" {
+				t.Errorf("YAML serialization mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}

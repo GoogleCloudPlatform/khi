@@ -15,7 +15,9 @@
 package commonlogk8saudit_impl
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -36,8 +38,6 @@ import (
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	"golang.org/x/sync/errgroup"
 )
-
-var bodyPlaceholderForMetadataLevelAuditLog = "# Resource data is unavailable. Audit logs for this resource is recorded at metadata level."
 
 // ManifestGeneratorTask is the task to generate manifest from k8s audit logs.
 var ManifestGeneratorTask = inspectiontaskbase.NewProgressReportableInspectionTask(commonlogk8saudit_contract.ManifestGeneratorTaskID, []taskid.UntypedTaskReference{
@@ -112,8 +112,6 @@ type groupManifestGenerator struct {
 	prevRevisionReader *structured.NodeReader
 	// mergeConfigRegistry is the registry for merge config.
 	mergeConfigRegistry *k8s.K8sManifestMergeConfigRegistry
-	// prevRevisionBody is the body of the previous revision.
-	prevRevisionBody string
 	// resourceName is the name of the resource.
 	resourceName string
 }
@@ -127,7 +125,6 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	if fieldSet.IsDryRun {
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
-			ResourceBodyYAML:   g.prevRevisionBody,
 			ResourceBodyReader: g.prevRevisionReader,
 		}, nil
 	}
@@ -151,7 +148,6 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 	if currentBodyReader == nil {
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
-			ResourceBodyYAML:   bodyPlaceholderForMetadataLevelAuditLog,
 			ResourceBodyReader: nil,
 		}, nil
 	}
@@ -161,7 +157,6 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 		if err != nil {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
-				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
 			}, nil
 		}
@@ -170,28 +165,11 @@ func (g *groupManifestGenerator) Process(ctx context.Context, l *log.Log) (*comm
 			name := item.ReadStringOrDefault("metadata.name", "")
 			if name == g.resourceName {
 				found = true
-				// XXList omits apiVersion and kind in its item. Generate a reader with the field.
-				rawYAML, err := item.Serialize("", &structured.YAMLNodeSerializer{})
+				bodyReader, err := constructResourceBodyFromListItem(&item, g.prevRevisionReader)
 				if err != nil {
-					slog.WarnContext(ctx, fmt.Sprintf("failed to serialize resource body to yaml\n%s", err.Error()))
-				}
-				var prevAPIVersion, prevKind string
-				if g.prevRevisionReader != nil {
-					prevAPIVersion = g.prevRevisionReader.ReadStringOrDefault("apiVersion", "")
-					prevKind = g.prevRevisionReader.ReadStringOrDefault("kind", "")
-				}
-				fullYAMLStr := string(rawYAML)
-				if prevAPIVersion != "" && prevKind != "" {
-					fullYAMLStr = fmt.Sprintf(`apiVersion: %s
-kind: %s
-%s`, prevAPIVersion, prevKind, fullYAMLStr)
-				}
-
-				rootNode, err := structured.FromYAML(fullYAMLStr)
-				if err != nil {
-					slog.WarnContext(ctx, fmt.Sprintf("failed to serialize resource body to yaml after constructing full yaml\n%s", err.Error()))
+					slog.WarnContext(ctx, fmt.Sprintf("failed to construct resource body from list item: %v", err))
 				} else {
-					currentBodyReader = structured.NewNodeReader(rootNode)
+					currentBodyReader = bodyReader
 				}
 				break
 			}
@@ -199,17 +177,10 @@ kind: %s
 		if !found {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
-				ResourceBodyYAML:   bodyPlaceholderForMetadataLevelAuditLog,
 				ResourceBodyReader: nil,
 			}, nil
 		}
 	}
-
-	currentRevisionBodyRaw, err := currentBodyReader.Serialize("", &structured.YAMLNodeSerializer{})
-	if err != nil {
-		slog.WarnContext(ctx, fmt.Sprintf("failed to serialize resource body to yaml\n%s", err.Error()))
-	}
-	currentRevisionBody := string(currentRevisionBodyRaw)
 
 	if fieldSet.Verb == commonlogk8saudit_contract.VerbPatch && partial {
 		mergeConfigResolver := g.mergeConfigRegistry.Get(fieldSet.APIVersion, commonlogk8saudit_contract.GetSingularKindName(fieldSet.PluralKind))
@@ -222,20 +193,19 @@ kind: %s
 			slog.WarnContext(ctx, fmt.Sprintf("failed to merge resource body\n%s", err.Error()))
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
-				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
 			}, nil
 		} else {
-			mergedNodeReader = structured.NewNodeReader(mergedNode)
-			mergedYAMLRaw, err := mergedNodeReader.Serialize("", &structured.YAMLNodeSerializer{})
+			lazyMergedNode, err := structured.NewLazyJSONNode(mergedNode)
 			if err != nil {
-				slog.WarnContext(ctx, fmt.Sprintf("failed to read the merged resource body\n%s", err.Error()))
+				slog.WarnContext(ctx, fmt.Sprintf("failed to convert merged node to lazy JSON node: %v", err))
+				mergedNodeReader = structured.NewNodeReader(structured.WithKeyOrder(mergedNode, k8s.K8sManifestKeyOrder...))
+			} else {
+				mergedNodeReader = structured.NewNodeReader(structured.WithKeyOrder(lazyMergedNode, k8s.K8sManifestKeyOrder...))
 			}
-			g.prevRevisionBody = string(mergedYAMLRaw)
 			g.prevRevisionReader = mergedNodeReader
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
-				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
 			}, nil
 		}
@@ -245,16 +215,70 @@ kind: %s
 		if apiVersion == "meta.k8s.io/__internal" && kind == "DeleteOptions" {
 			return &commonlogk8saudit_contract.ResourceManifestLog{
 				Log:                l,
-				ResourceBodyYAML:   g.prevRevisionBody,
 				ResourceBodyReader: g.prevRevisionReader,
 			}, nil
 		}
-		g.prevRevisionBody = currentRevisionBody
 		g.prevRevisionReader = currentBodyReader
 		return &commonlogk8saudit_contract.ResourceManifestLog{
 			Log:                l,
-			ResourceBodyYAML:   g.prevRevisionBody,
 			ResourceBodyReader: g.prevRevisionReader,
 		}, nil
 	}
+}
+
+// constructResourceBodyFromListItem constructs a complete resource manifest NodeReader from a list item,
+// injecting apiVersion and kind from the previous revision if they are not present in the item.
+func constructResourceBodyFromListItem(item *structured.NodeReader, prevRevision *structured.NodeReader) (*structured.NodeReader, error) {
+	if item == nil {
+		return nil, fmt.Errorf("item reader cannot be nil")
+	}
+
+	var prevAPIVersion, prevKind string
+	if prevRevision != nil {
+		prevAPIVersion = prevRevision.ReadStringOrDefault("apiVersion", "")
+		prevKind = prevRevision.ReadStringOrDefault("kind", "")
+	}
+
+	rawJSON, err := item.Serialize("", &structured.JSONNodeSerializer{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize resource body to json: %w", err)
+	}
+
+	var buf bytes.Buffer
+	buf.WriteByte('{')
+	hasField := false
+	if prevAPIVersion != "" {
+		buf.WriteString(`"apiVersion":`)
+		b, err := json.Marshal(prevAPIVersion)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal apiVersion: %w", err)
+		}
+		buf.Write(b)
+		hasField = true
+	}
+	if prevKind != "" {
+		if hasField {
+			buf.WriteByte(',')
+		}
+		buf.WriteString(`"kind":`)
+		b, err := json.Marshal(prevKind)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal kind: %w", err)
+		}
+		buf.Write(b)
+		hasField = true
+	}
+	trimmed := bytes.TrimSpace(rawJSON)
+	if len(trimmed) >= 2 && trimmed[0] == '{' && trimmed[len(trimmed)-1] == '}' {
+		inner := bytes.TrimSpace(trimmed[1 : len(trimmed)-1])
+		if len(inner) > 0 {
+			if hasField {
+				buf.WriteByte(',')
+			}
+			buf.Write(inner)
+		}
+	}
+	buf.WriteByte('}')
+	lazyNode := structured.NewLazyJSONNodeFromBytes(buf.Bytes())
+	return structured.NewNodeReader(structured.WithKeyOrder(lazyNode, k8s.K8sManifestKeyOrder...)), nil
 }

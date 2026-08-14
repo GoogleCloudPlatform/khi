@@ -317,7 +317,7 @@ status:
 				"target": {
 					Resource: resIdentity,
 					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-						{Log: logObj, ResourceBodyReader: bodyReader, ResourceBodyYAML: bodyYAML},
+						{Log: logObj, ResourceBodyReader: bodyReader},
 					},
 				},
 			},
@@ -412,7 +412,7 @@ status:
 				"target": {
 					Resource: resIdentity,
 					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-						{Log: logObj, ResourceBodyReader: bodyReader, ResourceBodyYAML: bodyYAML},
+						{Log: logObj, ResourceBodyReader: bodyReader},
 					},
 				},
 			},
@@ -505,8 +505,8 @@ status:
 				"target": {
 					Resource: resIdentity,
 					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-						{Log: logObj2, ResourceBodyReader: bodyReader2, ResourceBodyYAML: bodyYAML2},
-						{Log: logObj1, ResourceBodyReader: bodyReader1, ResourceBodyYAML: bodyYAML1},
+						{Log: logObj2, ResourceBodyReader: bodyReader2},
+						{Log: logObj1, ResourceBodyReader: bodyReader1},
 					},
 				},
 			},
@@ -599,7 +599,7 @@ status:
 				"target": {
 					Resource: resIdentity,
 					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-						{Log: logObj, ResourceBodyReader: bodyReader, ResourceBodyYAML: bodyYAML},
+						{Log: logObj, ResourceBodyReader: bodyReader},
 					},
 				},
 			},
@@ -678,7 +678,7 @@ status:
 				"target": {
 					Resource: resIdentity,
 					Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-						{Log: logObj, ResourceBodyReader: bodyReader, ResourceBodyYAML: bodyYAML},
+						{Log: logObj, ResourceBodyReader: bodyReader},
 					},
 				},
 			},

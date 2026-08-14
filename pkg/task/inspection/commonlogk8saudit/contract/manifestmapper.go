@@ -79,15 +79,6 @@ func (e *MultiGroupLogEvent) GetLastBodyReader(role string) (*structured.NodeRea
 	return manifestLog.ResourceBodyReader, true
 }
 
-// GetLastBodyYAML returns the latest resource body YAML for the specified role at the time of this event.
-func (e *MultiGroupLogEvent) GetLastBodyYAML(role string) (string, bool) {
-	manifestLog, ok := e.getLastManifestLog(role)
-	if !ok || manifestLog.ResourceBodyYAML == "" {
-		return "", false
-	}
-	return manifestLog.ResourceBodyYAML, true
-}
-
 // getLastManifestLog returns the latest ResourceManifestLog entry for the specified role at the time of this event.
 func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestLog, bool) {
 	group, found := e.GroupSet.Roles[role]
@@ -108,7 +99,7 @@ func (e *MultiGroupLogEvent) getLastManifestLog(role string) (*ResourceManifestL
 	var lastManifestLog *ResourceManifestLog
 	for i := idx - 1; i >= 0; i-- {
 		logEntry := group.Logs[i]
-		if logEntry.ResourceBodyReader != nil || logEntry.ResourceBodyYAML != "" {
+		if logEntry.ResourceBodyReader != nil {
 			lastManifestLog = logEntry
 			break
 		}

@@ -542,7 +542,6 @@ status:
 				mLog := &commonlogk8saudit_contract.ResourceManifestLog{
 					Log:                logObj,
 					ResourceBodyReader: nodeReader,
-					ResourceBodyYAML:   step.yaml,
 				}
 
 				var identity *commonlogk8saudit_contract.ResourceIdentity

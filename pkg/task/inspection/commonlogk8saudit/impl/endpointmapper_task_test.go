@@ -621,7 +621,7 @@ endpoints:
 					"target": {
 						Resource: resIdentity,
 						Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-							{Log: l, ResourceBodyReader: reader, ResourceBodyYAML: tc.yaml},
+							{Log: l, ResourceBodyReader: reader},
 						},
 					},
 				},

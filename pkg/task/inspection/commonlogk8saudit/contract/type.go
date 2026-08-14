@@ -158,8 +158,6 @@ type ResourceLogGroupMap = map[string]*ResourceLogGroup
 type ResourceManifestLog struct {
 	// Log is the log.
 	Log *log.Log
-	// ResourceBodyYAML is the YAML representation of the resource body.
-	ResourceBodyYAML string
 	// ResourceBodyReader is the reader for the resource body.
 	ResourceBodyReader *structured.NodeReader
 	// ResourceCreated is true if the resource is created.

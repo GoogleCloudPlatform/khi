@@ -626,7 +626,7 @@ uid: "test-uid"`,
 					"target": {
 						Resource: targetResource,
 						Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-							{Log: logObj, ResourceBodyReader: nodeReader, ResourceBodyYAML: tc.bodyYAML},
+							{Log: logObj, ResourceBodyReader: nodeReader},
 						},
 					},
 				},
@@ -912,7 +912,7 @@ func TestResourceRevisionLogToTimelineMapperTaskSetting_PreProcessAndProcessLog(
 						"target": {
 							Resource: targetResource,
 							Logs: []*commonlogk8saudit_contract.ResourceManifestLog{
-								{Log: logObj, ResourceBodyReader: nodeReader, ResourceBodyYAML: el.bodyYAML},
+								{Log: logObj, ResourceBodyReader: nodeReader},
 							},
 						},
 					},
