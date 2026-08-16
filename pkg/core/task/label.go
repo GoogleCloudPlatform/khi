@@ -129,3 +129,21 @@ func (w *withSubsequentTaskRef) Write(labels *typedmap.TypedMap) {
 }
 
 var _ LabelOpt = (*withSubsequentTaskRef)(nil)
+
+type taskResultRetentionLabelOptImpl struct {
+	retain bool
+}
+
+// Write implements LabelOpt.
+func (r *taskResultRetentionLabelOptImpl) Write(label *typedmap.TypedMap) {
+	typedmap.Set(label, LabelKeyTaskResultRetention, r.retain)
+}
+
+var _ LabelOpt = (*taskResultRetentionLabelOptImpl)(nil)
+
+// NewTaskResultRetentionLabel returns a LabelOpt to specify whether the task result should be retained after all dependent tasks finish.
+func NewTaskResultRetentionLabel(retain bool) LabelOpt {
+	return &taskResultRetentionLabelOptImpl{
+		retain: retain,
+	}
+}

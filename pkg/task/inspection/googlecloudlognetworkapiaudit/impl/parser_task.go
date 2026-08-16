@@ -86,7 +86,7 @@ func (m *networkAPITimelineMapper) LogIngesterTask() taskid.TaskReference[[]*log
 func (m *networkAPITimelineMapper) Dependencies() []taskid.UntypedTaskReference {
 	return []taskid.UntypedTaskReference{
 		googlecloudk8scommon_contract.ClusterIdentityTaskID.Ref(),
-		googlecloudk8scommon_contract.NEGNamesDiscoveryTaskID.Ref(),
+		googlecloudk8scommon_contract.NEGNamesInventoryTaskID.Ref(),
 		commonlogk8saudit_contract.IPLeaseHistoryInventoryTaskID.Ref(),
 		googlecloudk8scommon_contract.NEGToBackendServiceInventoryTaskID.Ref(),
 	}
