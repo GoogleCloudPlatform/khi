@@ -142,7 +142,7 @@ Read [Using KHI with OSS Kubernetes Clusters - Example with Loki](/docs/en/setup
 
 ## User Guide
 
-Read [user guide](/docs/en/visualization-guide/user-guide.md).
+Please refer to the [User Guide](/docs/en/guide/00-introduction.md) for detailed usage.
 
 ## Development Contribution Guide
 

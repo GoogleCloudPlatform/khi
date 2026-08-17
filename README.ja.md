@@ -146,7 +146,7 @@ gcr.io/kubernetes-history-inspector/release:latest
 
 ## ユーザーガイド
 
-[ユーザーガイド](/docs/ja/visualization-guide/user-guide.md) をご確認ください。
+詳細な使い方は[ユーザーガイド](/docs/ja/guide/00-introduction.md)をご参照ください。
 
 ## KHIプロジェクトへの貢献
 

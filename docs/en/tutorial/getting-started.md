@@ -2,7 +2,7 @@
 
 This tutorial will explain how to visualize the state changes of Kubernetes resources using Kubernetes History Inspector (KHI). Using Deployments as an example, you'll create, scale, roll out, and delete Pods, and then use KHI to see how these operations change the state of Pods and ReplicaSets.
 
-Please see [User Guide](/docs/en/visualization-guide/user-guide.md) as well.
+Please see [User Guide](/docs/en/guide/user-guide.md) as well.
 
 ## **Prerequisites**
 
