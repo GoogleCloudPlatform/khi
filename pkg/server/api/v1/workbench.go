@@ -136,6 +136,55 @@ func (s *WorkbenchServiceServer) ReadStructYAML(
 	return connect.NewResponse(res), nil
 }
 
+// FilterTimeline executes a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
+func (s *WorkbenchServiceServer) FilterTimeline(
+	ctx context.Context,
+	req *connect.Request[apiv1.FilterTimelineRequest],
+	stream *connect.ServerStream[apiv1.FilterTimelineResponse],
+) error {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return connect.NewError(connect.CodeNotFound, err)
+		}
+		return connect.NewError(connect.CodeInternal, err)
+	}
+
+	params := workbench.FilterPipelineParams{
+		TimelineQuery:          msg.GetTimelineQuery(),
+		TimelineExclusionQuery: msg.GetTimelineExclusionQuery(),
+		LogQuery:               msg.GetLogQuery(),
+		ExcludeNoLogs:          msg.GetExcludeNoLogs(),
+	}
+
+	result, err := wb.FilterTimeline(ctx, params, func(progress *apiv1.FilterProgress) error {
+		res := &apiv1.FilterTimelineResponse{
+			Payload: &apiv1.FilterTimelineResponse_Progress{
+				Progress: progress,
+			},
+		}
+		return stream.Send(res)
+	})
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return connect.NewError(connect.CodeCanceled, err)
+		}
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("filter pipeline failed: %w", err))
+	}
+
+	finalRes := &apiv1.FilterTimelineResponse{
+		Payload: &apiv1.FilterTimelineResponse_Result{
+			Result: result,
+		},
+	}
+	return stream.Send(finalRes)
+}
+
 // CloseWorkbench explicitly closes and frees the specified Workbench session.
 func (s *WorkbenchServiceServer) CloseWorkbench(
 	ctx context.Context,

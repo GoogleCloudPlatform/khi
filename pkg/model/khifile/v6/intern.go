@@ -180,6 +180,12 @@ func (p *InternPool) InternString(value string) *InternStringRef {
 	return &InternStringRef{pool: p, id: id}
 }
 
+// ResolveStringFromID returns the string corresponding to the given ID.
+// It returns an empty string if the ID is not found.
+func (p *InternPool) ResolveStringFromID(id uint32) string {
+	return p.resolveStringFromID(id)
+}
+
 // resolveStringFromID returns the string corresponding to the given ID.
 // It returns an empty string if the ID is not found.
 func (p *InternPool) resolveStringFromID(id uint32) string {

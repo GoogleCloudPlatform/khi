@@ -56,6 +56,9 @@ const (
 	// WorkbenchServiceReadStructYAMLProcedure is the fully-qualified name of the WorkbenchService's
 	// ReadStructYAML RPC.
 	WorkbenchServiceReadStructYAMLProcedure = "/api.v1.WorkbenchService/ReadStructYAML"
+	// WorkbenchServiceFilterTimelineProcedure is the fully-qualified name of the WorkbenchService's
+	// FilterTimeline RPC.
+	WorkbenchServiceFilterTimelineProcedure = "/api.v1.WorkbenchService/FilterTimeline"
 	// WorkbenchServiceCloseWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// CloseWorkbench RPC.
 	WorkbenchServiceCloseWorkbenchProcedure = "/api.v1.WorkbenchService/CloseWorkbench"
@@ -69,6 +72,8 @@ type WorkbenchServiceClient interface {
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
 	// Decodes an interned struct by ID and returns its formatted YAML string.
 	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
+	// Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
+	FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest]) (*connect.ServerStreamForClient[v1.FilterTimelineResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -102,6 +107,12 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAML")),
 			connect.WithClientOptions(opts...),
 		),
+		filterTimeline: connect.NewClient[v1.FilterTimelineRequest, v1.FilterTimelineResponse](
+			httpClient,
+			baseURL+WorkbenchServiceFilterTimelineProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("FilterTimeline")),
+			connect.WithClientOptions(opts...),
+		),
 		closeWorkbench: connect.NewClient[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse](
 			httpClient,
 			baseURL+WorkbenchServiceCloseWorkbenchProcedure,
@@ -116,6 +127,7 @@ type workbenchServiceClient struct {
 	openWorkbench      *connect.Client[v1.OpenWorkbenchRequest, v1.OpenWorkbenchResponse]
 	heartbeatWorkbench *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
 	readStructYAML     *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
+	filterTimeline     *connect.Client[v1.FilterTimelineRequest, v1.FilterTimelineResponse]
 	closeWorkbench     *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
 }
 
@@ -134,6 +146,11 @@ func (c *workbenchServiceClient) ReadStructYAML(ctx context.Context, req *connec
 	return c.readStructYAML.CallUnary(ctx, req)
 }
 
+// FilterTimeline calls api.v1.WorkbenchService.FilterTimeline.
+func (c *workbenchServiceClient) FilterTimeline(ctx context.Context, req *connect.Request[v1.FilterTimelineRequest]) (*connect.ServerStreamForClient[v1.FilterTimelineResponse], error) {
+	return c.filterTimeline.CallServerStream(ctx, req)
+}
+
 // CloseWorkbench calls api.v1.WorkbenchService.CloseWorkbench.
 func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {
 	return c.closeWorkbench.CallUnary(ctx, req)
@@ -147,6 +164,8 @@ type WorkbenchServiceHandler interface {
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
 	// Decodes an interned struct by ID and returns its formatted YAML string.
 	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
+	// Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
+	FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest], *connect.ServerStream[v1.FilterTimelineResponse]) error
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -176,6 +195,12 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAML")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workbenchServiceFilterTimelineHandler := connect.NewServerStreamHandler(
+		WorkbenchServiceFilterTimelineProcedure,
+		svc.FilterTimeline,
+		connect.WithSchema(workbenchServiceMethods.ByName("FilterTimeline")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workbenchServiceCloseWorkbenchHandler := connect.NewUnaryHandler(
 		WorkbenchServiceCloseWorkbenchProcedure,
 		svc.CloseWorkbench,
@@ -190,6 +215,8 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 			workbenchServiceHeartbeatWorkbenchHandler.ServeHTTP(w, r)
 		case WorkbenchServiceReadStructYAMLProcedure:
 			workbenchServiceReadStructYAMLHandler.ServeHTTP(w, r)
+		case WorkbenchServiceFilterTimelineProcedure:
+			workbenchServiceFilterTimelineHandler.ServeHTTP(w, r)
 		case WorkbenchServiceCloseWorkbenchProcedure:
 			workbenchServiceCloseWorkbenchHandler.ServeHTTP(w, r)
 		default:
@@ -211,6 +238,10 @@ func (UnimplementedWorkbenchServiceHandler) HeartbeatWorkbench(context.Context, 
 
 func (UnimplementedWorkbenchServiceHandler) ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.ReadStructYAML is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) FilterTimeline(context.Context, *connect.Request[v1.FilterTimelineRequest], *connect.ServerStream[v1.FilterTimelineResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.FilterTimeline is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {

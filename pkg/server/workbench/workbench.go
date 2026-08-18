@@ -41,6 +41,7 @@ type Workbench struct {
 	styleChunk     *khifilev6.TimelineStyleChunk
 	logChunks      []*khifilev6.LogChunk
 	timelineChunks []*khifilev6.TimelineChunk
+	searchIndex    *SearchIndex
 }
 
 // NewWorkbench creates a new Workbench instance.
@@ -113,4 +114,5 @@ func (w *Workbench) Close() {
 	w.styleChunk = nil
 	w.logChunks = nil
 	w.timelineChunks = nil
+	w.searchIndex = nil
 }

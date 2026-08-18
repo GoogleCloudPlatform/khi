@@ -236,6 +236,152 @@ export declare type ReadStructYAMLResponse =
 export declare const ReadStructYAMLResponseSchema: GenMessage<ReadStructYAMLResponse>;
 
 /**
+ * Request to execute a complete timeline and log filtering pipeline against an active Workbench dataset.
+ *
+ * @generated from message api.v1.FilterTimelineRequest
+ */
+export declare type FilterTimelineRequest =
+  Message<'api.v1.FilterTimelineRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+
+    /**
+     * CEL expression to filter timelines by path, name, or metadata. Empty string matches all timelines.
+     *
+     * @generated from field: string timeline_query = 2;
+     */
+    timelineQuery: string;
+
+    /**
+     * CEL expression to exclude timelines and their descendants. Empty string excludes none.
+     *
+     * @generated from field: string timeline_exclusion_query = 3;
+     */
+    timelineExclusionQuery: string;
+
+    /**
+     * CEL expression to filter log entries within remaining timelines. Empty string matches all logs.
+     *
+     * @generated from field: string log_query = 4;
+     */
+    logQuery: string;
+
+    /**
+     * When true, excludes timelines that contain no matching log entries.
+     *
+     * @generated from field: bool exclude_no_logs = 5;
+     */
+    excludeNoLogs: boolean;
+  };
+
+/**
+ * Describes the message api.v1.FilterTimelineRequest.
+ * Use `create(FilterTimelineRequestSchema)` to create a new message.
+ */
+export declare const FilterTimelineRequestSchema: GenMessage<FilterTimelineRequest>;
+
+/**
+ * Intermediate progress update emitted during filter pipeline execution.
+ *
+ * @generated from message api.v1.FilterProgress
+ */
+export declare type FilterProgress = Message<'api.v1.FilterProgress'> & {
+  /**
+   * Name of the current pipeline stage being executed.
+   *
+   * @generated from field: string stage_name = 1;
+   */
+  stageName: string;
+
+  /**
+   * Number of items processed in the current stage.
+   *
+   * @generated from field: uint32 current = 2;
+   */
+  current: number;
+
+  /**
+   * Total number of items to process in the current stage.
+   *
+   * @generated from field: uint32 total = 3;
+   */
+  total: number;
+};
+
+/**
+ * Describes the message api.v1.FilterProgress.
+ * Use `create(FilterProgressSchema)` to create a new message.
+ */
+export declare const FilterProgressSchema: GenMessage<FilterProgress>;
+
+/**
+ * Final result containing the IDs of all timelines and logs that passed the filter pipeline.
+ *
+ * @generated from message api.v1.FilterResult
+ */
+export declare type FilterResult = Message<'api.v1.FilterResult'> & {
+  /**
+   * List of timeline IDs that passed all active timeline filter stages.
+   *
+   * @generated from field: repeated uint32 timeline_ids = 1;
+   */
+  timelineIds: number[];
+
+  /**
+   * List of log IDs that passed all active log filter stages.
+   *
+   * @generated from field: repeated uint32 log_ids = 2;
+   */
+  logIds: number[];
+};
+
+/**
+ * Describes the message api.v1.FilterResult.
+ * Use `create(FilterResultSchema)` to create a new message.
+ */
+export declare const FilterResultSchema: GenMessage<FilterResult>;
+
+/**
+ * Streamed message emitted during FilterTimeline execution.
+ *
+ * @generated from message api.v1.FilterTimelineResponse
+ */
+export declare type FilterTimelineResponse =
+  Message<'api.v1.FilterTimelineResponse'> & {
+    /**
+     * Payload containing either an intermediate progress notification or the terminal filter result.
+     *
+     * @generated from oneof api.v1.FilterTimelineResponse.payload
+     */
+    payload:
+      | {
+          /**
+           * @generated from field: api.v1.FilterProgress progress = 1;
+           */
+          value: FilterProgress;
+          case: 'progress';
+        }
+      | {
+          /**
+           * @generated from field: api.v1.FilterResult result = 2;
+           */
+          value: FilterResult;
+          case: 'result';
+        }
+      | { case: undefined; value?: undefined };
+  };
+
+/**
+ * Describes the message api.v1.FilterTimelineResponse.
+ * Use `create(FilterTimelineResponseSchema)` to create a new message.
+ */
+export declare const FilterTimelineResponseSchema: GenMessage<FilterTimelineResponse>;
+
+/**
  * Request to close and release a Workbench session immediately.
  *
  * @generated from message api.v1.CloseWorkbenchRequest
@@ -308,6 +454,16 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'unary';
     input: typeof ReadStructYAMLRequestSchema;
     output: typeof ReadStructYAMLResponseSchema;
+  };
+  /**
+   * Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
+   *
+   * @generated from rpc api.v1.WorkbenchService.FilterTimeline
+   */
+  filterTimeline: {
+    methodKind: 'server_streaming';
+    input: typeof FilterTimelineRequestSchema;
+    output: typeof FilterTimelineResponseSchema;
   };
   /**
    * Explicitly closes and releases an active Workbench session.

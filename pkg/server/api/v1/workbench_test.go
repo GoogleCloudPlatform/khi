@@ -311,3 +311,95 @@ func TestWorkbenchServiceServer_ReadStructYAML(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkbenchServiceServer_FilterTimeline(t *testing.T) {
+	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	defer ts.Close()
+	defer manager.Stop()
+
+	// 1. Open workbench
+	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+		UserId:       proto.String("user-filter"),
+		SessionId:    proto.String("session-0"),
+		InspectionId: proto.String(validInspID),
+	}))
+	if err != nil {
+		t.Fatalf("OpenWorkbench() error = %v", err)
+	}
+	for openStream.Receive() {
+	}
+	if err := openStream.Err(); err != nil {
+		t.Fatalf("OpenWorkbench() stream error = %v", err)
+	}
+
+	workbenchID := "user-filter-session-0"
+
+	testCases := []struct {
+		name        string
+		req         *apiv1.FilterTimelineRequest
+		wantErrCode connect.Code
+	}{
+		{
+			name: "successfully filters timeline with streaming progress",
+			req: &apiv1.FilterTimelineRequest{
+				WorkbenchId:   proto.String(workbenchID),
+				TimelineQuery: proto.String(""),
+				LogQuery:      proto.String(""),
+				ExcludeNoLogs: proto.Bool(false),
+			},
+			wantErrCode: 0,
+		},
+		{
+			name: "fails with invalid argument when workbench_id is empty",
+			req: &apiv1.FilterTimelineRequest{
+				WorkbenchId: proto.String(""),
+			},
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name: "fails with not found for non-existent workbench",
+			req: &apiv1.FilterTimelineRequest{
+				WorkbenchId: proto.String("non-existent-wb"),
+			},
+			wantErrCode: connect.CodeNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			stream, err := client.FilterTimeline(context.Background(), connect.NewRequest(tc.req))
+			if err != nil {
+				t.Fatalf("FilterTimeline() error = %v", err)
+			}
+
+			var responses []*apiv1.FilterTimelineResponse
+			for stream.Receive() {
+				responses = append(responses, stream.Msg())
+			}
+			streamErr := stream.Err()
+
+			if tc.wantErrCode != 0 {
+				if streamErr == nil {
+					t.Fatalf("expected error code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(streamErr) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v (err = %v)", connect.CodeOf(streamErr), tc.wantErrCode, streamErr)
+				}
+				return
+			}
+
+			if streamErr != nil {
+				t.Fatalf("unexpected stream error: %v", streamErr)
+			}
+
+			if len(responses) == 0 {
+				t.Fatalf("expected streamed responses, got 0")
+			}
+
+			finalRes := responses[len(responses)-1]
+			if finalRes.GetResult() == nil {
+				t.Errorf("final response does not contain Result")
+			}
+		})
+	}
+}

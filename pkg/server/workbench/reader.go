@@ -85,6 +85,12 @@ func NewWorkbenchFromReader(
 		}
 	}
 
+	searchIndex, err := wb.BuildSearchIndex()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build search index: %w", err)
+	}
+	wb.searchIndex = searchIndex
+
 	return wb, nil
 }
 

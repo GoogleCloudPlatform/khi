@@ -31,6 +31,9 @@ service WorkbenchService {
   // Decodes an interned struct by ID and returns its formatted YAML string.
   rpc ReadStructYAML(ReadStructYAMLRequest) returns (ReadStructYAMLResponse);
 
+  // Evaluates a timeline and log filtering pipeline on the server and streams progress updates followed by the final matched ID sets.
+  rpc FilterTimeline(FilterTimelineRequest) returns (stream FilterTimelineResponse);
+
   // Explicitly closes and releases an active Workbench session.
   rpc CloseWorkbench(CloseWorkbenchRequest) returns (CloseWorkbenchResponse);
 }
@@ -87,6 +90,47 @@ message ReadStructYAMLRequest {
 message ReadStructYAMLResponse {
   // The formatted YAML string representation of the requested struct.
   string yaml = 1;
+}
+
+// Request to execute a complete timeline and log filtering pipeline against an active Workbench dataset.
+message FilterTimelineRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // CEL expression to filter timelines by path, name, or metadata. Empty string matches all timelines.
+  string timeline_query = 2;
+  // CEL expression to exclude timelines and their descendants. Empty string excludes none.
+  string timeline_exclusion_query = 3;
+  // CEL expression to filter log entries within remaining timelines. Empty string matches all logs.
+  string log_query = 4;
+  // When true, excludes timelines that contain no matching log entries.
+  bool exclude_no_logs = 5;
+}
+
+// Intermediate progress update emitted during filter pipeline execution.
+message FilterProgress {
+  // Name of the current pipeline stage being executed.
+  string stage_name = 1;
+  // Number of items processed in the current stage.
+  uint32 current = 2;
+  // Total number of items to process in the current stage.
+  uint32 total = 3;
+}
+
+// Final result containing the IDs of all timelines and logs that passed the filter pipeline.
+message FilterResult {
+  // List of timeline IDs that passed all active timeline filter stages.
+  repeated uint32 timeline_ids = 1;
+  // List of log IDs that passed all active log filter stages.
+  repeated uint32 log_ids = 2;
+}
+
+// Streamed message emitted during FilterTimeline execution.
+message FilterTimelineResponse {
+  // Payload containing either an intermediate progress notification or the terminal filter result.
+  oneof payload {
+    FilterProgress progress = 1;
+    FilterResult result = 2;
+  }
 }
 
 // Request to close and release a Workbench session immediately.
