@@ -5,9 +5,9 @@ go 1.26
 require github.com/google/go-cmp v0.7.0
 
 require (
-	cloud.google.com/go/container v1.53.0
 	cloud.google.com/go/logging v1.18.0
 	cloud.google.com/go/monitoring v1.29.0
+	connectrpc.com/connect v1.20.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.31.0
 	github.com/googleapis/gax-go/v2 v2.22.0
 	github.com/shirou/gopsutil/v3 v3.24.5

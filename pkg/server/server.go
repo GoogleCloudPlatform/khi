@@ -480,3 +480,12 @@ func CreateKHIServer(engine *gin.Engine, inspectionServer *coreinspection.Inspec
 	SetupKHIServerRoutes(engine, inspectionServer, serverConfig)
 	return engine
 }
+
+// RegisterConnectServiceHandler registers a Connect-RPC service handler to the Gin router, wrapping it to strip the basePath if needed.
+func RegisterConnectServiceHandler(router gin.IRouter, basePathWithoutTrailingSlash string, servicePath string, handler http.Handler) {
+	var wrappedHandler http.Handler = handler
+	if basePathWithoutTrailingSlash != "" {
+		wrappedHandler = http.StripPrefix(basePathWithoutTrailingSlash, handler)
+	}
+	router.Any(servicePath+"*action", gin.WrapH(wrappedHandler))
+}

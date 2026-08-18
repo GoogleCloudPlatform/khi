@@ -18,7 +18,7 @@ CONTAINER_CMD ?= $(shell command -v docker || command -v podman)
 
 .PHONY: lint-web
 lint-web: $(GENERATE_FRONTEND_DUMMY)## Run frontend linter
-	cd web && npx ng lint
+	cd web && NODE_OPTIONS="--max-old-space-size=8192" npx ng lint
 	cd web && npm run lint:style
 
 .PHONY: lint-go

@@ -7,7 +7,7 @@ PROTO_DEPS := $(PROTO_SRCS) buf.gen.yaml
 $(GENERATE_PROTO_DUMMY): $(PROTO_DEPS)
 	npx @bufbuild/buf generate
 	gofmt -s -w pkg/generated
-	cd web && npx prettier --write "src/app/generated/**/*.d.ts"
+	cd web && npx prettier --write "src/app/generated/**/*.+(ts|d.ts|js)"
 	touch $(GENERATE_PROTO_DUMMY)
 
 .PHONY: build-proto

@@ -1,0 +1,100 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+edition = "2023";
+
+package api.v1;
+
+option go_package = "github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1";
+
+// ImportInspectionService provides APIs to upload and import .khi inspection files in chunks.
+service ImportInspectionService {
+  // Starts an import session for an inspection file and returns an import token.
+  rpc StartImportInspection(StartImportInspectionRequest) returns (StartImportInspectionResponse);
+
+  // Uploads a single chunk of the inspection file within an active import session.
+  rpc UploadInspectionChunk(UploadInspectionChunkRequest) returns (UploadInspectionChunkResponse);
+
+  // Completes the import session, validates the uploaded .khi file, and registers it to the inspection server.
+  rpc CompleteImportInspection(CompleteImportInspectionRequest) returns (CompleteImportInspectionResponse);
+
+  // Aborts an in-progress import session and cleans up temporary files.
+  rpc AbortImportInspection(AbortImportInspectionRequest) returns (AbortImportInspectionResponse);
+}
+
+// Request to start a new inspection import session.
+message StartImportInspectionRequest {
+  // Name of the inspection file to import (e.g. "cluster-investigation.khi").
+  string file_name = 1;
+
+  // Optional total size of the file in bytes.
+  int64 total_size_bytes = 2;
+}
+
+// Response returned when an import session has been started.
+message StartImportInspectionResponse {
+  // Unique session token identifying this upload session.
+  string import_token = 1;
+
+  // Recommended chunk size in bytes for the client to split subsequent uploads.
+  int64 suggested_chunk_size_bytes = 2;
+}
+
+// Request to upload a single chunk of data for an active import session.
+message UploadInspectionChunkRequest {
+  // Session token returned by StartImportInspection.
+  string import_token = 1;
+
+  // Byte offset of this chunk within the overall file.
+  int64 offset_bytes = 2;
+
+  // Binary payload of the chunk.
+  bytes data = 3;
+}
+
+// Response returned after successfully receiving a chunk.
+message UploadInspectionChunkResponse {
+  // Total number of bytes received so far for this session.
+  int64 total_received_bytes = 1;
+}
+
+// Request to complete the upload and trigger server-side validation and registration.
+message CompleteImportInspectionRequest {
+  // Session token returned by StartImportInspection.
+  string import_token = 1;
+}
+
+// Response returned upon successful inspection registration.
+message CompleteImportInspectionResponse {
+  // Inspection ID assigned to the imported dataset.
+  string inspection_id = 1;
+
+  // Display name extracted from the inspection header metadata.
+  string inspection_name = 2;
+
+  // Total validated file size in bytes.
+  int64 file_size_bytes = 3;
+}
+
+// Request to abort an in-progress import session.
+message AbortImportInspectionRequest {
+  // Session token returned by StartImportInspection.
+  string import_token = 1;
+}
+
+// Response returned when an import session has been aborted.
+message AbortImportInspectionResponse {
+  // Indicates whether the session was successfully aborted and cleaned up.
+  bool aborted = 1;
+}

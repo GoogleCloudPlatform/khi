@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/idgenerator"
+	"github.com/GoogleCloudPlatform/khi/pkg/common/typedmap"
 	coretask "github.com/GoogleCloudPlatform/khi/pkg/core/task"
 	inspectioncore_contract "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/contract"
 	inspectioncore_impl "github.com/GoogleCloudPlatform/khi/pkg/task/inspection/inspectioncore/impl"
@@ -170,6 +171,18 @@ func (s *InspectionTaskServer) GetAllRegisteredTasks() []coretask.UntypedTask {
 // AddRunContextOption adds a RunContextOption that will be applied to all new inspection runners.
 func (s *InspectionTaskServer) AddRunContextOption(option RunContextOption) {
 	s.runContextOptions = append(s.runContextOptions, option)
+}
+
+// IOConfig returns the IOConfig associated with the server.
+func (s *InspectionTaskServer) IOConfig() *inspectioncore_contract.IOConfig {
+	return s.ioConfig
+}
+
+// RegisterImportedInspection registers a completed imported inspection with the given ID, store, and metadata.
+func (s *InspectionTaskServer) RegisterImportedInspection(id string, store inspectioncore_contract.Store, metadata *typedmap.ReadonlyTypedMap) *InspectionTaskRunner {
+	runner := NewImportedInspectionRunner(s, s.ioConfig, id, store, metadata, s.runContextOptions...)
+	s.inspections[id] = runner
+	return runner
 }
 
 var _ InspectionTaskRegistry = (*InspectionTaskServer)(nil)
