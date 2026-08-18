@@ -101,6 +101,41 @@ func (s *WorkbenchServiceServer) HeartbeatWorkbench(
 	return connect.NewResponse(res), nil
 }
 
+// ReadStructYAML decodes an interned struct by ID and returns its YAML representation.
+func (s *WorkbenchServiceServer) ReadStructYAML(
+	ctx context.Context,
+	req *connect.Request[apiv1.ReadStructYAMLRequest],
+) (*connect.Response[apiv1.ReadStructYAMLResponse], error) {
+	msg := req.Msg
+	if msg.GetWorkbenchId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workbench_id is required"))
+	}
+	if msg.GetStructId() == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("struct_id must be greater than 0"))
+	}
+
+	wb, err := s.manager.GetAndTouch(msg.GetWorkbenchId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrWorkbenchNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	yamlStr, err := wb.ReadStructYAML(msg.GetStructId())
+	if err != nil {
+		if errors.Is(err, workbench.ErrStructNotFound) || errors.Is(err, workbench.ErrWorkbenchClosed) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to read struct YAML: %w", err))
+	}
+
+	res := &apiv1.ReadStructYAMLResponse{
+		Yaml: proto.String(yamlStr),
+	}
+	return connect.NewResponse(res), nil
+}
+
 // CloseWorkbench explicitly closes and frees the specified Workbench session.
 func (s *WorkbenchServiceServer) CloseWorkbench(
 	ctx context.Context,

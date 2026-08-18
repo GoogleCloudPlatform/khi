@@ -34,6 +34,7 @@ describe('WorkbenchClientService', () => {
       workbenchClient: {
         openWorkbench: jasmine.createSpy('openWorkbench'),
         heartbeatWorkbench: jasmine.createSpy('heartbeatWorkbench'),
+        readStructYAML: jasmine.createSpy('readStructYAML'),
         closeWorkbench: jasmine.createSpy('closeWorkbench'),
       },
     });
@@ -157,5 +158,70 @@ describe('WorkbenchClientService', () => {
     });
     expect(service.activeWorkbenchId()).toBeNull();
     expect(service.isWorkbenchActive()).toBeFalse();
+  });
+
+  it('should throw error on readStructYAML if no workbench session is active', async () => {
+    await expectAsync(service.readStructYAML(42)).toBeRejectedWithError(
+      'No active Workbench session found.',
+    );
+  });
+
+  it('should call readStructYAML on backend client with active workbench ID and return yaml string', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(
+      (async function* () {
+        yield {
+          stage: OpenWorkbenchResponse_Stage.READY,
+          progressPercentage: 100,
+          message: 'Ready',
+          workbenchId: 'usr-1-session-0',
+        };
+      })(),
+    );
+    (
+      mockConnectClient.workbenchClient.readStructYAML as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ yaml: 'message: hello\n' }));
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const yaml = await service.readStructYAML(42);
+
+    expect(
+      mockConnectClient.workbenchClient.readStructYAML,
+    ).toHaveBeenCalledWith({
+      workbenchId: 'usr-1-session-0',
+      structId: 42,
+    });
+    expect(yaml).toBe('message: hello\n');
+  });
+
+  it('should cache readStructYAML responses and avoid duplicate RPC calls', async () => {
+    (
+      mockConnectClient.workbenchClient.openWorkbench as jasmine.Spy
+    ).and.returnValue(
+      (async function* () {
+        yield {
+          stage: OpenWorkbenchResponse_Stage.READY,
+          progressPercentage: 100,
+          message: 'Ready',
+          workbenchId: 'usr-1-session-0',
+        };
+      })(),
+    );
+    (
+      mockConnectClient.workbenchClient.readStructYAML as jasmine.Spy
+    ).and.returnValue(Promise.resolve({ yaml: 'message: cached\n' }));
+
+    await service.openWorkbench('session-0', 'inspection-1');
+
+    const yaml1 = await service.readStructYAML(100);
+    const yaml2 = await service.readStructYAML(100);
+
+    expect(yaml1).toBe('message: cached\n');
+    expect(yaml2).toBe('message: cached\n');
+    expect(
+      mockConnectClient.workbenchClient.readStructYAML,
+    ).toHaveBeenCalledTimes(1);
   });
 });

@@ -161,6 +161,12 @@ func (m *WorkbenchManager) Heartbeat(workbenchID string) (*Workbench, time.Time,
 	return wb, expiresAt, nil
 }
 
+// GetAndTouch retrieves an active Workbench session and refreshes its lease TTL.
+func (m *WorkbenchManager) GetAndTouch(workbenchID string) (*Workbench, error) {
+	wb, _, err := m.Heartbeat(workbenchID)
+	return wb, err
+}
+
 // Close explicitly terminates and frees a Workbench session.
 func (m *WorkbenchManager) Close(workbenchID string) error {
 	m.mu.Lock()

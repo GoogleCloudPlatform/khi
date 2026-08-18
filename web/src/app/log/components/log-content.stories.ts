@@ -66,3 +66,27 @@ export const NoSelectedLog: Story = {
     timezoneShift: 0,
   },
 };
+
+export const Loading: Story = {
+  loaders: [
+    async () => ({
+      mockData: await createMockInspectionData(),
+    }),
+  ],
+  render: (args, { loaded: { mockData } }) => {
+    const logEntry = Array.from(mockData.logStore.logs())[0];
+    return {
+      props: {
+        ...args,
+        isLoading: true,
+        vm: {
+          logEntry,
+          logBody: '',
+          parsedLogBody: null,
+          referencedTimelineIds: [],
+        },
+        timezoneShift: 0,
+      },
+    };
+  },
+};

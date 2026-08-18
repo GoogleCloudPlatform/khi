@@ -41,6 +41,7 @@ import { SearchBarComponent } from 'src/app/shared/components/search-bar/search-
 import { SearchScope } from 'src/app/services/view-state.service';
 import { YamlViewerComponent } from 'src/app/shared/components/yaml-viewer/yaml-viewer.component';
 import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 /**
  * View model aggregating the full detailed data required to render the log content and header.
@@ -72,11 +73,17 @@ export interface LogContentViewModel {
     ClipboardModule,
     SearchBarComponent,
     YamlViewerComponent,
+    MatProgressSpinnerModule,
   ],
 })
 export class LogContentComponent {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
+
+  /**
+   * Input indicating whether the log body YAML is currently loading.
+   */
+  public readonly isLoading = input<boolean>(false);
 
   /**
    * Signal tracking whether the in-logbody search bar is currently open.

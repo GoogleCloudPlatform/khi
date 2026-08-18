@@ -74,6 +74,13 @@ export class Log {
   }
 
   /**
+   * Gets the interned struct ID of the log body, or 0 if not stored as an interned struct.
+   */
+  get structId(): number {
+    return this.store.getBodyStructId(this.id);
+  }
+
+  /**
    * Gets the structured log attributes decoded from Intern pool data stores.
    */
   get body(): ReadonlyDomainElement<Record<string, unknown>> | null {

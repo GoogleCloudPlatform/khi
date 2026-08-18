@@ -101,7 +101,7 @@ func (w *Workbench) ingestChunk(chunk *khifilev6model.Chunk) error {
 		if err := proto.Unmarshal(chunk.Data, &pool); err != nil {
 			return err
 		}
-		w.internPool = &pool
+		w.internPool.IngestChunk(&pool)
 	case khifilev6model.ChunkTypeTimelineStyle:
 		var style khifilev6.TimelineStyleChunk
 		if err := proto.Unmarshal(chunk.Data, &style); err != nil {

@@ -53,6 +53,9 @@ const (
 	// WorkbenchServiceHeartbeatWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// HeartbeatWorkbench RPC.
 	WorkbenchServiceHeartbeatWorkbenchProcedure = "/api.v1.WorkbenchService/HeartbeatWorkbench"
+	// WorkbenchServiceReadStructYAMLProcedure is the fully-qualified name of the WorkbenchService's
+	// ReadStructYAML RPC.
+	WorkbenchServiceReadStructYAMLProcedure = "/api.v1.WorkbenchService/ReadStructYAML"
 	// WorkbenchServiceCloseWorkbenchProcedure is the fully-qualified name of the WorkbenchService's
 	// CloseWorkbench RPC.
 	WorkbenchServiceCloseWorkbenchProcedure = "/api.v1.WorkbenchService/CloseWorkbench"
@@ -64,6 +67,8 @@ type WorkbenchServiceClient interface {
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest]) (*connect.ServerStreamForClient[v1.OpenWorkbenchResponse], error)
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
+	// Decodes an interned struct by ID and returns its formatted YAML string.
+	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -91,6 +96,12 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workbenchServiceMethods.ByName("HeartbeatWorkbench")),
 			connect.WithClientOptions(opts...),
 		),
+		readStructYAML: connect.NewClient[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse](
+			httpClient,
+			baseURL+WorkbenchServiceReadStructYAMLProcedure,
+			connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAML")),
+			connect.WithClientOptions(opts...),
+		),
 		closeWorkbench: connect.NewClient[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse](
 			httpClient,
 			baseURL+WorkbenchServiceCloseWorkbenchProcedure,
@@ -104,6 +115,7 @@ func NewWorkbenchServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type workbenchServiceClient struct {
 	openWorkbench      *connect.Client[v1.OpenWorkbenchRequest, v1.OpenWorkbenchResponse]
 	heartbeatWorkbench *connect.Client[v1.HeartbeatWorkbenchRequest, v1.HeartbeatWorkbenchResponse]
+	readStructYAML     *connect.Client[v1.ReadStructYAMLRequest, v1.ReadStructYAMLResponse]
 	closeWorkbench     *connect.Client[v1.CloseWorkbenchRequest, v1.CloseWorkbenchResponse]
 }
 
@@ -117,6 +129,11 @@ func (c *workbenchServiceClient) HeartbeatWorkbench(ctx context.Context, req *co
 	return c.heartbeatWorkbench.CallUnary(ctx, req)
 }
 
+// ReadStructYAML calls api.v1.WorkbenchService.ReadStructYAML.
+func (c *workbenchServiceClient) ReadStructYAML(ctx context.Context, req *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error) {
+	return c.readStructYAML.CallUnary(ctx, req)
+}
+
 // CloseWorkbench calls api.v1.WorkbenchService.CloseWorkbench.
 func (c *workbenchServiceClient) CloseWorkbench(ctx context.Context, req *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {
 	return c.closeWorkbench.CallUnary(ctx, req)
@@ -128,6 +145,8 @@ type WorkbenchServiceHandler interface {
 	OpenWorkbench(context.Context, *connect.Request[v1.OpenWorkbenchRequest], *connect.ServerStream[v1.OpenWorkbenchResponse]) error
 	// Sends periodic heartbeat to keep the Workbench session alive in memory.
 	HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error)
+	// Decodes an interned struct by ID and returns its formatted YAML string.
+	ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error)
 	// Explicitly closes and releases an active Workbench session.
 	CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error)
 }
@@ -151,6 +170,12 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 		connect.WithSchema(workbenchServiceMethods.ByName("HeartbeatWorkbench")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workbenchServiceReadStructYAMLHandler := connect.NewUnaryHandler(
+		WorkbenchServiceReadStructYAMLProcedure,
+		svc.ReadStructYAML,
+		connect.WithSchema(workbenchServiceMethods.ByName("ReadStructYAML")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workbenchServiceCloseWorkbenchHandler := connect.NewUnaryHandler(
 		WorkbenchServiceCloseWorkbenchProcedure,
 		svc.CloseWorkbench,
@@ -163,6 +188,8 @@ func NewWorkbenchServiceHandler(svc WorkbenchServiceHandler, opts ...connect.Han
 			workbenchServiceOpenWorkbenchHandler.ServeHTTP(w, r)
 		case WorkbenchServiceHeartbeatWorkbenchProcedure:
 			workbenchServiceHeartbeatWorkbenchHandler.ServeHTTP(w, r)
+		case WorkbenchServiceReadStructYAMLProcedure:
+			workbenchServiceReadStructYAMLHandler.ServeHTTP(w, r)
 		case WorkbenchServiceCloseWorkbenchProcedure:
 			workbenchServiceCloseWorkbenchHandler.ServeHTTP(w, r)
 		default:
@@ -180,6 +207,10 @@ func (UnimplementedWorkbenchServiceHandler) OpenWorkbench(context.Context, *conn
 
 func (UnimplementedWorkbenchServiceHandler) HeartbeatWorkbench(context.Context, *connect.Request[v1.HeartbeatWorkbenchRequest]) (*connect.Response[v1.HeartbeatWorkbenchResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.HeartbeatWorkbench is not implemented"))
+}
+
+func (UnimplementedWorkbenchServiceHandler) ReadStructYAML(context.Context, *connect.Request[v1.ReadStructYAMLRequest]) (*connect.Response[v1.ReadStructYAMLResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("api.v1.WorkbenchService.ReadStructYAML is not implemented"))
 }
 
 func (UnimplementedWorkbenchServiceHandler) CloseWorkbench(context.Context, *connect.Request[v1.CloseWorkbenchRequest]) (*connect.Response[v1.CloseWorkbenchResponse], error) {

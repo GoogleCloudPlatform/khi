@@ -137,3 +137,13 @@ export const NoRevision: Story = {
     previousRevisionContent: '',
   },
 };
+
+export const Loading: Story = {
+  ...Default,
+  args: {
+    isLoading: true,
+    currentRevision: mockCurrentRevision,
+    currentRevisionContent: '',
+    previousRevisionContent: '',
+  },
+};

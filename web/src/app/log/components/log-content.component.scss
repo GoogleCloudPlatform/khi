@@ -29,6 +29,7 @@ $search-highlight-active-text-color: mat.m2-get-color-from-palette(
   mat.$m2-gray-palette,
   50
 );
+$loading-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
 
 .log-body-view-root {
   width: 100%;
@@ -80,6 +81,16 @@ $search-highlight-active-text-color: mat.m2-get-color-from-palette(
   grid: 'logbody';
   margin: 0;
   overflow: auto;
+
+  .loading-overlay {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    color: $loading-text-color;
+  }
 
   code {
     white-space: pre;

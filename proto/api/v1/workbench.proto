@@ -28,6 +28,9 @@ service WorkbenchService {
   // Sends periodic heartbeat to keep the Workbench session alive in memory.
   rpc HeartbeatWorkbench(HeartbeatWorkbenchRequest) returns (HeartbeatWorkbenchResponse);
 
+  // Decodes an interned struct by ID and returns its formatted YAML string.
+  rpc ReadStructYAML(ReadStructYAMLRequest) returns (ReadStructYAMLResponse);
+
   // Explicitly closes and releases an active Workbench session.
   rpc CloseWorkbench(CloseWorkbenchRequest) returns (CloseWorkbenchResponse);
 }
@@ -70,6 +73,20 @@ message HeartbeatWorkbenchRequest {
 message HeartbeatWorkbenchResponse {
   bool active = 1;
   google.protobuf.Timestamp expires_at = 2;
+}
+
+// Request to decode an interned struct into its YAML representation.
+message ReadStructYAMLRequest {
+  // The active workbench session identifier.
+  string workbench_id = 1;
+  // The unique ID of the interned struct to decode.
+  uint32 struct_id = 2;
+}
+
+// Response containing the decoded YAML representation of the struct.
+message ReadStructYAMLResponse {
+  // The formatted YAML string representation of the requested struct.
+  string yaml = 1;
 }
 
 // Request to close and release a Workbench session immediately.

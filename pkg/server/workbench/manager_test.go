@@ -199,3 +199,50 @@ func TestWorkbenchManager_LeasesAndRemove(t *testing.T) {
 		t.Errorf("expected lease for %q to be deleted after Remove()", wb.ID())
 	}
 }
+
+func TestWorkbenchManager_GetAndTouch(t *testing.T) {
+	inspectionServer, validInspectionID := createTestInspectionServer(t)
+
+	mgr := NewWorkbenchManager(inspectionServer, 50*time.Millisecond, 0)
+	defer mgr.Stop()
+
+	wb, err := mgr.GetOrOpen(context.Background(), "user-session-1", validInspectionID, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	testCases := []struct {
+		name        string
+		workbenchID string
+		wantErrIs   error
+	}{
+		{
+			name:        "successfully gets workbench and refreshes TTL",
+			workbenchID: wb.ID(),
+			wantErrIs:   nil,
+		},
+		{
+			name:        "returns ErrWorkbenchNotFound for non-existent ID",
+			workbenchID: "unknown-session",
+			wantErrIs:   ErrWorkbenchNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotWb, err := mgr.GetAndTouch(tc.workbenchID)
+			if tc.wantErrIs != nil {
+				if !errors.Is(err, tc.wantErrIs) {
+					t.Fatalf("GetAndTouch(%q) error = %v, want %v", tc.workbenchID, err, tc.wantErrIs)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("GetAndTouch(%q) unexpected error = %v", tc.workbenchID, err)
+			}
+			if gotWb.ID() != tc.workbenchID {
+				t.Errorf("GetAndTouch(%q) ID = %q, want %q", tc.workbenchID, gotWb.ID(), tc.workbenchID)
+			}
+		})
+	}
+}

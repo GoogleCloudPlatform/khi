@@ -121,6 +121,40 @@ func NewInternPool(idGen *IDGenerator) *InternPool {
 	}
 }
 
+// NewInternPoolFromChunk creates an InternPool pre-populated with entries from an InterningPoolChunk.
+func NewInternPoolFromChunk(chunk *pbv6.InterningPoolChunk) *InternPool {
+	pool := NewInternPool(nil)
+	pool.IngestChunk(chunk)
+	return pool
+}
+
+// IngestChunk adds all strings, field path sets, and structs from an InterningPoolChunk into the pool.
+func (p *InternPool) IngestChunk(chunk *pbv6.InterningPoolChunk) {
+	if chunk == nil {
+		return
+	}
+	for _, str := range chunk.Strings {
+		if str.Id != nil && str.Value != nil {
+			p.idToStr.Store(*str.Id, *str.Value)
+			p.strToID.Store(*str.Value, *str.Id)
+		}
+	}
+	for _, fs := range chunk.FieldPathSets {
+		if fs.Id != nil {
+			p.idToFieldSet.Store(*fs.Id, fs.FieldPathStringIds)
+			p.fieldSetToID.Store(fieldSetKey(fs.FieldPathStringIds), *fs.Id)
+		}
+	}
+	for _, s := range chunk.Structs {
+		if s.Id != nil {
+			p.idToStruct.Store(*s.Id, s)
+			if s.FieldPathSetId != nil {
+				p.structToID.Store(structKey(*s.FieldPathSetId, s.Values), *s.Id)
+			}
+		}
+	}
+}
+
 // InternString returns a InternStringRef for the given string.
 // If the string is not already interned, it assigns a new ID from IDGenerator and stores it.
 func (p *InternPool) InternString(value string) *InternStringRef {
@@ -218,6 +252,12 @@ func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedVa
 	}
 
 	return &InternStructRef{pool: p, id: id}
+}
+
+// ResolveStructFromID returns the InternedStruct corresponding to the given ID.
+// It returns nil if the ID is not found.
+func (p *InternPool) ResolveStructFromID(id uint32) *pb.InternedStruct {
+	return p.resolveStructFromID(id)
 }
 
 // resolveStructFromID returns the InternedStruct corresponding to the given ID.

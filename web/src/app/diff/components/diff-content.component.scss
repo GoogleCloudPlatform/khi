@@ -28,6 +28,7 @@ $search-highlight-active-text-color: mat.m2-get-color-from-palette(
   mat.$m2-gray-palette,
   50
 );
+$loading-text-color: mat.m2-get-color-from-palette(mat.$m2-gray-palette, 600);
 
 .empty-message {
   margin: 16px;
@@ -47,6 +48,16 @@ $search-highlight-active-text-color: mat.m2-get-color-from-palette(
 .diff-inner {
   overflow-y: auto;
   flex: 1;
+
+  .loading-overlay {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    color: $loading-text-color;
+  }
 
   .search-highlight {
     background-color: $search-highlight-bg-color;

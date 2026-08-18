@@ -18,6 +18,7 @@ import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ConnectClientService } from 'src/app/services/api/connect-client.service';
 import { UserIdentityService } from 'src/app/services/api/workbench/user-identity.service';
 import { OpenWorkbenchResponse_Stage } from 'src/app/generated/api/v1/workbench_pb';
+import { LRUCache } from 'src/app/common/lru-cache';
 
 /**
  * Progress event callback for Workbench opening.
@@ -35,10 +36,18 @@ export type WorkbenchOpenProgressCallback = (
   providedIn: 'root',
 })
 export class WorkbenchClientService implements OnDestroy {
+  /**
+   * Maximum number of interned struct YAML strings to cache in memory.
+   */
+  private static readonly STRUCT_YAML_CACHE_CAPACITY = 2000;
+
   private readonly connectClient = inject(ConnectClientService);
   private readonly userIdService = inject(UserIdentityService);
 
   private readonly activeWorkbenchIdSignal = signal<string | null>(null);
+  private readonly structYamlCache = new LRUCache<number, string>(
+    WorkbenchClientService.STRUCT_YAML_CACHE_CAPACITY,
+  );
 
   /**
    * The ID of the currently active Workbench session, or null if none is open.
@@ -103,6 +112,7 @@ export class WorkbenchClientService implements OnDestroy {
     }
 
     if (workbenchId) {
+      this.structYamlCache.clear();
       this.activeWorkbenchIdSignal.set(workbenchId);
       this.startHeartbeat(workbenchId);
     }
@@ -131,6 +141,7 @@ export class WorkbenchClientService implements OnDestroy {
   public async closeWorkbench(workbenchId?: string): Promise<void> {
     const id = workbenchId ?? this.activeWorkbenchIdSignal();
     this.stopHeartbeat();
+    this.structYamlCache.clear();
     this.activeWorkbenchIdSignal.set(null);
 
     if (id) {
@@ -142,6 +153,31 @@ export class WorkbenchClientService implements OnDestroy {
         console.warn(`[WorkbenchClient] Close failed for ${id}:`, e);
       }
     }
+  }
+
+  /**
+   * Fetches the decoded YAML representation of an interned struct by ID from the active Workbench session.
+   *
+   * @param structId The interned struct ID to decode.
+   * @returns The YAML string representation.
+   */
+  public async readStructYAML(structId: number): Promise<string> {
+    const cached = this.structYamlCache.get(structId);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    const workbenchId = this.activeWorkbenchIdSignal();
+    if (!workbenchId) {
+      throw new Error('No active Workbench session found.');
+    }
+    const res = await this.connectClient.workbenchClient.readStructYAML({
+      workbenchId,
+      structId,
+    });
+    const yaml = res.yaml ?? '';
+    this.structYamlCache.put(structId, yaml);
+    return yaml;
   }
 
   private startHeartbeat(workbenchId: string): void {

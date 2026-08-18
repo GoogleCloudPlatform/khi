@@ -327,6 +327,107 @@ func (x *HeartbeatWorkbenchResponse) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Request to decode an interned struct into its YAML representation.
+type ReadStructYAMLRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The active workbench session identifier.
+	WorkbenchId *string `protobuf:"bytes,1,opt,name=workbench_id,json=workbenchId" json:"workbench_id,omitempty"`
+	// The unique ID of the interned struct to decode.
+	StructId      *uint32 `protobuf:"varint,2,opt,name=struct_id,json=structId" json:"struct_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadStructYAMLRequest) Reset() {
+	*x = ReadStructYAMLRequest{}
+	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadStructYAMLRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadStructYAMLRequest) ProtoMessage() {}
+
+func (x *ReadStructYAMLRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadStructYAMLRequest.ProtoReflect.Descriptor instead.
+func (*ReadStructYAMLRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ReadStructYAMLRequest) GetWorkbenchId() string {
+	if x != nil && x.WorkbenchId != nil {
+		return *x.WorkbenchId
+	}
+	return ""
+}
+
+func (x *ReadStructYAMLRequest) GetStructId() uint32 {
+	if x != nil && x.StructId != nil {
+		return *x.StructId
+	}
+	return 0
+}
+
+// Response containing the decoded YAML representation of the struct.
+type ReadStructYAMLResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The formatted YAML string representation of the requested struct.
+	Yaml          *string `protobuf:"bytes,1,opt,name=yaml" json:"yaml,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadStructYAMLResponse) Reset() {
+	*x = ReadStructYAMLResponse{}
+	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadStructYAMLResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadStructYAMLResponse) ProtoMessage() {}
+
+func (x *ReadStructYAMLResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadStructYAMLResponse.ProtoReflect.Descriptor instead.
+func (*ReadStructYAMLResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ReadStructYAMLResponse) GetYaml() string {
+	if x != nil && x.Yaml != nil {
+		return *x.Yaml
+	}
+	return ""
+}
+
 // Request to close and release a Workbench session immediately.
 type CloseWorkbenchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -337,7 +438,7 @@ type CloseWorkbenchRequest struct {
 
 func (x *CloseWorkbenchRequest) Reset() {
 	*x = CloseWorkbenchRequest{}
-	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	mi := &file_api_v1_workbench_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -349,7 +450,7 @@ func (x *CloseWorkbenchRequest) String() string {
 func (*CloseWorkbenchRequest) ProtoMessage() {}
 
 func (x *CloseWorkbenchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[4]
+	mi := &file_api_v1_workbench_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -362,7 +463,7 @@ func (x *CloseWorkbenchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWorkbenchRequest.ProtoReflect.Descriptor instead.
 func (*CloseWorkbenchRequest) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{4}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CloseWorkbenchRequest) GetWorkbenchId() string {
@@ -382,7 +483,7 @@ type CloseWorkbenchResponse struct {
 
 func (x *CloseWorkbenchResponse) Reset() {
 	*x = CloseWorkbenchResponse{}
-	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	mi := &file_api_v1_workbench_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +495,7 @@ func (x *CloseWorkbenchResponse) String() string {
 func (*CloseWorkbenchResponse) ProtoMessage() {}
 
 func (x *CloseWorkbenchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_v1_workbench_proto_msgTypes[5]
+	mi := &file_api_v1_workbench_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +508,7 @@ func (x *CloseWorkbenchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseWorkbenchResponse.ProtoReflect.Descriptor instead.
 func (*CloseWorkbenchResponse) Descriptor() ([]byte, []int) {
-	return file_api_v1_workbench_proto_rawDescGZIP(), []int{5}
+	return file_api_v1_workbench_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CloseWorkbenchResponse) GetClosed() bool {
@@ -444,14 +545,20 @@ const file_api_v1_workbench_proto_rawDesc = "" +
 	"\x1aHeartbeatWorkbenchResponse\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\":\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"W\n" +
+	"\x15ReadStructYAMLRequest\x12!\n" +
+	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\x12\x1b\n" +
+	"\tstruct_id\x18\x02 \x01(\rR\bstructId\",\n" +
+	"\x16ReadStructYAMLResponse\x12\x12\n" +
+	"\x04yaml\x18\x01 \x01(\tR\x04yaml\":\n" +
 	"\x15CloseWorkbenchRequest\x12!\n" +
 	"\fworkbench_id\x18\x01 \x01(\tR\vworkbenchId\"0\n" +
 	"\x16CloseWorkbenchResponse\x12\x16\n" +
-	"\x06closed\x18\x01 \x01(\bR\x06closed2\x90\x02\n" +
+	"\x06closed\x18\x01 \x01(\bR\x06closed2\xe1\x02\n" +
 	"\x10WorkbenchService\x12N\n" +
 	"\rOpenWorkbench\x12\x1c.api.v1.OpenWorkbenchRequest\x1a\x1d.api.v1.OpenWorkbenchResponse0\x01\x12[\n" +
 	"\x12HeartbeatWorkbench\x12!.api.v1.HeartbeatWorkbenchRequest\x1a\".api.v1.HeartbeatWorkbenchResponse\x12O\n" +
+	"\x0eReadStructYAML\x12\x1d.api.v1.ReadStructYAMLRequest\x1a\x1e.api.v1.ReadStructYAMLResponse\x12O\n" +
 	"\x0eCloseWorkbench\x12\x1d.api.v1.CloseWorkbenchRequest\x1a\x1e.api.v1.CloseWorkbenchResponseB?Z=github.com/GoogleCloudPlatform/khi/pkg/generated/api/v1;apiv1b\beditionsp\xe8\a"
 
 var (
@@ -467,28 +574,32 @@ func file_api_v1_workbench_proto_rawDescGZIP() []byte {
 }
 
 var file_api_v1_workbench_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_api_v1_workbench_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_api_v1_workbench_proto_goTypes = []any{
 	(OpenWorkbenchResponse_Stage)(0),   // 0: api.v1.OpenWorkbenchResponse.Stage
 	(*OpenWorkbenchRequest)(nil),       // 1: api.v1.OpenWorkbenchRequest
 	(*OpenWorkbenchResponse)(nil),      // 2: api.v1.OpenWorkbenchResponse
 	(*HeartbeatWorkbenchRequest)(nil),  // 3: api.v1.HeartbeatWorkbenchRequest
 	(*HeartbeatWorkbenchResponse)(nil), // 4: api.v1.HeartbeatWorkbenchResponse
-	(*CloseWorkbenchRequest)(nil),      // 5: api.v1.CloseWorkbenchRequest
-	(*CloseWorkbenchResponse)(nil),     // 6: api.v1.CloseWorkbenchResponse
-	(*timestamppb.Timestamp)(nil),      // 7: google.protobuf.Timestamp
+	(*ReadStructYAMLRequest)(nil),      // 5: api.v1.ReadStructYAMLRequest
+	(*ReadStructYAMLResponse)(nil),     // 6: api.v1.ReadStructYAMLResponse
+	(*CloseWorkbenchRequest)(nil),      // 7: api.v1.CloseWorkbenchRequest
+	(*CloseWorkbenchResponse)(nil),     // 8: api.v1.CloseWorkbenchResponse
+	(*timestamppb.Timestamp)(nil),      // 9: google.protobuf.Timestamp
 }
 var file_api_v1_workbench_proto_depIdxs = []int32{
 	0, // 0: api.v1.OpenWorkbenchResponse.stage:type_name -> api.v1.OpenWorkbenchResponse.Stage
-	7, // 1: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
+	9, // 1: api.v1.HeartbeatWorkbenchResponse.expires_at:type_name -> google.protobuf.Timestamp
 	1, // 2: api.v1.WorkbenchService.OpenWorkbench:input_type -> api.v1.OpenWorkbenchRequest
 	3, // 3: api.v1.WorkbenchService.HeartbeatWorkbench:input_type -> api.v1.HeartbeatWorkbenchRequest
-	5, // 4: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
-	2, // 5: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
-	4, // 6: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
-	6, // 7: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
-	5, // [5:8] is the sub-list for method output_type
-	2, // [2:5] is the sub-list for method input_type
+	5, // 4: api.v1.WorkbenchService.ReadStructYAML:input_type -> api.v1.ReadStructYAMLRequest
+	7, // 5: api.v1.WorkbenchService.CloseWorkbench:input_type -> api.v1.CloseWorkbenchRequest
+	2, // 6: api.v1.WorkbenchService.OpenWorkbench:output_type -> api.v1.OpenWorkbenchResponse
+	4, // 7: api.v1.WorkbenchService.HeartbeatWorkbench:output_type -> api.v1.HeartbeatWorkbenchResponse
+	6, // 8: api.v1.WorkbenchService.ReadStructYAML:output_type -> api.v1.ReadStructYAMLResponse
+	8, // 9: api.v1.WorkbenchService.CloseWorkbench:output_type -> api.v1.CloseWorkbenchResponse
+	6, // [6:10] is the sub-list for method output_type
+	2, // [2:6] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
 	2, // [2:2] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
@@ -505,7 +616,7 @@ func file_api_v1_workbench_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_workbench_proto_rawDesc), len(file_api_v1_workbench_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

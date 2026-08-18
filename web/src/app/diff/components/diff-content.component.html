@@ -42,16 +42,23 @@ limitations under the License.
       </div>
     }
     <div #diffContainer class="diff-inner">
-      <khi-yaml-viewer
-        [leftYaml]="previousRevisionContent() ?? ' '"
-        [rightYaml]="currentRevisionContent()"
-        [searchQuery]="searchQuery()"
-        [activeMatchIndex]="currentMatchIndex()"
-        [activeDiffIndex]="currentDiffIndex()"
-        [annotationProviders]="annotationProviders()"
-        (matchCount)="matchCount.set($event)"
-        (diffCount)="diffCount.set($event)"
-      ></khi-yaml-viewer>
+      @if (isLoading()) {
+        <div class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
+          <span>Loading diff content...</span>
+        </div>
+      } @else {
+        <khi-yaml-viewer
+          [leftYaml]="previousRevisionContent() ?? ' '"
+          [rightYaml]="currentRevisionContent()"
+          [searchQuery]="searchQuery()"
+          [activeMatchIndex]="currentMatchIndex()"
+          [activeDiffIndex]="currentDiffIndex()"
+          [annotationProviders]="annotationProviders()"
+          (matchCount)="matchCount.set($event)"
+          (diffCount)="diffCount.set($event)"
+        ></khi-yaml-viewer>
+      }
     </div>
   </div>
 }

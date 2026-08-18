@@ -35,6 +35,7 @@
     <as-split-area size="50">
       <khi-log-content
         [vm]="logContentViewModel()"
+        [isLoading]="isLoading()"
         [timezoneShift]="timezoneShift()"
         [selectedTimeline]="selectedTimeline()"
         (timelineSelected)="onTimelineSelected($event)"

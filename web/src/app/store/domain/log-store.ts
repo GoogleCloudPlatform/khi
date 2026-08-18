@@ -439,6 +439,14 @@ export class LogStore {
   }
 
   /**
+   * Gets the interned struct ID of a log body, or 0 if not stored as a struct.
+   */
+  public getBodyStructId(id: number): number {
+    const index = this.getIndex(id);
+    return this.bodyStructIds[index] ?? 0;
+  }
+
+  /**
    * Decodes the nested properties of a log by its ID.
    * @note Intended solely for internal retrieval inside the {@link Log} domain adapter.
    */

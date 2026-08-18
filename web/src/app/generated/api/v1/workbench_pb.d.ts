@@ -187,6 +187,55 @@ export declare type HeartbeatWorkbenchResponse =
 export declare const HeartbeatWorkbenchResponseSchema: GenMessage<HeartbeatWorkbenchResponse>;
 
 /**
+ * Request to decode an interned struct into its YAML representation.
+ *
+ * @generated from message api.v1.ReadStructYAMLRequest
+ */
+export declare type ReadStructYAMLRequest =
+  Message<'api.v1.ReadStructYAMLRequest'> & {
+    /**
+     * The active workbench session identifier.
+     *
+     * @generated from field: string workbench_id = 1;
+     */
+    workbenchId: string;
+
+    /**
+     * The unique ID of the interned struct to decode.
+     *
+     * @generated from field: uint32 struct_id = 2;
+     */
+    structId: number;
+  };
+
+/**
+ * Describes the message api.v1.ReadStructYAMLRequest.
+ * Use `create(ReadStructYAMLRequestSchema)` to create a new message.
+ */
+export declare const ReadStructYAMLRequestSchema: GenMessage<ReadStructYAMLRequest>;
+
+/**
+ * Response containing the decoded YAML representation of the struct.
+ *
+ * @generated from message api.v1.ReadStructYAMLResponse
+ */
+export declare type ReadStructYAMLResponse =
+  Message<'api.v1.ReadStructYAMLResponse'> & {
+    /**
+     * The formatted YAML string representation of the requested struct.
+     *
+     * @generated from field: string yaml = 1;
+     */
+    yaml: string;
+  };
+
+/**
+ * Describes the message api.v1.ReadStructYAMLResponse.
+ * Use `create(ReadStructYAMLResponseSchema)` to create a new message.
+ */
+export declare const ReadStructYAMLResponseSchema: GenMessage<ReadStructYAMLResponse>;
+
+/**
  * Request to close and release a Workbench session immediately.
  *
  * @generated from message api.v1.CloseWorkbenchRequest
@@ -249,6 +298,16 @@ export declare const WorkbenchService: GenService<{
     methodKind: 'unary';
     input: typeof HeartbeatWorkbenchRequestSchema;
     output: typeof HeartbeatWorkbenchResponseSchema;
+  };
+  /**
+   * Decodes an interned struct by ID and returns its formatted YAML string.
+   *
+   * @generated from rpc api.v1.WorkbenchService.ReadStructYAML
+   */
+  readStructYAML: {
+    methodKind: 'unary';
+    input: typeof ReadStructYAMLRequestSchema;
+    output: typeof ReadStructYAMLResponseSchema;
   };
   /**
    * Explicitly closes and releases an active Workbench session.

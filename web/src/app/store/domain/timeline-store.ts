@@ -787,6 +787,14 @@ export class TimelineStore {
   }
 
   /**
+   * Gets the interned struct ID of a revision body, or 0 if not stored as a struct.
+   */
+  public getRevisionBodyStructId(id: number): number {
+    const index = this.getRevisionIndex(id);
+    return this.revisionBodyStructIds[index] ?? 0;
+  }
+
+  /**
    * Decodes encapsulated revision properties from its structural domain interface.
    * @note Intended solely for internal retrieval inside the {@link Revision} domain adapter.
    */

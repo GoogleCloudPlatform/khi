@@ -232,3 +232,82 @@ func TestWorkbenchServiceServer_HeartbeatAndClose(t *testing.T) {
 		t.Errorf("HeartbeatWorkbench() after close code = %v, want NotFound", connect.CodeOf(err))
 	}
 }
+
+func TestWorkbenchServiceServer_ReadStructYAML(t *testing.T) {
+	ts, client, manager, validInspID := setupTestWorkbenchServer(t)
+	defer ts.Close()
+	defer manager.Stop()
+
+	// 1. Open workbench
+	openStream, err := client.OpenWorkbench(context.Background(), connect.NewRequest(&apiv1.OpenWorkbenchRequest{
+		UserId:       proto.String("user-struct"),
+		SessionId:    proto.String("session-0"),
+		InspectionId: proto.String(validInspID),
+	}))
+	if err != nil {
+		t.Fatalf("OpenWorkbench() error = %v", err)
+	}
+	for openStream.Receive() {
+	}
+	if err := openStream.Err(); err != nil {
+		t.Fatalf("OpenWorkbench() stream error = %v", err)
+	}
+
+	workbenchID := "user-struct-session-0"
+
+	testCases := []struct {
+		name        string
+		workbenchID string
+		structID    uint32
+		wantErrCode connect.Code
+	}{
+		{
+			name:        "fails with invalid argument when workbench_id is empty",
+			workbenchID: "",
+			structID:    1,
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name:        "fails with invalid argument when struct_id is 0",
+			workbenchID: workbenchID,
+			structID:    0,
+			wantErrCode: connect.CodeInvalidArgument,
+		},
+		{
+			name:        "fails with not found for non-existent workbench",
+			workbenchID: "non-existent-workbench",
+			structID:    1,
+			wantErrCode: connect.CodeNotFound,
+		},
+		{
+			name:        "fails with not found for non-existent struct ID",
+			workbenchID: workbenchID,
+			structID:    9999,
+			wantErrCode: connect.CodeNotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := client.ReadStructYAML(context.Background(), connect.NewRequest(&apiv1.ReadStructYAMLRequest{
+				WorkbenchId: proto.String(tc.workbenchID),
+				StructId:    proto.Uint32(tc.structID),
+			}))
+			if tc.wantErrCode != 0 {
+				if err == nil {
+					t.Fatalf("expected error code %v, got nil", tc.wantErrCode)
+				}
+				if connect.CodeOf(err) != tc.wantErrCode {
+					t.Errorf("error code = %v, want %v (err = %v)", connect.CodeOf(err), tc.wantErrCode, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if res.Msg.GetYaml() == "" {
+				t.Errorf("expected non-empty YAML response")
+			}
+		})
+	}
+}

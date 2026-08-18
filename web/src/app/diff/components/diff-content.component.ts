@@ -40,6 +40,7 @@ import { ManagedFieldsAnnotationProvider } from 'src/app/shared/components/yaml-
 import { RevisionFieldAnnotationProvider } from 'src/app/shared/components/yaml-viewer/revision-field-annotation.provider';
 import * as yaml from 'js-yaml';
 import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 /**
  * Component for displaying the unified diff of a resource revision.
@@ -53,11 +54,17 @@ import { isEventFromOverlay, isSearchShortcut } from 'src/app/common/dom-util';
     DiffToolbarComponent,
     SearchBarComponent,
     YamlViewerComponent,
+    MatProgressSpinnerModule,
   ],
 })
 export class DiffContentComponent {
   private readonly clipboard = inject(Clipboard);
   private readonly snackBar = inject(MatSnackBar);
+
+  /**
+   * Input indicating whether revision content is currently loading.
+   */
+  readonly isLoading = input<boolean>(false);
 
   /**
    * The current revision being viewed.

@@ -68,12 +68,19 @@ limitations under the License.
       </div>
     }
     <div class="log-body-container">
-      <khi-yaml-viewer
-        [rightYaml]="viewModel.logBody"
-        [searchQuery]="searchQuery()"
-        [activeMatchIndex]="currentMatchIndex()"
-        (matchCount)="matchCount.set($event)"
-      ></khi-yaml-viewer>
+      @if (isLoading()) {
+        <div class="loading-overlay">
+          <mat-spinner diameter="40"></mat-spinner>
+          <span>Loading log body...</span>
+        </div>
+      } @else {
+        <khi-yaml-viewer
+          [rightYaml]="viewModel.logBody"
+          [searchQuery]="searchQuery()"
+          [activeMatchIndex]="currentMatchIndex()"
+          (matchCount)="matchCount.set($event)"
+        ></khi-yaml-viewer>
+      }
     </div>
   } @else {
     <div class="empty-message">
