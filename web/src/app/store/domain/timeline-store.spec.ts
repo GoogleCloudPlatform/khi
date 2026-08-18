@@ -23,11 +23,6 @@ import {
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
-import { create, toBinary } from '@bufbuild/protobuf';
-import {
-  InternedStructSchema,
-  InternedValueSchema,
-} from 'src/app/generated/khifile/shared_pb';
 
 describe('TimelineStore', () => {
   let internPool: InternPoolStore;
@@ -132,6 +127,7 @@ describe('TimelineStore', () => {
         principalStringId: 2,
         verbTypeId: 1,
         stateTypeId: 1,
+        resourceBodyStructId: 88,
       },
     ];
 
@@ -149,6 +145,10 @@ describe('TimelineStore', () => {
     const t = store.getTimeline(10);
     expect(t.id).toBe(10);
     expect(t.name).toBe('timeline-x');
+
+    const rev = t.revisions[0];
+    expect(rev.id).toBe(100);
+    expect(rev.structId).toBe(88);
 
     const all = store.timelines;
     expect(all.length).toBe(1);
@@ -454,235 +454,8 @@ describe('TimelineStore', () => {
     );
   });
 
-  it('should return decoded revision body correctly', () => {
-    internPool.addStrings([
-      { id: 10, value: 'user' },
-      { id: 11, value: 'status' },
-      { id: 12, value: 'alice' },
-    ]);
-
-    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10, 11] }]);
-
-    const struct = create(InternedStructSchema, {
-      fieldPathSetId: 1,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 12 },
-        }),
-        create(InternedValueSchema, {
-          kind: { case: 'int64Value', value: 42n },
-        }),
-      ],
-    });
-
-    const rawTimelines: TimelineDTO[] = [
-      {
-        id: 10,
-        timelineTypeId: 1,
-        nameStringId: 1,
-        parentTimelineId: 0,
-        revisionIds: [100, 101],
-        eventIds: [],
-      },
-    ];
-
-    const rawRevisions: RevisionDTO[] = [
-      {
-        id: 100,
-        logId: 1,
-        changedTime: 10n,
-        principalStringId: 1,
-        verbTypeId: 1,
-        stateTypeId: 1,
-        body: toBinary(InternedStructSchema, struct),
-      },
-      {
-        id: 101,
-        logId: 2,
-        changedTime: 20n,
-        principalStringId: 1,
-        verbTypeId: 1,
-        stateTypeId: 1,
-      },
-    ];
-
-    const logs = [
-      { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
-      { id: 2, ts: 20n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
-    ];
-    logStore.initialize(logs, 2);
-
-    store.initialize(rawTimelines, 1, rawRevisions, 2, [], 0);
-
-    const t = store.getTimeline(10);
-    expect(t.revisions[0].body).toEqual({
-      user: 'alice',
-      status: 42,
-    });
-    expect(t.revisions[0].bodyYAML).toBe('user: alice\nstatus: 42\n');
-    expect(t.revisions[1].body).toBeNull();
-    expect(t.revisions[1].bodyYAML).toBe('');
-  });
-
-  it('should return decoded revision body by resourceBodyStructId correctly', () => {
-    internPool.addStrings([
-      { id: 10, value: 'user' },
-      { id: 12, value: 'bob' },
-    ]);
-
-    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
-
-    const struct = create(InternedStructSchema, {
-      id: 50,
-      fieldPathSetId: 1,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 12 },
-        }),
-      ],
-    });
-    internPool.addStructs([struct]);
-
-    const rawTimelines: TimelineDTO[] = [
-      {
-        id: 10,
-        timelineTypeId: 1,
-        nameStringId: 1,
-        parentTimelineId: 0,
-        revisionIds: [100],
-        eventIds: [],
-      },
-    ];
-
-    const rawRevisions: RevisionDTO[] = [
-      {
-        id: 100,
-        logId: 1,
-        changedTime: 10n,
-        principalStringId: 1,
-        verbTypeId: 1,
-        stateTypeId: 1,
-        resourceBodyStructId: 50,
-      },
-    ];
-
-    const logs = [
-      { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
-    ];
-    logStore.initialize(logs, 1);
-
-    store.initialize(rawTimelines, 1, rawRevisions, 1, [], 0);
-
-    const t = store.getTimeline(10);
-    expect(t.revisions[0].body).toEqual({
-      user: 'bob',
-    });
-  });
-
-  it('should cache revision body in WeakRef and re-decode when GC collected', () => {
-    internPool.addStrings([
-      { id: 10, value: 'user' },
-      { id: 11, value: 'alice' },
-    ]);
-
-    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
-
-    const struct = create(InternedStructSchema, {
-      fieldPathSetId: 1,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 11 },
-        }),
-      ],
-    });
-
-    const rawTimelines: TimelineDTO[] = [
-      {
-        id: 10,
-        timelineTypeId: 1,
-        nameStringId: 1,
-        parentTimelineId: 0,
-        revisionIds: [100],
-        eventIds: [],
-      },
-    ];
-
-    const rawRevisions: RevisionDTO[] = [
-      {
-        id: 100,
-        logId: 1,
-        changedTime: 10n,
-        principalStringId: 1,
-        verbTypeId: 1,
-        stateTypeId: 1,
-        body: toBinary(InternedStructSchema, struct),
-      },
-    ];
-
-    const logs = [
-      { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
-    ];
-    logStore.initialize(logs, 1);
-
-    store.initialize(rawTimelines, 1, rawRevisions, 1, [], 0);
-
-    const revision = store.getTimeline(10).revisions[0];
-
-    // Access the private decoder inside TimelineStore to spy on the actual decoding call.
-    // This lets us verify whether a cache hit bypasses the heavy decoding process.
-    const storeRecord = store as unknown as Record<string, unknown>;
-    const decoder = storeRecord['decoder'] as {
-      decode: (struct: unknown) => Record<string, unknown>;
-    };
-    const spyDecoderDecode = spyOn(decoder, 'decode').and.callThrough();
-
-    // First access decodes the raw binary body and populates the cache.
-    const body1 = revision.body;
-    expect(body1).toEqual({ user: 'alice' });
-    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
-
-    // Reset the spy to track subsequent decode calls accurately.
-    spyDecoderDecode.calls.reset();
-
-    // Second access should hit the cache in TimelineStore, avoiding another decode invocation.
-    const body2 = revision.body;
-    expect(body2).toBe(body1);
-    expect(spyDecoderDecode).not.toHaveBeenCalled();
-
-    // Access the private revisionDecodedBodyCache array to simulate garbage collection.
-    const revisionDecodedBodyCache = storeRecord[
-      'revisionDecodedBodyCache'
-    ] as WeakRef<Record<string, unknown>>[];
-    const internalBodyRef = revisionDecodedBodyCache[0];
-    expect(internalBodyRef).toBeInstanceOf(WeakRef);
-
-    // Mock deref() returning undefined to simulate that the WeakRef target has been garbage collected.
-    spyOn(internalBodyRef, 'deref').and.returnValue(undefined);
-
-    spyDecoderDecode.calls.reset();
-
-    // Third access fails the deref() check, triggering a re-decode of the binary body.
-    const body3 = revision.body;
-    expect(body3).toEqual({ user: 'alice' });
-    expect(body3).not.toBe(body1);
-    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
-  });
-
   it('should restore from shared memory using fromSharedData and enforce readOnly guard', () => {
-    internPool.addStrings([
-      { id: 20, value: 'user' },
-      { id: 21, value: 'alice' },
-    ]);
-    internPool.addFieldPathSets([{ id: 2, fieldPathStringIds: [20] }]);
-    const struct = create(InternedStructSchema, {
-      fieldPathSetId: 2,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 21 },
-        }),
-      ],
-    });
-    const rawBody = toBinary(InternedStructSchema, struct);
+    internPool.addStrings([{ id: 1, value: 'timeline-1' }]);
 
     const timelines: TimelineDTO[] = [
       {
@@ -703,7 +476,7 @@ describe('TimelineStore', () => {
         principalStringId: 1,
         verbTypeId: 1,
         stateTypeId: 1,
-        body: rawBody,
+        resourceBodyStructId: 99,
       },
     ];
 
@@ -730,7 +503,7 @@ describe('TimelineStore', () => {
     const restoredRevisions = restoredTimeline.revisions;
     expect(restoredRevisions.length).toBe(1);
     expect(restoredRevisions[0].id).toBe(1);
-    expect(restoredRevisions[0].body).toEqual({ user: 'alice' });
+    expect(restoredRevisions[0].structId).toBe(99);
 
     expect(() => {
       restoredStore.initialize(timelines, 1, revisions, 1, [], 0);

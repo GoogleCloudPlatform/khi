@@ -28,6 +28,7 @@ import {
   IncludeDescendantsFilter,
 } from 'src/app/store/domain/filter/other-filter';
 import { SearchWorkerManager } from 'src/app/services/search-worker-manager.service';
+import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
 
 /**
  * Service to store and manage the active InspectionData domain model.
@@ -44,6 +45,7 @@ export class InspectionDataStore {
   private readonly celLogFilter = inject(CelLogFilter);
   private readonly excludeNoLogsFilter = inject(ExcludeNoLogsFilter);
   private readonly searchWorkerManager = inject(SearchWorkerManager);
+  private readonly workbenchClient = inject(WorkbenchClientService);
 
   /**
    * Holds the active inspection data. Emits null if no data has been loaded.
@@ -79,7 +81,7 @@ export class InspectionDataStore {
       data.styleStore,
     );
 
-    const view = new TimelineView(data.timelineStore);
+    const view = new TimelineView(data.timelineStore, this.workbenchClient);
     view.addFilter(this.celTimelineFilter);
     view.addFilter(new IncludeDescendantsFilter());
     view.addFilter(this.celTimelineExclusionFilter);

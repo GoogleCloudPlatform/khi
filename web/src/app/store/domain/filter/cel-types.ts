@@ -93,6 +93,10 @@ export interface CelFilterUpdateResult {
  * Converts a Log domain element to a simplified CELLog representation.
  */
 export function toCelLog(log: ReadonlyDomainElement<Log>): CELLog {
+  const untypedLog = log as unknown as {
+    body?: Record<string, unknown>;
+    bodyYAML?: string;
+  };
   return {
     get logType(): string {
       return log.logType?.label ?? '';
@@ -104,10 +108,10 @@ export function toCelLog(log: ReadonlyDomainElement<Log>): CELLog {
       return log.summary ?? '';
     },
     get body(): Record<string, unknown> {
-      return (log.body ?? {}) as Record<string, unknown>;
+      return (untypedLog.body ?? {}) as Record<string, unknown>;
     },
     get bodyYAML(): string {
-      return log.bodyYAML ?? '';
+      return untypedLog.bodyYAML ?? '';
     },
     UNKNOWN: 0n,
     INFO: 1n,
@@ -134,6 +138,10 @@ export function toCelEvent(event: ReadonlyDomainElement<Event>): CELEvent {
 export function toCelRevision(
   revision: ReadonlyDomainElement<Revision>,
 ): CELRevision {
+  const untypedRevision = revision as unknown as {
+    body?: Record<string, unknown>;
+    bodyYAML?: string;
+  };
   return {
     get log(): CELLog {
       return toCelLog(revision.log);
@@ -151,10 +159,10 @@ export function toCelRevision(
       return revision.state.label;
     },
     get body(): Record<string, unknown> {
-      return (revision.body ?? {}) as Record<string, unknown>;
+      return (untypedRevision.body ?? {}) as Record<string, unknown>;
     },
     get bodyYAML(): string {
-      return revision.bodyYAML ?? '';
+      return untypedRevision.bodyYAML ?? '';
     },
   };
 }

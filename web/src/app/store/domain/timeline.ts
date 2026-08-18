@@ -21,7 +21,6 @@ import {
   Verb,
 } from 'src/app/store/domain/style';
 import { TimelineStore } from 'src/app/store/domain/timeline-store';
-import * as yaml from 'js-yaml';
 
 import { Log } from 'src/app/store/domain/log';
 import {
@@ -148,20 +147,6 @@ export class Revision {
    */
   get structId(): number {
     return this.timelineStore.getRevisionBodyStructId(this.id);
-  }
-
-  /**
-   * Gets the optional structured resource manifest parameters at the snapshot moment.
-   */
-  get body(): ReadonlyDomainElement<Record<string, unknown>> | null {
-    return this.timelineStore._decodeRevisionBody(this.id);
-  }
-
-  /**
-   * Gets the YAML string representation of the resource manifest.
-   */
-  get bodyYAML(): string {
-    return this.body ? yaml.dump(this.body, { lineWidth: -1 }) : '';
   }
 
   /**

@@ -42,8 +42,8 @@ export class DiffPageDataSourceServer {
           UPDATE_SELECTED_RESOURCE_MESSAGE_KEY,
           {
             timelinePath: timeline.path,
-            previousContent: revision.prev ? revision.prev.bodyYAML : '',
-            currentContent: revision.bodyYAML,
+            previousContent: '',
+            currentContent: '',
             logIndex: revision.logIndex,
           },
           message.sourceFrameId!,

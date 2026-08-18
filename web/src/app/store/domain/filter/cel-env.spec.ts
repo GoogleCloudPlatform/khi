@@ -372,9 +372,7 @@ describe('CELLogFilterEnvironment', () => {
       logType: { label: 'k8s' },
       severity: { label: 'INFO' },
       summary: 'L1',
-      body: {},
-      bodyYAML: '',
-    } as ReadonlyDomainElement<Log>;
+    } as unknown as ReadonlyDomainElement<Log>;
 
     expect(env.evaluate(mockLog)).toBe(true);
   });
@@ -390,17 +388,13 @@ describe('CELLogFilterEnvironment', () => {
       logType: { label: 'k8s' },
       severity: { label: 'INFO' },
       summary: 'L1',
-      body: {},
-      bodyYAML: '',
-    } as ReadonlyDomainElement<Log>;
+    } as unknown as ReadonlyDomainElement<Log>;
 
     const log2 = {
       logType: { label: 'audit' },
       severity: { label: 'WARNING' },
       summary: 'L2',
-      body: {},
-      bodyYAML: '',
-    } as ReadonlyDomainElement<Log>;
+    } as unknown as ReadonlyDomainElement<Log>;
 
     env.compile("logType == 'k8s' && severity == INFO");
     expect(env.evaluate(log1)).toBe(true);

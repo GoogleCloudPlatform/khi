@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import * as yaml from 'js-yaml';
 import { LogType, Severity } from 'src/app/store/domain/style';
 import { LogStore } from 'src/app/store/domain/log-store';
 import { ReadonlyDomainElement } from 'src/app/store/domain/types';
@@ -78,19 +77,5 @@ export class Log {
    */
   get structId(): number {
     return this.store.getBodyStructId(this.id);
-  }
-
-  /**
-   * Gets the structured log attributes decoded from Intern pool data stores.
-   */
-  get body(): ReadonlyDomainElement<Record<string, unknown>> | null {
-    return this.store._decodeBody(this.id);
-  }
-
-  /**
-   * Gets the YAML string representation of the structured log attributes.
-   */
-  get bodyYAML(): string {
-    return this.body ? yaml.dump(this.body, { lineWidth: -1 }) : '';
   }
 }

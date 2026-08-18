@@ -29,21 +29,6 @@ export interface StringEntryDTO {
 }
 
 import { allocateBuffer, isSharedBuffer } from 'src/app/store/domain/types';
-import { InternedStruct } from 'src/app/generated/khifile/shared_pb';
-
-/**
- * Represents an entry defining a set of field path names.
- */
-export interface FieldPathSetEntryDTO {
-  /**
-   * The unique ID of the field path set.
-   */
-  readonly id: number;
-  /**
-   * The array of string IDs representing list of field paths.
-   */
-  readonly fieldPathStringIds: readonly number[];
-}
 
 /**
  * Represents the shared memory structure of the intern pool.
@@ -53,12 +38,10 @@ export interface InternPoolSharedData {
   readonly bufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
   readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
   readonly capacity: number;
-  readonly fieldPathSets: readonly (readonly number[])[];
-  readonly structs: readonly (InternedStruct | undefined)[];
 }
 
 /**
- * Manages the interned strings and field names used in structured data using SharedArrayBuffers.
+ * Manages the interned strings used in inspection data using SharedArrayBuffers.
  */
 export class InternPoolStore {
   /**
@@ -109,19 +92,6 @@ export class InternPoolStore {
   private readonly encoder = new TextEncoder();
   private readonly decoder = new TextDecoder();
 
-  /**
-   * The interned structured data field path set.
-   * It maps fieldPath id to an list of string IDs representing field paths.
-   * Field paths can be flatten, it could be `a\0b` if a.b used in the structured data.
-   */
-  private readonly fieldPathSets: number[][];
-
-  /**
-   * The interned structured data instances.
-   * It maps struct id to the InternedStruct message.
-   */
-  private readonly structs: (InternedStruct | undefined)[];
-
   // Private constructor
   private constructor(
     private readonly maxBufferSize: number,
@@ -130,8 +100,6 @@ export class InternPoolStore {
   ) {
     this.readOnly = readOnly;
     if (typeof initialCapacityOrSharedData === 'number') {
-      this.fieldPathSets = [];
-      this.structs = [];
       const initialCapacity = initialCapacityOrSharedData;
       this.metadataSab = allocateBuffer(initialCapacity * 10);
       this.bufferIndices = new Uint16Array(
@@ -171,11 +139,6 @@ export class InternPoolStore {
       );
       this.currentBufferIndex = this.buffers.length - 1;
       this.currentOffset = 0;
-
-      this.fieldPathSets = sharedData.fieldPathSets.map((set) =>
-        set ? Array.from(set) : [],
-      );
-      this.structs = Array.from(sharedData.structs);
     }
   }
 
@@ -237,19 +200,6 @@ export class InternPoolStore {
   }
 
   /**
-   * Adds field path sets to the pool.
-   * @param sets An iterable of objects containing id and an array of string IDs.
-   */
-  public addFieldPathSets(sets: Iterable<FieldPathSetEntryDTO>): void {
-    if (this.readOnly) {
-      throw new Error('Cannot write to a shared read-only InternPoolStore');
-    }
-    for (const { id, fieldPathStringIds: fieldNames } of sets) {
-      this.fieldPathSets[id] = Array.from(fieldNames);
-    }
-  }
-
-  /**
    * Retrieves a string value by its ID from the pool.
    * @param id The ID of the string.
    * @returns The string value.
@@ -280,47 +230,6 @@ export class InternPoolStore {
   }
 
   /**
-   * Retrieves a field path set by its ID, resolving string IDs to string values.
-   * @param id The ID of the field path set.
-   * @returns An array of string values representing the field path.
-   * @throws Error if the ID is not found.
-   */
-  public getFieldPathSet(id: number): string[] {
-    const set = this.fieldPathSets[id];
-    if (set === undefined) {
-      throw new Error(`FieldPathSet ID ${id} not found in pool`);
-    }
-    return set.map((strId) => this.getString(strId));
-  }
-
-  /**
-   * Adds interned structs to the pool.
-   * @param structs An iterable of InternedStruct messages.
-   */
-  public addStructs(structs: Iterable<InternedStruct>): void {
-    if (this.readOnly) {
-      throw new Error('Cannot write to a shared read-only InternPoolStore');
-    }
-    for (const s of structs) {
-      this.structs[s.id] = s;
-    }
-  }
-
-  /**
-   * Retrieves an interned struct by its ID.
-   * @param id The ID of the struct.
-   * @returns The InternedStruct.
-   * @throws Error if the ID is not found in the pool.
-   */
-  public getStruct(id: number): InternedStruct {
-    const struct = this.structs[id];
-    if (!struct) {
-      throw new Error(`Struct ID ${id} not found in pool`);
-    }
-    return struct;
-  }
-
-  /**
    * Transfers shared memory structure of this store.
    * @returns The SharedArrayBuffers and metadata.
    */
@@ -329,8 +238,6 @@ export class InternPoolStore {
       bufferSabs: this.bufferSabs,
       metadataSab: this.metadataSab,
       capacity: this.bufferIndices.length,
-      fieldPathSets: this.fieldPathSets,
-      structs: this.structs,
     };
   }
 

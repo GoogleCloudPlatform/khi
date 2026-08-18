@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import { create } from '@bufbuild/protobuf';
-import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 
 describe('InternPoolStore', () => {
@@ -38,54 +36,6 @@ describe('InternPoolStore', () => {
   it('should throw an error if string ID is missing', () => {
     expect(() => store.getString(999)).toThrowError(
       'String ID 999 not found in pool',
-    );
-  });
-
-  it('should add and get field path sets', () => {
-    store.addStrings([
-      { id: 1, value: 'foo' },
-      { id: 2, value: 'bar' },
-      { id: 3, value: 'baz' },
-      { id: 4, value: 'alpha' },
-      { id: 5, value: 'beta' },
-    ]);
-
-    store.addFieldPathSets([
-      { id: 10, fieldPathStringIds: [1, 2, 3] },
-      { id: 20, fieldPathStringIds: [4, 5] },
-    ]);
-
-    expect(store.getFieldPathSet(10)).toEqual(['foo', 'bar', 'baz']);
-    expect(store.getFieldPathSet(20)).toEqual(['alpha', 'beta']);
-  });
-
-  it('should throw an error if field path set ID is missing', () => {
-    expect(() => store.getFieldPathSet(999)).toThrowError(
-      'FieldPathSet ID 999 not found in pool',
-    );
-  });
-
-  it('should add and get structs from the pool', () => {
-    const struct1 = create(InternedStructSchema, {
-      id: 1,
-      fieldPathSetId: 10,
-      values: [],
-    });
-    const struct2 = create(InternedStructSchema, {
-      id: 5,
-      fieldPathSetId: 20,
-      values: [],
-    });
-
-    store.addStructs([struct1, struct2]);
-
-    expect(store.getStruct(1)).toBe(struct1);
-    expect(store.getStruct(5)).toBe(struct2);
-  });
-
-  it('should throw an error if struct ID is missing', () => {
-    expect(() => store.getStruct(999)).toThrowError(
-      'Struct ID 999 not found in pool',
     );
   });
 
@@ -209,17 +159,12 @@ describe('InternPoolStore', () => {
       { id: 10, value: 'shared-string-1' },
       { id: 20, value: 'shared-string-2' },
     ]);
-    store.addFieldPathSets([{ id: 100, fieldPathStringIds: [10, 20] }]);
 
     const sharedData = store.getSharedData();
     const sharedStore = InternPoolStore.fromSharedData(sharedData);
 
     expect(sharedStore.getString(10)).toBe('shared-string-1');
     expect(sharedStore.getString(20)).toBe('shared-string-2');
-    expect(sharedStore.getFieldPathSet(100)).toEqual([
-      'shared-string-1',
-      'shared-string-2',
-    ]);
   });
 
   it('should throw an error on write attempts on a read-only instance created from sharedData', () => {
@@ -229,10 +174,6 @@ describe('InternPoolStore', () => {
 
     expect(() => {
       sharedStore.addStrings([{ id: 11, value: 'fail' }]);
-    }).toThrowError('Cannot write to a shared read-only InternPoolStore');
-
-    expect(() => {
-      sharedStore.addFieldPathSets([{ id: 200, fieldPathStringIds: [10] }]);
     }).toThrowError('Cannot write to a shared read-only InternPoolStore');
   });
 

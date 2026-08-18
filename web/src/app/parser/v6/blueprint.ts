@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-import { fromBinary, toBinary } from '@bufbuild/protobuf';
-import {
-  InternedStruct,
-  InternedStructSchema,
-} from 'src/app/generated/khifile/shared_pb';
+import { fromBinary } from '@bufbuild/protobuf';
 import {
   ChunkDefinition,
   IDataAssembler,
@@ -54,10 +50,7 @@ import {
   TimelineChunk,
   TimelineChunkSchema,
 } from 'src/app/generated/khifile/v6/timeline_pb';
-import {
-  StringEntryDTO,
-  FieldPathSetEntryDTO,
-} from 'src/app/store/domain/intern-pool-store';
+import { StringEntryDTO } from 'src/app/store/domain/intern-pool-store';
 import { LogDTO } from 'src/app/store/domain/log-store';
 import {
   EventDTO,
@@ -114,8 +107,6 @@ export class V6MetadataAssembler implements IDataAssembler<MetadataChunk> {
  */
 export class V6InternPoolAssembler implements IDataAssembler<InterningPoolChunk> {
   private readonly strings: StringEntryDTO[] = [];
-  private readonly fieldPathSets: FieldPathSetEntryDTO[] = [];
-  private readonly structs: InternedStruct[] = [];
 
   /**
    * Ingests a decoded interning pool chunk.
@@ -124,24 +115,13 @@ export class V6InternPoolAssembler implements IDataAssembler<InterningPoolChunk>
     for (const s of proto.strings) {
       this.strings.push({ id: s.id, value: s.value });
     }
-    for (const f of proto.fieldPathSets) {
-      this.fieldPathSets.push({
-        id: f.id,
-        fieldPathStringIds: f.fieldPathStringIds,
-      });
-    }
-    for (const st of proto.structs) {
-      this.structs.push(st);
-    }
   }
 
   /**
-   * Integrates pooled strings and field paths into the final builder.
+   * Integrates pooled strings into the final builder.
    */
   assembleInto(builder: InspectionDataBuilder): void {
     builder.addStrings(this.strings);
-    builder.addFieldPathSets(this.fieldPathSets);
-    builder.addStructs(this.structs);
   }
 }
 
@@ -200,52 +180,43 @@ export class V6StyleAssembler implements IDataAssembler<TimelineStyleChunk> {
         visible: v.visible,
       });
     }
-    for (const l of proto.logTypes) {
+    for (const lt of proto.logTypes) {
       this.logTypes.push({
-        id: l.id,
-        label: l.label,
-        description: l.description,
-        backgroundColor: mapColor(l.backgroundColor),
-        foregroundColor: mapColor(l.foregroundColor),
+        id: lt.id,
+        label: lt.label,
+        description: lt.description,
+        backgroundColor: mapColor(lt.backgroundColor),
+        foregroundColor: mapColor(lt.foregroundColor),
       });
     }
-    for (const r of proto.revisionStates) {
+    for (const rs of proto.revisionStates) {
       this.revisionStates.push({
-        id: r.id,
-        label: r.label,
-        icon: r.icon,
-        description: r.description,
-        backgroundColor: mapColor(r.backgroundColor),
-        style: mapRevisionStyle(r.style),
+        id: rs.id,
+        label: rs.label,
+        icon: rs.icon,
+        description: rs.description,
+        backgroundColor: mapColor(rs.backgroundColor),
+        style: mapRevisionStyle(rs.style),
       });
     }
-    for (const t of proto.timelineTypes) {
+    for (const tt of proto.timelineTypes) {
       this.timelineTypes.push({
-        id: t.id,
-        label: t.label,
-        description: t.description,
-        icon: t.icon,
-        backgroundColor: mapColor(t.backgroundColor),
-        foregroundColor: mapColor(t.foregroundColor),
-        typeChipBackgroundColor: mapColor(t.typeChipBackgroundColor),
-        typeChipForegroundColor: mapColor(t.typeChipForegroundColor),
-        visible: t.visible,
-        sortPriority: t.sortPriority,
-        height: t.height,
+        id: tt.id,
+        label: tt.label,
+        description: tt.description,
+        icon: tt.icon,
+        backgroundColor: mapColor(tt.backgroundColor),
+        foregroundColor: mapColor(tt.foregroundColor),
+        typeChipBackgroundColor: mapColor(tt.typeChipBackgroundColor),
+        typeChipForegroundColor: mapColor(tt.typeChipForegroundColor),
+        visible: tt.visible,
+        sortPriority: tt.sortPriority,
+        height: tt.height,
       });
     }
     if (proto.iconAtlas) {
-      const msdfIconImage = proto.iconAtlas.msdfIconImage.map((bytes) =>
-        bytes.buffer.slice(
-          bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength,
-        ),
-      );
-      const bmfontJson = proto.iconAtlas.bmfontJson.buffer.slice(
-        proto.iconAtlas.bmfontJson.byteOffset,
-        proto.iconAtlas.bmfontJson.byteOffset +
-          proto.iconAtlas.bmfontJson.byteLength,
-      );
+      const msdfIconImage = proto.iconAtlas.msdfIconImage.map((u) => u.buffer);
+      const bmfontJson = proto.iconAtlas.bmfontJson.buffer;
       const nameToCodepoints = new Map<string, string>(
         Object.entries(proto.iconAtlas.nameToCodepoints),
       );
@@ -293,7 +264,6 @@ export class V6LogAssembler implements IDataAssembler<LogChunk> {
         severityTypeId: log.severityTypeId,
         summaryStringId: log.summaryStringId,
         bodyStructId: log.bodyStructId !== 0 ? log.bodyStructId : undefined,
-        body: log.body ? toBinary(InternedStructSchema, log.body) : undefined,
       });
     }
   }
@@ -346,9 +316,6 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
           stateTypeId: r.stateType,
           resourceBodyStructId:
             r.resourceBodyStructId !== 0 ? r.resourceBodyStructId : undefined,
-          body: r.resourceBody
-            ? toBinary(InternedStructSchema, r.resourceBody)
-            : undefined,
           fieldAnnotations: r.fieldAnnotations.map((fa) => {
             if (fa.payload.case === 'mutatingWebhook') {
               return {

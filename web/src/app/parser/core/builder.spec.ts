@@ -129,7 +129,6 @@ describe('InspectionDataBuilder (Core)', () => {
 
     const result = await builder
       .addStrings([{ id: 1, value: 'summary_value' }])
-      .addFieldPathSets([{ id: 10, fieldPathStringIds: [1] }])
       .addLogs(rawLogs)
       .addTimelines(rawTimelines)
       .addRevisions(rawRevisions)

@@ -21,6 +21,11 @@ import {
   LogTimelineFilter,
   LogTimelineFilterContext,
 } from 'src/app/store/domain/filter/types';
+import {
+  WorkbenchClientService,
+  FilterTimelineParams,
+  FilterProgressCallback,
+} from 'src/app/services/api/workbench/workbench-client.service';
 
 describe('TimelineView', () => {
   async function waitForFiltering(view: TimelineView): Promise<void> {
@@ -257,5 +262,45 @@ describe('TimelineView', () => {
 
     // It should be cleared now
     expect(view.progress()).toBeNull();
+  });
+
+  it('should delegate filtering to WorkbenchClientService when active', async () => {
+    const logStoreSpy = jasmine.createSpyObj<LogStore>('LogStore', [
+      'getLog',
+      'logs',
+    ]);
+    logStoreSpy.logs.and.returnValue([][Symbol.iterator]());
+    const timelineStoreSpy = jasmine.createSpyObj<TimelineStore>(
+      'TimelineStore',
+      ['getTimeline'],
+    );
+    Object.defineProperty(timelineStoreSpy, 'logStore', {
+      get: () => logStoreSpy,
+    });
+    Object.defineProperty(timelineStoreSpy, 'timelines', {
+      get: () => [],
+    });
+
+    const mockWorkbenchClient = jasmine.createSpyObj<WorkbenchClientService>(
+      'WorkbenchClientService',
+      ['isWorkbenchActive', 'filterTimeline'],
+    );
+    mockWorkbenchClient.isWorkbenchActive.and.returnValue(true);
+    mockWorkbenchClient.filterTimeline.and.callFake(
+      (_params: FilterTimelineParams, onProgress?: FilterProgressCallback) => {
+        onProgress?.('Timeline CEL filter', 5, 10);
+        return Promise.resolve({
+          timelineIds: [100],
+          logIds: [200],
+        });
+      },
+    );
+
+    const view = new TimelineView(timelineStoreSpy, mockWorkbenchClient);
+
+    await waitForFiltering(view);
+
+    expect(mockWorkbenchClient.filterTimeline).toHaveBeenCalled();
+    expect(view.filteredLogIds()).toEqual(new Set([200]));
   });
 });

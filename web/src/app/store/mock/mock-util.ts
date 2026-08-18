@@ -14,16 +14,7 @@
  * limitations under the License.
  */
 
-import { create } from '@bufbuild/protobuf';
-import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
-import {
-  InternedStruct,
-  InternedStructSchema,
-  InternedValue,
-  InternedValueSchema,
-  InternedListValueSchema,
-} from 'src/app/generated/khifile/shared_pb';
 
 /**
  * Converts an ISO timestamp string to a nanosecond bigint.
@@ -88,125 +79,6 @@ export function parseHexColor(hex: string): {
   }
 
   return { r, g, b, a };
-}
-
-/**
- * State interface for managing sequential IDs during mock struct generation.
- */
-export interface MockInternIdState {
-  nextStringId: number;
-  nextFieldSetId: number;
-}
-
-/**
- * Converts a plain JavaScript object to an InternedStruct.
- * Populates the intern pool with necessary strings and field path sets.
- *
- * @param obj The plain object to convert.
- * @param internPool The intern pool store to populate.
- * @param idState State holding the next available IDs.
- * @returns The constructed InternedStruct.
- */
-export function objectToInternedStruct(
-  obj: Record<string, unknown>,
-  internPool: InternPoolStore,
-  idState: MockInternIdState,
-): InternedStruct {
-  const flat = flattenObject(obj);
-  const fieldPathStringIds: number[] = [];
-
-  for (const { path } of flat) {
-    const id = idState.nextStringId++;
-    internPool.addStrings([{ id, value: path }]);
-    fieldPathStringIds.push(id);
-  }
-
-  const fieldPathSetId = idState.nextFieldSetId++;
-  internPool.addFieldPathSets([{ id: fieldPathSetId, fieldPathStringIds }]);
-
-  const values: InternedValue[] = flat.map(({ value }) =>
-    toInternedValue(value, internPool, idState),
-  );
-
-  return create(InternedStructSchema, {
-    fieldPathSetId,
-    values,
-  });
-}
-
-function flattenObject(
-  obj: Record<string, unknown>,
-  prefix = '',
-): { path: string; value: unknown }[] {
-  const result: { path: string; value: unknown }[] = [];
-  for (const [key, val] of Object.entries(obj)) {
-    const newPath = prefix ? `${prefix}\0${key}` : key;
-    if (
-      val &&
-      typeof val === 'object' &&
-      !Array.isArray(val) &&
-      Object.keys(val).length > 0
-    ) {
-      result.push(...flattenObject(val as Record<string, unknown>, newPath));
-    } else {
-      result.push({ path: newPath, value: val });
-    }
-  }
-  return result;
-}
-
-function toInternedValue(
-  val: unknown,
-  internPool: InternPoolStore,
-  idState: MockInternIdState,
-): InternedValue {
-  if (val === null || val === undefined) {
-    return create(InternedValueSchema, {
-      kind: { case: 'nullValue', value: 0 },
-    });
-  }
-  if (typeof val === 'bigint') {
-    return create(InternedValueSchema, {
-      kind: { case: 'int64Value', value: val },
-    });
-  }
-  if (typeof val === 'number') {
-    return create(InternedValueSchema, {
-      kind: { case: 'doubleValue', value: val },
-    });
-  }
-  if (typeof val === 'string') {
-    const id = idState.nextStringId++;
-    internPool.addStrings([{ id, value: val }]);
-    return create(InternedValueSchema, {
-      kind: { case: 'stringValue', value: id },
-    });
-  }
-  if (typeof val === 'boolean') {
-    return create(InternedValueSchema, {
-      kind: { case: 'boolValue', value: val },
-    });
-  }
-  if (Array.isArray(val)) {
-    const values = val.map((v) => toInternedValue(v, internPool, idState));
-    return create(InternedValueSchema, {
-      kind: {
-        case: 'listValue',
-        value: create(InternedListValueSchema, { values }),
-      },
-    });
-  }
-  if (typeof val === 'object') {
-    const struct = objectToInternedStruct(
-      val as Record<string, unknown>,
-      internPool,
-      idState,
-    );
-    return create(InternedValueSchema, {
-      kind: { case: 'structValue', value: struct },
-    });
-  }
-  throw new Error(`Unsupported value type: ${typeof val}`);
 }
 
 /**

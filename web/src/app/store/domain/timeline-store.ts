@@ -21,8 +21,6 @@ import {
   Timeline,
 } from 'src/app/store/domain/timeline';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
-import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
-import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import {
   RevisionState,
   Severity,
@@ -35,9 +33,7 @@ import {
   DomainFieldAnnotation,
   ReadonlyDomainElement,
   allocateBuffer,
-  isSharedBuffer,
 } from 'src/app/store/domain/types';
-import { fromBinary } from '@bufbuild/protobuf';
 
 /**
  * Align the offset to the specified byte alignment.
@@ -53,7 +49,6 @@ function align(offset: number, alignment: number): number {
  */
 export interface TimelineStoreSharedData {
   readonly metadataSab: SharedArrayBuffer | ArrayBuffer;
-  readonly bodyBufferSabs: readonly (SharedArrayBuffer | ArrayBuffer)[];
   readonly timelineCount: number;
   readonly revisionCount: number;
   readonly eventCount: number;
@@ -100,7 +95,6 @@ export interface RevisionDTO {
   readonly verbTypeId: number;
   readonly stateTypeId: number;
   readonly resourceBodyStructId?: number;
-  readonly body?: Uint8Array;
   readonly fieldAnnotations?: readonly FieldAnnotationDTO[];
 }
 
@@ -110,6 +104,24 @@ export interface RevisionDTO {
 export interface EventDTO {
   readonly id: number;
   readonly logId: number;
+}
+
+interface TimelineStoreLayout {
+  timelineIds: number;
+  timelineTypeIds: number;
+  timelineNameStringIds: number;
+  timelineParentIds: number;
+  timelineSeverities: number;
+  revisionIds: number;
+  revisionLogIds: number;
+  revisionChangedTimes: number;
+  revisionPrincipalStringIds: number;
+  revisionVerbTypeIds: number;
+  revisionStateTypeIds: number;
+  revisionBodyStructIds: number;
+  eventIds: number;
+  eventLogIds: number;
+  totalBytes: number;
 }
 
 /**
@@ -144,22 +156,6 @@ export class TimelineStore {
   private revisionFieldAnnotations: (
     readonly FieldAnnotationDTO[] | undefined
   )[] = [];
-
-  // Packed revision bodies
-  private revisionBodyBufferIndices!: Uint16Array;
-  private revisionBodyOffsets!: Uint32Array;
-  private revisionBodyLengths!: Uint32Array;
-
-  private readonly revisionBodyBufferSabs: (SharedArrayBuffer | ArrayBuffer)[] =
-    [];
-  private readonly revisionBodyBuffers: Uint8Array[] = [];
-
-  private currentBufferIndex = -1;
-  private currentOffset = 0;
-
-  private readonly revisionDecodedBodyCache: WeakRef<
-    ReadonlyDomainElement<Record<string, unknown>>
-  >[] = [];
   private revisionIdToIndex: { [rid: number]: number } = {};
 
   // Event views
@@ -167,28 +163,20 @@ export class TimelineStore {
   private eventLogIds!: Uint32Array;
   private eventIdToIndex: { [eid: number]: number } = {};
 
-  private readonly decoder: InternedStructDecoder;
-
   private constructor(
     private readonly internPool: InternPoolStore,
     public readonly styleStore: StyleProvider,
     public readonly logStore: LogStore,
-    private readonly maxBufferSize: number,
     readOnly: boolean,
     initialData:
       | { timelineCount: number; revisionCount: number; eventCount: number }
       | TimelineStoreSharedData,
   ) {
     this.readOnly = readOnly;
-    this.decoder = new InternedStructDecoder(this.internPool);
 
     if ('metadataSab' in initialData) {
       const sharedData = initialData;
       this.metadataSab = sharedData.metadataSab;
-      this.revisionBodyBufferSabs = Array.from(sharedData.bodyBufferSabs);
-      this.revisionBodyBuffers = this.revisionBodyBufferSabs.map(
-        (sab) => new Uint8Array(sab),
-      );
 
       this.timelineRevisionIds = sharedData.timelineRevisionIds;
       this.timelineEventIds = sharedData.timelineEventIds;
@@ -208,28 +196,27 @@ export class TimelineStore {
 
       this.timelineChildrenIds = [];
       for (let i = 0; i < sharedData.timelineCount; i++) {
-        this.timelineChildrenIds[i] = [];
+        this.timelineChildrenIds.push([]);
       }
-
       for (let i = 0; i < sharedData.timelineCount; i++) {
         const parentId = this.timelineParentIds[i];
         if (parentId !== 0) {
-          const parentIndex = this.timelineIdToIndex[parentId];
-          if (parentIndex !== undefined) {
-            this.timelineChildrenIds[parentIndex].push(this.timelineIds[i]);
+          const pIndex = this.timelineIdToIndex[parentId];
+          if (pIndex !== undefined) {
+            this.timelineChildrenIds[pIndex].push(this.timelineIds[i]);
           }
         }
       }
 
+      this.timelinesList = [];
       for (let i = 0; i < sharedData.timelineCount; i++) {
         this.timelinesList.push(new Timeline(this.timelineIds[i], this));
       }
     } else {
-      const counts = initialData;
       this.allocateMetadata(
-        counts.timelineCount,
-        counts.revisionCount,
-        counts.eventCount,
+        initialData.timelineCount,
+        initialData.revisionCount,
+        initialData.eventCount,
       );
     }
   }
@@ -241,16 +228,12 @@ export class TimelineStore {
     internPool: InternPoolStore,
     styleStore: StyleProvider,
     logStore: LogStore,
-    maxBufferSize: number = 100 * 1024 * 1024,
   ): TimelineStore {
-    return new TimelineStore(
-      internPool,
-      styleStore,
-      logStore,
-      maxBufferSize,
-      false,
-      { timelineCount: 1024, revisionCount: 1024, eventCount: 1024 },
-    );
+    return new TimelineStore(internPool, styleStore, logStore, false, {
+      timelineCount: 128,
+      revisionCount: 1024,
+      eventCount: 1024,
+    });
   }
 
   /**
@@ -261,30 +244,48 @@ export class TimelineStore {
     styleStore: StyleProvider,
     logStore: LogStore,
     sharedData: TimelineStoreSharedData,
-    maxBufferSize: number = 100 * 1024 * 1024,
   ): TimelineStore {
     return new TimelineStore(
       internPool,
       styleStore,
       logStore,
-      maxBufferSize,
       true,
       sharedData,
     );
   }
 
-  private allocateMetadata(tCap: number, rCap: number, eCap: number): void {
-    const layout = this.calculateOffsets(tCap, rCap, eCap);
+  private allocateMetadata(
+    timelineCapacity: number,
+    revisionCapacity: number,
+    eventCapacity: number,
+  ): void {
+    const layout = this.calculateOffsets(
+      timelineCapacity,
+      revisionCapacity,
+      eventCapacity,
+    );
     this.metadataSab = allocateBuffer(layout.totalBytes);
-    this.applyViews(layout, tCap, rCap, eCap);
+    this.applyViews(layout, timelineCapacity, revisionCapacity, eventCapacity);
   }
 
-  private mapMetadataViews(tCap: number, rCap: number, eCap: number): void {
-    const layout = this.calculateOffsets(tCap, rCap, eCap);
-    this.applyViews(layout, tCap, rCap, eCap);
+  private mapMetadataViews(
+    timelineCapacity: number,
+    revisionCapacity: number,
+    eventCapacity: number,
+  ): void {
+    const layout = this.calculateOffsets(
+      timelineCapacity,
+      revisionCapacity,
+      eventCapacity,
+    );
+    this.applyViews(layout, timelineCapacity, revisionCapacity, eventCapacity);
   }
 
-  private calculateOffsets(tCap: number, rCap: number, eCap: number) {
+  private calculateOffsets(
+    tCap: number,
+    rCap: number,
+    eCap: number,
+  ): TimelineStoreLayout {
     let offset = 0;
 
     const timelineIds = offset;
@@ -308,9 +309,6 @@ export class TimelineStore {
     const revisionLogIds = offset;
     offset += rCap * 4;
 
-    const revisionChangedTimes = align(offset, 8);
-    offset = revisionChangedTimes + rCap * 8;
-
     const revisionPrincipalStringIds = offset;
     offset += rCap * 4;
 
@@ -323,14 +321,8 @@ export class TimelineStore {
     const revisionBodyStructIds = offset;
     offset += rCap * 4;
 
-    const revisionBodyBufferIndices = align(offset, 2);
-    offset = revisionBodyBufferIndices + rCap * 2;
-
-    const revisionBodyOffsets = align(offset, 4);
-    offset = revisionBodyOffsets + rCap * 4;
-
-    const revisionBodyLengths = align(offset, 4);
-    offset = revisionBodyLengths + rCap * 4;
+    const revisionChangedTimes = align(offset, 8);
+    offset = revisionChangedTimes + rCap * 8;
 
     const eventIds = align(offset, 4);
     offset = eventIds + eCap * 4;
@@ -346,14 +338,11 @@ export class TimelineStore {
       timelineSeverities,
       revisionIds,
       revisionLogIds,
-      revisionChangedTimes,
       revisionPrincipalStringIds,
       revisionVerbTypeIds,
       revisionStateTypeIds,
       revisionBodyStructIds,
-      revisionBodyBufferIndices,
-      revisionBodyOffsets,
-      revisionBodyLengths,
+      revisionChangedTimes,
       eventIds,
       eventLogIds,
       totalBytes: offset,
@@ -361,7 +350,7 @@ export class TimelineStore {
   }
 
   private applyViews(
-    layout: ReturnType<typeof TimelineStore.prototype.calculateOffsets>,
+    layout: TimelineStoreLayout,
     tCap: number,
     rCap: number,
     eCap: number,
@@ -387,11 +376,6 @@ export class TimelineStore {
 
     this.revisionIds = new Uint32Array(sab, layout.revisionIds, rCap);
     this.revisionLogIds = new Uint32Array(sab, layout.revisionLogIds, rCap);
-    this.revisionChangedTimes = new BigUint64Array(
-      sab,
-      layout.revisionChangedTimes,
-      rCap,
-    );
     this.revisionPrincipalStringIds = new Uint32Array(
       sab,
       layout.revisionPrincipalStringIds,
@@ -412,19 +396,9 @@ export class TimelineStore {
       layout.revisionBodyStructIds,
       rCap,
     );
-    this.revisionBodyBufferIndices = new Uint16Array(
+    this.revisionChangedTimes = new BigUint64Array(
       sab,
-      layout.revisionBodyBufferIndices,
-      rCap,
-    );
-    this.revisionBodyOffsets = new Uint32Array(
-      sab,
-      layout.revisionBodyOffsets,
-      rCap,
-    );
-    this.revisionBodyLengths = new Uint32Array(
-      sab,
-      layout.revisionBodyLengths,
+      layout.revisionChangedTimes,
       rCap,
     );
 
@@ -457,17 +431,12 @@ export class TimelineStore {
 
     this.timelineRevisionIds.length = 0;
     this.timelineEventIds.length = 0;
-    this.revisionBodyBufferSabs.length = 0;
-    this.revisionBodyBuffers.length = 0;
     this.timelinesList.length = 0;
     this.timelineChildrenIds.length = 0;
     this.revisionFieldAnnotations.length = revisionCount;
     this.timelineIdToIndex = {};
     this.revisionIdToIndex = {};
     this.eventIdToIndex = {};
-
-    this.currentBufferIndex = -1;
-    this.currentOffset = 0;
 
     // Load timelines
     let tIndex = 0;
@@ -494,8 +463,6 @@ export class TimelineStore {
       }
     }
 
-    this.revisionDecodedBodyCache.length = revisionCount;
-
     // Load revisions
     let rIndex = 0;
     for (const r of revisions) {
@@ -508,18 +475,11 @@ export class TimelineStore {
       this.revisionBodyStructIds[rIndex] = r.resourceBodyStructId ?? 0;
       this.revisionFieldAnnotations[rIndex] = r.fieldAnnotations;
 
-      if (r.body !== undefined && r.body.length > 0) {
-        this.addRevisionBody(rIndex, r.body);
-      } else {
-        this.revisionBodyBufferIndices[rIndex] = 0;
-        this.revisionBodyOffsets[rIndex] = 0;
-        this.revisionBodyLengths[rIndex] = 0;
-      }
       this.revisionIdToIndex[r.id] = rIndex;
       rIndex++;
     }
 
-    // load events
+    // Load events
     let eIndex = 0;
     for (const e of events) {
       this.eventIds[eIndex] = e.id;
@@ -533,9 +493,9 @@ export class TimelineStore {
       let mask = 0;
       const revIds = this.timelineRevisionIds[i];
       for (let j = 0; j < revIds.length; j++) {
-        const rIndex = this.revisionIdToIndex[revIds[j]];
-        if (rIndex !== undefined) {
-          const logId = this.revisionLogIds[rIndex];
+        const revIdx = this.revisionIdToIndex[revIds[j]];
+        if (revIdx !== undefined) {
+          const logId = this.revisionLogIds[revIdx];
           const severityId = this.logStore._getSeverity(logId).id;
           if (severityId >= 0 && severityId < 8) {
             mask |= 1 << severityId;
@@ -544,9 +504,9 @@ export class TimelineStore {
       }
       const eventIds = this.timelineEventIds[i];
       for (let j = 0; j < eventIds.length; j++) {
-        const eIndex = this.eventIdToIndex[eventIds[j]];
-        if (eIndex !== undefined) {
-          const logId = this.eventLogIds[eIndex];
+        const eventIdx = this.eventIdToIndex[eventIds[j]];
+        if (eventIdx !== undefined) {
+          const logId = this.eventLogIds[eventIdx];
           const severityId = this.logStore._getSeverity(logId).id;
           if (severityId >= 0 && severityId < 8) {
             mask |= 1 << severityId;
@@ -555,45 +515,6 @@ export class TimelineStore {
       }
       this.timelineSeverities[i] = mask;
     }
-  }
-
-  private addRevisionBody(index: number, bodyBytes: Uint8Array): void {
-    const length = bodyBytes.length;
-
-    if (length > this.maxBufferSize) {
-      const sab = allocateBuffer(length);
-      const buf = new Uint8Array(sab);
-      buf.set(bodyBytes);
-      this.revisionBodyBufferSabs.push(sab);
-      this.revisionBodyBuffers.push(buf);
-
-      const newBufIdx = this.revisionBodyBuffers.length - 1;
-      this.revisionBodyBufferIndices[index] = newBufIdx + 1;
-      this.revisionBodyOffsets[index] = 0;
-      this.revisionBodyLengths[index] = length;
-      return;
-    }
-
-    if (
-      this.currentBufferIndex === -1 ||
-      this.currentOffset + length > this.maxBufferSize
-    ) {
-      const sab = allocateBuffer(this.maxBufferSize);
-      const buf = new Uint8Array(sab);
-      this.revisionBodyBufferSabs.push(sab);
-      this.revisionBodyBuffers.push(buf);
-      this.currentBufferIndex = this.revisionBodyBuffers.length - 1;
-      this.currentOffset = 0;
-    }
-
-    const currentBuf = this.revisionBodyBuffers[this.currentBufferIndex];
-    currentBuf.set(bodyBytes, this.currentOffset);
-
-    this.revisionBodyBufferIndices[index] = this.currentBufferIndex + 1;
-    this.revisionBodyOffsets[index] = this.currentOffset;
-    this.revisionBodyLengths[index] = length;
-
-    this.currentOffset += length;
   }
 
   // --- Timeline Accessors ---
@@ -795,45 +716,6 @@ export class TimelineStore {
   }
 
   /**
-   * Decodes encapsulated revision properties from its structural domain interface.
-   * @note Intended solely for internal retrieval inside the {@link Revision} domain adapter.
-   */
-  public _decodeRevisionBody(
-    id: number,
-  ): ReadonlyDomainElement<Record<string, unknown>> | null {
-    const index = this.getRevisionIndex(id);
-    const structId = this.revisionBodyStructIds[index];
-    if (structId > 0) {
-      return this.decoder.decodeById(structId);
-    }
-
-    const cached = this.revisionDecodedBodyCache[index]?.deref();
-    if (cached) {
-      return cached;
-    }
-
-    const bufIdx = this.revisionBodyBufferIndices[index];
-    if (bufIdx === 0) return null;
-
-    const offset = this.revisionBodyOffsets[index];
-    const length = this.revisionBodyLengths[index];
-
-    const buffer = this.revisionBodyBuffers[bufIdx - 1];
-    const bytes = buffer.subarray(offset, offset + length);
-    let decodeTarget = bytes;
-    if (isSharedBuffer(bytes.buffer)) {
-      const nonSharedBytes = new Uint8Array(length);
-      nonSharedBytes.set(bytes);
-      decodeTarget = nonSharedBytes;
-    }
-
-    const struct = fromBinary(InternedStructSchema, decodeTarget);
-    const decoded = this.decoder.decode(struct);
-    this.revisionDecodedBodyCache[index] = new WeakRef(decoded);
-    return decoded;
-  }
-
-  /**
    * Gets the field annotations associated with this revision.
    * @note Intended solely for internal retrieval inside the {@link Revision} domain adapter.
    */
@@ -897,7 +779,6 @@ export class TimelineStore {
   public getSharedData(): TimelineStoreSharedData {
     return {
       metadataSab: this.metadataSab,
-      bodyBufferSabs: this.revisionBodyBufferSabs,
       timelineCount: this.timelineIds.length,
       revisionCount: this.revisionIds.length,
       eventCount: this.eventIds.length,

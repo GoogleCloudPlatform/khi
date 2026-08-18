@@ -23,11 +23,6 @@ import {
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
-import { create, toBinary } from '@bufbuild/protobuf';
-import {
-  InternedStructSchema,
-  InternedValueSchema,
-} from 'src/app/generated/khifile/shared_pb';
 
 describe('Timeline', () => {
   let internPool: InternPoolStore;
@@ -551,30 +546,13 @@ describe('Timeline', () => {
   });
 
   describe('Revision', () => {
-    describe('body and bodyYAML', () => {
-      it('should decode revision body and bodyYAML correctly', () => {
+    describe('structId', () => {
+      it('should return structId correctly', () => {
         internPool.addStrings([
           { id: 1, value: 'timeline-label' },
           { id: 2, value: 'user-name' },
           { id: 3, value: 'log-summary' },
-          { id: 10, value: 'user' },
-          { id: 11, value: 'status' },
-          { id: 12, value: 'alice' },
         ]);
-
-        internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10, 11] }]);
-
-        const struct = create(InternedStructSchema, {
-          fieldPathSetId: 1,
-          values: [
-            create(InternedValueSchema, {
-              kind: { case: 'stringValue', value: 12 },
-            }),
-            create(InternedValueSchema, {
-              kind: { case: 'int64Value', value: 42n },
-            }),
-          ],
-        });
 
         const rawTimelines: TimelineDTO[] = [
           {
@@ -595,7 +573,7 @@ describe('Timeline', () => {
             principalStringId: 2,
             verbTypeId: 1,
             stateTypeId: 1,
-            body: toBinary(InternedStructSchema, struct),
+            resourceBodyStructId: 55,
           },
           {
             id: 101,
@@ -630,15 +608,8 @@ describe('Timeline', () => {
         const timeline = timelineStore.getTimeline(10);
         const revs = timeline.revisions;
 
-        expect(revs[0].body).toEqual({
-          user: 'alice',
-          status: 42,
-        });
-        expect(revs[0].bodyYAML).toContain('user: alice');
-        expect(revs[0].bodyYAML).toContain('status: 42');
-
-        expect(revs[1].body).toBeNull();
-        expect(revs[1].bodyYAML).toBe('');
+        expect(revs[0].structId).toBe(55);
+        expect(revs[1].structId).toBe(0);
       });
     });
 

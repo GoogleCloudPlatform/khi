@@ -26,6 +26,17 @@ import {
 } from 'src/app/store/domain/filter/types';
 import { Subscription } from 'rxjs';
 import { CollapseTimelineFilter } from 'src/app/store/domain/filter/collapse-filter';
+import { WorkbenchClientService } from 'src/app/services/api/workbench/workbench-client.service';
+import {
+  CelTimelineFilter,
+  CelTimelineExclusionFilter,
+  CelLogFilter,
+} from 'src/app/store/domain/filter/cel-filter';
+import {
+  IncludeDescendantsFilter,
+  IncludeAncestorsFilter,
+  ExcludeNoLogsFilter,
+} from 'src/app/store/domain/filter/other-filter';
 
 /**
  * Holds the progress information of a specific filter step.
@@ -112,9 +123,12 @@ export class TimelineView {
   });
 
   /**
-   * Initializes a new instance of the TimelineView utilizing the target timeline store.
+   * Initializes a new instance of the TimelineView utilizing the target timeline store and optional WorkbenchClientService.
    */
-  constructor(private readonly store: TimelineStore) {
+  constructor(
+    private readonly store: TimelineStore,
+    private readonly workbenchClient?: WorkbenchClientService,
+  ) {
     // Initialize context with all timelines/logs initially
     const allTimelines = this.store.timelines;
     const allTimelineIds = new Set(allTimelines.map((t) => t.id));
@@ -224,21 +238,91 @@ export class TimelineView {
     };
 
     try {
-      for (const filter of sortedFilters) {
-        ctx = await filter.process(
-          ctx,
-          this.store,
-          abortController.signal,
-          (current, total) => {
+      if (this.workbenchClient?.isWorkbenchActive()) {
+        let timelineQuery = '';
+        let timelineExclusionQuery = '';
+        let logQuery = '';
+        let excludeNoLogs = false;
+
+        for (const filter of filters) {
+          if (filter instanceof CelTimelineFilter) {
+            timelineQuery = filter.celExpr();
+          } else if (filter instanceof CelTimelineExclusionFilter) {
+            timelineExclusionQuery = filter.celExpr();
+          } else if (filter instanceof CelLogFilter) {
+            logQuery = filter.celExpr();
+          } else if (filter instanceof ExcludeNoLogsFilter) {
+            excludeNoLogs = filter.enabled();
+          }
+        }
+
+        const res = await this.workbenchClient.filterTimeline(
+          {
+            timelineQuery,
+            timelineExclusionQuery,
+            logQuery,
+            excludeNoLogs,
+          },
+          (stageName, current, total) => {
             if (!abortController.signal.aborted) {
               this._progress.set({
-                filterName: filter.displayName,
+                filterName: stageName,
                 current,
                 total,
               });
             }
           },
+          abortController.signal,
         );
+
+        ctx = {
+          timelineIds: new Set(res.timelineIds),
+          logIds: new Set(res.logIds),
+        };
+
+        const remainingFilters = sortedFilters.filter(
+          (f) =>
+            !(f instanceof CelTimelineFilter) &&
+            !(f instanceof CelTimelineExclusionFilter) &&
+            !(f instanceof CelLogFilter) &&
+            !(f instanceof IncludeDescendantsFilter) &&
+            !(f instanceof IncludeAncestorsFilter) &&
+            !(f instanceof ExcludeNoLogsFilter),
+        );
+
+        for (const filter of remainingFilters) {
+          ctx = await filter.process(
+            ctx,
+            this.store,
+            abortController.signal,
+            (current, total) => {
+              if (!abortController.signal.aborted) {
+                this._progress.set({
+                  filterName: filter.displayName,
+                  current,
+                  total,
+                });
+              }
+            },
+          );
+        }
+      } else {
+        for (const filter of sortedFilters) {
+          ctx = await filter.process(
+            ctx,
+            this.store,
+            abortController.signal,
+            (current, total) => {
+              if (!abortController.signal.aborted) {
+                this._progress.set({
+                  filterName: filter.displayName,
+                  current,
+                  total,
+                });
+              }
+            },
+          );
+        }
       }
 
       if (!abortController.signal.aborted) {

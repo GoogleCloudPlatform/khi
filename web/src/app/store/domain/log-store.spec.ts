@@ -17,11 +17,6 @@
 import { LogStore, LogDTO } from 'src/app/store/domain/log-store';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 import { StyleStore } from 'src/app/store/domain/style-store';
-import { create, toBinary } from '@bufbuild/protobuf';
-import {
-  InternedStructSchema,
-  InternedValueSchema,
-} from 'src/app/generated/khifile/shared_pb';
 
 describe('LogStore', () => {
   let internPool: InternPoolStore;
@@ -159,6 +154,7 @@ describe('LogStore', () => {
         logTypeId: 100,
         severityTypeId: 10,
         summaryStringId: 1,
+        bodyStructId: 123,
       },
       {
         id: 56,
@@ -178,163 +174,13 @@ describe('LogStore', () => {
     expect(logObj.severity.label).toBe('INFO');
     expect(logObj.logType.label).toBe('audit');
     expect(logObj.logIndex).toBe(0);
+    expect(logObj.structId).toBe(123);
 
     expect(store.getIndex(55)).toBe(0);
     expect(store.getIndex(56)).toBe(1);
     expect(() => store.getIndex(99)).toThrowError('Log ID 99 not found');
 
     expect(() => store.getLog(99)).toThrowError('Log ID 99 not found');
-  });
-
-  it('should return decoded log body correctly', () => {
-    internPool.addStrings([
-      { id: 10, value: 'user' },
-      { id: 11, value: 'status' },
-      { id: 12, value: 'alice' },
-    ]);
-
-    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10, 11] }]);
-
-    const struct = create(InternedStructSchema, {
-      fieldPathSetId: 1,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 12 },
-        }),
-        create(InternedValueSchema, {
-          kind: { case: 'int64Value', value: 42n },
-        }),
-      ],
-    });
-
-    const logs: LogDTO[] = [
-      {
-        id: 1,
-        ts: 10n,
-        logTypeId: 1,
-        severityTypeId: 1,
-        summaryStringId: 1,
-        body: toBinary(InternedStructSchema, struct),
-      },
-      { id: 2, ts: 20n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
-    ];
-
-    store.initialize(logs, 2);
-
-    expect(store.getLog(1).body).toEqual({
-      user: 'alice',
-      status: 42,
-    });
-    expect(store.getLog(1).bodyYAML).toBe('user: alice\nstatus: 42\n');
-    expect(store.getLog(2).body).toBeNull();
-    expect(store.getLog(2).bodyYAML).toBe('');
-    expect(() => store.getLog(99)).toThrowError('Log ID 99 not found');
-  });
-
-  it('should return decoded log body by bodyStructId correctly', () => {
-    internPool.addStrings([
-      { id: 10, value: 'user' },
-      { id: 12, value: 'bob' },
-    ]);
-    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
-
-    const struct = create(InternedStructSchema, {
-      id: 50,
-      fieldPathSetId: 1,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 12 },
-        }),
-      ],
-    });
-    internPool.addStructs([struct]);
-
-    const logs: LogDTO[] = [
-      {
-        id: 1,
-        ts: 10n,
-        logTypeId: 1,
-        severityTypeId: 1,
-        summaryStringId: 1,
-        bodyStructId: 50,
-      },
-    ];
-
-    store.initialize(logs, 1);
-
-    expect(store.getLog(1).body).toEqual({
-      user: 'bob',
-    });
-  });
-
-  it('should cache body in WeakRef and re-decode when GC collected', () => {
-    internPool.addStrings([
-      { id: 10, value: 'user' },
-      { id: 11, value: 'alice' },
-    ]);
-
-    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
-
-    const struct = create(InternedStructSchema, {
-      fieldPathSetId: 1,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 11 },
-        }),
-      ],
-    });
-
-    const logs: LogDTO[] = [
-      {
-        id: 1,
-        ts: 10n,
-        logTypeId: 1,
-        severityTypeId: 1,
-        summaryStringId: 1,
-        body: toBinary(InternedStructSchema, struct),
-      },
-    ];
-
-    store.initialize(logs, 1);
-
-    const log = store.getLog(1);
-
-    const storeRecord = store as unknown as Record<string, unknown>;
-    const decoder = storeRecord['decoder'] as {
-      decode: (struct: unknown) => Record<string, unknown>;
-    };
-    const spyDecoderDecode = spyOn(decoder, 'decode').and.callThrough();
-
-    // First access decodes the raw binary body and populates the cache.
-    const body1 = log.body;
-    expect(body1).toEqual({ user: 'alice' });
-    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
-
-    // Reset the spy to track subsequent decode calls accurately.
-    spyDecoderDecode.calls.reset();
-
-    // Second access should hit the cache in LogStore, avoiding another decode invocation.
-    const body2 = log.body;
-    expect(body2).toBe(body1);
-    expect(spyDecoderDecode).not.toHaveBeenCalled();
-
-    // Access the private decodedBodyCache array to simulate garbage collection.
-    const decodedBodyCache = storeRecord['decodedBodyCache'] as WeakRef<
-      Record<string, unknown>
-    >[];
-    const internalBodyRef = decodedBodyCache[0];
-    expect(internalBodyRef).toBeInstanceOf(WeakRef);
-
-    // Mock deref() returning undefined to simulate that the WeakRef target has been garbage collected.
-    spyOn(internalBodyRef, 'deref').and.returnValue(undefined);
-
-    spyDecoderDecode.calls.reset();
-
-    // Third access fails the deref() check, triggering a re-decode of the binary body.
-    const body3 = log.body;
-    expect(body3).toEqual({ user: 'alice' });
-    expect(body3).not.toBe(body1);
-    expect(spyDecoderDecode).toHaveBeenCalledTimes(1);
   });
 
   it('should return count and iterator correctly', () => {
@@ -354,20 +200,7 @@ describe('LogStore', () => {
   });
 
   it('should restore from shared memory using fromSharedData and enforce readOnly guard', () => {
-    internPool.addStrings([
-      { id: 20, value: 'user' },
-      { id: 21, value: 'alice' },
-    ]);
-    internPool.addFieldPathSets([{ id: 2, fieldPathStringIds: [20] }]);
-    const struct = create(InternedStructSchema, {
-      fieldPathSetId: 2,
-      values: [
-        create(InternedValueSchema, {
-          kind: { case: 'stringValue', value: 21 },
-        }),
-      ],
-    });
-    const rawBody = toBinary(InternedStructSchema, struct);
+    internPool.addStrings([{ id: 1, value: 'test summary' }]);
 
     const logs: LogDTO[] = [
       {
@@ -376,7 +209,7 @@ describe('LogStore', () => {
         logTypeId: 1,
         severityTypeId: 1,
         summaryStringId: 1,
-        body: rawBody,
+        bodyStructId: 50,
       },
     ];
 
@@ -393,7 +226,7 @@ describe('LogStore', () => {
     const restoredLog = restoredStore.getLog(1);
     expect(restoredLog.id).toBe(1);
     expect(restoredLog.timestamp).toBe(1000n);
-    expect(restoredLog.body).toEqual({ user: 'alice' });
+    expect(restoredLog.structId).toBe(50);
 
     expect(() => {
       restoredStore.initialize(logs, 1);

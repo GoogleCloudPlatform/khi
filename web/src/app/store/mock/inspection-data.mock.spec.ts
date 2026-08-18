@@ -39,11 +39,7 @@ describe('inspection-data.mock', () => {
       expect(mockData.logStore.count).toBe(130001);
 
       const log = mockData.logStore.getLog(1);
-      expect(log.body).toEqual({
-        message: 'Pod created successfully',
-        reason: 'Created',
-        source: { component: 'kubelet', host: 'node-1' },
-      });
+      expect(log.structId).toBe(1);
     });
   });
 });

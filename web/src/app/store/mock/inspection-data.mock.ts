@@ -26,15 +26,11 @@ import {
 } from 'src/app/store/domain/timeline-store';
 import { LogDTO } from 'src/app/store/domain/log-store';
 import { MetadataStore } from 'src/app/store/domain/metadata-store';
-import { toBinary } from '@bufbuild/protobuf';
-import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import {
   parseTimestampString,
   parseUnixSeconds,
   parseHexColor,
-  objectToInternedStruct,
   initializeMockIconAtlas,
-  MockInternIdState,
 } from 'src/app/store/mock/mock-util';
 
 /**
@@ -50,11 +46,6 @@ export async function createMockInspectionData(): Promise<InspectionData> {
   const styleStore = new StyleStore();
   const logStore = LogStore.create(internPool, styleStore);
   const timelineStore = TimelineStore.create(internPool, styleStore, logStore);
-
-  const idState: MockInternIdState = {
-    nextStringId: 1,
-    nextFieldSetId: 1,
-  };
 
   // --- 1. Setup Styles (Ordered as requested & matched with Go enum colors) ---
 
@@ -256,25 +247,26 @@ export async function createMockInspectionData(): Promise<InspectionData> {
   await initializeMockIconAtlas(styleStore);
 
   // --- 2. Define Static Strings ---
-  const apiVersionStringId = idState.nextStringId++;
-  const kindStringId = idState.nextStringId++;
-  const namespaceStringId = idState.nextStringId++;
-  const podNameStringId = idState.nextStringId++;
-  const subresourceStringId = idState.nextStringId++;
+  let nextStringId = 1;
+  const apiVersionStringId = nextStringId++;
+  const kindStringId = nextStringId++;
+  const namespaceStringId = nextStringId++;
+  const podNameStringId = nextStringId++;
+  const subresourceStringId = nextStringId++;
 
-  const logSummaryStringId = idState.nextStringId++;
-  const principalStringId = idState.nextStringId++;
+  const logSummaryStringId = nextStringId++;
+  const principalStringId = nextStringId++;
 
   // Additional virtual timeline strings
-  const podNameMockPod2StringId = idState.nextStringId++;
-  const apiVersionAppsV1StringId = idState.nextStringId++;
-  const kindDeploymentStringId = idState.nextStringId++;
-  const namespaceKubeSystemStringId = idState.nextStringId++;
-  const deploymentNameCorednsStringId = idState.nextStringId++;
-  const subresourceStatusStringId = idState.nextStringId++;
+  const podNameMockPod2StringId = nextStringId++;
+  const apiVersionAppsV1StringId = nextStringId++;
+  const kindDeploymentStringId = nextStringId++;
+  const namespaceKubeSystemStringId = nextStringId++;
+  const deploymentNameCorednsStringId = nextStringId++;
+  const subresourceStatusStringId = nextStringId++;
 
-  const composerTimelineStringId = idState.nextStringId++;
-  const airflowWorkerTimelineStringId = idState.nextStringId++;
+  const composerTimelineStringId = nextStringId++;
+  const airflowWorkerTimelineStringId = nextStringId++;
 
   // Dynamic timeline strings
   const apiStrings: number[] = [];
@@ -305,27 +297,27 @@ export async function createMockInspectionData(): Promise<InspectionData> {
   ];
 
   for (let i = 0; i < 10; i++) {
-    const id = idState.nextStringId++;
+    const id = nextStringId++;
     apiStrings.push(id);
     stringsToRegister.push({ id, value: `apiversion-${i}` });
   }
   for (let i = 0; i < 10; i++) {
-    const id = idState.nextStringId++;
+    const id = nextStringId++;
     kindStrings.push(id);
     stringsToRegister.push({ id, value: `kind-${i}` });
   }
   for (let i = 0; i < 10; i++) {
-    const id = idState.nextStringId++;
+    const id = nextStringId++;
     nsStrings.push(id);
     stringsToRegister.push({ id, value: `ns-${i}` });
   }
   for (let i = 0; i < 10; i++) {
-    const id = idState.nextStringId++;
+    const id = nextStringId++;
     resStrings.push(id);
     stringsToRegister.push({ id, value: `res-${i}` });
   }
   for (let i = 0; i < 10; i++) {
-    const id = idState.nextStringId++;
+    const id = nextStringId++;
     subStrings.push(id);
     stringsToRegister.push({ id, value: `sub-${i}` });
   }
@@ -337,17 +329,6 @@ export async function createMockInspectionData(): Promise<InspectionData> {
   const timestamp = parseTimestampString(timestampString);
   const unixSeconds = parseUnixSeconds(timestampString);
 
-  const logBodyStruct = objectToInternedStruct(
-    {
-      message: 'Pod created successfully',
-      reason: 'Created',
-      source: { component: 'kubelet', host: 'node-1' },
-    },
-    internPool,
-    idState,
-  );
-  const logBody = toBinary(InternedStructSchema, logBodyStruct);
-
   const mockLogs: LogDTO[] = [
     {
       id: 1,
@@ -355,19 +336,9 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       logTypeId: 2,
       severityTypeId: 1,
       summaryStringId: logSummaryStringId,
-      body: logBody,
+      bodyStructId: 1,
     },
   ];
-
-  const revisionBodyStruct = objectToInternedStruct(
-    {
-      spec: { containers: [{ name: 'app', image: 'nginx:latest' }] },
-      status: { phase: 'Running' },
-    },
-    internPool,
-    idState,
-  );
-  const revisionBody = toBinary(InternedStructSchema, revisionBodyStruct);
 
   const mockRevisions: RevisionDTO[] = [
     {
@@ -377,7 +348,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       principalStringId,
       verbTypeId: 1,
       stateTypeId: 1, // Existing
-      body: revisionBody,
+      resourceBodyStructId: 1,
     },
   ];
 
@@ -614,7 +585,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       logTypeId: 2, // K8sEvent
       severityTypeId: (mockItemIndex % 3) + 1,
       summaryStringId: logSummaryStringId,
-      body: logBody,
+      bodyStructId: 1,
     });
 
     mockRevisions.push({
@@ -624,7 +595,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       principalStringId,
       verbTypeId: (mockItemIndex % 3) + 1,
       stateTypeId: (mockItemIndex % 2) + 1,
-      body: revisionBody,
+      resourceBodyStructId: 1,
     });
 
     mockEvents.push({
@@ -652,7 +623,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       logTypeId: 2, // K8sEvent
       severityTypeId: (mockItemIndex % 3) + 1,
       summaryStringId: logSummaryStringId,
-      body: logBody,
+      bodyStructId: 1,
     });
 
     mockRevisions.push({
@@ -662,7 +633,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       principalStringId,
       verbTypeId: (mockItemIndex % 3) + 1,
       stateTypeId: (mockItemIndex % 2) + 1,
-      body: revisionBody,
+      resourceBodyStructId: 1,
     });
 
     mockEvents.push({
@@ -695,7 +666,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       logTypeId: 2,
       severityTypeId: (mockItemIndex % 3) + 1,
       summaryStringId: logSummaryStringId,
-      body: logBody,
+      bodyStructId: 1,
     });
 
     mockRevisions.push({
@@ -705,7 +676,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       principalStringId,
       verbTypeId: (mockItemIndex % 3) + 1,
       stateTypeId: (mockItemIndex % 2) + 1,
-      body: revisionBody,
+      resourceBodyStructId: 1,
     });
 
     mockEvents.push({
@@ -735,7 +706,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       logTypeId: 2,
       severityTypeId: (mockItemIndex % 3) + 1,
       summaryStringId: logSummaryStringId,
-      body: logBody,
+      bodyStructId: 1,
     });
 
     mockRevisions.push({
@@ -745,7 +716,7 @@ export async function createMockInspectionData(): Promise<InspectionData> {
       principalStringId,
       verbTypeId: (mockItemIndex % 3) + 1,
       stateTypeId: (mockItemIndex % 2) + 1,
-      body: revisionBody,
+      resourceBodyStructId: 1,
     });
 
     mockEvents.push({

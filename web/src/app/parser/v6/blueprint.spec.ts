@@ -69,7 +69,7 @@ describe('V6_BLUEPRINT', () => {
 });
 
 describe('V6InternPoolAssembler', () => {
-  it('should ingest strings and field path sets and assemble them into builder', () => {
+  it('should ingest strings and assemble them into builder', () => {
     const assembler = new V6InternPoolAssembler();
     const mockChunk = create(InterningPoolChunkSchema, {
       strings: [
@@ -95,19 +95,13 @@ describe('V6InternPoolAssembler', () => {
 
     const builder = jasmine.createSpyObj<InspectionDataBuilder>(
       'InspectionDataBuilder',
-      ['addStrings', 'addFieldPathSets', 'addStructs'],
+      ['addStrings'],
     );
     assembler.assembleInto(builder);
 
     expect(builder.addStrings).toHaveBeenCalledWith([
       { id: 1, value: 'foo' },
       { id: 2, value: 'bar' },
-    ]);
-    expect(builder.addFieldPathSets).toHaveBeenCalledWith([
-      { id: 10, fieldPathStringIds: [1, 2] },
-    ]);
-    expect(builder.addStructs).toHaveBeenCalledWith([
-      jasmine.objectContaining({ id: 100, fieldPathSetId: 10 }),
     ]);
   });
 });
@@ -144,7 +138,6 @@ describe('V6LogAssembler', () => {
         severityTypeId: 20,
         summaryStringId: 30,
         bodyStructId: 5,
-        body: undefined,
       },
     ]);
   });
@@ -250,7 +243,6 @@ describe('V6TimelineAssembler', () => {
         verbTypeId: 2,
         stateTypeId: 3,
         resourceBodyStructId: 99,
-        body: undefined,
         fieldAnnotations: [],
       },
     ]);

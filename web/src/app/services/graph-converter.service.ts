@@ -186,7 +186,7 @@ export class GraphDataConverterService {
       const rev = serviceTimeline.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest =
-        rev.body as ReadonlyDomainElement<k8s.K8sServiceResource>;
+        null as ReadonlyDomainElement<k8s.K8sServiceResource> | null;
       if (!manifest) continue;
 
       const path = serviceTimeline.path;
@@ -261,7 +261,8 @@ export class GraphDataConverterService {
   ): GraphNode | null {
     const rev = nodeTimeline.lookupRevisionAtNs(t, false);
     if (!rev) return null;
-    const nodeManifest = rev.body as ReadonlyDomainElement<k8s.K8sNodeResource>;
+    const nodeManifest =
+      null as ReadonlyDomainElement<k8s.K8sNodeResource> | null;
     if (!nodeManifest) return null;
 
     const path = nodeTimeline.path;
@@ -317,7 +318,7 @@ export class GraphDataConverterService {
       await taskYielder.yield();
       const rev = pd.lookupRevisionAtNs(t, false);
       if (!rev) continue;
-      const manifest = rev.body as ReadonlyDomainElement<k8s.K8sPodResource>;
+      const manifest = null as ReadonlyDomainElement<k8s.K8sPodResource> | null;
       if (manifest != null) {
         this._parsePodInfo(t, pd, manifest, result);
       }
@@ -345,7 +346,7 @@ export class GraphDataConverterService {
           const bindingRev = podChild.lookupRevisionAtNs(t, false);
           if (bindingRev) {
             const bindingManifest =
-              bindingRev.body as ReadonlyDomainElement<k8s.K8sPodBindingResource>;
+              null as ReadonlyDomainElement<k8s.K8sPodBindingResource> | null;
             if (bindingManifest) {
               nodeName = bindingManifest.target?.name;
             }
@@ -467,7 +468,7 @@ export class GraphDataConverterService {
       const rev = owner.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest =
-        rev.body as ReadonlyDomainElement<k8s.K8sControlledResource>;
+        null as ReadonlyDomainElement<k8s.K8sControlledResource> | null;
       if (!manifest) continue;
       const uid = manifest.metadata?.uid;
       if (uid) {
@@ -537,7 +538,7 @@ export class GraphDataConverterService {
       const rev = owner.lookupRevisionAtNs(t, false);
       if (!rev) continue;
       const manifest =
-        rev.body as ReadonlyDomainElement<k8s.K8sControlledResource>;
+        null as ReadonlyDomainElement<k8s.K8sControlledResource> | null;
       if (!manifest) continue;
       const uid = manifest.metadata?.uid;
       if (uid) {

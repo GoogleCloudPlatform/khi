@@ -18,11 +18,8 @@ import {
   parseTimestampString,
   parseUnixSeconds,
   parseHexColor,
-  objectToInternedStruct,
   initializeMockIconAtlas,
 } from 'src/app/store/mock/mock-util';
-import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
-import { InternedStructDecoder } from 'src/app/store/domain/struct-decoder';
 import { StyleStore } from 'src/app/store/domain/style-store';
 
 describe('mock-util', () => {
@@ -60,29 +57,6 @@ describe('mock-util', () => {
         b: 0,
         a: 128 / 255,
       });
-    });
-  });
-
-  describe('objectToInternedStruct', () => {
-    it('should successfully convert plain object to InternedStruct and decode back', () => {
-      const internPool = InternPoolStore.create();
-      const idState = { nextStringId: 1, nextFieldSetId: 1 };
-
-      const original = {
-        foo: 'bar',
-        nested: {
-          num: 42,
-          flag: true,
-        },
-      };
-
-      const struct = objectToInternedStruct(original, internPool, idState);
-      expect(struct).toBeDefined();
-
-      const decoder = new InternedStructDecoder(internPool);
-      const decoded = decoder.decode(struct);
-
-      expect(decoded).toEqual(original);
     });
   });
 
