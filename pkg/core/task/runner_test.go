@@ -26,7 +26,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error)) UntypedTask {
+func createMockTask(id string, dependencies []string, runFunc func(ctx context.Context) (any, error), labelOpts ...LabelOpt) UntypedTask {
 	deps := make([]taskid.UntypedTaskReference, len(dependencies))
 	for i, dep := range dependencies {
 		deps[i] = taskid.NewTaskReference[any](dep)
@@ -36,6 +36,7 @@ func createMockTask(id string, dependencies []string, runFunc func(ctx context.C
 		taskid.NewDefaultImplementationID[any](id),
 		deps,
 		runFunc,
+		labelOpts...,
 	)
 }
 
@@ -43,7 +44,7 @@ func TestLocalRunner_SingleTask(t *testing.T) {
 	taskResult := "task_result"
 	task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
 		return taskResult, nil
-	})
+	}, NewTaskResultRetentionLabel(true))
 
 	taskSet, err := NewTaskSet([]UntypedTask{task})
 	if err != nil {
@@ -83,7 +84,7 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 		executionOrder = append(executionOrder, "task1")
 		mu.Unlock()
 		return "result1", nil
-	})
+	}, NewTaskResultRetentionLabel(true))
 
 	task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
 		mu.Lock()
@@ -95,7 +96,7 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 			panic("task1 result is not matching")
 		}
 		return "result2", nil
-	})
+	}, NewTaskResultRetentionLabel(true))
 
 	taskSet, err := NewTaskSet([]UntypedTask{task1, task2})
 	if err != nil {
@@ -141,6 +142,213 @@ func TestLocalRunner_TasksWithDependencies(t *testing.T) {
 	}
 	if task2Result != "result2" {
 		t.Errorf("Expected task2 result 'result2', got '%v'", task2Result)
+	}
+}
+
+func TestLocalRunner_ResultCleanup(t *testing.T) {
+	testCases := []struct {
+		name       string
+		setupTasks func() []UntypedTask
+		verify     func(t *testing.T, runner *LocalRunner)
+	}{
+		{
+			name: "single task without retention is deleted immediately after completion",
+			setupTasks: func() []UntypedTask {
+				task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+					return "result1", nil
+				})
+				return []UntypedTask{task}
+			},
+			verify: func(t *testing.T, runner *LocalRunner) {
+				_, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+				if found {
+					t.Errorf("expected task1 result to be deleted, but it was found")
+				}
+			},
+		},
+		{
+			name: "single task with retention is kept after completion",
+			setupTasks: func() []UntypedTask {
+				task := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+					return "result1", nil
+				}, NewTaskResultRetentionLabel(true))
+				return []UntypedTask{task}
+			},
+			verify: func(t *testing.T, runner *LocalRunner) {
+				val, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+				if !found {
+					t.Errorf("expected task1 result to be found, but it was not")
+				}
+				if val != "result1" {
+					t.Errorf("expected task1 result 'result1', got '%v'", val)
+				}
+			},
+		},
+		{
+			name: "dependency chain without retention deletes all intermediate results",
+			setupTasks: func() []UntypedTask {
+				task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+					return "result1", nil
+				})
+				task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+					task1Val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					if task1Val != "result1" {
+						return nil, errors.New("unexpected task1 result")
+					}
+					return "result2", nil
+				})
+				return []UntypedTask{task1, task2}
+			},
+			verify: func(t *testing.T, runner *LocalRunner) {
+				_, found1 := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+				if found1 {
+					t.Errorf("expected task1 result to be deleted after task2 completes")
+				}
+				_, found2 := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task2"))
+				if found2 {
+					t.Errorf("expected task2 result to be deleted because it has no dependents and no retention")
+				}
+			},
+		},
+		{
+			name: "dependency chain with upstream retained keeps upstream and deletes downstream",
+			setupTasks: func() []UntypedTask {
+				task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+					return "result1", nil
+				}, NewTaskResultRetentionLabel(true))
+				task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+					task1Val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					if task1Val != "result1" {
+						return nil, errors.New("unexpected task1 result")
+					}
+					return "result2", nil
+				})
+				return []UntypedTask{task1, task2}
+			},
+			verify: func(t *testing.T, runner *LocalRunner) {
+				val1, found1 := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+				if !found1 {
+					t.Errorf("expected task1 result to be kept due to retention label")
+				}
+				if val1 != "result1" {
+					t.Errorf("expected task1 result 'result1', got '%v'", val1)
+				}
+				_, found2 := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task2"))
+				if found2 {
+					t.Errorf("expected task2 result to be deleted")
+				}
+			},
+		},
+		{
+			name: "multi-dependent tasks all receive upstream result before it is deleted",
+			setupTasks: func() []UntypedTask {
+				task1 := createMockTask("task1", nil, func(ctx context.Context) (any, error) {
+					return "shared_result", nil
+				})
+				task2 := createMockTask("task2", []string{"task1"}, func(ctx context.Context) (any, error) {
+					val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					if val != "shared_result" {
+						return nil, errors.New("task2: invalid task1 result")
+					}
+					time.Sleep(10 * time.Millisecond)
+					return "result2", nil
+				})
+				task3 := createMockTask("task3", []string{"task1"}, func(ctx context.Context) (any, error) {
+					val := GetTaskResult(ctx, taskid.NewTaskReference[string]("task1"))
+					if val != "shared_result" {
+						return nil, errors.New("task3: invalid task1 result")
+					}
+					time.Sleep(30 * time.Millisecond)
+					return "result3", nil
+				})
+				return []UntypedTask{task1, task2, task3}
+			},
+			verify: func(t *testing.T, runner *LocalRunner) {
+				_, found := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("task1"))
+				if found {
+					t.Errorf("expected task1 result to be deleted after all dependents finish")
+				}
+			},
+		},
+		{
+			name: "diamond dependency with final task retained",
+			setupTasks: func() []UntypedTask {
+				taskA := createMockTask("taskA", nil, func(ctx context.Context) (any, error) {
+					return "resA", nil
+				})
+				taskB := createMockTask("taskB", []string{"taskA"}, func(ctx context.Context) (any, error) {
+					resA := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
+					return resA + "->B", nil
+				})
+				taskC := createMockTask("taskC", []string{"taskA"}, func(ctx context.Context) (any, error) {
+					resA := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskA"))
+					return resA + "->C", nil
+				})
+				taskD := createMockTask("taskD", []string{"taskB", "taskC"}, func(ctx context.Context) (any, error) {
+					resB := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskB"))
+					resC := GetTaskResult(ctx, taskid.NewTaskReference[string]("taskC"))
+					return resB + "+" + resC + "->D", nil
+				}, NewTaskResultRetentionLabel(true))
+				return []UntypedTask{taskA, taskB, taskC, taskD}
+			},
+			verify: func(t *testing.T, runner *LocalRunner) {
+				_, foundA := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("taskA"))
+				if foundA {
+					t.Errorf("expected taskA result to be deleted")
+				}
+				_, foundB := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("taskB"))
+				if foundB {
+					t.Errorf("expected taskB result to be deleted")
+				}
+				_, foundC := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("taskC"))
+				if foundC {
+					t.Errorf("expected taskC result to be deleted")
+				}
+				valD, foundD := GetTaskResultFromLocalRunner(runner, taskid.NewTaskReference[string]("taskD"))
+				if !foundD {
+					t.Errorf("expected taskD result to be retained")
+				}
+				expectedD := "resA->B+resA->C->D"
+				if valD != expectedD {
+					if diff := cmp.Diff(expectedD, valD); diff != "" {
+						t.Errorf("taskD result mismatch (-want +got):\n%s", diff)
+					}
+				}
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tasks := tc.setupTasks()
+			taskSet, err := NewTaskSet(tasks)
+			if err != nil {
+				t.Fatalf("Failed to create task set: %v", err)
+			}
+
+			runnableSet, err := taskSet.ToRunnableTaskSet()
+			if err != nil {
+				t.Fatalf("Failed to sort task set: %v", err)
+			}
+
+			runner, err := NewLocalRunner(runnableSet)
+			if err != nil {
+				t.Fatalf("Failed to create runner: %v", err)
+			}
+
+			err = runner.Run(context.Background())
+			if err != nil {
+				t.Fatalf("Failed to run task: %v", err)
+			}
+
+			<-runner.Wait()
+
+			if _, err := runner.Result(); err != nil {
+				t.Fatalf("Runner completed with error: %v", err)
+			}
+
+			tc.verify(t, runner)
+		})
 	}
 }
 

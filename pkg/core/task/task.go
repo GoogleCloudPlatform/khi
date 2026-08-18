@@ -42,6 +42,9 @@ var LabelKeyRequiredTask = NewTaskLabelKey[bool](KHISystemPrefix + "required-tas
 // LabelKeySubsequentTaskRefs is the list of task references. These tasks are included in the task graph later and the included task reference this task.
 var LabelKeySubsequentTaskRefs = NewTaskLabelKey[[]taskid.UntypedTaskReference](KHISystemPrefix + "subsquent-task-refs")
 
+// LabelKeyTaskResultRetention indicates whether the task result should be retained in the runner after all dependent tasks finish.
+var LabelKeyTaskResultRetention = NewTaskLabelKey[bool](KHISystemPrefix + "task-result-retention")
+
 type UntypedTask interface {
 	UntypedID() taskid.UntypedTaskImplementationID
 	// Labels returns KHITaskLabelSet assigned to this task unit.

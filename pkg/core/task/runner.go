@@ -36,15 +36,18 @@ type Interceptor func(ctx context.Context, task UntypedTask, next func(context.C
 // LocalRunner executes a task graph defined by a TaskSet on the local machine.
 // It manages task dependencies, concurrent execution, and result aggregation.
 type LocalRunner struct {
-	resolvedTaskSet *TaskSet
-	resultVariable  *typedmap.TypedMap
-	resultError     error
-	started         bool
-	stopped         bool
-	taskWaiters     *typedmap.ReadonlyTypedMap
-	waiter          chan interface{}
-	taskStatuses    []*LocalRunnerTaskStat
-	interceptors    []Interceptor
+	resolvedTaskSet       *TaskSet
+	resultVariable        *typedmap.TypedMap
+	resultError           error
+	started               bool
+	stopped               bool
+	taskWaiters           *typedmap.ReadonlyTypedMap
+	waiter                chan interface{}
+	taskStatuses          []*LocalRunnerTaskStat
+	interceptors          []Interceptor
+	remainingDependents   map[string]int
+	remainingDependentsMu sync.Mutex
+	taskByRefID           map[string]UntypedTask
 }
 
 // LocalRunner implements task_interface.TaskRunner
@@ -77,6 +80,18 @@ func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 	}
 	taskStatuses := []*LocalRunnerTaskStat{}
 	taskWaiters := typedmap.NewTypedMap()
+	remainingDependents := make(map[string]int)
+	taskByRefID := make(map[string]UntypedTask)
+	for _, t := range taskSet.tasks {
+		refID := t.UntypedID().GetUntypedReference().ReferenceIDString()
+		taskByRefID[refID] = t
+		remainingDependents[refID] = 0
+	}
+	for _, t := range taskSet.tasks {
+		for _, dep := range dedupeTaskReferences(t.Dependencies()) {
+			remainingDependents[dep.ReferenceIDString()]++
+		}
+	}
 	for i := 0; i < len(taskSet.tasks); i++ {
 		taskStatuses = append(taskStatuses, &LocalRunnerTaskStat{
 			Phase: LocalRunnerTaskStatPhaseWaiting,
@@ -88,14 +103,16 @@ func NewLocalRunner(taskSet *TaskSet) (*LocalRunner, error) {
 		typedmap.Set(taskWaiters, waiterKeyForTask(taskSet.tasks[i].UntypedID().GetUntypedReference()), &waiter)
 	}
 	return &LocalRunner{
-		resolvedTaskSet: taskSet,
-		started:         false,
-		resultVariable:  nil,
-		resultError:     nil,
-		stopped:         false,
-		taskWaiters:     taskWaiters.AsReadonly(),
-		waiter:          make(chan interface{}),
-		taskStatuses:    taskStatuses,
+		resolvedTaskSet:     taskSet,
+		started:             false,
+		resultVariable:      nil,
+		resultError:         nil,
+		stopped:             false,
+		taskWaiters:         taskWaiters.AsReadonly(),
+		waiter:              make(chan interface{}),
+		taskStatuses:        taskStatuses,
+		remainingDependents: remainingDependents,
+		taskByRefID:         taskByRefID,
 	}, nil
 }
 
@@ -233,7 +250,45 @@ func (r *LocalRunner) runTask(graphCtx context.Context, taskDefIndex int) error 
 
 	r.releaseTaskWaiter(task.UntypedID())
 
+	r.cleanupCompletedTaskResults(task)
+
 	return nil
+}
+
+// isTaskResultRetained checks if the given task has the LabelKeyTaskResultRetention label set to true.
+func (r *LocalRunner) isTaskResultRetained(task UntypedTask) bool {
+	retained, found := typedmap.Get(task.Labels(), LabelKeyTaskResultRetention)
+	return found && retained
+}
+
+// cleanupCompletedTaskResults deletes task results whose dependent tasks have all finished and are not marked for retention.
+func (r *LocalRunner) cleanupCompletedTaskResults(completedTask UntypedTask) {
+	completedRefID := completedTask.UntypedID().GetUntypedReference().ReferenceIDString()
+
+	r.remainingDependentsMu.Lock()
+	defer r.remainingDependentsMu.Unlock()
+
+	// Check if the completed task itself has no dependents and should be released immediately.
+	rem := r.remainingDependents[completedRefID]
+	if rem == 0 && !r.isTaskResultRetained(completedTask) {
+		typedmap.Delete(r.resultVariable, typedmap.NewTypedKey[any](completedRefID))
+	}
+
+	// Decrement remaining dependents count for each dependency.
+	deps := dedupeTaskReferences(completedTask.Dependencies())
+	for _, dep := range deps {
+		depRefID := dep.ReferenceIDString()
+		r.remainingDependents[depRefID]--
+		remDep := r.remainingDependents[depRefID]
+
+		if remDep == 0 {
+			if depTask, found := r.taskByRefID[depRefID]; found {
+				if !r.isTaskResultRetained(depTask) {
+					typedmap.Delete(r.resultVariable, typedmap.NewTypedKey[any](depRefID))
+				}
+			}
+		}
+	}
 }
 
 func (r *LocalRunner) Tasks() []UntypedTask {
