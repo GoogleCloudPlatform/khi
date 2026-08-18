@@ -20,6 +20,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
@@ -145,6 +146,15 @@ func NewInternPoolGenerator(seq iter.Seq[*pb.InternString]) ChunkGenerator {
 func NewInternFieldPathSetGenerator(seq iter.Seq[*pb.InternFieldPathSet]) ChunkGenerator {
 	wrapper := func(batch []*pb.InternFieldPathSet) *pb.InterningPoolChunk {
 		return &pb.InterningPoolChunk{FieldPathSets: batch}
+	}
+	return NewSplittingGenerator(ChunkTypeInternPool, seq, DefaultChunkSizeLimit, wrapper)
+}
+
+// NewInternStructGenerator creates a SplittingGenerator for InternPool chunks containing structs.
+// It groups khifile.InternedStruct messages into pb.InterningPoolChunk respecting the size limit.
+func NewInternStructGenerator(seq iter.Seq[*khifile.InternedStruct]) ChunkGenerator {
+	wrapper := func(batch []*khifile.InternedStruct) *pb.InterningPoolChunk {
+		return &pb.InterningPoolChunk{Structs: batch}
 	}
 	return NewSplittingGenerator(ChunkTypeInternPool, seq, DefaultChunkSizeLimit, wrapper)
 }

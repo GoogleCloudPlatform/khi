@@ -43,6 +43,9 @@ message InternedStruct {
 
   // Values corresponding to the field path order.
   repeated InternedValue values = 2;
+
+  // Unique ID of the interned struct when stored in InterningPoolChunk.
+  uint32 id = 3;
 }
 
 // `InternedValue` represents a dynamically typed value which can be either
@@ -62,12 +65,14 @@ message InternedValue {
     uint32 string_value = 4; // the id in InterningPoolChunk.
     // Represents a boolean value.
     bool bool_value = 5;
-    // Represents a structured value.
+    // Represents a structured value (deprecated in favor of struct_id).
     InternedStruct struct_value = 6;
     // Represents a repeated `InternedValue`.
     InternedListValue list_value = 7;
     // Represents a timestamp value.
     google.protobuf.Timestamp timestamp_value = 8;
+    // Represents an interned struct ID in InterningPoolChunk.
+    uint32 struct_id = 9;
   }
 }
 

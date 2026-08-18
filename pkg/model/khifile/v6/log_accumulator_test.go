@@ -21,8 +21,6 @@ import (
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
-	"github.com/google/go-cmp/cmp"
-	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestLogAccumulator(t *testing.T) {
@@ -88,8 +86,8 @@ func TestLogAccumulator(t *testing.T) {
 				if logs[0].GetId() != 1 {
 					t.Errorf("expected ID 1, got %d", logs[0].GetId())
 				}
-				if logs[0].Body == nil {
-					t.Errorf("expected non-nil Body")
+				if logs[0].GetBodyStructId() == 0 {
+					t.Errorf("expected non-zero BodyStructId")
 				}
 				if logs[0].GetSeverityTypeId() != testSeverityID {
 					t.Errorf("expected severity %d, got %d", testSeverityID, logs[0].GetSeverityTypeId())
@@ -146,9 +144,12 @@ func TestLogAccumulator(t *testing.T) {
 					t.Errorf("expected ID 3, got %d", logs[2].GetId())
 				}
 
-				// The first two logs should have exactly the same interned structure
-				if diff := cmp.Diff(logs[0].Body, logs[1].Body, protocmp.Transform()); diff != "" {
-					t.Errorf("log bodies should be identical due to interning (-want +got):\n%s", diff)
+				// The first two logs should have exactly the same interned struct ID
+				if logs[0].GetBodyStructId() != logs[1].GetBodyStructId() {
+					t.Errorf("log body struct IDs should be identical due to interning (got %d and %d)", logs[0].GetBodyStructId(), logs[1].GetBodyStructId())
+				}
+				if logs[0].GetBodyStructId() == logs[2].GetBodyStructId() {
+					t.Errorf("log 3 should have different body struct ID from log 0")
 				}
 
 				// Verify GetLog

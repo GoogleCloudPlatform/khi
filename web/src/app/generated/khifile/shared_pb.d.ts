@@ -59,6 +59,13 @@ export declare type InternedStruct = Message<'khifile.InternedStruct'> & {
    * @generated from field: repeated khifile.InternedValue values = 2;
    */
   values: InternedValue[];
+
+  /**
+   * Unique ID of the interned struct when stored in InterningPoolChunk.
+   *
+   * @generated from field: uint32 id = 3;
+   */
+  id: number;
 };
 
 /**
@@ -131,7 +138,7 @@ export declare type InternedValue = Message<'khifile.InternedValue'> & {
       }
     | {
         /**
-         * Represents a structured value.
+         * Represents a structured value (deprecated in favor of struct_id).
          *
          * @generated from field: khifile.InternedStruct struct_value = 6;
          */
@@ -155,6 +162,15 @@ export declare type InternedValue = Message<'khifile.InternedValue'> & {
          */
         value: Timestamp;
         case: 'timestampValue';
+      }
+    | {
+        /**
+         * Represents an interned struct ID in InterningPoolChunk.
+         *
+         * @generated from field: uint32 struct_id = 9;
+         */
+        value: number;
+        case: 'structId';
       }
     | { case: undefined; value?: undefined };
 };

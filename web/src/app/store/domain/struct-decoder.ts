@@ -24,10 +24,26 @@ import {
  * Utility to decode InternedStruct into standard JavaScript objects.
  */
 export class InternedStructDecoder {
+  private readonly structCache: (Record<string, unknown> | undefined)[] = [];
+
   /**
    * Creates a new InternedStructDecoder instance.
    */
   constructor(private readonly internPool: InternPoolStore) {}
+
+  /**
+   * Decodes an interned struct by its ID, caching the decoded result.
+   */
+  public decodeById(structId: number): Record<string, unknown> {
+    const cached = this.structCache[structId];
+    if (cached !== undefined) {
+      return cached;
+    }
+    const struct = this.internPool.getStruct(structId);
+    const decoded = this.decode(struct);
+    this.structCache[structId] = decoded;
+    return decoded;
+  }
 
   /**
    * Decodes an InternedStruct into a nested Record.
@@ -74,6 +90,8 @@ export class InternedStructDecoder {
         return this.internPool.getString(value.kind.value);
       case 'boolValue':
         return value.kind.value;
+      case 'structId':
+        return this.decodeById(value.kind.value);
       case 'structValue':
         return this.decode(value.kind.value);
       case 'listValue':
@@ -85,7 +103,7 @@ export class InternedStructDecoder {
       case undefined:
         throw new Error('InternedValue kind is undefined');
       default: {
-        const caseName = (value.kind as unknown as { case?: string }).case;
+        const caseName = (value.kind as { case?: string }).case;
         throw new Error(
           `Unsupported InternedValue kind: ${caseName ?? 'unknown'}`,
         );

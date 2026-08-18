@@ -17,8 +17,10 @@ package khifilev6
 import (
 	"testing"
 
+	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestInternPool_Intern(t *testing.T) {
@@ -310,6 +312,166 @@ func TestInternPool_FieldSetRefs(t *testing.T) {
 			got := refs[tc.idx].Resolve()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("refs[%d].Resolve() mismatch (-want +got):\n%s", tc.idx, diff)
+			}
+		})
+	}
+}
+
+func TestInternPool_InternStruct(t *testing.T) {
+	idGen := &IDGenerator{}
+	pool := NewInternPool(idGen)
+
+	fieldSetID1 := pool.InternFieldSet([]string{"foo", "bar"}).id
+	fieldSetID2 := pool.InternFieldSet([]string{"baz"}).id
+
+	str1ID := pool.InternString("val1").id
+	str2ID := pool.InternString("val2").id
+
+	testCases := []struct {
+		name       string
+		fieldSetID uint32
+		values     []*khifile.InternedValue
+		wantID     uint32
+	}{
+		{
+			name:       "first struct",
+			fieldSetID: fieldSetID1,
+			values: []*khifile.InternedValue{
+				{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
+				{Kind: &khifile.InternedValue_Int64Value{Int64Value: 100}},
+			},
+			wantID: 1,
+		},
+		{
+			name:       "second struct with different values",
+			fieldSetID: fieldSetID1,
+			values: []*khifile.InternedValue{
+				{Kind: &khifile.InternedValue_StringValue{StringValue: str2ID}},
+				{Kind: &khifile.InternedValue_Int64Value{Int64Value: 100}},
+			},
+			wantID: 2,
+		},
+		{
+			name:       "duplicate first struct (should deduplicate)",
+			fieldSetID: fieldSetID1,
+			values: []*khifile.InternedValue{
+				{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
+				{Kind: &khifile.InternedValue_Int64Value{Int64Value: 100}},
+			},
+			wantID: 1,
+		},
+		{
+			name:       "third struct with different fieldSetID",
+			fieldSetID: fieldSetID2,
+			values: []*khifile.InternedValue{
+				{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
+			},
+			wantID: 3,
+		},
+		{
+			name:       "struct with nested struct_id",
+			fieldSetID: fieldSetID2,
+			values: []*khifile.InternedValue{
+				{Kind: &khifile.InternedValue_StructId{StructId: 1}},
+			},
+			wantID: 4,
+		},
+		{
+			name:       "struct with uninterned nested struct_value",
+			fieldSetID: fieldSetID2,
+			values: []*khifile.InternedValue{
+				{
+					Kind: &khifile.InternedValue_StructValue{
+						StructValue: &khifile.InternedStruct{
+							FieldPathSetId: &fieldSetID1,
+							Values: []*khifile.InternedValue{
+								{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
+								{Kind: &khifile.InternedValue_Int64Value{Int64Value: 100}},
+							},
+						},
+					},
+				},
+			},
+			wantID: 5,
+		},
+		{
+			name:       "duplicate struct with uninterned nested struct_value",
+			fieldSetID: fieldSetID2,
+			values: []*khifile.InternedValue{
+				{
+					Kind: &khifile.InternedValue_StructValue{
+						StructValue: &khifile.InternedStruct{
+							FieldPathSetId: &fieldSetID1,
+							Values: []*khifile.InternedValue{
+								{Kind: &khifile.InternedValue_StringValue{StringValue: str1ID}},
+								{Kind: &khifile.InternedValue_Int64Value{Int64Value: 100}},
+							},
+						},
+					},
+				},
+			},
+			wantID: 5,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ref := pool.InternStruct(tc.fieldSetID, tc.values)
+			if ref.id != tc.wantID {
+				t.Errorf("InternStruct() ID = %d, want %d", ref.id, tc.wantID)
+			}
+			resolved := ref.Resolve()
+			if resolved.GetId() != tc.wantID {
+				t.Errorf("Resolve().GetId() = %d, want %d", resolved.GetId(), tc.wantID)
+			}
+			if resolved.GetFieldPathSetId() != tc.fieldSetID {
+				t.Errorf("Resolve().GetFieldPathSetId() = %d, want %d", resolved.GetFieldPathSetId(), tc.fieldSetID)
+			}
+			if diff := cmp.Diff(tc.values, resolved.GetValues(), protocmp.Transform()); diff != "" {
+				t.Errorf("Resolve().GetValues() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestInternPool_StructRefs(t *testing.T) {
+	idGen := &IDGenerator{}
+	pool := NewInternPool(idGen)
+
+	fsID := pool.InternFieldSet([]string{"key"}).id
+	ref1 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 1}}})
+	ref2 := pool.InternStruct(fsID, []*khifile.InternedValue{{Kind: &khifile.InternedValue_Int64Value{Int64Value: 2}}})
+
+	var refs []*InternStructRef
+	for ref := range pool.StructRefs() {
+		refs = append(refs, ref)
+	}
+
+	testCases := []struct {
+		name   string
+		idx    int
+		wantID uint32
+	}{
+		{
+			name:   "first struct is ref1",
+			idx:    0,
+			wantID: ref1.id,
+		},
+		{
+			name:   "second struct is ref2",
+			idx:    1,
+			wantID: ref2.id,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.idx >= len(refs) {
+				t.Fatalf("Index %d out of range", tc.idx)
+			}
+			got := refs[tc.idx].id
+			if got != tc.wantID {
+				t.Errorf("refs[%d].id = %d, want %d", tc.idx, got, tc.wantID)
 			}
 		})
 	}

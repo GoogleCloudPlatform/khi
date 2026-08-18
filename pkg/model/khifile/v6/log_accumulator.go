@@ -72,8 +72,8 @@ func (a *LogAccumulator) AddLog(s *StagingLog) error {
 
 	id := a.idGen.New(IDLog)
 	pbLog := &pb.Log{
-		Id:   &id,
-		Body: internedBody,
+		Id:           &id,
+		BodyStructId: &internedBody.id,
 	}
 
 	pbLog.Ts = timestamppb.New(s.Timestamp)

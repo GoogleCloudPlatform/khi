@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/khi/pkg/common/structured"
-	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/log"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -177,13 +176,13 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 	for path, revisions := range cs.Revisions {
 		builder := registry.GetBuilder(path)
 		for _, r := range revisions {
-			var bodyRef *khifile.InternedStruct
+			var bodyStructID *uint32
 			if r.ResourceBody != nil {
-				var err error
-				bodyRef, err = ToInternedStruct(r.ResourceBody, pool)
+				structRef, err := ToInternedStruct(r.ResourceBody, pool)
 				if err != nil {
 					return fmt.Errorf("failed to intern resource body for revision: %w", err)
 				}
+				bodyStructID = &structRef.id
 			}
 
 			var principalID *uint32
@@ -231,13 +230,13 @@ func (cs *TimelineChangeSet) Flush(accumulator *TimelineAccumulator) error {
 			}
 
 			builder.AddRevision(&pb.Revision{
-				LogId:             &resolvedLogID,
-				ChangedTime:       changedTime,
-				ResourceBody:      bodyRef,
-				PrincipalStringId: principalID,
-				VerbType:          verbID,
-				StateType:         stateID,
-				FieldAnnotations:  pbAnnotations,
+				LogId:                &resolvedLogID,
+				ChangedTime:          changedTime,
+				ResourceBodyStructId: bodyStructID,
+				PrincipalStringId:    principalID,
+				VerbType:             verbID,
+				StateType:            stateID,
+				FieldAnnotations:     pbAnnotations,
 			})
 		}
 	}

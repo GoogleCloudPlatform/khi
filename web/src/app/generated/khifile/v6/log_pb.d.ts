@@ -63,7 +63,7 @@ export declare type Log = Message<'khifile.v6.Log'> & {
   ts?: Timestamp;
 
   /**
-   * Structured data of the log body.
+   * Structured data of the log body (deprecated in favor of body_struct_id).
    *
    * @generated from field: khifile.InternedStruct body = 3;
    */
@@ -89,6 +89,13 @@ export declare type Log = Message<'khifile.v6.Log'> & {
    * @generated from field: uint32 severity_type_id = 6;
    */
   severityTypeId: number;
+
+  /**
+   * ID of the interned struct body in InterningPoolChunk.
+   *
+   * @generated from field: uint32 body_struct_id = 7;
+   */
+  bodyStructId: number;
 };
 
 /**

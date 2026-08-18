@@ -40,8 +40,11 @@ foo: value1
 bar: 123
 `,
 			want: func(pool *InternPool) *pb.InternedStruct {
+				id := uint32(1)
+				fieldSetID := pool.InternFieldSet([]string{"foo", "bar"}).id
 				return &pb.InternedStruct{
-					FieldPathSetId: &pool.InternFieldSet([]string{"foo", "bar"}).id,
+					Id:             &id,
+					FieldPathSetId: &fieldSetID,
 					Values: []*pb.InternedValue{
 						{
 							Kind: &pb.InternedValue_StringValue{
@@ -67,8 +70,11 @@ list:
   - hello
 `,
 			want: func(pool *InternPool) *pb.InternedStruct {
+				id := uint32(1)
+				fieldSetID := pool.InternFieldSet([]string{"map\x00key", "list"}).id
 				return &pb.InternedStruct{
-					FieldPathSetId: &pool.InternFieldSet([]string{"map\x00key", "list"}).id,
+					Id:             &id,
+					FieldPathSetId: &fieldSetID,
 					Values: []*pb.InternedValue{
 						{
 							Kind: &pb.InternedValue_BoolValue{
@@ -105,30 +111,23 @@ list:
     b: 2
 `,
 			want: func(pool *InternPool) *pb.InternedStruct {
+				outerFieldSetID := pool.InternFieldSet([]string{"list"}).id
+				innerStructRef := pool.InternStruct(pool.InternFieldSet([]string{"a", "b"}).id, []*pb.InternedValue{
+					{Kind: &pb.InternedValue_Int64Value{Int64Value: 1}},
+					{Kind: &pb.InternedValue_Int64Value{Int64Value: 2}},
+				})
+				outerID := uint32(2)
 				return &pb.InternedStruct{
-					FieldPathSetId: &pool.InternFieldSet([]string{"list"}).id,
+					Id:             &outerID,
+					FieldPathSetId: &outerFieldSetID,
 					Values: []*pb.InternedValue{
 						{
 							Kind: &pb.InternedValue_ListValue{
 								ListValue: &pb.InternedListValue{
 									Values: []*pb.InternedValue{
 										{
-											Kind: &pb.InternedValue_StructValue{
-												StructValue: &pb.InternedStruct{
-													FieldPathSetId: &pool.InternFieldSet([]string{"a", "b"}).id,
-													Values: []*pb.InternedValue{
-														{
-															Kind: &pb.InternedValue_Int64Value{
-																Int64Value: 1,
-															},
-														},
-														{
-															Kind: &pb.InternedValue_Int64Value{
-																Int64Value: 2,
-															},
-														},
-													},
-												},
+											Kind: &pb.InternedValue_StructId{
+												StructId: innerStructRef.id,
 											},
 										},
 									},
@@ -145,15 +144,16 @@ list:
 empty_map: {}
 `,
 			want: func(pool *InternPool) *pb.InternedStruct {
+				outerFieldSetID := pool.InternFieldSet([]string{"empty_map"}).id
+				innerStructRef := pool.InternStruct(pool.InternFieldSet([]string{}).id, nil)
+				outerID := uint32(2)
 				return &pb.InternedStruct{
-					FieldPathSetId: &pool.InternFieldSet([]string{"empty_map"}).id,
+					Id:             &outerID,
+					FieldPathSetId: &outerFieldSetID,
 					Values: []*pb.InternedValue{
 						{
-							Kind: &pb.InternedValue_StructValue{
-								StructValue: &pb.InternedStruct{
-									FieldPathSetId: &pool.InternFieldSet([]string{}).id,
-									Values:         nil,
-								},
+							Kind: &pb.InternedValue_StructId{
+								StructId: innerStructRef.id,
 							},
 						},
 					},
@@ -168,8 +168,11 @@ time_val: 2026-04-20T03:00:00Z
 `,
 			want: func(pool *InternPool) *pb.InternedStruct {
 				t, _ := time.Parse(time.RFC3339, "2026-04-20T03:00:00Z")
+				id := uint32(1)
+				fieldSetID := pool.InternFieldSet([]string{"float_val", "time_val"}).id
 				return &pb.InternedStruct{
-					FieldPathSetId: &pool.InternFieldSet([]string{"float_val", "time_val"}).id,
+					Id:             &id,
+					FieldPathSetId: &fieldSetID,
 					Values: []*pb.InternedValue{
 						{
 							Kind: &pb.InternedValue_DoubleValue{
@@ -209,12 +212,12 @@ time_val: 2026-04-20T03:00:00Z
 			poolWant := NewInternPool(idGenWant)
 			want := tc.want(poolWant)
 
-			if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(want, got.ToProto(), protocmp.Transform()); diff != "" {
 				t.Errorf("ToInternedStruct() mismatch (-want +got):\n%s", diff)
 			}
 
 			// Round-trip test
-			reverted, err := FromInternedStruct(got, poolGot)
+			reverted, err := FromInternedStruct(got.ToProto(), poolGot)
 			if err != nil {
 				t.Fatalf("FromInternedStruct() error = %v", err)
 			}
@@ -318,6 +321,24 @@ func TestFromInternedValue(t *testing.T) {
 			want: func() structured.Node {
 				return structured.NewStandardMap([]string{"a"}, []structured.Node{
 					structured.NewStandardScalarNode(int(1)),
+				})
+			},
+		},
+		{
+			name: "struct id",
+			value: func() *pb.InternedValue {
+				structRef := pool.InternStruct(pool.InternFieldSet([]string{"b"}).id, []*pb.InternedValue{
+					{Kind: &pb.InternedValue_Int64Value{Int64Value: 42}},
+				})
+				return &pb.InternedValue{
+					Kind: &pb.InternedValue_StructId{
+						StructId: structRef.id,
+					},
+				}
+			}(),
+			want: func() structured.Node {
+				return structured.NewStandardMap([]string{"b"}, []structured.Node{
+					structured.NewStandardScalarNode(int(42)),
 				})
 			},
 		},

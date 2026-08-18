@@ -28,6 +28,8 @@ const (
 	IDString IDNamespace = iota
 	// IDFieldSet is the namespace for field set IDs.
 	IDFieldSet
+	// IDStruct is the namespace for struct IDs.
+	IDStruct
 	// IDTimelinePath is the namespace for timeline path IDs.
 	IDTimelinePath
 	// IDTimelineItems is the namespace for timeline items IDs.

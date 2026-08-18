@@ -231,6 +231,42 @@ describe('LogStore', () => {
     expect(() => store.getLog(99)).toThrowError('Log ID 99 not found');
   });
 
+  it('should return decoded log body by bodyStructId correctly', () => {
+    internPool.addStrings([
+      { id: 10, value: 'user' },
+      { id: 12, value: 'bob' },
+    ]);
+    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
+
+    const struct = create(InternedStructSchema, {
+      id: 50,
+      fieldPathSetId: 1,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 12 },
+        }),
+      ],
+    });
+    internPool.addStructs([struct]);
+
+    const logs: LogDTO[] = [
+      {
+        id: 1,
+        ts: 10n,
+        logTypeId: 1,
+        severityTypeId: 1,
+        summaryStringId: 1,
+        bodyStructId: 50,
+      },
+    ];
+
+    store.initialize(logs, 1);
+
+    expect(store.getLog(1).body).toEqual({
+      user: 'bob',
+    });
+  });
+
   it('should cache body in WeakRef and re-decode when GC collected', () => {
     internPool.addStrings([
       { id: 10, value: 'user' },

@@ -20,6 +20,7 @@ import (
 	"iter"
 	"slices"
 
+	khifile "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
 	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 	"github.com/GoogleCloudPlatform/khi/pkg/model/khifile/v6/style"
 )
@@ -118,7 +119,7 @@ func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
 	}
 
 	report(0.8, "Writing intern pool chunks")
-	// 5. Write InternPoolChunk (Strings and FieldPathSets)
+	// 5. Write InternPoolChunk (Strings, FieldPathSets, and Structs)
 	stringSeq := mapSeq(b.internPool.SortedStringRefs(), func(ref *InternStringRef) *pb.InternString {
 		return ref.ToProto()
 	})
@@ -133,6 +134,14 @@ func (b *Builder) Build(w io.Writer, reporter BuilderProgressReporter) error {
 	fieldPathSetGen := NewInternFieldPathSetGenerator(fieldSetSeq)
 	if err := writer.WriteGenerator(fieldPathSetGen); err != nil {
 		return fmt.Errorf("failed to write intern field path set chunks: %w", err)
+	}
+
+	structSeq := mapSeq(b.internPool.StructRefs(), func(ref *InternStructRef) *khifile.InternedStruct {
+		return ref.ToProto()
+	})
+	structGen := NewInternStructGenerator(structSeq)
+	if err := writer.WriteGenerator(structGen); err != nil {
+		return fmt.Errorf("failed to write intern struct chunks: %w", err)
 	}
 
 	report(1.0, "Done")

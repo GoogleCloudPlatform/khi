@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { create } from '@bufbuild/protobuf';
+import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import { InternPoolStore } from 'src/app/store/domain/intern-pool-store';
 
 describe('InternPoolStore', () => {
@@ -60,6 +62,30 @@ describe('InternPoolStore', () => {
   it('should throw an error if field path set ID is missing', () => {
     expect(() => store.getFieldPathSet(999)).toThrowError(
       'FieldPathSet ID 999 not found in pool',
+    );
+  });
+
+  it('should add and get structs from the pool', () => {
+    const struct1 = create(InternedStructSchema, {
+      id: 1,
+      fieldPathSetId: 10,
+      values: [],
+    });
+    const struct2 = create(InternedStructSchema, {
+      id: 5,
+      fieldPathSetId: 20,
+      values: [],
+    });
+
+    store.addStructs([struct1, struct2]);
+
+    expect(store.getStruct(1)).toBe(struct1);
+    expect(store.getStruct(5)).toBe(struct2);
+  });
+
+  it('should throw an error if struct ID is missing', () => {
+    expect(() => store.getStruct(999)).toThrowError(
+      'Struct ID 999 not found in pool',
     );
   });
 

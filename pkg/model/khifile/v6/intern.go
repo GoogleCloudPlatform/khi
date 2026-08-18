@@ -15,13 +15,16 @@
 package khifilev6
 
 import (
+	"encoding/binary"
 	"iter"
+	"math"
 	"sort"
 	"strings"
 	"sync"
 	"unsafe"
 
-	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
+	pb "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile"
+	pbv6 "github.com/GoogleCloudPlatform/khi/pkg/generated/khifile/v6"
 )
 
 // InternStringRef represents a reference to an interned string.
@@ -38,10 +41,10 @@ func (r *InternStringRef) Resolve() string {
 }
 
 // ToProto converts InternStringRef to its proto representation.
-func (r *InternStringRef) ToProto() *pb.InternString {
+func (r *InternStringRef) ToProto() *pbv6.InternString {
 	id := r.id
 	val := r.Resolve()
-	return &pb.InternString{
+	return &pbv6.InternString{
 		Id:    &id,
 		Value: &val,
 	}
@@ -66,16 +69,38 @@ func (r *FieldPathSetRef) Resolve() []string {
 }
 
 // ToProto converts FieldPathSetRef to its proto representation.
-func (r *FieldPathSetRef) ToProto() *pb.InternFieldPathSet {
+func (r *FieldPathSetRef) ToProto() *pbv6.InternFieldPathSet {
 	id := r.id
 	names := r.pool.resolveFieldSetFromID(r.id)
-	return &pb.InternFieldPathSet{
+	return &pbv6.InternFieldPathSet{
 		Id:                 &id,
 		FieldPathStringIds: names,
 	}
 }
 
-// InternPool manages interning of strings and field path sets to reduce memory usage.
+// InternStructRef represents a reference to an interned struct.
+// This struct holds a reference to the pool and the ID of the struct.
+type InternStructRef struct {
+	pool *InternPool
+	id   uint32
+}
+
+// ID returns the interned struct ID.
+func (r *InternStructRef) ID() uint32 {
+	return r.id
+}
+
+// Resolve returns the underlying pb.InternedStruct protobuf message.
+func (r *InternStructRef) Resolve() *pb.InternedStruct {
+	return r.pool.resolveStructFromID(r.id)
+}
+
+// ToProto converts InternStructRef to its proto representation.
+func (r *InternStructRef) ToProto() *pb.InternedStruct {
+	return r.Resolve()
+}
+
+// InternPool manages interning of strings, field path sets, and structs to reduce memory usage.
 // It uses sync.Map for concurrent access and relies on IDGenerator for generating IDs.
 type InternPool struct {
 	idGen   *IDGenerator
@@ -84,6 +109,9 @@ type InternPool struct {
 
 	fieldSetToID sync.Map // map[string]uint32 (key is byte representation of []uint32)
 	idToFieldSet sync.Map // map[uint32][]uint32
+
+	structToID sync.Map // map[string]uint32
+	idToStruct sync.Map // map[uint32]*pb.InternedStruct
 }
 
 // NewInternPool creates a new InternPool with the given IDGenerator.
@@ -167,6 +195,40 @@ func (p *InternPool) resolveFieldSetFromID(id uint32) []uint32 {
 	return nil
 }
 
+// InternStruct returns an InternStructRef for the given fieldPathSetID and values.
+// It checks if an identical struct is already interned, and if not, assigns a new ID and stores it.
+func (p *InternPool) InternStruct(fieldPathSetID uint32, values []*pb.InternedValue) *InternStructRef {
+	key := structKey(fieldPathSetID, values)
+	if id, ok := p.structToID.Load(key); ok {
+		return &InternStructRef{pool: p, id: id.(uint32)}
+	}
+
+	id := p.idGen.New(IDStruct)
+	pbStruct := &pb.InternedStruct{
+		Id:             &id,
+		FieldPathSetId: &fieldPathSetID,
+		Values:         values,
+	}
+
+	p.idToStruct.Store(id, pbStruct)
+	actual, loaded := p.structToID.LoadOrStore(key, id)
+	if loaded {
+		p.idToStruct.Store(id, (*pb.InternedStruct)(nil))
+		return &InternStructRef{pool: p, id: actual.(uint32)}
+	}
+
+	return &InternStructRef{pool: p, id: id}
+}
+
+// resolveStructFromID returns the InternedStruct corresponding to the given ID.
+// It returns nil if the ID is not found.
+func (p *InternPool) resolveStructFromID(id uint32) *pb.InternedStruct {
+	if value, ok := p.idToStruct.Load(id); ok {
+		return value.(*pb.InternedStruct)
+	}
+	return nil
+}
+
 // SortedStringRefs returns an iterator that yields InternStringRefs in the pool, sorted by their original string value.
 func (p *InternPool) SortedStringRefs() iter.Seq[*InternStringRef] {
 	type entry struct {
@@ -224,6 +286,34 @@ func (p *InternPool) FieldSetRefs() iter.Seq[*FieldPathSetRef] {
 	}
 }
 
+// StructRefs returns an iterator that yields InternStructRefs in the pool, sorted by their ID.
+func (p *InternPool) StructRefs() iter.Seq[*InternStructRef] {
+	type entry struct {
+		id uint32
+	}
+	var entries []entry
+
+	p.structToID.Range(func(key, value any) bool {
+		entries = append(entries, entry{
+			id: value.(uint32),
+		})
+		return true
+	})
+
+	// Sort by ID.
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].id < entries[j].id
+	})
+
+	return func(yield func(*InternStructRef) bool) {
+		for _, e := range entries {
+			if !yield(&InternStructRef{pool: p, id: e.id}) {
+				return
+			}
+		}
+	}
+}
+
 // fieldSetKey casts a slice of uint32 to a string without copying.
 // The returned string shares memory with the slice. It is safe to use as a map key
 // ONLY if the slice is never modified.
@@ -233,4 +323,71 @@ func fieldSetKey(ids []uint32) string {
 	}
 	byteSlice := unsafe.Slice((*byte)(unsafe.Pointer(&ids[0])), len(ids)*4)
 	return unsafe.String(&byteSlice[0], len(byteSlice))
+}
+
+// structKey computes a deterministic binary key from fieldPathSetID and values.
+func structKey(fieldPathSetID uint32, values []*pb.InternedValue) string {
+	buf := make([]byte, 0, 4+len(values)*9)
+	buf = binary.LittleEndian.AppendUint32(buf, fieldPathSetID)
+	for _, v := range values {
+		buf = appendInternedValueKey(buf, v)
+	}
+	return unsafe.String(unsafe.SliceData(buf), len(buf))
+}
+
+// appendInternedValueKey appends a deterministic byte representation of InternedValue.
+func appendInternedValueKey(buf []byte, v *pb.InternedValue) []byte {
+	if v == nil || v.Kind == nil {
+		return append(buf, 0x00)
+	}
+	switch k := v.Kind.(type) {
+	case *pb.InternedValue_NullValue:
+		return append(buf, 0x01)
+	case *pb.InternedValue_BoolValue:
+		if k.BoolValue {
+			return append(buf, 0x02, 0x01)
+		}
+		return append(buf, 0x02, 0x00)
+	case *pb.InternedValue_Int64Value:
+		buf = append(buf, 0x03)
+		return binary.LittleEndian.AppendUint64(buf, uint64(k.Int64Value))
+	case *pb.InternedValue_DoubleValue:
+		buf = append(buf, 0x04)
+		return binary.LittleEndian.AppendUint64(buf, math.Float64bits(k.DoubleValue))
+	case *pb.InternedValue_StringValue:
+		buf = append(buf, 0x05)
+		return binary.LittleEndian.AppendUint32(buf, k.StringValue)
+	case *pb.InternedValue_StructId:
+		buf = append(buf, 0x06)
+		return binary.LittleEndian.AppendUint32(buf, k.StructId)
+	case *pb.InternedValue_StructValue:
+		if k.StructValue != nil {
+			if k.StructValue.GetId() > 0 {
+				buf = append(buf, 0x06)
+				return binary.LittleEndian.AppendUint32(buf, k.StructValue.GetId())
+			}
+			buf = append(buf, 0x09)
+			buf = binary.LittleEndian.AppendUint32(buf, k.StructValue.GetFieldPathSetId())
+			for _, elem := range k.StructValue.GetValues() {
+				buf = appendInternedValueKey(buf, elem)
+			}
+			return buf
+		}
+		buf = append(buf, 0x06)
+		return binary.LittleEndian.AppendUint32(buf, 0)
+	case *pb.InternedValue_TimestampValue:
+		buf = append(buf, 0x07)
+		buf = binary.LittleEndian.AppendUint64(buf, uint64(k.TimestampValue.GetSeconds()))
+		return binary.LittleEndian.AppendUint32(buf, uint32(k.TimestampValue.GetNanos()))
+	case *pb.InternedValue_ListValue:
+		buf = append(buf, 0x08)
+		listVals := k.ListValue.GetValues()
+		buf = binary.LittleEndian.AppendUint32(buf, uint32(len(listVals)))
+		for _, elem := range listVals {
+			buf = appendInternedValueKey(buf, elem)
+		}
+		return buf
+	default:
+		return append(buf, 0xFF)
+	}
 }

@@ -42,6 +42,7 @@ import {
   TimelineStyleChunkSchema,
 } from 'src/app/generated/khifile/v6/style_pb';
 import { InspectionDataBuilder } from 'src/app/parser/core/builder';
+import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
 import {
   InterningPoolChunkSchema,
   InternStringSchema,
@@ -81,13 +82,20 @@ describe('V6InternPoolAssembler', () => {
           fieldPathStringIds: [1, 2],
         }),
       ],
+      structs: [
+        create(InternedStructSchema, {
+          id: 100,
+          fieldPathSetId: 10,
+          values: [],
+        }),
+      ],
     });
 
     assembler.ingest(mockChunk);
 
     const builder = jasmine.createSpyObj<InspectionDataBuilder>(
       'InspectionDataBuilder',
-      ['addStrings', 'addFieldPathSets'],
+      ['addStrings', 'addFieldPathSets', 'addStructs'],
     );
     assembler.assembleInto(builder);
 
@@ -97,6 +105,9 @@ describe('V6InternPoolAssembler', () => {
     ]);
     expect(builder.addFieldPathSets).toHaveBeenCalledWith([
       { id: 10, fieldPathStringIds: [1, 2] },
+    ]);
+    expect(builder.addStructs).toHaveBeenCalledWith([
+      jasmine.objectContaining({ id: 100, fieldPathSetId: 10 }),
     ]);
   });
 });
@@ -112,6 +123,7 @@ describe('V6LogAssembler', () => {
           logTypeId: 10,
           severityTypeId: 20,
           summaryStringId: 30,
+          bodyStructId: 5,
         }),
       ],
     });
@@ -131,6 +143,7 @@ describe('V6LogAssembler', () => {
         logTypeId: 10,
         severityTypeId: 20,
         summaryStringId: 30,
+        bodyStructId: 5,
         body: undefined,
       },
     ]);
@@ -198,6 +211,7 @@ describe('V6TimelineAssembler', () => {
               principalStringId: 5,
               verbType: 2,
               stateType: 3,
+              resourceBodyStructId: 99,
               fieldAnnotations: [],
             }),
           ],
@@ -235,6 +249,7 @@ describe('V6TimelineAssembler', () => {
         principalStringId: 5,
         verbTypeId: 2,
         stateTypeId: 3,
+        resourceBodyStructId: 99,
         body: undefined,
         fieldAnnotations: [],
       },

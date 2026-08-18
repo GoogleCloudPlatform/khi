@@ -524,6 +524,61 @@ describe('TimelineStore', () => {
     expect(t.revisions[1].bodyYAML).toBe('');
   });
 
+  it('should return decoded revision body by resourceBodyStructId correctly', () => {
+    internPool.addStrings([
+      { id: 10, value: 'user' },
+      { id: 12, value: 'bob' },
+    ]);
+
+    internPool.addFieldPathSets([{ id: 1, fieldPathStringIds: [10] }]);
+
+    const struct = create(InternedStructSchema, {
+      id: 50,
+      fieldPathSetId: 1,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 12 },
+        }),
+      ],
+    });
+    internPool.addStructs([struct]);
+
+    const rawTimelines: TimelineDTO[] = [
+      {
+        id: 10,
+        timelineTypeId: 1,
+        nameStringId: 1,
+        parentTimelineId: 0,
+        revisionIds: [100],
+        eventIds: [],
+      },
+    ];
+
+    const rawRevisions: RevisionDTO[] = [
+      {
+        id: 100,
+        logId: 1,
+        changedTime: 10n,
+        principalStringId: 1,
+        verbTypeId: 1,
+        stateTypeId: 1,
+        resourceBodyStructId: 50,
+      },
+    ];
+
+    const logs = [
+      { id: 1, ts: 10n, logTypeId: 1, severityTypeId: 1, summaryStringId: 1 },
+    ];
+    logStore.initialize(logs, 1);
+
+    store.initialize(rawTimelines, 1, rawRevisions, 1, [], 0);
+
+    const t = store.getTimeline(10);
+    expect(t.revisions[0].body).toEqual({
+      user: 'bob',
+    });
+  });
+
   it('should cache revision body in WeakRef and re-decode when GC collected', () => {
     internPool.addStrings([
       { id: 10, value: 'user' },

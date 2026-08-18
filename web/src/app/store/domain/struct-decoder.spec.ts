@@ -219,4 +219,71 @@ describe('InternedStructDecoder', () => {
       'InternedValue kind is undefined',
     );
   });
+
+  it('should decode by struct ID with memoization', () => {
+    store.addStrings([
+      { id: 1, value: 'name' },
+      { id: 2, value: 'service' },
+    ]);
+    store.addFieldPathSets([{ id: 60, fieldPathStringIds: [1] }]);
+
+    const struct = create(InternedStructSchema, {
+      id: 5,
+      fieldPathSetId: 60,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 2 },
+        }),
+      ],
+    });
+
+    store.addStructs([struct]);
+
+    const decoded1 = decoder.decodeById(5);
+    const decoded2 = decoder.decodeById(5);
+
+    expect(decoded1).toEqual({ name: 'service' });
+    expect(decoded1).toBe(decoded2); // Memoization check
+  });
+
+  it('should decode struct with nested structId', () => {
+    store.addStrings([
+      { id: 1, value: 'child' },
+      { id: 2, value: 'leaf' },
+      { id: 3, value: 'hello' },
+    ]);
+    store.addFieldPathSets([
+      { id: 70, fieldPathStringIds: [1] },
+      { id: 71, fieldPathStringIds: [2] },
+    ]);
+
+    const childStruct = create(InternedStructSchema, {
+      id: 10,
+      fieldPathSetId: 71,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'stringValue', value: 3 },
+        }),
+      ],
+    });
+
+    const parentStruct = create(InternedStructSchema, {
+      id: 11,
+      fieldPathSetId: 70,
+      values: [
+        create(InternedValueSchema, {
+          kind: { case: 'structId', value: 10 },
+        }),
+      ],
+    });
+
+    store.addStructs([childStruct, parentStruct]);
+
+    const decoded = decoder.decodeById(11);
+    expect(decoded).toEqual({
+      child: {
+        leaf: 'hello',
+      },
+    });
+  });
 });

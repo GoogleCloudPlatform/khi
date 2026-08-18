@@ -32,7 +32,7 @@ message Log {
   // Timestamp when the log was recorded (e.g., when the event occurred in the source system).
   google.protobuf.Timestamp ts = 2;
 
-  // Structured data of the log body.
+  // Structured data of the log body (deprecated in favor of body_struct_id).
   khifile.InternedStruct body = 3;
 
   // ID of the summary string in InterningPoolChunk.
@@ -43,4 +43,7 @@ message Log {
 
   // ID of the severity in TimelineStyleChunk.
   uint32 severity_type_id = 6;
+
+  // ID of the interned struct body in InterningPoolChunk.
+  uint32 body_struct_id = 7;
 }

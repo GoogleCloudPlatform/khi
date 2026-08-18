@@ -145,7 +145,7 @@ export declare type Revision = Message<'khifile.v6.Revision'> & {
   changedTime?: Timestamp;
 
   /**
-   * The resource body at the time of the change. Use Struct to represent the resource body.
+   * The resource body at the time of the change (deprecated in favor of resource_body_struct_id).
    *
    * @generated from field: khifile.InternedStruct resource_body = 3;
    */
@@ -178,6 +178,13 @@ export declare type Revision = Message<'khifile.v6.Revision'> & {
    * @generated from field: repeated khifile.v6.FieldAnnotation field_annotations = 7;
    */
   fieldAnnotations: FieldAnnotation[];
+
+  /**
+   * ID of the interned resource body struct in InterningPoolChunk.
+   *
+   * @generated from field: uint32 resource_body_struct_id = 8;
+   */
+  resourceBodyStructId: number;
 };
 
 /**

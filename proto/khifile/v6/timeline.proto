@@ -54,7 +54,7 @@ message TimelineItems {
 message Revision {
   uint32 log_id = 1;
   google.protobuf.Timestamp changed_time = 2;
-  // The resource body at the time of the change. Use Struct to represent the resource body.
+  // The resource body at the time of the change (deprecated in favor of resource_body_struct_id).
   khifile.InternedStruct resource_body = 3;
   // ID of the InternString message in InterningPoolChunk.
   uint32 principal_string_id = 4;
@@ -64,6 +64,8 @@ message Revision {
   uint32 state_type = 6;
   // Annotations providing metadata for specific fields in this revision.
   repeated FieldAnnotation field_annotations = 7;
+  // ID of the interned resource body struct in InterningPoolChunk.
+  uint32 resource_body_struct_id = 8;
 }
 
 // Event represents a log associated on specific timeline.
@@ -72,10 +74,10 @@ message Event {
   uint32 log_id = 1;
 }
 
-// FieldAnnotation represents UI-rendered metadata (like tooltips or chips) 
+// FieldAnnotation represents UI-rendered metadata (like tooltips or chips)
 // attached to a specific field path in the resource body.
 message FieldAnnotation {
-  // ID of the InternString message for the JSONPatch path of the field 
+  // ID of the InternString message for the JSONPatch path of the field
   // (e.g., "/metadata/annotations/cloud.google.com~1neg").
   uint32 field_path_string_id = 1;
 
@@ -86,7 +88,7 @@ message FieldAnnotation {
   }
 }
 
-// MutatingWebhookInfo contains information about a mutating webhook 
+// MutatingWebhookInfo contains information about a mutating webhook
 // parsed from audit log annotations.
 message MutatingWebhookInfo {
   // ID of the InternString message representing the MutatingWebhookConfiguration name.

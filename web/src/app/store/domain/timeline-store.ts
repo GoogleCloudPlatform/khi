@@ -99,6 +99,7 @@ export interface RevisionDTO {
   readonly principalStringId: number;
   readonly verbTypeId: number;
   readonly stateTypeId: number;
+  readonly resourceBodyStructId?: number;
   readonly body?: Uint8Array;
   readonly fieldAnnotations?: readonly FieldAnnotationDTO[];
 }
@@ -139,6 +140,7 @@ export class TimelineStore {
   private revisionPrincipalStringIds!: Uint32Array;
   private revisionVerbTypeIds!: Uint32Array;
   private revisionStateTypeIds!: Uint32Array;
+  private revisionBodyStructIds!: Uint32Array;
   private revisionFieldAnnotations: (
     readonly FieldAnnotationDTO[] | undefined
   )[] = [];
@@ -318,6 +320,9 @@ export class TimelineStore {
     const revisionStateTypeIds = offset;
     offset += rCap * 4;
 
+    const revisionBodyStructIds = offset;
+    offset += rCap * 4;
+
     const revisionBodyBufferIndices = align(offset, 2);
     offset = revisionBodyBufferIndices + rCap * 2;
 
@@ -345,6 +350,7 @@ export class TimelineStore {
       revisionPrincipalStringIds,
       revisionVerbTypeIds,
       revisionStateTypeIds,
+      revisionBodyStructIds,
       revisionBodyBufferIndices,
       revisionBodyOffsets,
       revisionBodyLengths,
@@ -399,6 +405,11 @@ export class TimelineStore {
     this.revisionStateTypeIds = new Uint32Array(
       sab,
       layout.revisionStateTypeIds,
+      rCap,
+    );
+    this.revisionBodyStructIds = new Uint32Array(
+      sab,
+      layout.revisionBodyStructIds,
       rCap,
     );
     this.revisionBodyBufferIndices = new Uint16Array(
@@ -494,6 +505,7 @@ export class TimelineStore {
       this.revisionPrincipalStringIds[rIndex] = r.principalStringId;
       this.revisionVerbTypeIds[rIndex] = r.verbTypeId;
       this.revisionStateTypeIds[rIndex] = r.stateTypeId;
+      this.revisionBodyStructIds[rIndex] = r.resourceBodyStructId ?? 0;
       this.revisionFieldAnnotations[rIndex] = r.fieldAnnotations;
 
       if (r.body !== undefined && r.body.length > 0) {
@@ -782,6 +794,11 @@ export class TimelineStore {
     id: number,
   ): ReadonlyDomainElement<Record<string, unknown>> | null {
     const index = this.getRevisionIndex(id);
+    const structId = this.revisionBodyStructIds[index];
+    if (structId > 0) {
+      return this.decoder.decodeById(structId);
+    }
+
     const cached = this.revisionDecodedBodyCache[index]?.deref();
     if (cached) {
       return cached;

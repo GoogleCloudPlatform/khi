@@ -55,6 +55,7 @@ export interface LogDTO {
   readonly logTypeId: number;
   readonly severityTypeId: number;
   readonly summaryStringId: number;
+  readonly bodyStructId?: number;
   readonly body?: Uint8Array;
 }
 
@@ -70,6 +71,7 @@ export class LogStore {
   private logTypeIds!: Uint32Array;
   private severityIds!: Uint32Array;
   private summaryStringIds!: Uint32Array;
+  private bodyStructIds!: Uint32Array;
 
   // Packed body metadata
   private bodyBufferIndices!: Uint16Array;
@@ -154,6 +156,9 @@ export class LogStore {
     const summaryStringIdsOffset = currentOffset;
     currentOffset += capacity * 4;
 
+    const bodyStructIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
     const timestampsOffset = align(currentOffset, 8);
     currentOffset = timestampsOffset + capacity * 8;
 
@@ -183,6 +188,11 @@ export class LogStore {
     this.summaryStringIds = new Uint32Array(
       this.metadataSab,
       summaryStringIdsOffset,
+      capacity,
+    );
+    this.bodyStructIds = new Uint32Array(
+      this.metadataSab,
+      bodyStructIdsOffset,
       capacity,
     );
     this.timestamps = new BigUint64Array(
@@ -221,6 +231,9 @@ export class LogStore {
     const summaryStringIdsOffset = currentOffset;
     currentOffset += capacity * 4;
 
+    const bodyStructIdsOffset = currentOffset;
+    currentOffset += capacity * 4;
+
     const timestampsOffset = align(currentOffset, 8);
     currentOffset = timestampsOffset + capacity * 8;
 
@@ -247,6 +260,11 @@ export class LogStore {
     this.summaryStringIds = new Uint32Array(
       this.metadataSab,
       summaryStringIdsOffset,
+      capacity,
+    );
+    this.bodyStructIds = new Uint32Array(
+      this.metadataSab,
+      bodyStructIdsOffset,
       capacity,
     );
     this.timestamps = new BigUint64Array(
@@ -302,6 +320,7 @@ export class LogStore {
       this.logTypeIds[index] = log.logTypeId;
       this.severityIds[index] = log.severityTypeId;
       this.summaryStringIds[index] = log.summaryStringId;
+      this.bodyStructIds[index] = log.bodyStructId ?? 0;
 
       if (log.body !== undefined && log.body.length > 0) {
         this.addBody(index, log.body);
@@ -427,6 +446,11 @@ export class LogStore {
     id: number,
   ): ReadonlyDomainElement<Record<string, unknown>> | null {
     const index = this.getIndex(id);
+    const structId = this.bodyStructIds[index];
+    if (structId > 0) {
+      return this.decoder.decodeById(structId);
+    }
+
     const cached = this.decodedBodyCache[index]?.deref();
     if (cached) {
       return cached;

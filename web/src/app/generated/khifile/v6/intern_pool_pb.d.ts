@@ -18,6 +18,7 @@
 
 import type { GenFile, GenMessage } from '@bufbuild/protobuf/codegenv1';
 import type { Message } from '@bufbuild/protobuf';
+import type { InternedStruct } from '../shared_pb';
 
 /**
  * Describes the file khifile/v6/intern_pool.proto.
@@ -25,7 +26,7 @@ import type { Message } from '@bufbuild/protobuf';
 export declare const file_khifile_v6_intern_pool: GenFile;
 
 /**
- * InterningPoolChunk reduces file size by pooling common strings and field paths.
+ * InterningPoolChunk reduces file size by pooling common strings, field paths, and structs.
  *
  * @generated from message khifile.v6.InterningPoolChunk
  */
@@ -45,6 +46,13 @@ export declare type InterningPoolChunk =
      * @generated from field: repeated khifile.v6.InternFieldPathSet field_path_sets = 2;
      */
     fieldPathSets: InternFieldPathSet[];
+
+    /**
+     * Pool of unique structs to avoid duplication. Referenced by ID from other messages.
+     *
+     * @generated from field: repeated khifile.InternedStruct structs = 3;
+     */
+    structs: InternedStruct[];
   };
 
 /**

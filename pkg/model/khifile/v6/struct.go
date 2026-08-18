@@ -30,9 +30,9 @@ import (
 // \x00 is hardly included in YAML fields. So \x00 is a good separator.
 const fieldPathSeparator = "\x00"
 
-// ToInternedStruct converts a structured.Node to an InternedStruct.
+// ToInternedStruct converts a structured.Node to an InternedStructRef.
 // The input node must be a MapNodeType. It flattens nested maps by joining keys with a null character (\x00).
-func ToInternedStruct(node structured.Node, pool *InternPool) (*pb.InternedStruct, error) {
+func ToInternedStruct(node structured.Node, pool *InternPool) (*InternStructRef, error) {
 	if node.Type() != structured.MapNodeType {
 		return nil, fmt.Errorf("expected map node, got %v", node.Type())
 	}
@@ -55,11 +55,7 @@ func ToInternedStruct(node structured.Node, pool *InternPool) (*pb.InternedStruc
 		values = append(values, val)
 	}
 
-	id := fieldSetRef.id
-	return &pb.InternedStruct{
-		FieldPathSetId: &id,
-		Values:         values,
-	}, nil
+	return pool.InternStruct(fieldSetRef.id, values), nil
 }
 
 // flattenNode is a helper function to recursively flatten map nodes.
@@ -182,8 +178,8 @@ func mapToInternedValue(node structured.Node, pool *InternPool) (*pb.InternedVal
 		return nil, err
 	}
 	return &pb.InternedValue{
-		Kind: &pb.InternedValue_StructValue{
-			StructValue: s,
+		Kind: &pb.InternedValue_StructId{
+			StructId: s.id,
 		},
 	}, nil
 }
@@ -310,6 +306,12 @@ func FromInternedValue(v *pb.InternedValue, pool *InternPool) (structured.Node, 
 			elements = append(elements, node)
 		}
 		return structured.NewStandardSequenceNode(elements), nil
+	case *pb.InternedValue_StructId:
+		resolved := pool.resolveStructFromID(kind.StructId)
+		if resolved == nil {
+			return nil, fmt.Errorf("struct id %d not found in pool", kind.StructId)
+		}
+		return FromInternedStruct(resolved, pool)
 	case *pb.InternedValue_StructValue:
 		return FromInternedStruct(kind.StructValue, pool)
 	default:

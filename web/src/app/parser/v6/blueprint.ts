@@ -15,7 +15,10 @@
  */
 
 import { fromBinary, toBinary } from '@bufbuild/protobuf';
-import { InternedStructSchema } from 'src/app/generated/khifile/shared_pb';
+import {
+  InternedStruct,
+  InternedStructSchema,
+} from 'src/app/generated/khifile/shared_pb';
 import {
   ChunkDefinition,
   IDataAssembler,
@@ -112,6 +115,7 @@ export class V6MetadataAssembler implements IDataAssembler<MetadataChunk> {
 export class V6InternPoolAssembler implements IDataAssembler<InterningPoolChunk> {
   private readonly strings: StringEntryDTO[] = [];
   private readonly fieldPathSets: FieldPathSetEntryDTO[] = [];
+  private readonly structs: InternedStruct[] = [];
 
   /**
    * Ingests a decoded interning pool chunk.
@@ -126,6 +130,9 @@ export class V6InternPoolAssembler implements IDataAssembler<InterningPoolChunk>
         fieldPathStringIds: f.fieldPathStringIds,
       });
     }
+    for (const st of proto.structs) {
+      this.structs.push(st);
+    }
   }
 
   /**
@@ -134,6 +141,7 @@ export class V6InternPoolAssembler implements IDataAssembler<InterningPoolChunk>
   assembleInto(builder: InspectionDataBuilder): void {
     builder.addStrings(this.strings);
     builder.addFieldPathSets(this.fieldPathSets);
+    builder.addStructs(this.structs);
   }
 }
 
@@ -284,6 +292,7 @@ export class V6LogAssembler implements IDataAssembler<LogChunk> {
         logTypeId: log.logTypeId,
         severityTypeId: log.severityTypeId,
         summaryStringId: log.summaryStringId,
+        bodyStructId: log.bodyStructId !== 0 ? log.bodyStructId : undefined,
         body: log.body ? toBinary(InternedStructSchema, log.body) : undefined,
       });
     }
@@ -335,6 +344,8 @@ export class V6TimelineAssembler implements IDataAssembler<TimelineChunk> {
           principalStringId: r.principalStringId,
           verbTypeId: r.verbType,
           stateTypeId: r.stateType,
+          resourceBodyStructId:
+            r.resourceBodyStructId !== 0 ? r.resourceBodyStructId : undefined,
           body: r.resourceBody
             ? toBinary(InternedStructSchema, r.resourceBody)
             : undefined,

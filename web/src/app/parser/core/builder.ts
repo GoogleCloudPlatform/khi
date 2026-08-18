@@ -21,6 +21,7 @@ import {
   StringEntryDTO,
   FieldPathSetEntryDTO,
 } from 'src/app/store/domain/intern-pool-store';
+import { InternedStruct } from 'src/app/generated/khifile/shared_pb';
 import { IconAtlasDTO, StyleStore } from 'src/app/store/domain/style-store';
 import {
   TimelineStore,
@@ -84,6 +85,14 @@ export class InspectionDataBuilder {
    */
   public addFieldPathSets(sets: Iterable<FieldPathSetEntryDTO>): this {
     this.internPool.addFieldPathSets(sets);
+    return this;
+  }
+
+  /**
+   * Adds interned structs to the pool.
+   */
+  public addStructs(structs: Iterable<InternedStruct>): this {
+    this.internPool.addStructs(structs);
     return this;
   }
 
